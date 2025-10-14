@@ -294,24 +294,35 @@ Purchases
 
 ## Implementation Phases
 
-### Phase 1: Backend ✅
+### Phase 1: Backend ✅ COMPLETE
 - [x] Add reorder fields to Product schema
-- [ ] Create Purchase Suggestions API endpoint
-- [ ] Implement sales velocity calculations
-- [ ] Implement reorder logic
+- [x] Create Purchase Suggestions API endpoint
+- [x] Implement sales velocity calculations
+- [x] Implement reorder logic
+- [x] Add location-based filtering
+- [x] Add supplier and urgency filtering
 
-### Phase 2: Frontend
-- [ ] Create Purchase Suggestions page
-- [ ] Add filters and search
-- [ ] Implement data table with selection
-- [ ] Add Generate PO functionality
+### Phase 2: Frontend ✅ COMPLETE
+- [x] Create Purchase Suggestions page
+- [x] Add filters and search
+- [x] Implement data table with selection
+- [x] Add summary statistics cards
+- [x] Add print functionality
+- [x] Add urgency badges and color coding
+- [x] Add navigation menu item
 
-### Phase 3: Product Management
+### Phase 3: Product Management 🚧 PENDING
 - [ ] Add reorder settings to product form
 - [ ] Add "Calculate from Sales" helper
 - [ ] Add bulk update reorder settings
 
-### Phase 4: Automation (Future)
+### Phase 4: Generate PO from Suggestions 🚧 PENDING
+- [ ] Implement Generate PO API endpoint
+- [ ] Group suggestions by supplier
+- [ ] Create draft purchase orders
+- [ ] Link to PO editing page
+
+### Phase 5: Automation (Future)
 - [ ] Email alerts for critical items
 - [ ] Scheduled reorder suggestions report
 - [ ] Auto-generate draft POs

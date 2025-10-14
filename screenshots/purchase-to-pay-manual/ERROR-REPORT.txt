@@ -1,0 +1,87 @@
+PURCHASE-TO-PAY UI ERROR REPORT
+================================================================================
+
+Date: 2025-10-09T01:44:24.658Z
+Total Errors: 11
+
+Error 1:
+  Page: Login
+  Error: Invalid credentials - database may not be seeded
+  Screenshot: 0-login-submitted.png
+
+Error 2:
+  Type: JavaScript Error
+  Error: Rendered more hooks than during the previous render.
+  Stack Trace:
+Error: Rendered more hooks than during the previous render.
+    at updateWorkInProgressHook (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:6979:17)
+    at updateMemo (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:7882:18)
+    at Object.useMemo (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:24153:18)
+    at exports.useMemo (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react/cjs/react.development.js:1240:34)
+    at Router (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/app-router.js:170:59)
+    at Object.react_stack_bottom_frame (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:23584:20)
+    at renderWithHooks (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:6793:22)
+    at updateFunctionComponent (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:9247:19)
+    at beginWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:10858:18)
+    at runWithFiberInDEV (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:872:30)
+    at performUnitOfWork (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15727:22)
+    at workLoopSync (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15547:41)
+    at renderRootSync (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15527:11)
+    at performWorkOnRoot (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:15034:44)
+    at performWorkOnRootViaSchedulerTask (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:16816:7)
+    at MessagePort.performWorkUntilDeadline (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/scheduler/cjs/scheduler.development.js:45:48)
+
+Error 3:
+  Page: Purchases List
+  URL: http://localhost:3001/dashboard/purchases
+  Error: Application error: a client-side exception has occurred while loading localhost (see the browser console for more inf
+  Screenshot: 1-purchases-list.png
+
+Error 4:
+  Page: Accounts Payable
+  URL: http://localhost:3001/dashboard/accounts-payable
+  Error: undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$7\",null,\"
+  Screenshot: 2-accounts-payable.png
+
+Error 5:
+  Page: Accounts Payable
+  URL: http://localhost:3001/dashboard/accounts-payable
+  Error: Page redirected to login - authentication issue
+  Screenshot: 2-accounts-payable.png
+
+Error 6:
+  Page: Payments List
+  URL: http://localhost:3001/dashboard/payments
+  Error: undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$7\",null,\"
+  Screenshot: 3-payments-list.png
+
+Error 7:
+  Page: Payments List
+  URL: http://localhost:3001/dashboard/payments
+  Error: Page redirected to login - authentication issue
+  Screenshot: 3-payments-list.png
+
+Error 8:
+  Page: Payment Form
+  URL: http://localhost:3001/dashboard/payments/new
+  Error: undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$7\",null,\"
+  Screenshot: 4-payment-form.png
+
+Error 9:
+  Page: Payment Form
+  URL: http://localhost:3001/dashboard/payments/new
+  Error: Page redirected to login - authentication issue
+  Screenshot: 4-payment-form.png
+
+Error 10:
+  Page: Post-Dated Cheques
+  URL: http://localhost:3001/dashboard/post-dated-cheques
+  Error: undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$7\",null,\"
+  Screenshot: 5-post-dated-cheques.png
+
+Error 11:
+  Page: Post-Dated Cheques
+  URL: http://localhost:3001/dashboard/post-dated-cheques
+  Error: Page redirected to login - authentication issue
+  Screenshot: 5-post-dated-cheques.png
+

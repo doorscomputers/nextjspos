@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import Link from 'next/link'
-import { MagnifyingGlassIcon, EyeIcon, CurrencyDollarIcon, FunnelIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { useRouter } from 'next/navigation'
+import { MagnifyingGlassIcon, EyeIcon, CurrencyDollarIcon, FunnelIcon, XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
@@ -82,6 +83,11 @@ export default function AccountsPayablePage() {
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'invoice', 'supplier', 'invoiceDate', 'dueDate', 'amount', 'paid', 'balance', 'status', 'actions'
   ])
+
+  // Batch payment state
+  const [batchMode, setBatchMode] = useState(false)
+  const [selectedPayables, setSelectedPayables] = useState<number[]>([])
+  const router = useRouter()
 
   useEffect(() => {
     fetchPayables()
@@ -307,6 +313,57 @@ export default function AccountsPayablePage() {
     setSearchTerm('')
   }
 
+  // Batch payment functions
+  const toggleBatchMode = () => {
+    setBatchMode(!batchMode)
+    setSelectedPayables([])
+  }
+
+  const togglePayableSelection = (payableId: number) => {
+    setSelectedPayables(prev =>
+      prev.includes(payableId)
+        ? prev.filter(id => id !== payableId)
+        : [...prev, payableId]
+    )
+  }
+
+  const selectAllPayables = () => {
+    const unpaidPayableIds = sortedData
+      .filter(p => p.balanceAmount > 0 && p.status !== 'paid')
+      .map(p => p.id)
+    setSelectedPayables(unpaidPayableIds)
+  }
+
+  const deselectAll = () => {
+    setSelectedPayables([])
+  }
+
+  const proceedWithBatchPayment = () => {
+    if (selectedPayables.length === 0) {
+      toast.error('Please select at least one invoice to pay')
+      return
+    }
+
+    // Check if all selected payables are from the same supplier
+    const selectedPayableData = sortedData.filter(p => selectedPayables.includes(p.id))
+    const supplierIds = [...new Set(selectedPayableData.map(p => p.supplier.id))]
+
+    if (supplierIds.length > 1) {
+      toast.error('All selected invoices must be from the same supplier')
+      return
+    }
+
+    // Navigate to batch payment page
+    const apIds = selectedPayables.join(',')
+    router.push(`/dashboard/payments/batch?apIds=${apIds}`)
+  }
+
+  const getTotalSelected = () => {
+    return sortedData
+      .filter(p => selectedPayables.includes(p.id))
+      .reduce((sum, p) => sum + p.balanceAmount, 0)
+  }
+
   if (!can(PERMISSIONS.ACCOUNTS_PAYABLE_VIEW)) {
     return (
       <div className="p-8">
@@ -325,14 +382,104 @@ export default function AccountsPayablePage() {
           <p className="text-muted-foreground mt-1">Monitor and manage supplier payables</p>
         </div>
         {can(PERMISSIONS.PAYMENT_CREATE) && (
-          <Link href="/dashboard/payments/new">
-            <Button>
-              <CurrencyDollarIcon className="w-5 h-5 mr-2" />
-              Make Payment
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={batchMode ? "destructive" : "default"}
+              onClick={toggleBatchMode}
+              className={batchMode
+                ? "bg-red-600 hover:bg-red-700 text-white font-bold border-2 border-red-700 shadow-md"
+                : "bg-purple-600 hover:bg-purple-700 text-white font-bold border-2 border-purple-700 shadow-md"
+              }
+            >
+              {batchMode ? (
+                <>
+                  <XMarkIcon className="w-5 h-5 mr-2" />
+                  Cancel Batch
+                </>
+              ) : (
+                <>
+                  <CheckCircleIcon className="w-5 h-5 mr-2" />
+                  Batch Payment
+                </>
+              )}
             </Button>
-          </Link>
+            {!batchMode && (
+              <Link href="/dashboard/payments/new">
+                <Button className="bg-green-600 hover:bg-green-700 text-white font-bold border-2 border-green-700 shadow-md">
+                  <CurrencyDollarIcon className="w-5 h-5 mr-2" />
+                  Make Payment
+                </Button>
+              </Link>
+            )}
+            {batchMode && selectedPayables.length > 0 && (
+              <Button
+                onClick={proceedWithBatchPayment}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold border-2 border-blue-700 shadow-md"
+              >
+                <CurrencyDollarIcon className="w-5 h-5 mr-2" />
+                Pay {selectedPayables.length} Invoice{selectedPayables.length > 1 ? 's' : ''} ({formatCurrency(getTotalSelected())})
+              </Button>
+            )}
+          </div>
         )}
       </div>
+
+      {batchMode && (
+        <Card className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30">
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="font-semibold text-blue-900 dark:text-blue-100">Batch Payment Mode</h3>
+                <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                  Select multiple invoices from the same supplier to pay them together in one transaction
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={selectAllPayables}
+                  className="bg-green-600 hover:bg-green-700 text-white font-bold border-2 border-green-700 shadow-sm"
+                >
+                  Select All Unpaid
+                </Button>
+                {selectedPayables.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={deselectAll}
+                    className="bg-orange-600 hover:bg-orange-700 text-white font-bold border-2 border-orange-700 shadow-sm"
+                  >
+                    Deselect All
+                  </Button>
+                )}
+              </div>
+            </div>
+            {selectedPayables.length > 0 && (
+              <div className="mt-4 p-3 bg-white dark:bg-blue-900/50 rounded-lg border border-blue-300 dark:border-blue-700">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Selected Invoices</p>
+                    <p className="font-bold text-blue-900 dark:text-blue-100">{selectedPayables.length}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Total Balance</p>
+                    <p className="font-bold text-blue-900 dark:text-blue-100">{formatCurrency(getTotalSelected())}</p>
+                  </div>
+                  <div className="col-span-2 flex items-center justify-end">
+                    <Button
+                      onClick={proceedWithBatchPayment}
+                      className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold border-2 border-blue-700 shadow-md"
+                    >
+                      Proceed to Payment
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Aging Summary Cards */}
       {agingData && (
@@ -509,6 +656,16 @@ export default function AccountsPayablePage() {
           <table className="min-w-full divide-y divide-border">
             <thead className="bg-muted/50">
               <tr>
+                {batchMode && (
+                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    <input
+                      type="checkbox"
+                      checked={selectedPayables.length > 0 && selectedPayables.length === sortedData.filter(p => p.balanceAmount > 0 && p.status !== 'paid').length}
+                      onChange={(e) => e.target.checked ? selectAllPayables() : deselectAll()}
+                      className="w-4 h-4 text-primary border-input rounded focus:ring-ring"
+                    />
+                  </th>
+                )}
                 {visibleColumns.includes('invoice') && (
                   <SortableTableHead
                     sortKey="invoiceNumber"
@@ -619,7 +776,18 @@ export default function AccountsPayablePage() {
                 </tr>
               ) : (
                 sortedData.map((payable) => (
-                  <tr key={payable.id} className="hover:bg-muted/50 transition-colors">
+                  <tr key={payable.id} className={`hover:bg-muted/50 transition-colors ${batchMode && selectedPayables.includes(payable.id) ? 'bg-blue-50 dark:bg-blue-950/20' : ''}`}>
+                    {batchMode && (
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedPayables.includes(payable.id)}
+                          onChange={() => togglePayableSelection(payable.id)}
+                          disabled={payable.balanceAmount <= 0 || payable.status === 'paid'}
+                          className="w-4 h-4 text-primary border-input rounded focus:ring-ring disabled:opacity-50"
+                        />
+                      </td>
+                    )}
                     {visibleColumns.includes('invoice') && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                         {payable.invoiceNumber}
@@ -674,14 +842,23 @@ export default function AccountsPayablePage() {
                         {getStatusBadge(payable.status)}
                       </td>
                     )}
-                    {visibleColumns.includes('actions') && (
+                    {visibleColumns.includes('actions') && !batchMode && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                         <Link href={`/dashboard/payments/new?apId=${payable.id}`}>
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold border-2 border-blue-700 shadow-sm"
+                          >
                             <CurrencyDollarIcon className="w-4 h-4 mr-1" />
                             Pay
                           </Button>
                         </Link>
+                      </td>
+                    )}
+                    {visibleColumns.includes('actions') && batchMode && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                        {selectedPayables.includes(payable.id) ? 'Selected' : ''}
                       </td>
                     )}
                   </tr>

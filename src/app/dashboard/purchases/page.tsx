@@ -296,14 +296,37 @@ export default function PurchasesPage() {
   }
 
   const getStatusBadge = (status: string) => {
-    const config: { [key: string]: { variant: "default" | "secondary" | "destructive" | "outline", label: string } } = {
-      'pending': { variant: 'secondary', label: 'Pending' },
-      'partially_received': { variant: 'secondary', label: 'Partially Received' },
-      'received': { variant: 'default', label: 'Received' },
-      'cancelled': { variant: 'destructive', label: 'Cancelled' },
+    const statusLower = status.toLowerCase()
+
+    if (statusLower === 'pending') {
+      return (
+        <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-300">
+          Pending
+        </Badge>
+      )
     }
-    const statusConfig = config[status] || { variant: 'outline', label: status }
-    return <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+
+    if (statusLower === 'received') {
+      return (
+        <Badge className="bg-green-100 text-green-800 hover:bg-green-200 border-green-300">
+          Received
+        </Badge>
+      )
+    }
+
+    if (statusLower === 'partially_received') {
+      return (
+        <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-300">
+          Partially Received
+        </Badge>
+      )
+    }
+
+    if (statusLower === 'cancelled') {
+      return <Badge variant="destructive">Cancelled</Badge>
+    }
+
+    return <Badge variant="outline">{status}</Badge>
   }
 
   const getReceivedStatus = (items: Purchase['items']) => {

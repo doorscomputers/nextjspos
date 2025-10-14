@@ -1,0 +1,20 @@
+🚀 Starting Product Search Test...
+
+📍 Step 1: Navigating to login page...
+📍 Step 2: Logging in as Jheirone...
+
+❌ Test failed with error: page.waitForURL: Timeout 10000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to "**/dashboard**" until "load"
+============================================================
+📸 Error screenshot saved as test-error.png
+
+👋 Browser closed
+
+❌ Test suite failed: page.waitForURL: Timeout 10000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to "**/dashboard**" until "load"
+============================================================
+    at testProductSearch (C:\xampp\htdocs\ultimatepos-modern\test-purchase-product-search.js:81:16) {
+  name: 'TimeoutError'
+}

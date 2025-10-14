@@ -88,10 +88,31 @@ export async function POST(
       })
       if (!userLocation) {
         return NextResponse.json(
-          { error: 'No access to destination location' },
+          { error: 'No access to destination location. Only users assigned to the receiving location can complete transfers.' },
           { status: 403 }
         )
       }
+    }
+
+    // ENFORCE: Completer must be at destination location and different from previous workflow participants
+    if (transfer.createdBy === parseInt(userId)) {
+      return NextResponse.json(
+        {
+          error: 'Cannot complete your own transfer. A supervisor or manager at the destination location must complete this transfer.',
+          code: 'SAME_USER_VIOLATION'
+        },
+        { status: 403 }
+      )
+    }
+
+    if (transfer.sentBy === parseInt(userId)) {
+      return NextResponse.json(
+        {
+          error: 'Cannot complete a transfer you sent. A user at the destination location must complete this transfer.',
+          code: 'SAME_USER_VIOLATION'
+        },
+        { status: 403 }
+      )
     }
 
     // CRITICAL: Use transaction to ensure atomicity

@@ -80,10 +80,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { username, password, email, surname, firstName, lastName, roleIds, locationIds, allowLogin } = body
+    const { username, password, email, surname, firstName, lastName, roleIds, locationId, allowLogin } = body
 
     if (!username || !surname || !firstName) {
       return NextResponse.json({ error: 'Required fields missing' }, { status: 400 })
+    }
+
+    if (!locationId) {
+      return NextResponse.json({ error: 'Location is required. Please select a location for the user.' }, { status: 400 })
     }
 
     // Check if username already exists
@@ -126,18 +130,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Assign locations
-    if (locationIds && Array.isArray(locationIds)) {
-      await Promise.all(
-        locationIds.map((locationId: number) =>
-          prisma.userLocation.create({
-            data: {
-              userId: newUser.id,
-              locationId,
-            },
-          })
-        )
-      )
+    // Assign single location
+    if (locationId) {
+      await prisma.userLocation.create({
+        data: {
+          userId: newUser.id,
+          locationId: parseInt(locationId),
+        },
+      })
     }
 
     return NextResponse.json({ success: true, user: { id: newUser.id, username: newUser.username } }, { status: 201 })

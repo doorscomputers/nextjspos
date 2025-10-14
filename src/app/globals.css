@@ -355,4 +355,94 @@
     background: rgba(255, 255, 255, 0.3) !important;
     opacity: 1 !important;
   }
+
+  /* Blinking animation for payment warnings */
+  @keyframes blink {
+    0%, 50%, 100% {
+      opacity: 1;
+    }
+    25%, 75% {
+      opacity: 0.3;
+    }
+  }
+
+  .animate-blink {
+    animation: blink 1s ease-in-out infinite;
+  }
+
+  /* Print styles for Purchase Orders */
+  @media print {
+    /* Hide UI elements */
+    .no-print {
+      display: none !important;
+    }
+
+    /* Reset page */
+    body {
+      @apply bg-white text-black;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Optimize for printing */
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    /* Page setup */
+    @page {
+      size: A4;
+      margin: 1cm;
+    }
+
+    /* Ensure content fits on page */
+    .print-container {
+      width: 100%;
+      max-width: 100%;
+      padding: 1rem;
+    }
+
+    /* Table styles for print */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      page-break-inside: auto;
+    }
+
+    tr {
+      page-break-inside: avoid;
+      page-break-after: auto;
+    }
+
+    thead {
+      display: table-header-group;
+    }
+
+    /* Remove shadows and borders */
+    .card, .shadow, .shadow-lg, .shadow-md {
+      box-shadow: none !important;
+      border: 1px solid #e5e7eb;
+    }
+
+    /* Text colors for print */
+    .text-gray-600, .text-gray-700 {
+      color: #374151 !important;
+    }
+
+    .text-gray-900 {
+      color: #111827 !important;
+    }
+
+    /* Remove background colors */
+    .bg-gray-50, .bg-gray-100, .bg-blue-50 {
+      background-color: transparent !important;
+    }
+
+    /* Badge styles for print */
+    .badge, [class*="badge"] {
+      border: 1px solid #d1d5db;
+      padding: 2px 8px;
+    }
+  }
 }

@@ -80,9 +80,18 @@ export default function NewPaymentPage() {
     if (apIdFromUrl && payables.length > 0) {
       const ap = payables.find(p => p.id.toString() === apIdFromUrl)
       if (ap) {
+        // Auto-populate supplier, invoice, and amount from the selected payable
         setSelectedSupplierId(ap.supplier.id.toString())
         setSelectedAPId(apIdFromUrl)
         setAmount(ap.balanceAmount.toString())
+
+        // Log for debugging
+        console.log('Auto-populated from AP:', {
+          supplierId: ap.supplier.id,
+          supplierName: ap.supplier.name,
+          apId: apIdFromUrl,
+          amount: ap.balanceAmount
+        })
       }
     }
   }, [apIdFromUrl, payables])
@@ -193,6 +202,7 @@ export default function NewPaymentPage() {
     try {
       const payload: any = {
         accountsPayableId: parseInt(selectedAPId),
+        supplierId: parseInt(selectedSupplierId), // Add supplierId to payload
         paymentMethod,
         amount: parseFloat(amount),
         paymentDate,
@@ -275,24 +285,40 @@ export default function NewPaymentPage() {
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Supplier <span className="text-destructive">*</span>
                 </label>
-                <Select
-                  value={selectedSupplierId}
-                  onValueChange={setSelectedSupplierId}
-                  disabled={!!apIdFromUrl}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select supplier" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {suppliers.map(supplier => (
-                      <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                        {supplier.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {apIdFromUrl && (
-                  <p className="text-xs text-muted-foreground mt-1">Auto-selected from invoice</p>
+                {apIdFromUrl && selectedAPId ? (
+                  <div>
+                    <div className="w-full px-4 py-2 border border-input bg-muted text-foreground rounded-lg">
+                      {(() => {
+                        // Try to get supplier from the selected payable first
+                        const selectedPayable = payables.find(p => p.id.toString() === selectedAPId)
+                        if (selectedPayable) {
+                          return selectedPayable.supplier.name
+                        }
+                        // Fallback to suppliers list
+                        const supplier = suppliers.find(s => s.id.toString() === selectedSupplierId)
+                        return supplier ? supplier.name : 'Loading...'
+                      })()}
+                    </div>
+                    <p className="text-xs text-green-600 dark:text-green-500 mt-1 flex items-center gap-1">
+                      ✓ Auto-selected from invoice
+                    </p>
+                  </div>
+                ) : (
+                  <Select
+                    value={selectedSupplierId}
+                    onValueChange={setSelectedSupplierId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select supplier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {suppliers.map(supplier => (
+                        <SelectItem key={supplier.id} value={supplier.id.toString()}>
+                          {supplier.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
               </div>
 
@@ -457,12 +483,13 @@ export default function NewPaymentPage() {
                       </Select>
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="default"
                         size="icon"
                         onClick={() => setShowAddBankDialog(true)}
                         title="Add new bank"
+                        className="bg-green-600 hover:bg-green-700 text-white font-bold border-2 border-green-700 shadow-md"
                       >
-                        <PlusIcon className="w-4 h-4" />
+                        <PlusIcon className="w-5 h-5" />
                       </Button>
                     </div>
                   </div>
@@ -518,12 +545,13 @@ export default function NewPaymentPage() {
                       </Select>
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="default"
                         size="icon"
                         onClick={() => setShowAddBankDialog(true)}
                         title="Add new bank"
+                        className="bg-green-600 hover:bg-green-700 text-white font-bold border-2 border-green-700 shadow-md"
                       >
-                        <PlusIcon className="w-4 h-4" />
+                        <PlusIcon className="w-5 h-5" />
                       </Button>
                     </div>
                   </div>
@@ -621,11 +649,19 @@ export default function NewPaymentPage() {
 
         <div className="flex flex-col sm:flex-row gap-4 justify-end">
           <Link href="/dashboard/accounts-payable">
-            <Button type="button" variant="outline">
+            <Button
+              type="button"
+              variant="outline"
+              className="bg-gray-200 hover:bg-gray-300 text-gray-900 font-bold border-2 border-gray-400 shadow-md dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white dark:border-gray-500"
+            >
               Cancel
             </Button>
           </Link>
-          <Button type="submit" disabled={loading}>
+          <Button
+            type="submit"
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold border-2 border-blue-700 shadow-lg disabled:bg-gray-400 disabled:border-gray-500"
+          >
             {loading ? 'Recording Payment...' : 'Record Payment'}
           </Button>
         </div>
@@ -664,10 +700,15 @@ export default function NewPaymentPage() {
                 setShowAddBankDialog(false)
                 setNewBankName('')
               }}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-900 font-bold border-2 border-gray-400 shadow-md dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white dark:border-gray-500"
             >
               Cancel
             </Button>
-            <Button type="button" onClick={handleAddNewBank}>
+            <Button
+              type="button"
+              onClick={handleAddNewBank}
+              className="bg-green-600 hover:bg-green-700 text-white font-bold border-2 border-green-700 shadow-md"
+            >
               Add Bank
             </Button>
           </DialogFooter>

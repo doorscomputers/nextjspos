@@ -63,7 +63,8 @@ export async function GET(
       allowLogin: user.allowLogin,
       roleIds: user.roles.map(ur => ur.roleId),
       roles: user.roles.map(ur => ur.role.name),
-      locationIds: user.userLocations.map(ul => ul.locationId),
+      locationId: user.userLocations.length > 0 ? user.userLocations[0].locationId : null, // Changed to single location
+      locationIds: user.userLocations.map(ul => ul.locationId), // Keep for backward compatibility
       locations: user.userLocations.map(ul => ul.location.name),
       createdAt: user.createdAt,
     }
@@ -108,7 +109,7 @@ export async function PUT(
       firstName,
       lastName,
       roleIds,
-      locationIds,
+      locationId, // Changed to single location
       allowLogin
     } = body
 
@@ -179,25 +180,21 @@ export async function PUT(
       )
     }
 
-    // Update locations if provided (can be empty array to clear)
-    if (locationIds !== undefined && Array.isArray(locationIds)) {
+    // Update location if provided (single location)
+    if (locationId !== undefined) {
       // Delete existing location assignments
       await prisma.userLocation.deleteMany({
         where: { userId },
       })
 
-      // Create new location assignments (if any)
-      if (locationIds.length > 0) {
-        await Promise.all(
-          locationIds.map((locationId: number) =>
-            prisma.userLocation.create({
-              data: {
-                userId,
-                locationId,
-              },
-            })
-          )
-        )
+      // Create new location assignment
+      if (locationId) {
+        await prisma.userLocation.create({
+          data: {
+            userId,
+            locationId: parseInt(locationId),
+          },
+        })
       }
     }
 

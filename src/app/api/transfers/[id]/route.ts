@@ -51,6 +51,54 @@ export async function GET(
       )
     }
 
+    // Fetch product and variation details for each item
+    const itemsWithDetails = await Promise.all(
+      transfer.items.map(async (item) => {
+        const [product, variation] = await Promise.all([
+          prisma.product.findUnique({
+            where: { id: item.productId },
+            select: { id: true, name: true, sku: true },
+          }),
+          prisma.productVariation.findUnique({
+            where: { id: item.productVariationId },
+            select: { id: true, name: true, sku: true },
+          }),
+        ])
+        return {
+          ...item,
+          product,
+          productVariation: variation,
+        }
+      })
+    )
+
+    // Fetch user details for workflow participants
+    const userIds = [
+      transfer.createdBy,
+      transfer.checkedBy,
+      transfer.sentBy,
+      transfer.arrivedBy,
+      transfer.verifiedBy,
+      transfer.completedBy,
+    ].filter((id): id is number => id !== null && id !== undefined)
+
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, username: true },
+    })
+
+    const userMap = new Map(users.map(u => [u.id, u]))
+
+    // Fetch location names
+    const locations = await prisma.businessLocation.findMany({
+      where: {
+        id: { in: [transfer.fromLocationId, transfer.toLocationId] },
+        businessId: parseInt(businessId),
+      },
+      select: { id: true, name: true },
+    })
+    const locationMap = new Map(locations.map(l => [l.id, l.name]))
+
     // Verify user has access to either source or destination location
     const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
     if (!hasAccessAllLocations) {
@@ -68,7 +116,21 @@ export async function GET(
       }
     }
 
-    return NextResponse.json(transfer)
+    // Build response with user details and location names
+    const response = {
+      ...transfer,
+      items: itemsWithDetails,
+      fromLocationName: locationMap.get(transfer.fromLocationId) || `Location ${transfer.fromLocationId}`,
+      toLocationName: locationMap.get(transfer.toLocationId) || `Location ${transfer.toLocationId}`,
+      creator: transfer.createdBy ? userMap.get(transfer.createdBy) : null,
+      checker: transfer.checkedBy ? userMap.get(transfer.checkedBy) : null,
+      sender: transfer.sentBy ? userMap.get(transfer.sentBy) : null,
+      arrivalMarker: transfer.arrivedBy ? userMap.get(transfer.arrivedBy) : null,
+      verifier: transfer.verifiedBy ? userMap.get(transfer.verifiedBy) : null,
+      completer: transfer.completedBy ? userMap.get(transfer.completedBy) : null,
+    }
+
+    return NextResponse.json(response)
   } catch (error) {
     console.error('Error fetching stock transfer:', error)
     return NextResponse.json(

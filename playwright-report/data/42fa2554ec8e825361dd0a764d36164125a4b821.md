@@ -1,0 +1,253 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - region "Notifications alt+T"
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - heading "PciNet Computer Trading and Services" [level=1] [ref=e6]
+        - generic [ref=e7]:
+          - paragraph [ref=e8]: Super Admin User
+          - paragraph [ref=e9]: PciNet Computer Trading and Services
+          - paragraph [ref=e10]: Super Admin
+        - navigation [ref=e11]:
+          - link "Dashboard" [ref=e13] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e14] [cursor=pointer]
+            - text: Dashboard
+          - link "AI Assistant" [ref=e17] [cursor=pointer]:
+            - /url: /dashboard/ai-assistant
+            - img [ref=e18] [cursor=pointer]
+            - text: AI Assistant
+          - generic [ref=e20]:
+            - button "POS & Sales" [ref=e21]:
+              - generic [ref=e22]:
+                - img [ref=e23]
+                - text: POS & Sales
+              - img [ref=e25]
+            - generic [ref=e27]:
+              - link "Point of Sale" [ref=e28] [cursor=pointer]:
+                - /url: /dashboard/pos
+              - link "POS v2 (Enhanced)" [ref=e29] [cursor=pointer]:
+                - /url: /dashboard/pos-v2
+              - link "Begin Shift" [ref=e30] [cursor=pointer]:
+                - /url: /dashboard/shifts/begin
+              - link "Close Shift" [ref=e31] [cursor=pointer]:
+                - /url: /dashboard/shifts/close
+              - link "X Reading" [ref=e32] [cursor=pointer]:
+                - /url: /dashboard/readings/x-reading
+              - link "Sales List" [ref=e33] [cursor=pointer]:
+                - /url: /dashboard/sales
+          - generic [ref=e34]:
+            - button "Products" [ref=e35]:
+              - generic [ref=e36]:
+                - img [ref=e37]
+                - text: Products
+              - img [ref=e39]
+            - generic [ref=e41]:
+              - link "List Products" [ref=e42] [cursor=pointer]:
+                - /url: /dashboard/products
+              - link "All Branch Stock" [ref=e43] [cursor=pointer]:
+                - /url: /dashboard/products/stock
+              - link "Add Product" [ref=e44] [cursor=pointer]:
+                - /url: /dashboard/products/add
+              - link "Print Labels" [ref=e45] [cursor=pointer]:
+                - /url: /dashboard/products/print-labels
+              - link "Import Products" [ref=e46] [cursor=pointer]:
+                - /url: /dashboard/products/import
+              - link "Categories" [ref=e47] [cursor=pointer]:
+                - /url: /dashboard/products/categories
+              - link "Brands" [ref=e48] [cursor=pointer]:
+                - /url: /dashboard/products/brands
+              - link "Units" [ref=e49] [cursor=pointer]:
+                - /url: /dashboard/products/units
+              - link "Warranties" [ref=e50] [cursor=pointer]:
+                - /url: /dashboard/products/warranties
+              - link "Bulk Reorder Settings" [ref=e51] [cursor=pointer]:
+                - /url: /dashboard/products/bulk-reorder-update
+          - link "Inventory Corrections" [ref=e53] [cursor=pointer]:
+            - /url: /dashboard/inventory-corrections
+            - img [ref=e54] [cursor=pointer]
+            - text: Inventory Corrections
+          - link "Physical Inventory" [ref=e57] [cursor=pointer]:
+            - /url: /dashboard/physical-inventory
+            - img [ref=e58] [cursor=pointer]
+            - text: Physical Inventory
+          - generic [ref=e60]:
+            - button "Purchases" [ref=e61]:
+              - generic [ref=e62]:
+                - img [ref=e63]
+                - text: Purchases
+              - img [ref=e65]
+            - generic [ref=e67]:
+              - link "Purchase Orders" [ref=e68] [cursor=pointer]:
+                - /url: /dashboard/purchases
+              - link "Goods Received (GRN)" [ref=e69] [cursor=pointer]:
+                - /url: /dashboard/purchases/receipts
+              - link "Serial Number Lookup" [ref=e70] [cursor=pointer]:
+                - /url: /dashboard/serial-lookup
+              - link "Reorder Suggestions" [ref=e71] [cursor=pointer]:
+                - /url: /dashboard/purchases/suggestions
+              - link "Accounts Payable" [ref=e72] [cursor=pointer]:
+                - /url: /dashboard/accounts-payable
+              - link "Payments" [ref=e73] [cursor=pointer]:
+                - /url: /dashboard/payments
+              - link "Banks" [ref=e74] [cursor=pointer]:
+                - /url: /dashboard/banks
+              - link "Bank Transactions" [ref=e75] [cursor=pointer]:
+                - /url: /dashboard/bank-transactions
+              - link "Post-Dated Cheques" [ref=e76] [cursor=pointer]:
+                - /url: /dashboard/post-dated-cheques
+          - button "Stock Transfers" [ref=e78]:
+            - generic [ref=e79]:
+              - img [ref=e80]
+              - text: Stock Transfers
+            - img [ref=e82]
+          - link "Customer Returns" [ref=e85] [cursor=pointer]:
+            - /url: /dashboard/customer-returns
+            - img [ref=e86] [cursor=pointer]
+            - text: Customer Returns
+          - link "Purchase Returns" [ref=e89] [cursor=pointer]:
+            - /url: /dashboard/purchases/returns
+            - img [ref=e90] [cursor=pointer]
+            - text: Purchase Returns
+          - link "Expenses" [ref=e93] [cursor=pointer]:
+            - /url: /dashboard/expenses
+            - img [ref=e94] [cursor=pointer]
+            - text: Expenses
+          - link "Customers" [ref=e97] [cursor=pointer]:
+            - /url: /dashboard/customers
+            - img [ref=e98] [cursor=pointer]
+            - text: Customers
+          - link "Suppliers" [ref=e101] [cursor=pointer]:
+            - /url: /dashboard/suppliers
+            - img [ref=e102] [cursor=pointer]
+            - text: Suppliers
+          - link "My Profile" [ref=e105] [cursor=pointer]:
+            - /url: /dashboard/profile
+            - img [ref=e106] [cursor=pointer]
+            - text: My Profile
+          - button "User Management" [ref=e109]:
+            - generic [ref=e110]:
+              - img [ref=e111]
+              - text: User Management
+            - img [ref=e113]
+          - generic [ref=e115]:
+            - button "Reports" [ref=e116]:
+              - generic [ref=e117]:
+                - img [ref=e118]
+                - text: Reports
+              - img [ref=e120]
+            - generic [ref=e122]:
+              - link "All Reports Hub" [ref=e123] [cursor=pointer]:
+                - /url: /dashboard/reports
+              - link "Stock Alert Report" [ref=e124] [cursor=pointer]:
+                - /url: /dashboard/reports/stock-alert
+              - link "Inventory Ledger" [ref=e125] [cursor=pointer]:
+                - /url: /dashboard/reports/inventory-ledger
+              - link "--- SALES REPORTS ---" [ref=e126] [cursor=pointer]:
+                - /url: "#"
+              - link "Sales Journal" [ref=e127] [cursor=pointer]:
+                - /url: /dashboard/reports/sales-journal
+              - link "Sales Per Item" [ref=e128] [cursor=pointer]:
+                - /url: /dashboard/reports/sales-per-item
+              - link "Sales Per Cashier" [ref=e129] [cursor=pointer]:
+                - /url: /dashboard/reports/sales-per-cashier
+              - link "Sales Per Location" [ref=e130] [cursor=pointer]:
+                - /url: /dashboard/reports/sales-per-location
+              - link "Sales Analytics" [ref=e131] [cursor=pointer]:
+                - /url: /dashboard/reports/sales-analytics
+              - link "Customer Sales Analysis" [ref=e132] [cursor=pointer]:
+                - /url: /dashboard/reports/customer-sales
+              - link "Payment Method Analysis" [ref=e133] [cursor=pointer]:
+                - /url: /dashboard/reports/payment-method
+              - link "Discount Analysis" [ref=e134] [cursor=pointer]:
+                - /url: /dashboard/reports/discount-analysis
+              - link "--- OTHER REPORTS ---" [ref=e135] [cursor=pointer]:
+                - /url: "#"
+              - link "Sales Today" [ref=e136] [cursor=pointer]:
+                - /url: /dashboard/reports/sales-today
+              - link "Sales History" [ref=e137] [cursor=pointer]:
+                - /url: /dashboard/reports/sales-history
+              - link "Sales Report" [ref=e138] [cursor=pointer]:
+                - /url: /dashboard/reports/sales-report
+              - link "Purchase Reports" [ref=e139] [cursor=pointer]:
+                - /url: /dashboard/reports/purchases
+              - link "Purchase Analytics" [ref=e140] [cursor=pointer]:
+                - /url: /dashboard/reports/purchases/analytics
+              - link "Purchase Trends" [ref=e141] [cursor=pointer]:
+                - /url: /dashboard/reports/purchase-trends
+              - link "Purchases Report" [ref=e142] [cursor=pointer]:
+                - /url: /dashboard/reports/purchases-report
+              - link "Purchase Items Report" [ref=e143] [cursor=pointer]:
+                - /url: /dashboard/reports/purchases-items
+              - link "Transfers Report" [ref=e144] [cursor=pointer]:
+                - /url: /dashboard/reports/transfers-report
+              - link "Transfer Trends" [ref=e145] [cursor=pointer]:
+                - /url: /dashboard/reports/transfer-trends
+              - link "Profitability & COGS" [ref=e146] [cursor=pointer]:
+                - /url: /dashboard/reports/profitability
+              - link "Net Profit Report" [ref=e147] [cursor=pointer]:
+                - /url: /dashboard/reports/profit
+              - link "Product Purchase History" [ref=e148] [cursor=pointer]:
+                - /url: /dashboard/reports/product-purchase-history
+          - button "Settings" [ref=e150]:
+            - generic [ref=e151]:
+              - img [ref=e152]
+              - text: Settings
+            - img [ref=e154]
+          - link "Audit Logs" [ref=e157] [cursor=pointer]:
+            - /url: /dashboard/audit-logs
+            - img [ref=e158] [cursor=pointer]
+            - text: Audit Logs
+        - paragraph [ref=e161]: © 2025 IgoroTech
+    - generic [ref=e162]:
+      - banner [ref=e163]:
+        - generic [ref=e164]:
+          - 'button "Sidebar: Normal (click to collapse)" [ref=e165]':
+            - img [ref=e166]
+          - generic [ref=e168]:
+            - button "Toggle theme" [ref=e169]:
+              - img
+              - generic [ref=e170]: Toggle theme
+            - button [ref=e171]:
+              - img [ref=e172]
+            - button [ref=e176]:
+              - img [ref=e177]
+      - main [ref=e179]:
+        - generic [ref=e181]:
+          - generic [ref=e182]:
+            - generic [ref=e183]:
+              - generic [ref=e184]: Begin Shift
+              - generic [ref=e185]: Start your cashier shift by entering the beginning cash amount
+            - generic [ref=e186]:
+              - alert [ref=e187]:
+                - generic [ref=e188]: No location assigned to your account. Please contact your administrator.
+              - generic [ref=e189]:
+                - generic [ref=e190]:
+                  - generic [ref=e191]: Your Assigned Location
+                  - generic [ref=e192]: Loading...
+                  - paragraph [ref=e193]: This shift will be assigned to your location automatically
+                - generic [ref=e194]:
+                  - generic [ref=e195]: Beginning Cash (₱)
+                  - spinbutton "Beginning Cash (₱)" [ref=e196]
+                  - paragraph [ref=e197]: Enter the total cash amount in your drawer to start the shift
+                - generic [ref=e198]:
+                  - generic [ref=e199]: Opening Notes (Optional)
+                  - textbox "Opening Notes (Optional)" [ref=e200]
+                - generic [ref=e201]:
+                  - button "🚀 Start Shift" [disabled]
+                  - button "Cancel" [ref=e202]
+          - generic [ref=e204]:
+            - heading "Important Reminders:" [level=3] [ref=e205]
+            - list [ref=e206]:
+              - listitem [ref=e207]: • Count your cash carefully before entering the beginning amount
+              - listitem [ref=e208]: • Make sure your drawer is locked when not in use
+              - listitem [ref=e209]: • All sales will be tracked under this shift
+              - listitem [ref=e210]: • You must close this shift at the end of your work period
+    - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e216] [cursor=pointer]:
+    - img [ref=e217] [cursor=pointer]
+  - alert [ref=e220]: PciNet Computer Trading and Services
+```

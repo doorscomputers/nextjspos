@@ -27,6 +27,25 @@ export enum AuditAction {
   STOCK_TRANSFER_SEND = 'stock_transfer_send',
   STOCK_TRANSFER_RECEIVE = 'stock_transfer_receive',
   STOCK_TRANSFER_DELETE = 'stock_transfer_delete',
+
+  // POS-specific actions
+  USER_LOGIN = 'user_login',
+  USER_LOGOUT = 'user_logout',
+  SHIFT_OPEN = 'shift_open',
+  SHIFT_CLOSE = 'shift_close',
+  SHIFT_X_READING = 'shift_x_reading',
+  SHIFT_Z_READING = 'shift_z_reading',
+  SALE_VOID = 'sale_void',
+  SALE_REFUND = 'sale_refund',
+  DISCOUNT_APPLIED = 'discount_applied',
+  DISCOUNT_APPROVED = 'discount_approved',
+  PRICE_OVERRIDE = 'price_override',
+  QUOTATION_CREATE = 'quotation_create',
+  QUOTATION_UPDATE = 'quotation_update',
+  QUOTATION_CONVERT = 'quotation_convert',
+  QUOTATION_DELETE = 'quotation_delete',
+  WARRANTY_CLAIM_CREATE = 'warranty_claim_create',
+  WARRANTY_CLAIM_RESOLVE = 'warranty_claim_resolve',
 }
 
 export enum EntityType {
@@ -36,6 +55,10 @@ export enum EntityType {
   PURCHASE = 'purchase',
   LOCATION = 'location',
   STOCK_TRANSFER = 'stock_transfer',
+  CASHIER_SHIFT = 'cashier_shift',
+  QUOTATION = 'quotation',
+  WARRANTY_CLAIM = 'warranty_claim',
+  DISCOUNT = 'discount',
 }
 
 interface AuditLogParams {

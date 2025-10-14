@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
+import { MagnifyingGlassIcon, ChevronUpIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
 
 interface Role {
   id: number
@@ -18,15 +19,23 @@ interface Location {
   name: string
 }
 
+type SortField = 'name' | 'type' | 'permissions' | 'users'
+type SortDirection = 'asc' | 'desc'
+
 export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([])
   const [allPermissions, setAllPermissions] = useState<Record<string, string[]>>({})
   const [locations, setLocations] = useState<Location[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
+  const [modalMode, setModalMode] = useState<'create' | 'edit' | 'duplicate'>('create')
   const [selectedRole, setSelectedRole] = useState<Role | null>(null)
   const [formData, setFormData] = useState({ name: '', permissions: [] as string[], locations: [] as number[] })
+
+  // Search and sort state
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortField, setSortField] = useState<SortField>('name')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
 
   useEffect(() => {
     fetchRoles()
@@ -86,6 +95,13 @@ export default function RolesPage() {
     setShowModal(true)
   }
 
+  const handleDuplicate = (role: Role) => {
+    setModalMode('duplicate')
+    setFormData({ name: `${role.name} (Copy)`, permissions: role.permissions, locations: [] })
+    setSelectedRole(role)
+    setShowModal(true)
+  }
+
   const handleDelete = async (role: Role) => {
     if (!confirm(`Delete role "${role.name}"?`)) return
 
@@ -107,8 +123,20 @@ export default function RolesPage() {
     e.preventDefault()
 
     try {
-      const url = modalMode === 'create' ? '/api/roles' : `/api/roles/${selectedRole?.id}`
-      const method = modalMode === 'create' ? 'POST' : 'PUT'
+      let url: string
+      let method: string
+
+      if (modalMode === 'create') {
+        url = '/api/roles'
+        method = 'POST'
+      } else if (modalMode === 'edit') {
+        url = `/api/roles/${selectedRole?.id}`
+        method = 'PUT'
+      } else {
+        // duplicate mode
+        url = `/api/roles/${selectedRole?.id}/duplicate`
+        method = 'POST'
+      }
 
       const res = await fetch(url, {
         method,
@@ -117,7 +145,8 @@ export default function RolesPage() {
       })
 
       if (res.ok) {
-        alert(`Role ${modalMode === 'create' ? 'created' : 'updated'}`)
+        const data = await res.json()
+        alert(data.message || `Role ${modalMode === 'create' ? 'created' : modalMode === 'edit' ? 'updated' : 'duplicated'}`)
         setShowModal(false)
         fetchRoles()
       } else {
@@ -167,6 +196,68 @@ export default function RolesPage() {
     }))
   }
 
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return <ChevronUpIcon className="w-4 h-4 text-gray-400 opacity-50" />
+    }
+    return sortDirection === 'asc' ? (
+      <ChevronUpIcon className="w-4 h-4 text-blue-600" />
+    ) : (
+      <ChevronDownIcon className="w-4 h-4 text-blue-600" />
+    )
+  }
+
+  // Filter and sort roles
+  const filteredAndSortedRoles = useMemo(() => {
+    let filtered = roles.filter((role) => {
+      const searchLower = searchQuery.toLowerCase()
+      const roleName = role.name.toLowerCase()
+      return roleName.includes(searchLower)
+    })
+
+    // Sort
+    filtered.sort((a, b) => {
+      let aValue: any
+      let bValue: any
+
+      switch (sortField) {
+        case 'name':
+          aValue = a.name.toLowerCase()
+          bValue = b.name.toLowerCase()
+          break
+        case 'type':
+          aValue = a.isDefault ? 1 : 0
+          bValue = b.isDefault ? 1 : 0
+          break
+        case 'permissions':
+          aValue = a.permissionCount
+          bValue = b.permissionCount
+          break
+        case 'users':
+          aValue = a.userCount
+          bValue = b.userCount
+          break
+        default:
+          return 0
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1
+      return 0
+    })
+
+    return filtered
+  }, [roles, searchQuery, sortField, sortDirection])
+
   if (loading) return <div className="p-8">Loading...</div>
 
   return (
@@ -184,19 +275,68 @@ export default function RolesPage() {
         </button>
       </div>
 
+      {/* Search Bar */}
+      <div className="mb-4 bg-white rounded-lg shadow p-4">
+        <div className="relative">
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search roles by name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <div className="mt-2 text-sm text-gray-600">
+          Showing {filteredAndSortedRoles.length} of {roles.length} roles
+        </div>
+      </div>
+
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Permissions</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Users</th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('name')}
+              >
+                <div className="flex items-center gap-2">
+                  Role Name
+                  <SortIcon field="name" />
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('type')}
+              >
+                <div className="flex items-center gap-2">
+                  Type
+                  <SortIcon field="type" />
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('permissions')}
+              >
+                <div className="flex items-center gap-2">
+                  Permissions
+                  <SortIcon field="permissions" />
+                </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                onClick={() => handleSort('users')}
+              >
+                <div className="flex items-center gap-2">
+                  Users
+                  <SortIcon field="users" />
+                </div>
+              </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y">
-            {roles.map((role) => (
+            {filteredAndSortedRoles.map((role) => (
               <tr key={role.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 font-medium">{role.name}</td>
                 <td className="px-6 py-4">
@@ -214,6 +354,12 @@ export default function RolesPage() {
                       className="text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
                     >
                       Edit
+                    </button>
+                    <button
+                      onClick={() => handleDuplicate(role)}
+                      className="text-green-600 hover:text-green-800"
+                    >
+                      Duplicate
                     </button>
                     <button
                       onClick={() => handleDelete(role)}
@@ -234,7 +380,14 @@ export default function RolesPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg w-full h-full m-0 flex flex-col">
             <div className="p-6 border-b">
-              <h2 className="text-xl font-bold">{modalMode === 'create' ? 'Create' : 'Edit'} Role</h2>
+              <h2 className="text-xl font-bold">
+                {modalMode === 'create' ? 'Create' : modalMode === 'edit' ? 'Edit' : 'Duplicate'} Role
+              </h2>
+              {modalMode === 'duplicate' && (
+                <p className="text-sm text-gray-600 mt-1">
+                  Creating a copy of &quot;{selectedRole?.name}&quot; with all its permissions. Change the name and select locations.
+                </p>
+              )}
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
@@ -329,7 +482,7 @@ export default function RolesPage() {
                     type="submit"
                     className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                   >
-                    {modalMode === 'create' ? 'Create' : 'Update'}
+                    {modalMode === 'create' ? 'Create' : modalMode === 'edit' ? 'Update' : 'Duplicate Role'}
                   </button>
                   <button
                     type="button"

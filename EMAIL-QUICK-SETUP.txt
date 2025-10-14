@@ -1,0 +1,152 @@
+═══════════════════════════════════════════════════════════════════
+  EMAIL NOTIFICATIONS - QUICK SETUP GUIDE
+═══════════════════════════════════════════════════════════════════
+
+✅ STEP 1: GET YOUR GMAIL APP PASSWORD
+───────────────────────────────────────
+
+1. Go to: https://myaccount.google.com/security
+2. Enable "2-Step Verification" if not already on
+3. Click "App passwords" (under 2-Step Verification)
+4. Select:
+   - App: Mail
+   - Device: Other → Type "UltimatePOS"
+5. Click "Generate"
+6. Copy the 16-character password (e.g., abcd efgh ijkl mnop)
+
+═══════════════════════════════════════════════════════════════════
+
+✅ STEP 2: UPDATE YOUR .ENV FILE
+───────────────────────────────────────
+
+Open: C:\xampp\htdocs\ultimatepos-modern\.env
+
+Update these lines:
+
+SMTP_USER="your-email@gmail.com"  ← Your Gmail address
+SMTP_PASS="abcdefghijklmnop"  ← The 16-char password (no spaces!)
+EMAIL_ADMIN_RECIPIENTS="admin@yourbusiness.com,manager@yourbusiness.com"
+
+Optional: Change sender name
+SMTP_FROM="My Store Name <noreply@mystore.com>"
+
+═══════════════════════════════════════════════════════════════════
+
+✅ STEP 3: RESTART THE SERVER
+───────────────────────────────────────
+
+1. Stop the server: Press Ctrl+C in terminal
+2. Start it again: npm run dev
+
+═══════════════════════════════════════════════════════════════════
+
+✅ STEP 4: TEST YOUR CONFIGURATION
+───────────────────────────────────────
+
+Method 1: Using cURL (in terminal)
+```
+curl -X POST http://localhost:3002/api/email/test \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"your-test-email@gmail.com\"}"
+```
+
+Method 2: Using Postman or similar
+POST http://localhost:3002/api/email/test
+Body (JSON):
+{
+  "email": "your-test-email@gmail.com"
+}
+
+Expected Response:
+{
+  "success": true,
+  "message": "Test email sent successfully to your-test-email@gmail.com"
+}
+
+Check your inbox! If you don't see it, check spam folder.
+
+═══════════════════════════════════════════════════════════════════
+
+📧 ALERT TYPES (All Configured and Ready)
+───────────────────────────────────────
+
+✅ Large Discounts (> ₱1,000)
+✅ Void Transactions
+✅ Refund Transactions
+✅ Credit Sales
+✅ Large Cash Outs (> ₱5,000)
+✅ Low Stock Alerts
+
+═══════════════════════════════════════════════════════════════════
+
+⚙️ CUSTOMIZING ALERT THRESHOLDS
+───────────────────────────────────────
+
+In your .env file, you can adjust:
+
+# Only alert for discounts above ₱2,000
+EMAIL_ALERT_DISCOUNT_THRESHOLD="2000"
+
+# Only alert for cash outs above ₱10,000
+EMAIL_ALERT_CASH_OUT_THRESHOLD="10000"
+
+# Turn off specific alerts
+EMAIL_ALERT_VOID_ENABLED="false"
+EMAIL_ALERT_REFUND_ENABLED="false"
+
+═══════════════════════════════════════════════════════════════════
+
+🔧 TROUBLESHOOTING
+───────────────────────────────────────
+
+Problem: Authentication failed
+Solution: Make sure you're using the 16-character APP PASSWORD,
+          not your regular Gmail password!
+
+Problem: Emails not received
+Solution: 1. Check spam folder
+          2. Verify recipient email in EMAIL_ADMIN_RECIPIENTS
+          3. Ensure no spaces in .env values
+
+Problem: "Email not configured" error
+Solution: Restart the server after updating .env
+
+═══════════════════════════════════════════════════════════════════
+
+📚 FULL DOCUMENTATION
+───────────────────────────────────────
+
+For complete details, see:
+→ EMAIL-NOTIFICATIONS-SETUP-GUIDE.md
+
+Includes:
+- Other email providers (Outlook, Office365, Yahoo, etc.)
+- Detailed alert configuration
+- Email templates customization
+- Advanced features
+
+═══════════════════════════════════════════════════════════════════
+
+✅ CHECKLIST
+───────────────────────────────────────
+
+□ Gmail App Password created
+□ .env file updated with email and password
+□ Admin recipients added
+□ Server restarted
+□ Test email sent successfully
+□ Test email received (check spam if not in inbox)
+□ Alert thresholds adjusted to your needs
+
+═══════════════════════════════════════════════════════════════════
+
+🎉 DONE! Your email notification system is ready!
+
+When configured properly, you'll receive instant email alerts for:
+- Suspicious discounts
+- Void/refund transactions
+- Credit sales
+- Large cash withdrawals
+- Low stock situations
+
+═══════════════════════════════════════════════════════════════════

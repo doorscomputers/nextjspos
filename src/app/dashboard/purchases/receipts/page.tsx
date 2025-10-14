@@ -68,7 +68,7 @@ export default function PurchaseReceiptsPage() {
   const [loading, setLoading] = useState(false)
   const [receipts, setReceipts] = useState<PurchaseReceipt[]>([])
   const [filteredReceipts, setFilteredReceipts] = useState<PurchaseReceipt[]>([])
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('pending') // Default to pending approval
   const [dateFilter, setDateFilter] = useState('all')
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
@@ -76,6 +76,7 @@ export default function PurchaseReceiptsPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
   const [searchTerm, setSearchTerm] = useState('')
 
   const fetchReceipts = async () => {
@@ -83,7 +84,7 @@ export default function PurchaseReceiptsPage() {
     try {
       const params = new URLSearchParams({
         page: page.toString(),
-        limit: '100', // Fetch more records for client-side filtering
+        limit: '20', // Server-side pagination: 20 records per page
         sortBy: sortField,
         sortOrder: sortOrder,
       })
@@ -142,6 +143,7 @@ export default function PurchaseReceiptsPage() {
       setReceipts(sortedReceipts)
       setFilteredReceipts(sortedReceipts)
       setTotalPages(data.pagination.totalPages)
+      setTotalCount(data.pagination.totalCount)
     } catch (error: any) {
       console.error('Error fetching receipts:', error)
       toast.error(error.message || 'Failed to load receipts')
@@ -366,17 +368,18 @@ export default function PurchaseReceiptsPage() {
         <div>
           <h1 className="text-3xl font-bold">Purchase Receipts (GRN)</h1>
           <p className="text-gray-600 mt-1">
-            View and approve goods received notes
+            View and approve goods received notes. Create GRNs from Purchase Orders only.
           </p>
         </div>
-        {can(PERMISSIONS.PURCHASE_RECEIPT_CREATE) && (
+        {/* Disabled: Direct GRN creation not allowed - all GRNs must be created from POs */}
+        {/* {can(PERMISSIONS.PURCHASE_RECEIPT_CREATE) && (
           <Link href="/dashboard/purchases/receipts/new">
             <Button>
               <PlusIcon className="w-5 h-5 mr-2" />
               New GRN
             </Button>
           </Link>
-        )}
+        )} */}
       </div>
 
       {/* Search Bar */}
@@ -542,8 +545,8 @@ export default function PurchaseReceiptsPage() {
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{receipt.receiptNumber}</span>
                             {!receipt.purchaseId && (
-                              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 text-xs">
-                                Direct Entry
+                              <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-300 text-xs">
+                                Direct Entry (Legacy)
                               </Badge>
                             )}
                           </div>
@@ -612,24 +615,31 @@ export default function PurchaseReceiptsPage() {
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <Button
-                    variant="outline"
-                    disabled={page === 1}
-                    onClick={() => setPage(page - 1)}
-                  >
-                    Previous
-                  </Button>
-                  <span className="text-sm text-gray-600">
-                    Page {page} of {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    disabled={page === totalPages}
-                    onClick={() => setPage(page + 1)}
-                  >
-                    Next
-                  </Button>
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t">
+                  <div className="text-sm text-gray-600">
+                    Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, totalCount)} of {totalCount} receipts
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page === 1}
+                      onClick={() => setPage(page - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm text-gray-600 px-3">
+                      Page {page} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page === totalPages}
+                      onClick={() => setPage(page + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
                 </div>
               )}
             </>

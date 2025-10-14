@@ -1,0 +1,45 @@
+{
+  "cookies": [
+    {
+      "name": "next-auth.csrf-token",
+      "value": "03b594c2caa4c3827af789b5db0cb8c7a08158571d18e9d005aab35448819e17%7Ce2ecf48d61d4dcf239e57c5da0514d5ea4f4d3f91cf0cf9fcbb2e5c4e626bab9",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "next-auth.callback-url",
+      "value": "http%3A%2F%2Flocalhost%3A3000",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "next-auth.session-token",
+      "value": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..r0CYL4INDfsKH3wB.W7UjtlhBP2RYznx5h4SY9YOyvmSjpnQ7ccTiCWeDYYjbaVSts5kaiyPBJnsj_9SrjEhagH8NQVV5CGSCkrcMqSz7DWwAPnyE-u2_zMkfIE_rp01C5ACREKNtbkVDxJbqr1Y1WumnTrOmJPt6bqOZUZT8soIKAvOBxeFtd5OgPFq6D4pdsiEnpjYpMtokusy8AnMef2R97Q3Xw1YqJIRfJWufVDiSy_i8oKIggpUbPX_w2y_eejrySYvQEbtqOY7p7MPbBtzR39DTUfnq2NW_fSiOdiTXsHSpXKPL8WKBigi5x-xYZfBp5P_REQDjNl_YPKeovmIdepiNe3jiO8efUOkHF5BRRNGVydJkLv52H7Yw1DBnXWdBBbztHfvo-LGzK-o4P15mtoRjJebcyJOWlb5nzp3boBxQ0bTp27i-H4acBenOyTMAnzBZmMk6PatF3c7Km7MQa8AbcFi4mvDpGwEeP69BxLX9jdwwe2t_fywjMPxZTx29VcyPMqfaah2ic02k1RbNw1_mdIETREby2u6Q8zfe9v12cv6qgayOb7gzLm6KaV0zgXgCwLVddKZolJfWqS2dgujA_3lC_WEt33dN_GKyPRCff-HewxnrOQp5U0o7IvIxqW7yNW0jYJtu1ruohPRDk738_V2A5DVoZvE_7-FgaSIsNyAWZZuIavk3_4dpHtQPtssewasJk7n7lIppVRgzCZkfn0k_3ZwnvsMa9qCUMo5QJ0skkUtKiFsvEPikPKkXKXlQ87_usCOOOW8Bxacaw8SGLxBabANp4QfRWRuTH6Wro_q_OtsBbOdGOAJvrKVsHMnWJamM6X__qWhdcUEvnkdCVVPcZXsXefBM6yeD400TPDWStmGpBHMcUFnNE4Lag9rnWXUB_BPSby8BZRq1vNsNuFX83mzS7RoKagtPEXMnKCtcX5BEBkItKc6LchtuQ9HDKGUuJmpSunWNn1lrZvECxgA0VD3FeNcanYPqCukVitUZbcwe8c6JYiUO1c7oT6zoo1vGIYIIXDOaeepKSdf_ItLOVcRA5oIuxTwH94-41igWM_yJSDvL5TugZe7BooH-0Y5e-q84TcNUP9rRQTjUgHOVgTObbP5I2pyCIo8mMi3bA_k_DkCd9p35kBMy34fnEwUH0PFjmkoimWP886WUWou6G41XFFdloI4_6jwZrH35abIclvAtyrnfoxCKl2OKd7p-sUYmeBDXZSwpVS79f49ZlYBQj-iwuKwu1uNCAbBvgQHxDWAIF3gXI07n7wMboWExVv-wQs5jOhSqV-P6b-DChrezpG0WWt6gJ8lvxXG38dElgpirrUvEJb3W1vpoH2rVDLjRNGAgy-jBwr1z5wFXFAoCeiYMMFNifdfakC8kxr3yhUIPYowe2Lb3qsVAf3mJS8cWy5aPpvx86ZHQyQ9cNPu7TcdTHTMIAZVHjjknfM5hzI33EgNqqBs_aT9UyaFYqHo642YD_G3HPPIRalI1pdDLMDQDG5611kvDmU7Kp8IkQw4y2_bfjMaxRRiTV3WCCV-dl8s1hr9rPcs-ruM235ZVUIfwRSxF7J24T5AoDXgZz-HF-65frK24TaqU5g7uH6HxmeR6ERkufGHhFeqyR903nlUE7n5GnR-F7m3f5d1oyaH_sh7_ht03zZ0BpHWA4FoZyfk6KWs1D3FVmkhde9d6D-HhrTHTYE2UrRmdhF_gep7yZVZtHbu10LKMBGVBhCha4teZ9Xr2DFSyNKls3hWuJiAjhdmFqtWv9oTPn6qEpgImqpqAoRR86SFHC_WPv5XomWW7IhpFakfSgopsT4X6PTHtowg31_udI9XcnWR_9tHr7cGGYV9-ggM_vdncyk_e6OK_F8Dpv7FRLWuZw1ZMLNB_2yWsIpS1u6DILBbaZuWEp2Y-fIVYTGrKGrSoRFyWujVRFljTm35P2_3QJZpcD5DxtpdIqkPcpgAW1IjSb8ckyyFaLtvsqkeKScdunLW-bzxvCyKLITvZ_ahp-84TbnKq90PBmRwF_3iHtvET-0epOxkoiICc64a8QxmfvCFNlYOUgA-bhSssGw9reRQGPJgLlRl7MfiFmGSAnrAhMci_EaIaKd73dyALHp3UHgTg2oUddrHQRvEqVrQYIu2etsj4J27Obp6bkpgFYjV_QGV6CJz-JXkPPxp7vWCzgxtykle0HLc9-OXFiIHgwWK1zbp7wAPXyySmasgnE2C9Am2loAJJNGbKxbQGQj61Z3Rq_ilqoCeA4jq0K_kr_MsaZ08i71utpXi1EdxrebBeIORW8w_mIOMg_nKAZcr0rSqg9bbpZXaBRB1YEcOcHOh0xti8FMwLCcYs6fOtv0zWv15PRTE3bJDP57EpI09aJ50ZDK_1iltaAAEAAblEtEZrPspavKp5w-fF0YAE1iDLUZl7N-CvlEME5OEvvYgqpxza7CPvKP2zXOOKhvCeO7-3hIkDZ4b_jEEk0Jz55tEKFldhSwbSCPnRYIIQX8Kn7lDp3k4fjvd3vyBifVzJuxSf3N_mWVDnRxuCXC_chpf5YdR8b7Bidy2Nit5eqJR2tz-1TZKMDlU1umBZCFHRi79EqVze11XuI8qKbqTV8nnI_31p9c8JIyuGuKk2_Re5Xg6zVTPtYPN1QnOl3TDEvomIYnHz7dUYBxhkd87mlAx5owdQ7rGiVmAG-X0TIswmCbuJfE577-j4j9z7Vod1UH-SFIo_EqZTcd4GLWC5NIuDu-KaevDSqaem_ds5RrRmTjIDCu2Iq9sIBz0yj6psiNKlHa5rk5msNeJgIu0YtqF6l0c5UTUntfJFV4_iU48g2_Lp7N5xZdgu9exSC31N1s7HjU6R-8zO4CJxZFoI9rH4SefBcR8wmQ93nxPM0yihN3UMhZ--OhOS9VbzdkNeG5oqjlcqUm1Uq0VAyGBGM8cTNFOQyYUB8q769v6ugb686tWzPaix6Ade2IjDoaPNlijDaP97pqd-RZGZo01e86paLjtl4O2vN2dwtisI6RgTZhveE5OJkspY3SY9IqYlMFNHMhNArfZJe8Y1KkJLmL7nuWMRvKrD-BQFtCKfXJHzGdkQWFWTarGJcQNyc56iAFCUbC78Vt_Fqw9-RxRe_3w9tozc9X1ona8_RTxraF3M6gMiL2432zT5Qo8zsRzJpwnV9lgPSBSLoOh69dN9b6q4.aAqKwJzKbwPUSkj4d-1KCQ",
+      "domain": "localhost",
+      "path": "/",
+      "expires": 1762500676.504587,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:3003",
+      "localStorage": [
+        {
+          "name": "nextauth.message",
+          "value": "{\"event\":\"session\",\"data\":{\"trigger\":\"getSession\"},\"timestamp\":1759908675}"
+        }
+      ]
+    }
+  ]
+}

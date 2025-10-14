@@ -75,10 +75,21 @@ export async function POST(
       })
       if (!userLocation) {
         return NextResponse.json(
-          { error: 'No access to destination location' },
+          { error: 'No access to destination location. Only users assigned to the receiving location can mark transfers as arrived.' },
           { status: 403 }
         )
       }
+    }
+
+    // ENFORCE: Arrival marker must be different from sender (separation of duties)
+    if (transfer.sentBy === parseInt(userId)) {
+      return NextResponse.json(
+        {
+          error: 'Cannot mark as arrived a transfer you sent. A different user at the destination must confirm arrival.',
+          code: 'SAME_USER_VIOLATION'
+        },
+        { status: 403 }
+      )
     }
 
     // Update transfer to arrived status

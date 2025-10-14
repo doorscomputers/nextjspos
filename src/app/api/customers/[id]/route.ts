@@ -4,48 +4,10 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 
-// GET - Get single customer
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await getServerSession(authOptions)
-
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const user = session.user as any
-    const businessId = user.businessId
-    const { id } = await params
-
-    const customer = await prisma.customer.findFirst({
-      where: {
-        id: parseInt(id),
-        businessId: parseInt(businessId),
-        deletedAt: null,
-      },
-    })
-
-    if (!customer) {
-      return NextResponse.json({ error: 'Customer not found' }, { status: 404 })
-    }
-
-    return NextResponse.json(customer)
-  } catch (error) {
-    console.error('Error fetching customer:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch customer' },
-      { status: 500 }
-    )
-  }
-}
-
 // PUT - Update customer
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -56,7 +18,7 @@ export async function PUT(
 
     const user = session.user as any
     const businessId = user.businessId
-    const { id } = await params
+    const customerId = parseInt(params.id)
 
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.CUSTOMER_UPDATE)) {
@@ -64,19 +26,6 @@ export async function PUT(
         { error: 'Forbidden - Insufficient permissions' },
         { status: 403 }
       )
-    }
-
-    // Verify customer belongs to user's business
-    const existing = await prisma.customer.findFirst({
-      where: {
-        id: parseInt(id),
-        businessId: parseInt(businessId),
-        deletedAt: null,
-      },
-    })
-
-    if (!existing) {
-      return NextResponse.json({ error: 'Customer not found' }, { status: 404 })
     }
 
     const body = await request.json()
@@ -92,20 +41,60 @@ export async function PUT(
       zipCode,
       taxNumber,
       creditLimit,
-      isActive,
+      isActive = true,
     } = body
 
     // Validation
-    if (name && name.trim().length === 0) {
+    if (!name || name.trim().length === 0) {
       return NextResponse.json(
-        { error: 'Customer name cannot be empty' },
+        { error: 'Customer name is required' },
         { status: 400 }
       )
     }
 
+    // Verify customer exists and belongs to business
+    const existingCustomer = await prisma.customer.findFirst({
+      where: {
+        id: customerId,
+        businessId: parseInt(businessId),
+        deletedAt: null
+      }
+    })
+
+    if (!existingCustomer) {
+      return NextResponse.json(
+        { error: 'Customer not found' },
+        { status: 404 }
+      )
+    }
+
+    // Check if new name conflicts with another customer (case-insensitive)
+    if (name.toLowerCase().trim() !== existingCustomer.name.toLowerCase().trim()) {
+      const nameConflict = await prisma.customer.findFirst({
+        where: {
+          businessId: parseInt(businessId),
+          name: {
+            equals: name.trim(),
+            mode: 'insensitive'
+          },
+          deletedAt: null,
+          id: {
+            not: customerId
+          }
+        }
+      })
+
+      if (nameConflict) {
+        return NextResponse.json(
+          { error: `Customer name "${name}" already exists. Please use a different name.` },
+          { status: 409 }
+        )
+      }
+    }
+
     // Update customer
     const customer = await prisma.customer.update({
-      where: { id: parseInt(id) },
+      where: { id: customerId },
       data: {
         name,
         email,
@@ -117,7 +106,7 @@ export async function PUT(
         country,
         zipCode,
         taxNumber,
-        creditLimit: creditLimit ? parseFloat(creditLimit) : undefined,
+        creditLimit: creditLimit ? parseFloat(creditLimit) : null,
         isActive,
       },
     })
@@ -135,7 +124,7 @@ export async function PUT(
 // DELETE - Soft delete customer
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -146,7 +135,7 @@ export async function DELETE(
 
     const user = session.user as any
     const businessId = user.businessId
-    const { id } = await params
+    const customerId = parseInt(params.id)
 
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.CUSTOMER_DELETE)) {
@@ -156,23 +145,26 @@ export async function DELETE(
       )
     }
 
-    // Verify customer belongs to user's business
-    const existing = await prisma.customer.findFirst({
+    // Verify customer exists and belongs to business
+    const existingCustomer = await prisma.customer.findFirst({
       where: {
-        id: parseInt(id),
+        id: customerId,
         businessId: parseInt(businessId),
-        deletedAt: null,
-      },
+        deletedAt: null
+      }
     })
 
-    if (!existing) {
-      return NextResponse.json({ error: 'Customer not found' }, { status: 404 })
+    if (!existingCustomer) {
+      return NextResponse.json(
+        { error: 'Customer not found' },
+        { status: 404 }
+      )
     }
 
     // Soft delete
     await prisma.customer.update({
-      where: { id: parseInt(id) },
-      data: { deletedAt: new Date() },
+      where: { id: customerId },
+      data: { deletedAt: new Date() }
     })
 
     return NextResponse.json({ message: 'Customer deleted successfully' })

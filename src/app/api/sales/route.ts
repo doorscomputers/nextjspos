@@ -4,6 +4,14 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import {
+  sendLargeDiscountAlert,
+  sendCreditSaleAlert,
+} from '@/lib/email'
+import {
+  sendTelegramLargeDiscountAlert,
+  sendTelegramCreditSaleAlert,
+} from '@/lib/telegram'
 
 // GET - List all sales
 export async function GET(request: NextRequest) {
@@ -141,6 +149,15 @@ export async function POST(request: NextRequest) {
       discountAmount = 0,
       shippingCost = 0,
       notes,
+      status, // 'completed', 'pending' (for credit sales)
+      // Philippine BIR discount tracking
+      discountType, // 'senior', 'pwd', 'regular', or null
+      seniorCitizenId,
+      seniorCitizenName,
+      pwdId,
+      pwdName,
+      discountApprovedBy,
+      vatExempt = false,
     } = body
 
     // Validation
@@ -151,7 +168,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!payments || payments.length === 0) {
+    // For credit sales (status: 'pending'), customer is required
+    const isCreditSale = status === 'pending'
+    if (isCreditSale && !customerId) {
+      return NextResponse.json(
+        { error: 'Customer is required for credit/charge invoice sales' },
+        { status: 400 }
+      )
+    }
+
+    // For non-credit sales, at least one payment is required
+    if (!isCreditSale && (!payments || payments.length === 0)) {
       return NextResponse.json(
         { error: 'At least one payment method is required' },
         { status: 400 }
@@ -192,6 +219,22 @@ export async function POST(request: NextRequest) {
           { status: 403 }
         )
       }
+    }
+
+    // Check for open cashier shift - REQUIRED FOR POS
+    const currentShift = await prisma.cashierShift.findFirst({
+      where: {
+        userId: parseInt(userId),
+        status: 'open',
+        businessId: parseInt(businessId),
+      },
+    })
+
+    if (!currentShift) {
+      return NextResponse.json(
+        { error: 'No open shift found. Please start your shift before making sales.' },
+        { status: 400 }
+      )
     }
 
     // Verify customer if provided and get customer name for serial numbers
@@ -304,19 +347,21 @@ export async function POST(request: NextRequest) {
       parseFloat(shippingCost || 0) -
       parseFloat(discountAmount || 0)
 
-    // Validate payments total matches sale total
-    const paymentsTotal = payments.reduce(
-      (sum: number, payment: any) => sum + parseFloat(payment.amount),
-      0
-    )
-
-    if (Math.abs(paymentsTotal - totalAmount) > 0.01) {
-      return NextResponse.json(
-        {
-          error: `Payment total (${paymentsTotal}) does not match sale total (${totalAmount})`,
-        },
-        { status: 400 }
+    // For non-credit sales, validate payments total is sufficient (allow overpayment for change)
+    if (!isCreditSale) {
+      const paymentsTotal = payments.reduce(
+        (sum: number, payment: any) => sum + parseFloat(payment.amount),
+        0
       )
+
+      if (paymentsTotal < totalAmount - 0.01) {
+        return NextResponse.json(
+          {
+            error: `Insufficient payment. Total due: ${totalAmount.toFixed(2)}, Total paid: ${paymentsTotal.toFixed(2)}`,
+          },
+          { status: 400 }
+        )
+      }
     }
 
     // Generate invoice number
@@ -352,13 +397,22 @@ export async function POST(request: NextRequest) {
           customerId: customerId ? parseInt(customerId) : null,
           invoiceNumber,
           saleDate: new Date(saleDate),
-          status: 'completed',
+          status: isCreditSale ? 'pending' : 'completed', // Use status from request
+          shiftId: currentShift.id, // Associate with current cashier shift
           subtotal,
           taxAmount: parseFloat(taxAmount || 0),
           discountAmount: parseFloat(discountAmount || 0),
           shippingCost: parseFloat(shippingCost || 0),
           totalAmount,
           notes,
+          // Philippine BIR discount tracking
+          discountType: discountType || null,
+          seniorCitizenId: seniorCitizenId || null,
+          seniorCitizenName: seniorCitizenName || null,
+          pwdId: pwdId || null,
+          pwdName: pwdName || null,
+          discountApprovedBy: discountApprovedBy ? parseInt(discountApprovedBy) : null,
+          vatExempt: vatExempt || false,
           createdBy: parseInt(userId),
         },
       })
@@ -479,14 +533,26 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Create sale payments
-      for (const payment of payments) {
+      // Create sale payments (only for non-credit sales)
+      if (!isCreditSale && payments && payments.length > 0) {
+        for (const payment of payments) {
+          await tx.salePayment.create({
+            data: {
+              saleId: newSale.id,
+              paymentMethod: payment.method,
+              amount: parseFloat(payment.amount),
+              referenceNumber: payment.reference,
+            },
+          })
+        }
+      } else if (isCreditSale) {
+        // For credit sales, create a placeholder payment entry
         await tx.salePayment.create({
           data: {
             saleId: newSale.id,
-            paymentMethod: payment.method,
-            amount: parseFloat(payment.amount),
-            referenceNumber: payment.reference,
+            paymentMethod: 'credit',
+            amount: 0, // No payment yet
+            referenceNumber: 'Pending Payment',
           },
         })
       }
@@ -526,6 +592,62 @@ export async function POST(request: NextRequest) {
         items: true,
         payments: true,
       },
+    })
+
+    // Send email and Telegram alerts (async, don't wait for completion)
+    setImmediate(async () => {
+      try {
+        // Alert for large discounts
+        if (discountAmount && parseFloat(discountAmount) > 0) {
+          await Promise.all([
+            sendLargeDiscountAlert({
+              saleNumber: invoiceNumber,
+              discountAmount: parseFloat(discountAmount),
+              discountType: discountType || 'Regular Discount',
+              totalAmount,
+              cashierName: user.username || user.name || 'Unknown',
+              locationName: location.name,
+              timestamp: new Date(saleDate),
+              reason: notes || undefined,
+            }),
+            sendTelegramLargeDiscountAlert({
+              saleNumber: invoiceNumber,
+              discountAmount: parseFloat(discountAmount),
+              discountType: discountType || 'Regular Discount',
+              totalAmount,
+              cashierName: user.username || user.name || 'Unknown',
+              locationName: location.name,
+              timestamp: new Date(saleDate),
+              reason: notes || undefined,
+            }),
+          ])
+        }
+
+        // Alert for credit sales
+        if (isCreditSale && customerName) {
+          await Promise.all([
+            sendCreditSaleAlert({
+              saleNumber: invoiceNumber,
+              creditAmount: totalAmount,
+              customerName,
+              cashierName: user.username || user.name || 'Unknown',
+              locationName: location.name,
+              timestamp: new Date(saleDate),
+            }),
+            sendTelegramCreditSaleAlert({
+              saleNumber: invoiceNumber,
+              creditAmount: totalAmount,
+              customerName,
+              cashierName: user.username || user.name || 'Unknown',
+              locationName: location.name,
+              timestamp: new Date(saleDate),
+            }),
+          ])
+        }
+      } catch (notificationError) {
+        // Log notification errors but don't fail the sale
+        console.error('Notification error:', notificationError)
+      }
     })
 
     return NextResponse.json(completeSale, { status: 201 })

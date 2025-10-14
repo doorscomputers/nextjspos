@@ -107,10 +107,41 @@ export async function POST(
 
       if (!userLocation) {
         return NextResponse.json(
-          { error: 'You do not have access to the destination location' },
+          { error: 'You do not have access to the destination location. Only users assigned to the receiving location can receive transfers.' },
           { status: 403 }
         )
       }
+    }
+
+    // ENFORCE: Receiver must be different from creator, checker, and sender (separation of duties)
+    if (transfer.createdBy === parseInt(userId)) {
+      return NextResponse.json(
+        {
+          error: 'Cannot receive your own transfer. Only users at the destination location who did not create this transfer can receive it.',
+          code: 'SAME_USER_VIOLATION'
+        },
+        { status: 403 }
+      )
+    }
+
+    if (transfer.checkedBy === parseInt(userId)) {
+      return NextResponse.json(
+        {
+          error: 'Cannot receive a transfer you checked. A different user at the destination must receive this transfer.',
+          code: 'SAME_USER_VIOLATION'
+        },
+        { status: 403 }
+      )
+    }
+
+    if (transfer.sentBy === parseInt(userId)) {
+      return NextResponse.json(
+        {
+          error: 'Cannot receive a transfer you sent. A different user at the destination must receive this transfer.',
+          code: 'SAME_USER_VIOLATION'
+        },
+        { status: 403 }
+      )
     }
 
     // Validate transfer status

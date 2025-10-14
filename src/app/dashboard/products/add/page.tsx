@@ -140,8 +140,17 @@ export default function AddProductPage() {
       setCategories(categoriesData.categories || [])
       setBrands(brandsData.brands || [])
       setUnits(unitsData.units || [])
-      setTaxRates(taxRatesData.taxRates || [])
+      const fetchedTaxRates = taxRatesData.taxRates || []
+      setTaxRates(fetchedTaxRates)
       setAvailableProducts(productsData.products || [])
+
+      // Set default tax to "Standard VAT (12%)" if available
+      const standardVAT = fetchedTaxRates.find((tax: TaxRate) =>
+        tax.name === 'Standard VAT (12%)' || (tax.name.includes('Standard VAT') && tax.amount === 12)
+      )
+      if (standardVAT && !formData.taxId) {
+        setFormData(prev => ({ ...prev, taxId: standardVAT.id.toString() }))
+      }
     } catch (error) {
       console.error('Error fetching metadata:', error)
     }

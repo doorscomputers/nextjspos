@@ -92,9 +92,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [locationFilter, setLocationFilter] = useState("all")
   const [locations, setLocations] = useState<Array<{ id: number; name: string }>>([])
+  const [showAllLocationsOption, setShowAllLocationsOption] = useState(false)
 
   useEffect(() => {
     fetchLocations()
+  }, [])
+
+  useEffect(() => {
     fetchDashboardStats()
   }, [locationFilter])
 
@@ -103,12 +107,21 @@ export default function DashboardPage() {
       const response = await fetch("/api/locations")
       if (response.ok) {
         const data = await response.json()
-        if (Array.isArray(data.locations)) {
-          setLocations(data.locations)
-        } else if (Array.isArray(data)) {
-          setLocations(data)
+        const fetchedLocations = Array.isArray(data.locations) ? data.locations : (Array.isArray(data) ? data : [])
+        setLocations(fetchedLocations)
+
+        // Only show "All Locations" option if user has access to multiple locations
+        // If user has only 1 location, auto-select it and hide the "All" option
+        if (fetchedLocations.length > 1) {
+          setShowAllLocationsOption(true)
+          setLocationFilter("all")
+        } else if (fetchedLocations.length === 1) {
+          // User has only one location - auto-select it
+          setShowAllLocationsOption(false)
+          setLocationFilter(fetchedLocations[0].id.toString())
         } else {
-          console.error("Locations API returned unexpected data:", data)
+          // User has no locations
+          setShowAllLocationsOption(false)
           setLocations([])
         }
       } else {
@@ -232,22 +245,26 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <label className="text-sm font-medium text-gray-700">Location:</label>
-          <Select value={locationFilter} onValueChange={setLocationFilter}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="All Locations" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Locations</SelectItem>
-              {locations.map((location) => (
-                <SelectItem key={location.id} value={location.id.toString()}>
-                  {location.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {locations.length > 0 && (
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-gray-700">Location:</label>
+            <Select value={locationFilter} onValueChange={setLocationFilter}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Select location" />
+              </SelectTrigger>
+              <SelectContent>
+                {showAllLocationsOption && (
+                  <SelectItem value="all">All Locations</SelectItem>
+                )}
+                {locations.map((location) => (
+                  <SelectItem key={location.id} value={location.id.toString()}>
+                    {location.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {/* Metric Cards Grid */}

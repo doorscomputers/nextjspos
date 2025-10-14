@@ -520,7 +520,7 @@ export default function CreatePurchaseOrderPage() {
                     <div className="space-y-2">
                       <Label className="text-gray-900 dark:text-gray-200">Subtotal</Label>
                       <div className="px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-md font-semibold text-gray-900 dark:text-white">
-                        ₱{(item.quantity * item.unitCost).toFixed(2)}
+                        ₱{(item.quantity * item.unitCost).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     </div>
                   </div>
@@ -578,29 +578,29 @@ export default function CreatePurchaseOrderPage() {
           <div className="space-y-3">
             <div className="flex justify-between text-gray-700 dark:text-gray-300">
               <span>Items Subtotal:</span>
-              <span className="font-medium">₱{calculateSubtotal().toFixed(2)}</span>
+              <span className="font-medium">₱{calculateSubtotal().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
             {taxAmount > 0 && (
               <div className="flex justify-between text-gray-700 dark:text-gray-300">
                 <span>Tax:</span>
-                <span className="font-medium">₱{taxAmount.toFixed(2)}</span>
+                <span className="font-medium">₱{taxAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
             )}
             {discountAmount > 0 && (
               <div className="flex justify-between text-red-600 dark:text-red-400">
                 <span>Discount:</span>
-                <span className="font-medium">-₱{discountAmount.toFixed(2)}</span>
+                <span className="font-medium">-₱{discountAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
             )}
             {shippingCost > 0 && (
               <div className="flex justify-between text-gray-700 dark:text-gray-300">
                 <span>Shipping:</span>
-                <span className="font-medium">₱{shippingCost.toFixed(2)}</span>
+                <span className="font-medium">₱{shippingCost.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
             )}
             <div className="flex justify-between pt-3 border-t-2 border-gray-300 dark:border-gray-600 text-lg">
               <span className="font-bold text-gray-900 dark:text-white">Total Amount:</span>
-              <span className="font-bold text-gray-900 dark:text-white">₱{calculateTotal().toFixed(2)}</span>
+              <span className="font-bold text-gray-900 dark:text-white">₱{calculateTotal().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
           </div>
         </div>

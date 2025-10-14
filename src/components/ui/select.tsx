@@ -61,8 +61,16 @@ function SelectContent({
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
         data-slot="select-content"
+        style={{
+          backgroundColor: 'white',
+          color: 'black',
+          border: '2px solid #ccc',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+          zIndex: 99999,
+          opacity: 1,
+        }}
         className={cn(
-          "bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-50 max-h-(--radix-select-content-available-height) min-w-[8rem] origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-lg border-2 border-gray-200 dark:border-gray-700 shadow-xl",
+          "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative max-h-(--radix-select-content-available-height) min-w-[8rem] origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-lg",
           position === "popper" &&
             "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
           className
@@ -108,26 +116,42 @@ function SelectItem({
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
-      className={cn(
-        "relative flex w-full cursor-pointer items-center gap-2.5 rounded-md py-2.5 pr-9 pl-3 text-sm font-medium outline-none select-none transition-all duration-150",
-        "text-gray-700 dark:text-gray-200",
-        "hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 dark:hover:text-blue-300",
-        "focus:bg-blue-50 focus:text-blue-700 dark:focus:bg-blue-900/30 dark:focus:text-blue-300",
-        "data-[state=checked]:bg-blue-50 data-[state=checked]:text-blue-700 dark:data-[state=checked]:bg-blue-900/30 dark:data-[state=checked]:text-blue-300",
-        "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-        "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
-        "[&_svg:not([class*='text-'])]:text-gray-500 dark:[&_svg:not([class*='text-'])]:text-gray-400",
-        "*:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
-        className
-      )}
+      style={{
+        position: 'relative',
+        display: 'flex',
+        width: '100%',
+        cursor: 'pointer',
+        alignItems: 'center',
+        gap: '0.625rem',
+        borderRadius: '0.375rem',
+        padding: '0.625rem 2.25rem 0.625rem 0.75rem',
+        fontSize: '0.875rem',
+        fontWeight: '500',
+        outline: 'none',
+        userSelect: 'none',
+        color: '#111827',
+        backgroundColor: 'transparent',
+      }}
+      className="hover:bg-blue-100 focus:bg-blue-100 data-[state=checked]:bg-blue-100 data-[disabled]:opacity-50"
       {...props}
     >
-      <span className="absolute right-2 flex size-4 items-center justify-center text-blue-600 dark:text-blue-400">
+      <span style={{
+        position: 'absolute',
+        right: '0.5rem',
+        display: 'flex',
+        width: '1rem',
+        height: '1rem',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#2563eb'
+      }}>
         <SelectPrimitive.ItemIndicator>
           <CheckIcon className="size-4" />
         </SelectPrimitive.ItemIndicator>
       </span>
-      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+      <SelectPrimitive.ItemText style={{ color: '#111827', fontSize: '0.875rem' }}>
+        {children}
+      </SelectPrimitive.ItemText>
     </SelectPrimitive.Item>
   )
 }

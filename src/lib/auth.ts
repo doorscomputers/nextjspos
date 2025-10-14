@@ -2,6 +2,8 @@ import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "./prisma"
 import bcrypt from "bcryptjs"
+import { createAuditLog, AuditAction, EntityType } from "./auditLog"
+import { PERMISSIONS } from "./rbac"
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -71,12 +73,43 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid credentials")
         }
 
+        // Log successful login
+        try {
+          await createAuditLog({
+            businessId: user.businessId || 0,
+            userId: user.id,
+            username: user.username,
+            action: AuditAction.USER_LOGIN,
+            entityType: EntityType.USER,
+            entityIds: [user.id],
+            description: `User ${user.username} logged in successfully`,
+            metadata: {
+              loginTime: new Date().toISOString(),
+              firstName: user.firstName,
+              lastName: user.lastName,
+            },
+            ipAddress: 'unknown', // Will be updated when we have request context
+            userAgent: 'unknown', // Will be updated when we have request context
+          })
+        } catch (auditError) {
+          console.error('Failed to create login audit log:', auditError)
+          // Don't block login if audit logging fails
+        }
+
         // Collect all permissions from roles and direct permissions
         const rolePermissions = user.roles.flatMap(ur =>
           ur.role.permissions.map(rp => rp.permission.name)
         )
         const directPermissions = user.permissions.map(up => up.permission.name)
-        const allPermissions = [...new Set([...rolePermissions, ...directPermissions])]
+        let allPermissions = [...new Set([...rolePermissions, ...directPermissions])]
+
+        // Get user role names
+        const roleNames = user.roles.map(ur => ur.role.name)
+
+        // If user has "Super Admin" role, grant ALL permissions automatically
+        if (roleNames.includes('Super Admin')) {
+          allPermissions = Object.values(PERMISSIONS)
+        }
 
         // Collect location IDs with priority logic:
         // 1. If user has direct UserLocation assignments, use those (override)
@@ -102,7 +135,7 @@ export const authOptions: NextAuthOptions = {
           businessId: user.businessId?.toString(),
           businessName: user.business?.name,
           permissions: allPermissions,
-          roles: user.roles.map(ur => ur.role.name),
+          roles: roleNames,
           locationIds: locationIds,
         } as any
       },

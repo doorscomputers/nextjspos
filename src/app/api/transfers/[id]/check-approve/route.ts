@@ -64,31 +64,36 @@ export async function POST(
       )
     }
 
-    // Validate checker has access to origin location
+    // Validate checker has access to EITHER origin OR destination location
+    // This allows branch managers to approve transfers TO their location
     const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
     if (!hasAccessAllLocations) {
       const userLocation = await prisma.userLocation.findFirst({
         where: {
           userId: parseInt(userId),
-          locationId: transfer.fromLocationId,
+          OR: [
+            { locationId: transfer.fromLocationId },
+            { locationId: transfer.toLocationId },
+          ],
         },
       })
       if (!userLocation) {
         return NextResponse.json(
-          { error: 'No access to origin location' },
+          { error: 'You must have access to either the origin or destination location to approve this transfer' },
           { status: 403 }
         )
       }
     }
 
-    // Best practice: Checker should be different from creator
+    // ENFORCE: Checker must be different from creator (separation of duties)
     if (transfer.createdBy === parseInt(userId)) {
-      console.warn(`Warning: User ${userId} is checking their own transfer ${transferId}`)
-      // Allow but log warning - you can enforce this by uncommenting:
-      // return NextResponse.json(
-      //   { error: 'Checker must be different from creator' },
-      //   { status: 400 }
-      // )
+      return NextResponse.json(
+        {
+          error: 'Cannot approve your own transfer. A different user must check and approve this transfer for proper control and audit compliance.',
+          code: 'SAME_USER_VIOLATION'
+        },
+        { status: 403 }
+      )
     }
 
     // Update transfer to checked status

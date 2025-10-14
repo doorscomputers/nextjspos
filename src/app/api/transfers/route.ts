@@ -91,8 +91,32 @@ export async function GET(request: NextRequest) {
       prisma.stockTransfer.count({ where }),
     ])
 
+    // Fetch location names for all transfers
+    const locationIds = Array.from(
+      new Set(
+        transfers.flatMap(t => [t.fromLocationId, t.toLocationId])
+      )
+    )
+
+    const locations = await prisma.businessLocation.findMany({
+      where: {
+        id: { in: locationIds },
+        businessId: parseInt(businessId),
+      },
+      select: { id: true, name: true },
+    })
+
+    const locationMap = new Map(locations.map(l => [l.id, l.name]))
+
+    // Add location names to transfers
+    const transfersWithLocations = transfers.map(transfer => ({
+      ...transfer,
+      fromLocationName: locationMap.get(transfer.fromLocationId) || `Location ${transfer.fromLocationId}`,
+      toLocationName: locationMap.get(transfer.toLocationId) || `Location ${transfer.toLocationId}`,
+    }))
+
     return NextResponse.json({
-      transfers,
+      transfers: transfersWithLocations,
       pagination: {
         total,
         page,

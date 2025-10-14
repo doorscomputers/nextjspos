@@ -19,7 +19,7 @@ export default function NewUserPage() {
     firstName: '',
     lastName: '',
     roleIds: [] as number[],
-    locationIds: [] as number[],
+    locationId: null as number | null, // Changed to single location
     allowLogin: true,
   })
 
@@ -81,14 +81,7 @@ export default function NewUserPage() {
     }))
   }
 
-  const toggleLocation = (locationId: number) => {
-    setFormData(prev => ({
-      ...prev,
-      locationIds: prev.locationIds.includes(locationId)
-        ? prev.locationIds.filter(id => id !== locationId)
-        : [...prev.locationIds, locationId]
-    }))
-  }
+  // Removed toggleLocation - now using single select
 
   if (loading) return <div className="p-8">Loading...</div>
 
@@ -201,33 +194,35 @@ export default function NewUserPage() {
         </div>
 
         <div>
-          <h3 className="text-sm font-medium mb-3">Assign Locations (Branches)</h3>
+          <h3 className="text-sm font-medium mb-3">Assign Location (Branch) *</h3>
           <p className="text-xs text-gray-500 mb-2">
-            Leave empty if user has ACCESS_ALL_LOCATIONS permission
+            Select the primary location for this user. Each user must be assigned to exactly one location.
           </p>
-          <div className="border rounded p-4 space-y-2 max-h-64 overflow-y-auto">
+          <select
+            value={formData.locationId || ''}
+            onChange={(e) => setFormData({ ...formData, locationId: e.target.value ? parseInt(e.target.value) : null })}
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          >
+            <option value="">-- Select Location --</option>
             {locations.map((location) => (
-              <label key={location.id} className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.locationIds.includes(location.id)}
-                  onChange={() => toggleLocation(location.id)}
-                  className="w-4 h-4"
-                />
-                <span>{location.name}</span>
-                <span className="text-xs text-gray-500">({location.city}, {location.state})</span>
-              </label>
+              <option key={location.id} value={location.id}>
+                {location.name} ({location.city}, {location.state})
+              </option>
             ))}
-            {locations.length === 0 && (
-              <p className="text-sm text-gray-500">No locations available</p>
-            )}
-          </div>
+          </select>
+          {!formData.locationId && (
+            <p className="text-sm text-red-500 mt-1">Please select a location</p>
+          )}
+          {locations.length === 0 && (
+            <p className="text-sm text-gray-500 mt-2">No locations available</p>
+          )}
         </div>
 
         <div className="flex gap-3 pt-4 border-t">
           <button
             type="submit"
-            disabled={submitting || formData.roleIds.length === 0}
+            disabled={submitting || formData.roleIds.length === 0 || !formData.locationId}
             className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
           >
             {submitting ? 'Creating...' : 'Create User'}

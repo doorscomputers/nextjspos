@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,7 +29,10 @@ export async function GET(request: NextRequest) {
     const businessId = parseInt(session.user.businessId)
 
     // Build where clause
-    const whereClause: any = { businessId }
+    const whereClause: any = {
+      businessId,
+      deletedAt: null
+    }
 
     if (fromLocationId && fromLocationId !== 'all') {
       whereClause.fromLocationId = parseInt(fromLocationId)
@@ -51,70 +54,94 @@ export async function GET(request: NextRequest) {
     if (startDate || endDate) {
       whereClause.createdAt = {}
       if (startDate) {
-        whereClause.createdAt.gte = new Date(startDate)
+        // Start of day in local timezone
+        const startDateTime = new Date(startDate + 'T00:00:00')
+        whereClause.createdAt.gte = startDateTime
       }
       if (endDate) {
-        whereClause.createdAt.lte = new Date(endDate)
+        // End of day in local timezone (23:59:59.999)
+        const endDateTime = new Date(endDate + 'T23:59:59.999')
+        whereClause.createdAt.lte = endDateTime
       }
     }
 
     // Get total count
     const totalCount = await prisma.stockTransfer.count({ where: whereClause })
 
-    // Get transfers data
+    // Get transfers data with items (no product/variation relations exist)
     const transfers = await prisma.stockTransfer.findMany({
       where: whereClause,
       include: {
-        fromLocation: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        toLocation: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        originChecker: {
-          select: {
-            name: true,
-            username: true,
-          },
-        },
-        destinationReceiver: {
-          select: {
-            name: true,
-            username: true,
-          },
-        },
-        items: {
-          include: {
-            product: {
-              select: {
-                name: true,
-                sku: true,
-              },
-            },
-            productVariation: {
-              select: {
-                name: true,
-                sku: true,
-              },
-            },
-          },
-        },
+        items: true,
       },
       orderBy: { createdAt: 'desc' },
       skip,
       take: limit,
     })
 
+    // Get all location IDs, user IDs, and product/variation IDs we need
+    const locationIds = new Set<number>()
+    const userIds = new Set<number>()
+    const productIds = new Set<number>()
+    const variationIds = new Set<number>()
+
+    transfers.forEach(transfer => {
+      locationIds.add(transfer.fromLocationId)
+      locationIds.add(transfer.toLocationId)
+      if (transfer.checkedBy) userIds.add(transfer.checkedBy)
+      if (transfer.arrivedBy) userIds.add(transfer.arrivedBy)
+
+      transfer.items.forEach(item => {
+        if (item.productId) productIds.add(item.productId)
+        if (item.productVariationId) variationIds.add(item.productVariationId)
+      })
+    })
+
+    // Fetch locations
+    const locations = await prisma.businessLocation.findMany({
+      where: {
+        id: { in: Array.from(locationIds) },
+        businessId
+      },
+      select: {
+        id: true,
+        name: true
+      }
+    })
+
+    const locationMap = new Map(locations.map(l => [l.id, l.name]))
+
+    // Fetch users
+    const users = await prisma.user.findMany({
+      where: {
+        id: { in: Array.from(userIds) }
+      },
+      select: {
+        id: true,
+        username: true
+      }
+    })
+
+    const userMap = new Map(users.map(u => [u.id, u.username]))
+
+    // Fetch products
+    const products = await prisma.product.findMany({
+      where: { id: { in: Array.from(productIds) } },
+      select: { id: true, name: true, sku: true }
+    })
+    const productMap = new Map(products.map(p => [p.id, p]))
+
+    // Fetch product variations
+    const variations = await prisma.productVariation.findMany({
+      where: { id: { in: Array.from(variationIds) } },
+      select: { id: true, name: true, sku: true }
+    })
+    const variationMap = new Map(variations.map(v => [v.id, v]))
+
     // Calculate summary statistics by status
     const statusSummary = await prisma.stockTransfer.groupBy({
       by: ['status'],
-      where: { businessId },
+      where: { businessId, deletedAt: null },
       _count: true,
     })
 
@@ -135,10 +162,10 @@ export async function GET(request: NextRequest) {
       return {
         id: transfer.id,
         transferNumber: transfer.transferNumber,
-        status: transfer.status,
-        fromLocation: transfer.fromLocation.name,
+        status: transfer.status.toUpperCase(),
+        fromLocation: locationMap.get(transfer.fromLocationId) || `Location ${transfer.fromLocationId}`,
         fromLocationId: transfer.fromLocationId,
-        toLocation: transfer.toLocation.name,
+        toLocation: locationMap.get(transfer.toLocationId) || `Location ${transfer.toLocationId}`,
         toLocationId: transfer.toLocationId,
         createdAt: transfer.createdAt.toISOString().split('T')[0],
         submittedAt: transfer.submittedAt
@@ -160,24 +187,24 @@ export async function GET(request: NextRequest) {
         completedAt: transfer.completedAt
           ? transfer.completedAt.toISOString().split('T')[0]
           : null,
-        originChecker: transfer.originChecker
-          ? transfer.originChecker.name
-          : null,
-        destinationReceiver: transfer.destinationReceiver
-          ? transfer.destinationReceiver.name
-          : null,
+        originChecker: transfer.checkedBy ? userMap.get(transfer.checkedBy) : null,
+        destinationReceiver: transfer.arrivedBy ? userMap.get(transfer.arrivedBy) : null,
         itemCount: transfer.items.length,
         totalQuantity,
         stockDeducted: transfer.stockDeducted,
-        items: transfer.items.map((item) => ({
-          productName: item.product.name,
-          variationName: item.productVariation.name,
-          sku: item.productVariation.sku,
-          quantity: parseFloat(item.quantity.toString()),
-          unitCost: parseFloat(item.unitCost.toString()),
-          totalValue:
-            parseFloat(item.quantity.toString()) * parseFloat(item.unitCost.toString()),
-        })),
+        items: transfer.items.map((item) => {
+          const product = productMap.get(item.productId)
+          const variation = variationMap.get(item.productVariationId)
+
+          return {
+            productName: product?.name || 'Unknown Product',
+            variationName: variation?.name || 'Unknown Variation',
+            sku: variation?.sku || product?.sku || 'N/A',
+            quantity: parseFloat(item.quantity.toString()),
+            unitCost: 0, // Unit cost not tracked in transfers
+            totalValue: 0, // Total value not tracked in transfers
+          }
+        }),
         notes: transfer.notes,
       }
     })
@@ -195,7 +222,10 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Transfers report error:', error)
     return NextResponse.json(
-      { error: 'Failed to generate transfers report' },
+      {
+        error: 'Failed to generate transfers report',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }

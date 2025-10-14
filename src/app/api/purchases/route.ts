@@ -103,6 +103,19 @@ export async function GET(request: NextRequest) {
           items: {
             include: {
               receiptItems: true,
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  sku: true,
+                },
+              },
+              productVariation: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
         },

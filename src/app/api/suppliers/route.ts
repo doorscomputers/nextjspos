@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    return NextResponse.json(suppliers)
+    return NextResponse.json({ suppliers })
   } catch (error) {
     console.error('Error fetching suppliers:', error)
     return NextResponse.json(

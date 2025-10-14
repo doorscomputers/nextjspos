@@ -150,7 +150,7 @@ async function main() {
       name: 'Super Admin',
       businessId: business.id,
       guardName: 'web',
-      isDefault: false,
+      isDefault: true, // Super Admin is protected (cannot be edited/deleted)
     },
   })
 
@@ -205,7 +205,7 @@ async function main() {
       name: 'Regular Cashier',
       businessId: business.id,
       guardName: 'web',
-      isDefault: true,
+      isDefault: false, // Can be edited (not protected)
     },
   })
   console.log('✅ Roles created')

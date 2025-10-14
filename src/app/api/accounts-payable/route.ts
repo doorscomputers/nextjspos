@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
     const supplierId = searchParams.get('supplierId')
     const paymentStatus = searchParams.get('paymentStatus')
     const overdue = searchParams.get('overdue') === 'true'
+    const idsParam = searchParams.get('ids') // For batch payment
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = (page - 1) * limit
@@ -36,6 +37,14 @@ export async function GET(request: NextRequest) {
     const where: any = {
       businessId: parseInt(businessId),
       deletedAt: null,
+    }
+
+    // If specific IDs are requested (for batch payment)
+    if (idsParam) {
+      const ids = idsParam.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
+      if (ids.length > 0) {
+        where.id = { in: ids }
+      }
     }
 
     if (supplierId) {

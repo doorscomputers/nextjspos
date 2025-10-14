@@ -193,9 +193,26 @@ export async function POST(
           const serialNumbersArray = item.serialNumbers as any[]
 
           for (const sn of serialNumbersArray) {
-            // Create serial number record
-            const serialNumberRecord = await tx.productSerialNumber.create({
-              data: {
+            // Create or update serial number record with supplier tracking
+            const serialNumberRecord = await tx.productSerialNumber.upsert({
+              where: {
+                businessId_serialNumber: {
+                  businessId: parseInt(businessId),
+                  serialNumber: sn.serialNumber,
+                },
+              },
+              update: {
+                // Update if exists (in case of retry)
+                status: 'in_stock',
+                condition: (sn.condition as SerialNumberCondition) || SerialNumberCondition.NEW,
+                currentLocationId: receipt.locationId,
+                supplierId: receipt.supplierId,
+                purchaseId: receipt.purchaseId,
+                purchaseReceiptId: receipt.id,
+                purchasedAt: receipt.receiptDate,
+                purchaseCost: parseFloat(purchaseItem.unitCost.toString()),
+              },
+              create: {
                 businessId: parseInt(businessId),
                 productId: item.productId,
                 productVariationId: item.productVariationId,
@@ -204,6 +221,8 @@ export async function POST(
                 status: 'in_stock',
                 condition: (sn.condition as SerialNumberCondition) || SerialNumberCondition.NEW,
                 currentLocationId: receipt.locationId,
+                // CRITICAL: Link serial number to supplier for warranty tracking
+                supplierId: receipt.supplierId,
                 purchaseId: receipt.purchaseId,
                 purchaseReceiptId: receipt.id,
                 purchasedAt: receipt.receiptDate,

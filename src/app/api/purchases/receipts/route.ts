@@ -33,6 +33,8 @@ export async function GET(request: NextRequest) {
     const locationId = searchParams.get('locationId')
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
+    const sortBy = searchParams.get('sortBy') || 'receiptDate'
+    const sortOrder = searchParams.get('sortOrder') || 'desc'
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
     const skip = (page - 1) * limit
@@ -105,15 +107,32 @@ export async function GET(request: NextRequest) {
     console.log('User:', user.username, 'ID:', user.id)
     console.log('Where clause:', JSON.stringify(where, null, 2))
 
+    // Build orderBy clause based on sortBy parameter
+    let orderBy: any = { createdAt: 'desc' }
+
+    switch (sortBy) {
+      case 'receiptNumber':
+        orderBy = { receiptNumber: sortOrder }
+        break
+      case 'receiptDate':
+        orderBy = { receiptDate: sortOrder }
+        break
+      case 'status':
+        orderBy = { status: sortOrder }
+        break
+      // Note: 'supplier' and 'totalQuantity' cannot be sorted at database level
+      // due to relations and aggregations - they will be sorted client-side
+      default:
+        orderBy = { receiptDate: sortOrder }
+    }
+
     // Fetch receipts
     const [receipts, totalCount] = await Promise.all([
       prisma.purchaseReceipt.findMany({
         where,
         skip,
         take: limit,
-        orderBy: {
-          createdAt: 'desc',
-        },
+        orderBy,
         include: {
           purchase: {
             select: {
@@ -324,14 +343,13 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // 2. Create Receipt Items & Update Inventory
+      // 2. Create Receipt Items (NO inventory updates - that happens on approval)
       for (const item of items) {
         const {
           productId,
           productVariationId,
           quantityReceived,
           purchaseItemId,  // Optional: Only for PO-based GRN
-          unitCost,        // Required for direct entry
           serialNumbers,
           notes: itemNotes,
         } = item
@@ -340,12 +358,10 @@ export async function POST(request: NextRequest) {
           throw new Error('Missing required item fields: productId, productVariationId, quantityReceived')
         }
 
-        // For direct entry, unitCost is required
-        let finalUnitCost: number
         let finalPurchaseItemId: number | null = null
 
         if (purchaseId && purchaseItemId) {
-          // Get cost from purchase item
+          // Verify purchase item exists
           const purchaseItem = await tx.purchaseItem.findUnique({
             where: { id: parseInt(purchaseItemId) },
           })
@@ -354,18 +370,12 @@ export async function POST(request: NextRequest) {
             throw new Error(`Purchase item ${purchaseItemId} not found`)
           }
 
-          finalUnitCost = parseFloat(purchaseItem.unitCost.toString())
           finalPurchaseItemId = parseInt(purchaseItemId)
-        } else {
-          // Direct entry: unitCost must be provided
-          if (!unitCost && unitCost !== 0) {
-            throw new Error('unitCost is required for direct entry items')
-          }
-          finalUnitCost = parseFloat(unitCost)
         }
 
-        // Create receipt item
-        const receiptItem = await tx.purchaseReceiptItem.create({
+        // Create receipt item with status 'pending'
+        // Serial numbers are stored as JSON and will be processed when approved
+        await tx.purchaseReceiptItem.create({
           data: {
             purchaseReceiptId: receipt.id,
             purchaseItemId: finalPurchaseItemId,
@@ -377,60 +387,23 @@ export async function POST(request: NextRequest) {
           },
         })
 
-        // 3. Update Inventory (CRITICAL for accuracy)
-        const existingStock = await tx.inventoryMovement.findFirst({
-          where: {
-            businessId,
-            locationId: parseInt(locationId),
-            productId: parseInt(productId),
-            productVariationId: parseInt(productVariationId),
-          },
-          orderBy: { createdAt: 'desc' },
-        })
-
-        const currentBalance = existingStock
-          ? parseFloat(existingStock.balanceQuantity.toString())
-          : 0
-        const newBalance = currentBalance + parseFloat(quantityReceived.toString())
-
-        await tx.inventoryMovement.create({
-          data: {
-            businessId,
-            locationId: parseInt(locationId),
-            productId: parseInt(productId),
-            productVariationId: parseInt(productVariationId),
-            movementType: 'purchase_receipt',
-            referenceType: 'purchase_receipt',
-            referenceId: receipt.id.toString(),
-            quantityIn: new Prisma.Decimal(quantityReceived),
-            quantityOut: new Prisma.Decimal(0),
-            balanceQuantity: new Prisma.Decimal(newBalance),
-            unitCost: new Prisma.Decimal(finalUnitCost),
-            totalCost: new Prisma.Decimal(finalUnitCost * parseFloat(quantityReceived.toString())),
-            notes: `GRN ${receiptNumber}${purchaseId ? ` from PO` : ' (Direct Entry)'}`,
-            createdBy: userId,
-          },
-        })
-
-        // 4. Update product variation current stock
-        await tx.productVariation.update({
-          where: { id: parseInt(productVariationId) },
-          data: {
-            currentStock: {
-              increment: new Prisma.Decimal(quantityReceived),
-            },
-          },
-        })
+        // NOTE: Inventory is NOT updated here - it will be updated when the receipt is approved
+        // This implements the two-step approval workflow:
+        // Step 1 (Create): Receipt created with status 'pending', serial numbers stored as JSON
+        // Step 2 (Approve): Inventory updated, serial numbers created in database, stock transactions recorded
       }
 
-      // 5. Create Audit Log
+      // 3. Create Audit Log
       await tx.auditLog.create({
         data: {
+          businessId,
           userId,
+          username: user.username,
           action: 'CREATE_PURCHASE_RECEIPT',
           entityType: 'purchase_receipt',
-          entityId: receipt.id.toString(),
-          details: {
+          entityIds: JSON.stringify([receipt.id]),
+          description: `Created purchase receipt ${receiptNumber} with ${items.length} items`,
+          metadata: {
             receiptNumber,
             purchaseId,
             supplierId: finalSupplierId,

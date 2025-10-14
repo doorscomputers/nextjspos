@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,14 +14,22 @@ export async function GET(request: NextRequest) {
     const businessId = session.user.businessId
 
     // Get unique bank names from BankTransaction table
-    const bankTransactions = await prisma.bankTransaction.findMany({
-      where: { businessId },
-      select: { bankName: true },
-      distinct: ['bankName'],
-      orderBy: { bankName: 'asc' },
-    })
+    // If table doesn't exist or has no records, return empty array
+    let banks: string[] = []
 
-    const banks = bankTransactions.map((bt) => bt.bankName).filter(Boolean)
+    try {
+      const bankTransactions = await prisma.bankTransaction.findMany({
+        where: { businessId },
+        select: { bankName: true },
+        distinct: ['bankName'],
+        orderBy: { bankName: 'asc' },
+      })
+
+      banks = bankTransactions.map((bt) => bt.bankName).filter(Boolean) as string[]
+    } catch (dbError) {
+      console.log('BankTransaction table may not exist yet, returning empty bank list')
+      // Return empty array if table doesn't exist
+    }
 
     return NextResponse.json({ banks })
   } catch (error) {

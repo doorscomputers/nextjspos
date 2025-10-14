@@ -26,6 +26,9 @@ export async function GET(request: NextRequest) {
     const activeFilter = searchParams.get('active') // 'true', 'false', or null (all)
     const forTransaction = searchParams.get('forTransaction') === 'true' // Only active products
 
+    // Parse limit parameter
+    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined
+
     // Build where clause
     const whereClause: any = {
       businessId: parseInt(businessId),
@@ -56,8 +59,12 @@ export async function GET(request: NextRequest) {
           }
         }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      ...(limit && { take: limit })
     })
+
+    console.log(`[API /api/products] Found ${products.length} products for businessId ${businessId}`)
+    console.log('[API /api/products] First 3 products:', products.slice(0, 3).map(p => ({ id: p.id, sku: p.sku, name: p.name, variations: p.variations.length })))
 
     // Serialize Decimal fields to numbers for JSON
     const serializedProducts = products.map(product => ({
@@ -72,6 +79,7 @@ export async function GET(request: NextRequest) {
       } : null,
       variations: product.variations.map(variation => ({
         ...variation,
+        variationName: variation.name, // Add alias for frontend compatibility
         purchasePrice: Number(variation.purchasePrice),
         sellingPrice: Number(variation.sellingPrice),
         variationLocationDetails: variation.variationLocationDetails.map(detail => ({

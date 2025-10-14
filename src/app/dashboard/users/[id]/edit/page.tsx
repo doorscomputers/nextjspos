@@ -22,7 +22,7 @@ export default function EditUserPage() {
     firstName: '',
     lastName: '',
     roleIds: [] as number[],
-    locationIds: [] as number[],
+    locationId: null as number | null, // Changed to single location
     allowLogin: true,
   })
 
@@ -55,7 +55,7 @@ export default function EditUserPage() {
           firstName: userData.firstName || '',
           lastName: userData.lastName || '',
           roleIds: userData.roleIds || [],
-          locationIds: userData.locationIds || [],
+          locationId: userData.locationId || null, // Changed to single location
           allowLogin: userData.allowLogin !== undefined ? userData.allowLogin : true,
         })
       }
@@ -107,23 +107,7 @@ export default function EditUserPage() {
     }))
   }
 
-  const toggleLocation = (locationId: number) => {
-    setFormData(prev => ({
-      ...prev,
-      locationIds: prev.locationIds.includes(locationId)
-        ? prev.locationIds.filter(id => id !== locationId)
-        : [...prev.locationIds, locationId]
-    }))
-  }
-
-  const toggleAllLocations = () => {
-    setFormData(prev => ({
-      ...prev,
-      locationIds: prev.locationIds.length === locations.length
-        ? []
-        : locations.map(loc => loc.id)
-    }))
-  }
+  // Removed toggleLocation and toggleAllLocations - now using single select
 
   if (loading) return <div className="p-8">Loading...</div>
 
@@ -245,60 +229,36 @@ export default function EditUserPage() {
           )}
         </div>
 
-        <div className="border-t pt-6">
-          <div className="bg-blue-50 border border-blue-200 rounded p-4 mb-4">
-            <h4 className="text-sm font-semibold text-blue-900 mb-2">📍 Direct Branch Assignment (Optional Override)</h4>
-            <p className="text-xs text-blue-800 mb-2">
-              <strong>Leave empty</strong> to inherit branches from assigned roles above.<br/>
-              <strong>Select specific branches</strong> to override role-based access for this user only.
-            </p>
-            <ul className="text-xs text-blue-700 list-disc list-inside space-y-1">
-              <li>If user has <strong>ACCESS_ALL_LOCATIONS</strong> permission → Ignores this setting</li>
-              <li>If direct branches selected → User accesses <strong>ONLY</strong> these branches (overrides role)</li>
-              <li>If empty → User inherits branches from their assigned roles</li>
-            </ul>
-          </div>
-
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium">Assign Locations (Branches) - Direct User Access</h3>
-            <button
-              type="button"
-              onClick={toggleAllLocations}
-              className="text-sm text-blue-600 hover:text-blue-800"
-            >
-              {formData.locationIds.length === locations.length ? 'Deselect All' : 'Select All'}
-            </button>
-          </div>
-
-          <div className="border rounded p-4 space-y-2 max-h-64 overflow-y-auto">
+        <div>
+          <h3 className="text-sm font-medium mb-3">Assign Location (Branch) *</h3>
+          <p className="text-xs text-gray-500 mb-2">
+            Select the primary location for this user. Each user must be assigned to exactly one location.
+          </p>
+          <select
+            value={formData.locationId || ''}
+            onChange={(e) => setFormData({ ...formData, locationId: e.target.value ? parseInt(e.target.value) : null })}
+            className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            required
+          >
+            <option value="">-- Select Location --</option>
             {locations.map((location) => (
-              <label key={location.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
-                <input
-                  type="checkbox"
-                  checked={formData.locationIds.includes(location.id)}
-                  onChange={() => toggleLocation(location.id)}
-                  className="w-4 h-4"
-                />
-                <span className="font-medium">{location.name}</span>
-                <span className="text-xs text-gray-500">({location.city}, {location.state})</span>
-              </label>
+              <option key={location.id} value={location.id}>
+                {location.name} ({location.city}, {location.state})
+              </option>
             ))}
-            {locations.length === 0 && (
-              <p className="text-sm text-gray-500">No locations available</p>
-            )}
-          </div>
-
-          {formData.locationIds.length > 0 && (
-            <p className="text-xs text-amber-600 mt-2 font-medium">
-              ⚠️ This user will access ONLY {formData.locationIds.length} selected branch(es), overriding role-based access.
-            </p>
+          </select>
+          {!formData.locationId && (
+            <p className="text-sm text-red-500 mt-1">Please select a location</p>
+          )}
+          {locations.length === 0 && (
+            <p className="text-sm text-gray-500 mt-2">No locations available</p>
           )}
         </div>
 
         <div className="flex gap-3 pt-4 border-t">
           <button
             type="submit"
-            disabled={submitting || formData.roleIds.length === 0}
+            disabled={submitting || formData.roleIds.length === 0 || !formData.locationId}
             className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {submitting ? 'Updating...' : 'Update User'}

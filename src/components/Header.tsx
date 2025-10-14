@@ -1,10 +1,11 @@
 "use client"
 
 import { signOut } from "next-auth/react"
-import { Bars3Icon, BellIcon, UserCircleIcon } from "@heroicons/react/24/outline"
+import { Bars3Icon, BellIcon, UserCircleIcon, Bars3BottomLeftIcon } from "@heroicons/react/24/outline"
 import { useState } from "react"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { useRouter } from "next/navigation"
+import { useTheme } from "@/components/theme-provider"
 
 interface HeaderProps {
   toggleSidebar: () => void
@@ -14,6 +15,15 @@ export default function Header({ toggleSidebar }: HeaderProps) {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const router = useRouter()
+  const { sidebarStyle, setSidebarStyle } = useTheme()
+
+  const toggleSidebarCollapse = () => {
+    if (sidebarStyle === 'default') {
+      setSidebarStyle('icons-only')
+    } else {
+      setSidebarStyle('default')
+    }
+  }
 
   return (
     <header className="bg-white dark:bg-gray-900 shadow-md z-10 border-b border-gray-200 dark:border-gray-800">
@@ -24,6 +34,15 @@ export default function Header({ toggleSidebar }: HeaderProps) {
           className="lg:hidden p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
         >
           <Bars3Icon className="h-6 w-6" />
+        </button>
+
+        {/* Desktop Sidebar Collapse Button */}
+        <button
+          onClick={toggleSidebarCollapse}
+          title={`Sidebar: ${sidebarStyle === 'default' ? 'Normal (click to collapse)' : 'Icons Only (click to expand)'}`}
+          className="hidden lg:block p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
+        >
+          <Bars3BottomLeftIcon className="h-6 w-6" />
         </button>
 
         {/* Spacer */}
@@ -56,13 +75,27 @@ export default function Header({ toggleSidebar }: HeaderProps) {
                     if (isLoggingOut) return
                     setIsLoggingOut(true)
 
-                    // Redirect immediately for instant logout feel
-                    router.push("/login")
+                    try {
+                      // Log logout activity before signing out
+                      await fetch('/api/auth/logout', {
+                        method: 'POST',
+                      }).catch(err => {
+                        console.error("Failed to log logout:", err)
+                        // Continue with logout even if audit logging fails
+                      })
 
-                    // Clean up session in background (don't wait)
-                    signOut({ redirect: false }).catch(err => {
-                      console.error("Signout error:", err)
-                    })
+                      // Sign out
+                      await signOut({ redirect: false })
+
+                      // Redirect to login
+                      router.push("/login")
+                    } catch (err) {
+                      console.error("Logout error:", err)
+                      // Redirect anyway
+                      router.push("/login")
+                    } finally {
+                      setIsLoggingOut(false)
+                    }
                   }}
                   disabled={isLoggingOut}
                   className="block w-full text-left px-4 py-3 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 disabled:opacity-50"

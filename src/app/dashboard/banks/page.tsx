@@ -278,7 +278,10 @@ export default function BanksPage() {
           </p>
         </div>
         {can(PERMISSIONS.BANK_CREATE) && (
-          <Button onClick={() => handleOpenDialog()}>
+          <Button
+            onClick={() => handleOpenDialog()}
+            className="bg-green-600 hover:bg-green-700 text-white font-bold border-2 border-green-700 shadow-md"
+          >
             <PlusIcon className="w-5 h-5 mr-2" />
             Add Bank Account
           </Button>
@@ -345,20 +348,24 @@ export default function BanksPage() {
                         <div className="flex justify-end gap-2">
                           {can(PERMISSIONS.BANK_UPDATE) && (
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
                               onClick={() => handleOpenDialog(bank)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold border-2 border-blue-700"
                             >
-                              <PencilIcon className="w-4 h-4" />
+                              <PencilIcon className="w-4 h-4 mr-1" />
+                              Edit
                             </Button>
                           )}
                           {can(PERMISSIONS.BANK_DELETE) && (
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
                               onClick={() => handleDelete(bank)}
+                              className="bg-red-600 hover:bg-red-700 text-white font-semibold border-2 border-red-700"
                             >
-                              <TrashIcon className="w-4 h-4 text-red-500" />
+                              <TrashIcon className="w-4 h-4 mr-1" />
+                              Delete
                             </Button>
                           )}
                         </div>
@@ -504,10 +511,15 @@ export default function BanksPage() {
                 variant="outline"
                 onClick={handleCloseDialog}
                 disabled={submitting}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-900 font-bold border-2 border-gray-400 shadow-md dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white dark:border-gray-500"
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={submitting}>
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold border-2 border-blue-700 shadow-md disabled:bg-gray-400"
+              >
                 {submitting
                   ? "Saving..."
                   : editingBank

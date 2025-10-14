@@ -1,0 +1,331 @@
+🚀 Starting Product Search Test...
+
+📍 Step 1: Navigating to login page...
+📍 Step 2: Logging in as Jheirone...
+✅ Login successful!
+
+
+❌ Failed API Call: http://localhost:3000/api/dashboard/stats?
+   Status: 500 Internal Server Error
+❌ Browser Console Error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+   Error: {
+  "error": "Failed to fetch dashboard statistics"
+}
+
+❌ Failed API Call: http://localhost:3000/api/dashboard/stats?
+   Status: 500 Internal Server Error
+❌ Browser Console Error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+   Error: {
+  "error": "Failed to fetch dashboard statistics"
+}
+📍 Step 3: Navigating to Create Purchase Order page...
+   Page Title: "PciNet Computer Trading and Services"
+
+📍 Step 4: Looking for product search field...
+   Search input visible: true
+
+📍 Step 5: Testing product search...
+   Typing "test" into search field...
+   Waiting for search results (debounce + API)...
+
+📍 Step 6: Checking for results or errors...
+   Dropdown visible: false
+   📸 Screenshot saved as test-search-result.png
+
+📍 Step 7: Checking user session and permissions...
+
+📡 API Call: http://localhost:3000/api/products/search?q=test&limit=20
+   Status: 500 Internal Server Error
+❌ Browser Console Error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+❌ Browser Console Error: Failed to search products
+   Response: {
+  "error": "Failed to search products",
+  "details": "Cannot read properties of undefined (reading 'product')"
+}
+
+❌ Failed API Call: http://localhost:3000/api/products/search?q=test&limit=20
+   Status: 500 Internal Server Error
+   Error: {
+  "error": "Failed to search products",
+  "details": "Cannot read properties of undefined (reading 'product')"
+}
+   Session data: {
+  "user": {
+    "name": "Terre Jheirone Terre",
+    "email": null,
+    "id": "12",
+    "username": "Jheirone",
+    "firstName": "Jheirone",
+    "lastName": "Terre",
+    "surname": "Terre",
+    "businessId": "1",
+    "businessName": "PciNet Computer Trading and Services",
+    "permissions": [
+      "purchase.receipt.approve",
+      "purchase.receipt.view",
+      "serial_number.view",
+      "supplier_return.approve",
+      "purchase.update",
+      "stock_transfer.create",
+      "stock_transfer.receive",
+      "stock_transfer.verify",
+      "physical_inventory.export",
+      "purchase.create",
+      "supplier.view",
+      "supplier.update",
+      "report.view",
+      "report.purchase_sell",
+      "supplier.create",
+      "serial_number.scan",
+      "report.stock.view",
+      "role.view",
+      "product.view_all_branch_stock",
+      "product.view_purchase_price",
+      "product.view",
+      "product.create",
+      "product.opening_stock",
+      "product.update",
+      "product.access_default_selling_price",
+      "purchase.approve",
+      "purchase.receive",
+      "accounts_payable.view",
+      "accounts_payable.create",
+      "accounts_payable.update",
+      "accounts_payable.delete",
+      "stock_transfer.send",
+      "stock_transfer.cancel",
+      "purchase.view",
+      "stock_transfer.complete",
+      "physical_inventory.import",
+      "purchase.delete",
+      "stock_transfer.view",
+      "supplier_return.view",
+      "payment.view",
+      "payment.create",
+      "payment.approve",
+      "payment.update",
+      "payment.delete",
+      "purchase.view_cost",
+      "purchase.receipt.create",
+      "stock_transfer.check",
+      "supplier_return.create",
+      "serial_number.track"
+    ],
+    "roles": [
+      "Warehouse Manager"
+    ],
+    "locationIds": [
+      2
+    ]
+  },
+  "expires": "2025-11-08T11:46:00.712Z"
+}
+
+📍 Step 8: Testing API directly from browser context...
+
+📡 API Call: http://localhost:3000/api/products/search?q=test&limit=20
+   Status: 500 Internal Server Error
+❌ Browser Console Error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+   Direct API call result: {
+  "status": 500,
+  "statusText": "Internal Server Error",
+  "ok": false,
+  "data": {
+    "error": "Failed to search products",
+    "details": "Cannot read properties of undefined (reading 'product')"
+  }
+}
+
+📍 Step 9: Verifying products exist in database...
+   Response: {
+  "error": "Failed to search products",
+  "details": "Cannot read properties of undefined (reading 'product')"
+}
+
+❌ Failed API Call: http://localhost:3000/api/products/search?q=test&limit=20
+   Status: 500 Internal Server Error
+   Error: {
+  "error": "Failed to search products",
+  "details": "Cannot read properties of undefined (reading 'product')"
+}
+   Products check: {
+  "status": 200,
+  "count": 2,
+  "hasProducts": true,
+  "firstProduct": {
+    "id": 2,
+    "businessId": 1,
+    "name": "Generic PS",
+    "type": "single",
+    "categoryId": 3,
+    "brandId": 5,
+    "unitId": 1,
+    "taxId": 1,
+    "taxType": "inclusive",
+    "sku": "PCI-0002",
+    "barcodeType": "Code128",
+    "description": "",
+    "productDescription": "Generic Power supply",
+    "image": "",
+    "brochure": "",
+    "enableStock": true,
+    "alertQuantity": 10,
+    "purchasePrice": 450,
+    "sellingPrice": 495,
+    "marginPercentage": "10",
+    "weight": null,
+    "preparationTime": null,
+    "enableProductInfo": false,
+    "notForSelling": false,
+    "isActive": true,
+    "createdAt": "2025-10-08T03:34:10.733Z",
+    "updatedAt": "2025-10-08T03:34:10.738Z",
+    "deletedAt": null,
+    "category": {
+      "id": 3,
+      "businessId": 1,
+      "name": "Accessories",
+      "shortCode": "ACC",
+      "description": "Computer accessories and peripherals",
+      "parentId": null,
+      "createdAt": "2025-10-07T23:39:42.147Z",
+      "updatedAt": "2025-10-07T23:39:42.147Z",
+      "deletedAt": null
+    },
+    "brand": {
+      "id": 5,
+      "businessId": 1,
+      "name": "Generic",
+      "description": "",
+      "createdAt": "2025-10-08T03:05:45.676Z",
+      "updatedAt": "2025-10-08T03:05:45.676Z",
+      "deletedAt": null
+    },
+    "unit": {
+      "id": 1,
+      "businessId": 1,
+      "name": "Pieces",
+      "shortName": "Pc(s)",
+      "allowDecimal": false,
+      "createdAt": "2025-10-07T23:39:42.154Z",
+      "updatedAt": "2025-10-07T23:39:42.154Z",
+      "deletedAt": null
+    },
+    "tax": {
+      "id": 1,
+      "businessId": 1,
+      "name": "Standard VAT",
+      "amount": 12,
+      "isDefault": true,
+      "createdAt": "2025-10-07T23:39:42.158Z",
+      "updatedAt": "2025-10-08T01:38:08.056Z",
+      "deletedAt": null
+    },
+    "variations": [
+      {
+        "id": 2,
+        "productId": 2,
+        "businessId": 1,
+        "name": "Default",
+        "sku": "PCI-0002",
+        "purchasePrice": 450,
+        "sellingPrice": 495,
+        "isDefault": true,
+        "subSku": null,
+        "createdAt": "2025-10-08T03:34:10.741Z",
+        "updatedAt": "2025-10-08T14:27:41.653Z",
+        "deletedAt": null,
+        "unitId": 1,
+        "variationLocationDetails": [
+          {
+            "id": 9,
+            "productId": 2,
+            "productVariationId": 2,
+            "locationId": 1,
+            "qtyAvailable": 0,
+            "sellingPrice": "495",
+            "openingStockLocked": false,
+            "openingStockSetAt": null,
+            "openingStockSetBy": null,
+            "createdAt": "2025-10-08T03:34:10.749Z",
+            "updatedAt": "2025-10-08T03:34:10.749Z"
+          },
+          {
+            "id": 10,
+            "productId": 2,
+            "productVariationId": 2,
+            "locationId": 2,
+            "qtyAvailable": 10,
+            "sellingPrice": "495",
+            "openingStockLocked": false,
+            "openingStockSetAt": null,
+            "openingStockSetBy": null,
+            "createdAt": "2025-10-08T03:34:10.749Z",
+            "updatedAt": "2025-10-08T07:46:22.420Z"
+          },
+          {
+            "id": 11,
+            "productId": 2,
+            "productVariationId": 2,
+            "locationId": 3,
+            "qtyAvailable": 0,
+            "sellingPrice": "495",
+            "openingStockLocked": false,
+            "openingStockSetAt": null,
+            "openingStockSetBy": null,
+            "createdAt": "2025-10-08T03:34:10.749Z",
+            "updatedAt": "2025-10-08T03:34:10.749Z"
+          },
+          {
+            "id": 12,
+            "productId": 2,
+            "productVariationId": 2,
+            "locationId": 4,
+            "qtyAvailable": 0,
+            "sellingPrice": "495",
+            "openingStockLocked": false,
+            "openingStockSetAt": null,
+            "openingStockSetBy": null,
+            "createdAt": "2025-10-08T03:34:10.749Z",
+            "updatedAt": "2025-10-08T03:34:10.749Z"
+          },
+          {
+            "id": 14,
+            "productId": 2,
+            "productVariationId": 2,
+            "locationId": 5,
+            "qtyAvailable": 0,
+            "sellingPrice": "495",
+            "openingStockLocked": false,
+            "openingStockSetAt": null,
+            "openingStockSetBy": null,
+            "createdAt": "2025-10-08T05:42:31.406Z",
+            "updatedAt": "2025-10-08T05:42:31.406Z"
+          },
+          {
+            "id": 16,
+            "productId": 2,
+            "productVariationId": 2,
+            "locationId": 6,
+            "qtyAvailable": 0,
+            "sellingPrice": "495",
+            "openingStockLocked": false,
+            "openingStockSetAt": null,
+            "openingStockSetBy": null,
+            "createdAt": "2025-10-08T05:42:55.927Z",
+            "updatedAt": "2025-10-08T05:42:55.927Z"
+          }
+        ]
+      }
+    ]
+  }
+}
+
+✅ Test completed!
+📸 Check test-search-result.png for visual confirmation
+
+⏸️  Browser will stay open for 30 seconds for manual inspection...
+
+👋 Browser closed
+
+✅ All tests passed!

@@ -9,7 +9,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import Link from 'next/link'
-import { ArrowLeftIcon, CheckCircleIcon, LockClosedIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, CheckCircleIcon, LockClosedIcon, XCircleIcon, ArrowUturnLeftIcon } from '@heroicons/react/24/outline'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import CreateReturnModal from '@/components/purchases/CreateReturnModal'
 
 interface PurchaseReceiptDetail {
   id: number
@@ -103,8 +106,12 @@ export default function PurchaseReceiptDetailPage() {
   const { can } = usePermissions()
   const [loading, setLoading] = useState(true)
   const [approving, setApproving] = useState(false)
+  const [rejecting, setRejecting] = useState(false)
   const [receipt, setReceipt] = useState<PurchaseReceiptDetail | null>(null)
   const [verificationChecked, setVerificationChecked] = useState(false)
+  const [showRejectModal, setShowRejectModal] = useState(false)
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [showCreateReturnModal, setShowCreateReturnModal] = useState(false)
 
   const fetchReceipt = async () => {
     setLoading(true)
@@ -161,6 +168,41 @@ export default function PurchaseReceiptDetailPage() {
       toast.error(error.message || 'Failed to approve receipt')
     } finally {
       setApproving(false)
+    }
+  }
+
+  const handleReject = async () => {
+    if (!receipt) return
+
+    if (!rejectionReason.trim()) {
+      toast.error('Please provide a reason for rejecting this receipt')
+      return
+    }
+
+    setRejecting(true)
+    try {
+      const res = await fetch(`/api/purchases/receipts/${receipt.id}/reject`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reason: rejectionReason }),
+      })
+
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error.error || 'Failed to reject receipt')
+      }
+
+      toast.success('Receipt rejected successfully')
+      setShowRejectModal(false)
+      setRejectionReason('')
+      fetchReceipt() // Refresh to show updated status
+    } catch (error: any) {
+      console.error('Error rejecting receipt:', error)
+      toast.error(error.message || 'Failed to reject receipt')
+    } finally {
+      setRejecting(false)
     }
   }
 
@@ -254,8 +296,18 @@ export default function PurchaseReceiptDetailPage() {
             <p className="text-gray-600 mt-1">Goods Received Note Details</p>
           </div>
         </div>
-        <div>
+        <div className="flex items-center gap-3">
           {getStatusBadge(receipt.status)}
+          {receipt.status === 'approved' && can(PERMISSIONS.PURCHASE_RETURN_CREATE) && (
+            <Button
+              onClick={() => setShowCreateReturnModal(true)}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+              size="sm"
+            >
+              <ArrowUturnLeftIcon className="w-4 h-4 mr-2" />
+              Create Return
+            </Button>
+          )}
         </div>
       </div>
 
@@ -267,6 +319,19 @@ export default function PurchaseReceiptDetailPage() {
             <p className="font-medium text-blue-900">This receipt has been approved and finalized</p>
             <p className="text-sm text-blue-700 mt-1">
               Approved receipts cannot be edited to maintain data integrity. Use Inventory Corrections if adjustments are needed.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Rejected Warning */}
+      {receipt.status === 'rejected' && (
+        <div className="bg-red-50 border border-red-200 p-4 rounded-lg flex items-start gap-3">
+          <XCircleIcon className="w-5 h-5 text-red-600 mt-0.5" />
+          <div>
+            <p className="font-medium text-red-900">This receipt has been rejected</p>
+            <p className="text-sm text-red-700 mt-1">
+              Rejected receipts cannot be approved. If this was done in error, create a new GRN.
             </p>
           </div>
         </div>
@@ -339,7 +404,7 @@ export default function PurchaseReceiptDetailPage() {
             </div>
 
             {verificationChecked && (
-              <div className="pt-2">
+              <div className="pt-2 space-y-3">
                 <Button
                   onClick={handleApprove}
                   disabled={approving}
@@ -349,13 +414,23 @@ export default function PurchaseReceiptDetailPage() {
                   <CheckCircleIcon className="w-5 h-5 mr-2" />
                   {approving ? 'Updating Inventory...' : 'Approve & Update Inventory'}
                 </Button>
+                <Button
+                  onClick={() => setShowRejectModal(true)}
+                  disabled={approving}
+                  variant="outline"
+                  className="w-full border-red-300 text-red-700 hover:bg-red-50 font-semibold py-3"
+                  size="lg"
+                >
+                  <XCircleIcon className="w-5 h-5 mr-2" />
+                  Reject Receipt
+                </Button>
               </div>
             )}
 
             {!verificationChecked && (
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
                 <p className="text-sm text-gray-600">
-                  Please check the verification box above to enable the approval button
+                  Please check the verification box above to enable the action buttons
                 </p>
               </div>
             )}
@@ -469,13 +544,20 @@ export default function PurchaseReceiptDetailPage() {
               <p className="text-xs text-gray-400 mt-1">{formatDate(receipt.receivedAt)}</p>
             </div>
 
-            <div className={`border-l-4 pl-4 ${receipt.approvedByUser ? 'border-green-500' : 'border-gray-300'}`}>
-              <p className="text-sm text-gray-600 mb-1">Step 2: Approved By (Approving Officer)</p>
+            <div className={`border-l-4 pl-4 ${receipt.status === 'approved' ? 'border-green-500' : receipt.status === 'rejected' ? 'border-red-500' : 'border-gray-300'}`}>
+              <p className="text-sm text-gray-600 mb-1">
+                {receipt.status === 'rejected' ? 'Step 2: Rejected By' : 'Step 2: Approved By (Approving Officer)'}
+              </p>
               {receipt.approvedByUser ? (
                 <>
                   <p className="font-medium text-lg">{getFullName(receipt.approvedByUser)}</p>
                   <p className="text-sm text-gray-500">@{receipt.approvedByUser.username}</p>
                   <p className="text-xs text-gray-400 mt-1">{receipt.approvedAt && formatDate(receipt.approvedAt)}</p>
+                  {receipt.status === 'rejected' && (
+                    <Badge variant="outline" className="mt-2 bg-red-50 text-red-700 border-red-300">
+                      REJECTED
+                    </Badge>
+                  )}
                 </>
               ) : (
                 <p className="text-gray-400 italic">Awaiting approval</p>
@@ -638,6 +720,96 @@ export default function PurchaseReceiptDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Reject Modal */}
+      <Dialog open={showRejectModal} onOpenChange={setShowRejectModal}>
+        <DialogContent className="sm:max-w-[500px] bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700 dark:text-red-400">
+              <XCircleIcon className="w-6 h-6" />
+              Reject Purchase Receipt
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-300">
+              Please provide a reason for rejecting {receipt.receiptNumber}. This action will prevent the receipt from being approved.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="rejectionReason" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                Rejection Reason <span className="text-red-500">*</span>
+              </label>
+              <Textarea
+                id="rejectionReason"
+                placeholder="Explain why this receipt is being rejected (e.g., wrong products, damaged items, pricing issues, etc.)"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                rows={4}
+                className="resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                This reason will be recorded in the receipt notes and audit log
+              </p>
+            </div>
+
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-3">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                <strong>Note:</strong> Once rejected, this receipt cannot be approved. You will need to create a new GRN if this was done in error.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowRejectModal(false)
+                setRejectionReason('')
+              }}
+              disabled={rejecting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleReject}
+              disabled={rejecting || !rejectionReason.trim()}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              <XCircleIcon className="w-4 h-4 mr-2" />
+              {rejecting ? 'Rejecting...' : 'Confirm Rejection'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Return Modal */}
+      {receipt.status === 'approved' && (
+        <CreateReturnModal
+          open={showCreateReturnModal}
+          onClose={() => setShowCreateReturnModal(false)}
+          receipt={{
+            id: receipt.id,
+            receiptNumber: receipt.receiptNumber,
+            supplierId: receipt.purchase ? receipt.purchase.supplier.id : receipt.supplier.id,
+            supplierName: receipt.purchase ? receipt.purchase.supplier.name : receipt.supplier.name,
+            items: receipt.items.map((item) => ({
+              id: item.id,
+              productId: item.product.id,
+              productVariationId: item.productVariation.id,
+              productName: item.product.name,
+              variationName: item.productVariation.name,
+              quantityReceived: parseFloat(item.quantityReceived),
+              unitCost: item.purchaseItem?.unitCost ? parseFloat(item.purchaseItem.unitCost) : (item.unitCost ? parseFloat(item.unitCost) : 0),
+            })),
+          }}
+          onSuccess={() => {
+            toast.success('Purchase return created successfully')
+            fetchReceipt()
+          }}
+        />
+      )}
     </div>
   )
 }

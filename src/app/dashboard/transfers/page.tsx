@@ -23,6 +23,8 @@ interface Transfer {
   transferDate: string
   fromLocationId: number
   toLocationId: number
+  fromLocationName?: string
+  toLocationName?: string
   status: string
   stockDeducted: boolean
   notes: string | null
@@ -181,19 +183,65 @@ export default function TransfersPage() {
   }
 
   const getStatusBadge = (status: string) => {
-    const statusConfig: { [key: string]: { variant: "default" | "secondary" | "destructive" | "outline", label: string } } = {
-      'draft': { variant: 'secondary', label: 'Draft' },
-      'pending_check': { variant: 'secondary', label: 'Pending Check' },
-      'checked': { variant: 'default', label: 'Checked' },
-      'in_transit': { variant: 'default', label: 'In Transit' },
-      'arrived': { variant: 'default', label: 'Arrived' },
-      'verifying': { variant: 'secondary', label: 'Verifying' },
-      'verified': { variant: 'default', label: 'Verified' },
-      'completed': { variant: 'default', label: 'Completed' },
-      'cancelled': { variant: 'destructive', label: 'Cancelled' },
+    const statusConfig: { [key: string]: { bgColor: string, textColor: string, label: string } } = {
+      'draft': {
+        bgColor: 'bg-slate-100',
+        textColor: 'text-slate-700',
+        label: 'Draft'
+      },
+      'pending_check': {
+        bgColor: 'bg-yellow-100',
+        textColor: 'text-yellow-800',
+        label: 'Pending Check'
+      },
+      'checked': {
+        bgColor: 'bg-blue-100',
+        textColor: 'text-blue-800',
+        label: 'Checked'
+      },
+      'in_transit': {
+        bgColor: 'bg-purple-100',
+        textColor: 'text-purple-800',
+        label: 'In Transit'
+      },
+      'arrived': {
+        bgColor: 'bg-indigo-100',
+        textColor: 'text-indigo-800',
+        label: 'Arrived'
+      },
+      'verifying': {
+        bgColor: 'bg-orange-100',
+        textColor: 'text-orange-800',
+        label: 'Verifying'
+      },
+      'verified': {
+        bgColor: 'bg-cyan-100',
+        textColor: 'text-cyan-800',
+        label: 'Verified'
+      },
+      'completed': {
+        bgColor: 'bg-green-100',
+        textColor: 'text-green-800',
+        label: 'Completed'
+      },
+      'cancelled': {
+        bgColor: 'bg-red-100',
+        textColor: 'text-red-800',
+        label: 'Cancelled'
+      },
     }
-    const config = statusConfig[status] || { variant: 'outline', label: status }
-    return <Badge variant={config.variant}>{config.label}</Badge>
+
+    const config = statusConfig[status] || {
+      bgColor: 'bg-gray-100',
+      textColor: 'text-gray-800',
+      label: status
+    }
+
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bgColor} ${config.textColor}`}>
+        {config.label}
+      </span>
+    )
   }
 
   if (!can(PERMISSIONS.STOCK_TRANSFER_VIEW)) {
@@ -446,12 +494,12 @@ export default function TransfersPage() {
                     )}
                     {visibleColumns.includes('from') && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {getLocationName(transfer.fromLocationId)}
+                        {transfer.fromLocationName || getLocationName(transfer.fromLocationId)}
                       </td>
                     )}
                     {visibleColumns.includes('to') && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {getLocationName(transfer.toLocationId)}
+                        {transfer.toLocationName || getLocationName(transfer.toLocationId)}
                       </td>
                     )}
                     {visibleColumns.includes('items') && (

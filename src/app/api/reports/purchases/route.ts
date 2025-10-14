@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
   try {
@@ -53,10 +53,14 @@ export async function GET(request: NextRequest) {
     if (startDate || endDate) {
       whereClause.purchaseDate = {}
       if (startDate) {
-        whereClause.purchaseDate.gte = new Date(startDate)
+        // Start of day in local timezone
+        const startDateTime = new Date(startDate + 'T00:00:00')
+        whereClause.purchaseDate.gte = startDateTime
       }
       if (endDate) {
-        whereClause.purchaseDate.lte = new Date(endDate)
+        // End of day in local timezone (23:59:59.999)
+        const endDateTime = new Date(endDate + 'T23:59:59.999')
+        whereClause.purchaseDate.lte = endDateTime
       }
     }
 

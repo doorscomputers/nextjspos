@@ -28,6 +28,7 @@ import {
   DocumentTextIcon,
   UserCircleIcon,
   ExclamationTriangleIcon,
+  ShieldCheckIcon,
 } from "@heroicons/react/24/outline"
 
 interface MenuItem {
@@ -46,6 +47,8 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
     Products: true, // Products menu expanded by default
     Purchases: true, // Purchases menu expanded by default
+    Reports: true, // Reports menu expanded by default
+    "POS & Sales": true, // POS menu expanded by default
   })
 
   const styleConfig = sidebarStyles[sidebarStyle]
@@ -74,10 +77,48 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       permission: PERMISSIONS.DASHBOARD_VIEW,
     },
     {
-      name: "Sales",
-      href: "/dashboard/sales",
+      name: "POS & Sales",
+      href: "/dashboard/pos",
       icon: ShoppingCartIcon,
-      permission: PERMISSIONS.SELL_VIEW,
+      permission: PERMISSIONS.SELL_CREATE,
+      children: [
+        {
+          name: "Point of Sale",
+          href: "/dashboard/pos",
+          icon: ShoppingCartIcon,
+          permission: PERMISSIONS.SELL_CREATE,
+        },
+        {
+          name: "POS v2 (Enhanced)",
+          href: "/dashboard/pos-v2",
+          icon: ShoppingCartIcon,
+          permission: PERMISSIONS.SELL_CREATE,
+        },
+        {
+          name: "Begin Shift",
+          href: "/dashboard/shifts/begin",
+          icon: ShoppingCartIcon,
+          permission: PERMISSIONS.SHIFT_OPEN,
+        },
+        {
+          name: "Close Shift",
+          href: "/dashboard/shifts/close",
+          icon: ShoppingCartIcon,
+          permission: PERMISSIONS.SHIFT_CLOSE,
+        },
+        {
+          name: "X Reading",
+          href: "/dashboard/readings/x-reading",
+          icon: DocumentTextIcon,
+          permission: PERMISSIONS.X_READING,
+        },
+        {
+          name: "Sales List",
+          href: "/dashboard/sales",
+          icon: ShoppingCartIcon,
+          permission: PERMISSIONS.SELL_VIEW,
+        },
+      ],
     },
     {
       name: "Products",
@@ -110,28 +151,40 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           permission: PERMISSIONS.PRODUCT_VIEW,
         },
         {
+          name: "Import Products",
+          href: "/dashboard/products/import",
+          icon: CubeIcon,
+          permission: PERMISSIONS.PRODUCT_CREATE,
+        },
+        {
           name: "Categories",
           href: "/dashboard/products/categories",
           icon: CubeIcon,
-          permission: PERMISSIONS.PRODUCT_VIEW,
+          permission: PERMISSIONS.PRODUCT_CATEGORY_VIEW,
         },
         {
           name: "Brands",
           href: "/dashboard/products/brands",
           icon: CubeIcon,
-          permission: PERMISSIONS.PRODUCT_VIEW,
+          permission: PERMISSIONS.PRODUCT_BRAND_VIEW,
         },
         {
           name: "Units",
           href: "/dashboard/products/units",
           icon: CubeIcon,
-          permission: PERMISSIONS.PRODUCT_VIEW,
+          permission: PERMISSIONS.PRODUCT_UNIT_VIEW,
         },
         {
           name: "Warranties",
           href: "/dashboard/products/warranties",
           icon: CubeIcon,
-          permission: PERMISSIONS.PRODUCT_VIEW,
+          permission: PERMISSIONS.PRODUCT_WARRANTY_VIEW,
+        },
+        {
+          name: "Bulk Reorder Settings",
+          href: "/dashboard/products/bulk-reorder-update",
+          icon: CubeIcon,
+          permission: PERMISSIONS.PRODUCT_UPDATE,
         },
       ],
     },
@@ -164,6 +217,18 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           href: "/dashboard/purchases/receipts",
           icon: ClipboardDocumentListIcon,
           permission: PERMISSIONS.PURCHASE_RECEIPT_VIEW,
+        },
+        {
+          name: "Serial Number Lookup",
+          href: "/dashboard/serial-lookup",
+          icon: DocumentTextIcon,
+          permission: PERMISSIONS.PURCHASE_RECEIPT_VIEW,
+        },
+        {
+          name: "Reorder Suggestions",
+          href: "/dashboard/purchases/suggestions",
+          icon: ExclamationTriangleIcon,
+          permission: PERMISSIONS.PURCHASE_VIEW,
         },
         {
           name: "Accounts Payable",
@@ -202,6 +267,20 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       href: "/dashboard/transfers",
       icon: TruckIcon,
       permission: PERMISSIONS.STOCK_TRANSFER_VIEW,
+      children: [
+        {
+          name: "All Transfers",
+          href: "/dashboard/transfers",
+          icon: TruckIcon,
+          permission: PERMISSIONS.STOCK_TRANSFER_VIEW,
+        },
+        {
+          name: "Create Transfer",
+          href: "/dashboard/transfers/create",
+          icon: TruckIcon,
+          permission: PERMISSIONS.STOCK_TRANSFER_CREATE,
+        },
+      ],
     },
     {
       name: "Customer Returns",
@@ -210,9 +289,9 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       permission: PERMISSIONS.CUSTOMER_RETURN_VIEW,
     },
     {
-      name: "Supplier Returns",
-      href: "/dashboard/supplier-returns",
-      icon: BuildingStorefrontIcon,
+      name: "Purchase Returns",
+      href: "/dashboard/purchases/returns",
+      icon: ArrowUturnLeftIcon,
       permission: PERMISSIONS.PURCHASE_RETURN_VIEW,
     },
     {
@@ -266,46 +345,166 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       permission: PERMISSIONS.REPORT_VIEW,
       children: [
         {
+          name: "All Reports Hub",
+          href: "/dashboard/reports",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.REPORT_VIEW,
+        },
+        {
           name: "Stock Alert Report",
           href: "/dashboard/reports/stock-alert",
           icon: ExclamationTriangleIcon,
-          permission: PERMISSIONS.PRODUCT_VIEW,
+          permission: PERMISSIONS.REPORT_STOCK_ALERT,
+        },
+        {
+          name: "Historical Inventory Report",
+          href: "/dashboard/reports/historical-inventory",
+          icon: ClipboardDocumentListIcon,
+          permission: PERMISSIONS.VIEW_INVENTORY_REPORTS,
+        },
+        {
+          name: "Inventory Ledger",
+          href: "/dashboard/reports/inventory-ledger",
+          icon: ClipboardDocumentListIcon,
+          permission: PERMISSIONS.INVENTORY_LEDGER_VIEW,
+        },
+        {
+          name: "--- SALES REPORTS ---",
+          href: "#",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.SALES_REPORT_VIEW,
+        },
+        {
+          name: "Sales Journal",
+          href: "/dashboard/reports/sales-journal",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.SALES_REPORT_JOURNAL,
+        },
+        {
+          name: "Sales Per Item",
+          href: "/dashboard/reports/sales-per-item",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.SALES_REPORT_PER_ITEM,
+        },
+        {
+          name: "Sales Per Cashier",
+          href: "/dashboard/reports/sales-per-cashier",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.SALES_REPORT_PER_CASHIER,
+        },
+        {
+          name: "Sales Per Location",
+          href: "/dashboard/reports/sales-per-location",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.SALES_REPORT_PER_LOCATION,
+        },
+        {
+          name: "Sales Analytics",
+          href: "/dashboard/reports/sales-analytics",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.SALES_REPORT_ANALYTICS,
+        },
+        {
+          name: "Customer Sales Analysis",
+          href: "/dashboard/reports/customer-sales",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.SALES_REPORT_CUSTOMER_ANALYSIS,
+        },
+        {
+          name: "Payment Method Analysis",
+          href: "/dashboard/reports/payment-method",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.SALES_REPORT_PAYMENT_METHOD,
+        },
+        {
+          name: "Discount Analysis",
+          href: "/dashboard/reports/discount-analysis",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.SALES_REPORT_DISCOUNT_ANALYSIS,
+        },
+        {
+          name: "--- OTHER REPORTS ---",
+          href: "#",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.REPORT_VIEW,
+        },
+        {
+          name: "Sales Today",
+          href: "/dashboard/reports/sales-today",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.REPORT_VIEW,
+        },
+        {
+          name: "Sales History",
+          href: "/dashboard/reports/sales-history",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.REPORT_VIEW,
         },
         {
           name: "Sales Report",
           href: "/dashboard/reports/sales-report",
           icon: ChartBarIcon,
-          permission: PERMISSIONS.REPORT_VIEW,
+          permission: PERMISSIONS.REPORT_SALES_VIEW,
+        },
+        {
+          name: "Purchase Reports",
+          href: "/dashboard/reports/purchases",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.REPORT_PURCHASE_VIEW,
+        },
+        {
+          name: "Purchase Analytics",
+          href: "/dashboard/reports/purchases/analytics",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.REPORT_PURCHASE_ANALYTICS,
+        },
+        {
+          name: "Purchase Trends",
+          href: "/dashboard/reports/purchase-trends",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.REPORT_PURCHASE_TRENDS,
         },
         {
           name: "Purchases Report",
           href: "/dashboard/reports/purchases-report",
           icon: ChartBarIcon,
-          permission: PERMISSIONS.REPORT_VIEW,
+          permission: PERMISSIONS.REPORT_PURCHASE_VIEW,
+        },
+        {
+          name: "Purchase Items Report",
+          href: "/dashboard/reports/purchases-items",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.REPORT_PURCHASE_ITEMS,
         },
         {
           name: "Transfers Report",
           href: "/dashboard/reports/transfers-report",
           icon: ChartBarIcon,
-          permission: PERMISSIONS.REPORT_VIEW,
+          permission: PERMISSIONS.REPORT_TRANSFER_VIEW,
+        },
+        {
+          name: "Transfer Trends",
+          href: "/dashboard/reports/transfer-trends",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.REPORT_TRANSFER_TRENDS,
         },
         {
           name: "Profitability & COGS",
           href: "/dashboard/reports/profitability",
           icon: ChartBarIcon,
-          permission: PERMISSIONS.REPORT_VIEW,
+          permission: PERMISSIONS.REPORT_PROFITABILITY,
         },
         {
           name: "Net Profit Report",
           href: "/dashboard/reports/profit",
           icon: ChartBarIcon,
-          permission: PERMISSIONS.REPORT_VIEW,
+          permission: PERMISSIONS.REPORT_PROFIT_LOSS,
         },
         {
           name: "Product Purchase History",
           href: "/dashboard/reports/product-purchase-history",
           icon: ChartBarIcon,
-          permission: PERMISSIONS.REPORT_VIEW,
+          permission: PERMISSIONS.REPORT_PRODUCT_PURCHASE_HISTORY,
         },
       ],
     },
@@ -346,6 +545,12 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           permission: PERMISSIONS.BUSINESS_SETTINGS_VIEW,
         },
       ],
+    },
+    {
+      name: "Audit Logs",
+      href: "/dashboard/audit-logs",
+      icon: ShieldCheckIcon,
+      permission: PERMISSIONS.AUDIT_LOG_VIEW,
     },
   ]
 

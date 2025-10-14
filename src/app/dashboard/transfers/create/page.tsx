@@ -7,20 +7,37 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { ArrowLeftIcon, PlusIcon, TrashIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, TrashIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import ProductAutocomplete from '@/components/ProductAutocomplete'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 interface Product {
   id: number
   name: string
   sku: string
+  categoryName?: string | null
   variations: ProductVariation[]
+  matchType?: 'exact' | 'fuzzy'
 }
 
 interface ProductVariation {
   id: number
   name: string
-  sku: string
+  sku: string | null
+  barcode?: string | null
+  enableSerialNumber: boolean
+  defaultPurchasePrice?: number | null
+  defaultSellingPrice?: number | null
 }
 
 interface TransferItem {
@@ -28,17 +45,18 @@ interface TransferItem {
   productVariationId: number
   productName: string
   variationName: string
+  sku: string | null
   quantity: number
   availableStock: number
 }
 
 export default function CreateTransferPage() {
-  const { can } = usePermissions()
+  const { can, user } = usePermissions()
   const router = useRouter()
 
-  const [locations, setLocations] = useState<any[]>([])
-  const [products, setProducts] = useState<Product[]>([])
-  const [loadingProducts, setLoadingProducts] = useState(false)
+  const [allLocations, setAllLocations] = useState<any[]>([]) // All business locations for To dropdown
+  const [userLocations, setUserLocations] = useState<any[]>([]) // User's assigned locations
+  const [loadingLocations, setLoadingLocations] = useState(true)
 
   const [fromLocationId, setFromLocationId] = useState('')
   const [toLocationId, setToLocationId] = useState('')
@@ -46,43 +64,45 @@ export default function CreateTransferPage() {
   const [notes, setNotes] = useState('')
 
   const [items, setItems] = useState<TransferItem[]>([])
-  const [selectedProduct, setSelectedProduct] = useState('')
-  const [selectedVariation, setSelectedVariation] = useState('')
-  const [searchTerm, setSearchTerm] = useState('')
-
   const [submitting, setSubmitting] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
   useEffect(() => {
-    fetchLocations()
-    fetchProducts()
+    fetchInitialData()
   }, [])
 
-  const fetchLocations = async () => {
+  const fetchInitialData = async () => {
     try {
-      const response = await fetch('/api/locations')
-      const data = await response.json()
-      if (response.ok) {
-        setLocations(data.locations || [])
+      setLoadingLocations(true)
+      // Fetch user's assigned locations first
+      const userLocationsRes = await fetch('/api/user-locations')
+      const userLocationsData = await userLocationsRes.json()
+
+      if (userLocationsRes.ok && userLocationsData.locations) {
+        setUserLocations(userLocationsData.locations)
+
+        // Auto-assign first user location as "From Location" ONLY if user doesn't have ACCESS_ALL_LOCATIONS
+        if (userLocationsData.locations.length > 0 && !userLocationsData.hasAccessToAll) {
+          setFromLocationId(userLocationsData.locations[0].id.toString())
+        }
+      }
+
+      // Fetch ALL business locations for the To Location dropdown
+      // We need to fetch all locations so users can transfer TO any branch
+      const allLocationsRes = await fetch('/api/locations/all')
+      const allLocationsData = await allLocationsRes.json()
+
+      if (allLocationsRes.ok) {
+        setAllLocations(allLocationsData.locations || [])
       }
     } catch (error) {
-      console.error('Error fetching locations:', error)
+      console.error('Error fetching initial data:', error)
+      toast.error('Failed to load locations')
+    } finally {
+      setLoadingLocations(false)
     }
   }
 
-  const fetchProducts = async () => {
-    try {
-      setLoadingProducts(true)
-      const response = await fetch('/api/products?limit=1000')
-      const data = await response.json()
-      if (response.ok) {
-        setProducts(data.products || [])
-      }
-    } catch (error) {
-      console.error('Error fetching products:', error)
-    } finally {
-      setLoadingProducts(false)
-    }
-  }
 
   const getAvailableStock = async (variationId: number, locationId: number): Promise<number> => {
     try {
@@ -98,39 +118,38 @@ export default function CreateTransferPage() {
     }
   }
 
-  const handleAddItem = async () => {
-    if (!selectedProduct || !selectedVariation || !fromLocationId) {
-      toast.error('Please select product, variation, and from location')
+  const handleProductSelect = async (product: Product, variation: ProductVariation) => {
+    if (!fromLocationId) {
+      toast.error('Please select "From Location" first')
       return
     }
 
-    const product = products.find(p => p.id === parseInt(selectedProduct))
-    const variation = product?.variations.find(v => v.id === parseInt(selectedVariation))
-
-    if (!product || !variation) return
-
     // Check if already added
     if (items.some(item => item.productVariationId === variation.id)) {
-      toast.error('This product variation is already added')
+      toast.warning('Product already in list. Increase quantity if needed.')
       return
     }
 
     // Get available stock
     const availableStock = await getAvailableStock(variation.id, parseInt(fromLocationId))
 
+    if (availableStock <= 0) {
+      toast.error(`No stock available for ${product.name} - ${variation.name} at this location`)
+      return
+    }
+
     const newItem: TransferItem = {
       productId: product.id,
       productVariationId: variation.id,
       productName: product.name,
       variationName: variation.name,
+      sku: variation.sku,
       quantity: 1,
       availableStock
     }
 
     setItems([...items, newItem])
-    setSelectedProduct('')
-    setSelectedVariation('')
-    toast.success('Item added')
+    toast.success(`Added: ${product.name} - ${variation.name}`)
   }
 
   const handleRemoveItem = (index: number) => {
@@ -144,7 +163,7 @@ export default function CreateTransferPage() {
     setItems(newItems)
   }
 
-  const handleSubmit = async () => {
+  const handleCreateTransferClick = () => {
     // Validation
     if (!fromLocationId || !toLocationId) {
       toast.error('Please select both from and to locations')
@@ -172,6 +191,13 @@ export default function CreateTransferPage() {
         return
       }
     }
+
+    // Show confirmation dialog
+    setShowConfirmDialog(true)
+  }
+
+  const handleSubmit = async () => {
+    setShowConfirmDialog(false)
 
     try {
       setSubmitting(true)
@@ -208,17 +234,6 @@ export default function CreateTransferPage() {
     }
   }
 
-  const selectedProductData = products.find(p => p.id === parseInt(selectedProduct))
-
-  const filteredProducts = products.filter(product => {
-    if (!searchTerm) return true
-    const searchLower = searchTerm.toLowerCase()
-    return (
-      product.name.toLowerCase().includes(searchLower) ||
-      product.sku?.toLowerCase().includes(searchLower)
-    )
-  })
-
   if (!can(PERMISSIONS.STOCK_TRANSFER_CREATE)) {
     return (
       <div className="p-8">
@@ -234,7 +249,7 @@ export default function CreateTransferPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link href="/dashboard/transfers">
-          <Button variant="outline" size="sm">
+          <Button variant="secondary" size="sm" className="bg-gray-600 hover:bg-gray-700 text-white font-semibold">
             <ArrowLeftIcon className="w-4 h-4 mr-2" />
             Back
           </Button>
@@ -257,16 +272,25 @@ export default function CreateTransferPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   From Location <span className="text-red-500">*</span>
                 </label>
-                <Select value={fromLocationId} onValueChange={setFromLocationId}>
+                <Select
+                  value={fromLocationId}
+                  onValueChange={setFromLocationId}
+                  disabled={!user?.permissions?.includes('access_all_locations') && userLocations.length <= 1}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select origin location" />
                   </SelectTrigger>
                   <SelectContent>
-                    {locations.map(loc => (
+                    {userLocations.map(loc => (
                       <SelectItem key={loc.id} value={loc.id.toString()}>{loc.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {!user?.permissions?.includes('access_all_locations') && userLocations.length <= 1 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Auto-assigned to your location
+                  </p>
+                )}
               </div>
 
               <div>
@@ -278,9 +302,15 @@ export default function CreateTransferPage() {
                     <SelectValue placeholder="Select destination location" />
                   </SelectTrigger>
                   <SelectContent>
-                    {locations.map(loc => (
-                      <SelectItem key={loc.id} value={loc.id.toString()}>{loc.name}</SelectItem>
-                    ))}
+                    {allLocations
+                      .filter(loc => {
+                        // Exclude the selected "From Location"
+                        if (fromLocationId && loc.id === parseInt(fromLocationId)) return false
+                        return true
+                      })
+                      .map(loc => (
+                        <SelectItem key={loc.id} value={loc.id.toString()}>{loc.name}</SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -316,79 +346,26 @@ export default function CreateTransferPage() {
           <div className="bg-white p-6 rounded-lg shadow space-y-4">
             <h2 className="text-lg font-semibold">Add Items</h2>
 
-            {!fromLocationId && (
-              <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded">
-                Please select "From Location" first to see available stock
+            {loadingLocations ? (
+              <div className="text-center py-8 text-gray-500">
+                Loading locations...
               </div>
-            )}
-
-            {fromLocationId && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Search Product
-                  </label>
-                  <div className="relative">
-                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search by product name or SKU..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Product
-                    </label>
-                    <Select value={selectedProduct} onValueChange={(value) => {
-                      setSelectedProduct(value)
-                      setSelectedVariation('')
-                    }}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select product" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredProducts.map(product => (
-                          <SelectItem key={product.id} value={product.id.toString()}>
-                            {product.name} {product.sku && `(${product.sku})`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Variation
-                    </label>
-                    <Select
-                      value={selectedVariation}
-                      onValueChange={setSelectedVariation}
-                      disabled={!selectedProduct}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select variation" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {selectedProductData?.variations.map(variation => (
-                          <SelectItem key={variation.id} value={variation.id.toString()}>
-                            {variation.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <Button onClick={handleAddItem} disabled={!selectedProduct || !selectedVariation}>
-                  <PlusIcon className="w-4 h-4 mr-2" />
-                  Add Item
-                </Button>
+            ) : !fromLocationId ? (
+              <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded">
+                <p className="font-medium">No location assigned</p>
+                <p className="text-sm mt-1">Please contact your administrator to assign you to a location before creating transfers.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-gray-600 mb-3">
+                  <strong>Quick search:</strong> Scan barcode or type exact SKU for instant match.
+                  Or search by product name to browse all matching products.
+                </p>
+                <ProductAutocomplete
+                  onProductSelect={handleProductSelect}
+                  placeholder="Scan barcode, enter SKU, or search product name..."
+                  autoFocus={false}
+                />
               </div>
             )}
           </div>
@@ -403,10 +380,14 @@ export default function CreateTransferPage() {
                   <div key={index} className="flex items-center gap-4 p-4 border border-gray-200 rounded-lg">
                     <div className="flex-1">
                       <div className="font-medium">{item.productName}</div>
-                      <div className="text-sm text-gray-500">{item.variationName}</div>
-                      <div className="text-sm text-gray-500">Available: {item.availableStock}</div>
+                      <div className="text-sm text-gray-500">
+                        {item.variationName}
+                        {item.sku && ` • SKU: ${item.sku}`}
+                      </div>
+                      <div className="text-sm text-green-600 font-medium">Available: {item.availableStock}</div>
                     </div>
                     <div className="w-32">
+                      <label className="text-xs text-gray-500 block mb-1">Quantity</label>
                       <input
                         type="number"
                         min="1"
@@ -450,14 +431,14 @@ export default function CreateTransferPage() {
 
             <div className="pt-4 border-t space-y-3">
               <Button
-                className="w-full"
-                onClick={handleSubmit}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                onClick={handleCreateTransferClick}
                 disabled={submitting || items.length === 0}
               >
                 {submitting ? 'Creating...' : 'Create Transfer'}
               </Button>
               <Link href="/dashboard/transfers">
-                <Button variant="outline" className="w-full">
+                <Button variant="secondary" className="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold">
                   Cancel
                 </Button>
               </Link>
@@ -465,6 +446,40 @@ export default function CreateTransferPage() {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Transfer Details</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p className="text-base">
+                Are you sure you want to transfer <strong className="text-gray-900">{items.reduce((sum, item) => sum + item.quantity, 0)} item(s)</strong> to:
+              </p>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-lg font-semibold text-blue-900">
+                  {allLocations.find(loc => loc.id === parseInt(toLocationId))?.name || 'Unknown Location'}
+                </p>
+                <p className="text-sm text-blue-700 mt-1">
+                  From: {userLocations.find(loc => loc.id === parseInt(fromLocationId))?.name || allLocations.find(loc => loc.id === parseInt(fromLocationId))?.name || 'Unknown Location'}
+                </p>
+              </div>
+              <p className="text-sm text-gray-600 mt-2">
+                <strong>Important:</strong> Once created, the transfer will enter "Draft" status. You can still cancel it at this stage if you made a mistake.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSubmit}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Yes, Create Transfer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

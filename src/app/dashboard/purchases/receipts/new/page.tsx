@@ -12,8 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { ArrowLeftIcon, PlusIcon, TrashIcon, DocumentCheckIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, PlusIcon, TrashIcon, DocumentCheckIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import { SerialNumberInput, SerialNumberData } from '@/components/purchases/SerialNumberInput'
 
 interface Supplier {
   id: number
@@ -29,6 +30,7 @@ interface Product {
   id: number
   name: string
   sku: string
+  enableProductInfo: boolean  // Does product require serial tracking?
   variations: ProductVariation[]
 }
 
@@ -58,9 +60,10 @@ interface PurchaseOrderItem {
   product: {
     name: string
     sku: string
+    enableProductInfo: boolean  // Does product require serial tracking?
   }
   variation: {
-    variationName: string
+    name: string  // API returns 'name' not 'variationName'
   }
 }
 
@@ -75,8 +78,17 @@ interface GRNItem {
   quantityReceived: number
   unitCost: number
   purchaseItemId?: number | null
-  serialNumbers?: any
+  serialNumbers?: SerialNumberData[]
   notes?: string
+  enableProductInfo?: boolean  // NEW: Does product require serial tracking?
+}
+
+// Helper function to format currency with thousand separators
+const formatCurrency = (amount: number): string => {
+  return amount.toLocaleString('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
 }
 
 export default function NewPurchaseReceiptPage() {
@@ -101,6 +113,11 @@ export default function NewPurchaseReceiptPage() {
   const [locations, setLocations] = useState<Location[]>([])
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([])
   const [products, setProducts] = useState<Product[]>([])
+
+  // Product search state
+  const [productSearch, setProductSearch] = useState('')
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+  const [selectedProductIndex, setSelectedProductIndex] = useState(0)
 
   // Check permission
   if (!can(PERMISSIONS.PURCHASE_RECEIPT_CREATE)) {
@@ -130,7 +147,9 @@ export default function NewPurchaseReceiptPage() {
 
   // Load products when in direct mode
   useEffect(() => {
+    console.log('🔄 Entry mode changed to:', entryMode)
     if (entryMode === 'direct') {
+      console.log('📦 Fetching products for Direct Entry mode...')
       fetchProducts()
     }
   }, [entryMode])
@@ -147,7 +166,11 @@ export default function NewPurchaseReceiptPage() {
       const res = await fetch('/api/suppliers')
       if (res.ok) {
         const data = await res.json()
-        setSuppliers(data.data || [])
+        // API returns array directly, not { data: [] }
+        const suppliersList = Array.isArray(data) ? data : (data.data || data.suppliers || [])
+        console.log('✅ Suppliers loaded:', suppliersList.length, 'suppliers')
+        console.log('First 3 suppliers:', suppliersList.slice(0, 3))
+        setSuppliers(suppliersList)
       }
     } catch (error) {
       console.error('Error fetching suppliers:', error)
@@ -159,7 +182,11 @@ export default function NewPurchaseReceiptPage() {
       const res = await fetch('/api/locations')
       if (res.ok) {
         const data = await res.json()
-        setLocations(data.data || [])
+        // API returns { locations: [] }
+        const locationsList = data.locations || data.data || []
+        console.log('✅ Locations loaded:', locationsList.length, 'locations')
+        console.log('First 3 locations:', locationsList.slice(0, 3))
+        setLocations(locationsList)
       }
     } catch (error) {
       console.error('Error fetching locations:', error)
@@ -169,10 +196,14 @@ export default function NewPurchaseReceiptPage() {
   const fetchPurchaseOrders = async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/purchases?status=approved')
+      const res = await fetch('/api/purchases?status=pending')
       if (res.ok) {
         const data = await res.json()
-        setPurchaseOrders(data.data || [])
+        console.log('✅ Purchase Orders loaded:', data)
+        // API returns { purchases: [], pagination: {} }
+        const poList = data.purchases || data.data || []
+        console.log('📦 PO List:', poList.length, 'orders')
+        setPurchaseOrders(poList)
       }
     } catch (error) {
       console.error('Error fetching purchase orders:', error)
@@ -185,13 +216,24 @@ export default function NewPurchaseReceiptPage() {
   const fetchProducts = async () => {
     try {
       setLoading(true)
+      console.log('📡 Fetching from /api/products?limit=1000...')
       const res = await fetch('/api/products?limit=1000')
+      console.log('📡 Response status:', res.status, res.statusText)
+
       if (res.ok) {
         const data = await res.json()
-        setProducts(data.data || [])
+        console.log('📡 Raw API response:', data)
+        const productsList = data.data || data.products || (Array.isArray(data) ? data : [])
+        console.log('✅ Products loaded:', productsList.length, 'products')
+        console.log('First 3 products:', productsList.slice(0, 3).map(p => ({ sku: p.sku, name: p.name })))
+        setProducts(productsList)
+      } else {
+        const errorData = await res.json()
+        console.error('❌ API error:', errorData)
+        toast.error('Failed to load products: ' + (errorData.error || res.statusText))
       }
     } catch (error) {
-      console.error('Error fetching products:', error)
+      console.error('❌ Exception fetching products:', error)
       toast.error('Failed to load products')
     } finally {
       setLoading(false)
@@ -221,11 +263,12 @@ export default function NewPurchaseReceiptPage() {
         productVariationId: item.productVariationId,
         productName: item.product.name,
         productSku: item.product.sku,
-        variationName: item.variation.variationName,
+        variationName: item.variation.name,  // API returns 'name' not 'variationName'
         quantityOrdered: parseFloat(item.quantity.toString()),
         quantityReceived: parseFloat(item.quantity.toString()) - parseFloat(item.quantityReceived.toString()),
         unitCost: parseFloat(item.unitCost),
         purchaseItemId: item.id,
+        enableProductInfo: item.product.enableProductInfo,  // Set serial tracking requirement
         notes: '',
       }))
 
@@ -239,19 +282,159 @@ export default function NewPurchaseReceiptPage() {
     }
   }
 
-  const addDirectItem = () => {
-    const newItem: GRNItem = {
-      id: `direct-${Date.now()}`,
-      productId: null,
-      productVariationId: null,
-      productName: '',
-      productSku: '',
-      variationName: '',
-      quantityReceived: 0,
-      unitCost: 0,
-      notes: '',
+  // Filter products based on search (SKU exact match or name contains)
+  useEffect(() => {
+    console.log('🔍 Search effect triggered. Search term:', productSearch, '| Total products:', products.length)
+
+    if (!productSearch.trim()) {
+      setFilteredProducts([])
+      setSelectedProductIndex(0)
+      return
     }
-    setItems([...items, newItem])
+
+    const search = productSearch.trim().toLowerCase()
+    const filtered = products.filter(product => {
+      const productSku = (product.sku || '').toLowerCase()
+      const productName = (product.name || '').toLowerCase()
+
+      // Exact match on SKU (for barcode scanning)
+      if (productSku === search) {
+        return true
+      }
+      // Partial SKU match (contains)
+      if (productSku.includes(search)) {
+        return true
+      }
+      // Contains search on product name
+      if (productName.includes(search)) {
+        return true
+      }
+      return false
+    })
+
+    console.log('🔍 Search:', search)
+    console.log('📦 Total products available:', products.length)
+    console.log('📦 Filtered products:', filtered.length, filtered.slice(0, 3).map(p => ({ sku: p.sku, name: p.name })))
+
+    setFilteredProducts(filtered)
+    setSelectedProductIndex(0) // Reset selection when results change
+  }, [productSearch, products])
+
+  const addProductToItems = (product: Product, variationId?: number) => {
+    // For variable products (multiple variations), NEVER auto-increment quantity
+    // Always add as a new line item so user can select the variation manually
+    const isVariableProduct = product.variations.length > 1
+
+    if (isVariableProduct) {
+      // Variable product: Find the first variation that's NOT already used
+      // Get all variation IDs currently used for this product
+      const usedVariationIds = items
+        .filter(item => item.productId === product.id)
+        .map(item => item.productVariationId)
+
+      // Find first available variation
+      const availableVariation = product.variations.find(
+        v => !usedVariationIds.includes(v.id)
+      )
+
+      // If all variations are used, show warning and don't add
+      if (!availableVariation) {
+        toast.error(`All variations of ${product.name} have already been added. Please adjust quantities in existing rows instead.`)
+        return
+      }
+
+      const newItem: GRNItem = {
+        id: `direct-${Date.now()}`,
+        productId: product.id,
+        productVariationId: availableVariation.id,
+        productName: product.name,
+        productSku: product.sku,
+        variationName: availableVariation.variationName,
+        quantityReceived: 1,
+        unitCost: 0,
+        enableProductInfo: product.enableProductInfo,
+        notes: '',
+      }
+      setItems([...items, newItem])
+      toast.success(`Added ${product.name} - ${availableVariation.variationName}`)
+    } else {
+      // Single variation product: Check if already exists and increment quantity
+      const existingItemIndex = items.findIndex(item =>
+        item.productId === product.id &&
+        (variationId ? item.productVariationId === variationId : item.productVariationId === product.variations[0]?.id)
+      )
+
+      if (existingItemIndex >= 0) {
+        // Increment quantity if already exists
+        const updatedItems = [...items]
+        updatedItems[existingItemIndex].quantityReceived += 1
+        setItems(updatedItems)
+        toast.success(`Increased quantity for ${product.name}`)
+      } else {
+        // Add new item
+        const variation = variationId
+          ? product.variations.find(v => v.id === variationId)
+          : product.variations[0]
+
+        if (!variation) {
+          toast.error('Product has no variations')
+          return
+        }
+
+        const newItem: GRNItem = {
+          id: `direct-${Date.now()}`,
+          productId: product.id,
+          productVariationId: variation.id,
+          productName: product.name,
+          productSku: product.sku,
+          variationName: variation.variationName,
+          quantityReceived: 1,
+          unitCost: 0,
+          enableProductInfo: product.enableProductInfo,
+          notes: '',
+        }
+        setItems([...items, newItem])
+        toast.success(`Added ${product.name}`)
+      }
+    }
+
+    // Clear search
+    setProductSearch('')
+    setFilteredProducts([])
+  }
+
+  const handleProductSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (filteredProducts.length === 0) return
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        setSelectedProductIndex(prev =>
+          prev < filteredProducts.length - 1 ? prev + 1 : prev
+        )
+        break
+
+      case 'ArrowUp':
+        e.preventDefault()
+        setSelectedProductIndex(prev => prev > 0 ? prev - 1 : prev)
+        break
+
+      case 'Enter':
+        e.preventDefault()
+        // Add the selected product
+        const selectedProduct = filteredProducts[selectedProductIndex]
+        if (selectedProduct) {
+          addProductToItems(selectedProduct)
+        }
+        break
+
+      case 'Escape':
+        e.preventDefault()
+        setProductSearch('')
+        setFilteredProducts([])
+        setSelectedProductIndex(0)
+        break
+    }
   }
 
   const removeItem = (itemId: string) => {
@@ -259,6 +442,28 @@ export default function NewPurchaseReceiptPage() {
   }
 
   const updateItem = (itemId: string, field: keyof GRNItem, value: any) => {
+    // Special handling for variation changes - check for duplicates
+    if (field === 'productVariationId') {
+      const currentItem = items.find(i => i.id === itemId)
+      if (!currentItem) return
+
+      const newVariationId = parseInt(value)
+
+      // Check if this product-variation combination already exists in another row
+      const duplicateExists = items.some(item =>
+        item.id !== itemId &&
+        item.productId === currentItem.productId &&
+        item.productVariationId === newVariationId
+      )
+
+      if (duplicateExists) {
+        const product = products.find(p => p.id === currentItem.productId)
+        const variation = product?.variations.find(v => v.id === newVariationId)
+        toast.error(`${product?.name} - ${variation?.variationName} already exists in the list. Please adjust quantity on that row instead.`)
+        return
+      }
+    }
+
     setItems(items.map(item => {
       if (item.id === itemId) {
         // If product is changed, update related fields
@@ -272,6 +477,7 @@ export default function NewPurchaseReceiptPage() {
               productSku: product.sku,
               productVariationId: product.variations[0].id,
               variationName: product.variations[0].variationName,
+              enableProductInfo: product.enableProductInfo,  // Set serial tracking requirement
             }
           }
         }
@@ -326,6 +532,22 @@ export default function NewPurchaseReceiptPage() {
       return
     }
 
+    // Check for duplicate product-variation combinations
+    const productVariationCombos = new Map<string, number>()
+    for (const item of items) {
+      const comboKey = `${item.productId}-${item.productVariationId}`
+      const existingCount = productVariationCombos.get(comboKey) || 0
+
+      if (existingCount > 0) {
+        const product = products.find(p => p.id === item.productId)
+        const variation = product?.variations.find(v => v.id === item.productVariationId)
+        toast.error(`Duplicate detected: ${item.productName} - ${variation?.variationName} appears multiple times. Please merge quantities or remove duplicate rows.`)
+        return
+      }
+
+      productVariationCombos.set(comboKey, existingCount + 1)
+    }
+
     // Validate all items have required fields
     for (const item of items) {
       if (!item.productId || !item.productVariationId) {
@@ -338,8 +560,8 @@ export default function NewPurchaseReceiptPage() {
         return
       }
 
-      if (entryMode === 'direct' && (item.unitCost === undefined || item.unitCost === null || item.unitCost < 0)) {
-        toast.error('All items must have a valid unit cost')
+      if (entryMode === 'direct' && (item.unitCost === undefined || item.unitCost === null || item.unitCost <= 0)) {
+        toast.error('All items must have a unit cost greater than zero')
         return
       }
     }
@@ -421,7 +643,7 @@ export default function NewPurchaseReceiptPage() {
                   setPurchaseOrderId(null)
                   setSupplierId(null)
                 }}
-                className="flex-1"
+                className={`flex-1 ${entryMode === 'purchase_order' ? 'ring-2 ring-blue-600 ring-offset-2' : ''}`}
               >
                 <DocumentCheckIcon className="w-5 h-5 mr-2" />
                 From Purchase Order
@@ -435,7 +657,7 @@ export default function NewPurchaseReceiptPage() {
                   setPurchaseOrderId(null)
                   setSupplierId(null)
                 }}
-                className="flex-1"
+                className={`flex-1 ${entryMode === 'direct' ? 'ring-2 ring-blue-600 ring-offset-2' : ''}`}
               >
                 <PlusIcon className="w-5 h-5 mr-2" />
                 Direct Entry (No PO)
@@ -560,85 +782,141 @@ export default function NewPurchaseReceiptPage() {
         {/* Items */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Items</CardTitle>
-              {entryMode === 'direct' && (
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={addDirectItem}
-                  disabled={!supplierId}
-                >
-                  <PlusIcon className="w-4 h-4 mr-2" />
-                  Add Item
-                </Button>
-              )}
-            </div>
+            <CardTitle>Items</CardTitle>
           </CardHeader>
           <CardContent>
+            {/* Product Search (Direct Entry Mode) */}
+            {entryMode === 'direct' && (
+              <div className="mb-6">
+                <Label htmlFor="productSearch" className="mb-2 block">
+                  Add Product (Scan Barcode or Search)
+                </Label>
+                <div className="relative">
+                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Input
+                    id="productSearch"
+                    type="text"
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    onKeyDown={handleProductSearchKeyDown}
+                    placeholder="Scan barcode or type product name..."
+                    className="pl-10 pr-10 text-lg"
+                    autoComplete="off"
+                  />
+                  {productSearch && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProductSearch('')
+                        setFilteredProducts([])
+                      }}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <XMarkIcon className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Search Results Dropdown */}
+                {filteredProducts.length > 0 && (
+                  <div className="mt-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg bg-white dark:bg-gray-800 max-h-64 overflow-y-auto">
+                    {filteredProducts.map((product, index) => (
+                      <button
+                        key={product.id}
+                        type="button"
+                        onClick={() => addProductToItems(product)}
+                        className={`w-full px-4 py-3 text-left border-b last:border-b-0 border-gray-200 dark:border-gray-700 transition-colors ${
+                          index === selectedProductIndex
+                            ? 'bg-blue-100 dark:bg-blue-900/50'
+                            : 'hover:bg-blue-50 dark:hover:bg-blue-900/30'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-white">{product.name}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">SKU: {product.sku}</p>
+                          </div>
+                          <Badge variant="outline" className="ml-2">
+                            {product.variations.length} variation{product.variations.length !== 1 ? 's' : ''}
+                          </Badge>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {productSearch && filteredProducts.length === 0 && (
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    No products found matching "{productSearch}"
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Items Table */}
             {items.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 {entryMode === 'purchase_order'
                   ? 'Select a purchase order to load items'
-                  : 'Click "Add Item" to add products'}
+                  : 'Scan barcode or search for products to add items'}
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-800">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Product</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Variation</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase w-64">Product</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase w-32">Variation</th>
                       {entryMode === 'purchase_order' && (
-                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Ordered</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase w-24">Ordered</th>
                       )}
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Qty Received *</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Unit Cost{entryMode === 'direct' ? ' *' : ''}</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Total</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Actions</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase w-28">Qty Received *</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase w-28">Unit Cost{entryMode === 'direct' ? ' *' : ''}</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase w-32">Total</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase w-28">Serial #</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase w-20">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                     {items.map((item) => (
-                      <tr key={item.id}>
+                      <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                         <td className="px-4 py-3">
-                          {entryMode === 'direct' ? (
-                            <Select
-                              value={item.productId?.toString() || ''}
-                              onValueChange={(value) => updateItem(item.id, 'productId', value)}
-                            >
-                              <SelectTrigger className="w-48">
-                                <SelectValue placeholder="Select Product" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {products.map((product) => (
-                                  <SelectItem key={product.id} value={product.id.toString()}>
-                                    {product.name} ({product.sku})
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <div>
-                              <p className="font-medium text-gray-900 dark:text-white">{item.productName}</p>
-                              <p className="text-sm text-gray-500">{item.productSku}</p>
-                            </div>
-                          )}
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-white">{item.productName}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">SKU: {item.productSku}</p>
+                          </div>
                         </td>
-                        <td className="px-4 py-3">
-                          {entryMode === 'direct' && item.productId ? (
+                        <td className="px-4 py-3 relative">
+                          {entryMode === 'direct' && item.productId && products.find(p => p.id === item.productId)?.variations.length! > 1 ? (
                             <Select
                               value={item.productVariationId?.toString() || ''}
                               onValueChange={(value) => updateItem(item.id, 'productVariationId', value)}
                             >
-                              <SelectTrigger className="w-32">
-                                <SelectValue placeholder="Variation" />
+                              <SelectTrigger className="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600">
+                                <SelectValue />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 z-[9999]">
                                 {products
                                   .find(p => p.id === item.productId)
-                                  ?.variations.map((variation) => (
-                                    <SelectItem key={variation.id} value={variation.id.toString()}>
+                                  ?.variations
+                                  .filter(variation => {
+                                    // Show the current variation
+                                    if (variation.id === item.productVariationId) return true
+
+                                    // Filter out variations already used in OTHER rows for the SAME product
+                                    const isUsedInOtherRow = items.some(otherItem =>
+                                      otherItem.id !== item.id &&
+                                      otherItem.productId === item.productId &&
+                                      otherItem.productVariationId === variation.id
+                                    )
+                                    return !isUsedInOtherRow
+                                  })
+                                  .map((variation) => (
+                                    <SelectItem
+                                      key={variation.id}
+                                      value={variation.id.toString()}
+                                      className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+                                    >
                                       {variation.variationName}
                                     </SelectItem>
                                   ))}
@@ -653,18 +931,18 @@ export default function NewPurchaseReceiptPage() {
                             {item.quantityOrdered}
                           </td>
                         )}
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 text-right">
                           <Input
                             type="number"
                             min="0"
                             step="0.01"
                             value={item.quantityReceived}
                             onChange={(e) => updateItem(item.id, 'quantityReceived', parseFloat(e.target.value) || 0)}
-                            className="w-24 text-right"
+                            className="w-full text-right"
                             required
                           />
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 text-right">
                           {entryMode === 'direct' ? (
                             <Input
                               type="number"
@@ -672,29 +950,43 @@ export default function NewPurchaseReceiptPage() {
                               step="0.01"
                               value={item.unitCost}
                               onChange={(e) => updateItem(item.id, 'unitCost', parseFloat(e.target.value) || 0)}
-                              className="w-24 text-right"
+                              className="w-full text-right"
                               required
                             />
                           ) : (
                             <span className="text-gray-700 dark:text-gray-300">
-                              ₱{item.unitCost.toFixed(2)}
+                              ₱{formatCurrency(item.unitCost)}
                             </span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-right font-medium text-gray-900 dark:text-white">
-                          ₱{(item.quantityReceived * item.unitCost).toFixed(2)}
+                          ₱{formatCurrency(item.quantityReceived * item.unitCost)}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          {entryMode === 'direct' && (
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => removeItem(item.id)}
-                            >
-                              <TrashIcon className="w-4 h-4" />
-                            </Button>
+                          {item.enableProductInfo && item.quantityReceived > 0 && (
+                            <SerialNumberInput
+                              requiredCount={Math.floor(item.quantityReceived)}
+                              productName={item.productName}
+                              supplierName={suppliers.find(s => s.id === supplierId)?.name || ''}
+                              dateReceived={receiptDate}
+                              userName={can ? 'Current User' : ''}
+                              onSerialNumbersChange={(serialNumbers) => {
+                                updateItem(item.id, 'serialNumbers', serialNumbers)
+                              }}
+                              initialSerialNumbers={item.serialNumbers || []}
+                            />
                           )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeItem(item.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </Button>
                         </td>
                       </tr>
                     ))}
@@ -705,9 +997,9 @@ export default function NewPurchaseReceiptPage() {
                         Grand Total:
                       </td>
                       <td className="px-4 py-3 text-right font-bold text-gray-900 dark:text-white">
-                        ₱{items.reduce((sum, item) => sum + (item.quantityReceived * item.unitCost), 0).toFixed(2)}
+                        ₱{formatCurrency(items.reduce((sum, item) => sum + (item.quantityReceived * item.unitCost), 0))}
                       </td>
-                      <td></td>
+                      <td colSpan={2}></td>
                     </tr>
                   </tfoot>
                 </table>

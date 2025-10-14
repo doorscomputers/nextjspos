@@ -1,0 +1,120 @@
+
+Running 4 tests using 1 worker
+
+[1A[2K[1/4] [chromium] › e2e\cash-in-out-quotation-test.spec.ts:13:7 › Cash In/Out and Quotation Delete Tests › Test Cash In - Check for errors
+[1A[2K  1) [chromium] › e2e\cash-in-out-quotation-test.spec.ts:13:7 › Cash In/Out and Quotation Delete Tests › Test Cash In - Check for errors 
+
+    [31mTest timeout of 60000ms exceeded while running "beforeEach" hook.[39m
+
+      2 |
+      3 | test.describe('Cash In/Out and Quotation Delete Tests', () => {
+    > 4 |   test.beforeEach(async ({ page }) => {
+        |        ^
+      5 |     // Login as cashier
+      6 |     await page.goto('http://localhost:3000/login')
+      7 |     await page.fill('input[name="username"]', 'cashiermain')
+        at C:\xampp\htdocs\ultimatepos-modern\e2e\cash-in-out-quotation-test.spec.ts:4:8
+
+    Error: page.waitForURL: Test timeout of 60000ms exceeded.
+    =========================== logs ===========================
+    waiting for navigation to "**/dashboard**" until "load"
+      navigated to "http://localhost:3000/login"
+    ============================================================
+
+       8 |     await page.fill('input[name="password"]', 'password')
+       9 |     await page.click('button[type="submit"]')
+    > 10 |     await page.waitForURL('**/dashboard**')
+         |                ^
+      11 |   })
+      12 |
+      13 |   test('Test Cash In - Check for errors', async ({ page }) => {
+        at C:\xampp\htdocs\ultimatepos-modern\e2e\cash-in-out-quotation-test.spec.ts:10:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\cash-in-out-quotation-test-a5b06--Cash-In---Check-for-errors-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\cash-in-out-quotation-test-a5b06--Cash-In---Check-for-errors-chromium\error-context.md
+
+
+[1A[2K[2/4] [chromium] › e2e\cash-in-out-quotation-test.spec.ts:79:7 › Cash In/Out and Quotation Delete Tests › Test Cash Out - Check for errors
+[1A[2K  2) [chromium] › e2e\cash-in-out-quotation-test.spec.ts:79:7 › Cash In/Out and Quotation Delete Tests › Test Cash Out - Check for errors 
+
+    [31mTest timeout of 60000ms exceeded while running "beforeEach" hook.[39m
+
+      2 |
+      3 | test.describe('Cash In/Out and Quotation Delete Tests', () => {
+    > 4 |   test.beforeEach(async ({ page }) => {
+        |        ^
+      5 |     // Login as cashier
+      6 |     await page.goto('http://localhost:3000/login')
+      7 |     await page.fill('input[name="username"]', 'cashiermain')
+        at C:\xampp\htdocs\ultimatepos-modern\e2e\cash-in-out-quotation-test.spec.ts:4:8
+
+    Error: page.waitForURL: Test timeout of 60000ms exceeded.
+    =========================== logs ===========================
+    waiting for navigation to "**/dashboard**" until "load"
+    ============================================================
+
+       8 |     await page.fill('input[name="password"]', 'password')
+       9 |     await page.click('button[type="submit"]')
+    > 10 |     await page.waitForURL('**/dashboard**')
+         |                ^
+      11 |   })
+      12 |
+      13 |   test('Test Cash In - Check for errors', async ({ page }) => {
+        at C:\xampp\htdocs\ultimatepos-modern\e2e\cash-in-out-quotation-test.spec.ts:10:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\cash-in-out-quotation-test-acb7f-Cash-Out---Check-for-errors-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\cash-in-out-quotation-test-acb7f-Cash-Out---Check-for-errors-chromium\error-context.md
+
+
+[1A[2K[3/4] [chromium] › e2e\cash-in-out-quotation-test.spec.ts:145:7 › Cash In/Out and Quotation Delete Tests › Test Quotation Delete
+[1A[2K  3) [chromium] › e2e\cash-in-out-quotation-test.spec.ts:145:7 › Cash In/Out and Quotation Delete Tests › Test Quotation Delete 
+
+    [31mTest timeout of 60000ms exceeded while running "beforeEach" hook.[39m
+
+      2 |
+      3 | test.describe('Cash In/Out and Quotation Delete Tests', () => {
+    > 4 |   test.beforeEach(async ({ page }) => {
+        |        ^
+      5 |     // Login as cashier
+      6 |     await page.goto('http://localhost:3000/login')
+      7 |     await page.fill('input[name="username"]', 'cashiermain')
+        at C:\xampp\htdocs\ultimatepos-modern\e2e\cash-in-out-quotation-test.spec.ts:4:8
+
+    Error: page.waitForURL: Test timeout of 60000ms exceeded.
+    =========================== logs ===========================
+    waiting for navigation to "**/dashboard**" until "load"
+    ============================================================
+
+       8 |     await page.fill('input[name="password"]', 'password')
+       9 |     await page.click('button[type="submit"]')
+    > 10 |     await page.waitForURL('**/dashboard**')
+         |                ^
+      11 |   })
+      12 |
+      13 |   test('Test Cash In - Check for errors', async ({ page }) => {
+        at C:\xampp\htdocs\ultimatepos-modern\e2e\cash-in-out-quotation-test.spec.ts:10:16
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\cash-in-out-quotation-test-b1374-Tests-Test-Quotation-Delete-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\cash-in-out-quotation-test-b1374-Tests-Test-Quotation-Delete-chromium\error-context.md
+
+
+[1A[2K[4/4] [chromium] › e2e\cash-in-out-quotation-test.spec.ts:236:7 › Cash In/Out and Quotation Delete Tests › Debug - Check current shift and user permissions
+[1A[2K  4) [chromium] › e2e\cash-in-out-quotation-test.spec.ts:236:7 › Cash In/Out and Quotation Delete Tests › Debug - Check current shift and user permissions 
+
+    Error: worker process exited unexpectedly (code=3221225794, signal=null)
+
+
+[1A[2K  4 failed
+    [chromium] › e2e\cash-in-out-quotation-test.spec.ts:13:7 › Cash In/Out and Quotation Delete Tests › Test Cash In - Check for errors 
+    [chromium] › e2e\cash-in-out-quotation-test.spec.ts:79:7 › Cash In/Out and Quotation Delete Tests › Test Cash Out - Check for errors 
+    [chromium] › e2e\cash-in-out-quotation-test.spec.ts:145:7 › Cash In/Out and Quotation Delete Tests › Test Quotation Delete 
+    [chromium] › e2e\cash-in-out-quotation-test.spec.ts:236:7 › Cash In/Out and Quotation Delete Tests › Debug - Check current shift and user permissions 

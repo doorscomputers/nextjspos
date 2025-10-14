@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { ExportButtons } from "@/components/reports/ExportButtons"
 import {
   ChevronDownIcon,
   ChevronUpIcon,
-  ArrowDownTrayIcon,
-  FunnelIcon
+  FunnelIcon,
+  MagnifyingGlassIcon,
+  ArrowPathIcon
 } from "@heroicons/react/24/outline"
 
 interface PurchaseReportData {
@@ -139,8 +141,15 @@ export default function PurchasesReportPage() {
     setExpandedRows(newExpanded)
   }
 
-  const exportToCSV = () => {
-    if (!reportData) return
+  const formatNumber = (num: number) => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num)
+  }
+
+  const getExportData = () => {
+    if (!reportData) return { headers: [], data: [] }
 
     const headers = [
       "PO Number",
@@ -160,7 +169,7 @@ export default function PurchasesReportPage() {
       "Receipts"
     ]
 
-    const rows = reportData.purchases.map((purchase) => [
+    const data = reportData.purchases.map((purchase) => [
       purchase.purchaseOrderNumber,
       purchase.purchaseDate,
       purchase.expectedDeliveryDate || "N/A",
@@ -178,18 +187,7 @@ export default function PurchasesReportPage() {
       purchase.receiptCount
     ])
 
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => row.join(","))
-    ].join("\n")
-
-    const blob = new Blob([csvContent], { type: "text/csv" })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `purchases-report-${new Date().toISOString().split("T")[0]}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
+    return { headers, data }
   }
 
   const getStatusColor = (status: string) => {
@@ -214,10 +212,13 @@ export default function PurchasesReportPage() {
             Comprehensive view of all purchase orders with filtering and export
           </p>
         </div>
-        <Button onClick={exportToCSV} disabled={!reportData || reportData.purchases.length === 0}>
-          <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
-          Export CSV
-        </Button>
+        <ExportButtons
+          data={getExportData().data}
+          headers={getExportData().headers}
+          filename={`purchases-report-${new Date().toISOString().split("T")[0]}`}
+          title="Purchases Report"
+          disabled={!reportData || reportData.purchases.length === 0}
+        />
       </div>
 
       {/* Filters */}
@@ -229,8 +230,9 @@ export default function PurchasesReportPage() {
               variant="ghost"
               size="sm"
               onClick={() => setShowFilters(!showFilters)}
+              className="hover:bg-gray-100"
             >
-              <FunnelIcon className="w-4 h-4 mr-2" />
+              <FunnelIcon className="w-5 h-5 mr-2" />
               {showFilters ? "Hide" : "Show"} Filters
             </Button>
           </div>
@@ -348,10 +350,34 @@ export default function PurchasesReportPage() {
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <Button onClick={handleSearch}>Apply Filters</Button>
-              <Button variant="outline" onClick={handleReset}>
-                Reset
+            <div className="flex gap-3">
+              <Button
+                onClick={handleSearch}
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                size="default"
+              >
+                {loading ? (
+                  <>
+                    <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <MagnifyingGlassIcon className="w-5 h-5 mr-2" />
+                    Apply Filters
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleReset}
+                disabled={loading}
+                className="border-gray-300 hover:bg-gray-50"
+                size="default"
+              >
+                <ArrowPathIcon className="w-5 h-5 mr-2" />
+                Reset Filters
               </Button>
             </div>
           </CardContent>
@@ -380,7 +406,7 @@ export default function PurchasesReportPage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
-                ${reportData.summary.totalAmount.toFixed(2)}
+                {formatNumber(reportData.summary.totalAmount)}
               </p>
             </CardContent>
           </Card>
@@ -393,7 +419,7 @@ export default function PurchasesReportPage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
-                ${reportData.summary.totalSubtotal.toFixed(2)}
+                {formatNumber(reportData.summary.totalSubtotal)}
               </p>
             </CardContent>
           </Card>
@@ -406,7 +432,7 @@ export default function PurchasesReportPage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
-                ${reportData.summary.totalTax.toFixed(2)}
+                {formatNumber(reportData.summary.totalTax)}
               </p>
             </CardContent>
           </Card>
@@ -419,7 +445,7 @@ export default function PurchasesReportPage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-green-600">
-                ${reportData.summary.totalDiscount.toFixed(2)}
+                {formatNumber(reportData.summary.totalDiscount)}
               </p>
             </CardContent>
           </Card>
@@ -432,7 +458,7 @@ export default function PurchasesReportPage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">
-                ${reportData.summary.totalShipping.toFixed(2)}
+                {formatNumber(reportData.summary.totalShipping)}
               </p>
             </CardContent>
           </Card>
@@ -485,7 +511,7 @@ export default function PurchasesReportPage() {
                           <td className="p-3 text-right">{purchase.totalOrdered}</td>
                           <td className="p-3 text-right">{purchase.totalReceived}</td>
                           <td className="p-3 text-right font-medium">
-                            ${purchase.totalAmount.toFixed(2)}
+                            {formatNumber(purchase.totalAmount)}
                           </td>
                           <td className="p-3 text-right">{purchase.receiptCount}</td>
                           <td className="p-3 text-center">
@@ -530,8 +556,8 @@ export default function PurchasesReportPage() {
                                           <td className="p-2">{item.sku}</td>
                                           <td className="p-2 text-right">{item.quantity}</td>
                                           <td className="p-2 text-right">{item.quantityReceived}</td>
-                                          <td className="p-2 text-right">${item.unitCost.toFixed(2)}</td>
-                                          <td className="p-2 text-right">${item.total.toFixed(2)}</td>
+                                          <td className="p-2 text-right">{formatNumber(item.unitCost)}</td>
+                                          <td className="p-2 text-right">{formatNumber(item.total)}</td>
                                           <td className="p-2 text-center">
                                             {item.requiresSerial ? "Yes" : "No"}
                                           </td>
@@ -597,25 +623,27 @@ export default function PurchasesReportPage() {
                     {Math.min(page * limit, reportData.pagination.totalCount)} of{" "}
                     {reportData.pagination.totalCount} purchases
                   </p>
-                  <div className="flex gap-2">
+                  <div className="flex gap-3">
                     <Button
                       variant="outline"
-                      size="sm"
+                      size="default"
                       onClick={() => setPage(page - 1)}
-                      disabled={page === 1}
+                      disabled={page === 1 || loading}
+                      className="border-gray-300 hover:bg-gray-50 shadow-sm"
                     >
                       Previous
                     </Button>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-md border border-gray-200">
+                      <span className="text-sm font-medium text-gray-700">
                         Page {page} of {reportData.pagination.totalPages}
                       </span>
                     </div>
                     <Button
                       variant="outline"
-                      size="sm"
+                      size="default"
                       onClick={() => setPage(page + 1)}
-                      disabled={page === reportData.pagination.totalPages}
+                      disabled={page === reportData.pagination.totalPages || loading}
+                      className="border-gray-300 hover:bg-gray-50 shadow-sm"
                     >
                       Next
                     </Button>

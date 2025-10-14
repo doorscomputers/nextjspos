@@ -95,7 +95,7 @@ export async function POST(
         verified: true,
         verifiedBy: parseInt(userId),
         verifiedAt: new Date(),
-        receivedQuantity: receivedQuantity !== undefined ? receivedQuantity : item.quantity,
+        receivedQuantity: receivedQuantity?.toString() || item.quantity,
         serialNumbersReceived: serialNumbersReceived || item.serialNumbersSent,
         hasDiscrepancy: hasDiscrepancy || false,
         discrepancyNotes: discrepancyNotes || null,
@@ -112,6 +112,27 @@ export async function POST(
       })
     }
 
+    // Check if ALL items are now verified
+    const allItems = await prisma.stockTransferItem.findMany({
+      where: {
+        stockTransferId: transferId,
+      },
+    })
+
+    const allVerified = allItems.every(item => item.verified)
+
+    // If all items verified, auto-transition to "verified" status
+    if (allVerified) {
+      await prisma.stockTransfer.update({
+        where: { id: transferId },
+        data: {
+          status: 'verified',
+          verifiedBy: parseInt(userId),
+          verifiedAt: new Date(),
+        },
+      })
+    }
+
     // Create audit log
     await createAuditLog({
       businessId: parseInt(businessId),
@@ -120,19 +141,21 @@ export async function POST(
       action: 'transfer_item_verify' as AuditAction,
       entityType: EntityType.STOCK_TRANSFER,
       entityIds: [transferId],
-      description: `Verified item in transfer ${transfer.transferNumber}`,
+      description: `Verified item in transfer ${transfer.transferNumber}${allVerified ? ' - All items verified' : ''}`,
       metadata: {
         transferNumber: transfer.transferNumber,
         itemId: parseInt(itemId),
         hasDiscrepancy: hasDiscrepancy || false,
         discrepancyNotes,
+        allItemsVerified: allVerified,
       },
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
     })
 
     return NextResponse.json({
-      message: 'Item verified successfully',
+      message: allVerified ? 'All items verified - transfer ready to complete' : 'Item verified successfully',
       item: updatedItem,
+      allItemsVerified: allVerified,
     })
   } catch (error: any) {
     console.error('Error verifying item:', error)

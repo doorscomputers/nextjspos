@@ -1,0 +1,51 @@
+PURCHASE-TO-PAY UI ERROR REPORT
+================================================================================
+
+Total Errors: 5
+
+Error 1:
+  Page: Purchases List Page
+  URL: http://localhost:3001/dashboard/purchases
+  Error: page.waitForURL: Timeout 15000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to "**/dashboard" until "load"
+============================================================
+  Screenshot: 1-purchases-list-ERROR.png
+
+Error 2:
+  Page: Accounts Payable Page
+  URL: http://localhost:3001/dashboard/accounts-payable
+  Error: page.waitForURL: Timeout 15000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to "**/dashboard" until "load"
+============================================================
+  Screenshot: 2-accounts-payable-ERROR.png
+
+Error 3:
+  Page: Payments List Page
+  URL: http://localhost:3001/dashboard/payments
+  Error: page.waitForURL: Timeout 15000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to "**/dashboard" until "load"
+============================================================
+  Screenshot: 3-payments-list-ERROR.png
+
+Error 4:
+  Page: Payment Form Page
+  URL: http://localhost:3001/dashboard/payments/new
+  Error: page.waitForURL: Timeout 15000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to "**/dashboard" until "load"
+============================================================
+  Screenshot: 4-payment-form-ERROR.png
+
+Error 5:
+  Page: Post-Dated Cheques Page
+  URL: http://localhost:3001/dashboard/post-dated-cheques
+  Error: page.waitForURL: Timeout 15000ms exceeded.
+=========================== logs ===========================
+waiting for navigation to "**/dashboard" until "load"
+  navigated to "http://localhost:3001/login?username=admin&password=password"
+============================================================
+  Screenshot: 5-post-dated-cheques-ERROR.png
+

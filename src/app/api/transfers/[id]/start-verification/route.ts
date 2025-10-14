@@ -71,10 +71,21 @@ export async function POST(
       })
       if (!userLocation) {
         return NextResponse.json(
-          { error: 'No access to destination location' },
+          { error: 'No access to destination location. Only users assigned to the receiving location can verify transfers.' },
           { status: 403 }
         )
       }
+    }
+
+    // ENFORCE: Verifier should be different from the user who marked it as arrived
+    if (transfer.arrivedBy === parseInt(userId)) {
+      return NextResponse.json(
+        {
+          error: 'Cannot verify a transfer you marked as arrived. A different user should perform the verification for proper control.',
+          code: 'SAME_USER_VIOLATION'
+        },
+        { status: 403 }
+      )
     }
 
     // Update transfer to verifying status

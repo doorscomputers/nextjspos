@@ -57,6 +57,8 @@ model User {
   createdInventoryCorrections  InventoryCorrection[]      @relation("InventoryCorrectionCreatedBy")
   approvedInventoryCorrections InventoryCorrection[]      @relation("InventoryCorrectionApprovedBy")
   openingStockSets             VariationLocationDetails[] @relation("OpeningStockSetBy")
+  requestedFreebies            FreebieLog[]               @relation("FreebieRequestedBy")
+  approvedFreebies             FreebieLog[]               @relation("FreebieApprovedBy")
 
   @@map("users")
 }
@@ -102,6 +104,7 @@ model Business {
   invoiceScheme        String? @map("invoice_scheme") @db.VarChar(191) // blank, year, business_location_id
   invoiceLayoutForPOS  String? @map("invoice_layout_for_pos") @db.VarChar(191)
   invoiceLayoutForSale String? @map("invoice_layout_for_sale") @db.VarChar(191)
+  invoiceWarrantyRemarks String? @map("invoice_warranty_remarks") @db.Text // Warranty/terms remarks to appear on invoices
 
   // Barcode Settings
   barcodeProductSKU       Boolean @default(true) @map("barcode_product_sku")
@@ -110,6 +113,16 @@ model Business {
   barcodeProductVariation Boolean @default(false) @map("barcode_product_variation")
   barcodeProductPrice     Boolean @default(true) @map("barcode_product_price")
   barcodePackingDate      Boolean @default(false) @map("barcode_packing_date")
+
+  // Stock Transfer Settings
+  // Values: "full" (8-stage workflow), "simple" (3-stage: draft->send->complete)
+  transferWorkflowMode String @default("full") @map("transfer_workflow_mode") @db.VarChar(20)
+
+  // BIR Z-Reading Tracking
+  zCounter           Int     @default(0) @map("z_counter") // Increments with each Z-Reading
+  resetCounter       Int     @default(1) @map("reset_counter") // Reset Counter Number
+  accumulatedSales   Decimal @default(0) @map("accumulated_sales") @db.Decimal(22, 4) // Total accumulated sales
+  lastZReadingDate   DateTime? @map("last_z_reading_date") // Last Z-Reading timestamp
 
   // Relations
   locations            BusinessLocation[]
@@ -146,6 +159,9 @@ model BusinessLocation {
   userLocations        UserLocation[]
   roleLocations        RoleLocation[]
   inventoryCorrections InventoryCorrection[]
+  serialNumbers        ProductSerialNumber[]
+  transfersFrom        StockTransfer[]     @relation("TransfersFrom")
+  transfersTo          StockTransfer[]     @relation("TransfersTo")
 
   @@index([businessId])
   @@map("business_locations")
@@ -485,6 +501,10 @@ model Product {
   comboItems               ComboProduct[]             @relation("ChildProduct")
   stockTransactions        StockTransaction[]
   inventoryCorrections     InventoryCorrection[]
+  purchaseItems            PurchaseItem[]             @relation("PurchaseItemProduct")
+  serialNumbers            ProductSerialNumber[]      @relation("SerialNumberProduct")
+  freebieLogs              FreebieLog[]
+  quotationItems           QuotationItem[]
 
   @@unique([businessId, sku]) // SKU must be unique within each business
   @@index([businessId])
@@ -525,15 +545,23 @@ model ProductVariation {
   unitId Int?  @map("unit_id")
   unit   Unit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
 
+  // Supplier relationship for automatic reordering
+  supplierId Int?      @map("supplier_id")
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
   // Relations
   variationLocationDetails VariationLocationDetails[]
   stockTransactions        StockTransaction[]
   inventoryCorrections     InventoryCorrection[]
+  purchaseItems            PurchaseItem[]             @relation("PurchaseItemVariation")
+  serialNumbers            ProductSerialNumber[]      @relation("SerialNumberVariation")
+  freebieLogs              FreebieLog[]
 
   @@unique([businessId, sku]) // SKU must be unique within each business
   @@index([productId])
   @@index([businessId])
   @@index([sku])
+  @@index([supplierId])
   @@map("product_variations")
 }
 
@@ -711,10 +739,14 @@ model Supplier {
   // Relations
   purchases         Purchase[]
   purchaseReceipts  PurchaseReceipt[]
+  purchaseReturns   PurchaseReturn[]
   supplierReturns   SupplierReturn[]
   accountsPayable   AccountsPayable[]
   payments          Payment[]
   postDatedCheques  PostDatedCheque[]
+  serialNumbers     ProductSerialNumber[]
+  debitNotes        DebitNote[]
+  productVariations ProductVariation[]
 
   @@index([businessId])
   @@map("suppliers")
@@ -746,6 +778,7 @@ model Customer {
   // Relations
   sales           Sale[]
   customerReturns CustomerReturn[]
+  quotations      Quotation[]
 
   @@index([businessId])
   @@map("customers")
@@ -771,6 +804,10 @@ model ProductSerialNumber {
   // Location tracking
   currentLocationId Int? @map("current_location_id")
 
+  // Supplier tracking (CRITICAL: Know which supplier to return warranty items to)
+  supplierId Int?      @map("supplier_id")
+  supplier   Supplier? @relation(fields: [supplierId], references: [id])
+
   // Purchase information
   purchaseId        Int?      @map("purchase_id")
   purchaseReceiptId Int?      @map("purchase_receipt_id")
@@ -781,6 +818,7 @@ model ProductSerialNumber {
   saleId Int?      @map("sale_id")
   soldAt DateTime? @map("sold_at")
   soldTo String?   @map("sold_to") @db.VarChar(191) // Customer name
+  salePrice Decimal? @map("sale_price") @db.Decimal(22, 4)
 
   // Warranty information
   warrantyStartDate DateTime? @map("warranty_start_date") @db.Date
@@ -793,7 +831,11 @@ model ProductSerialNumber {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  movements SerialNumberMovement[]
+  product          Product               @relation("SerialNumberProduct", fields: [productId], references: [id], onDelete: Restrict)
+  productVariation ProductVariation      @relation("SerialNumberVariation", fields: [productVariationId], references: [id], onDelete: Restrict)
+  purchaseReceipt  PurchaseReceipt?      @relation(fields: [purchaseReceiptId], references: [id], onDelete: SetNull)
+  currentLocation  BusinessLocation?     @relation(fields: [currentLocationId], references: [id], onDelete: SetNull)
+  movements        SerialNumberMovement[]
 
   @@unique([businessId, serialNumber])
   @@index([businessId])
@@ -802,6 +844,8 @@ model ProductSerialNumber {
   @@index([serialNumber])
   @@index([status])
   @@index([currentLocationId])
+  @@index([supplierId])
+  @@index([purchaseReceiptId])
   @@map("product_serial_numbers")
 }
 
@@ -861,10 +905,15 @@ model Purchase {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
+  // Amendment tracking
+  amendmentCount Int @default(0) @map("amendment_count") // Number of times this PO has been amended
+  isAmended      Boolean @default(false) @map("is_amended") // Quick check if PO has amendments
+
   // Relations
   items           PurchaseItem[]
   receipts        PurchaseReceipt[]
   accountsPayable AccountsPayable[]
+  amendments      PurchaseAmendment[]
 
   @@index([businessId])
   @@index([locationId])
@@ -872,6 +921,58 @@ model Purchase {
   @@index([status])
   @@index([purchaseDate])
   @@map("purchases")
+}
+
+// Purchase Order Amendments - Track all changes to PO after creation
+model PurchaseAmendment {
+  id         Int      @id @default(autoincrement())
+  purchaseId Int      @map("purchase_id")
+  purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  businessId Int      @map("business_id")
+
+  amendmentNumber Int      @map("amendment_number") // Sequential number (1, 2, 3...)
+  amendmentDate   DateTime @map("amendment_date") @db.Date
+
+  // Status: pending, approved, rejected
+  status String @default("pending") @db.VarChar(50)
+
+  // Amendment reason: pricing_change, quantity_change, item_addition, item_removal, delivery_date_change, supplier_request, other
+  amendmentReason String @map("amendment_reason") @db.VarChar(100)
+
+  // Store previous values as JSON for comparison
+  previousData Json @map("previous_data") // Complete snapshot of PO before amendment
+  changedFields Json @map("changed_fields") // List of fields that were changed
+
+  // New values (stored for easy comparison)
+  newSubtotal     Decimal? @map("new_subtotal") @db.Decimal(22, 4)
+  newTaxAmount    Decimal? @map("new_tax_amount") @db.Decimal(22, 4)
+  newTotalAmount  Decimal? @map("new_total_amount") @db.Decimal(22, 4)
+
+  description String? @db.Text // Detailed explanation of changes
+  notes       String? @db.Text // Additional notes
+
+  // Who requested the amendment
+  requestedBy Int      @map("requested_by")
+  requestedAt DateTime @default(now()) @map("requested_at")
+
+  // Approval workflow
+  approvedBy Int?      @map("approved_by")
+  approvedAt DateTime? @map("approved_at")
+
+  // Rejection
+  rejectedBy Int?      @map("rejected_by")
+  rejectedAt DateTime? @map("rejected_at")
+  rejectionReason String? @map("rejection_reason") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([purchaseId, amendmentNumber]) // Each amendment number is unique per PO
+  @@index([businessId])
+  @@index([purchaseId])
+  @@index([status])
+  @@index([amendmentDate])
+  @@map("purchase_amendments")
 }
 
 model PurchaseItem {
@@ -895,7 +996,9 @@ model PurchaseItem {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  receiptItems PurchaseReceiptItem[]
+  receiptItems       PurchaseReceiptItem[]
+  product            Product               @relation("PurchaseItemProduct", fields: [productId], references: [id], onDelete: Restrict)
+  productVariation   ProductVariation      @relation("PurchaseItemVariation", fields: [productVariationId], references: [id], onDelete: Restrict)
 
   @@index([purchaseId])
   @@index([productId])
@@ -934,7 +1037,10 @@ model PurchaseReceipt {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  items PurchaseReceiptItem[]
+  items                     PurchaseReceiptItem[]
+  purchaseReturns           PurchaseReturn[]
+  qualityControlInspections QualityControlInspection[]
+  serialNumbers             ProductSerialNumber[]
 
   @@index([businessId])
   @@index([purchaseId])
@@ -966,11 +1072,290 @@ model PurchaseReceiptItem {
 
   createdAt DateTime @default(now()) @map("created_at")
 
+  // Relations
+  returnItems PurchaseReturnItem[]
+
   @@index([purchaseReceiptId])
   @@index([purchaseItemId])
   @@index([productId])
   @@index([productVariationId])
   @@map("purchase_receipt_items")
+}
+
+// ============================================
+// QUALITY CONTROL (QC)
+// ============================================
+
+// Quality Control Inspection - Performed on received goods
+model QualityControlInspection {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  locationId Int      @map("location_id")
+
+  // Reference to purchase receipt (GRN)
+  purchaseReceiptId Int             @map("purchase_receipt_id")
+  purchaseReceipt   PurchaseReceipt @relation(fields: [purchaseReceiptId], references: [id], onDelete: Restrict)
+
+  inspectionNumber String   @unique @map("inspection_number") @db.VarChar(100)
+  inspectionDate   DateTime @map("inspection_date") @db.Date
+
+  // Status: pending, in_progress, passed, failed, conditional_pass
+  status String @default("pending") @db.VarChar(50)
+
+  // Overall inspection result
+  overallResult String? @map("overall_result") @db.VarChar(50) // pass, fail, conditional
+
+  // Inspector information
+  inspectedBy     Int       @map("inspected_by")
+  inspectedAt     DateTime? @map("inspected_at")
+  inspectorNotes  String?   @map("inspector_notes") @db.Text
+
+  // Approval workflow (for failed inspections requiring management decision)
+  approvedBy Int?      @map("approved_by")
+  approvedAt DateTime? @map("approved_at")
+  approvalNotes String? @map("approval_notes") @db.Text
+
+  createdBy Int      @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  items      QualityControlItem[]
+  checkItems QualityControlCheckItem[]
+
+  @@index([businessId])
+  @@index([locationId])
+  @@index([purchaseReceiptId])
+  @@index([status])
+  @@index([inspectionDate])
+  @@map("quality_control_inspections")
+}
+
+// QC Items - Specific products being inspected
+model QualityControlItem {
+  id                        Int                        @id @default(autoincrement())
+  qualityControlInspectionId Int                        @map("quality_control_inspection_id")
+  qualityControlInspection   QualityControlInspection   @relation(fields: [qualityControlInspectionId], references: [id], onDelete: Cascade)
+
+  purchaseReceiptItemId Int                 @map("purchase_receipt_item_id")
+  productId             Int                 @map("product_id")
+  productVariationId    Int                 @map("product_variation_id")
+
+  // Inspection quantities
+  quantityOrdered   Decimal @map("quantity_ordered") @db.Decimal(22, 4)
+  quantityReceived  Decimal @map("quantity_received") @db.Decimal(22, 4)
+  quantityInspected Decimal @map("quantity_inspected") @db.Decimal(22, 4)
+  quantityPassed    Decimal @map("quantity_passed") @db.Decimal(22, 4)
+  quantityFailed    Decimal @map("quantity_failed") @db.Decimal(22, 4)
+
+  // Inspection result for this item
+  inspectionResult String @map("inspection_result") @db.VarChar(50) // pass, fail, conditional
+
+  // Defect details
+  defectType        String? @map("defect_type") @db.VarChar(100) // damaged, wrong_item, expired, quality_issue, packaging_issue
+  defectDescription String? @map("defect_description") @db.Text
+  defectSeverity    String? @map("defect_severity") @db.VarChar(50) // minor, major, critical
+
+  // Actions taken
+  actionTaken String? @map("action_taken") @db.VarChar(100) // accept, reject, return, quarantine, accept_with_discount
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([qualityControlInspectionId])
+  @@index([productId])
+  @@index([productVariationId])
+  @@index([inspectionResult])
+  @@map("quality_control_items")
+}
+
+// QC Checklist Items - Standard checks performed during inspection
+model QualityControlCheckItem {
+  id                        Int                        @id @default(autoincrement())
+  qualityControlInspectionId Int                        @map("quality_control_inspection_id")
+  qualityControlInspection   QualityControlInspection   @relation(fields: [qualityControlInspectionId], references: [id], onDelete: Cascade)
+
+  checklistTemplateId Int?   @map("checklist_template_id") // Reference to predefined checklist template
+  checkName           String @map("check_name") @db.VarChar(191)
+  checkCategory       String @map("check_category") @db.VarChar(100) // packaging, labeling, physical_condition, documentation, quantity, expiry
+
+  // Check result
+  checkResult String  @map("check_result") @db.VarChar(50) // pass, fail, na
+  checkValue  String? @map("check_value") @db.Text // Actual value found
+  expectedValue String? @map("expected_value") @db.Text // Expected value
+
+  // Priority/Criticality
+  isCritical Boolean @default(false) @map("is_critical") // Critical checks must pass
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([qualityControlInspectionId])
+  @@index([checkCategory])
+  @@index([checkResult])
+  @@map("quality_control_check_items")
+}
+
+// QC Checklist Templates - Reusable inspection checklists
+model QCChecklistTemplate {
+  id         Int    @id @default(autoincrement())
+  businessId Int    @map("business_id")
+  name       String @db.VarChar(191)
+
+  description String? @db.Text
+
+  // Applicable to specific categories/products
+  categoryIds String? @map("category_ids") @db.Text // JSON array
+  productIds  String? @map("product_ids") @db.Text // JSON array
+
+  // Template items (stored as JSON)
+  checkItems Json @map("check_items") // Array of { name, category, isCritical, expectedValue }
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdBy Int      @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([businessId])
+  @@map("qc_checklist_templates")
+}
+
+// ============================================
+// PURCHASE RETURNS (Debit Notes)
+// ============================================
+
+model PurchaseReturn {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  locationId Int      @map("location_id")
+
+  // Reference to original purchase receipt (GRN)
+  purchaseReceiptId Int             @map("purchase_receipt_id")
+  purchaseReceipt   PurchaseReceipt @relation(fields: [purchaseReceiptId], references: [id], onDelete: Restrict)
+
+  // Supplier relation
+  supplierId Int      @map("supplier_id")
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+
+  returnNumber String   @unique @map("return_number") @db.VarChar(100)
+  returnDate   DateTime @map("return_date") @db.Date
+
+  // Status: pending, approved, completed, rejected
+  // pending = created but not yet approved
+  // approved = approved, inventory reduced, debit note created
+  // completed = supplier processed the return
+  // rejected = return was rejected
+  status String @default("pending") @db.VarChar(50)
+
+  // Return reason: damaged, wrong_item, quality_issue, overcharge, expired, defective, not_as_ordered
+  returnReason String @map("return_reason") @db.VarChar(100)
+
+  // Amounts
+  subtotal       Decimal @db.Decimal(22, 4)
+  taxAmount      Decimal @default(0) @map("tax_amount") @db.Decimal(22, 4)
+  discountAmount Decimal @default(0) @map("discount_amount") @db.Decimal(22, 4)
+  totalAmount    Decimal @map("total_amount") @db.Decimal(22, 4)
+
+  // Expected action from supplier: refund, replacement, credit_note
+  expectedAction String @map("expected_action") @db.VarChar(50)
+
+  notes String? @db.Text
+
+  // Creator
+  createdBy Int      @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Approval
+  approvedBy Int?      @map("approved_by")
+  approvedAt DateTime? @map("approved_at")
+
+  // Completion (when supplier processes)
+  completedBy Int?      @map("completed_by")
+  completedAt DateTime? @map("completed_at")
+
+  // Relations
+  items               PurchaseReturnItem[]
+  accountsPayable     AccountsPayable[]
+  debitNotes          DebitNote[]
+
+  @@index([businessId])
+  @@index([locationId])
+  @@index([purchaseReceiptId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([returnDate])
+  @@index([returnReason])
+  @@map("purchase_returns")
+}
+
+model PurchaseReturnItem {
+  id              Int            @id @default(autoincrement())
+  purchaseReturnId Int            @map("purchase_return_id")
+  purchaseReturn   PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
+
+  // Reference to original receipt item
+  purchaseReceiptItemId Int                 @map("purchase_receipt_item_id")
+  purchaseReceiptItem   PurchaseReceiptItem @relation(fields: [purchaseReceiptItemId], references: [id], onDelete: Restrict)
+
+  productId          Int @map("product_id")
+  productVariationId Int @map("product_variation_id")
+
+  quantityReturned Decimal @map("quantity_returned") @db.Decimal(22, 4)
+  unitCost         Decimal @map("unit_cost") @db.Decimal(22, 4)
+
+  // Serial numbers being returned (stored as JSON array)
+  serialNumbers Json? @map("serial_numbers") // Array of { serialNumber, imei, condition }
+
+  // Item condition: damaged, defective, expired, wrong_item, good_condition
+  condition String @db.VarChar(50)
+
+  notes String? @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([purchaseReturnId])
+  @@index([purchaseReceiptItemId])
+  @@index([productId])
+  @@index([productVariationId])
+  @@map("purchase_return_items")
+}
+
+// Debit Note - Created when purchase return is approved
+model DebitNote {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  supplierId Int      @map("supplier_id")
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+
+  // Reference to purchase return
+  purchaseReturnId Int            @map("purchase_return_id")
+  purchaseReturn   PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
+
+  debitNoteNumber String   @unique @map("debit_note_number") @db.VarChar(100)
+  debitNoteDate   DateTime @map("debit_note_date") @db.Date
+
+  // Amount to be deducted from accounts payable or refunded
+  amount Decimal @db.Decimal(22, 4)
+
+  // Status: pending, applied, refunded
+  status String @default("pending") @db.VarChar(50)
+
+  notes String? @db.Text
+
+  createdBy Int      @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([businessId])
+  @@index([supplierId])
+  @@index([purchaseReturnId])
+  @@index([status])
+  @@index([debitNoteDate])
+  @@map("debit_notes")
 }
 
 // ============================================
@@ -987,7 +1372,11 @@ model Sale {
   invoiceNumber String   @unique @map("invoice_number") @db.VarChar(100)
   saleDate      DateTime @map("sale_date") @db.Date
 
-  status String @default("completed") @db.VarChar(50) // draft, completed, cancelled
+  status String @default("completed") @db.VarChar(50) // draft, completed, cancelled, voided
+
+  // Cashier shift tracking (BIR Compliance)
+  shiftId       Int?           @map("shift_id")
+  cashierShift  CashierShift?  @relation(fields: [shiftId], references: [id])
 
   // Amounts
   subtotal       Decimal @db.Decimal(22, 4)
@@ -995,6 +1384,20 @@ model Sale {
   discountAmount Decimal @default(0) @map("discount_amount") @db.Decimal(22, 4)
   shippingCost   Decimal @default(0) @map("shipping_cost") @db.Decimal(22, 4)
   totalAmount    Decimal @map("total_amount") @db.Decimal(22, 4)
+
+  // Discount tracking (Philippine BIR)
+  discountType       String?  @map("discount_type") @db.VarChar(50) // regular, senior, pwd
+  seniorCitizenId    String?  @map("senior_citizen_id") @db.VarChar(100)
+  seniorCitizenName  String?  @map("senior_citizen_name") @db.VarChar(191)
+  pwdId              String?  @map("pwd_id") @db.VarChar(100)
+  pwdName            String?  @map("pwd_name") @db.VarChar(191)
+  discountApprovedBy Int?     @map("discount_approved_by")
+
+  // VAT exemption
+  vatExempt Boolean @default(false) @map("vat_exempt")
+
+  // Warranty information (printed on invoice)
+  warrantyTerms String? @map("warranty_terms") @db.Text
 
   notes String? @db.Text
 
@@ -1004,15 +1407,20 @@ model Sale {
   deletedAt DateTime? @map("deleted_at")
 
   // Relations
-  items    SaleItem[]
-  payments SalePayment[]
-  returns  CustomerReturn[]
+  items             SaleItem[]
+  payments          SalePayment[]
+  returns           CustomerReturn[]
+  warrantyClaims    WarrantyClaim[]
+  voidTransactions  VoidTransaction[]
+  freebieLogs       FreebieLog[]
 
   @@index([businessId])
   @@index([locationId])
   @@index([customerId])
+  @@index([shiftId])
   @@index([status])
   @@index([saleDate])
+  @@index([discountType])
   @@map("sales")
 }
 
@@ -1123,7 +1531,9 @@ model StockTransfer {
   deletedAt DateTime? @map("deleted_at")
 
   // Relations
-  items StockTransferItem[]
+  items        StockTransferItem[]
+  fromLocation BusinessLocation   @relation("TransfersFrom", fields: [fromLocationId], references: [id], onDelete: Restrict)
+  toLocation   BusinessLocation   @relation("TransfersTo", fields: [toLocationId], references: [id], onDelete: Restrict)
 
   @@index([businessId])
   @@index([fromLocationId])
@@ -1400,7 +1810,8 @@ model AccountsPayable {
   deletedAt DateTime? @map("deleted_at")
 
   // Relations
-  payments Payment[]
+  payments        Payment[]
+  purchaseReturns PurchaseReturn[]
 
   @@index([businessId])
   @@index([supplierId])
@@ -1625,4 +2036,354 @@ model ProductHistory {
   @@index([referenceType])
   @@index([referenceId])
   @@map("product_history")
+}
+
+// ============================================
+// POS SYSTEM (Philippine BIR Compliance)
+// ============================================
+
+model CashierShift {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  locationId Int @map("location_id")
+  userId     Int @map("user_id")
+
+  shiftNumber String   @unique @map("shift_number") @db.VarChar(100)
+  openedAt    DateTime @map("opened_at")
+  closedAt    DateTime? @map("closed_at")
+
+  // Cash management
+  beginningCash Decimal @map("beginning_cash") @db.Decimal(22, 4)
+  endingCash    Decimal? @map("ending_cash") @db.Decimal(22, 4)
+  systemCash    Decimal? @map("system_cash") @db.Decimal(22, 4)
+
+  // Over/Short tracking
+  cashOver  Decimal? @map("cash_over") @db.Decimal(22, 4) // Positive = overage
+  cashShort Decimal? @map("cash_short") @db.Decimal(22, 4) // Positive = shortage
+
+  // Shift totals
+  totalSales       Decimal @default(0) @map("total_sales") @db.Decimal(22, 4)
+  totalRefunds     Decimal @default(0) @map("total_refunds") @db.Decimal(22, 4)
+  totalDiscounts   Decimal @default(0) @map("total_discounts") @db.Decimal(22, 4)
+  totalVoid        Decimal @default(0) @map("total_void") @db.Decimal(22, 4)
+  transactionCount Int     @default(0) @map("transaction_count")
+
+  // X-Reading counts (mid-shift readings)
+  xReadingCount Int @default(0) @map("x_reading_count")
+
+  // Status
+  status String @default("open") @db.VarChar(20) // open, closed
+
+  // Notes
+  openingNotes String? @map("opening_notes") @db.Text
+  closingNotes String? @map("closing_notes") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  sales             Sale[]
+  cashInOutRecords  CashInOut[]
+  cashDenominations CashDenomination[]
+  freebieLogs       FreebieLog[]
+
+  @@index([businessId])
+  @@index([locationId])
+  @@index([userId])
+  @@index([status])
+  @@index([openedAt])
+  @@map("cashier_shifts")
+}
+
+model Quotation {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  locationId Int @map("location_id")
+
+  customerId   Int?      @map("customer_id")
+  customer     Customer? @relation(fields: [customerId], references: [id])
+  customerName String?   @map("customer_name") @db.VarChar(191) // For walk-in customers
+
+  quotationNumber String   @unique @map("quotation_number") @db.VarChar(100)
+  quotationDate   DateTime @map("quotation_date") @db.Date
+  expiryDate      DateTime? @map("expiry_date") @db.Date
+  validDays       Int      @default(7) @map("valid_days") // Default 7 days validity
+
+  // Amounts
+  subtotal       Decimal @db.Decimal(22, 4)
+  taxAmount      Decimal @default(0) @map("tax_amount") @db.Decimal(22, 4)
+  discountAmount Decimal @default(0) @map("discount_amount") @db.Decimal(22, 4)
+  totalAmount    Decimal @map("total_amount") @db.Decimal(22, 4)
+
+  // Status: draft, sent, accepted, rejected, expired, converted
+  status String @default("draft") @db.VarChar(50)
+
+  // Conversion tracking
+  convertedToSaleId Int? @unique @map("converted_to_sale_id")
+
+  notes String? @db.Text
+
+  createdBy Int      @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  items QuotationItem[]
+
+  @@index([businessId])
+  @@index([locationId])
+  @@index([customerId])
+  @@index([status])
+  @@index([quotationDate])
+  @@index([expiryDate])
+  @@map("quotations")
+}
+
+model QuotationItem {
+  id          Int       @id @default(autoincrement())
+  quotationId Int       @map("quotation_id")
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  productId          Int     @map("product_id")
+  product            Product @relation(fields: [productId], references: [id])
+  productVariationId Int     @map("product_variation_id")
+
+  quantity  Decimal @db.Decimal(22, 4)
+  unitPrice Decimal @map("unit_price") @db.Decimal(22, 4)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([quotationId])
+  @@index([productId])
+  @@index([productVariationId])
+  @@map("quotation_items")
+}
+
+model DiscountConfig {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+
+  name        String  @db.VarChar(191)
+  description String? @db.Text
+
+  // Discount types: percentage, fixed_amount
+  discountType String @map("discount_type") @db.VarChar(50)
+  value        Decimal @db.Decimal(22, 4) // Percentage (e.g., 20.00) or fixed amount
+
+  // Special discount types
+  isSeniorDiscount Boolean @default(false) @map("is_senior_discount")
+  isPWDDiscount    Boolean @default(false) @map("is_pwd_discount")
+
+  // Authorization required
+  requiresApproval Boolean @default(false) @map("requires_approval")
+  maxAmountWithoutApproval Decimal? @map("max_amount_without_approval") @db.Decimal(22, 4)
+
+  // Applicability
+  applicableToAll Boolean @default(true) @map("applicable_to_all")
+  categoryIds     String? @map("category_ids") @db.Text // JSON array of category IDs
+
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([businessId])
+  @@index([discountType])
+  @@map("discount_configs")
+}
+
+model WarrantyClaim {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  locationId Int @map("location_id")
+
+  saleId             Int  @map("sale_id")
+  sale               Sale @relation(fields: [saleId], references: [id])
+  productId          Int  @map("product_id")
+  productVariationId Int  @map("product_variation_id")
+
+  // Serial number if applicable
+  serialNumber String? @map("serial_number") @db.VarChar(191)
+
+  claimNumber      String   @unique @map("claim_number") @db.VarChar(100)
+  claimDate        DateTime @map("claim_date") @db.Date
+  issueDescription String   @map("issue_description") @db.Text
+
+  // Claim types: 7_day_replacement, supplier_warranty
+  claimType String @map("claim_type") @db.VarChar(50)
+
+  // Status: pending, approved, replaced, rejected, returned_to_supplier
+  status String @default("pending") @db.VarChar(50)
+
+  // Replacement handling
+  replacementType String? @map("replacement_type") @db.VarChar(50) // immediate, wait_for_supplier
+  replacedWithSerialNumber String? @map("replaced_with_serial_number") @db.VarChar(191)
+
+  // User negligence check
+  isUserNegligence Boolean @default(false) @map("is_user_negligence")
+
+  notes String? @db.Text
+
+  createdBy  Int       @map("created_by")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  resolvedAt DateTime? @map("resolved_at")
+
+  @@index([businessId])
+  @@index([locationId])
+  @@index([saleId])
+  @@index([claimType])
+  @@index([status])
+  @@index([claimDate])
+  @@map("warranty_claims")
+}
+
+model VoidTransaction {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  locationId Int @map("location_id")
+
+  saleId Int  @map("sale_id")
+  sale   Sale @relation(fields: [saleId], references: [id])
+
+  voidReason      String @map("void_reason") @db.Text
+  originalAmount  Decimal @map("original_amount") @db.Decimal(22, 4)
+
+  // Approval
+  voidedBy       Int      @map("voided_by")
+  approvedBy     Int?     @map("approved_by")
+  approvedAt     DateTime? @map("approved_at")
+  requiresManagerApproval Boolean @default(true) @map("requires_manager_approval")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([businessId])
+  @@index([locationId])
+  @@index([saleId])
+  @@index([voidedBy])
+  @@map("void_transactions")
+}
+
+// ============================================
+// CASH MANAGEMENT - POS OPERATIONS
+// ============================================
+
+model CashInOut {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  locationId Int @map("location_id")
+
+  shiftId       Int?          @map("shift_id")
+  cashierShift  CashierShift? @relation(fields: [shiftId], references: [id])
+
+  type        String   @db.VarChar(20) // cash_in, cash_out
+  amount      Decimal  @db.Decimal(22, 4)
+  reason      String   @db.Text
+  referenceNumber String? @map("reference_number") @db.VarChar(191)
+
+  // Approval for large amounts
+  requiresApproval Boolean  @default(false) @map("requires_approval")
+  approvedBy       Int?     @map("approved_by")
+  approvedAt       DateTime? @map("approved_at")
+
+  createdBy Int      @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([businessId])
+  @@index([locationId])
+  @@index([shiftId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("cash_in_out")
+}
+
+model CashDenomination {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  locationId Int @map("location_id")
+
+  shiftId       Int?          @map("shift_id")
+  cashierShift  CashierShift? @relation(fields: [shiftId], references: [id])
+
+  // Cash counting - Philippine denominations
+  count1000   Int @default(0) @map("count_1000")   // ₱1000 bills
+  count500    Int @default(0) @map("count_500")    // ₱500 bills
+  count200    Int @default(0) @map("count_200")    // ₱200 bills
+  count100    Int @default(0) @map("count_100")    // ₱100 bills
+  count50     Int @default(0) @map("count_50")     // ₱50 bills
+  count20     Int @default(0) @map("count_20")     // ₱20 bills
+  count10     Int @default(0) @map("count_10")     // ₱10 coins
+  count5      Int @default(0) @map("count_5")      // ₱5 coins
+  count1      Int @default(0) @map("count_1")      // ₱1 coins
+  count025    Int @default(0) @map("count_025")    // ₱0.25 coins
+
+  totalAmount Decimal @map("total_amount") @db.Decimal(22, 4)
+
+  // Count type
+  countType String @map("count_type") @db.VarChar(50) // opening, closing, mid_shift
+
+  // Notes
+  notes String? @db.Text
+
+  countedBy Int      @map("counted_by")
+  countedAt DateTime @default(now()) @map("counted_at")
+
+  @@index([businessId])
+  @@index([locationId])
+  @@index([shiftId])
+  @@index([countType])
+  @@index([countedAt])
+  @@map("cash_denominations")
+}
+
+// ============================================
+// FREEBIE/FREE ITEM CONTROL SYSTEM
+// ============================================
+
+model FreebieLog {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  locationId Int @map("location_id")
+
+  // Shift tracking
+  shiftId       Int?          @map("shift_id")
+  cashierShift  CashierShift? @relation(fields: [shiftId], references: [id])
+
+  // Transaction details
+  saleId          Int?    @map("sale_id")
+  sale            Sale?   @relation(fields: [saleId], references: [id])
+  productId       Int     @map("product_id")
+  product         Product @relation(fields: [productId], references: [id])
+  variationId     Int     @map("variation_id")
+  productVariation ProductVariation @relation(fields: [variationId], references: [id])
+
+  quantity    Decimal @db.Decimal(15, 4)
+  unitPrice   Decimal @map("unit_price") @db.Decimal(22, 4)
+  totalValue  Decimal @map("total_value") @db.Decimal(22, 4)
+
+  // Authorization tracking
+  requestedBy Int  @map("requested_by") // Cashier user ID
+  requestedByUser User @relation("FreebieRequestedBy", fields: [requestedBy], references: [id])
+
+  approvedBy  Int? @map("approved_by") // Manager user ID
+  approvedByUser User? @relation("FreebieApprovedBy", fields: [approvedBy], references: [id])
+
+  reason      String @db.Text
+
+  // Approval status
+  approvalStatus String @default("pending") @map("approval_status") @db.VarChar(20) // pending, approved, rejected
+
+  // Metadata
+  ipAddress  String?   @map("ip_address") @db.VarChar(45)
+  deviceInfo String?   @map("device_info") @db.VarChar(255)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  approvedAt DateTime? @map("approved_at")
+
+  @@index([businessId, locationId, createdAt])
+  @@index([requestedBy])
+  @@index([approvedBy])
+  @@index([saleId])
+  @@index([shiftId])
+  @@index([approvalStatus])
+  @@map("freebie_logs")
 }

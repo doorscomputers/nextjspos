@@ -82,6 +82,27 @@ export async function POST(
       }
     }
 
+    // ENFORCE: Sender must be different from creator and checker (separation of duties)
+    if (transfer.createdBy === parseInt(userId)) {
+      return NextResponse.json(
+        {
+          error: 'Cannot send your own transfer. A different user must send this transfer for proper control and audit compliance.',
+          code: 'SAME_USER_VIOLATION'
+        },
+        { status: 403 }
+      )
+    }
+
+    if (transfer.checkedBy === parseInt(userId)) {
+      return NextResponse.json(
+        {
+          error: 'Cannot send a transfer you checked. A different user must send this transfer for proper separation of duties.',
+          code: 'SAME_USER_VIOLATION'
+        },
+        { status: 403 }
+      )
+    }
+
     // CRITICAL: Use transaction to ensure atomicity
     const result = await prisma.$transaction(async (tx) => {
       // For each item, deduct stock from origin location

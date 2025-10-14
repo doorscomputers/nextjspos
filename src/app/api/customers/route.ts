@@ -99,6 +99,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if customer name already exists for this business (case-insensitive)
+    const existingCustomer = await prisma.customer.findFirst({
+      where: {
+        businessId: parseInt(businessId),
+        name: {
+          equals: name.trim(),
+          mode: 'insensitive'
+        },
+        deletedAt: null
+      }
+    })
+
+    if (existingCustomer) {
+      return NextResponse.json(
+        { error: `Customer name "${name}" already exists. Please use a different name.` },
+        { status: 409 }
+      )
+    }
+
     // Create customer
     const customer = await prisma.customer.create({
       data: {
