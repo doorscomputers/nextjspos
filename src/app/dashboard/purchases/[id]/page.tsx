@@ -55,7 +55,7 @@ interface Purchase {
 }
 
 export default function PurchaseDetailPage() {
-  const { can } = usePermissions()
+  const { can, user } = usePermissions()
   const params = useParams()
   const router = useRouter()
   const purchaseId = params.id as string

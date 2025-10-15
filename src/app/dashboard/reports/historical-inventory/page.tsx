@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, Download, Search, Package, TrendingDown, AlertTriangle, DollarSign } from 'lucide-react';
+import { Calendar, Download, Search, Package, TrendingDown, AlertTriangle, DollarSign, Filter } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface InventoryItem {
@@ -82,7 +82,7 @@ export default function HistoricalInventoryPage() {
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [selectedLocation, setSelectedLocation] = useState<string>('');
+  const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [locations, setLocations] = useState<Array<{id: number, name: string}>>([]);
@@ -96,10 +96,7 @@ export default function HistoricalInventoryPage() {
     // Fetch locations for filter dropdown
     fetchLocations();
 
-    // Generate report for today by default
-    if (selectedDate) {
-      generateReport();
-    }
+    // Don't auto-generate report - let user click the button
   }, []);
 
   const fetchLocations = async () => {
@@ -125,16 +122,19 @@ export default function HistoricalInventoryPage() {
         limit: '50'
       });
 
-      if (selectedLocation) params.append('locationId', selectedLocation);
+      if (selectedLocation && selectedLocation !== 'all') params.append('locationId', selectedLocation);
       if (searchTerm) params.append('search', searchTerm);
 
       const response = await fetch(`/api/reports/historical-inventory?${params}`);
 
       if (!response.ok) {
-        throw new Error('Failed to generate report');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('API Error:', errorData);
+        throw new Error(errorData.error || `Failed to generate report (${response.status})`);
       }
 
       const data = await response.json();
+      console.log('API Response:', data);
       setReportData(data.data);
       setCurrentPage(page);
     } catch (error) {
@@ -147,12 +147,25 @@ export default function HistoricalInventoryPage() {
 
   const handleSearch = () => {
     setCurrentPage(1);
-    generateReport(1);
+    // Just reset page - DO NOT auto-generate report
+    // User must click "Generate Report" button
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    // Just update search term, don't auto-generate
   };
 
   const handleDateChange = (date: string) => {
     setSelectedDate(date);
     setCurrentPage(1);
+    // Just update date, don't auto-generate
+  };
+
+  const handleLocationChange = (location: string) => {
+    setSelectedLocation(location);
+    setCurrentPage(1);
+    // Just update location, don't auto-generate
   };
 
   const handleExportCSV = () => {
@@ -202,17 +215,17 @@ export default function HistoricalInventoryPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-4 md:p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Historical Inventory Report</h1>
-          <p className="text-muted-foreground">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold tracking-tight">Historical Inventory Report</h1>
+          <p className="text-muted-foreground text-lg">
             View inventory levels as of a specific date
           </p>
         </div>
         {reportData && (
-          <Button onClick={handleExportCSV} variant="outline">
+          <Button onClick={handleExportCSV} variant="outline" size="lg">
             <Download className="w-4 h-4 mr-2" />
             Export CSV
           </Button>
@@ -220,34 +233,39 @@ export default function HistoricalInventoryPage() {
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
+      <Card className="border-2">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-xl">
+            <Filter className="w-5 h-5" />
             Report Filters
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <Label htmlFor="date">Target Date</Label>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="date" className="text-sm font-medium">
+                Target Date
+              </Label>
               <Input
                 id="date"
                 type="date"
                 value={selectedDate}
                 onChange={(e) => handleDateChange(e.target.value)}
                 max={format(new Date(), 'yyyy-MM-dd')}
+                className="h-10"
               />
             </div>
 
-            <div>
-              <Label htmlFor="location">Location</Label>
-              <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-                <SelectTrigger>
+            <div className="space-y-2">
+              <Label htmlFor="location" className="text-sm font-medium">
+                Location
+              </Label>
+              <Select value={selectedLocation} onValueChange={handleLocationChange}>
+                <SelectTrigger className="h-10">
                   <SelectValue placeholder="All Locations" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Locations</SelectItem>
+                  <SelectItem value="all">All Locations</SelectItem>
                   {locations.map((location) => (
                     <SelectItem key={location.id} value={location.id.toString()}>
                       {location.name}
@@ -257,32 +275,55 @@ export default function HistoricalInventoryPage() {
               </Select>
             </div>
 
-            <div>
-              <Label htmlFor="search">Search Products</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="search"
-                  placeholder="Name or SKU..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                />
-                <Button onClick={handleSearch} size="icon">
-                  <Search className="w-4 h-4" />
-                </Button>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="search" className="text-sm font-medium">
+                Search Products
+              </Label>
+              <Input
+                id="search"
+                placeholder="Name, SKU or barcode..."
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="h-10"
+              />
+              <p className="text-xs text-muted-foreground">Type to search, then click "Generate Report"</p>
             </div>
 
             <div className="flex items-end">
               <Button
                 onClick={() => generateReport(1)}
                 disabled={loading || !selectedDate}
-                className="w-full"
+                className="w-full h-10 font-medium"
+                size="lg"
               >
-                {loading ? 'Generating...' : 'Generate Report'}
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Generate Report
+                  </>
+                )}
               </Button>
             </div>
           </div>
+              </CardContent>
+      </Card>
+
+      {/* Instructions */}
+      <Card className="bg-blue-50 border-blue-200">
+        <CardContent className="p-4">
+          <h3 className="font-semibold text-blue-900 mb-2">How to use this report:</h3>
+          <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+            <li>Select a target date to see inventory levels as of that date</li>
+            <li>Optionally select a location from the dropdown</li>
+            <li>Optionally type product names, SKUs, or barcodes to search</li>
+            <li>CLICK "Generate Report" BUTTON TO VIEW RESULTS</li>
+            <li>Export to CSV using the Export button above</li>
+          </ol>
         </CardContent>
       </Card>
 
@@ -367,7 +408,7 @@ export default function HistoricalInventoryPage() {
               <span>
                 <strong>By:</strong> {reportData.reportInfo.generatedBy}
               </span>
-              {reportData.reportInfo.filters.locationId && (
+              {reportData.reportInfo.filters.locationId && reportData.reportInfo.filters.locationId !== 'all' && (
                 <span>
                   <strong>Location:</strong> {locations.find(l => l.id.toString() === reportData.reportInfo.filters.locationId)?.name}
                 </span>

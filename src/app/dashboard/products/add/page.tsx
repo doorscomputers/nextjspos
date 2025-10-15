@@ -352,24 +352,24 @@ export default function AddProductPage() {
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       <div className="mb-6">
         <Link
           href="/dashboard/products"
-          className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 mb-4"
+          className="inline-flex items-center text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 mb-4"
         >
           <ArrowLeftIcon className="w-4 h-4 mr-2" />
           Back to Products
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900">Add Product</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Add Product</h1>
       </div>
 
       <form onSubmit={(e) => handleSubmit(e, 'save')} className="space-y-6">
         {/* Product Type Card */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Product Type</h2>
+        <div className="card-form-dark">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Product Type</h2>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="label-form-dark">
               Type <span className="text-red-500">*</span>
             </label>
             <select
@@ -387,7 +387,7 @@ export default function AddProductPage() {
                   setComboItems([])
                 }
               }}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+              className="select-form-dark"
             >
               <option value="single">Single</option>
               <option value="variable">Variable</option>

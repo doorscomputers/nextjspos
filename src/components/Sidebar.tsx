@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { usePermissions } from "@/hooks/usePermissions"
 import { useBusiness } from "@/hooks/useBusiness"
 import { PERMISSIONS } from "@/lib/rbac"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useTheme } from "@/components/theme-provider"
 import { sidebarStyles } from "@/lib/themes"
 import {
@@ -29,6 +29,8 @@ import {
   UserCircleIcon,
   ExclamationTriangleIcon,
   ShieldCheckIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline"
 
 interface MenuItem {
@@ -50,6 +52,7 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
     Reports: true, // Reports menu expanded by default
     "POS & Sales": true, // POS menu expanded by default
   })
+  const [searchQuery, setSearchQuery] = useState('')
 
   const styleConfig = sidebarStyles[sidebarStyle]
   const isIconOnly = styleConfig.iconOnly
@@ -61,6 +64,91 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       ...prev,
       [menuName]: !prev[menuName]
     }))
+  }
+
+  const clearSearch = () => {
+    setSearchQuery('')
+  }
+
+  const highlightText = (text: string, query: string, isBlueBackground: boolean = false) => {
+    if (!query || !text) return text
+    try {
+      const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const regex = new RegExp(`(${escapedQuery})`, 'gi')
+      const parts = text.split(regex)
+      return parts.map((part, index) => {
+        if (regex.test(part)) {
+          if (isBlueBackground) {
+            // For blue backgrounds, use orange highlight with white text
+            return <span key={`${index}-${part}`} className="bg-orange-400 text-white font-bold px-1 rounded">{part}</span>
+          } else {
+            // For light/dark backgrounds, use yellow highlight with dark text that works in both modes
+            return <span key={`${index}-${part}`} className="bg-yellow-400 text-gray-900 dark:text-gray-900 font-bold px-1 rounded">{part}</span>
+          }
+        }
+        return part
+      })
+    } catch (error) {
+      return text
+    }
+  }
+
+  // Auto-expand menus when search changes
+  useEffect(() => {
+    if (searchQuery) {
+      const menusToExpand: string[] = []
+      menuItems.forEach(item => {
+        const lowercaseQuery = searchQuery.toLowerCase()
+        const hasMatchingChild = item.children?.some(child =>
+          child.name.toLowerCase().includes(lowercaseQuery)
+        )
+        if (hasMatchingChild) {
+          menusToExpand.push(item.name)
+        }
+      })
+      if (menusToExpand.length > 0) {
+        setExpandedMenus(prev => {
+          const updated = { ...prev }
+          menusToExpand.forEach(menuName => {
+            updated[menuName] = true
+          })
+          return updated
+        })
+      }
+    }
+  }, [searchQuery])
+
+  const filterMenuItems = (items: MenuItem[], query: string): MenuItem[] => {
+    if (!query) return items
+
+    const lowercaseQuery = query.toLowerCase()
+
+    return items.filter(item => {
+      // Check if main menu item matches
+      const mainMenuMatches = item.name.toLowerCase().includes(lowercaseQuery)
+
+      // Check if any child menu item matches
+      const hasMatchingChild = item.children?.some(child =>
+        child.name.toLowerCase().includes(lowercaseQuery)
+      )
+
+      // If main menu or any child matches, return the item with filtered children
+      if (mainMenuMatches || hasMatchingChild) {
+        if (item.children) {
+          // Filter children to only show matching ones
+          const filteredChildren = item.children.filter(child =>
+            child.name.toLowerCase().includes(lowercaseQuery)
+          )
+          return {
+            ...item,
+            children: filteredChildren.length > 0 ? filteredChildren : item.children
+          }
+        }
+        return true
+      }
+
+      return false
+    })
   }
 
   const menuItems: MenuItem[] = [
@@ -506,6 +594,18 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           icon: ChartBarIcon,
           permission: PERMISSIONS.REPORT_PRODUCT_PURCHASE_HISTORY,
         },
+        {
+          name: "--- SECURITY REPORTS ---",
+          href: "#",
+          icon: ShieldCheckIcon,
+          permission: PERMISSIONS.AUDIT_LOG_VIEW,
+        },
+        {
+          name: "Audit Trail Report",
+          href: "/dashboard/reports/audit-trail",
+          icon: ShieldCheckIcon,
+          permission: PERMISSIONS.AUDIT_LOG_VIEW,
+        },
       ],
     },
     {
@@ -546,16 +646,11 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
         },
       ],
     },
-    {
-      name: "Audit Logs",
-      href: "/dashboard/audit-logs",
-      icon: ShieldCheckIcon,
-      permission: PERMISSIONS.AUDIT_LOG_VIEW,
-    },
-  ]
+    ]
 
-  const filteredMenuItems = menuItems.filter(item =>
-    !item.permission || can(item.permission)
+  const filteredMenuItems = filterMenuItems(
+    menuItems.filter(item => !item.permission || can(item.permission)),
+    searchQuery
   )
 
   return (
@@ -578,14 +673,47 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
         {/* User Info */}
         {!isIconOnly && (
           <div className={`px-4 ${isCompact ? 'py-3' : 'py-4'} bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-900 border-b border-gray-200 dark:border-gray-700`}>
-            <p className={`${isCompact ? 'text-xs' : 'text-sm'} font-semibold text-gray-900 dark:text-gray-100 truncate`}>{user?.name}</p>
-            <p className="text-xs text-gray-600 dark:text-gray-400 truncate">{user?.businessName}</p>
+            <p className={`${isCompact ? 'text-xs' : 'text-sm'} font-semibold text-gray-900 dark:text-white truncate`}>{user?.name}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-300 truncate">{user?.businessName}</p>
             <p className="text-xs font-medium text-blue-600 dark:text-blue-400 mt-1 truncate">{user?.roles?.[0]}</p>
           </div>
         )}
 
+        {/* Search Field */}
+        {!isIconOnly && (
+          <div className="px-4 pb-4">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search menus..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-2.5 pr-10 text-sm bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              />
+              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                {searchQuery ? (
+                  <button
+                    onClick={clearSearch}
+                    className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors duration-200"
+                    title="Clear search"
+                  >
+                    <XMarkIcon className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <MagnifyingGlassIcon className="w-4 h-4 text-gray-400" />
+                )}
+              </div>
+            </div>
+            {searchQuery && (
+              <div className="mt-2 text-xs text-gray-500 dark:text-gray-300">
+                Found {filteredMenuItems.length} menu item{filteredMenuItems.length !== 1 ? 's' : ''}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Navigation */}
-        <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-6 space-y-1.5 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent">
           {filteredMenuItems.map((item) => {
             const isActive = pathname === item.href
             const isExpanded = expandedMenus[item.name]
@@ -602,28 +730,28 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
                       onClick={() => toggleMenu(item.name)}
                       title={isIconOnly ? item.name : undefined}
                       className={`
-                        w-full flex items-center ${isIconOnly ? 'justify-center' : 'justify-between'} ${isIconOnly ? 'px-2' : 'px-4'} ${isCompact ? 'py-2' : 'py-3'} text-sm font-semibold rounded-lg transition-all duration-200
+                        w-full flex items-center ${isIconOnly ? 'justify-center' : 'justify-between'} ${isIconOnly ? 'px-2' : 'px-4'} ${isCompact ? 'py-2.5' : 'py-3'} text-sm font-semibold rounded-lg transition-all duration-300 relative group shadow-sm
                         ${
                           hasActiveChild
-                            ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 shadow-sm'
-                            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
+                            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-2 before:h-8 before:bg-white before:rounded-r-md transform hover:scale-[1.02] hover:shadow-xl after:absolute after:top-1 after:right-12 after:w-2 after:h-2 after:bg-yellow-400 after:rounded-full'
+                            : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-indigo-600 shadow-md hover:shadow-lg transform hover:scale-[1.01] after:absolute after:top-1 after:right-12 after:w-2 after:h-2 after:bg-yellow-400 after:rounded-full animate-pulse'
                         }
                       `}
                     >
                       <div className="flex items-center">
-                        <Icon className={`${isIconOnly ? 'w-6 h-6' : 'w-5 h-5'} ${isIconOnly ? '' : 'mr-3'}`} />
-                        {!isIconOnly && item.name}
+                        <Icon className={`${isIconOnly ? 'w-6 h-6' : 'w-5 h-5'} ${isIconOnly ? '' : 'mr-3'} transition-transform group-hover:scale-110`} />
+                        {!isIconOnly && <span className="font-medium">{highlightText(item.name, searchQuery, true)}</span>}
                       </div>
                       {!isIconOnly && (
-                        isExpanded ? (
-                          <ChevronDownIcon className="w-4 h-4" />
-                        ) : (
-                          <ChevronRightIcon className="w-4 h-4" />
-                        )
+                        <div className={`transform transition-all duration-300 ${isExpanded ? 'rotate-90' : 'rotate-0'} group-hover:scale-110 animate-pulse`}>
+                          <div className="bg-white/20 rounded-full p-1 group-hover:bg-white/30 transition-all duration-200 ring-2 ring-white/40 group-hover:ring-white/60 shadow-lg">
+                            <ChevronRightIcon className="w-4 h-4 text-white drop-shadow-sm" />
+                          </div>
+                        </div>
                       )}
                     </button>
-                    {isExpanded && !isIconOnly && (
-                      <div className="ml-4 mt-1 space-y-1">
+                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                      <div className="ml-6 mt-1 space-y-0.5">
                         {item.children
                           .filter(child => !child.permission || can(child.permission))
                           .map((child) => {
@@ -633,36 +761,38 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
                                 key={child.name}
                                 href={child.href}
                                 className={`
-                                  flex items-center px-4 ${isCompact ? 'py-1.5' : 'py-2'} text-sm font-medium rounded-lg transition-all duration-200
+                                  group flex items-center px-4 ${isCompact ? 'py-2' : 'py-2.5'} text-sm font-normal rounded-lg transition-all duration-200 relative pl-8
                                   ${
                                     isChildActive
-                                      ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 font-semibold'
-                                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200'
+                                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-medium before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-6 before:bg-blue-600 before:rounded-r-md'
+                                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white hover:before:absolute hover:before:left-0 hover:before:top-1/2 hover:before:-translate-y-1/2 hover:before:w-0.5 hover:before:h-4 hover:before:bg-gray-400 dark:hover:before:bg-gray-500 hover:before:rounded-r-md'
                                   }
                                 `}
                               >
-                                {child.name}
+                                <span className="relative">
+                                  {highlightText(child.name, searchQuery)}
+                                </span>
                               </Link>
                             )
                           })}
                       </div>
-                    )}
+                    </div>
                   </>
                 ) : (
                   <Link
                     href={item.href}
                     title={isIconOnly ? item.name : undefined}
                     className={`
-                      flex items-center ${isIconOnly ? 'justify-center px-2' : 'px-4'} ${isCompact ? 'py-2' : 'py-3'} text-sm font-semibold rounded-lg transition-all duration-200
+                      flex items-center ${isIconOnly ? 'justify-center px-2' : 'px-4'} ${isCompact ? 'py-2.5' : 'py-3'} text-sm font-semibold rounded-lg transition-all duration-300 relative group shadow-sm hover:scale-[1.01]
                       ${
                         isActive
-                          ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 shadow-sm'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-2 before:h-8 before:bg-white before:rounded-r-md transform hover:shadow-xl'
+                          : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-indigo-600 shadow-md hover:shadow-lg transform'
                       }
                     `}
                   >
-                    <Icon className={`${isIconOnly ? 'w-6 h-6' : 'w-5 h-5'} ${isIconOnly ? '' : 'mr-3'}`} />
-                    {!isIconOnly && item.name}
+                    <Icon className={`${isIconOnly ? 'w-6 h-6' : 'w-5 h-5'} ${isIconOnly ? '' : 'mr-3'} transition-transform group-hover:scale-110`} />
+                    {!isIconOnly && <span className="font-medium">{highlightText(item.name, searchQuery, true)}</span>}
                   </Link>
                 )}
               </div>
@@ -672,8 +802,8 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
 
         {/* Footer */}
         {!isIconOnly && (
-          <div className={`px-4 ${isCompact ? 'py-3' : 'py-4'} border-t border-gray-200 dark:border-gray-800 bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-900`}>
-            <p className="text-xs text-gray-600 dark:text-gray-400 text-center font-medium">
+          <div className={`px-4 ${isCompact ? 'py-3' : 'py-4'} border-t border-gray-200 dark:border-gray-700 bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-900`}>
+            <p className="text-xs text-gray-600 dark:text-gray-300 text-center font-medium">
               © 2025 IgoroTech
             </p>
           </div>

@@ -74,13 +74,13 @@
   --secondary: 217 33% 20%;
   --secondary-foreground: 210 40% 98%;
   --muted: 217 33% 20%;
-  --muted-foreground: 215 20% 65%;
+  --muted-foreground: 215 20% 75%;
   --accent: 217 33% 25%;
   --accent-foreground: 210 40% 98%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
-  --border: 217 33% 22%;
-  --input: 217 33% 20%;
+  --border: 217 33% 25%;
+  --input: 217 33% 18%;
   --ring: 221 83% 53%;
   --success: 142 76% 36%;
   --success-foreground: 0 0% 100%;
@@ -99,6 +99,89 @@
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-semibold tracking-tight;
+  }
+
+  /* Universal dark theme fixes for all forms and inputs */
+  .dark input,
+  .dark select,
+  .dark textarea {
+    @apply bg-gray-800 border-gray-600 text-gray-100 placeholder-gray-400;
+  }
+
+  .dark .bg-white {
+    @apply bg-gray-800;
+  }
+
+  .dark .text-gray-900 {
+    @apply text-gray-100;
+  }
+
+  .dark .text-gray-800 {
+    @apply text-gray-200;
+  }
+
+  .dark .text-gray-700 {
+    @apply text-gray-300;
+  }
+
+  .dark .text-gray-600 {
+    @apply text-gray-400;
+  }
+
+  .dark .text-slate-900 {
+    @apply text-slate-100;
+  }
+
+  .dark .text-slate-800 {
+    @apply text-slate-200;
+  }
+
+  .dark .text-slate-700 {
+    @apply text-slate-300;
+  }
+
+  .dark .text-slate-600 {
+    @apply text-slate-400;
+  }
+
+  .dark .text-gray-500 {
+    @apply text-gray-500;
+  }
+
+  .dark .border-gray-300 {
+    @apply border-gray-600;
+  }
+
+  .dark .border-gray-200 {
+    @apply border-gray-700;
+  }
+
+  .dark .bg-gray-50 {
+    @apply bg-gray-900;
+  }
+
+  .dark .bg-gray-100 {
+    @apply bg-gray-800;
+  }
+
+  .dark .hover\:bg-gray-50:hover {
+    @apply hover:bg-gray-700;
+  }
+
+  .dark .hover\:bg-gray-100:hover {
+    @apply hover:bg-gray-700;
+  }
+
+  .dark .focus\:ring-indigo-500:focus {
+    @apply focus:ring-indigo-400;
+  }
+
+  .dark .focus\:border-indigo-500:focus {
+    @apply focus:border-indigo-400;
+  }
+
+  .dark .shadow {
+    @apply shadow-lg;
   }
 }
 
@@ -190,6 +273,124 @@
     @apply border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800;
     @apply focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/30;
     @apply transition-all duration-200;
+  }
+
+  /* Enhanced form components for dark theme */
+  .form-input-dark {
+    @apply bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100;
+    @apply placeholder-gray-500 dark:placeholder-gray-400;
+    @apply focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:focus:ring-blue-500/30;
+    @apply transition-all duration-200;
+  }
+
+  .form-label-dark {
+    @apply text-gray-700 dark:text-gray-200 font-medium;
+  }
+
+  .form-text-dark {
+    @apply text-gray-600 dark:text-gray-300;
+  }
+
+  .form-error-dark {
+    @apply text-red-600 dark:text-red-400 text-sm;
+  }
+
+  .card-dark {
+    @apply bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700;
+    @apply shadow-sm dark:shadow-lg;
+  }
+
+  .card-header-dark {
+    @apply bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700;
+    @apply text-gray-900 dark:text-gray-100;
+  }
+
+  .table-dark {
+    @apply bg-white dark:bg-gray-800;
+  }
+
+  .table-header-dark {
+    @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100;
+    @apply border-b border-gray-200 dark:border-gray-700;
+  }
+
+  .table-row-dark {
+    @apply border-b border-gray-200 dark:border-gray-700;
+    @apply hover:bg-gray-50 dark:hover:bg-gray-700;
+    @apply text-gray-900 dark:text-gray-100;
+  }
+
+  .button-primary-dark {
+    @apply bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600;
+    @apply text-white font-medium shadow-sm;
+    @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800;
+  }
+
+  .button-secondary-dark {
+    @apply bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600;
+    @apply text-gray-900 dark:text-gray-100 font-medium border border-gray-300 dark:border-gray-600;
+    @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800;
+  }
+
+  .text-primary-dark {
+    @apply text-gray-900 dark:text-gray-100;
+  }
+
+  .text-secondary-dark {
+    @apply text-gray-600 dark:text-gray-300;
+  }
+
+  .text-muted-dark {
+    @apply text-gray-500 dark:text-gray-400;
+  }
+
+  /* Comprehensive form styling for dark theme */
+  .card-form-dark {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow p-6;
+  }
+
+  .input-form-dark {
+    @apply w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800;
+  }
+
+  .select-form-dark {
+    @apply w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800;
+  }
+
+  .textarea-form-dark {
+    @apply w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800;
+  }
+
+  .label-form-dark {
+    @apply block text-sm font-medium text-gray-700 dark:text-gray-200 mb-2;
+  }
+
+  .button-form-primary-dark {
+    @apply flex-1 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-lg disabled:opacity-50 font-medium transition-colors duration-200;
+  }
+
+  .button-form-secondary-dark {
+    @apply flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors duration-200;
+  }
+
+  .modal-form-dark {
+    @apply bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl;
+  }
+
+  .info-box-dark {
+    @apply bg-cyan-50 dark:bg-cyan-900/30 border border-cyan-200 dark:border-cyan-700 rounded-lg p-4 mb-4;
+  }
+
+  .info-box-text-dark {
+    @apply text-cyan-900 dark:text-cyan-100;
+  }
+
+  .variation-box-dark {
+    @apply border border-gray-200 dark:border-gray-600 rounded-lg p-4 mb-4 bg-gray-50 dark:bg-gray-700;
+  }
+
+  .combo-box-dark {
+    @apply border border-gray-200 dark:border-gray-600 rounded-lg p-4 mb-4 bg-gray-50 dark:bg-gray-700;
   }
 
   /* Beautiful Toast Notifications */

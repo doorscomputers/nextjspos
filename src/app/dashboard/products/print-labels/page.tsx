@@ -583,7 +583,7 @@ export default function PrintLabelsPage() {
             <Button
               onClick={generateLabels}
               disabled={selectedProducts.length === 0 || loading}
-              className="bg-indigo-600 hover:bg-indigo-700"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white disabled:bg-indigo-400 disabled:text-white/70"
               size="lg"
             >
               {loading ? (

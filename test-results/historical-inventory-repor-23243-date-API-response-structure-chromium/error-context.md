@@ -144,80 +144,119 @@
                 - /url: /dashboard/reports
               - link "Stock Alert Report" [ref=e124] [cursor=pointer]:
                 - /url: /dashboard/reports/stock-alert
-              - link "Inventory Ledger" [ref=e125] [cursor=pointer]:
+              - link "Historical Inventory Report" [ref=e125] [cursor=pointer]:
+                - /url: /dashboard/reports/historical-inventory
+              - link "Inventory Ledger" [ref=e126] [cursor=pointer]:
                 - /url: /dashboard/reports/inventory-ledger
-              - link "--- SALES REPORTS ---" [ref=e126] [cursor=pointer]:
+              - link "--- SALES REPORTS ---" [ref=e127] [cursor=pointer]:
                 - /url: "#"
-              - link "Sales Journal" [ref=e127] [cursor=pointer]:
+              - link "Sales Journal" [ref=e128] [cursor=pointer]:
                 - /url: /dashboard/reports/sales-journal
-              - link "Sales Per Item" [ref=e128] [cursor=pointer]:
+              - link "Sales Per Item" [ref=e129] [cursor=pointer]:
                 - /url: /dashboard/reports/sales-per-item
-              - link "Sales Per Cashier" [ref=e129] [cursor=pointer]:
+              - link "Sales Per Cashier" [ref=e130] [cursor=pointer]:
                 - /url: /dashboard/reports/sales-per-cashier
-              - link "Sales Per Location" [ref=e130] [cursor=pointer]:
+              - link "Sales Per Location" [ref=e131] [cursor=pointer]:
                 - /url: /dashboard/reports/sales-per-location
-              - link "Sales Analytics" [ref=e131] [cursor=pointer]:
+              - link "Sales Analytics" [ref=e132] [cursor=pointer]:
                 - /url: /dashboard/reports/sales-analytics
-              - link "Customer Sales Analysis" [ref=e132] [cursor=pointer]:
+              - link "Customer Sales Analysis" [ref=e133] [cursor=pointer]:
                 - /url: /dashboard/reports/customer-sales
-              - link "Payment Method Analysis" [ref=e133] [cursor=pointer]:
+              - link "Payment Method Analysis" [ref=e134] [cursor=pointer]:
                 - /url: /dashboard/reports/payment-method
-              - link "Discount Analysis" [ref=e134] [cursor=pointer]:
+              - link "Discount Analysis" [ref=e135] [cursor=pointer]:
                 - /url: /dashboard/reports/discount-analysis
-              - link "--- OTHER REPORTS ---" [ref=e135] [cursor=pointer]:
+              - link "--- OTHER REPORTS ---" [ref=e136] [cursor=pointer]:
                 - /url: "#"
-              - link "Sales Today" [ref=e136] [cursor=pointer]:
+              - link "Sales Today" [ref=e137] [cursor=pointer]:
                 - /url: /dashboard/reports/sales-today
-              - link "Sales History" [ref=e137] [cursor=pointer]:
+              - link "Sales History" [ref=e138] [cursor=pointer]:
                 - /url: /dashboard/reports/sales-history
-              - link "Sales Report" [ref=e138] [cursor=pointer]:
+              - link "Sales Report" [ref=e139] [cursor=pointer]:
                 - /url: /dashboard/reports/sales-report
-              - link "Purchase Reports" [ref=e139] [cursor=pointer]:
+              - link "Purchase Reports" [ref=e140] [cursor=pointer]:
                 - /url: /dashboard/reports/purchases
-              - link "Purchase Analytics" [ref=e140] [cursor=pointer]:
+              - link "Purchase Analytics" [ref=e141] [cursor=pointer]:
                 - /url: /dashboard/reports/purchases/analytics
-              - link "Purchase Trends" [ref=e141] [cursor=pointer]:
+              - link "Purchase Trends" [ref=e142] [cursor=pointer]:
                 - /url: /dashboard/reports/purchase-trends
-              - link "Purchases Report" [ref=e142] [cursor=pointer]:
+              - link "Purchases Report" [ref=e143] [cursor=pointer]:
                 - /url: /dashboard/reports/purchases-report
-              - link "Purchase Items Report" [ref=e143] [cursor=pointer]:
+              - link "Purchase Items Report" [ref=e144] [cursor=pointer]:
                 - /url: /dashboard/reports/purchases-items
-              - link "Transfers Report" [ref=e144] [cursor=pointer]:
+              - link "Transfers Report" [ref=e145] [cursor=pointer]:
                 - /url: /dashboard/reports/transfers-report
-              - link "Transfer Trends" [ref=e145] [cursor=pointer]:
+              - link "Transfer Trends" [ref=e146] [cursor=pointer]:
                 - /url: /dashboard/reports/transfer-trends
-              - link "Profitability & COGS" [ref=e146] [cursor=pointer]:
+              - link "Profitability & COGS" [ref=e147] [cursor=pointer]:
                 - /url: /dashboard/reports/profitability
-              - link "Net Profit Report" [ref=e147] [cursor=pointer]:
+              - link "Net Profit Report" [ref=e148] [cursor=pointer]:
                 - /url: /dashboard/reports/profit
-              - link "Product Purchase History" [ref=e148] [cursor=pointer]:
+              - link "Product Purchase History" [ref=e149] [cursor=pointer]:
                 - /url: /dashboard/reports/product-purchase-history
-          - button "Settings" [ref=e150]:
-            - generic [ref=e151]:
-              - img [ref=e152]
+          - button "Settings" [ref=e151]:
+            - generic [ref=e152]:
+              - img [ref=e153]
               - text: Settings
-            - img [ref=e154]
-          - link "Audit Logs" [ref=e157] [cursor=pointer]:
+            - img [ref=e155]
+          - link "Audit Logs" [ref=e158] [cursor=pointer]:
             - /url: /dashboard/audit-logs
-            - img [ref=e158] [cursor=pointer]
+            - img [ref=e159] [cursor=pointer]
             - text: Audit Logs
-        - paragraph [ref=e161]: © 2025 IgoroTech
-    - generic [ref=e162]:
-      - banner [ref=e163]:
-        - generic [ref=e164]:
-          - 'button "Sidebar: Normal (click to collapse)" [ref=e165]':
-            - img [ref=e166]
-          - generic [ref=e168]:
-            - button "Toggle theme" [ref=e169]:
+        - paragraph [ref=e162]: © 2025 IgoroTech
+    - generic [ref=e163]:
+      - banner [ref=e164]:
+        - generic [ref=e165]:
+          - 'button "Sidebar: Normal (click to collapse)" [ref=e166]':
+            - img [ref=e167]
+          - generic [ref=e169]:
+            - button "Toggle theme" [ref=e170]:
               - img
-              - generic [ref=e170]: Toggle theme
-            - button [ref=e171]:
-              - img [ref=e172]
-            - button [ref=e176]:
-              - img [ref=e177]
-      - main [ref=e179]
+              - generic [ref=e171]: Toggle theme
+            - button [ref=e172]:
+              - img [ref=e173]
+            - button [ref=e177]:
+              - img [ref=e178]
+      - main [ref=e180]:
+        - generic [ref=e182]:
+          - generic [ref=e184]:
+            - heading "Historical Inventory Report" [level=1] [ref=e185]
+            - paragraph [ref=e186]: View inventory levels as of a specific date
+          - generic [ref=e187]:
+            - generic [ref=e189]:
+              - img [ref=e190]
+              - text: Report Filters
+            - generic [ref=e193]:
+              - generic [ref=e194]:
+                - generic [ref=e195]: Target Date
+                - textbox "Target Date" [ref=e196]: 2025-10-13
+              - generic [ref=e197]:
+                - generic [ref=e198]: Location
+                - combobox [ref=e199]:
+                  - generic: All Locations
+                  - img
+              - generic [ref=e200]:
+                - generic [ref=e201]: Search Products
+                - generic [ref=e202]:
+                  - textbox "Search Products" [ref=e203]
+                  - button [ref=e204]:
+                    - img
+              - button "Generate Report" [ref=e206]:
+                - img
+                - text: Generate Report
     - region "Notifications alt+T"
-  - button "Open Next.js Dev Tools" [ref=e188] [cursor=pointer]:
-    - img [ref=e189] [cursor=pointer]
-  - alert [ref=e192]
+  - generic [ref=e211] [cursor=pointer]:
+    - button "Open Next.js Dev Tools" [ref=e212] [cursor=pointer]:
+      - img [ref=e213] [cursor=pointer]
+    - generic [ref=e216] [cursor=pointer]:
+      - button "Open issues overlay" [ref=e217] [cursor=pointer]:
+        - generic [ref=e218] [cursor=pointer]:
+          - generic [ref=e219] [cursor=pointer]: "1"
+          - generic [ref=e220] [cursor=pointer]: "2"
+        - generic [ref=e221] [cursor=pointer]:
+          - text: Issue
+          - generic [ref=e222] [cursor=pointer]: s
+      - button "Collapse issues badge" [ref=e223] [cursor=pointer]:
+        - img [ref=e224] [cursor=pointer]
+  - alert [ref=e226]
 ```

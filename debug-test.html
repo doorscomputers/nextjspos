@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Historical Inventory Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        .result { margin: 10px 0; padding: 10px; background: #f5f5f5; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e8; color: #2e7d32; }
+    </style>
+</head>
+<body>
+    <h1>Historical Inventory Debug Test</h1>
+
+    <div class="test-section">
+        <h3>Step 1: Test Basic Database Connection</h3>
+        <button onclick="testDatabase()">Test Database Connection</button>
+        <div id="database-result" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Step 2: Test Historical Inventory API</h3>
+        <label>Date: <input type="date" id="test-date" value="2025-10-14"></label><br><br>
+        <label>Search: <input type="text" id="test-search" placeholder="Logitech"></label><br><br>
+        <button onclick="testHistoricalAPI()">Test Historical API</button>
+        <div id="api-result" class="result"></div>
+    </div>
+
+    <script>
+        // First login to get session (you'll need to do this manually in browser)
+        async function testDatabase() {
+            const resultDiv = document.getElementById('database-result');
+            resultDiv.innerHTML = 'Testing...';
+
+            try {
+                const response = await fetch('/api/test-inventory');
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <strong>✅ Database Test Successful!</strong><br>
+                        Message: ${data.message}<br>
+                        Items found: ${data.itemCount}<br>
+                        Sample: ${data.sampleItem ? data.sampleItem.product.name : 'None'}
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `<strong>❌ Database Test Failed:</strong><br>${data.error}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<strong>❌ Request Failed:</strong><br>${error.message}`;
+            }
+        }
+
+        async function testHistoricalAPI() {
+            const resultDiv = document.getElementById('api-result');
+            const date = document.getElementById('test-date').value;
+            const search = document.getElementById('test-search').value;
+
+            resultDiv.innerHTML = 'Testing...';
+
+            try {
+                const params = new URLSearchParams({
+                    date: date,
+                    page: '1',
+                    limit: '10'
+                });
+
+                if (search) {
+                    params.append('search', search);
+                }
+
+                const response = await fetch(`/api/reports/historical-inventory?${params}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <strong>✅ Historical API Successful!</strong><br>
+                        Total Products: ${data.data?.summary?.totalProducts || 0}<br>
+                        Total Quantity: ${data.data?.summary?.totalQuantity || 0}<br>
+                        Total Value: ${data.data?.summary?.currency || ''}${data.data?.summary?.totalValue || 0}<br>
+                        Items returned: ${data.data?.inventory?.length || 0}<br>
+                        <br><strong>Sample Item:</strong><br>
+                        ${data.data?.inventory?.[0] ? JSON.stringify(data.data.inventory[0].product, null, 2) : 'None'}
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `<strong>❌ Historical API Failed:</strong><br>${data.error}<br>Details: ${data.details || 'No details'}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `<strong>❌ Request Failed:</strong><br>${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

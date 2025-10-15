@@ -59,6 +59,9 @@ export async function POST(request: NextRequest) {
     const gapX = (pageWidth - marginX * 2 - labelWidth * format.perRow) / (format.perRow - 1)
     const gapY = (pageHeight - marginY * 2 - labelHeight * format.perCol) / (format.perCol - 1)
 
+    const mmPerPoint = 0.352778
+    const lineHeightFactor = 1.2
+
     let currentLabel = 0
     let currentPage = 0
 
@@ -83,36 +86,62 @@ export async function POST(request: NextRequest) {
 
         let currentY = y + 3
 
+        const addTextBlock = (
+          text: string,
+          {
+            fontSize,
+            fontStyle = 'normal',
+            extraSpacing = 0.6,
+            maxWidth = labelWidth - 4,
+            maxLines,
+          }: {
+            fontSize: number
+            fontStyle?: 'normal' | 'bold'
+            extraSpacing?: number
+            maxWidth?: number
+            maxLines?: number
+          }
+        ) => {
+          if (!text || text.trim().length === 0) return
+
+          doc.setFontSize(fontSize)
+          doc.setFont('helvetica', fontStyle)
+
+          let lines = doc.splitTextToSize(text, maxWidth) as string[]
+          if (maxLines && lines.length > maxLines) {
+            lines = lines.slice(0, maxLines)
+          }
+
+          doc.text(lines, x + labelWidth / 2, currentY, {
+            align: 'center',
+            lineHeightFactor,
+          })
+
+          const blockHeight = lines.length * fontSize * lineHeightFactor * mmPerPoint
+          currentY += blockHeight + extraSpacing
+        }
+
         // Business name
         if (settings.businessName && business) {
           const fontSize = Math.min(settings.businessNameSize, 10) // Cap at 10pt
-          doc.setFontSize(fontSize)
-          doc.setFont('helvetica', 'bold')
-          doc.text(business.name, x + labelWidth / 2, currentY, { align: 'center', maxWidth: labelWidth - 2 })
-          currentY += fontSize * 0.5 + 1
+          addTextBlock(business.name, { fontSize, fontStyle: 'bold', maxLines: 2, extraSpacing: 0.6 })
         }
 
         // Product name
         if (settings.productName) {
           const fontSize = Math.min(settings.productNameSize, 9) // Cap at 9pt
-          doc.setFontSize(fontSize)
-          doc.setFont('helvetica', 'bold')
-          const productText = product.name.substring(0, 35) // Limit length
-          doc.text(productText, x + labelWidth / 2, currentY, { align: 'center', maxWidth: labelWidth - 2 })
-          currentY += fontSize * 0.5 + 1
+          const productText = product.name.substring(0, 60) // Allow longer names, will wrap if needed
+          addTextBlock(productText, { fontSize, fontStyle: 'bold', maxLines: 3, extraSpacing: 0.6 })
         }
 
         // Product variation
         if (settings.productVariation && product.variation !== 'Default') {
           const fontSize = Math.min(settings.productVariationSize, 8) // Cap at 8pt
-          doc.setFontSize(fontSize)
-          doc.setFont('helvetica', 'normal')
-          doc.text(product.variation, x + labelWidth / 2, currentY, { align: 'center', maxWidth: labelWidth - 2 })
-          currentY += fontSize * 0.5 + 1
+          addTextBlock(product.variation, { fontSize, maxLines: 2, extraSpacing: 0.6 })
         }
 
         // Add small spacing before barcode
-        currentY += 0.5
+        currentY += 0.8
 
         // Generate barcode
         try {
@@ -132,38 +161,29 @@ export async function POST(request: NextRequest) {
           const barcodeWidth = labelWidth - 4
           const barcodeHeight = 8
           doc.addImage(barcodeBase64, 'PNG', x + 2, currentY, barcodeWidth, barcodeHeight)
-          currentY += barcodeHeight + 0.5
+          currentY += barcodeHeight + 1
 
           // Show SKU below barcode
-          doc.setFontSize(6)
-          doc.setFont('helvetica', 'normal')
-          doc.text(product.sku, x + labelWidth / 2, currentY, { align: 'center' })
-          currentY += 3
+          addTextBlock(product.sku, { fontSize: 6, extraSpacing: 0.6, maxLines: 2 })
         } catch (error) {
           console.error('Barcode generation error:', error)
           // Fallback: show SKU as text
-          doc.setFontSize(8)
-          doc.text(product.sku, x + labelWidth / 2, currentY, { align: 'center' })
-          currentY += 4
+          addTextBlock(product.sku, { fontSize: 8, extraSpacing: 0.8, maxLines: 2 })
         }
 
         // Price
         if (settings.productPrice) {
           const fontSize = Math.min(settings.productPriceSize, 11) // Cap at 11pt
-          doc.setFontSize(fontSize)
-          doc.setFont('helvetica', 'bold')
-          const priceText = `$${product.price.toFixed(2)}`
-          doc.text(priceText, x + labelWidth / 2, currentY, { align: 'center' })
-          currentY += fontSize * 0.5 + 1
+          const priceValue = typeof product.price === 'number' ? product.price : 0
+          const priceText = `$${priceValue.toFixed(2)}`
+          addTextBlock(priceText, { fontSize, fontStyle: 'bold', maxLines: 1, extraSpacing: 0.8 })
         }
 
         // Packing date
         if (settings.packingDate && product.packingDate) {
           const fontSize = Math.min(settings.packingDateSize, 6) // Cap at 6pt for date
-          doc.setFontSize(fontSize)
-          doc.setFont('helvetica', 'normal')
           const dateText = `Packed: ${product.packingDate}`
-          doc.text(dateText, x + labelWidth / 2, currentY, { align: 'center' })
+          addTextBlock(dateText, { fontSize, extraSpacing: 0 })
         }
 
         currentLabel++

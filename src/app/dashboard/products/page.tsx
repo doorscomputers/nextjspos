@@ -925,12 +925,12 @@ export default function ProductsPage() {
                     )}
                     {can(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE) && visibleColumns.includes('purchasePrice') && (
                       <TableCell className={`text-sm font-medium ${product.isActive ? 'text-slate-900' : 'text-slate-500'}`}>
-                        <span className="font-mono">${product.purchasePrice ? Number(product.purchasePrice).toFixed(2) : '0.00'}</span>
+                        <span className="font-mono">{product.purchasePrice ? Number(product.purchasePrice).toFixed(2) : '0.00'}</span>
                       </TableCell>
                     )}
                     {visibleColumns.includes('sellingPrice') && (
                       <TableCell className={`text-sm font-medium ${product.isActive ? 'text-slate-900' : 'text-slate-500'}`}>
-                        <span className="font-mono">${product.sellingPrice ? Number(product.sellingPrice).toFixed(2) : '0.00'}</span>
+                        <span className="font-mono">{product.sellingPrice ? Number(product.sellingPrice).toFixed(2) : '0.00'}</span>
                       </TableCell>
                     )}
                     {visibleColumns.includes('stock') && (
