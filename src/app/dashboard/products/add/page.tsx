@@ -397,12 +397,12 @@ export default function AddProductPage() {
         </div>
 
         {/* Product Information Card */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Product Information</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Product Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Product Name */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Product Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -410,33 +410,33 @@ export default function AddProductPage() {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 placeholder="Enter product name"
               />
             </div>
 
             {/* SKU */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 SKU
               </label>
               <input
                 type="text"
                 value={formData.sku}
                 onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 placeholder="Leave empty to auto-generate"
               />
-              <p className="mt-1 text-sm text-gray-500">Leave blank to automatically generate SKU</p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Leave blank to automatically generate SKU</p>
             </div>
 
             {/* Barcode Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Barcode Type</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Barcode Type</label>
               <select
                 value={formData.barcodeType}
                 onChange={(e) => setFormData({ ...formData, barcodeType: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
               >
                 <option value="Code128">Code128</option>
                 <option value="Code39">Code39</option>
@@ -447,12 +447,12 @@ export default function AddProductPage() {
 
             {/* Category with Quick Add */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category</label>
               <div className="flex gap-2">
                 <select
                   value={formData.categoryId}
                   onChange={(e) => setFormData({ ...formData, categoryId: e.target.value, subCategoryId: '' })}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
                 >
                   <option value="">None</option>
                   {mainCategories.map((cat) => (
@@ -473,11 +473,11 @@ export default function AddProductPage() {
             {/* Sub Category */}
             {formData.categoryId && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Sub Category</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sub Category</label>
                 <select
                   value={formData.subCategoryId}
                   onChange={(e) => setFormData({ ...formData, subCategoryId: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 >
                   <option value="">None</option>
                   {subCategories.map((cat) => (
@@ -489,12 +489,12 @@ export default function AddProductPage() {
 
             {/* Brand with Quick Add */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Brand</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Brand</label>
               <div className="flex gap-2">
                 <select
                   value={formData.brandId}
                   onChange={(e) => setFormData({ ...formData, brandId: e.target.value })}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
                 >
                   <option value="">None</option>
                   {brands.map((brand) => (
@@ -514,13 +514,13 @@ export default function AddProductPage() {
 
             {/* Unit with Quick Add */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Unit <span className="text-red-500">*</span></label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Unit <span className="text-red-500">*</span></label>
               <div className="flex gap-2">
                 <select
                   value={formData.unitId}
                   onChange={(e) => setFormData({ ...formData, unitId: e.target.value })}
                   required
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
                 >
                   <option value="">Please Select</option>
                   {units.map((unit) => (
@@ -540,25 +540,25 @@ export default function AddProductPage() {
 
             {/* Product Description WYSIWYG */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Product Description:</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Product Description:</label>
               <textarea
                 value={formData.productDescription}
                 onChange={(e) => setFormData({ ...formData, productDescription: e.target.value })}
                 rows={8}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 placeholder="Enter product description..."
               />
-              <p className="text-xs text-gray-500 mt-1">Plain text description</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Plain text description</p>
             </div>
 
             {/* Product Brochure */}
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Product Brochure</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Product Brochure</label>
               <input
                 type="text"
                 value={formData.brochure}
                 onChange={(e) => setFormData({ ...formData, brochure: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 placeholder="Brochure file path or URL"
               />
             </div>
@@ -572,7 +572,7 @@ export default function AddProductPage() {
                   onChange={(e) => setFormData({ ...formData, enableProductInfo: e.target.checked })}
                   className="mr-3 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                 />
-                <span className="text-sm text-gray-700">Enable Product description, IMEI or Serial Number</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Enable Product description, IMEI or Serial Number</span>
               </label>
               <label className="flex items-center">
                 <input
@@ -581,38 +581,38 @@ export default function AddProductPage() {
                   onChange={(e) => setFormData({ ...formData, notForSelling: e.target.checked })}
                   className="mr-3 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                 />
-                <span className="text-sm text-gray-700">Not for selling</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Not for selling</span>
               </label>
             </div>
 
             {/* Weight */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Weight (kg)</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Weight (kg)</label>
               <input
                 type="number"
                 step="0.01"
                 value={formData.weight}
                 onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 placeholder="0.00"
               />
             </div>
 
             {/* Service Staff Timer / Preparation Time */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Preparation Time (minutes)</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Preparation Time (minutes)</label>
               <input
                 type="number"
                 value={formData.preparationTime}
                 onChange={(e) => setFormData({ ...formData, preparationTime: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 placeholder="e.g., 15"
               />
             </div>
 
             {/* Product Image */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Product image:</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Product image:</label>
               <div className="mt-1">
                 <button
                   type="button"
@@ -623,7 +623,7 @@ export default function AddProductPage() {
                   </svg>
                   Browse...
                 </button>
-                <p className="text-xs text-gray-500 mt-1">Max File size: 5MB</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Max File size: 5MB</p>
                 <p className="text-xs text-gray-500">Aspect ratio should be 1:1</p>
               </div>
               {formData.image && (
@@ -635,12 +635,12 @@ export default function AddProductPage() {
 
             {/* Image URL (temporary fallback) */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Or Image URL:</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Or Image URL:</label>
               <input
                 type="text"
                 value={formData.image}
                 onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 placeholder="https://example.com/image.jpg"
               />
             </div>
@@ -648,16 +648,16 @@ export default function AddProductPage() {
         </div>
 
         {/* Tax Information Card */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Tax Information</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Tax Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Tax */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Applicable Tax</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Applicable Tax</label>
               <select
                 value={formData.taxId}
                 onChange={(e) => setFormData({ ...formData, taxId: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
               >
                 <option value="">None</option>
                 {taxRates.map((tax) => (
@@ -669,11 +669,11 @@ export default function AddProductPage() {
             {/* Tax Type */}
             {formData.taxId && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Selling Price Tax Type</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Selling Price Tax Type</label>
                 <select
                   value={formData.taxType}
                   onChange={(e) => setFormData({ ...formData, taxType: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 >
                   <option value="inclusive">Inclusive</option>
                   <option value="exclusive">Exclusive</option>
@@ -689,7 +689,7 @@ export default function AddProductPage() {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Product Pricing</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Exc. Tax Purchase Price <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -697,25 +697,25 @@ export default function AddProductPage() {
                   step="0.01"
                   value={formData.purchasePrice}
                   onChange={(e) => setFormData({ ...formData, purchasePrice: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                   placeholder="0.00"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Margin %</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Margin %</label>
                 <input
                   type="number"
                   step="0.01"
                   value={formData.marginPercentage}
                   onChange={(e) => setFormData({ ...formData, marginPercentage: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                   placeholder="0.00"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Exc. Tax Selling Price <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -723,7 +723,7 @@ export default function AddProductPage() {
                   step="0.01"
                   value={formData.sellingPrice}
                   onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                   placeholder="0.00"
                 />
               </div>
@@ -784,9 +784,9 @@ export default function AddProductPage() {
             </div>
 
             {variations.map((variation, index) => (
-              <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4 bg-gray-50">
+              <div key={index} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 mb-4 bg-gray-50 dark:bg-gray-700">
                 <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-medium text-gray-900">Variation {index + 1}</h4>
+                  <h4 className="font-medium text-gray-900 dark:text-gray-100">Variation {index + 1}</h4>
                   {variations.length > 1 && (
                     <button
                       type="button"
@@ -800,7 +800,7 @@ export default function AddProductPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Variation Name <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -808,27 +808,27 @@ export default function AddProductPage() {
                       value={variation.name}
                       onChange={(e) => updateVariation(index, 'name', e.target.value)}
                       required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                       placeholder="e.g., Small, Medium, Large"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Variation SKU
                     </label>
                     <input
                       type="text"
                       value={variation.sku}
                       onChange={(e) => updateVariation(index, 'sku', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                       placeholder="Leave empty to auto-generate"
                     />
-                    <p className="mt-1 text-sm text-gray-500">Leave blank to auto-generate based on format selection</p>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Leave blank to auto-generate based on format selection</p>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Purchase Price <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -837,13 +837,13 @@ export default function AddProductPage() {
                       value={variation.purchasePrice}
                       onChange={(e) => updateVariation(index, 'purchasePrice', e.target.value)}
                       required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                       placeholder="0.00"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Selling Price <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -852,7 +852,7 @@ export default function AddProductPage() {
                       value={variation.sellingPrice}
                       onChange={(e) => updateVariation(index, 'sellingPrice', e.target.value)}
                       required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                       placeholder="0.00"
                     />
                   </div>
@@ -865,7 +865,7 @@ export default function AddProductPage() {
                         onChange={(e) => updateVariation(index, 'isDefault', e.target.checked)}
                         className="mr-2 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                       />
-                      <span className="text-sm text-gray-700">Set as default variation</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Set as default variation</span>
                     </label>
                   </div>
                 </div>
@@ -889,14 +889,14 @@ export default function AddProductPage() {
               </button>
             </div>
 
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
               Select products to include in this combo package
             </p>
 
             {comboItems.map((item, index) => (
-              <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4 bg-gray-50">
+              <div key={index} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 mb-4 bg-gray-50 dark:bg-gray-700">
                 <div className="flex justify-between items-center mb-4">
-                  <h4 className="font-medium text-gray-900">Product {index + 1}</h4>
+                  <h4 className="font-medium text-gray-900 dark:text-gray-100">Product {index + 1}</h4>
                   {comboItems.length > 1 && (
                     <button
                       type="button"
@@ -910,14 +910,14 @@ export default function AddProductPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Product <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={item.productId}
                       onChange={(e) => updateComboItem(index, 'productId', e.target.value)}
                       required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                     >
                       <option value="">Select Product</option>
                       {availableProducts.map((product) => (
@@ -929,7 +929,7 @@ export default function AddProductPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Quantity <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -938,7 +938,7 @@ export default function AddProductPage() {
                       value={item.quantity}
                       onChange={(e) => updateComboItem(index, 'quantity', e.target.value)}
                       required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                       placeholder="1"
                     />
                   </div>
@@ -949,8 +949,8 @@ export default function AddProductPage() {
         )}
 
         {/* Stock Management Card */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Stock Management</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Stock Management</h2>
 
           {/* Manage Stock Checkbox */}
           <div className="mb-6">
@@ -962,8 +962,8 @@ export default function AddProductPage() {
                 className="mr-3 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-1"
               />
               <div>
-                <div className="text-sm font-medium text-gray-900">Manage Stock?</div>
-                <div className="text-xs text-gray-500 italic">Enable stock management at product level</div>
+                <div className="text-sm font-medium text-gray-900 dark:text-gray-100">Manage Stock?</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 italic">Enable stock management at product level</div>
               </div>
             </label>
           </div>
@@ -971,17 +971,17 @@ export default function AddProductPage() {
           {formData.enableStock && (
             <>
               {/* Centralized Product Management Info */}
-              <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4 mb-4">
+              <div className="bg-cyan-50 dark:bg-cyan-900/30 border border-cyan-200 dark:border-cyan-700 rounded-lg p-4 mb-4">
                 <div className="flex items-start">
                   <svg className="w-5 h-5 text-cyan-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
                   <div className="flex-1">
-                    <h4 className="font-semibold text-cyan-900 text-sm mb-1">Centralized Product Management</h4>
-                    <p className="text-xs text-cyan-800 mb-2">
+                    <h4 className="font-semibold text-cyan-900 dark:text-cyan-100 text-sm mb-1">Centralized Product Management</h4>
+                    <p className="text-xs text-cyan-800 dark:text-cyan-200 mb-2">
                       Products are created with zero stock. Each business location can set their initial stock using "Add Opening Stock" after product creation.
                     </p>
-                    <p className="text-xs text-cyan-900 font-medium">
+                    <p className="text-xs text-cyan-900 dark:text-cyan-100 font-medium">
                       This product will be automatically available to all business locations with zero initial stock.
                     </p>
                   </div>
@@ -990,13 +990,13 @@ export default function AddProductPage() {
 
               {/* Alert Quantity */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Alert Quantity:</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Alert Quantity:</label>
                 <input
                   type="number"
                   step="0.01"
                   value={formData.alertQuantity}
                   onChange={(e) => setFormData({ ...formData, alertQuantity: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                   placeholder="10"
                 />
               </div>
@@ -1010,7 +1010,7 @@ export default function AddProductPage() {
             type="button"
             onClick={(e: any) => handleSubmit(e, 'save-and-stock')}
             disabled={loading}
-            className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-medium"
+            className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white rounded-lg disabled:opacity-50 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
           >
             {loading && saveAction === 'save-and-stock' ? 'Saving...' : 'Save & Add Opening Stock'}
           </button>
@@ -1018,14 +1018,14 @@ export default function AddProductPage() {
             type="button"
             onClick={(e: any) => handleSubmit(e, 'save-and-add')}
             disabled={loading}
-            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+            className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white rounded-lg disabled:opacity-50 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
           >
             {loading && saveAction === 'save-and-add' ? 'Saving...' : 'Save And Add Another'}
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 font-medium"
+            className="flex-1 px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-700 hover:to-indigo-600 text-white rounded-lg disabled:opacity-50 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
           >
             {loading && saveAction === 'save' ? 'Saving...' : 'Save'}
           </button>
@@ -1035,11 +1035,11 @@ export default function AddProductPage() {
       {/* Quick Add Category Modal */}
       {showCategoryModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Quick Add Category</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200 dark:border-gray-700">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Add Category</h3>
             <form onSubmit={handleQuickAddCategory} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Category Name <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -1047,27 +1047,27 @@ export default function AddProductPage() {
                   value={categoryForm.name}
                   onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                   placeholder="Enter category name"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Short Code</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Short Code</label>
                 <input
                   type="text"
                   value={categoryForm.shortCode}
                   onChange={(e) => setCategoryForm({ ...categoryForm, shortCode: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                   placeholder="Optional"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
                 <textarea
                   value={categoryForm.description}
                   onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                   placeholder="Optional"
                 />
               </div>
@@ -1075,14 +1075,14 @@ export default function AddProductPage() {
                 <button
                   type="button"
                   onClick={() => setShowCategoryModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 shadow-md hover:shadow-lg transition-all duration-200"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={quickAddLoading}
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-700 hover:to-indigo-600 text-white rounded-lg disabled:opacity-50 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
                 >
                   {quickAddLoading ? 'Adding...' : 'Add Category'}
                 </button>
@@ -1095,11 +1095,11 @@ export default function AddProductPage() {
       {/* Quick Add Brand Modal */}
       {showBrandModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Quick Add Brand</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200 dark:border-gray-700">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Add Brand</h3>
             <form onSubmit={handleQuickAddBrand} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Brand Name <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -1107,17 +1107,17 @@ export default function AddProductPage() {
                   value={brandForm.name}
                   onChange={(e) => setBrandForm({ ...brandForm, name: e.target.value })}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                   placeholder="Enter brand name"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
                 <textarea
                   value={brandForm.description}
                   onChange={(e) => setBrandForm({ ...brandForm, description: e.target.value })}
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                   placeholder="Optional"
                 />
               </div>
@@ -1125,14 +1125,14 @@ export default function AddProductPage() {
                 <button
                   type="button"
                   onClick={() => setShowBrandModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 shadow-md hover:shadow-lg transition-all duration-200"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={quickAddLoading}
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-700 hover:to-indigo-600 text-white rounded-lg disabled:opacity-50 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
                 >
                   {quickAddLoading ? 'Adding...' : 'Add Brand'}
                 </button>
@@ -1145,11 +1145,11 @@ export default function AddProductPage() {
       {/* Quick Add Unit Modal */}
       {showUnitModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-xl">
-            <h3 className="text-xl font-semibold text-gray-900 mb-4">Quick Add Unit</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl border border-gray-200 dark:border-gray-700">
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Add Unit</h3>
             <form onSubmit={handleQuickAddUnit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Unit Name <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -1157,12 +1157,12 @@ export default function AddProductPage() {
                   value={unitForm.name}
                   onChange={(e) => setUnitForm({ ...unitForm, name: e.target.value })}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                   placeholder="e.g., Pieces, Kilograms"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Short Name <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -1170,7 +1170,7 @@ export default function AddProductPage() {
                   value={unitForm.shortName}
                   onChange={(e) => setUnitForm({ ...unitForm, shortName: e.target.value })}
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                   placeholder="e.g., Pcs, Kg"
                 />
               </div>
@@ -1182,21 +1182,21 @@ export default function AddProductPage() {
                     onChange={(e) => setUnitForm({ ...unitForm, allowDecimal: e.target.checked })}
                     className="mr-3 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                   />
-                  <span className="text-sm text-gray-700">Allow Decimal</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Allow Decimal</span>
                 </label>
               </div>
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowUnitModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 shadow-md hover:shadow-lg transition-all duration-200"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={quickAddLoading}
-                  className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-700 hover:to-indigo-600 text-white rounded-lg disabled:opacity-50 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
                 >
                   {quickAddLoading ? 'Adding...' : 'Add Unit'}
                 </button>

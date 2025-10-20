@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import Link from 'next/link'
+import LocationPriceManager from '@/components/LocationPriceManager'
 import {
   ArrowLeftIcon,
   PencilIcon,
@@ -1315,15 +1316,21 @@ export default function ProductViewPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-emerald-500">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                        Default Purchase Price (Exc. tax)
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                        Default Purchase Price (Inc. tax)
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                        x Margin(%)
-                      </th>
+                      {can(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE) && (
+                        <>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                            Default Purchase Price (Exc. tax)
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                            Default Purchase Price (Inc. tax)
+                          </th>
+                        </>
+                      )}
+                      {can(PERMISSIONS.PRODUCT_VIEW_PROFIT_MARGIN) && (
+                        <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                          x Margin(%)
+                        </th>
+                      )}
                       <th className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                         Default Selling Price (Exc. tax)
                       </th>
@@ -1337,21 +1344,27 @@ export default function ProductViewPage() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {can(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE) && product.purchasePrice ? (
-                          `Php ${parseFloat(product.purchasePrice.toString()).toFixed(2)}`
-                        ) : '--'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {can(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE) && product.purchasePrice && product.tax ? (
-                          `Php ${(parseFloat(product.purchasePrice.toString()) * (1 + parseFloat(product.tax.amount.toString()) / 100)).toFixed(2)}`
-                        ) : '--'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {product.purchasePrice && product.sellingPrice ? (
-                          `${(((parseFloat(product.sellingPrice.toString()) - parseFloat(product.purchasePrice.toString())) / parseFloat(product.purchasePrice.toString())) * 100).toFixed(2)}`
-                        ) : '--'}
-                      </td>
+                      {can(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE) && (
+                        <>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {product.purchasePrice ? (
+                              `Php ${parseFloat(product.purchasePrice.toString()).toFixed(2)}`
+                            ) : '--'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {product.purchasePrice && product.tax ? (
+                              `Php ${(parseFloat(product.purchasePrice.toString()) * (1 + parseFloat(product.tax.amount.toString()) / 100)).toFixed(2)}`
+                            ) : '--'}
+                          </td>
+                        </>
+                      )}
+                      {can(PERMISSIONS.PRODUCT_VIEW_PROFIT_MARGIN) && (
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {product.purchasePrice && product.sellingPrice ? (
+                            `${(((parseFloat(product.sellingPrice.toString()) - parseFloat(product.purchasePrice.toString())) / parseFloat(product.purchasePrice.toString())) * 100).toFixed(2)}`
+                          ) : '--'}
+                        </td>
+                      )}
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {product.sellingPrice ? `Php ${parseFloat(product.sellingPrice.toString()).toFixed(2)}` : '--'}
                       </td>
@@ -1501,6 +1514,31 @@ export default function ProductViewPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Per-Location Pricing - Show for each variation */}
+              {product.variations.length > 0 && locations.length > 0 && (
+                <div className="mt-6 space-y-6">
+                  {product.variations.map((variation) => (
+                    <div key={variation.id}>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                        Location Prices for: {variation.name} ({variation.sku})
+                      </h3>
+                      <LocationPriceManager
+                        productVariationId={variation.id}
+                        defaultSellingPrice={parseFloat(variation.sellingPrice.toString())}
+                        locations={locations}
+                        locationDetails={variation.variationLocationDetails.map(detail => ({
+                          locationId: detail.locationId,
+                          qtyAvailable: parseFloat(detail.qtyAvailable.toString()),
+                          sellingPrice: detail.sellingPrice ? parseFloat(detail.sellingPrice.toString()) : null
+                        }))}
+                        canEdit={can(PERMISSIONS.PRODUCT_UPDATE)}
+                        onPriceUpdate={fetchProduct}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

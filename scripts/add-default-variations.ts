@@ -27,7 +27,7 @@ async function addDefaultVariations() {
     await prisma.productVariation.create({
       data: {
         productId: product.id,
-        name: 'DUMMY',
+        name: 'Default',
         sku: product.sku,
         purchasePrice: product.purchasePrice || 0,
         sellingPrice: product.sellingPrice || 0,

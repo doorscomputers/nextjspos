@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
@@ -13,6 +14,7 @@ import { ArrowLeftIcon, CheckCircleIcon, LockClosedIcon, XCircleIcon, ArrowUturn
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import CreateReturnModal from '@/components/purchases/CreateReturnModal'
+import { type SerialNumberData } from '@/components/purchases/SerialNumberInputInline'
 
 interface PurchaseReceiptDetail {
   id: number
@@ -113,6 +115,61 @@ export default function PurchaseReceiptDetailPage() {
   const [rejectionReason, setRejectionReason] = useState('')
   const [showCreateReturnModal, setShowCreateReturnModal] = useState(false)
 
+  const [showEditSerialsModal, setShowEditSerialsModal] = useState(false)
+  const [editingItem, setEditingItem] = useState<any | null>(null)
+  const [editingSerialNumbers, setEditingSerialNumbers] = useState<SerialNumberData[]>([])
+  const [serialInput, setSerialInput] = useState('')
+  const [savingSerials, setSavingSerials] = useState(false)
+  const [isCheckingSerial, setIsCheckingSerial] = useState(false)
+
+  const getRequiredSerialCount = (item: any | null) => {
+    if (!item) return 0
+    const candidate =
+      item.quantityReceived ??
+      item.purchaseItem?.quantityReceived ??
+      item.purchaseItem?.quantity ??
+      0
+    const numeric =
+      typeof candidate === 'number'
+        ? candidate
+        : parseFloat(candidate || '0')
+
+    return Number.isFinite(numeric) ? numeric : 0
+  }
+
+  const itemRequiresSerialTracking = (item: any | null) => {
+    if (!item) return false
+
+    const hasSerialFlag =
+      item.purchaseItem?.requiresSerial ||
+      item.purchaseItem?.productVariation?.enableSerialNumber ||
+      item.productVariation?.enableSerialNumber ||
+      item.product?.enableProductInfo
+
+    if (hasSerialFlag) {
+      return true
+    }
+
+    const serialValue = item.serialNumbers
+    if (Array.isArray(serialValue)) {
+      return serialValue.length > 0
+    }
+
+    if (typeof serialValue === 'string') {
+      return serialValue.trim().length > 0
+    }
+
+    if (serialValue && typeof serialValue === 'object') {
+      try {
+        return Array.isArray(serialValue) ? serialValue.length > 0 : Object.keys(serialValue).length > 0
+      } catch (_error) {
+        return false
+      }
+    }
+
+    return false
+  }
+
   const fetchReceipt = async () => {
     setLoading(true)
     try {
@@ -143,6 +200,166 @@ export default function PurchaseReceiptDetailPage() {
     }
   }, [params.id])
 
+  const openSerialEditor = (item: any) => {
+    setEditingItem(item)
+    // Handle both array and JSON serial numbers
+    let serialNumbers = []
+    if (Array.isArray(item.serialNumbers)) {
+      serialNumbers = item.serialNumbers
+    } else if (item.serialNumbers) {
+      try {
+        if (typeof item.serialNumbers === 'string') {
+          serialNumbers = JSON.parse(item.serialNumbers)
+        } else {
+          serialNumbers = item.serialNumbers
+        }
+      } catch (error) {
+        console.error('Error parsing serialNumbers in openSerialEditor:', error)
+        serialNumbers = []
+      }
+    }
+    setEditingSerialNumbers(serialNumbers)
+    setSerialInput('')
+    setShowEditSerialsModal(true)
+  }
+
+  const addSerialNumber = async () => {
+    if (isCheckingSerial) {
+      return
+    }
+
+    if (!editingItem) {
+      toast.error('No item selected')
+      return
+    }
+
+    const trimmed = serialInput.trim()
+    if (!trimmed) {
+      toast.error('Serial number is required')
+      return
+    }
+
+    if (editingSerialNumbers.some((sn) => sn.serialNumber === trimmed)) {
+      toast.error('This serial number is already in the list')
+      return
+    }
+
+    try {
+      setIsCheckingSerial(true)
+      const response = await fetch(`/api/serial-numbers/check?serial=${encodeURIComponent(trimmed)}`)
+      if (!response.ok) {
+        throw new Error('Unable to validate serial number')
+      }
+      const result = await response.json()
+      if (result.exists) {
+        toast.error(`Serial number already exists (Receipt: ${result.serial.receiptNumber})`)
+        return
+      }
+    } catch (error) {
+      console.error('Serial validation failed:', error)
+      toast.error('Failed to validate serial number. Please try again.')
+      return
+    } finally {
+      setIsCheckingSerial(false)
+    }
+
+    const updated = [...editingSerialNumbers, { serialNumber: trimmed, condition: 'new' as const }]
+    setEditingSerialNumbers(updated)
+    setSerialInput('')
+
+    const remaining = getRequiredSerialCount(editingItem) - updated.length
+    if (remaining > 0) {
+      toast.success(`Serial added! ${remaining} remaining.`)
+    } else {
+      toast.success('Serial number added!')
+    }
+  }
+
+  const removeSerialNumber = (index: number) => {
+    const updated = editingSerialNumbers.filter((_, i) => i !== index)
+    setEditingSerialNumbers(updated)
+  }
+
+  const isSaveSerialDisabled = () => {
+    if (!editingItem) return true
+
+    const variation = editingItem.productVariation || editingItem.purchaseItem?.productVariation
+    const isRequired = variation?.enableSerialNumber
+    const requiredCount = getRequiredSerialCount(editingItem)
+
+    if (!isRequired) {
+      return false
+    }
+
+    return requiredCount > 0 && editingSerialNumbers.length !== requiredCount
+  }
+
+  const getSaveSerialDisabledMessage = () => {
+    if (!editingItem) return ''
+
+    const variation = editingItem.productVariation || editingItem.purchaseItem?.productVariation
+    const isRequired = variation?.enableSerialNumber
+    const requiredCount = getRequiredSerialCount(editingItem)
+    const diff = requiredCount - editingSerialNumbers.length
+
+    if (!isRequired || requiredCount === 0 || diff === 0) {
+      return ''
+    }
+
+    return diff > 0
+      ? `Add ${diff} more serial number${diff === 1 ? '' : 's'} to enable save`
+      : `Remove ${Math.abs(diff)} serial number${Math.abs(diff) === 1 ? '' : 's'} to enable save`
+  }
+
+  const saveSerialNumbers = async () => {
+    if (!receipt || !editingItem) return
+
+    const requiredCount = getRequiredSerialCount(editingItem)
+    const variation = editingItem.productVariation || editingItem.purchaseItem?.productVariation
+    const isRequired = variation?.enableSerialNumber
+
+    if (isRequired && requiredCount > 0 && editingSerialNumbers.length !== requiredCount) {
+      toast.error(`This item requires exactly ${requiredCount} serial number${requiredCount === 1 ? '' : 's'}.`)
+      return
+    }
+
+    setSavingSerials(true)
+    try {
+      const response = await fetch(`/api/purchases/receipts/${receipt.id}/serial-numbers`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receiptItemId: editingItem.id,
+          serialNumbers: editingSerialNumbers,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || 'Failed to save serial numbers')
+      }
+
+      setReceipt((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          items: prev.items.map((it) =>
+            it.id === editingItem.id ? { ...it, serialNumbers: editingSerialNumbers } : it
+          ),
+        }
+      })
+
+      toast.success('Serial numbers updated successfully')
+      setShowEditSerialsModal(false)
+      // Refresh the receipt data to show updated serial numbers
+      fetchReceipt()
+    } catch (error: any) {
+      console.error('Error saving serial numbers:', error)
+      toast.error(error.message || 'Failed to save serial numbers')
+    } finally {
+      setSavingSerials(false)
+    }
+  }
   const handleApprove = async () => {
     if (!receipt) return
 
@@ -361,27 +578,27 @@ export default function PurchaseReceiptDetailPage() {
               <h3 className="font-semibold text-gray-900 mb-3">Please verify the following before approval:</h3>
               <ul className="space-y-2 text-sm text-gray-700">
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-600 mt-0.5">✓</span>
+                  <span className="text-blue-600 mt-0.5">âœ“</span>
                   <span>All product details (name, SKU, variation) are correct</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-600 mt-0.5">✓</span>
+                  <span className="text-blue-600 mt-0.5">âœ“</span>
                   <span>Quantities received match the physical count</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-600 mt-0.5">✓</span>
+                  <span className="text-blue-600 mt-0.5">âœ“</span>
                   <span>Unit costs and total values are accurate</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-600 mt-0.5">✓</span>
+                  <span className="text-blue-600 mt-0.5">âœ“</span>
                   <span>Supplier information is correct</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-600 mt-0.5">✓</span>
+                  <span className="text-blue-600 mt-0.5">âœ“</span>
                   <span>Serial numbers (if applicable) are properly recorded</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-600 mt-0.5">✓</span>
+                  <span className="text-blue-600 mt-0.5">âœ“</span>
                   <span>No damaged or defective items are included</span>
                 </li>
               </ul>
@@ -689,35 +906,125 @@ export default function PurchaseReceiptDetailPage() {
           )}
 
           {/* Serial Numbers */}
-          {receipt.items.some(item => item.serialNumbers) && (
-            <div className="mt-6 space-y-4">
-              <h3 className="font-semibold">Serial Numbers</h3>
-              {receipt.items
-                .filter(item => item.serialNumbers)
-                .map((item) => {
-                  const serialNumbers = item.serialNumbers as any[]
-                  const product = item.purchaseItem?.product || item.product
-                  const variation = item.purchaseItem?.productVariation || item.productVariation
+          <div className="mt-6 space-y-4">
+            <h3 className="font-semibold">Serial Numbers</h3>
+            {receipt.items
+              .filter(itemRequiresSerialTracking)
+              .map((item) => {
+                console.log(`=== Serial Numbers Debug for Item ${item.id} ===`)
+                console.log('Raw serialNumbers:', item.serialNumbers)
+                console.log('Type:', typeof item.serialNumbers)
+                console.log('Is Array:', Array.isArray(item.serialNumbers))
 
-                  return (
-                    <div key={item.id} className="border rounded-lg p-4">
-                      <p className="font-medium mb-2">
-                        {product.name} - {variation.name}
-                      </p>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                        {serialNumbers.map((sn, index) => (
-                          <div key={index} className="bg-gray-50 p-2 rounded text-sm">
-                            <p><strong>Serial:</strong> {sn.serialNumber}</p>
-                            {sn.imei && <p><strong>IMEI:</strong> {sn.imei}</p>}
-                            <p><strong>Condition:</strong> {sn.condition || 'new'}</p>
-                          </div>
-                        ))}
+                let serialNumbers: any[] = []
+                if (Array.isArray(item.serialNumbers)) {
+                  serialNumbers = item.serialNumbers
+                } else if (item.serialNumbers) {
+                  try {
+                    if (typeof item.serialNumbers === 'string') {
+                      const parsed = JSON.parse(item.serialNumbers)
+                      serialNumbers = Array.isArray(parsed) ? parsed : Object.values(parsed || {})
+                    } else if (typeof item.serialNumbers === 'object') {
+                      serialNumbers = Array.isArray(item.serialNumbers)
+                        ? item.serialNumbers
+                        : Object.values(item.serialNumbers || {})
+                    }
+                  } catch (error) {
+                    console.error('Error parsing serialNumbers:', error)
+                    serialNumbers = []
+                  }
+                }
+
+                console.log('Processed serialNumbers:', serialNumbers)
+                console.log('Length:', serialNumbers.length)
+                console.log('First item:', serialNumbers[0])
+                console.log('First item type:', typeof serialNumbers[0])
+                if (serialNumbers[0]) {
+                  console.log('First item keys:', Object.keys(serialNumbers[0]))
+                }
+                console.log('====================================')
+                const product = item.purchaseItem?.product || item.product
+                const variation = item.purchaseItem?.productVariation || item.productVariation
+                const productName = product?.name || product?.productName || 'Product'
+                const variationName = variation?.name || variation?.productVariationName || 'Variation'
+                const requiredCount = getRequiredSerialCount(item)
+
+                return (
+                  <div key={item.id} className="border rounded-lg p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="font-medium">
+                          {productName} - {variationName}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {serialNumbers.length} / {requiredCount} serial numbers entered
+                        </p>
                       </div>
+                      {can(PERMISSIONS.PURCHASE_RECEIPT_CREATE) && receipt.status !== 'approved' && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openSerialEditor(item)}
+                        >
+                          {serialNumbers.length > 0 ? 'Edit Serial Numbers' : 'Add Serial Numbers'}
+                        </Button>
+                      )}
                     </div>
-                  )
-                })}
-            </div>
-          )}
+                    {serialNumbers.length > 0 && Array.isArray(serialNumbers) && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        {serialNumbers.map((sn, index) => {
+                          // Handle different possible structures
+                          let serialDisplay = ''
+                          let imeiDisplay = ''
+                          let conditionDisplay = 'new'
+
+                          if (typeof sn === 'string') {
+                            serialDisplay = sn
+                          } else if (typeof sn === 'object' && sn !== null) {
+                            serialDisplay = sn.serialNumber || sn.serial || sn.toString()
+                            imeiDisplay = sn.imei || ''
+                            conditionDisplay = sn.condition || 'new'
+                          } else {
+                            serialDisplay = sn.toString()
+                          }
+
+                          console.log(`Rendering serial ${index}:`, { sn, serialDisplay, imeiDisplay, conditionDisplay })
+                          return (
+                            <div key={index} className="bg-gray-50 p-2 rounded text-sm">
+                              <p><strong>Serial:</strong> {serialDisplay}</p>
+                              {imeiDisplay && <p><strong>IMEI:</strong> {imeiDisplay}</p>}
+                              <p><strong>Condition:</strong> {conditionDisplay}</p>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                    {serialNumbers.length === 0 && (
+                      <div className="text-center py-4 text-gray-500">
+                        <svg className="w-12 h-12 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292V21a1 1 0 01-2 0V9.646a4 4 0 110-5.292z" />
+                        </svg>
+                        <p className="text-sm">No serial numbers entered yet</p>
+                        {receipt.status !== 'approved' && can(PERMISSIONS.PURCHASE_RECEIPT_CREATE) && (
+                          <p className="text-xs text-gray-400 mt-1">Click the "Add Serial Numbers" button to get started</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+
+            {/* Show message if no items require serial numbers */}
+            {!receipt.items.some(itemRequiresSerialTracking) && (
+              <div className="text-center py-8 text-gray-500">
+                <svg className="w-12 h-12 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <p className="text-sm">No items in this receipt require serial numbers</p>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -784,6 +1091,213 @@ export default function PurchaseReceiptDetailPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Edit Serials Modal */}
+      <Dialog open={showEditSerialsModal} onOpenChange={setShowEditSerialsModal}>
+        <DialogContent className="sm:max-w-[600px] bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Edit Serial Numbers
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-300">
+              {editingItem && (
+                <>
+                  Editing serials for: <strong>{editingItem.product?.name || editingItem.purchaseItem?.product?.name}</strong> - {editingItem.productVariation?.name || editingItem.purchaseItem?.productVariation?.name}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingItem && (
+            <div className="space-y-6 py-4">
+              {/* Progress Section */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292V21a1 1 0 01-2 0V9.646a4 4 0 110-5.292z" />
+                    </svg>
+                    <h4 className="font-semibold text-gray-900">Serial Numbers Progress</h4>
+                  </div>
+                  <Badge
+                    variant={editingSerialNumbers.length === getRequiredSerialCount(editingItem) ? "default" : "destructive"}
+                    className="text-sm"
+                  >
+                    {editingSerialNumbers.length} / {getRequiredSerialCount(editingItem)}
+                  </Badge>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+                  <div
+                    className={`h-3 rounded-full transition-all ${
+                      editingSerialNumbers.length === getRequiredSerialCount(editingItem)
+                        ? "bg-green-500"
+                        : "bg-blue-500"
+                    }`}
+                    style={{
+                      width: `${getRequiredSerialCount(editingItem) > 0
+                        ? (editingSerialNumbers.length / getRequiredSerialCount(editingItem)) * 100
+                        : 0}%`
+                    }}
+                  />
+                </div>
+                <p className="text-sm text-gray-600">
+                  {editingSerialNumbers.length < getRequiredSerialCount(editingItem)
+                    ? `${getRequiredSerialCount(editingItem) - editingSerialNumbers.length} serial number${getRequiredSerialCount(editingItem) - editingSerialNumbers.length === 1 ? "" : "s"} remaining`
+                    : "All serial numbers entered"}
+                </p>
+              </div>
+
+              {/* Input Section */}
+              {editingSerialNumbers.length < getRequiredSerialCount(editingItem) && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <label className="block text-sm font-medium text-gray-900 mb-2">
+                    Add Serial Number
+                  </label>
+                  <form
+                    className="flex gap-2"
+                    onSubmit={(e) => {
+                      e.preventDefault()
+                      addSerialNumber()
+                    }}
+                  >
+                    <Input
+                      value={serialInput}
+                      onChange={(e) => setSerialInput(e.target.value)}
+                      placeholder="Scan barcode or type serial number..."
+                      className="flex-1 font-mono"
+                      autoFocus
+                      disabled={isCheckingSerial}
+                    />
+                    <Button
+                      type="submit"
+                      disabled={!serialInput.trim() || isCheckingSerial}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {isCheckingSerial ? 'Checking...' : 'Add'}
+                    </Button>
+                  </form>
+                  <p className="text-xs text-gray-500 mt-2">Press Enter after scanning or typing each serial number</p>
+                </div>
+              )}
+
+              {/* Serial Numbers List */}
+              {editingSerialNumbers.length > 0 && (
+                <div className="space-y-2">
+                  <h5 className="text-sm font-medium text-gray-700">Current Serial Numbers:</h5>
+                  <div className="max-h-60 overflow-y-auto space-y-2">
+                    {editingSerialNumbers.map((sn, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg"
+                      >
+                        <div className="flex-1">
+                          <span className="text-sm font-mono font-semibold text-gray-900">{sn.serialNumber}</span>
+                          <div className="text-xs text-gray-500 mt-1">
+                            Condition: <Badge variant="outline" className="text-xs">{sn.condition || 'new'}</Badge>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeSerialNumber(index)}
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Warning Message */}
+              {editingSerialNumbers.length < getRequiredSerialCount(editingItem) && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <svg className="w-4 h-4 text-yellow-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div>
+                      <p className="text-sm text-yellow-800 font-medium">
+                        {getRequiredSerialCount(editingItem) - editingSerialNumbers.length} more serial number{getRequiredSerialCount(editingItem) - editingSerialNumbers.length === 1 ? "" : "s"} needed
+                      </p>
+                      <p className="text-xs text-yellow-700 mt-1">
+                        The "Save Changes" button will be enabled when all serial numbers are entered
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Success Message */}
+              {editingSerialNumbers.length === getRequiredSerialCount(editingItem) && getRequiredSerialCount(editingItem) > 0 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <svg className="w-4 h-4 text-green-600 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <p className="text-sm text-green-800 font-medium">
+                        All serial numbers have been entered!
+                      </p>
+                      <p className="text-xs text-green-700 mt-1">
+                        You can now save your changes
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowEditSerialsModal(false)}
+              disabled={savingSerials}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={saveSerialNumbers}
+              disabled={isSaveSerialDisabled() || savingSerials}
+              className={editingSerialNumbers.length === getRequiredSerialCount(editingItem) ? "bg-green-600 hover:bg-green-700" : "bg-gray-400 cursor-not-allowed"}
+            >
+              {savingSerials ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V2" />
+                  </svg>
+                  Save Changes
+                </>
+              )}
+            </Button>
+            {getSaveSerialDisabledMessage() && (
+              <p className="text-xs text-gray-500 italic">
+                {getSaveSerialDisabledMessage()}
+              </p>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Create Return Modal */}
       {receipt.status === 'approved' && (
         <CreateReturnModal
@@ -813,3 +1327,5 @@ export default function PurchaseReceiptDetailPage() {
     </div>
   )
 }
+
+

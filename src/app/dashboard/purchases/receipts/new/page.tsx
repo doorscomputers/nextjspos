@@ -104,7 +104,6 @@ export default function NewPurchaseReceiptPage() {
   const [purchaseOrderId, setPurchaseOrderId] = useState<number | null>(null)
   const [supplierId, setSupplierId] = useState<number | null>(null)
   const [locationId, setLocationId] = useState<number | null>(null)
-  const [receiptDate, setReceiptDate] = useState(new Date().toISOString().split('T')[0])
   const [notes, setNotes] = useState('')
   const [items, setItems] = useState<GRNItem[]>([])
 
@@ -512,10 +511,7 @@ export default function NewPurchaseReceiptPage() {
       return
     }
 
-    if (!receiptDate) {
-      toast.error('Please select a receipt date')
-      return
-    }
+    // receiptDate validation removed - server will use real-time timestamp
 
     if (entryMode === 'direct' && !supplierId) {
       toast.error('Please select a supplier')
@@ -573,7 +569,7 @@ export default function NewPurchaseReceiptPage() {
         purchaseId: entryMode === 'purchase_order' ? purchaseOrderId : null,
         supplierId: entryMode === 'direct' ? supplierId : undefined,
         locationId,
-        receiptDate,
+        // receiptDate removed - server will use real-time timestamp
         notes,
         items: items.map(item => ({
           productId: item.productId,
@@ -750,18 +746,13 @@ export default function NewPurchaseReceiptPage() {
                 </Select>
               </div>
 
-              {/* Receipt Date */}
-              <div>
-                <Label htmlFor="receiptDate">
-                  Receipt Date <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="receiptDate"
-                  type="date"
-                  value={receiptDate}
-                  onChange={(e) => setReceiptDate(e.target.value)}
-                  required
-                />
+              {/* Receipt Date Info */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-800 dark:text-blue-300">
+                  <strong>📅 Receipt Date:</strong> Automatically recorded as current date/time when you submit.
+                  <br />
+                  <span className="text-xs">This prevents backdating and ensures accurate audit trails.</span>
+                </p>
               </div>
             </div>
 
@@ -968,7 +959,7 @@ export default function NewPurchaseReceiptPage() {
                               requiredCount={Math.floor(item.quantityReceived)}
                               productName={item.productName}
                               supplierName={suppliers.find(s => s.id === supplierId)?.name || ''}
-                              dateReceived={receiptDate}
+                              dateReceived={new Date().toISOString().split('T')[0]}
                               userName={can ? 'Current User' : ''}
                               onSerialNumbersChange={(serialNumbers) => {
                                 updateItem(item.id, 'serialNumbers', serialNumbers)

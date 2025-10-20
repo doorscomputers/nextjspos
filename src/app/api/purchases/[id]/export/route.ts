@@ -1,11 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import PDFDocument from 'pdfkit'
 import ExcelJS from 'exceljs'
-import { Readable } from 'stream'
-
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 /**
  * GET /api/purchases/[id]/export?format=pdf|excel
  * Export Purchase Order to PDF or Excel format
@@ -23,8 +22,8 @@ export async function GET(
 
     const user = session.user as any
     const businessId = user.businessId
-    const { id } = await params
-    const purchaseId = parseInt(id)
+    const resolvedParams = await params
+    const purchaseId = parseInt(resolvedParams.id)
 
     if (isNaN(purchaseId)) {
       return NextResponse.json(
@@ -56,7 +55,8 @@ export async function GET(
             id: true,
             name: true,
             email: true,
-            phone: true,
+            mobile: true,
+            alternateNumber: true,
             address: true,
             paymentTerms: true,
           },
@@ -75,31 +75,6 @@ export async function GET(
               },
             },
           },
-          where: {
-            deletedAt: null,
-          },
-        },
-        businessLocation: {
-          select: {
-            name: true,
-            address: true,
-            phone: true,
-          },
-        },
-        business: {
-          select: {
-            name: true,
-            email: true,
-            phone: true,
-            address: true,
-          },
-        },
-        createdByUser: {
-          select: {
-            username: true,
-            firstName: true,
-            lastName: true,
-          },
         },
       },
     })
@@ -111,10 +86,56 @@ export async function GET(
       )
     }
 
+    const business = await prisma.business.findUnique({
+      where: { id: parseInt(businessId) },
+      select: {
+        name: true,
+      },
+    })
+
+    // Get main business location for address/contact info
+    const mainLocation = await prisma.businessLocation.findFirst({
+      where: {
+        businessId: parseInt(businessId),
+        deletedAt: null,
+      },
+      orderBy: {
+        id: 'asc', // Get the first/main location
+      },
+      select: {
+        name: true,
+        landmark: true,
+        city: true,
+        state: true,
+        country: true,
+        zipCode: true,
+        mobile: true,
+        email: true,
+      },
+    })
+
+    const addressParts = [
+      mainLocation?.landmark,
+      mainLocation?.city,
+      mainLocation?.state,
+      mainLocation?.zipCode,
+      mainLocation?.country,
+    ].filter(Boolean)
+
+    const purchaseForExport = {
+      ...purchase,
+      business: {
+        name: business?.name || '',
+        address: addressParts.join(', '),
+        phone: mainLocation?.mobile || '',
+        email: mainLocation?.email || '',
+      },
+    }
+
     if (format === 'pdf') {
-      return generatePDF(purchase)
+      return generatePDF(purchaseForExport)
     } else {
-      return generateExcel(purchase)
+      return generateExcel(purchaseForExport)
     }
   } catch (error) {
     console.error('Error exporting purchase order:', error)
@@ -129,203 +150,252 @@ export async function GET(
 }
 
 /**
- * Generate PDF document for Purchase Order
+ * Generate PDF document for Purchase Order using jsPDF
  */
 function generatePDF(purchase: any) {
-  return new Promise<NextResponse>((resolve) => {
-    const doc = new PDFDocument({ margin: 50 })
-    const chunks: Buffer[] = []
+  const doc = new jsPDF()
 
-    doc.on('data', (chunk: Buffer) => chunks.push(chunk))
-    doc.on('end', () => {
-      const pdfBuffer = Buffer.concat(chunks)
-      const response = new NextResponse(pdfBuffer, {
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="${purchase.purchaseOrderNumber}.pdf"`,
-        },
-      })
-      resolve(response)
-    })
+  const businessName = purchase.business?.name || 'Company Name'
+  const businessAddress = purchase.business?.address || ''
+  const businessPhone = purchase.business?.phone || ''
+  const businessEmail = purchase.business?.email || ''
+  const supplier = purchase.supplier || {}
+  const purchaseDate = purchase.purchaseDate || purchase.orderDate || purchase.createdAt
 
-    // Header - Business Info
-    doc.fontSize(20).text(purchase.business.name, { align: 'center' })
-    doc.fontSize(10).text(purchase.business.address || '', { align: 'center' })
-    doc.text(`Phone: ${purchase.business.phone || 'N/A'} | Email: ${purchase.business.email || 'N/A'}`, {
-      align: 'center',
-    })
-    doc.moveDown()
+  const contactLine = [
+    businessPhone ? `Phone: ${businessPhone}` : null,
+    businessEmail ? `Email: ${businessEmail}` : null,
+  ]
+    .filter(Boolean)
+    .join(' | ')
 
-    // Title
-    doc.fontSize(16).text('PURCHASE ORDER', { align: 'center', underline: true })
-    doc.moveDown()
+  // Header - Business Info
+  doc.setFontSize(18)
+  doc.setTextColor(29, 78, 216) // Blue color
+  doc.setFont('helvetica', 'bold')
+  doc.text(businessName, 15, 20)
 
-    // PO Details - Two Columns
-    const leftColumnX = 50
-    const rightColumnX = 320
+  doc.setFontSize(9)
+  doc.setTextColor(55, 65, 81) // Gray color
+  doc.setFont('helvetica', 'normal')
+  let yPos = 27
+  if (businessAddress) {
+    doc.text(businessAddress, 15, yPos)
+    yPos += 5
+  }
+  if (contactLine) {
+    doc.text(contactLine, 15, yPos)
+  }
 
-    // Left Column - PO Info
-    doc.fontSize(10)
-    doc.text('PO Number:', leftColumnX, doc.y, { continued: true, width: 100 })
-    doc.font('Helvetica-Bold').text(purchase.purchaseOrderNumber, { width: 200 })
-    doc.font('Helvetica')
+  // Header - Purchase Order Info (Right aligned)
+  doc.setFontSize(16)
+  doc.setTextColor(17, 24, 39) // Dark gray
+  doc.setFont('helvetica', 'bold')
+  doc.text('PURCHASE ORDER', 200, 20, { align: 'right' })
 
-    doc.text('Date:', leftColumnX, doc.y, { continued: true, width: 100 })
-    doc.text(new Date(purchase.orderDate).toLocaleDateString(), { width: 200 })
+  doc.setFontSize(9)
+  doc.setTextColor(55, 65, 81)
+  doc.setFont('helvetica', 'normal')
+  yPos = 27
+  doc.text(`PO #: ${purchase.purchaseOrderNumber || ''}`, 200, yPos, { align: 'right' })
+  yPos += 5
+  if (purchaseDate) {
+    doc.text(`Date: ${formatDateHuman(purchaseDate)}`, 200, yPos, { align: 'right' })
+    yPos += 5
+  }
+  if (purchase.expectedDeliveryDate) {
+    doc.text(`Expected Delivery: ${formatDateHuman(purchase.expectedDeliveryDate)}`, 200, yPos, { align: 'right' })
+    yPos += 5
+  }
+  doc.text(`Status: ${(purchase.status || '').toString().toUpperCase()}`, 200, yPos, { align: 'right' })
 
-    doc.text('Status:', leftColumnX, doc.y, { continued: true, width: 100 })
-    doc.text(purchase.status.toUpperCase(), { width: 200 })
+  // Supplier Information
+  yPos = 50
+  doc.setFontSize(11)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(17, 24, 39)
+  doc.text('SUPPLIER INFORMATION', 15, yPos)
 
-    if (purchase.expectedDeliveryDate) {
-      doc.text('Expected Delivery:', leftColumnX, doc.y, { continued: true, width: 100 })
-      doc.text(new Date(purchase.expectedDeliveryDate).toLocaleDateString(), { width: 200 })
-    }
+  yPos += 6
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(55, 65, 81)
+  doc.text(supplier.name || 'N/A', 15, yPos)
+  yPos += 5
 
-    // Right Column - Supplier Info
-    const supplierY = 200
-    doc.text('SUPPLIER:', rightColumnX, supplierY)
-    doc.font('Helvetica-Bold').text(purchase.supplier.name, rightColumnX, doc.y)
-    doc.font('Helvetica')
-    if (purchase.supplier.address) {
-      doc.text(purchase.supplier.address, rightColumnX, doc.y, { width: 200 })
-    }
-    if (purchase.supplier.phone) {
-      doc.text(`Phone: ${purchase.supplier.phone}`, rightColumnX, doc.y)
-    }
-    if (purchase.supplier.email) {
-      doc.text(`Email: ${purchase.supplier.email}`, rightColumnX, doc.y)
-    }
+  if (supplier.address) {
+    doc.text(supplier.address, 15, yPos)
+    yPos += 5
+  }
 
-    doc.moveDown(2)
+  const supplierPhone = supplier.mobile || supplier.alternateNumber || ''
+  if (supplierPhone) {
+    doc.text(`Phone: ${supplierPhone}`, 15, yPos)
+    yPos += 5
+  }
 
-    // Items Table
-    const tableTop = doc.y
-    const itemCodeX = 50
-    const descriptionX = 120
-    const qtyOrderedX = 280
-    const qtyReceivedX = 340
-    const unitCostX = 410
-    const totalX = 480
+  if (supplier.email) {
+    doc.text(`Email: ${supplier.email}`, 15, yPos)
+    yPos += 5
+  }
 
-    // Table Header
-    doc.font('Helvetica-Bold')
-    doc.text('Item', itemCodeX, tableTop)
-    doc.text('Description', descriptionX, tableTop)
-    doc.text('Ordered', qtyOrderedX, tableTop)
-    doc.text('Received', qtyReceivedX, tableTop)
-    doc.text('Unit Cost', unitCostX, tableTop)
-    doc.text('Total', totalX, tableTop)
+  // Items Table
+  yPos += 5
+  const tableData = purchase.items.map((item: any, index: number) => {
+    const description = [item.product?.name, item.productVariation?.name].filter(Boolean).join(' - ')
+    const quantity = toNumber(item.quantity)
+    const unitCost = toNumber(item.unitCost)
+    const lineTotal = quantity * unitCost
 
-    // Draw line under header
-    doc.moveTo(50, tableTop + 15).lineTo(550, tableTop + 15).stroke()
-
-    // Table Body
-    doc.font('Helvetica')
-    let yPosition = tableTop + 25
-
-    purchase.items.forEach((item: any, index: number) => {
-      if (yPosition > 700) {
-        doc.addPage()
-        yPosition = 50
-      }
-
-      const itemName = item.product.name
-      const variationName = item.productVariation?.name || ''
-      const fullDescription = variationName ? `${itemName} - ${variationName}` : itemName
-
-      doc.text(item.product.sku || `#${index + 1}`, itemCodeX, yPosition, { width: 60 })
-      doc.text(fullDescription, descriptionX, yPosition, { width: 150 })
-      doc.text(parseFloat(item.quantity.toString()).toFixed(2), qtyOrderedX, yPosition, { width: 50 })
-      doc.text(parseFloat(item.quantityReceived.toString()).toFixed(2), qtyReceivedX, yPosition, { width: 60 })
-      doc.text(`₱${parseFloat(item.unitCost.toString()).toFixed(2)}`, unitCostX, yPosition, { width: 60 })
-
-      const lineTotal = parseFloat(item.quantity.toString()) * parseFloat(item.unitCost.toString())
-      doc.text(`₱${lineTotal.toFixed(2)}`, totalX, yPosition, { width: 70, align: 'right' })
-
-      yPosition += 25
-    })
-
-    // Draw line before totals
-    doc.moveTo(50, yPosition).lineTo(550, yPosition).stroke()
-    yPosition += 10
-
-    // Totals Section
-    const totalsX = 400
-    const amountsX = 480
-
-    doc.text('Subtotal:', totalsX, yPosition)
-    doc.text(`₱${parseFloat(purchase.subtotal.toString()).toFixed(2)}`, amountsX, yPosition, {
-      width: 70,
-      align: 'right',
-    })
-    yPosition += 20
-
-    if (parseFloat(purchase.taxAmount.toString()) > 0) {
-      doc.text('Tax:', totalsX, yPosition)
-      doc.text(`₱${parseFloat(purchase.taxAmount.toString()).toFixed(2)}`, amountsX, yPosition, {
-        width: 70,
-        align: 'right',
-      })
-      yPosition += 20
-    }
-
-    if (parseFloat(purchase.discountAmount.toString()) > 0) {
-      doc.text('Discount:', totalsX, yPosition)
-      doc.text(`-₱${parseFloat(purchase.discountAmount.toString()).toFixed(2)}`, amountsX, yPosition, {
-        width: 70,
-        align: 'right',
-      })
-      yPosition += 20
-    }
-
-    if (parseFloat(purchase.shippingCost.toString()) > 0) {
-      doc.text('Shipping:', totalsX, yPosition)
-      doc.text(`₱${parseFloat(purchase.shippingCost.toString()).toFixed(2)}`, amountsX, yPosition, {
-        width: 70,
-        align: 'right',
-      })
-      yPosition += 20
-    }
-
-    // Draw line before grand total
-    doc.moveTo(400, yPosition).lineTo(550, yPosition).stroke()
-    yPosition += 10
-
-    doc.font('Helvetica-Bold').fontSize(12)
-    doc.text('TOTAL:', totalsX, yPosition)
-    doc.text(`₱${parseFloat(purchase.totalAmount.toString()).toFixed(2)}`, amountsX, yPosition, {
-      width: 70,
-      align: 'right',
-    })
-
-    // Notes
-    if (purchase.notes) {
-      yPosition += 40
-      doc.font('Helvetica').fontSize(10)
-      doc.text('Notes:', 50, yPosition)
-      doc.text(purchase.notes, 50, yPosition + 15, { width: 500 })
-    }
-
-    // Footer
-    yPosition += 80
-    if (yPosition > 700) {
-      doc.addPage()
-      yPosition = 50
-    }
-
-    doc.fontSize(9).text('Payment Terms:', 50, yPosition)
-    doc.text(`${purchase.supplier.paymentTerms || 30} days`, 150, yPosition)
-    yPosition += 30
-
-    doc.text('___________________________', 50, yPosition)
-    doc.text('___________________________', 320, yPosition)
-    yPosition += 15
-    doc.text('Prepared By', 50, yPosition)
-    doc.text('Approved By', 320, yPosition)
-
-    // Finalize PDF
-    doc.end()
+    return [
+      (index + 1).toString(),
+      description || '—',
+      item.product?.sku || '—',
+      formatQuantity(quantity),
+      formatCurrency(unitCost),
+      formatCurrency(lineTotal),
+    ]
   })
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [['#', 'Product', 'SKU', 'Quantity', 'Unit Price', 'Total']],
+    body: tableData,
+    theme: 'striped',
+    headStyles: {
+      fillColor: [29, 78, 216], // Blue
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      halign: 'center',
+    },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 10 },
+      1: { cellWidth: 55 },
+      2: { cellWidth: 28 },
+      3: { halign: 'right', cellWidth: 20 },
+      4: { halign: 'right', cellWidth: 35 },
+      5: { halign: 'right', cellWidth: 37 },
+    },
+    styles: {
+      fontSize: 9,
+      cellPadding: 3,
+    },
+  })
+
+  // Get Y position after table
+  yPos = (doc as any).lastAutoTable.finalY + 10
+
+  // Totals Section (Right aligned)
+  const totals: Array<{ label: string; value: string; bold?: boolean }> = [
+    { label: 'Subtotal:', value: formatCurrency(toNumber(purchase.subtotal)) },
+  ]
+
+  if (toNumber(purchase.taxAmount) > 0) {
+    totals.push({ label: 'Tax:', value: formatCurrency(toNumber(purchase.taxAmount)) })
+  }
+  if (toNumber(purchase.discountAmount) > 0) {
+    totals.push({ label: 'Discount:', value: formatCurrency(-toNumber(purchase.discountAmount)) })
+  }
+  if (toNumber(purchase.shippingCost) > 0) {
+    totals.push({ label: 'Shipping:', value: formatCurrency(toNumber(purchase.shippingCost)) })
+  }
+  totals.push({ label: 'TOTAL:', value: formatCurrency(toNumber(purchase.totalAmount)), bold: true })
+
+  totals.forEach((total) => {
+    if (total.bold) {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+    } else {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+    }
+
+    doc.text(total.label, 140, yPos)
+    doc.text(total.value, 200, yPos, { align: 'right' })
+    yPos += total.bold ? 8 : 6
+  })
+
+  // Notes Section
+  if (purchase.notes) {
+    yPos += 5
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    doc.text('Notes:', 15, yPos)
+    yPos += 5
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    const splitNotes = doc.splitTextToSize(String(purchase.notes), 180)
+    doc.text(splitNotes, 15, yPos)
+    yPos += splitNotes.length * 5
+  }
+
+  // Signature Section
+  yPos += 15
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.text('Prepared By:', 15, yPos)
+  doc.text('Approved By:', 140, yPos)
+
+  yPos += 15
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.setDrawColor(156, 163, 175) // Gray
+  doc.line(15, yPos, 80, yPos)
+  doc.line(140, yPos, 200, yPos)
+
+  yPos += 3
+  doc.setTextColor(107, 114, 128)
+  doc.text('Signature & Date', 15, yPos)
+  doc.text('Signature & Date', 140, yPos)
+
+  // Convert to buffer and return
+  const pdfBuffer = Buffer.from(doc.output('arraybuffer'))
+
+  return new NextResponse(pdfBuffer, {
+    headers: {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${purchase.purchaseOrderNumber}.pdf"`,
+    },
+  })
+}
+
+function toNumber(value: any): number {
+  if (value === null || value === undefined) return 0
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : 0
+  }
+  const parsed = parseFloat(value.toString())
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function formatQuantity(value: number): string {
+  const safe = toNumber(value)
+  if (Number.isInteger(safe)) {
+    return safe.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  }
+  return safe.toFixed(2).replace(/\.?0+$/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+}
+
+function formatDateHuman(value: any): string {
+  if (!value) return ''
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ''
+  return parsed.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+
+function formatCurrency(amount: number): string {
+  const safe = toNumber(amount)
+  // Format number with commas, ensuring 2 decimal places
+  const absValue = Math.abs(safe)
+  const formatted = absValue.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  // Add sign if negative (for discounts)
+  const sign = safe < 0 ? '-' : ''
+  // Use PHP text instead of peso symbol to avoid rendering issues
+  return `${sign}PHP ${formatted}`
 }
 
 /**
@@ -335,127 +405,215 @@ async function generateExcel(purchase: any) {
   const workbook = new ExcelJS.Workbook()
   const worksheet = workbook.addWorksheet('Purchase Order')
 
-  // Set column widths
   worksheet.columns = [
-    { width: 5 },
-    { width: 15 },
-    { width: 30 },
+    { width: 6 },
+    { width: 32 },
+    { width: 18 },
     { width: 12 },
-    { width: 12 },
-    { width: 15 },
-    { width: 15 },
+    { width: 18 },
+    { width: 20 },
   ]
 
-  // Header - Business Info
-  worksheet.mergeCells('A1:G1')
-  const headerCell = worksheet.getCell('A1')
-  headerCell.value = purchase.business.name
-  headerCell.font = { size: 16, bold: true }
-  headerCell.alignment = { horizontal: 'center', vertical: 'middle' }
+  const headerColor = 'FF1D4ED8'
+  const borderColor = { argb: 'FFD1D5DB' }
+  const currencyFormat = '"PHP "#,##0.00'
+  const quantityFormat = '#,##0.##'
 
-  worksheet.mergeCells('A2:G2')
-  const addressCell = worksheet.getCell('A2')
-  addressCell.value = purchase.business.address || ''
-  addressCell.alignment = { horizontal: 'center' }
+  const businessName = purchase.business?.name || 'Company Name'
+  const businessAddress = purchase.business?.address || ''
+  const businessPhone = purchase.business?.phone || ''
+  const businessEmail = purchase.business?.email || ''
+  const purchaseDate = purchase.purchaseDate || purchase.orderDate || purchase.createdAt
+  const supplier = purchase.supplier || {}
 
-  worksheet.mergeCells('A3:G3')
-  const contactCell = worksheet.getCell('A3')
-  contactCell.value = `Phone: ${purchase.business.phone || 'N/A'} | Email: ${purchase.business.email || 'N/A'}`
-  contactCell.alignment = { horizontal: 'center' }
+  const contactLine = [
+    businessPhone ? `Phone: ${businessPhone}` : null,
+    businessEmail ? `Email: ${businessEmail}` : null,
+  ]
+    .filter(Boolean)
+    .join(' | ')
 
-  // Title
-  worksheet.addRow([])
-  worksheet.mergeCells('A5:G5')
-  const titleCell = worksheet.getCell('A5')
+  worksheet.mergeCells('A1:C1')
+  const businessCell = worksheet.getCell('A1')
+  businessCell.value = businessName
+  businessCell.font = { size: 18, bold: true, color: { argb: headerColor } }
+
+  worksheet.mergeCells('D1:F1')
+  const titleCell = worksheet.getCell('D1')
   titleCell.value = 'PURCHASE ORDER'
-  titleCell.font = { size: 14, bold: true }
-  titleCell.alignment = { horizontal: 'center' }
+  titleCell.font = { size: 18, bold: true }
+  titleCell.alignment = { horizontal: 'right' }
+
+  worksheet.mergeCells('A2:C2')
+  worksheet.getCell('A2').value = businessAddress
+
+  worksheet.mergeCells('A3:C3')
+  worksheet.getCell('A3').value = contactLine
+
+  worksheet.mergeCells('D2:F2')
+  worksheet.getCell('D2').value = `PO #: ${purchase.purchaseOrderNumber || ''}`
+  worksheet.getCell('D2').alignment = { horizontal: 'right' }
+
+  worksheet.mergeCells('D3:F3')
+  worksheet.getCell('D3').value = purchaseDate ? `Date: ${formatDateHuman(purchaseDate)}` : ''
+  worksheet.getCell('D3').alignment = { horizontal: 'right' }
+
+  worksheet.mergeCells('D4:F4')
+  worksheet.getCell('D4').value = purchase.expectedDeliveryDate
+    ? `Expected Delivery: ${formatDateHuman(purchase.expectedDeliveryDate)}`
+    : ''
+  worksheet.getCell('D4').alignment = { horizontal: 'right' }
+
+  worksheet.mergeCells('D5:F5')
+  worksheet.getCell('D5').value = `Status: ${(purchase.status || '').toString().toUpperCase()}`
+  worksheet.getCell('D5').alignment = { horizontal: 'right' }
 
   worksheet.addRow([])
 
-  // PO Details
-  worksheet.addRow(['', 'PO Number:', purchase.purchaseOrderNumber, '', '', 'SUPPLIER:', purchase.supplier.name])
-  worksheet.addRow(['', 'Date:', new Date(purchase.orderDate).toLocaleDateString(), '', '', 'Address:', purchase.supplier.address || ''])
-  worksheet.addRow(['', 'Status:', purchase.status.toUpperCase(), '', '', 'Phone:', purchase.supplier.phone || ''])
+  const supplierHeaderRow = worksheet.addRow(['SUPPLIER INFORMATION'])
+  worksheet.mergeCells(`A${supplierHeaderRow.number}:F${supplierHeaderRow.number}`)
+  supplierHeaderRow.font = { bold: true }
+  const supplierDetails: Array<[string, string]> = [
+    ['Name', supplier.name || 'N/A'],
+  ]
+  if (supplier.address) {
+    supplierDetails.push(['Address', supplier.address])
+  }
+  const supplierPhoneCsv = supplier.mobile || supplier.alternateNumber || ''
+  supplierDetails.push(['Phone', supplierPhoneCsv || 'N/A'])
+  supplierDetails.push(['Email', supplier.email || 'N/A'])
 
-  if (purchase.expectedDeliveryDate) {
-    worksheet.addRow(['', 'Expected Delivery:', new Date(purchase.expectedDeliveryDate).toLocaleDateString(), '', '', 'Email:', purchase.supplier.email || ''])
+  supplierDetails.forEach(([label, value]) => {
+    const row = worksheet.addRow([`${label}:`, value])
+    worksheet.getCell(`A${row.number}`).font = { bold: true }
+    worksheet.mergeCells(`B${row.number}:F${row.number}`)
+  })
+
+  worksheet.addRow([])
+
+  const applyBorder = (row: ExcelJS.Row) => {
+    row.eachCell((cell) => {
+      cell.border = {
+        top: { style: 'thin', color: borderColor },
+        bottom: { style: 'thin', color: borderColor },
+        left: { style: 'thin', color: borderColor },
+        right: { style: 'thin', color: borderColor },
+      }
+    })
   }
 
-  worksheet.addRow([])
-
-  // Items Table Header
-  const headerRow = worksheet.addRow(['', 'Item Code', 'Description', 'Qty Ordered', 'Qty Received', 'Unit Cost', 'Total'])
-  headerRow.font = { bold: true }
-  headerRow.fill = {
+  const tableHeaderRow = worksheet.addRow(['#', 'Product', 'SKU', 'Quantity', 'Unit Price', 'Total'])
+  tableHeaderRow.font = { bold: true, color: { argb: 'FF111827' } }
+  tableHeaderRow.fill = {
     type: 'pattern',
     pattern: 'solid',
-    fgColor: { argb: 'FFE0E0E0' },
+    fgColor: { argb: 'FFEFF6FF' },
   }
+  tableHeaderRow.alignment = { horizontal: 'center', vertical: 'middle' }
+  applyBorder(tableHeaderRow)
 
-  // Items Data
   purchase.items.forEach((item: any, index: number) => {
-    const itemName = item.product.name
-    const variationName = item.productVariation?.name || ''
-    const fullDescription = variationName ? `${itemName} - ${variationName}` : itemName
-    const lineTotal = parseFloat(item.quantity.toString()) * parseFloat(item.unitCost.toString())
+    const description = [item.product?.name, item.productVariation?.name].filter(Boolean).join(' - ')
+    const quantity = toNumber(item.quantity)
+    const unitCost = toNumber(item.unitCost)
+    const lineTotal = quantity * unitCost
 
     const row = worksheet.addRow([
-      '',
-      item.product.sku || `#${index + 1}`,
-      fullDescription,
-      parseFloat(item.quantity.toString()),
-      parseFloat(item.quantityReceived.toString()),
-      parseFloat(item.unitCost.toString()),
+      index + 1,
+      description || '—',
+      item.product?.sku || '—',
+      quantity,
+      unitCost,
       lineTotal,
     ])
 
-    // Format currency columns
-    row.getCell(6).numFmt = '₱#,##0.00'
-    row.getCell(7).numFmt = '₱#,##0.00'
+    row.getCell(1).alignment = { horizontal: 'center' }
+    row.getCell(2).alignment = { wrapText: true }
+    row.getCell(4).numFmt = quantityFormat
+    row.getCell(4).alignment = { horizontal: 'right' }
+    row.getCell(5).numFmt = currencyFormat
+    row.getCell(5).alignment = { horizontal: 'right' }
+    row.getCell(6).numFmt = currencyFormat
+    row.getCell(6).alignment = { horizontal: 'right' }
+
+    applyBorder(row)
   })
 
-  // Totals Section
   worksheet.addRow([])
-  const subtotalRow = worksheet.addRow(['', '', '', '', '', 'Subtotal:', parseFloat(purchase.subtotal.toString())])
-  subtotalRow.getCell(7).numFmt = '₱#,##0.00'
-  subtotalRow.getCell(6).font = { bold: true }
+  worksheet.addRow([])
 
-  if (parseFloat(purchase.taxAmount.toString()) > 0) {
-    const taxRow = worksheet.addRow(['', '', '', '', '', 'Tax:', parseFloat(purchase.taxAmount.toString())])
-    taxRow.getCell(7).numFmt = '₱#,##0.00'
+  const addSummaryRow = (label: string, value: number, options?: { bold?: boolean; topBorder?: boolean; bottomBorder?: boolean; background?: boolean }) => {
+    const row = worksheet.addRow(['', '', '', '', `${label}`, value])
+    row.getCell(5).alignment = { horizontal: 'right' }
+    row.getCell(6).alignment = { horizontal: 'right' }
+    row.getCell(6).numFmt = currencyFormat
+    if (options?.bold) {
+      row.getCell(5).font = { bold: true, size: 11 }
+      row.getCell(6).font = { bold: true, size: 11 }
+    }
+    if (options?.background) {
+      row.getCell(5).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFF3F4F6' },
+      }
+      row.getCell(6).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFF3F4F6' },
+      }
+    }
+    if (options?.topBorder || options?.bottomBorder) {
+      const border: Partial<ExcelJS.Border> = { style: 'thin', color: borderColor }
+      row.getCell(5).border = {
+        top: options?.topBorder ? border : undefined,
+        bottom: options?.bottomBorder ? border : undefined,
+        left: border,
+        right: undefined,
+      }
+      row.getCell(6).border = {
+        top: options?.topBorder ? border : undefined,
+        bottom: options?.bottomBorder ? border : undefined,
+        left: undefined,
+        right: border,
+      }
+    }
+    return row
   }
 
-  if (parseFloat(purchase.discountAmount.toString()) > 0) {
-    const discountRow = worksheet.addRow(['', '', '', '', '', 'Discount:', -parseFloat(purchase.discountAmount.toString())])
-    discountRow.getCell(7).numFmt = '₱#,##0.00'
+  addSummaryRow('Subtotal:', toNumber(purchase.subtotal), { topBorder: true })
+  if (toNumber(purchase.taxAmount) > 0) {
+    addSummaryRow('Tax:', toNumber(purchase.taxAmount))
   }
-
-  if (parseFloat(purchase.shippingCost.toString()) > 0) {
-    const shippingRow = worksheet.addRow(['', '', '', '', '', 'Shipping:', parseFloat(purchase.shippingCost.toString())])
-    shippingRow.getCell(7).numFmt = '₱#,##0.00'
+  if (toNumber(purchase.discountAmount) > 0) {
+    addSummaryRow('Discount:', -toNumber(purchase.discountAmount))
   }
+  if (toNumber(purchase.shippingCost) > 0) {
+    addSummaryRow('Shipping:', toNumber(purchase.shippingCost))
+  }
+  addSummaryRow('TOTAL:', toNumber(purchase.totalAmount), { bold: true, topBorder: true, bottomBorder: true, background: true })
 
-  const totalRow = worksheet.addRow(['', '', '', '', '', 'TOTAL:', parseFloat(purchase.totalAmount.toString())])
-  totalRow.getCell(6).font = { bold: true, size: 12 }
-  totalRow.getCell(7).font = { bold: true, size: 12 }
-  totalRow.getCell(7).numFmt = '₱#,##0.00'
-
-  // Notes
   if (purchase.notes) {
     worksheet.addRow([])
-    const notesLabelRow = worksheet.addRow(['', 'Notes:'])
-    notesLabelRow.getCell(2).font = { bold: true }
-    worksheet.mergeCells(`B${worksheet.lastRow!.number + 1}:G${worksheet.lastRow!.number + 1}`)
-    const notesRow = worksheet.addRow(['', purchase.notes])
-    notesRow.getCell(2).alignment = { wrapText: true }
+    const notesHeader = worksheet.addRow(['Notes:'])
+    worksheet.mergeCells(`A${notesHeader.number}:F${notesHeader.number}`)
+    notesHeader.font = { bold: true }
+
+    const notesRow = worksheet.addRow([String(purchase.notes)])
+    worksheet.mergeCells(`A${notesRow.number}:F${notesRow.number}`)
+    notesRow.alignment = { wrapText: true }
   }
 
-  // Payment Terms
   worksheet.addRow([])
-  worksheet.addRow(['', 'Payment Terms:', `${purchase.supplier.paymentTerms || 30} days`])
+  const signatureLabels = worksheet.addRow(['Prepared By:', '', '', '', 'Approved By:', ''])
+  signatureLabels.getCell(1).font = { bold: true }
+  signatureLabels.getCell(5).font = { bold: true }
 
-  // Generate buffer
+  const signatureLines = worksheet.addRow(['___________________________', '', '', '', '___________________________', ''])
+  const signatureCaptions = worksheet.addRow(['Signature & Date', '', '', '', 'Signature & Date', ''])
+  signatureCaptions.getCell(1).font = { size: 9, color: { argb: 'FF6B7280' } }
+  signatureCaptions.getCell(5).font = { size: 9, color: { argb: 'FF6B7280' } }
+
   const buffer = await workbook.xlsx.writeBuffer()
 
   return new NextResponse(buffer, {

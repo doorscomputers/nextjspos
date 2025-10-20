@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**UltimatePOS Modern** is a multi-tenant Point of Sale (POS) system built with Next.js 15, Prisma ORM, NextAuth, and PostgreSQL/MySQL. It features role-based access control (RBAC), AI-powered assistance via OpenAI, and a responsive design using Tailwind CSS.
+**Igoro Tech(IT) Inventory Management System** is a multi-tenant Point of Sale (POS) and Inventory Management system built with Next.js 15, Prisma ORM, NextAuth, and PostgreSQL/MySQL. It features role-based access control (RBAC), AI-powered assistance via OpenAI, and a responsive design using Tailwind CSS.
 
 ## Commands
 
@@ -86,7 +86,7 @@ DATABASE_URL="postgresql://user:password@localhost:5432/db"  # or MySQL
 OPENAI_API_KEY="sk-proj-..."                                  # For AI features
 NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="random-secret-min-32-chars"
-NEXT_PUBLIC_APP_NAME="UltimatePOS Modern"
+NEXT_PUBLIC_APP_NAME="Igoro Tech(IT) Inventory Management System"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ```
 
@@ -155,3 +155,5 @@ Import from `src/lib/prisma.ts` (handles singleton pattern for dev/prod)
 2. Login with different demo accounts to see role-based UI
 3. Check sidebar menu visibility based on permissions
 4. Verify API authorization in route handlers
+- No More Errors on UI Designs
+- add to memory. please save this because I will import the latest csv with updated quantities in the coming days

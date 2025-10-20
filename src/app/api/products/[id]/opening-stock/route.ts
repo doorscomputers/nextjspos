@@ -243,7 +243,7 @@ export async function POST(
             data: {
               businessId: parseInt(businessId), // Required for denormalization
               productId: product.id,
-              name: 'DUMMY',
+              name: 'Default',
               sku: product.sku,
               purchasePrice: entry.purchasePrice ? parseFloat(entry.purchasePrice) : product.purchasePrice || 0,
               sellingPrice: product.sellingPrice || 0,
@@ -348,7 +348,7 @@ export async function POST(
           locationId: parseInt(entry.locationId),
           locationName: location?.name,
           variationId: defaultVariation.id,
-          variationName: 'DUMMY',
+          variationName: 'Default',
           quantity: parseFloat(entry.quantity),
           unitCost: entry.purchasePrice ? parseFloat(entry.purchasePrice) : null
         })

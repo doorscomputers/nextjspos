@@ -79,6 +79,7 @@ export default function ImportProductsPage() {
     try {
       // Parse CSV file
       Papa.parse(file, {
+        delimiter: "", // Auto-detect delimiter (comma or tab)
         header: true,
         skipEmptyLines: true,
         complete: async (results) => {

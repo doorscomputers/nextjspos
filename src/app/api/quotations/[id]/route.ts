@@ -10,7 +10,7 @@ import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -29,7 +29,7 @@ export async function DELETE(
       )
     }
 
-    const quotationId = parseInt(params.id)
+    const quotationId = parseInt((await params).id)
 
     // Find the quotation first to verify ownership and get details
     const quotation = await prisma.quotation.findFirst({

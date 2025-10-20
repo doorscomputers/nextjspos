@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS, getUserAccessibleLocationIds } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { updateStock, StockTransactionType } from '@/lib/stockOperations'
 import * as XLSX from 'xlsx'
 
 interface InventoryCorrectionRow {
@@ -218,13 +219,14 @@ export async function POST(request: NextRequest) {
     // Either ALL succeed or NONE succeed
     const result = await prisma.$transaction(async (tx) => {
       const createdCorrections = []
-      const createdTransactions = []
+      const userId = parseInt(user.id.toString())
+      const bizId = parseInt(businessId)
 
       for (const correction of corrections) {
         // 1. Create inventory correction record
         const inventoryCorrection = await tx.inventoryCorrection.create({
           data: {
-            businessId: parseInt(businessId),
+            businessId: bizId,
             locationId: locId,
             productId: correction.productId,
             productVariationId: correction.variationId,
@@ -233,15 +235,15 @@ export async function POST(request: NextRequest) {
             difference: correction.difference,
             reason,
             remarks: `Bulk import via physical inventory count - ${file.name}`,
-            createdBy: parseInt(user.id.toString()),
+            createdBy: userId,
             createdByName: user.username,
             status: 'approved',
-            approvedBy: parseInt(user.id.toString()),
+            approvedBy: userId,
             approvedAt: new Date()
           }
         })
 
-        // 2. Get current inventory
+        // 2. Get current inventory to capture old quantity for audit
         const inventory = await tx.variationLocationDetails.findFirst({
           where: {
             productVariationId: correction.variationId,
@@ -255,31 +257,24 @@ export async function POST(request: NextRequest) {
 
         const currentQty = parseFloat(inventory.qtyAvailable.toString())
 
-        // 3. Create stock transaction
-        const stockTransaction = await tx.stockTransaction.create({
-          data: {
-            businessId: parseInt(businessId),
-            locationId: locId,
-            productId: correction.productId,
-            productVariationId: correction.variationId,
-            type: 'adjustment',
-            quantity: correction.difference,
-            unitCost: parseFloat(inventory.purchasePrice?.toString() || '0'),
-            balanceQty: correction.physicalCount,
+        // 3. Update inventory using centralized helper with row locks and product_history
+        const stockTransaction = await updateStock(
+          correction.variationId,
+          locId,
+          correction.difference,
+          {
+            type: StockTransactionType.ADJUSTMENT,
             referenceType: 'inventory_correction',
             referenceId: inventoryCorrection.id,
-            createdBy: parseInt(user.id.toString()),
-            notes: `Physical inventory count: ${reason} - File: ${file.name}`
-          }
-        })
+            notes: `Physical inventory count: ${reason} - File: ${file.name}`,
+            createdBy: userId,
+            businessId: bizId,
+            displayName: user.username,
+          },
+          tx
+        )
 
-        // 4. CRITICAL: Update inventory quantity
-        await tx.variationLocationDetails.update({
-          where: { id: inventory.id },
-          data: { qtyAvailable: correction.physicalCount }
-        })
-
-        // 5. Link stock transaction
+        // 4. Link stock transaction to correction record
         await tx.inventoryCorrection.update({
           where: { id: inventoryCorrection.id },
           data: { stockTransactionId: stockTransaction.id }

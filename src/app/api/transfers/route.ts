@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { getManilaDate } from '@/lib/timezone'
 
 // GET - List all stock transfers
 export async function GET(request: NextRequest) {
@@ -158,15 +159,14 @@ export async function POST(request: NextRequest) {
     const {
       fromLocationId,
       toLocationId,
-      transferDate,
       items, // Array of { productId, productVariationId, quantity, serialNumberIds?: [] }
       notes,
     } = body
 
     // Validation
-    if (!fromLocationId || !toLocationId || !transferDate || !items || items.length === 0) {
+    if (!fromLocationId || !toLocationId || !items || items.length === 0) {
       return NextResponse.json(
-        { error: 'Missing required fields: fromLocationId, toLocationId, transferDate, items' },
+        { error: 'Missing required fields: fromLocationId, toLocationId, items' },
         { status: 400 }
       )
     }
@@ -326,7 +326,7 @@ export async function POST(request: NextRequest) {
           fromLocationId: parseInt(fromLocationId),
           toLocationId: parseInt(toLocationId),
           transferNumber,
-          transferDate: new Date(transferDate),
+          transferDate: getManilaDate(), // MANILA TIMEZONE (UTC+8) - prevents backdating fraud
           status: 'draft', // Step 1: Initial draft status
           stockDeducted: false, // CRITICAL: Stock NOT deducted yet
           notes,

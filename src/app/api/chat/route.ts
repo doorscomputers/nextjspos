@@ -3,7 +3,8 @@ import { streamText } from 'ai'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
-export const runtime = 'edge'
+// Remove edge runtime to allow NextAuth compatibility
+// export const runtime = 'edge'
 
 export async function POST(req: Request) {
   // Check authentication

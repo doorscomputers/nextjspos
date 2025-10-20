@@ -126,6 +126,33 @@ export async function PUT(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
+    // Validate location requirement based on assigned roles
+    if (roleIds && Array.isArray(roleIds) && roleIds.length > 0) {
+      // Get role names for the assigned role IDs
+      const assignedRoles = await prisma.role.findMany({
+        where: { id: { in: roleIds } },
+        select: { name: true }
+      })
+
+      const roleNames = assignedRoles.map(r => r.name)
+      const adminRoles = ['Super Admin', 'Branch Admin', 'All Branch Admin']
+      const hasAdminRole = roleNames.some(name => adminRoles.includes(name))
+
+      // Location is ONLY required if user does NOT have an admin role
+      if (!hasAdminRole && locationId === undefined) {
+        // Check if user currently has a location
+        const currentLocation = await prisma.userLocation.findFirst({
+          where: { userId }
+        })
+
+        if (!currentLocation) {
+          return NextResponse.json({
+            error: 'Location is required for transactional roles (Cashier, Manager, Staff). Admin roles can work across all locations.'
+          }, { status: 400 })
+        }
+      }
+    }
+
     // If username is being changed, check if new username is available
     if (username && username !== existingUser.username) {
       const usernameTaken = await prisma.user.findUnique({

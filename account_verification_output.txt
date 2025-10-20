@@ -1,0 +1,245 @@
+=== BUSINESS LOCATIONS ===
+ID: 6 | Name: Baguio | Active: true
+ID: 3 | Name: Bambang | Active: true
+ID: 100 | Name: Future Location 2 | Active: false
+ID: 103 | Name: FutureLocation1 | Active: false
+ID: 102 | Name: FutureLocation3 | Active: false
+ID: 101 | Name: FutureLocation4 | Active: false
+ID: 1 | Name: Main Store | Active: true
+ID: 2 | Name: Main Warehouse | Active: true
+ID: 5 | Name: Santiago | Active: true
+ID: 4 | Name: Tuguegarao | Active: true
+
+=== EXISTING USERS AND LOCATIONS ===
+Username: baguio_clerk
+  Roles: Transfer Creator
+  Locations: NONE
+
+Username: baguio_manager
+  Roles: Transfer Sender
+  Locations: NONE
+
+Username: baguio_receiver
+  Roles: Transfer Receiver
+  Locations: NONE
+
+Username: baguio_supervisor
+  Roles: Transfer Checker
+  Locations: NONE
+
+Username: bambang_cashier
+  Roles: Regular Cashier Main
+  Locations: Bambang
+
+Username: bambang_clerk
+  Roles: Transfer Creator
+  Locations: Bambang
+
+Username: bambang_inv_approver
+  Roles: Inventory Correction Approver
+  Locations: Bambang
+
+Username: bambang_inv_creator
+  Roles: Inventory Correction Creator
+  Locations: Bambang
+
+Username: bambang_manager
+  Roles: Transfer Receiver, Transfer Sender
+  Locations: Bambang
+
+Username: bambang_receiver
+  Roles: Transfer Receiver
+  Locations: Bambang
+
+Username: bambang_sales_mgr
+  Roles: Main Store Branch Manager
+  Locations: Bambang
+
+Username: bambang_supervisor
+  Roles: Transfer Checker
+  Locations: Bambang
+
+Username: cashiermain
+  Roles: Regular Cashier Main
+  Locations: NONE
+
+Username: cebu_mgr
+  Roles: Main Store Branch Manager
+  Locations: NONE
+
+Username: Gemski
+  Roles: All Branch Admin
+  Locations: NONE
+
+Username: jayvillalon
+  Roles: Purchase Approver, Transfer Approver, Return Approver, Inventory Correction Approver, Main Store Transfer Verifier, GRN Approver, All Branch Admin
+  Locations: NONE
+
+Username: Jheirone
+  Roles: Warehouse Manager
+  Locations: NONE
+
+Username: mainmgr
+  Roles: Main Store Branch Manager
+  Locations: Main Store
+
+Username: mainstore_cashier
+  Roles: Regular Cashier Main
+  Locations: Main Store
+
+Username: mainstore_clerk
+  Roles: Transfer Creator
+  Locations: Main Store
+
+Username: mainstore_inv_approver
+  Roles: Inventory Correction Approver
+  Locations: Main Store
+
+Username: mainstore_inv_creator
+  Roles: Inventory Correction Creator
+  Locations: Main Store
+
+Username: mainstore_receiver
+  Roles: Transfer Receiver
+  Locations: Main Store
+
+Username: mainstore_sales_mgr
+  Roles: Main Store Branch Manager
+  Locations: Main Store
+
+Username: mainstore_supervisor
+  Roles: Transfer Checker
+  Locations: Main Store
+
+Username: MainStoreApprove
+  Roles: Transfer Approver
+  Locations: NONE
+
+Username: mainverifier
+  Roles: Main Store Transfer Verifier
+  Locations: NONE
+
+Username: mainwarehouse_cashier
+  Roles: Regular Cashier Main
+  Locations: Main Warehouse
+
+Username: mainwarehouse_inv_approver
+  Roles: Inventory Correction Approver
+  Locations: Main Warehouse
+
+Username: mainwarehouse_inv_creator
+  Roles: Inventory Correction Creator
+  Locations: Main Warehouse
+
+Username: mainwarehouse_sales_mgr
+  Roles: Main Store Branch Manager
+  Locations: Main Warehouse
+
+Username: makati_mgr
+  Roles: Main Store Branch Manager
+  Locations: NONE
+
+Username: pasig_mgr
+  Roles: Main Store Branch Manager
+  Locations: NONE
+
+Username: santiago_clerk
+  Roles: Transfer Creator
+  Locations: NONE
+
+Username: santiago_manager
+  Roles: Transfer Sender
+  Locations: NONE
+
+Username: santiago_receiver
+  Roles: Transfer Receiver
+  Locations: NONE
+
+Username: santiago_supervisor
+  Roles: Transfer Checker
+  Locations: NONE
+
+Username: store_manager
+  Roles: Transfer Sender, Transfer Receiver
+  Locations: Main Store
+
+Username: superadmin
+  Roles: Super Admin
+  Locations: NONE
+
+Username: tugue_clerk
+  Roles: Transfer Creator
+  Locations: Tuguegarao
+
+Username: tugue_manager
+  Roles: Transfer Sender
+  Locations: Tuguegarao
+
+Username: tugue_receiver
+  Roles: Transfer Receiver
+  Locations: Tuguegarao
+
+Username: tugue_supervisor
+  Roles: Transfer Checker
+  Locations: Tuguegarao
+
+Username: tuguegarao_cashier
+  Roles: Regular Cashier Main
+  Locations: Tuguegarao
+
+Username: tuguegarao_inv_approver
+  Roles: Inventory Correction Approver
+  Locations: Tuguegarao
+
+Username: tuguegarao_inv_creator
+  Roles: Inventory Correction Creator
+  Locations: Tuguegarao
+
+Username: tuguegarao_sales_mgr
+  Roles: Main Store Branch Manager
+  Locations: Tuguegarao
+
+Username: warehouse_clerk
+  Roles: Transfer Creator
+  Locations: Main Warehouse
+
+Username: warehouse_manager
+  Roles: Transfer Sender
+  Locations: Main Warehouse
+
+Username: warehouse_receiver
+  Roles: Transfer Receiver
+  Locations: Main Warehouse
+
+Username: warehouse_supervisor
+  Roles: Transfer Checker
+  Locations: Main Warehouse
+
+Username: warehousesender
+  Roles: Warehouse Transfer Sender
+  Locations: NONE
+
+
+=== AVAILABLE ROLES ===
+ID: 4 | Name: Accounting Staff
+ID: 8 | Name: All Branch Admin
+ID: 9 | Name: Bambang Branch Manager
+ID: 2 | Name: Branch Admin
+ID: 13 | Name: GRN Approver
+ID: 14 | Name: Inventory Correction Approver
+ID: 30 | Name: Inventory Correction Creator
+ID: 3 | Name: Main Store Branch Manager
+ID: 11 | Name: Main Store Transfer Verifier
+ID: 16 | Name: Purchase Approver
+ID: 17 | Name: QC Inspector
+ID: 6 | Name: Regular Cashier Main
+ID: 5 | Name: Regular Staff
+ID: 15 | Name: Return Approver
+ID: 1 | Name: Super Admin
+ID: 12 | Name: Transfer Approver
+ID: 27 | Name: Transfer Checker
+ID: 26 | Name: Transfer Creator
+ID: 29 | Name: Transfer Receiver
+ID: 28 | Name: Transfer Sender
+ID: 7 | Name: Warehouse Manager
+ID: 10 | Name: Warehouse Transfer Sender

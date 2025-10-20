@@ -18,7 +18,7 @@ import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -34,7 +34,7 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const userId = parseInt(params.id)
+    const userId = parseInt((await params).id)
     if (isNaN(userId)) {
       return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 })
     }

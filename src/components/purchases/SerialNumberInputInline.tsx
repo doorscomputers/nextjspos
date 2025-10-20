@@ -1,59 +1,79 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { XMarkIcon, QrCodeIcon } from '@heroicons/react/24/outline'
-import { toast } from 'sonner'
+import { useState } from "react"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { XMarkIcon, QrCodeIcon } from "@heroicons/react/24/outline"
+import { toast } from "sonner"
 
 export interface SerialNumberData {
   serialNumber: string
   imei?: string
-  condition: 'new' | 'used' | 'refurbished' | 'damaged' | 'defective'
+  condition: "new" | "used" | "refurbished" | "damaged" | "defective"
 }
 
 interface SerialNumberInputInlineProps {
   requiredCount: number
-  productName: string
   onSerialNumbersChange: (serialNumbers: SerialNumberData[]) => void
   initialSerialNumbers?: SerialNumberData[]
 }
 
 export function SerialNumberInputInline({
   requiredCount,
-  productName,
   onSerialNumbersChange,
   initialSerialNumbers = [],
 }: SerialNumberInputInlineProps) {
   const [serialNumbers, setSerialNumbers] = useState<SerialNumberData[]>(initialSerialNumbers)
-  const [serialNumber, setSerialNumber] = useState('')
+  const [serialNumber, setSerialNumber] = useState("")
+  const [isChecking, setIsChecking] = useState(false)
 
-  const addSerialNumber = () => {
-    if (!serialNumber.trim()) {
-      toast.error('Serial number is required')
+  const addSerialNumber = async () => {
+    const trimmed = serialNumber.trim()
+
+    if (!trimmed) {
+      toast.error("Serial number is required")
       return
     }
 
-    // Check duplicate
-    if (serialNumbers.some(sn => sn.serialNumber === serialNumber.trim())) {
-      toast.error('This serial number already exists')
+    if (serialNumbers.some((sn) => sn.serialNumber === trimmed)) {
+      toast.error("This serial number is already in the list")
       return
+    }
+
+    try {
+      setIsChecking(true)
+      const response = await fetch(`/api/serial-numbers/check?serial=${encodeURIComponent(trimmed)}`)
+
+      if (!response.ok) {
+        throw new Error("Unable to validate serial number")
+      }
+
+      const result = await response.json()
+
+      if (result.exists) {
+        toast.error(`Serial number already exists in the system (Receipt: ${result.serial.receiptNumber})`)
+        return
+      }
+    } catch (error) {
+      console.error("Serial validation failed:", error)
+      toast.error("Failed to validate serial number. Please try again.")
+      return
+    } finally {
+      setIsChecking(false)
     }
 
     const newSerialNumber: SerialNumberData = {
-      serialNumber: serialNumber.trim(),
-      condition: 'new'
+      serialNumber: trimmed,
+      condition: "new",
     }
 
     const updated = [...serialNumbers, newSerialNumber]
     setSerialNumbers(updated)
     onSerialNumbersChange(updated)
 
-    // Reset form
-    setSerialNumber('')
+    setSerialNumber("")
 
-    // Show brief success
     const remaining = requiredCount - updated.length
     if (remaining > 0) {
       toast.success(`Serial added! ${remaining} remaining.`)
@@ -66,7 +86,7 @@ export function SerialNumberInputInline({
     const updated = serialNumbers.filter((_, i) => i !== index)
     setSerialNumbers(updated)
     onSerialNumbersChange(updated)
-    toast.success('Serial number removed')
+    toast.success("Serial number removed")
   }
 
   const progressPercentage = requiredCount > 0 ? (serialNumbers.length / requiredCount) * 100 : 0
@@ -91,13 +111,15 @@ export function SerialNumberInputInline({
         <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
           <div
             className={`h-3 rounded-full transition-all ${
-              isComplete ? 'bg-green-500' : 'bg-blue-500'
+              isComplete ? "bg-green-500" : "bg-blue-500"
             }`}
             style={{ width: `${Math.min(progressPercentage, 100)}%` }}
           />
         </div>
         <p className="text-sm text-gray-600">
-          {isMissing ? `${requiredCount - serialNumbers.length} serial numbers remaining` : '✅ All serial numbers entered'}
+          {isMissing
+            ? `${requiredCount - serialNumbers.length} serial number${requiredCount - serialNumbers.length === 1 ? "" : "s"} remaining`
+            : "All serial numbers entered"}
         </p>
       </div>
 
@@ -112,23 +134,18 @@ export function SerialNumberInputInline({
               className="flex-1 font-mono"
               autoFocus
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
+                if (e.key === "Enter" && !isChecking) {
                   e.preventDefault()
                   addSerialNumber()
                 }
               }}
+              disabled={isChecking}
             />
-            <Button
-              type="button"
-              onClick={addSerialNumber}
-              disabled={!serialNumber.trim()}
-            >
+            <Button type="button" onClick={addSerialNumber} disabled={!serialNumber.trim() || isChecking}>
               Add
             </Button>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
-            💡 Tip: Press Enter after scanning or typing each serial number
-          </p>
+          <p className="text-xs text-gray-500 mt-2">Tip: Press Enter after scanning or typing each serial number</p>
         </div>
       )}
 
@@ -142,9 +159,7 @@ export function SerialNumberInputInline({
                 key={index}
                 className="flex items-center justify-between p-2 bg-white rounded border border-gray-200"
               >
-                <span className="text-sm font-mono font-semibold text-gray-900">
-                  {sn.serialNumber}
-                </span>
+                <span className="text-sm font-mono font-semibold text-gray-900">{sn.serialNumber}</span>
                 <Button
                   type="button"
                   variant="ghost"
@@ -164,7 +179,7 @@ export function SerialNumberInputInline({
       {isMissing && serialNumbers.length > 0 && (
         <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-2">
           <p className="text-xs text-yellow-800 font-medium">
-            ⚠️ Still need {requiredCount - serialNumbers.length} more serial number(s)
+            Still need {requiredCount - serialNumbers.length} more serial number{requiredCount - serialNumbers.length === 1 ? "" : "s"}
           </p>
         </div>
       )}

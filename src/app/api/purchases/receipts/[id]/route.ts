@@ -84,16 +84,9 @@ export async function GET(
     // Check location access
     const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
     if (!hasAccessAllLocations) {
-      const userLocation = await prisma.userLocation.findUnique({
-        where: {
-          userId_locationId: {
-            userId: parseInt(user.id),
-            locationId: receipt.locationId,
-          },
-        },
-      })
+      const userLocationIds = user.locationIds || []
 
-      if (!userLocation) {
+      if (!userLocationIds.includes(receipt.locationId)) {
         return NextResponse.json(
           { error: 'You do not have access to this location' },
           { status: 403 }
@@ -175,6 +168,11 @@ export async function GET(
         // Get product data - either from the item directly or from purchaseItem
         const productId = item.purchaseItem?.productId || item.productId
         const variationId = item.purchaseItem?.productVariationId || item.productVariationId
+
+        // Debug serial numbers
+        console.log(`Item ${item.id} serialNumbers:`, item.serialNumbers)
+        console.log(`Type:`, typeof item.serialNumbers)
+        console.log(`Is Array:`, Array.isArray(item.serialNumbers))
 
         return {
           ...item,

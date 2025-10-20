@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
+import { transferStockOut } from '@/lib/stockOperations'
+import { withIdempotency } from '@/lib/idempotency'
 
 /**
  * POST /api/transfers/[id]/send
@@ -16,8 +18,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const session = await getServerSession(authOptions)
+  const { id } = await params
+  return withIdempotency(request, `/api/transfers/${id}/send`, async () => {
+    try {
+      const session = await getServerSession(authOptions)
 
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -26,8 +30,13 @@ export async function POST(
     const user = session.user as any
     const businessId = user.businessId
     const userId = user.id
+    const businessIdNumber = Number(businessId)
+    const userIdNumber = Number(userId)
+    const userDisplayName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+      user.username ||
+      `User#${userIdNumber}`
 
-    const { id } = await params
     const transferId = parseInt(id)
 
     const body = await request.json()
@@ -45,7 +54,7 @@ export async function POST(
     const transfer = await prisma.stockTransfer.findFirst({
       where: {
         id: transferId,
-        businessId: parseInt(businessId),
+        businessId: businessIdNumber,
         deletedAt: null,
       },
       include: {
@@ -70,7 +79,7 @@ export async function POST(
     if (!hasAccessAllLocations) {
       const userLocation = await prisma.userLocation.findFirst({
         where: {
-          userId: parseInt(userId),
+          userId: userIdNumber,
           locationId: transfer.fromLocationId,
         },
       })
@@ -83,7 +92,7 @@ export async function POST(
     }
 
     // ENFORCE: Sender must be different from creator and checker (separation of duties)
-    if (transfer.createdBy === parseInt(userId)) {
+    if (transfer.createdBy === userIdNumber) {
       return NextResponse.json(
         {
           error: 'Cannot send your own transfer. A different user must send this transfer for proper control and audit compliance.',
@@ -93,7 +102,7 @@ export async function POST(
       )
     }
 
-    if (transfer.checkedBy === parseInt(userId)) {
+    if (transfer.checkedBy === userIdNumber) {
       return NextResponse.json(
         {
           error: 'Cannot send a transfer you checked. A different user must send this transfer for proper separation of duties.',
@@ -111,57 +120,22 @@ export async function POST(
         const variationId = item.productVariationId
         const quantity = parseFloat(item.quantity.toString())
 
-        // Get current stock at origin location
-        const currentStock = await tx.variationLocationDetails.findFirst({
-          where: {
-            productId,
-            productVariationId: variationId,
-            locationId: transfer.fromLocationId,
-          },
-        })
+        const stockNote =
+          typeof notes === 'string' && notes.trim().length > 0
+            ? `${notes.trim()} (Transfer ${transfer.transferNumber} sent)`
+            : `Transfer ${transfer.transferNumber} sent`
 
-        if (!currentStock) {
-          throw new Error(
-            `Stock record not found for product variation ${variationId} at origin location`
-          )
-        }
-
-        const currentQty = parseFloat(currentStock.qtyAvailable.toString())
-
-        // CRITICAL: Validate sufficient stock
-        if (currentQty < quantity) {
-          throw new Error(
-            `Insufficient stock for product variation ${variationId}. ` +
-            `Available: ${currentQty}, Required: ${quantity}`
-          )
-        }
-
-        const newQty = currentQty - quantity
-
-        // Update stock at origin (deduct)
-        await tx.variationLocationDetails.update({
-          where: { id: currentStock.id },
-          data: {
-            qtyAvailable: newQty,
-            updatedAt: new Date(),
-          },
-        })
-
-        // Create stock transaction (negative = deduction)
-        await tx.stockTransaction.create({
-          data: {
-            businessId: parseInt(businessId),
-            productId,
-            productVariationId: variationId,
-            locationId: transfer.fromLocationId,
-            type: 'transfer_out',
-            quantity: -quantity,
-            balanceQty: newQty,
-            referenceType: 'stock_transfer',
-            referenceId: transferId,
-            createdBy: parseInt(userId),
-            notes: `Transfer ${transfer.transferNumber} sent`,
-          },
+        await transferStockOut({
+          businessId: businessIdNumber,
+          productId,
+          productVariationId: variationId,
+          fromLocationId: transfer.fromLocationId,
+          quantity,
+          transferId,
+          userId: userIdNumber,
+          notes: stockNote,
+          userDisplayName,
+          tx,
         })
 
         // Handle serial numbers if present
@@ -192,7 +166,7 @@ export async function POST(
         data: {
           status: 'in_transit',
           stockDeducted: true, // CRITICAL FLAG
-          sentBy: parseInt(userId),
+          sentBy: userIdNumber,
           sentAt: new Date(),
         },
       })
@@ -202,8 +176,8 @@ export async function POST(
 
     // Create audit log
     await createAuditLog({
-      businessId: parseInt(businessId),
-      userId: parseInt(userId),
+      businessId: businessIdNumber,
+      userId: userIdNumber,
       username: user.username,
       action: 'transfer_send' as AuditAction,
       entityType: EntityType.STOCK_TRANSFER,
@@ -230,4 +204,5 @@ export async function POST(
       { status: 500 }
     )
   }
+  }) // Close idempotency wrapper
 }

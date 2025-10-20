@@ -365,7 +365,7 @@ export default function CreateSalePage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/sales">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
               <ArrowLeftIcon className="w-4 h-4 mr-2" />
               Back
             </Button>
@@ -509,7 +509,7 @@ export default function CreateSalePage() {
                           variant="outline"
                           size="sm"
                           onClick={() => openSerialModal(index)}
-                          className="w-full"
+                          className="w-full shadow-md hover:shadow-lg transition-all duration-200"
                         >
                           {item.serialNumberIds.length > 0 ? `${item.serialNumberIds.length} S/N Selected` : 'Select Serial Numbers'}
                         </Button>
@@ -621,7 +621,7 @@ export default function CreateSalePage() {
               <Button
                 onClick={handleSubmit}
                 disabled={loading || cart.length === 0}
-                className="w-full mt-4"
+                className="w-full mt-4 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
                 size="lg"
               >
                 {loading ? 'Processing...' : 'Complete Sale'}
@@ -683,10 +683,10 @@ export default function CreateSalePage() {
             </div>
 
             <div className="flex gap-2 mt-4">
-              <Button onClick={saveSerialNumbers} className="flex-1">
+              <Button onClick={saveSerialNumbers} className="flex-1 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold">
                 Save Selection
               </Button>
-              <Button variant="outline" onClick={() => setShowSerialModal(false)}>
+              <Button variant="outline" onClick={() => setShowSerialModal(false)} className="shadow-md hover:shadow-lg transition-all duration-200">
                 Cancel
               </Button>
             </div>

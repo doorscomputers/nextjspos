@@ -281,7 +281,8 @@ export default function PurchaseReturnsPage() {
                         <div className="flex gap-2">
                           <Link href={`/dashboard/purchases/returns/${ret.id}`}>
                             <Button variant="outline" size="sm">
-                              <EyeIcon className="w-4 h-4" />
+                              <EyeIcon className="w-4 h-4 mr-2" />
+                              View
                             </Button>
                           </Link>
                         </div>

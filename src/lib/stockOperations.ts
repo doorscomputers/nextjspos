@@ -1,5 +1,67 @@
 import { prisma } from './prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma, type StockTransaction } from '@prisma/client'
+import { validateStockConsistency } from './stockValidation'
+
+type TransactionClient = Prisma.TransactionClient
+
+// Enable/disable post-operation validation (can be toggled via env var)
+const ENABLE_STOCK_VALIDATION = process.env.ENABLE_STOCK_VALIDATION !== 'false' // true by default
+
+const toDecimal = (value: number | string | Prisma.Decimal) =>
+  value instanceof Prisma.Decimal ? value : new Prisma.Decimal(value)
+
+async function resolveUserDisplayName(
+  tx: TransactionClient,
+  userId: number,
+  providedName?: string
+): Promise<string> {
+  if (providedName && providedName.trim().length > 0) {
+    return providedName.trim()
+  }
+
+  const user = await tx.user.findUnique({
+    where: { id: userId },
+    select: {
+      firstName: true,
+      lastName: true,
+      username: true,
+    },
+  })
+
+  if (!user) {
+    return `User#${userId}`
+  }
+
+  const nameParts = [user.firstName, user.lastName].filter(Boolean)
+  if (nameParts.length > 0) {
+    return nameParts.join(' ')
+  }
+
+  return user.username || `User#${userId}`
+}
+
+export type UpdateStockParams = {
+  businessId: number
+  productId: number
+  productVariationId: number
+  locationId: number
+  quantity: number
+  type: StockTransactionType
+  unitCost?: number
+  referenceType?: string
+  referenceId?: number
+  userId: number
+  userDisplayName?: string
+  notes?: string
+  allowNegative?: boolean
+  tx?: TransactionClient
+}
+
+export type UpdateStockResult = {
+  transaction: StockTransaction
+  previousBalance: number
+  newBalance: number
+}
 
 /**
  * Stock Transaction Types
@@ -22,11 +84,15 @@ export enum StockTransactionType {
 export async function getCurrentStock({
   productVariationId,
   locationId,
+  tx,
 }: {
   productVariationId: number
   locationId: number
+  tx?: TransactionClient
 }): Promise<number> {
-  const stock = await prisma.variationLocationDetails.findUnique({
+  const client = tx ?? prisma
+
+  const stock = await client.variationLocationDetails.findUnique({
     where: {
       productVariationId_locationId: {
         productVariationId,
@@ -48,12 +114,18 @@ export async function checkStockAvailability({
   productVariationId,
   locationId,
   quantity,
+  tx,
 }: {
   productVariationId: number
   locationId: number
   quantity: number
+  tx?: TransactionClient
 }): Promise<{ available: boolean; currentStock: number; shortage: number }> {
-  const currentStock = await getCurrentStock({ productVariationId, locationId })
+  const currentStock = await getCurrentStock({
+    productVariationId,
+    locationId,
+    tx,
+  })
   const available = currentStock >= quantity
   const shortage = available ? 0 : quantity - currentStock
 
@@ -64,97 +136,163 @@ export async function checkStockAvailability({
   }
 }
 
+async function executeStockUpdate(
+  tx: TransactionClient,
+  params: Omit<UpdateStockParams, 'tx'>
+): Promise<UpdateStockResult> {
+  const {
+    businessId,
+    productId,
+    productVariationId,
+    locationId,
+    quantity,
+    type,
+    unitCost,
+    referenceType,
+    referenceId,
+    userId,
+    userDisplayName,
+    notes,
+    allowNegative = false,
+  } = params
+
+  const quantityDecimal = toDecimal(quantity)
+
+  const existingRows = await tx.$queryRaw<
+    { id: number; qty_available: Prisma.Decimal }[]
+  >(
+    Prisma.sql`
+      SELECT id, qty_available
+      FROM variation_location_details
+      WHERE product_variation_id = ${productVariationId}
+        AND location_id = ${locationId}
+      FOR UPDATE
+    `
+  )
+
+  const existingRecord = existingRows[0] ?? null
+  const previousBalanceDecimal = existingRecord
+    ? toDecimal(existingRecord.qty_available)
+    : new Prisma.Decimal(0)
+  const newBalanceDecimal = previousBalanceDecimal.add(quantityDecimal)
+
+  if (!allowNegative && newBalanceDecimal.lt(0)) {
+    throw new Error(
+      `Insufficient stock. Current: ${previousBalanceDecimal.toString()}, Requested: ${Math.abs(quantity)}, Shortage: ${newBalanceDecimal.negated().toString()}`
+    )
+  }
+
+  if (existingRecord) {
+    await tx.variationLocationDetails.update({
+      where: { id: existingRecord.id },
+      data: {
+        qtyAvailable: newBalanceDecimal,
+        updatedAt: new Date(),
+      },
+    })
+  } else {
+    await tx.variationLocationDetails.create({
+      data: {
+        productId,
+        productVariationId,
+        locationId,
+        qtyAvailable: newBalanceDecimal,
+      },
+    })
+  }
+
+  const transaction = await tx.stockTransaction.create({
+    data: {
+      businessId,
+      productId,
+      productVariationId,
+      locationId,
+      type,
+      quantity: quantityDecimal,
+      unitCost: unitCost !== undefined ? toDecimal(unitCost) : undefined,
+      balanceQty: newBalanceDecimal,
+      referenceType,
+      referenceId,
+      createdBy: userId,
+      notes: notes || `Stock ${quantity > 0 ? 'added' : 'deducted'} - ${type}`,
+    },
+  })
+
+  const createdByName = await resolveUserDisplayName(tx, userId, userDisplayName)
+  const unitCostDecimal = unitCost !== undefined ? toDecimal(unitCost) : null
+  const historyReferenceId = referenceId ?? transaction.id
+  const historyReferenceType = referenceType ?? 'stock_transaction'
+
+  await tx.productHistory.create({
+    data: {
+      businessId,
+      locationId,
+      productId,
+      productVariationId,
+      transactionType: type,
+      transactionDate: transaction.createdAt,
+      referenceType: historyReferenceType,
+      referenceId: historyReferenceId,
+      referenceNumber: historyReferenceId?.toString() ?? null,
+      quantityChange: quantityDecimal,
+      balanceQuantity: newBalanceDecimal,
+      unitCost: unitCostDecimal ?? undefined,
+      totalValue:
+        unitCostDecimal !== null
+          ? unitCostDecimal.mul(quantityDecimal.abs())
+          : undefined,
+      createdBy: userId,
+      createdByName,
+      reason: notes || undefined,
+    },
+  })
+
+  // CRITICAL: Validate that physical stock now matches ledger
+  // This ensures no silent failures in stock updates
+  if (ENABLE_STOCK_VALIDATION) {
+    try {
+      await validateStockConsistency(
+        productVariationId,
+        locationId,
+        tx,
+        `After ${type} operation (qty: ${quantity}, ref: ${referenceType}#${referenceId})`
+      )
+    } catch (validationError: any) {
+      // Log the error but don't fail the transaction
+      // This allows us to detect issues without breaking operations
+      console.error('⚠️ STOCK VALIDATION FAILED:', validationError.message)
+
+      // In production, you might want to:
+      // 1. Send an alert/email to admins
+      // 2. Create an audit log entry
+      // 3. Optionally throw the error to fail the transaction
+
+      // Uncomment below to make validation errors fail the transaction:
+      // throw validationError
+    }
+  }
+
+  return {
+    transaction,
+    previousBalance: parseFloat(previousBalanceDecimal.toString()),
+    newBalance: parseFloat(newBalanceDecimal.toString()),
+  }
+}
+
 /**
  * Update stock and create transaction record
  * This is the ONLY function that should modify stock quantities
  */
-export async function updateStock({
-  businessId,
-  productId,
-  productVariationId,
-  locationId,
-  quantity, // Positive for additions, negative for subtractions
-  type,
-  unitCost,
-  referenceType,
-  referenceId,
-  userId,
-  notes,
-  allowNegative = false,
-}: {
-  businessId: number
-  productId: number
-  productVariationId: number
-  locationId: number
-  quantity: number
-  type: StockTransactionType
-  unitCost?: number
-  referenceType?: string
-  referenceId?: number
-  userId: number
-  notes?: string
-  allowNegative?: boolean
-}) {
-  // Get current stock
-  const currentStock = await getCurrentStock({ productVariationId, locationId })
+export async function updateStock(params: UpdateStockParams): Promise<UpdateStockResult> {
+  const { tx, ...rest } = params
 
-  // Calculate new balance
-  const newBalance = currentStock + quantity
-
-  // Prevent negative stock if not allowed
-  if (!allowNegative && newBalance < 0) {
-    throw new Error(
-      `Insufficient stock. Current: ${currentStock}, Requested: ${Math.abs(quantity)}, Shortage: ${Math.abs(newBalance)}`
-    )
+  if (tx) {
+    return executeStockUpdate(tx, rest)
   }
 
-  // Use transaction to ensure atomicity
-  const result = await prisma.$transaction(async (tx) => {
-    // Update variation location details
-    await tx.variationLocationDetails.upsert({
-      where: {
-        productVariationId_locationId: {
-          productVariationId,
-          locationId,
-        },
-      },
-      update: {
-        qtyAvailable: newBalance,
-      },
-      create: {
-        productId,
-        productVariationId,
-        locationId,
-        qtyAvailable: newBalance,
-      },
-    })
-
-    // Create stock transaction record
-    const transaction = await tx.stockTransaction.create({
-      data: {
-        businessId,
-        productId,
-        productVariationId,
-        locationId,
-        type,
-        quantity,
-        unitCost,
-        balanceQty: newBalance,
-        referenceType,
-        referenceId,
-        createdBy: userId,
-        notes: notes || `Stock ${quantity > 0 ? 'added' : 'deducted'} - ${type}`,
-      },
-    })
-
-    return {
-      transaction,
-      previousBalance: currentStock,
-      newBalance,
-    }
-  })
-
-  return result
+  return prisma.$transaction(async (transaction) =>
+    executeStockUpdate(transaction, rest)
+  )
 }
 
 /**
@@ -171,7 +309,9 @@ export async function addStock({
   referenceType,
   referenceId,
   userId,
+  userDisplayName,
   notes,
+  tx,
 }: {
   businessId: number
   productId: number
@@ -183,7 +323,9 @@ export async function addStock({
   referenceType?: string
   referenceId?: number
   userId: number
+  userDisplayName?: string
   notes?: string
+  tx?: TransactionClient
 }) {
   if (quantity <= 0) {
     throw new Error('Quantity must be positive for adding stock')
@@ -200,7 +342,9 @@ export async function addStock({
     referenceType,
     referenceId,
     userId,
+    userDisplayName,
     notes,
+    tx,
   })
 }
 
@@ -220,6 +364,8 @@ export async function deductStock({
   userId,
   notes,
   allowNegative = false,
+  userDisplayName,
+  tx,
 }: {
   businessId: number
   productId: number
@@ -233,6 +379,8 @@ export async function deductStock({
   userId: number
   notes?: string
   allowNegative?: boolean
+  userDisplayName?: string
+  tx?: TransactionClient
 }) {
   if (quantity <= 0) {
     throw new Error('Quantity must be positive for deducting stock')
@@ -243,6 +391,7 @@ export async function deductStock({
     productVariationId,
     locationId,
     quantity,
+    tx,
   })
 
   if (!availability.available && !allowNegative) {
@@ -265,6 +414,8 @@ export async function deductStock({
     userId,
     notes,
     allowNegative,
+    userDisplayName,
+    tx,
   })
 }
 
@@ -281,6 +432,8 @@ export async function transferStockOut({
   transferId,
   userId,
   notes,
+  userDisplayName,
+  tx,
 }: {
   businessId: number
   productId: number
@@ -290,6 +443,8 @@ export async function transferStockOut({
   transferId: number
   userId: number
   notes?: string
+  userDisplayName?: string
+  tx?: TransactionClient
 }) {
   // Deduct from source location
   return await deductStock({
@@ -303,6 +458,8 @@ export async function transferStockOut({
     referenceId: transferId,
     userId,
     notes: notes || `Transfer out - Stock Transfer #${transferId}`,
+    userDisplayName,
+    tx,
   })
 }
 
@@ -319,6 +476,8 @@ export async function transferStockIn({
   transferId,
   userId,
   notes,
+  userDisplayName,
+  tx,
 }: {
   businessId: number
   productId: number
@@ -329,6 +488,8 @@ export async function transferStockIn({
   transferId: number
   userId: number
   notes?: string
+  userDisplayName?: string
+  tx?: TransactionClient
 }) {
   // Add to destination location
   return await addStock({
@@ -343,6 +504,8 @@ export async function transferStockIn({
     referenceId: transferId,
     userId,
     notes: notes || `Transfer in - Stock Transfer #${transferId}`,
+    userDisplayName,
+    tx,
   })
 }
 
@@ -358,6 +521,8 @@ export async function processSale({
   unitCost,
   saleId,
   userId,
+  userDisplayName,
+  tx,
 }: {
   businessId: number
   productId: number
@@ -367,6 +532,8 @@ export async function processSale({
   unitCost: number
   saleId: number
   userId: number
+  userDisplayName?: string
+  tx?: TransactionClient
 }) {
   return await deductStock({
     businessId,
@@ -380,6 +547,8 @@ export async function processSale({
     referenceId: saleId,
     userId,
     notes: `Sale - Invoice #${saleId}`,
+    userDisplayName,
+    tx,
   })
 }
 
@@ -396,6 +565,8 @@ export async function processPurchaseReceipt({
   purchaseId,
   receiptId,
   userId,
+  userDisplayName,
+  tx,
 }: {
   businessId: number
   productId: number
@@ -406,6 +577,8 @@ export async function processPurchaseReceipt({
   purchaseId: number
   receiptId: number
   userId: number
+  userDisplayName?: string
+  tx?: TransactionClient
 }) {
   return await addStock({
     businessId,
@@ -419,6 +592,8 @@ export async function processPurchaseReceipt({
     referenceId: receiptId,
     userId,
     notes: `Purchase Receipt - PO #${purchaseId}, GRN #${receiptId}`,
+    userDisplayName,
+    tx,
   })
 }
 
@@ -434,6 +609,8 @@ export async function processCustomerReturn({
   unitCost,
   returnId,
   userId,
+  userDisplayName,
+  tx,
 }: {
   businessId: number
   productId: number
@@ -443,6 +620,8 @@ export async function processCustomerReturn({
   unitCost: number
   returnId: number
   userId: number
+  userDisplayName?: string
+  tx?: TransactionClient
 }) {
   return await addStock({
     businessId,
@@ -456,6 +635,8 @@ export async function processCustomerReturn({
     referenceId: returnId,
     userId,
     notes: `Customer Return #${returnId}`,
+    userDisplayName,
+    tx,
   })
 }
 
@@ -471,6 +652,8 @@ export async function processSupplierReturn({
   unitCost,
   returnId,
   userId,
+  userDisplayName,
+  tx,
 }: {
   businessId: number
   productId: number
@@ -480,6 +663,8 @@ export async function processSupplierReturn({
   unitCost: number
   returnId: number
   userId: number
+  userDisplayName?: string
+  tx?: TransactionClient
 }) {
   return await deductStock({
     businessId,
@@ -493,6 +678,8 @@ export async function processSupplierReturn({
     referenceId: returnId,
     userId,
     notes: `Supplier Return #${returnId}`,
+    userDisplayName,
+    tx,
   })
 }
 

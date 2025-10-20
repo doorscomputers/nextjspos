@@ -20,11 +20,12 @@ export async function GET() {
       return NextResponse.json({ error: 'No business associated with user' }, { status: 400 })
     }
 
-    // Fetch ALL locations for this business
+    // Fetch ALL active locations for this business
     const locations = await prisma.businessLocation.findMany({
       where: {
         businessId: parseInt(businessId),
-        deletedAt: null
+        deletedAt: null,
+        isActive: true  // Only show active locations
       },
       select: {
         id: true,

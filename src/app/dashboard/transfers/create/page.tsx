@@ -60,7 +60,6 @@ export default function CreateTransferPage() {
 
   const [fromLocationId, setFromLocationId] = useState('')
   const [toLocationId, setToLocationId] = useState('')
-  const [transferDate, setTransferDate] = useState(new Date().toISOString().split('T')[0])
   const [notes, setNotes] = useState('')
 
   const [items, setItems] = useState<TransferItem[]>([])
@@ -76,15 +75,30 @@ export default function CreateTransferPage() {
       setLoadingLocations(true)
       // Fetch user's assigned locations first
       const userLocationsRes = await fetch('/api/user-locations')
-      const userLocationsData = await userLocationsRes.json()
 
-      if (userLocationsRes.ok && userLocationsData.locations) {
+      if (!userLocationsRes.ok) {
+        console.error('Failed to fetch user locations:', userLocationsRes.status)
+        toast.error(`Failed to load user locations: ${userLocationsRes.status}`)
+        return
+      }
+
+      const userLocationsData = await userLocationsRes.json()
+      console.log('🔍 User locations API response:', userLocationsData)
+      console.log('📍 Number of locations:', userLocationsData.locations?.length || 0)
+      console.log('🔓 Has access to all:', userLocationsData.hasAccessToAll)
+
+      if (userLocationsData.locations && userLocationsData.locations.length > 0) {
         setUserLocations(userLocationsData.locations)
 
-        // Auto-assign first user location as "From Location" ONLY if user doesn't have ACCESS_ALL_LOCATIONS
-        if (userLocationsData.locations.length > 0 && !userLocationsData.hasAccessToAll) {
-          setFromLocationId(userLocationsData.locations[0].id.toString())
-        }
+        // Auto-assign first user location as "From Location" regardless of permissions
+        // This ensures the field is always populated for a better UX
+        const firstLocationId = userLocationsData.locations[0].id.toString()
+        setFromLocationId(firstLocationId)
+        console.log('✅ Auto-assigned from location:', firstLocationId, '-', userLocationsData.locations[0].name)
+        toast.success(`From Location set to: ${userLocationsData.locations[0].name}`)
+      } else {
+        console.warn('⚠️ No locations found for user')
+        toast.warning('No locations assigned. Please contact your administrator.')
       }
 
       // Fetch ALL business locations for the To Location dropdown
@@ -92,11 +106,13 @@ export default function CreateTransferPage() {
       const allLocationsRes = await fetch('/api/locations/all')
       const allLocationsData = await allLocationsRes.json()
 
+      console.log('🏢 All business locations:', allLocationsData.locations?.length || 0)
+
       if (allLocationsRes.ok) {
         setAllLocations(allLocationsData.locations || [])
       }
     } catch (error) {
-      console.error('Error fetching initial data:', error)
+      console.error('❌ Error fetching initial data:', error)
       toast.error('Failed to load locations')
     } finally {
       setLoadingLocations(false)
@@ -208,7 +224,7 @@ export default function CreateTransferPage() {
         body: JSON.stringify({
           fromLocationId: parseInt(fromLocationId),
           toLocationId: parseInt(toLocationId),
-          transferDate,
+          // transferDate removed - server will use real-time timestamp
           items: items.map(item => ({
             productId: item.productId,
             productVariationId: item.productVariationId,
@@ -249,7 +265,7 @@ export default function CreateTransferPage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link href="/dashboard/transfers">
-          <Button variant="secondary" size="sm" className="bg-gray-600 hover:bg-gray-700 text-white font-semibold">
+          <Button variant="secondary" size="sm" className="bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
             <ArrowLeftIcon className="w-4 h-4 mr-2" />
             Back
           </Button>
@@ -275,7 +291,7 @@ export default function CreateTransferPage() {
                 <Select
                   value={fromLocationId}
                   onValueChange={setFromLocationId}
-                  disabled={!user?.permissions?.includes('access_all_locations') && userLocations.length <= 1}
+                  disabled={loadingLocations}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select origin location" />
@@ -286,7 +302,7 @@ export default function CreateTransferPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                {!user?.permissions?.includes('access_all_locations') && userLocations.length <= 1 && (
+                {fromLocationId && userLocations.length === 1 && (
                   <p className="text-xs text-gray-500 mt-1">
                     Auto-assigned to your location
                   </p>
@@ -316,16 +332,12 @@ export default function CreateTransferPage() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Transfer Date <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={transferDate}
-                onChange={(e) => setTransferDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                <strong>📅 Transfer Date:</strong> Automatically recorded as current date/time when you submit.
+                <br />
+                <span className="text-xs">This prevents backdating and ensures accurate audit trails.</span>
+              </p>
             </div>
 
             <div>
@@ -397,13 +409,14 @@ export default function CreateTransferPage() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
-                    <Button
-                      variant="destructive"
-                      size="sm"
+                    <button
                       onClick={() => handleRemoveItem(index)}
+                      className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 flex items-center gap-2 font-medium"
+                      title="Remove this item"
                     >
                       <TrashIcon className="w-4 h-4" />
-                    </Button>
+                      <span>Remove</span>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -431,14 +444,14 @@ export default function CreateTransferPage() {
 
             <div className="pt-4 border-t space-y-3">
               <Button
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
                 onClick={handleCreateTransferClick}
                 disabled={submitting || items.length === 0}
               >
                 {submitting ? 'Creating...' : 'Create Transfer'}
               </Button>
               <Link href="/dashboard/transfers">
-                <Button variant="secondary" className="w-full bg-gray-600 hover:bg-gray-700 text-white font-semibold">
+                <Button variant="secondary" className="w-full bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200">
                   Cancel
                 </Button>
               </Link>
@@ -470,10 +483,10 @@ export default function CreateTransferPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="shadow-md hover:shadow-lg transition-all duration-200">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleSubmit}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
             >
               Yes, Create Transfer
             </AlertDialogAction>

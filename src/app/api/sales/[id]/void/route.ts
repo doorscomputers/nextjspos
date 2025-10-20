@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
+import { addStock, StockTransactionType } from '@/lib/stockOperations'
 import bcrypt from 'bcryptjs'
 import { sendVoidTransactionAlert } from '@/lib/email'
 import { sendTelegramVoidTransactionAlert } from '@/lib/telegram'
@@ -15,7 +16,7 @@ import { sendTelegramVoidTransactionAlert } from '@/lib/telegram'
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -24,6 +25,13 @@ export async function POST(
     }
 
     const user = session.user as any
+    const businessIdNumber = Number(user.businessId)
+    const userIdNumber = Number(user.id)
+    const userDisplayName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || `User#${userIdNumber}`
+    if (Number.isNaN(businessIdNumber) || Number.isNaN(userIdNumber)) {
+      return NextResponse.json({ error: 'Invalid user context' }, { status: 400 })
+    }
 
     // Check permission
     if (!hasPermission(user, PERMISSIONS.SELL_VOID)) {
@@ -33,7 +41,10 @@ export async function POST(
       )
     }
 
-    const saleId = parseInt(params.id)
+    const saleId = Number((await params).id)
+    if (Number.isNaN(saleId)) {
+      return NextResponse.json({ error: 'Invalid sale id' }, { status: 400 })
+    }
     const body = await request.json()
     const { voidReason, managerPassword } = body
 
@@ -52,7 +63,7 @@ export async function POST(
     // Verify manager/admin password
     const managerUsers = await prisma.user.findMany({
       where: {
-        businessId: parseInt(user.businessId),
+        businessId: businessIdNumber,
         roles: {
           some: {
             role: {
@@ -106,7 +117,7 @@ export async function POST(
     }
 
     // Check business ownership
-    if (sale.businessId !== parseInt(user.businessId)) {
+    if (sale.businessId !== businessIdNumber) {
       return NextResponse.json(
         { error: 'Sale does not belong to your business' },
         { status: 403 }
@@ -136,9 +147,9 @@ export async function POST(
       // Create void transaction record
       const voidTransaction = await tx.voidTransaction.create({
         data: {
-          businessId: parseInt(user.businessId),
-          saleId: saleId,
-          voidedBy: parseInt(user.id),
+          businessId: businessIdNumber,
+          saleId,
+          voidedBy: userIdNumber,
           voidedAt: new Date(),
           reason: voidReason,
           authorizedBy: authorizingManager.id,
@@ -148,51 +159,22 @@ export async function POST(
 
       // Restore inventory for each item
       for (const item of sale.items) {
-        // Restore stock
-        const currentStock = await tx.variationLocationDetails.findUnique({
-          where: {
-            productVariationId_locationId: {
-              productVariationId: item.productVariationId,
-              locationId: sale.locationId,
-            },
-          },
+        const quantityNumber = parseFloat(item.quantity.toString())
+
+        await addStock({
+          tx,
+          businessId: businessIdNumber,
+          productId: item.productId,
+          productVariationId: item.productVariationId,
+          locationId: sale.locationId,
+          quantity: quantityNumber,
+          type: StockTransactionType.ADJUSTMENT,
+          referenceType: 'sale_void',
+          referenceId: voidTransaction.id,
+          userId: userIdNumber,
+          userDisplayName,
+          notes: `Voided sale ${sale.invoiceNumber} - ${voidReason}`,
         })
-
-        if (currentStock) {
-          const restoredQty =
-            parseFloat(currentStock.qtyAvailable.toString()) + parseFloat(item.quantity.toString())
-
-          await tx.variationLocationDetails.update({
-            where: {
-              productVariationId_locationId: {
-                productVariationId: item.productVariationId,
-                locationId: sale.locationId,
-              },
-            },
-            data: {
-              qtyAvailable: restoredQty,
-            },
-          })
-
-          // Create stock transaction for void
-          await tx.stockTransaction.create({
-            data: {
-              businessId: parseInt(user.businessId),
-              productId: item.productId,
-              productVariationId: item.productVariationId,
-              locationId: sale.locationId,
-              type: 'void',
-              quantity: parseFloat(item.quantity.toString()), // Positive for restoration
-              unitCost: 0,
-              balanceQty: restoredQty,
-              referenceType: 'sale',
-              referenceId: saleId,
-              createdBy: parseInt(user.id),
-              notes: `Voided sale ${sale.invoiceNumber} - ${voidReason}`,
-            },
-          })
-        }
-
         // Restore serial numbers if applicable
         if (item.serialNumbers && Array.isArray(item.serialNumbers)) {
           const serialNumbersData = item.serialNumbers as any[]
@@ -202,7 +184,7 @@ export async function POST(
             const serialNumber = await tx.productSerialNumber.findFirst({
               where: {
                 id: snData.id,
-                businessId: parseInt(user.businessId),
+                businessId: businessIdNumber,
               },
             })
 
@@ -226,7 +208,7 @@ export async function POST(
                   toLocationId: sale.locationId,
                   referenceType: 'sale',
                   referenceId: saleId,
-                  movedBy: parseInt(user.id),
+                  movedBy: userIdNumber,
                   notes: `Voided from sale ${sale.invoiceNumber}`,
                 },
               })
@@ -240,8 +222,8 @@ export async function POST(
 
     // Create audit log
     await createAuditLog({
-      businessId: parseInt(user.businessId),
-      userId: parseInt(user.id),
+      businessId: businessIdNumber,
+      userId: userIdNumber,
       username: user.username,
       action: AuditAction.SALE_VOID,
       entityType: EntityType.SALE,
@@ -297,3 +279,4 @@ export async function POST(
     )
   }
 }
+

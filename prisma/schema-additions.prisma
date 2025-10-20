@@ -1,0 +1,100 @@
+// ============================================
+// NETWORK RESILIENCE & IDEMPOTENCY
+// ============================================
+
+// Idempotency Keys - Prevent duplicate submissions on unreliable networks
+model IdempotencyKey {
+  id            Int      @id @default(autoincrement())
+  key           String   @unique @db.VarChar(191) // Client-generated UUID
+  businessId    Int      @map("business_id")
+  userId        Int      @map("user_id")
+  endpoint      String   @db.VarChar(255) // e.g., "/api/sales"
+  requestBody   Json?    @map("request_body") // Original request
+  responseStatus Int     @map("response_status") // HTTP status code
+  responseBody  Json?    @map("response_body") // Cached response
+  createdAt     DateTime @default(now()) @map("created_at")
+  expiresAt     DateTime @map("expires_at") // Auto-expire after 24 hours
+
+  @@index([businessId])
+  @@index([expiresAt]) // For cleanup jobs
+  @@index([endpoint])
+  @@map("idempotency_keys")
+}
+
+// Invoice Sequence - Atomic invoice number generation
+model InvoiceSequence {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  year       Int
+  month      Int
+  sequence   Int @default(0) // Auto-increments atomically
+
+  @@unique([businessId, year, month])
+  @@index([businessId])
+  @@map("invoice_sequences")
+}
+
+// Purchase Receipt Number Sequence
+model ReceiptSequence {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  year       Int
+  month      Int
+  sequence   Int @default(0)
+
+  @@unique([businessId, year, month])
+  @@index([businessId])
+  @@map("receipt_sequences")
+}
+
+// Stock Transfer Number Sequence
+model TransferSequence {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  year       Int
+  month      Int
+  sequence   Int @default(0)
+
+  @@unique([businessId, year, month])
+  @@index([businessId])
+  @@map("transfer_sequences")
+}
+
+// Customer Return Number Sequence
+model ReturnSequence {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  year       Int
+  month      Int
+  sequence   Int @default(0)
+
+  @@unique([businessId, year, month])
+  @@index([businessId])
+  @@map("return_sequences")
+}
+
+// NOTE: After adding these models, update the following existing models with composite unique constraints:
+//
+// model Sale {
+//   invoiceNumber String @map("invoice_number") @db.VarChar(100)
+//   // REMOVE: @unique
+//   // ADD: @@unique([businessId, invoiceNumber])
+// }
+//
+// model PurchaseReceipt {
+//   receiptNumber String @map("receipt_number") @db.VarChar(100)
+//   // REMOVE: @unique
+//   // ADD: @@unique([businessId, receiptNumber])
+// }
+//
+// model StockTransfer {
+//   transferNumber String @map("transfer_number") @db.VarChar(100)
+//   // REMOVE: @unique
+//   // ADD: @@unique([businessId, transferNumber])
+// }
+//
+// model CustomerReturn {
+//   returnNumber String @map("return_number") @db.VarChar(100)
+//   // REMOVE: @unique
+//   // ADD: @@unique([businessId, returnNumber])
+// }

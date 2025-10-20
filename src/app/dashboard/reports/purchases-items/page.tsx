@@ -48,6 +48,28 @@ export default function PurchaseItemsReportPage() {
   const [minAmount, setMinAmount] = useState("")
   const [maxAmount, setMaxAmount] = useState("")
 
+  const initialColumnFilters = {
+    product: "",
+    variation: "",
+    sku: "",
+    poNumber: "",
+    poDate: "",
+    supplier: "",
+    location: "",
+    status: "all",
+    qtyOrderedMin: "",
+    qtyOrderedMax: "",
+    qtyReceivedMin: "",
+    qtyReceivedMax: "",
+    unitCostMin: "",
+    unitCostMax: "",
+    itemTotalMin: "",
+    itemTotalMax: "",
+    serial: "all",
+  }
+
+  const [columnFilters, setColumnFilters] = useState(initialColumnFilters)
+
   // Pagination
   const [page, setPage] = useState(1)
   const [limit] = useState(50)
@@ -87,6 +109,13 @@ export default function PurchaseItemsReportPage() {
     }
   }
 
+  const handleColumnFilterChange = (key: keyof typeof initialColumnFilters, value: string) => {
+    setColumnFilters((prev) => ({
+      ...prev,
+      [key]: value,
+    }))
+  }
+
   const fetchReport = async () => {
     setLoading(true)
     try {
@@ -122,6 +151,75 @@ export default function PurchaseItemsReportPage() {
     }
   }
 
+  const statusOptions = [
+    { value: "all", label: "All Statuses" },
+    { value: "DRAFT", label: "Draft" },
+    { value: "SUBMITTED", label: "Submitted" },
+    { value: "APPROVED", label: "Approved" },
+    { value: "PARTIALLY_RECEIVED", label: "Partially Received" },
+    { value: "RECEIVED", label: "Received" },
+    { value: "COMPLETED", label: "Completed" },
+    { value: "CANCELLED", label: "Cancelled" },
+  ]
+
+  const applyColumnFilters = (items: any[]) => {
+    return items.filter((item) => {
+      const matchesText = (value: string, target: string | null | undefined) => {
+        if (!value) return true
+        if (!target) return false
+        return target.toLowerCase().includes(value.toLowerCase())
+      }
+
+      if (!matchesText(columnFilters.product, item.productName)) return false
+      if (!matchesText(columnFilters.variation, item.variationName)) return false
+      if (!matchesText(columnFilters.sku, item.sku)) return false
+      if (!matchesText(columnFilters.poNumber, item.purchaseOrderNumber)) return false
+      if (columnFilters.poDate && !(item.purchaseDate || "").includes(columnFilters.poDate)) return false
+      if (!matchesText(columnFilters.supplier, item.supplier)) return false
+      if (!matchesText(columnFilters.location, item.location)) return false
+
+      if (columnFilters.status !== "all" && item.status !== columnFilters.status) {
+        return false
+      }
+
+      const qtyOrdered = Number(item.quantityOrdered ?? 0)
+      const qtyReceived = Number(item.quantityReceived ?? 0)
+      const unitCost = Number(item.unitCost ?? 0)
+      const itemTotal = Number(item.itemTotal ?? 0)
+
+      const minOrdered = parseFloat(columnFilters.qtyOrderedMin)
+      if (!Number.isNaN(minOrdered) && qtyOrdered < minOrdered) return false
+
+      const maxOrdered = parseFloat(columnFilters.qtyOrderedMax)
+      if (!Number.isNaN(maxOrdered) && qtyOrdered > maxOrdered) return false
+
+      const minReceived = parseFloat(columnFilters.qtyReceivedMin)
+      if (!Number.isNaN(minReceived) && qtyReceived < minReceived) return false
+
+      const maxReceived = parseFloat(columnFilters.qtyReceivedMax)
+      if (!Number.isNaN(maxReceived) && qtyReceived > maxReceived) return false
+
+      const minUnitCost = parseFloat(columnFilters.unitCostMin)
+      if (!Number.isNaN(minUnitCost) && unitCost < minUnitCost) return false
+
+      const maxUnitCost = parseFloat(columnFilters.unitCostMax)
+      if (!Number.isNaN(maxUnitCost) && unitCost > maxUnitCost) return false
+
+      const minItemTotal = parseFloat(columnFilters.itemTotalMin)
+      if (!Number.isNaN(minItemTotal) && itemTotal < minItemTotal) return false
+
+      const maxItemTotal = parseFloat(columnFilters.itemTotalMax)
+      if (!Number.isNaN(maxItemTotal) && itemTotal > maxItemTotal) return false
+
+      if (columnFilters.serial === "yes" && !item.requiresSerial) return false
+      if (columnFilters.serial === "no" && item.requiresSerial) return false
+
+      return true
+    })
+  }
+
+  const filteredItems = reportData ? applyColumnFilters(reportData.items) : []
+
   const handleSearch = () => {
     setPage(1)
     fetchReport()
@@ -138,6 +236,7 @@ export default function PurchaseItemsReportPage() {
     setEndDate("")
     setMinAmount("")
     setMaxAmount("")
+    setColumnFilters(initialColumnFilters)
     setPage(1)
   }
 
@@ -169,7 +268,7 @@ export default function PurchaseItemsReportPage() {
       "Serial?"
     ]
 
-    const data = reportData.items.map((item) => [
+    const data = applyColumnFilters(reportData.items).map((item) => [
       item.productName,
       item.variationName,
       item.sku,
@@ -517,33 +616,203 @@ export default function PurchaseItemsReportPage() {
                       <th className="text-right p-3 font-medium">Item Total</th>
                       <th className="text-center p-3 font-medium">Serial?</th>
                     </tr>
+                    <tr className="bg-muted/40 text-xs">
+                      <th className="p-2">
+                        <Input
+                          value={columnFilters.product}
+                          onChange={(e) => handleColumnFilterChange("product", e.target.value)}
+                          placeholder="Filter product..."
+                          className="h-8 text-xs"
+                        />
+                      </th>
+                      <th className="p-2">
+                        <Input
+                          value={columnFilters.variation}
+                          onChange={(e) => handleColumnFilterChange("variation", e.target.value)}
+                          placeholder="Filter variation..."
+                          className="h-8 text-xs"
+                        />
+                      </th>
+                      <th className="p-2">
+                        <Input
+                          value={columnFilters.sku}
+                          onChange={(e) => handleColumnFilterChange("sku", e.target.value)}
+                          placeholder="Filter SKU..."
+                          className="h-8 text-xs font-mono"
+                        />
+                      </th>
+                      <th className="p-2">
+                        <Input
+                          value={columnFilters.poNumber}
+                          onChange={(e) => handleColumnFilterChange("poNumber", e.target.value)}
+                          placeholder="Filter PO number..."
+                          className="h-8 text-xs"
+                        />
+                      </th>
+                      <th className="p-2">
+                        <Input
+                          type="date"
+                          value={columnFilters.poDate}
+                          onChange={(e) => handleColumnFilterChange("poDate", e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </th>
+                      <th className="p-2">
+                        <Input
+                          value={columnFilters.supplier}
+                          onChange={(e) => handleColumnFilterChange("supplier", e.target.value)}
+                          placeholder="Filter supplier..."
+                          className="h-8 text-xs"
+                        />
+                      </th>
+                      <th className="p-2">
+                        <Input
+                          value={columnFilters.location}
+                          onChange={(e) => handleColumnFilterChange("location", e.target.value)}
+                          placeholder="Filter location..."
+                          className="h-8 text-xs"
+                        />
+                      </th>
+                      <th className="p-2">
+                        <Select
+                          value={columnFilters.status}
+                          onValueChange={(value) => handleColumnFilterChange("status", value)}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="All statuses" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {statusOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </th>
+                      <th className="p-2">
+                        <div className="flex flex-col gap-1">
+                          <Input
+                            type="number"
+                            value={columnFilters.qtyOrderedMin}
+                            onChange={(e) => handleColumnFilterChange("qtyOrderedMin", e.target.value)}
+                            placeholder="Min"
+                            className="h-8 text-xs"
+                          />
+                          <Input
+                            type="number"
+                            value={columnFilters.qtyOrderedMax}
+                            onChange={(e) => handleColumnFilterChange("qtyOrderedMax", e.target.value)}
+                            placeholder="Max"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </th>
+                      <th className="p-2">
+                        <div className="flex flex-col gap-1">
+                          <Input
+                            type="number"
+                            value={columnFilters.qtyReceivedMin}
+                            onChange={(e) => handleColumnFilterChange("qtyReceivedMin", e.target.value)}
+                            placeholder="Min"
+                            className="h-8 text-xs"
+                          />
+                          <Input
+                            type="number"
+                            value={columnFilters.qtyReceivedMax}
+                            onChange={(e) => handleColumnFilterChange("qtyReceivedMax", e.target.value)}
+                            placeholder="Max"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </th>
+                      <th className="p-2">
+                        <div className="flex flex-col gap-1">
+                          <Input
+                            type="number"
+                            value={columnFilters.unitCostMin}
+                            onChange={(e) => handleColumnFilterChange("unitCostMin", e.target.value)}
+                            placeholder="Min"
+                            className="h-8 text-xs"
+                          />
+                          <Input
+                            type="number"
+                            value={columnFilters.unitCostMax}
+                            onChange={(e) => handleColumnFilterChange("unitCostMax", e.target.value)}
+                            placeholder="Max"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </th>
+                      <th className="p-2">
+                        <div className="flex flex-col gap-1">
+                          <Input
+                            type="number"
+                            value={columnFilters.itemTotalMin}
+                            onChange={(e) => handleColumnFilterChange("itemTotalMin", e.target.value)}
+                            placeholder="Min"
+                            className="h-8 text-xs"
+                          />
+                          <Input
+                            type="number"
+                            value={columnFilters.itemTotalMax}
+                            onChange={(e) => handleColumnFilterChange("itemTotalMax", e.target.value)}
+                            placeholder="Max"
+                            className="h-8 text-xs"
+                          />
+                        </div>
+                      </th>
+                      <th className="p-2 text-center">
+                        <Select
+                          value={columnFilters.serial}
+                          onValueChange={(value) => handleColumnFilterChange("serial", value)}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Serial?" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All</SelectItem>
+                            <SelectItem value="yes">Yes</SelectItem>
+                            <SelectItem value="no">No</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </th>
+                    </tr>
                   </thead>
                   <tbody>
-                    {reportData.items.map((item) => (
-                      <tr key={item.id} className="border-b hover:bg-muted/50">
-                        <td className="p-3 font-medium">{item.productName}</td>
-                        <td className="p-3">{item.variationName}</td>
-                        <td className="p-3">{item.sku}</td>
-                        <td className="p-3">{item.purchaseOrderNumber}</td>
-                        <td className="p-3">{item.purchaseDate}</td>
-                        <td className="p-3">{item.supplier}</td>
-                        <td className="p-3">{item.location}</td>
-                        <td className="p-3">
-                          <Badge className={getStatusColor(item.status)}>
-                            {item.status}
-                          </Badge>
-                        </td>
-                        <td className="p-3 text-right">{formatNumber(item.quantityOrdered)}</td>
-                        <td className="p-3 text-right">{formatNumber(item.quantityReceived)}</td>
-                        <td className="p-3 text-right">{formatNumber(item.unitCost)}</td>
-                        <td className="p-3 text-right font-medium">
-                          {formatNumber(item.itemTotal)}
-                        </td>
-                        <td className="p-3 text-center">
-                          {item.requiresSerial ? "Yes" : "No"}
+                    {filteredItems.length > 0 ? (
+                      filteredItems.map((item) => (
+                        <tr key={item.id} className="border-b hover:bg-muted/50">
+                          <td className="p-3 font-medium">{item.productName}</td>
+                          <td className="p-3">{item.variationName}</td>
+                          <td className="p-3">{item.sku}</td>
+                          <td className="p-3">{item.purchaseOrderNumber}</td>
+                          <td className="p-3">{item.purchaseDate}</td>
+                          <td className="p-3">{item.supplier}</td>
+                          <td className="p-3">{item.location}</td>
+                          <td className="p-3">
+                            <Badge className={getStatusColor(item.status)}>
+                              {item.status}
+                            </Badge>
+                          </td>
+                          <td className="p-3 text-right">{formatNumber(item.quantityOrdered)}</td>
+                          <td className="p-3 text-right">{formatNumber(item.quantityReceived)}</td>
+                          <td className="p-3 text-right">{formatNumber(item.unitCost)}</td>
+                          <td className="p-3 text-right font-medium">
+                            {formatNumber(item.itemTotal)}
+                          </td>
+                          <td className="p-3 text-center">
+                            {item.requiresSerial ? "Yes" : "No"}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={13} className="p-6 text-center text-sm text-muted-foreground">
+                          No purchase items match the current column filters.
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -552,9 +821,7 @@ export default function PurchaseItemsReportPage() {
               {reportData.pagination.totalPages > 1 && (
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">
-                    Showing {(page - 1) * limit + 1} to{" "}
-                    {Math.min(page * limit, reportData.pagination.totalCount)} of{" "}
-                    {reportData.pagination.totalCount} items
+                    Showing {filteredItems.length} of {reportData.items.length} items on this page
                   </p>
                   <div className="flex gap-3">
                     <Button

@@ -89,14 +89,20 @@ export const PERMISSIONS = {
   ROLE_UPDATE: 'role.update',
   ROLE_DELETE: 'role.delete',
 
-  // Products
+  // Products - Basic CRUD
   PRODUCT_VIEW: 'product.view',
   PRODUCT_CREATE: 'product.create',
   PRODUCT_UPDATE: 'product.update',
   PRODUCT_DELETE: 'product.delete',
-  PRODUCT_VIEW_PURCHASE_PRICE: 'product.view_purchase_price',
+
+  // Products - Field-Level Security (What data can be seen)
+  PRODUCT_VIEW_PURCHASE_PRICE: 'product.view_purchase_price', // Can see cost price
+  PRODUCT_VIEW_PROFIT_MARGIN: 'product.view_profit_margin', // Can see profit calculations (NEW)
+  PRODUCT_VIEW_SUPPLIER: 'product.view_supplier', // Can see supplier information (NEW)
+  PRODUCT_VIEW_ALL_BRANCH_STOCK: 'product.view_all_branch_stock', // Can see stock at other locations
+
+  // Products - Stock Management
   PRODUCT_OPENING_STOCK: 'product.opening_stock',
-  PRODUCT_VIEW_ALL_BRANCH_STOCK: 'product.view_all_branch_stock',
   ACCESS_DEFAULT_SELLING_PRICE: 'product.access_default_selling_price',
   PRODUCT_LOCK_OPENING_STOCK: 'product.lock_opening_stock',
   PRODUCT_UNLOCK_OPENING_STOCK: 'product.unlock_opening_stock',
@@ -134,12 +140,17 @@ export const PERMISSIONS = {
   PHYSICAL_INVENTORY_EXPORT: 'physical_inventory.export',
   PHYSICAL_INVENTORY_IMPORT: 'physical_inventory.import',
 
-  // Sales
+  // Sales - Basic CRUD
   SELL_VIEW: 'sell.view',
   SELL_CREATE: 'sell.create',
   SELL_UPDATE: 'sell.update',
   SELL_DELETE: 'sell.delete',
   SELL_VIEW_OWN: 'sell.view_own',
+
+  // Sales - Field-Level Security (What financial data can be seen)
+  SELL_VIEW_COST: 'sell.view_cost', // Can see COGS (Cost of Goods Sold) (NEW)
+  SELL_VIEW_PROFIT: 'sell.view_profit', // Can see profit margins (NEW)
+  SELL_VIEW_DISCOUNT_DETAILS: 'sell.view_discount_details', // Can see detailed discount breakdown (NEW)
 
   // Cashier Shift Management
   SHIFT_OPEN: 'shift.open',
@@ -270,11 +281,15 @@ export const PERMISSIONS = {
   CUSTOMER_UPDATE: 'customer.update',
   CUSTOMER_DELETE: 'customer.delete',
 
-  // Suppliers
+  // Suppliers - Basic CRUD
   SUPPLIER_VIEW: 'supplier.view',
   SUPPLIER_CREATE: 'supplier.create',
   SUPPLIER_UPDATE: 'supplier.update',
   SUPPLIER_DELETE: 'supplier.delete',
+
+  // Suppliers - Field-Level Security (What supplier data can be seen)
+  SUPPLIER_VIEW_CONTACT_DETAILS: 'supplier.view_contact_details', // Can see email, phone, address (NEW)
+  SUPPLIER_VIEW_PAYMENT_TERMS: 'supplier.view_payment_terms', // Can see payment terms, credit limits (NEW)
 
   // Reports - Granular Access
   REPORT_VIEW: 'report.view', // General report access
@@ -282,6 +297,8 @@ export const PERMISSIONS = {
   // Sales Reports
   REPORT_SALES_VIEW: 'report.sales.view',
   REPORT_SALES_DAILY: 'report.sales.daily',
+  REPORT_SALES_TODAY: 'report.sales.today',
+  REPORT_SALES_HISTORY: 'report.sales.history',
   REPORT_SALES_PROFITABILITY: 'report.sales.profitability',
 
   // Purchase Reports
@@ -355,6 +372,27 @@ export function hasAccessToAllLocations(user: RBACUser | null): boolean {
 }
 
 /**
+ * Check if a role requires location assignment
+ * Admin and Super Admin roles do NOT require location assignment
+ * They can work across all locations within their business scope
+ */
+export function roleRequiresLocation(roleName: string): boolean {
+  const adminRoles = ['Super Admin', 'Branch Admin']
+  return !adminRoles.includes(roleName)
+}
+
+/**
+ * Check if user roles require location assignment
+ * Returns true if ANY assigned role does NOT require location
+ * This means if user has at least one admin role, location is optional
+ */
+export function userRequiresLocation(roles: string[]): boolean {
+  if (!roles || roles.length === 0) return true
+  // If user has ANY admin role, location is NOT required
+  return !roles.some(role => !roleRequiresLocation(role))
+}
+
+/**
  * Check if user has access to a specific location
  */
 export function hasAccessToLocation(user: RBACUser | null, locationId: number): boolean {
@@ -414,7 +452,10 @@ export const DEFAULT_ROLES = {
   BRANCH_ADMIN: {
     name: 'Branch Admin',
     permissions: [
+      // Dashboard Access
       PERMISSIONS.DASHBOARD_VIEW,
+
+      // User & Role Management - Full CRUD
       PERMISSIONS.USER_VIEW,
       PERMISSIONS.USER_CREATE,
       PERMISSIONS.USER_UPDATE,
@@ -423,6 +464,8 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.ROLE_CREATE,
       PERMISSIONS.ROLE_UPDATE,
       PERMISSIONS.ROLE_DELETE,
+
+      // Product Management - Full CRUD
       PERMISSIONS.PRODUCT_VIEW,
       PERMISSIONS.PRODUCT_CREATE,
       PERMISSIONS.PRODUCT_UPDATE,
@@ -433,7 +476,9 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.ACCESS_DEFAULT_SELLING_PRICE,
       PERMISSIONS.PRODUCT_LOCK_OPENING_STOCK,
       PERMISSIONS.PRODUCT_UNLOCK_OPENING_STOCK,
-      // Product Master Data - Full Access
+      PERMISSIONS.PRODUCT_MODIFY_LOCKED_STOCK,
+
+      // Product Master Data - Full CRUD
       PERMISSIONS.PRODUCT_CATEGORY_VIEW,
       PERMISSIONS.PRODUCT_CATEGORY_CREATE,
       PERMISSIONS.PRODUCT_CATEGORY_UPDATE,
@@ -450,63 +495,53 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.PRODUCT_WARRANTY_CREATE,
       PERMISSIONS.PRODUCT_WARRANTY_UPDATE,
       PERMISSIONS.PRODUCT_WARRANTY_DELETE,
+
+      // Inventory Management - View & Approve Only (NO CREATE/UPDATE/DELETE)
       PERMISSIONS.INVENTORY_CORRECTION_VIEW,
-      PERMISSIONS.INVENTORY_CORRECTION_CREATE,
-      PERMISSIONS.INVENTORY_CORRECTION_UPDATE,
-      PERMISSIONS.INVENTORY_CORRECTION_DELETE,
       PERMISSIONS.INVENTORY_CORRECTION_APPROVE,
       PERMISSIONS.PHYSICAL_INVENTORY_EXPORT,
       PERMISSIONS.PHYSICAL_INVENTORY_IMPORT,
+
+      // Sales - View Only (NO CREATE/UPDATE/DELETE)
       PERMISSIONS.SELL_VIEW,
-      PERMISSIONS.SELL_CREATE,
-      PERMISSIONS.SELL_UPDATE,
-      PERMISSIONS.SELL_DELETE,
+
+      // Purchases - View & Approve Only (NO CREATE/UPDATE/DELETE)
       PERMISSIONS.PURCHASE_VIEW,
-      PERMISSIONS.PURCHASE_CREATE,
-      PERMISSIONS.PURCHASE_UPDATE,
-      PERMISSIONS.PURCHASE_DELETE,
       PERMISSIONS.PURCHASE_APPROVE,
       PERMISSIONS.PURCHASE_RECEIVE,
       PERMISSIONS.PURCHASE_VIEW_COST,
-      PERMISSIONS.PURCHASE_RECEIPT_CREATE,
       PERMISSIONS.PURCHASE_RECEIPT_APPROVE,
       PERMISSIONS.PURCHASE_RECEIPT_VIEW,
+
+      // Purchase Returns - View & Approve Only (NO CREATE/UPDATE/DELETE)
       PERMISSIONS.PURCHASE_RETURN_VIEW,
-      PERMISSIONS.PURCHASE_RETURN_CREATE,
-      PERMISSIONS.PURCHASE_RETURN_UPDATE,
-      PERMISSIONS.PURCHASE_RETURN_DELETE,
       PERMISSIONS.PURCHASE_RETURN_APPROVE,
+
+      // Purchase Amendments - View & Approve Only
       PERMISSIONS.PURCHASE_AMENDMENT_VIEW,
-      PERMISSIONS.PURCHASE_AMENDMENT_CREATE,
       PERMISSIONS.PURCHASE_AMENDMENT_APPROVE,
       PERMISSIONS.PURCHASE_AMENDMENT_REJECT,
+
+      // Quality Control - View, Conduct & Approve (NO CREATE)
       PERMISSIONS.QC_INSPECTION_VIEW,
-      PERMISSIONS.QC_INSPECTION_CREATE,
       PERMISSIONS.QC_INSPECTION_CONDUCT,
       PERMISSIONS.QC_INSPECTION_APPROVE,
       PERMISSIONS.QC_TEMPLATE_VIEW,
       PERMISSIONS.QC_TEMPLATE_MANAGE,
+
+      // Accounts Payable & Payments - View & Approve Only (NO CREATE/UPDATE/DELETE)
       PERMISSIONS.ACCOUNTS_PAYABLE_VIEW,
-      PERMISSIONS.ACCOUNTS_PAYABLE_CREATE,
-      PERMISSIONS.ACCOUNTS_PAYABLE_UPDATE,
-      PERMISSIONS.ACCOUNTS_PAYABLE_DELETE,
       PERMISSIONS.PAYMENT_VIEW,
-      PERMISSIONS.PAYMENT_CREATE,
       PERMISSIONS.PAYMENT_APPROVE,
-      PERMISSIONS.PAYMENT_UPDATE,
-      PERMISSIONS.PAYMENT_DELETE,
+
+      // Banking - View Only (NO CREATE/UPDATE/DELETE)
       PERMISSIONS.BANK_VIEW,
-      PERMISSIONS.BANK_CREATE,
-      PERMISSIONS.BANK_UPDATE,
-      PERMISSIONS.BANK_DELETE,
       PERMISSIONS.BANK_TRANSACTION_VIEW,
-      PERMISSIONS.BANK_TRANSACTION_CREATE,
-      PERMISSIONS.BANK_TRANSACTION_UPDATE,
-      PERMISSIONS.BANK_TRANSACTION_DELETE,
+
+      // Expenses - View Only (NO CREATE/UPDATE/DELETE)
       PERMISSIONS.EXPENSE_VIEW,
-      PERMISSIONS.EXPENSE_CREATE,
-      PERMISSIONS.EXPENSE_UPDATE,
-      PERMISSIONS.EXPENSE_DELETE,
+
+      // Customer & Supplier Management - Full CRUD
       PERMISSIONS.CUSTOMER_VIEW,
       PERMISSIONS.CUSTOMER_CREATE,
       PERMISSIONS.CUSTOMER_UPDATE,
@@ -515,10 +550,40 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.SUPPLIER_CREATE,
       PERMISSIONS.SUPPLIER_UPDATE,
       PERMISSIONS.SUPPLIER_DELETE,
+
+      // Returns - View, Approve & Delete (NO CREATE)
+      PERMISSIONS.CUSTOMER_RETURN_VIEW,
+      PERMISSIONS.CUSTOMER_RETURN_APPROVE,
+      PERMISSIONS.CUSTOMER_RETURN_DELETE,
+      PERMISSIONS.SUPPLIER_RETURN_VIEW,
+      PERMISSIONS.SUPPLIER_RETURN_APPROVE,
+      PERMISSIONS.SUPPLIER_RETURN_DELETE,
+
+      // Void Transactions - Create & Approve
+      PERMISSIONS.VOID_CREATE,
+      PERMISSIONS.VOID_APPROVE,
+
+      // Cash Management - Approve Large Transactions
+      PERMISSIONS.CASH_APPROVE_LARGE_TRANSACTIONS,
+
+      // Serial Numbers - View & Track
+      PERMISSIONS.SERIAL_NUMBER_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_TRACK,
+
+      // Shift Management - View All (NO OPEN/CLOSE - that's for cashiers)
+      PERMISSIONS.SHIFT_VIEW,
+      PERMISSIONS.SHIFT_VIEW_ALL,
+
+      // BIR Readings - Full Access
+      PERMISSIONS.X_READING,
+      PERMISSIONS.Z_READING,
+
+      // Reports - Full Access to All Reports
       PERMISSIONS.REPORT_VIEW,
-      // All Reports - Full Access
       PERMISSIONS.REPORT_SALES_VIEW,
       PERMISSIONS.REPORT_SALES_DAILY,
+      PERMISSIONS.REPORT_SALES_TODAY,
+      PERMISSIONS.REPORT_SALES_HISTORY,
       PERMISSIONS.REPORT_SALES_PROFITABILITY,
       PERMISSIONS.REPORT_PURCHASE_VIEW,
       PERMISSIONS.REPORT_PURCHASE_ANALYTICS,
@@ -535,21 +600,43 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.INVENTORY_LEDGER_VIEW,
       PERMISSIONS.INVENTORY_LEDGER_EXPORT,
       PERMISSIONS.REPORT_PURCHASE_SELL,
+
+      // Sales Reports - Full Access
+      PERMISSIONS.SALES_REPORT_VIEW,
+      PERMISSIONS.SALES_REPORT_DAILY,
+      PERMISSIONS.SALES_REPORT_SUMMARY,
+      PERMISSIONS.SALES_REPORT_JOURNAL,
+      PERMISSIONS.SALES_REPORT_PER_ITEM,
+      PERMISSIONS.SALES_REPORT_PER_CASHIER,
+      PERMISSIONS.SALES_REPORT_PER_LOCATION,
+      PERMISSIONS.SALES_REPORT_ANALYTICS,
+      PERMISSIONS.SALES_REPORT_CUSTOMER_ANALYSIS,
+      PERMISSIONS.SALES_REPORT_PAYMENT_METHOD,
+      PERMISSIONS.SALES_REPORT_DISCOUNT_ANALYSIS,
+
+      // Business Settings - Full Access
       PERMISSIONS.BUSINESS_SETTINGS_VIEW,
       PERMISSIONS.BUSINESS_SETTINGS_EDIT,
+
+      // Location Management - Full CRUD
       PERMISSIONS.LOCATION_VIEW,
       PERMISSIONS.LOCATION_CREATE,
       PERMISSIONS.LOCATION_UPDATE,
       PERMISSIONS.ACCESS_ALL_LOCATIONS,
+
+      // Stock Transfers - View & Approve Only (NO CREATE)
       PERMISSIONS.STOCK_TRANSFER_VIEW,
-      PERMISSIONS.STOCK_TRANSFER_CREATE,
       PERMISSIONS.STOCK_TRANSFER_CHECK,
       PERMISSIONS.STOCK_TRANSFER_SEND,
       PERMISSIONS.STOCK_TRANSFER_RECEIVE,
       PERMISSIONS.STOCK_TRANSFER_VERIFY,
       PERMISSIONS.STOCK_TRANSFER_COMPLETE,
       PERMISSIONS.STOCK_TRANSFER_CANCEL,
+
+      // Audit Logs - View Only
       PERMISSIONS.AUDIT_LOG_VIEW,
+
+      // Freebies - Add & Approve
       PERMISSIONS.FREEBIE_ADD,
       PERMISSIONS.FREEBIE_APPROVE,
       PERMISSIONS.FREEBIE_VIEW_LOG,
@@ -571,16 +658,30 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.PRODUCT_BRAND_VIEW,
       PERMISSIONS.PRODUCT_UNIT_VIEW,
       PERMISSIONS.PRODUCT_WARRANTY_VIEW,
+
+      // Field-Level Security - Product (Branch Managers can see all product data)
+      PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE,
+      PERMISSIONS.PRODUCT_VIEW_PROFIT_MARGIN,
+      PERMISSIONS.PRODUCT_VIEW_SUPPLIER,
+      PERMISSIONS.PRODUCT_VIEW_ALL_BRANCH_STOCK,
+
       PERMISSIONS.INVENTORY_CORRECTION_VIEW,
       PERMISSIONS.INVENTORY_CORRECTION_CREATE,
       PERMISSIONS.INVENTORY_CORRECTION_UPDATE,
       PERMISSIONS.INVENTORY_CORRECTION_APPROVE,
       PERMISSIONS.PHYSICAL_INVENTORY_EXPORT,
       PERMISSIONS.PHYSICAL_INVENTORY_IMPORT,
+
+      // Sales - VIEW ONLY (Branch Managers oversee sales, they don't operate POS)
       PERMISSIONS.SELL_VIEW,
-      PERMISSIONS.SELL_CREATE,
-      PERMISSIONS.SELL_UPDATE,
-      PERMISSIONS.SELL_DELETE,
+      // ❌ REMOVED: SELL_CREATE, SELL_UPDATE, SELL_DELETE
+      // Branch Managers should NOT use POS - that's for cashiers/sales clerks
+
+      // Field-Level Security - Sales (Branch Managers can see all sales financial data)
+      PERMISSIONS.SELL_VIEW_COST,
+      PERMISSIONS.SELL_VIEW_PROFIT,
+      PERMISSIONS.SELL_VIEW_DISCOUNT_DETAILS,
+
       PERMISSIONS.PURCHASE_VIEW,
       PERMISSIONS.PURCHASE_CREATE,
       PERMISSIONS.PURCHASE_UPDATE,
@@ -615,10 +716,17 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.SUPPLIER_VIEW,
       PERMISSIONS.SUPPLIER_CREATE,
       PERMISSIONS.SUPPLIER_UPDATE,
+
+      // Field-Level Security - Supplier (Branch Managers can see all supplier data)
+      PERMISSIONS.SUPPLIER_VIEW_CONTACT_DETAILS,
+      PERMISSIONS.SUPPLIER_VIEW_PAYMENT_TERMS,
+
       PERMISSIONS.REPORT_VIEW,
       // Reports - Sales and Stock Only (No Purchase/Financial)
       PERMISSIONS.REPORT_SALES_VIEW,
       PERMISSIONS.REPORT_SALES_DAILY,
+      PERMISSIONS.REPORT_SALES_TODAY,
+      PERMISSIONS.REPORT_SALES_HISTORY,
       PERMISSIONS.REPORT_STOCK_ALERT,
       PERMISSIONS.STOCK_REPORT_VIEW,
       PERMISSIONS.INVENTORY_LEDGER_VIEW,
@@ -632,16 +740,22 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.STOCK_TRANSFER_RECEIVE,
       PERMISSIONS.STOCK_TRANSFER_VERIFY,
       PERMISSIONS.STOCK_TRANSFER_COMPLETE,
-      PERMISSIONS.SHIFT_OPEN,
-      PERMISSIONS.SHIFT_CLOSE,
+
+      // Shift Management - VIEW & APPROVE only (cashiers open/close shifts)
+      // ❌ REMOVED: SHIFT_OPEN, SHIFT_CLOSE (cashiers do these)
       PERMISSIONS.SHIFT_VIEW,
       PERMISSIONS.SHIFT_VIEW_ALL,
-      PERMISSIONS.CASH_IN_OUT,
-      PERMISSIONS.CASH_COUNT,
+
+      // Cash Management - APPROVE only (cashiers handle cash)
+      // ❌ REMOVED: CASH_IN_OUT, CASH_COUNT (cashiers do these)
       PERMISSIONS.CASH_APPROVE_LARGE_TRANSACTIONS,
-      PERMISSIONS.VOID_CREATE,
+
+      // Voids - APPROVE only (cashiers create voids)
+      // ❌ REMOVED: VOID_CREATE (cashiers do this)
       PERMISSIONS.VOID_APPROVE,
-      PERMISSIONS.X_READING,
+
+      // Readings - Z Reading only (managers close the day, cashiers do X readings)
+      // ❌ REMOVED: X_READING (cashiers do this)
       PERMISSIONS.Z_READING,
       PERMISSIONS.SALES_REPORT_VIEW,
       PERMISSIONS.SALES_REPORT_DAILY,
@@ -664,7 +778,18 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.DASHBOARD_VIEW,
       PERMISSIONS.PRODUCT_VIEW,
       PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE,
+
+      // Field-Level Security - Product (Accounting needs all financial data)
+      PERMISSIONS.PRODUCT_VIEW_PROFIT_MARGIN,
+      PERMISSIONS.PRODUCT_VIEW_SUPPLIER,
+
       PERMISSIONS.SELL_VIEW,
+
+      // Field-Level Security - Sales (Accounting needs all sales financial data)
+      PERMISSIONS.SELL_VIEW_COST,
+      PERMISSIONS.SELL_VIEW_PROFIT,
+      PERMISSIONS.SELL_VIEW_DISCOUNT_DETAILS,
+
       PERMISSIONS.PURCHASE_VIEW,
       PERMISSIONS.PURCHASE_CREATE,
       PERMISSIONS.PURCHASE_UPDATE,
@@ -697,6 +822,11 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.SUPPLIER_VIEW,
       PERMISSIONS.SUPPLIER_CREATE,
       PERMISSIONS.SUPPLIER_UPDATE,
+
+      // Field-Level Security - Supplier (Accounting needs all supplier data)
+      PERMISSIONS.SUPPLIER_VIEW_CONTACT_DETAILS,
+      PERMISSIONS.SUPPLIER_VIEW_PAYMENT_TERMS,
+
       PERMISSIONS.REPORT_VIEW,
       // Reports - Purchase and Financial Only
       PERMISSIONS.REPORT_PURCHASE_VIEW,
@@ -724,6 +854,8 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.CUSTOMER_CREATE,
       // Reports - Sales Only (Basic)
       PERMISSIONS.REPORT_SALES_VIEW,
+      PERMISSIONS.REPORT_SALES_TODAY,
+      PERMISSIONS.REPORT_SALES_HISTORY,
       PERMISSIONS.REPORT_STOCK_ALERT,
       PERMISSIONS.STOCK_REPORT_VIEW,
     ],
@@ -747,6 +879,8 @@ export const DEFAULT_ROLES = {
       // Sales Reports - Cashier can view own sales data
       PERMISSIONS.REPORT_VIEW,
       PERMISSIONS.REPORT_SALES_VIEW,
+      PERMISSIONS.REPORT_SALES_TODAY,
+      PERMISSIONS.REPORT_SALES_HISTORY,
       PERMISSIONS.SALES_REPORT_VIEW,
       PERMISSIONS.SALES_REPORT_DAILY,
       PERMISSIONS.SALES_REPORT_SUMMARY,
@@ -757,6 +891,144 @@ export const DEFAULT_ROLES = {
       // NO access to product master data (Categories, Brands, Units, Warranties)
       // NO access to purchase/financial/profit reports (intentionally restricted)
       // NO access to customer analysis or location comparison (restricted)
+    ],
+  },
+  SALES_CLERK: {
+    name: 'Sales Clerk',
+    permissions: [
+      // Dashboard & Basic Access
+      PERMISSIONS.DASHBOARD_VIEW,
+
+      // Products - View Only
+      PERMISSIONS.PRODUCT_VIEW,
+
+      // Sales - Full CRUD
+      PERMISSIONS.SELL_VIEW,
+      PERMISSIONS.SELL_CREATE,
+      PERMISSIONS.SELL_UPDATE,
+      PERMISSIONS.SELL_DELETE,
+
+      // Customers - Full CRUD
+      PERMISSIONS.CUSTOMER_VIEW,
+      PERMISSIONS.CUSTOMER_CREATE,
+      PERMISSIONS.CUSTOMER_UPDATE,
+
+      // Shift Management
+      PERMISSIONS.SHIFT_OPEN,
+      PERMISSIONS.SHIFT_CLOSE,
+      PERMISSIONS.SHIFT_VIEW,
+      PERMISSIONS.CASH_IN_OUT,
+      PERMISSIONS.CASH_COUNT,
+      PERMISSIONS.X_READING,
+
+      // Quotations
+      PERMISSIONS.QUOTATION_VIEW,
+      PERMISSIONS.QUOTATION_CREATE,
+
+      // Basic Reports
+      PERMISSIONS.REPORT_VIEW,
+      PERMISSIONS.REPORT_SALES_VIEW,
+      PERMISSIONS.REPORT_SALES_TODAY,
+      PERMISSIONS.SALES_REPORT_VIEW,
+
+      // ❌ NO INVENTORY PERMISSIONS
+      // ❌ NO PURCHASE PERMISSIONS
+      // ❌ NO PRODUCT MANAGEMENT (no create/update/delete products)
+      // ❌ NO FINANCIAL REPORTS (profit, cost analysis)
+      // ❌ NO INVENTORY CORRECTIONS
+      // ❌ NO PHYSICAL INVENTORY
+    ],
+  },
+  WAREHOUSE_STAFF: {
+    name: 'Warehouse Staff',
+    permissions: [
+      // Dashboard & Basic Access
+      PERMISSIONS.DASHBOARD_VIEW,
+
+      // Products - View Only
+      PERMISSIONS.PRODUCT_VIEW,
+
+      // Stock Transfers - View & Receive Only
+      PERMISSIONS.STOCK_TRANSFER_VIEW,
+      PERMISSIONS.STOCK_TRANSFER_RECEIVE,
+
+      // Purchase Receiving - View & Receive Only
+      PERMISSIONS.PURCHASE_VIEW,
+      PERMISSIONS.PURCHASE_RECEIVE,
+      PERMISSIONS.PURCHASE_RECEIPT_VIEW,
+
+      // Supplier - View Only
+      PERMISSIONS.SUPPLIER_VIEW,
+
+      // Reports - Stock Only
+      PERMISSIONS.REPORT_VIEW,
+      PERMISSIONS.REPORT_STOCK_ALERT,
+      PERMISSIONS.STOCK_REPORT_VIEW,
+
+      // ❌ NO INVENTORY CORRECTIONS (cannot adjust stock)
+      // ❌ NO PHYSICAL INVENTORY (cannot do counts)
+      // ❌ NO PURCHASE CREATE/UPDATE/DELETE
+      // ❌ NO TRANSFER CREATE/SEND
+      // ❌ NO SALES PERMISSIONS
+      // ❌ NO FINANCIAL REPORTS
+    ],
+  },
+  INVENTORY_CONTROLLER: {
+    name: 'Inventory Controller',
+    permissions: [
+      // Dashboard & Basic Access
+      PERMISSIONS.DASHBOARD_VIEW,
+
+      // Products - View & Opening Stock
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.PRODUCT_OPENING_STOCK,
+      PERMISSIONS.PRODUCT_VIEW_ALL_BRANCH_STOCK,
+
+      // Field-Level Security - Product (Inventory Controllers need to see cost data)
+      PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE,
+      PERMISSIONS.PRODUCT_VIEW_PROFIT_MARGIN,
+      PERMISSIONS.PRODUCT_VIEW_SUPPLIER,
+
+      // ✅ FULL INVENTORY CORRECTIONS ACCESS
+      PERMISSIONS.INVENTORY_CORRECTION_VIEW,
+      PERMISSIONS.INVENTORY_CORRECTION_CREATE,
+      PERMISSIONS.INVENTORY_CORRECTION_UPDATE,
+      PERMISSIONS.INVENTORY_CORRECTION_APPROVE,
+
+      // ✅ FULL PHYSICAL INVENTORY ACCESS
+      PERMISSIONS.PHYSICAL_INVENTORY_EXPORT,
+      PERMISSIONS.PHYSICAL_INVENTORY_IMPORT,
+
+      // Stock Transfers - View & Verify
+      PERMISSIONS.STOCK_TRANSFER_VIEW,
+      PERMISSIONS.STOCK_TRANSFER_VERIFY,
+
+      // Purchase - View Only (to see incoming stock)
+      PERMISSIONS.PURCHASE_VIEW,
+      PERMISSIONS.PURCHASE_RECEIPT_VIEW,
+
+      // Supplier - View Only
+      PERMISSIONS.SUPPLIER_VIEW,
+
+      // Customer/Supplier Returns - View & Create
+      PERMISSIONS.CUSTOMER_RETURN_VIEW,
+      PERMISSIONS.CUSTOMER_RETURN_CREATE,
+      PERMISSIONS.SUPPLIER_RETURN_VIEW,
+      PERMISSIONS.SUPPLIER_RETURN_CREATE,
+
+      // Reports - Inventory Focus
+      PERMISSIONS.REPORT_VIEW,
+      PERMISSIONS.REPORT_STOCK_ALERT,
+      PERMISSIONS.STOCK_REPORT_VIEW,
+      PERMISSIONS.INVENTORY_LEDGER_VIEW,
+      PERMISSIONS.VIEW_INVENTORY_REPORTS,
+      PERMISSIONS.REPORT_TRANSFER_VIEW,
+
+      // ❌ NO SALES PERMISSIONS
+      // ❌ NO PURCHASE CREATE/UPDATE/DELETE
+      // ❌ NO FINANCIAL REPORTS (profit/loss)
+      // ❌ NO USER MANAGEMENT
+      // ❌ NO SETTINGS CHANGES
     ],
   },
 } as const

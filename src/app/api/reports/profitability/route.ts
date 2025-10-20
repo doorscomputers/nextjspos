@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
       },
     }
 
-    if (locationId) {
+    if (locationId && locationId !== 'all') {
       salesWhere.locationId = parseInt(locationId)
     }
 
@@ -61,31 +61,52 @@ export async function GET(request: NextRequest) {
     const sales = await prisma.sale.findMany({
       where: salesWhere,
       include: {
-        items: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                categoryId: true,
-              },
-            },
-            productVariation: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
-        location: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
+        items: true,
       },
     })
+
+    const productIds = new Set<number>()
+    const variationIds = new Set<number>()
+    const locationIds = new Set<number>()
+
+    sales.forEach((sale) => {
+      if (sale.locationId) {
+        locationIds.add(sale.locationId)
+      }
+      sale.items.forEach((item) => {
+        if (item.productId) {
+          productIds.add(item.productId)
+        }
+        if (item.productVariationId) {
+          variationIds.add(item.productVariationId)
+        }
+      })
+    })
+
+    const [products, variations, locationsData] = await Promise.all([
+      productIds.size > 0
+        ? prisma.product.findMany({
+            where: { id: { in: Array.from(productIds) } },
+            select: { id: true, name: true, categoryId: true },
+          })
+        : [],
+      variationIds.size > 0
+        ? prisma.productVariation.findMany({
+            where: { id: { in: Array.from(variationIds) } },
+            select: { id: true, name: true, productId: true },
+          })
+        : [],
+      locationIds.size > 0
+        ? prisma.businessLocation.findMany({
+            where: { id: { in: Array.from(locationIds) } },
+            select: { id: true, name: true },
+          })
+        : [],
+    ])
+
+    const productMap = new Map(products.map((p) => [p.id, p]))
+    const variationMap = new Map(variations.map((v) => [v.id, v]))
+    const locationMap = new Map(locationsData.map((loc) => [loc.id, loc]))
 
     // Calculate overall metrics
     let totalRevenue = 0
@@ -93,19 +114,21 @@ export async function GET(request: NextRequest) {
     let totalItemsSold = 0
 
     // For groupBy functionality
-    const productMetrics = new Map<number, any>()
+    const productMetrics = new Map<string, any>()
     const locationMetrics = new Map<number, any>()
     const categoryMetrics = new Map<number, any>()
     const dateMetrics = new Map<string, any>()
 
     sales.forEach(sale => {
-      const saleRevenue = parseFloat(sale.totalAmount.toString())
+      const saleRevenue = sale.totalAmount ? parseFloat(sale.totalAmount.toString()) : 0
       totalRevenue += saleRevenue
 
       sale.items.forEach(item => {
-        const quantity = parseFloat(item.quantity.toString())
-        const unitPrice = parseFloat(item.unitPrice.toString())
-        const unitCost = parseFloat(item.unitCost.toString())
+        const productInfo = productMap.get(item.productId)
+        const variationInfo = variationMap.get(item.productVariationId)
+        const quantity = item.quantity ? parseFloat(item.quantity.toString()) : 0
+        const unitPrice = item.unitPrice ? parseFloat(item.unitPrice.toString()) : 0
+        const unitCost = item.unitCost ? parseFloat(item.unitCost.toString()) : 0
 
         const itemRevenue = quantity * unitPrice
         const itemCOGS = quantity * unitCost
@@ -116,19 +139,24 @@ export async function GET(request: NextRequest) {
 
         // Group by product
         if (groupBy === 'product' || !groupBy) {
-          const productId = item.productVariation.id
-          if (!productMetrics.has(productId)) {
-            productMetrics.set(productId, {
-              productId,
-              productName: item.product.name,
-              variationName: item.productVariation.name,
+          const productKey = variationInfo
+            ? `variation-${variationInfo.id}`
+            : productInfo
+            ? `product-${productInfo.id}`
+            : `item-${item.id}`
+
+          if (!productMetrics.has(productKey)) {
+            productMetrics.set(productKey, {
+              productId: productInfo?.id ?? variationInfo?.id ?? item.id,
+              productName: productInfo?.name ?? 'Unknown Product',
+              variationName: variationInfo?.name ?? 'Default',
               revenue: 0,
               cogs: 0,
               grossProfit: 0,
               quantitySold: 0,
             })
           }
-          const pm = productMetrics.get(productId)
+          const pm = productMetrics.get(productKey)
           pm.revenue += itemRevenue
           pm.cogs += itemCOGS
           pm.grossProfit += itemProfit
@@ -137,26 +165,29 @@ export async function GET(request: NextRequest) {
 
         // Group by location
         if (groupBy === 'location') {
-          const locId = sale.location.id
-          if (!locationMetrics.has(locId)) {
-            locationMetrics.set(locId, {
-              locationId: locId,
-              locationName: sale.location.name,
-              revenue: 0,
-              cogs: 0,
-              grossProfit: 0,
-              salesCount: 0,
-            })
+          const locId = sale.locationId
+          if (locId) {
+            if (!locationMetrics.has(locId)) {
+              const locInfo = locationMap.get(locId)
+              locationMetrics.set(locId, {
+                locationId: locId,
+                locationName: locInfo?.name ?? 'Unknown Location',
+                revenue: 0,
+                cogs: 0,
+                grossProfit: 0,
+                salesCount: 0,
+              })
+            }
+            const lm = locationMetrics.get(locId)
+            lm.revenue += itemRevenue
+            lm.cogs += itemCOGS
+            lm.grossProfit += itemProfit
           }
-          const lm = locationMetrics.get(locId)
-          lm.revenue += itemRevenue
-          lm.cogs += itemCOGS
-          lm.grossProfit += itemProfit
         }
 
         // Group by category
-        if (groupBy === 'category' && item.product.categoryId) {
-          const catId = item.product.categoryId
+        if (groupBy === 'category' && productInfo?.categoryId) {
+          const catId = productInfo.categoryId
           if (!categoryMetrics.has(catId)) {
             categoryMetrics.set(catId, {
               categoryId: catId,
@@ -175,7 +206,7 @@ export async function GET(request: NextRequest) {
 
         // Group by date
         if (groupBy === 'date') {
-          const dateKey = sale.saleDate.toISOString().split('T')[0]
+          const dateKey = sale.saleDate ? sale.saleDate.toISOString().split('T')[0] : start.toISOString().split('T')[0]
           if (!dateMetrics.has(dateKey)) {
             dateMetrics.set(dateKey, {
               date: dateKey,
@@ -194,13 +225,16 @@ export async function GET(request: NextRequest) {
 
       // Count sales per location
       if (groupBy === 'location') {
-        const lm = locationMetrics.get(sale.location.id)
-        if (lm) lm.salesCount++
+        const locId = sale.locationId
+        if (locId) {
+          const lm = locationMetrics.get(locId)
+          if (lm) lm.salesCount++
+        }
       }
 
       // Count sales per date
       if (groupBy === 'date') {
-        const dateKey = sale.saleDate.toISOString().split('T')[0]
+        const dateKey = sale.saleDate ? sale.saleDate.toISOString().split('T')[0] : start.toISOString().split('T')[0]
         const dm = dateMetrics.get(dateKey)
         if (dm) dm.salesCount++
       }
@@ -246,15 +280,17 @@ export async function GET(request: NextRequest) {
     if (groupBy === 'category') {
       // Fetch category names
       const categoryIds = Array.from(categoryMetrics.keys())
-      const categories = await prisma.category.findMany({
-        where: {
-          id: { in: categoryIds },
-        },
-        select: {
-          id: true,
-          name: true,
-        },
-      })
+      const categories = categoryIds.length > 0
+        ? await prisma.category.findMany({
+            where: {
+              id: { in: categoryIds },
+            },
+            select: {
+              id: true,
+              name: true,
+            },
+          })
+        : []
 
       const categoryMap = new Map(categories.map(c => [c.id, c.name]))
 

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -6,8 +6,6 @@ import { usePermissions } from "@/hooks/usePermissions"
 import { useBusiness } from "@/hooks/useBusiness"
 import { PERMISSIONS } from "@/lib/rbac"
 import { useState, useEffect } from "react"
-import { useTheme } from "@/components/theme-provider"
-import { sidebarStyles } from "@/lib/themes"
 import {
   HomeIcon,
   UsersIcon,
@@ -31,6 +29,8 @@ import {
   ShieldCheckIcon,
   MagnifyingGlassIcon,
   XMarkIcon,
+  ChevronDoubleLeftIcon,
+  ChevronDoubleRightIcon,
 } from "@heroicons/react/24/outline"
 
 interface MenuItem {
@@ -45,7 +45,6 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
   const pathname = usePathname()
   const { can, user } = usePermissions()
   const { companyName } = useBusiness()
-  const { sidebarStyle } = useTheme()
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
     Products: true, // Products menu expanded by default
     Purchases: true, // Purchases menu expanded by default
@@ -53,17 +52,32 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
     "POS & Sales": true, // POS menu expanded by default
   })
   const [searchQuery, setSearchQuery] = useState('')
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
-  const styleConfig = sidebarStyles[sidebarStyle]
-  const isIconOnly = styleConfig.iconOnly
-  const isCompact = styleConfig.compact
-  const sidebarWidth = styleConfig.width
+  // Load collapse state from localStorage on mount
+  useEffect(() => {
+    const savedState = localStorage.getItem('sidebarCollapsed')
+    if (savedState !== null) {
+      setIsCollapsed(savedState === 'true')
+    }
+  }, [])
+
+  // Dynamic sidebar style based on collapse state
+  const isIconOnly = isCollapsed
+  const isCompact = false
+  const sidebarWidth = isCollapsed ? '4.5rem' : '16rem'
 
   const toggleMenu = (menuName: string) => {
     setExpandedMenus(prev => ({
       ...prev,
       [menuName]: !prev[menuName]
     }))
+  }
+
+  const toggleCollapse = () => {
+    const newState = !isCollapsed
+    setIsCollapsed(newState)
+    localStorage.setItem('sidebarCollapsed', String(newState))
   }
 
   const clearSearch = () => {
@@ -123,32 +137,26 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
 
     const lowercaseQuery = query.toLowerCase()
 
-    return items.filter(item => {
-      // Check if main menu item matches
-      const mainMenuMatches = item.name.toLowerCase().includes(lowercaseQuery)
+    return items.reduce<MenuItem[]>((acc, item) => {
+      const matchesItem = item.name.toLowerCase().includes(lowercaseQuery)
 
-      // Check if any child menu item matches
-      const hasMatchingChild = item.children?.some(child =>
-        child.name.toLowerCase().includes(lowercaseQuery)
-      )
-
-      // If main menu or any child matches, return the item with filtered children
-      if (mainMenuMatches || hasMatchingChild) {
-        if (item.children) {
-          // Filter children to only show matching ones
-          const filteredChildren = item.children.filter(child =>
-            child.name.toLowerCase().includes(lowercaseQuery)
-          )
-          return {
-            ...item,
-            children: filteredChildren.length > 0 ? filteredChildren : item.children
-          }
-        }
-        return true
+      // Filter children first and check their permissions
+      let filteredChildren: MenuItem[] | undefined = undefined
+      if (item.children) {
+        filteredChildren = item.children
+          .filter(child => child.name.toLowerCase().includes(lowercaseQuery))
+          .filter(child => !child.permission || can(child.permission))
       }
 
-      return false
-    })
+      if (matchesItem || (filteredChildren && filteredChildren.length > 0)) {
+        acc.push({
+          ...item,
+          children: matchesItem ? item.children : filteredChildren,
+        })
+      }
+
+      return acc
+    }, [])
   }
 
   const menuItems: MenuItem[] = [
@@ -156,6 +164,12 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       name: "Dashboard",
       href: "/dashboard",
       icon: HomeIcon,
+      permission: PERMISSIONS.DASHBOARD_VIEW,
+    },
+    {
+      name: "Analytics Dashboard",
+      href: "/dashboard/dashboard-v2",
+      icon: ChartBarIcon,
       permission: PERMISSIONS.DASHBOARD_VIEW,
     },
     {
@@ -173,12 +187,6 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
         {
           name: "Point of Sale",
           href: "/dashboard/pos",
-          icon: ShoppingCartIcon,
-          permission: PERMISSIONS.SELL_CREATE,
-        },
-        {
-          name: "POS v2 (Enhanced)",
-          href: "/dashboard/pos-v2",
           icon: ShoppingCartIcon,
           permission: PERMISSIONS.SELL_CREATE,
         },
@@ -227,6 +235,18 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           permission: PERMISSIONS.PRODUCT_VIEW,
         },
         {
+          name: "Branch Stock Pivot",
+          href: "/dashboard/products/branch-stock-pivot",
+          icon: CubeIcon,
+          permission: PERMISSIONS.PRODUCT_VIEW,
+        },
+        {
+          name: "Branch Stock Pivot V2",
+          href: "/dashboard/products/branch-stock-pivot-v2",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.PRODUCT_VIEW,
+        },
+        {
           name: "Add Product",
           href: "/dashboard/products/add",
           icon: CubeIcon,
@@ -245,16 +265,40 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           permission: PERMISSIONS.PRODUCT_CREATE,
         },
         {
+          name: "Import Branch Stock",
+          href: "/dashboard/products/import-branch-stock",
+          icon: CubeIcon,
+          permission: PERMISSIONS.SUPERADMIN_ALL,
+        },
+        {
+          name: "CSV ID Mapper",
+          href: "/dashboard/products/csv-id-mapper",
+          icon: CubeIcon,
+          permission: PERMISSIONS.SUPERADMIN_ALL,
+        },
+        {
           name: "Categories",
           href: "/dashboard/products/categories",
           icon: CubeIcon,
           permission: PERMISSIONS.PRODUCT_CATEGORY_VIEW,
         },
         {
+          name: "Import Categories",
+          href: "/dashboard/products/categories/import",
+          icon: CubeIcon,
+          permission: PERMISSIONS.SUPERADMIN_ALL,
+        },
+        {
           name: "Brands",
           href: "/dashboard/products/brands",
           icon: CubeIcon,
           permission: PERMISSIONS.PRODUCT_BRAND_VIEW,
+        },
+        {
+          name: "Import Brands",
+          href: "/dashboard/products/brands/import",
+          icon: CubeIcon,
+          permission: PERMISSIONS.SUPERADMIN_ALL,
         },
         {
           name: "Units",
@@ -399,6 +443,20 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       href: "/dashboard/suppliers",
       icon: BuildingStorefrontIcon,
       permission: PERMISSIONS.SUPPLIER_VIEW,
+      children: [
+        {
+          name: "All Suppliers",
+          href: "/dashboard/suppliers",
+          icon: BuildingStorefrontIcon,
+          permission: PERMISSIONS.SUPPLIER_VIEW,
+        },
+        {
+          name: "Import Suppliers",
+          href: "/dashboard/suppliers/import",
+          icon: BuildingStorefrontIcon,
+          permission: PERMISSIONS.SUPERADMIN_ALL,
+        },
+      ],
     },
     {
       name: "My Profile",
@@ -439,13 +497,19 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           permission: PERMISSIONS.REPORT_VIEW,
         },
         {
+          name: "--- INVENTORY REPORTS ---",
+          href: "#",
+          icon: ClipboardDocumentListIcon,
+          permission: PERMISSIONS.REPORT_VIEW,
+        },
+        {
           name: "Stock Alert Report",
           href: "/dashboard/reports/stock-alert",
           icon: ExclamationTriangleIcon,
           permission: PERMISSIONS.REPORT_STOCK_ALERT,
         },
         {
-          name: "Historical Inventory Report",
+          name: "Historical Inventory",
           href: "/dashboard/reports/historical-inventory",
           icon: ClipboardDocumentListIcon,
           permission: PERMISSIONS.VIEW_INVENTORY_REPORTS,
@@ -461,6 +525,24 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           href: "#",
           icon: ChartBarIcon,
           permission: PERMISSIONS.SALES_REPORT_VIEW,
+        },
+        {
+          name: "Sales Today",
+          href: "/dashboard/reports/sales-today",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.REPORT_SALES_TODAY,
+        },
+        {
+          name: "Sales History",
+          href: "/dashboard/reports/sales-history",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.REPORT_SALES_HISTORY,
+        },
+        {
+          name: "Sales Report",
+          href: "/dashboard/reports/sales-report",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.REPORT_SALES_VIEW,
         },
         {
           name: "Sales Journal",
@@ -481,62 +563,20 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           permission: PERMISSIONS.SALES_REPORT_PER_CASHIER,
         },
         {
-          name: "Sales Per Location",
-          href: "/dashboard/reports/sales-per-location",
-          icon: ChartBarIcon,
-          permission: PERMISSIONS.SALES_REPORT_PER_LOCATION,
-        },
-        {
-          name: "Sales Analytics",
-          href: "/dashboard/reports/sales-analytics",
-          icon: ChartBarIcon,
-          permission: PERMISSIONS.SALES_REPORT_ANALYTICS,
-        },
-        {
-          name: "Customer Sales Analysis",
-          href: "/dashboard/reports/customer-sales",
-          icon: ChartBarIcon,
-          permission: PERMISSIONS.SALES_REPORT_CUSTOMER_ANALYSIS,
-        },
-        {
-          name: "Payment Method Analysis",
-          href: "/dashboard/reports/payment-method",
-          icon: ChartBarIcon,
-          permission: PERMISSIONS.SALES_REPORT_PAYMENT_METHOD,
-        },
-        {
-          name: "Discount Analysis",
-          href: "/dashboard/reports/discount-analysis",
-          icon: ChartBarIcon,
-          permission: PERMISSIONS.SALES_REPORT_DISCOUNT_ANALYSIS,
-        },
-        {
-          name: "--- OTHER REPORTS ---",
+          name: "--- PURCHASE REPORTS ---",
           href: "#",
-          icon: ChartBarIcon,
-          permission: PERMISSIONS.REPORT_VIEW,
-        },
-        {
-          name: "Sales Today",
-          href: "/dashboard/reports/sales-today",
-          icon: ChartBarIcon,
-          permission: PERMISSIONS.REPORT_VIEW,
-        },
-        {
-          name: "Sales History",
-          href: "/dashboard/reports/sales-history",
-          icon: ChartBarIcon,
-          permission: PERMISSIONS.REPORT_VIEW,
-        },
-        {
-          name: "Sales Report",
-          href: "/dashboard/reports/sales-report",
-          icon: ChartBarIcon,
-          permission: PERMISSIONS.REPORT_SALES_VIEW,
+          icon: TruckIcon,
+          permission: PERMISSIONS.REPORT_PURCHASE_VIEW,
         },
         {
           name: "Purchase Reports",
           href: "/dashboard/reports/purchases",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.REPORT_PURCHASE_VIEW,
+        },
+        {
+          name: "Purchases Report",
+          href: "/dashboard/reports/purchases-report",
           icon: ChartBarIcon,
           permission: PERMISSIONS.REPORT_PURCHASE_VIEW,
         },
@@ -553,16 +593,16 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           permission: PERMISSIONS.REPORT_PURCHASE_TRENDS,
         },
         {
-          name: "Purchases Report",
-          href: "/dashboard/reports/purchases-report",
-          icon: ChartBarIcon,
-          permission: PERMISSIONS.REPORT_PURCHASE_VIEW,
-        },
-        {
           name: "Purchase Items Report",
           href: "/dashboard/reports/purchases-items",
           icon: ChartBarIcon,
           permission: PERMISSIONS.REPORT_PURCHASE_ITEMS,
+        },
+        {
+          name: "--- TRANSFER REPORTS ---",
+          href: "#",
+          icon: TruckIcon,
+          permission: PERMISSIONS.REPORT_TRANSFER_VIEW,
         },
         {
           name: "Transfers Report",
@@ -574,7 +614,26 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           name: "Transfer Trends",
           href: "/dashboard/reports/transfer-trends",
           icon: ChartBarIcon,
-          permission: PERMISSIONS.REPORT_TRANSFER_TRENDS,
+          permission: PERMISSIONS.REPORT_TRANSFER_VIEW,
+        },
+        {
+          name: "Transfers per Item",
+          href: "/dashboard/reports/transfers-per-item",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.STOCK_TRANSFER_VIEW,
+        },
+        // Hidden: Pivot version available at /dashboard/reports/transfers-per-item-pivot
+        // {
+        //   name: "Transfers per Item (Pivot)",
+        //   href: "/dashboard/reports/transfers-per-item-pivot",
+        //   icon: ChartBarIcon,
+        //   permission: PERMISSIONS.REPORT_TRANSFER_TRENDS,
+        // },
+        {
+          name: "--- FINANCIAL REPORTS ---",
+          href: "#",
+          icon: CurrencyDollarIcon,
+          permission: PERMISSIONS.REPORT_PROFIT_LOSS,
         },
         {
           name: "Profitability & COGS",
@@ -593,6 +652,12 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           href: "/dashboard/reports/product-purchase-history",
           icon: ChartBarIcon,
           permission: PERMISSIONS.REPORT_PRODUCT_PURCHASE_HISTORY,
+        },
+        {
+          name: "Purchase Returns Report",
+          href: "/dashboard/reports/purchase-returns",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.PURCHASE_RETURN_VIEW,
         },
         {
           name: "--- SECURITY REPORTS ---",
@@ -614,6 +679,16 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       icon: CogIcon,
       permission: PERMISSIONS.BUSINESS_SETTINGS_VIEW,
       children: [
+        {
+          name: "Theme Demo (Simple)",
+          href: "/dashboard/theme-demo-simple",
+          icon: SparklesIcon,
+        },
+        {
+          name: "Theme Demo (Full)",
+          href: "/dashboard/theme-demo",
+          icon: SparklesIcon,
+        },
         {
           name: "Business Settings",
           href: "/dashboard/business-settings",
@@ -648,10 +723,8 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
     },
     ]
 
-  const filteredMenuItems = filterMenuItems(
-    menuItems.filter(item => !item.permission || can(item.permission)),
-    searchQuery
-  )
+  // Filter by search query first, then by parent permissions
+  const filteredMenuItems = filterMenuItems(menuItems, searchQuery).filter(item => !item.permission || can(item.permission))
 
   return (
     <aside
@@ -663,11 +736,29 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       `}
     >
       <div className="flex flex-col h-full">
-        {/* Logo */}
-        <div className={`flex items-center ${isIconOnly ? 'justify-center' : 'justify-center'} h-16 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-700 dark:to-indigo-700 shadow-lg`}>
-          <h1 className={`${isIconOnly ? 'text-lg' : isCompact ? 'text-lg' : 'text-xl'} font-bold text-white drop-shadow-sm`}>
+        {/* Logo and Collapse Button */}
+        <div className={`flex items-center ${isIconOnly ? 'justify-center' : 'justify-between'} h-16 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-700 dark:to-indigo-700 shadow-lg`}>
+          <h1 className={`${isIconOnly ? 'text-lg' : isCompact ? 'text-lg' : 'text-xl'} font-bold text-white drop-shadow-sm ${isIconOnly ? '' : 'flex-1 text-center'}`}>
             {isIconOnly ? companyName.substring(0, 2).toUpperCase() : companyName}
           </h1>
+          {!isIconOnly && (
+            <button
+              onClick={toggleCollapse}
+              className="p-1.5 rounded-lg hover:bg-white/20 transition-colors duration-200 text-white"
+              title="Collapse sidebar"
+            >
+              <ChevronDoubleLeftIcon className="w-5 h-5" />
+            </button>
+          )}
+          {isIconOnly && (
+            <button
+              onClick={toggleCollapse}
+              className="absolute top-4 -right-3 p-1 rounded-full bg-blue-600 hover:bg-blue-700 transition-colors duration-200 text-white shadow-lg border-2 border-white dark:border-gray-800 z-50"
+              title="Expand sidebar"
+            >
+              <ChevronDoubleRightIcon className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* User Info */}
@@ -706,7 +797,29 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
             </div>
             {searchQuery && (
               <div className="mt-2 text-xs text-gray-500 dark:text-gray-300">
-                Found {filteredMenuItems.length} menu item{filteredMenuItems.length !== 1 ? 's' : ''}
+                Found {
+                  filteredMenuItems.reduce((count, item) => {
+                    // Count parent items that match
+                    let itemCount = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ? 1 : 0
+                    // Count matching children
+                    if (item.children) {
+                      itemCount += item.children.filter(child =>
+                        child.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+                        (!child.permission || can(child.permission))
+                      ).length
+                    }
+                    return count + itemCount
+                  }, 0)
+                } menu item{filteredMenuItems.reduce((count, item) => {
+                  let itemCount = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ? 1 : 0
+                  if (item.children) {
+                    itemCount += item.children.filter(child =>
+                      child.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+                      (!child.permission || can(child.permission))
+                    ).length
+                  }
+                  return count + itemCount
+                }, 0) !== 1 ? 's' : ''}
               </div>
             )}
           </div>
@@ -750,7 +863,7 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
                         </div>
                       )}
                     </button>
-                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1200px] opacity-100' : 'max-h-0 opacity-0'}`}>
                       <div className="ml-6 mt-1 space-y-0.5">
                         {item.children
                           .filter(child => !child.permission || can(child.permission))

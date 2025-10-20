@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No products provided' }, { status: 400 })
     }
 
-    // Fetch business name
+    // Fetch business details (name + pricing configuration)
     const business = await prisma.business.findUnique({
       where: { id: parseInt(businessId) }
     })
@@ -62,11 +62,86 @@ export async function POST(request: NextRequest) {
     const mmPerPoint = 0.352778
     const lineHeightFactor = 1.2
 
+    const productIdSet = new Set<number>()
+    products.forEach((item: any) => {
+      if (item?.productId) {
+        productIdSet.add(Number(item.productId))
+      }
+    })
+
+    const productRecords = await prisma.product.findMany({
+      where: {
+        id: { in: Array.from(productIdSet) },
+        businessId: parseInt(businessId),
+        deletedAt: null,
+      },
+      include: {
+        tax: { select: { amount: true } },
+        variations: {
+          where: { deletedAt: null },
+          select: {
+            id: true,
+            name: true,
+            sku: true,
+            sellingPrice: true,
+            isDefault: true,
+          },
+        },
+      },
+    })
+
+    const productLookup = new Map<number, typeof productRecords[number]>()
+    productRecords.forEach((record) => {
+      productLookup.set(record.id, record)
+    })
+
     let currentLabel = 0
     let currentPage = 0
 
     // Generate labels for each product
-    for (const product of products) {
+    for (const product of products as Array<any>) {
+      const productId = Number(product.productId)
+      const variationId = product.variationId ? Number(product.variationId) : null
+      const productRecord = productLookup.get(productId)
+
+      const taxRate = productRecord?.tax?.amount ? Number(productRecord.tax.amount) : 0
+
+      const variationRecord = variationId
+        ? productRecord?.variations.find((variation) => variation.id === variationId)
+        : productRecord?.variations.find((variation) => variation.isDefault) ||
+          productRecord?.variations.find((variation) => variation.sku === product.sku)
+
+      const basePrice = variationRecord?.sellingPrice
+        ? Number(variationRecord.sellingPrice)
+        : productRecord?.sellingPrice
+        ? Number(productRecord.sellingPrice)
+        : typeof product.price === 'number'
+        ? Number(product.price)
+        : 0
+
+      const showPriceMode: 'inc_tax' | 'exc_tax' = settings.showPrice === 'exc_tax' ? 'exc_tax' : 'inc_tax'
+      const businessPriceTax = business?.sellPriceTax === 'excludes' ? 'excludes' : 'includes'
+
+      const computePrice = () => {
+        if (basePrice <= 0) {
+          return 0
+        }
+
+        if (showPriceMode === 'inc_tax') {
+          if (businessPriceTax === 'includes') {
+            return basePrice
+          }
+          return taxRate ? basePrice * (1 + taxRate / 100) : basePrice
+        } else {
+          if (businessPriceTax === 'includes') {
+            return taxRate ? basePrice / (1 + taxRate / 100) : basePrice
+          }
+          return basePrice
+        }
+      }
+
+      const displayPrice = computePrice()
+
       for (let i = 0; i < product.quantity; i++) {
         // Calculate position
         const row = Math.floor((currentLabel % (format.perRow * format.perCol)) / format.perRow)
@@ -114,6 +189,7 @@ export async function POST(request: NextRequest) {
 
           doc.text(lines, x + labelWidth / 2, currentY, {
             align: 'center',
+            baseline: 'top',
             lineHeightFactor,
           })
 
@@ -161,22 +237,27 @@ export async function POST(request: NextRequest) {
           const barcodeWidth = labelWidth - 4
           const barcodeHeight = 8
           doc.addImage(barcodeBase64, 'PNG', x + 2, currentY, barcodeWidth, barcodeHeight)
-          currentY += barcodeHeight + 1
+          currentY += barcodeHeight + 1.4
 
-          // Show SKU below barcode
-          addTextBlock(product.sku, { fontSize: 6, extraSpacing: 0.6, maxLines: 2 })
+          // Show SKU below barcode with clearer spacing
+          addTextBlock(product.sku, { fontSize: 8, extraSpacing: 1.2, maxLines: 1 })
         } catch (error) {
           console.error('Barcode generation error:', error)
           // Fallback: show SKU as text
-          addTextBlock(product.sku, { fontSize: 8, extraSpacing: 0.8, maxLines: 2 })
+          addTextBlock(product.sku, { fontSize: 8, extraSpacing: 1.2, maxLines: 1 })
         }
 
         // Price
         if (settings.productPrice) {
           const fontSize = Math.min(settings.productPriceSize, 11) // Cap at 11pt
-          const priceValue = typeof product.price === 'number' ? product.price : 0
-          const priceText = `$${priceValue.toFixed(2)}`
-          addTextBlock(priceText, { fontSize, fontStyle: 'bold', maxLines: 1, extraSpacing: 0.8 })
+          const priceText =
+            displayPrice > 0
+              ? displayPrice.toLocaleString(undefined, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })
+              : '0.00'
+          addTextBlock(priceText, { fontSize, fontStyle: 'bold', maxLines: 1, extraSpacing: 1 })
         }
 
         // Packing date

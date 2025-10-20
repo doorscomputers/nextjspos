@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { transferStockIn, transferStockOut } from '@/lib/stockOperations'
+import { withIdempotency } from '@/lib/idempotency'
 
 /**
  * POST - Receive and Approve Stock Transfer (Steps 3 & 4 of 4)
@@ -25,8 +27,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const session = await getServerSession(authOptions)
+  const { id: transferId } = await params
+  return withIdempotency(request, `/api/transfers/${transferId}/receive`, async () => {
+    try {
+      const session = await getServerSession(authOptions)
 
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -35,7 +39,13 @@ export async function POST(
     const user = session.user as any
     const businessId = user.businessId
     const userId = user.id
-    const { id: transferId } = await params
+    const businessIdNumber = Number(businessId)
+    const userIdNumber = Number(userId)
+    const userDisplayName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+      user.username ||
+      `User#${userIdNumber}`
+    const transferIdNumber = Number(transferId)
 
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.STOCK_TRANSFER_RECEIVE)) {
@@ -48,8 +58,8 @@ export async function POST(
     // Get transfer details
     const transfer = await prisma.stockTransfer.findFirst({
       where: {
-        id: parseInt(transferId),
-        businessId: parseInt(businessId),
+        id: transferIdNumber,
+        businessId: businessIdNumber,
         deletedAt: null,
       },
       include: {
@@ -65,24 +75,7 @@ export async function POST(
             name: true,
           },
         },
-        items: {
-          include: {
-            serialNumbers: {
-              include: {
-                serialNumber: {
-                  select: {
-                    id: true,
-                    serialNumber: true,
-                    imei: true,
-                    status: true,
-                    productId: true,
-                    productVariationId: true,
-                  },
-                },
-              },
-            },
-          },
-        },
+        items: true, // Serial numbers stored as JSON in serialNumbersSent/serialNumbersReceived
       },
     })
 
@@ -99,7 +92,7 @@ export async function POST(
       const userLocation = await prisma.userLocation.findUnique({
         where: {
           userId_locationId: {
-            userId: parseInt(userId),
+            userId: userIdNumber,
             locationId: transfer.toLocationId,
           },
         },
@@ -114,7 +107,7 @@ export async function POST(
     }
 
     // ENFORCE: Receiver must be different from creator, checker, and sender (separation of duties)
-    if (transfer.createdBy === parseInt(userId)) {
+    if (transfer.createdBy === userIdNumber) {
       return NextResponse.json(
         {
           error: 'Cannot receive your own transfer. Only users at the destination location who did not create this transfer can receive it.',
@@ -124,7 +117,7 @@ export async function POST(
       )
     }
 
-    if (transfer.checkedBy === parseInt(userId)) {
+    if (transfer.checkedBy === userIdNumber) {
       return NextResponse.json(
         {
           error: 'Cannot receive a transfer you checked. A different user at the destination must receive this transfer.',
@@ -134,7 +127,7 @@ export async function POST(
       )
     }
 
-    if (transfer.sentBy === parseInt(userId)) {
+    if (transfer.sentBy === userIdNumber) {
       return NextResponse.json(
         {
           error: 'Cannot receive a transfer you sent. A different user at the destination must receive this transfer.',
@@ -144,20 +137,18 @@ export async function POST(
       )
     }
 
-    // Validate transfer status
-    if (transfer.status !== 'in_transit') {
+    // Validate transfer status - accept in_transit, arrived, or verifying
+    const validStatuses = ['in_transit', 'arrived', 'verifying']
+    if (!validStatuses.includes(transfer.status)) {
       return NextResponse.json(
-        { error: `Cannot receive transfer with status: ${transfer.status}. Only in_transit transfers can be received.` },
+        { error: `Cannot receive transfer with status: ${transfer.status}. Transfer must be in_transit, arrived, or verifying.` },
         { status: 400 }
       )
     }
 
-    if (transfer.stockDeducted) {
-      return NextResponse.json(
-        { error: 'Stock has already been deducted for this transfer' },
-        { status: 400 }
-      )
-    }
+    // CRITICAL SECURITY FIX: Stock should ALWAYS be deducted at SEND, never at RECEIVE
+    // This prevents double deductions and ensures ledger accuracy
+    // The receive endpoint should ONLY add stock to destination
 
     const body = await request.json()
     const { receivedDate, items, notes } = body
@@ -173,7 +164,7 @@ export async function POST(
     // Validate each item
     for (const receivedItem of items) {
       const transferItem = transfer.items.find(
-        (ti) => ti.id === parseInt(receivedItem.transferItemId)
+        (ti) => ti.id === Number(receivedItem.transferItemId)
       )
 
       if (!transferItem) {
@@ -184,6 +175,10 @@ export async function POST(
       }
 
       const quantityReceived = parseFloat(receivedItem.quantityReceived)
+
+        if (quantityReceived <= 0) {
+          continue
+        }
 
       if (isNaN(quantityReceived) || quantityReceived <= 0) {
         return NextResponse.json(
@@ -202,7 +197,13 @@ export async function POST(
       }
 
       // If serial numbers expected, validate them
-      if (transferItem.serialNumbers && transferItem.serialNumbers.length > 0) {
+      const serialNumbersSent = transferItem.serialNumbersSent
+        ? (Array.isArray(transferItem.serialNumbersSent)
+            ? transferItem.serialNumbersSent
+            : JSON.parse(transferItem.serialNumbersSent as string))
+        : []
+
+      if (serialNumbersSent.length > 0) {
         if (!receivedItem.serialNumberIds || receivedItem.serialNumberIds.length === 0) {
           return NextResponse.json(
             { error: `Serial numbers required for item ${receivedItem.transferItemId}` },
@@ -221,8 +222,9 @@ export async function POST(
 
         // Verify all serial numbers are part of this transfer and in_transit
         for (const snId of receivedItem.serialNumberIds) {
-          const snInTransfer = transferItem.serialNumbers.find(
-            (ts) => ts.serialNumberId === parseInt(snId)
+          const snIdNumber = Number(snId)
+          const snInTransfer = serialNumbersSent.find(
+            (id: number) => id === snIdNumber
           )
 
           if (!snInTransfer) {
@@ -234,7 +236,7 @@ export async function POST(
 
           const sn = await prisma.productSerialNumber.findFirst({
             where: {
-              id: parseInt(snId),
+              id: snIdNumber,
               status: 'in_transit',
             },
           })
@@ -254,126 +256,94 @@ export async function POST(
     await prisma.$transaction(async (tx) => {
       // Update transfer status
       await tx.stockTransfer.update({
-        where: { id: parseInt(transferId) },
+        where: { id: transferIdNumber },
         data: {
           status: 'received', // Transfer complete
           stockDeducted: true, // CRITICAL: Stock NOW deducted
-          receivedBy: parseInt(userId),
+          receivedBy: userIdNumber,
           receivedAt: receivedDate ? new Date(receivedDate) : new Date(),
-          receiveNotes: notes,
+          verifierNotes: notes, // Store receive notes in verifierNotes field
         },
       })
+
+      const deductAtReceive = !transfer.stockDeducted
 
       // Process each item
       for (const receivedItem of items) {
         const transferItem = transfer.items.find(
-          (ti) => ti.id === parseInt(receivedItem.transferItemId)
+          (ti) => ti.id === Number(receivedItem.transferItemId)
         )!
 
         const quantityReceived = parseFloat(receivedItem.quantityReceived)
+
+        if (quantityReceived <= 0) {
+          continue
+        }
 
         // Update transfer item quantity received
         await tx.stockTransferItem.update({
           where: { id: transferItem.id },
           data: {
-            quantityReceived,
+            receivedQuantity: quantityReceived,
           },
         })
 
-        // STEP 1: Deduct stock from source location
-        const sourceStock = await tx.variationLocationDetails.findUnique({
-          where: {
-            productVariationId_locationId: {
+        // STEP 1: Deduct stock from source location if not already processed
+        // ⚠️ CRITICAL: This should NEVER happen in modern workflow
+        // Stock should ALWAYS be deducted at SEND, not at RECEIVE
+        // This code path exists for legacy compatibility only
+        if (deductAtReceive) {
+          console.warn(`⚠️ WARNING: Transfer ${transfer.transferNumber} - Deducting stock at RECEIVE instead of SEND. This is legacy behavior and may indicate a workflow issue.`)
+
+          await transferStockOut({
+            businessId: businessIdNumber,
+            productId: transferItem.productId,
+            productVariationId: transferItem.productVariationId,
+            fromLocationId: transfer.fromLocationId,
+            quantity: quantityReceived,
+            transferId: transfer.id,
+            userId: userIdNumber,
+            notes: `Transfer ${transfer.transferNumber} to ${transfer.toLocation.name} (LEGACY: deducted at receive)`,
+            userDisplayName,
+            tx,
+          })
+        } else {
+          // Modern workflow: Stock already deducted at SEND
+          // Verify that the ledger entry exists
+          const ledgerEntry = await tx.stockTransaction.findFirst({
+            where: {
               productVariationId: transferItem.productVariationId,
               locationId: transfer.fromLocationId,
-            },
-          },
-        })
+              type: 'transfer_out',
+              referenceType: 'transfer',
+              referenceId: transfer.id,
+            }
+          })
 
-        if (!sourceStock) {
-          throw new Error(`Stock record not found at source location for variation ${transferItem.productVariationId}`)
+          if (!ledgerEntry) {
+            // CRITICAL ERROR: Stock was deducted but ledger entry is missing!
+            // This should NEVER happen - it indicates a bug in the SEND process
+            throw new Error(
+              `CRITICAL INVENTORY ERROR: Transfer ${transfer.transferNumber} - ` +
+              `Stock was marked as deducted (stockDeducted=true) but no ledger entry found for ` +
+              `variation ${transferItem.productVariationId} at location ${transfer.fromLocationId}. ` +
+              `This indicates a data integrity issue that must be investigated immediately.`
+            )
+          }
         }
 
-        const newSourceQty = parseFloat(sourceStock.qtyAvailable.toString()) - quantityReceived
-
-        await tx.variationLocationDetails.update({
-          where: {
-            productVariationId_locationId: {
-              productVariationId: transferItem.productVariationId,
-              locationId: transfer.fromLocationId,
-            },
-          },
-          data: {
-            qtyAvailable: newSourceQty,
-          },
-        })
-
-        // Create stock transaction for source (negative quantity)
-        await tx.stockTransaction.create({
-          data: {
-            businessId: parseInt(businessId),
-            productId: transferItem.productId,
-            productVariationId: transferItem.productVariationId,
-            locationId: transfer.fromLocationId,
-            type: 'transfer_out',
-            quantity: -quantityReceived, // Negative for deduction
-            unitCost: 0,
-            balanceQty: newSourceQty,
-            referenceType: 'transfer',
-            referenceId: transfer.id,
-            createdBy: parseInt(userId),
-            notes: `Transfer ${transfer.transferNumber} to ${transfer.toLocation.name}`,
-          },
-        })
-
         // STEP 2: Add stock to destination location
-        const destStock = await tx.variationLocationDetails.findUnique({
-          where: {
-            productVariationId_locationId: {
-              productVariationId: transferItem.productVariationId,
-              locationId: transfer.toLocationId,
-            },
-          },
-        })
-
-        const newDestQty = destStock
-          ? parseFloat(destStock.qtyAvailable.toString()) + quantityReceived
-          : quantityReceived
-
-        await tx.variationLocationDetails.upsert({
-          where: {
-            productVariationId_locationId: {
-              productVariationId: transferItem.productVariationId,
-              locationId: transfer.toLocationId,
-            },
-          },
-          update: {
-            qtyAvailable: newDestQty,
-          },
-          create: {
-            productId: transferItem.productId,
-            productVariationId: transferItem.productVariationId,
-            locationId: transfer.toLocationId,
-            qtyAvailable: newDestQty,
-          },
-        })
-
-        // Create stock transaction for destination (positive quantity)
-        await tx.stockTransaction.create({
-          data: {
-            businessId: parseInt(businessId),
-            productId: transferItem.productId,
-            productVariationId: transferItem.productVariationId,
-            locationId: transfer.toLocationId,
-            type: 'transfer_in',
-            quantity: quantityReceived, // Positive for addition
-            unitCost: 0,
-            balanceQty: newDestQty,
-            referenceType: 'transfer',
-            referenceId: transfer.id,
-            createdBy: parseInt(userId),
-            notes: `Transfer ${transfer.transferNumber} from ${transfer.fromLocation.name}`,
-          },
+        await transferStockIn({
+          businessId: businessIdNumber,
+          productId: transferItem.productId,
+          productVariationId: transferItem.productVariationId,
+          toLocationId: transfer.toLocationId,
+          quantity: quantityReceived,
+          transferId: transfer.id,
+          userId: userIdNumber,
+          notes: `Transfer ${transfer.transferNumber} from ${transfer.fromLocation.name}`,
+          userDisplayName,
+          tx,
         })
 
         // STEP 3: Update serial numbers (if applicable)
@@ -381,7 +351,7 @@ export async function POST(
           for (const snId of receivedItem.serialNumberIds) {
             // Update serial number status and location
             const serialNumberRecord = await tx.productSerialNumber.update({
-              where: { id: parseInt(snId) },
+              where: { id: Number(snId) },
               data: {
                 status: 'in_stock', // Back to in_stock
                 currentLocationId: transfer.toLocationId, // NOW at destination
@@ -397,7 +367,7 @@ export async function POST(
                 toLocationId: transfer.toLocationId,
                 referenceType: 'transfer',
                 referenceId: transfer.id,
-                movedBy: parseInt(userId),
+                movedBy: userIdNumber,
                 notes: `Transfer ${transfer.transferNumber} received at ${transfer.toLocation.name}`,
               },
             })
@@ -405,13 +375,13 @@ export async function POST(
         }
       }
     }, {
-      timeout: 30000, // 30 seconds for complex transfers
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     // Create audit log
     await createAuditLog({
-      businessId: parseInt(businessId),
-      userId: parseInt(userId),
+      businessId: businessIdNumber,
+      userId: userIdNumber,
       username: user.username,
       action: 'stock_transfer_receive' as AuditAction,
       entityType: EntityType.STOCK_TRANSFER,
@@ -441,23 +411,7 @@ export async function POST(
       include: {
         fromLocation: true,
         toLocation: true,
-        items: {
-          include: {
-            serialNumbers: {
-              include: {
-                serialNumber: {
-                  select: {
-                    id: true,
-                    serialNumber: true,
-                    imei: true,
-                    status: true,
-                    currentLocationId: true,
-                  },
-                },
-              },
-            },
-          },
-        },
+        items: true, // Serial numbers stored as JSON in serialNumbersSent/serialNumbersReceived
       },
     })
 
@@ -475,4 +429,5 @@ export async function POST(
       { status: 500 }
     )
   }
+  }) // Close idempotency wrapper
 }

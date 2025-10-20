@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { ArrowLeftIcon, CheckIcon, XMarkIcon, TruckIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, PrinterIcon, ArrowDownTrayIcon, TableCellsIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, CheckIcon, XMarkIcon, TruckIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ArrowDownTrayIcon, TableCellsIcon, PencilIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 
 interface Transfer {
@@ -85,6 +85,16 @@ export default function TransferDetailPage() {
     fetchLocations()
     fetchTransfer()
   }, [transferId])
+
+  // Update page title dynamically
+  useEffect(() => {
+    if (transfer) {
+      document.title = `Transfer ${transfer.transferNumber} - Igoro Tech(IT)`
+    }
+    return () => {
+      document.title = 'Igoro Tech(IT) Inventory Management System'
+    }
+  }, [transfer])
 
   const fetchLocations = async () => {
     try {
@@ -193,9 +203,96 @@ export default function TransferDetailPage() {
     })
   }
 
+  const handleUnverifyItem = async (itemId: number) => {
+    if (!confirm('Edit this verified item? You can change the quantity and verify again.')) return
+    await handleAction('unverify-item', 'Item unverified - you can now edit', {
+      itemId
+    })
+  }
+
   const handleComplete = () => {
-    if (!confirm('Complete this transfer? Stock will be added to destination location.')) return
+    // Count total items and verified items for final review
+    const totalItems = transfer?.items.length || 0
+    const verifiedItems = transfer?.items.filter(item => item.verified).length || 0
+
+    const warningMessage = `
+⚠️ FINAL CONFIRMATION ⚠️
+
+You are about to COMPLETE this transfer and UPDATE INVENTORY.
+
+Items verified: ${verifiedItems}/${totalItems}
+
+This action will:
+✓ Add stock to destination location
+✓ Update inventory ledgers permanently
+✓ Make this transfer IMMUTABLE (cannot be edited)
+
+⚠️ Once completed, you CANNOT change verified quantities!
+
+Review all verified quantities carefully before proceeding.
+
+Are you absolutely sure all quantities are correct?
+    `.trim()
+
+    if (!confirm(warningMessage)) return
     handleAction('complete', 'Transfer completed - stock added to destination')
+  }
+
+  const handleQuickReceive = async () => {
+    if (!confirm('Receive this transfer? All items will be accepted with sent quantities and stock will be added to destination location.')) return
+
+    try {
+      setActionLoading(true)
+
+      // Build items array with all transfer items using sent quantities
+      const receiveItems = transfer.items.map(item => {
+        // Parse serial numbers from JSON field
+        const serialNumbersSent = item.serialNumbersSent
+          ? (Array.isArray(item.serialNumbersSent)
+              ? item.serialNumbersSent
+              : JSON.parse(item.serialNumbersSent as string))
+          : []
+
+        return {
+          transferItemId: item.id,
+          quantityReceived: parseFloat(item.quantity?.toString() || '0'),
+          serialNumberIds: serialNumbersSent // Array of serial number IDs
+        }
+      })
+
+      console.log('🔍 Quick Receive - Payload:', {
+        receivedDate: new Date().toISOString(),
+        items: receiveItems,
+        notes: 'Quick receive - all items accepted'
+      })
+
+      const response = await fetch(`/api/transfers/${transferId}/receive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receivedDate: new Date().toISOString(),
+          items: receiveItems,
+          notes: 'Quick receive - all items accepted'
+        })
+      })
+
+      const data = await response.json()
+      console.log('📡 API Response:', response.status, data)
+
+      if (response.ok) {
+        toast.success('Transfer received - stock added to destination location')
+        router.refresh() // This reloads the page data from server
+        window.location.reload() // Force full page reload to show updated transfer
+      } else {
+        console.error('❌ API Error:', data)
+        toast.error(data.error || data.details || 'Failed to receive transfer')
+      }
+    } catch (error) {
+      console.error('❌ Exception:', error)
+      toast.error('Failed to receive transfer')
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   const handleCancel = async () => {
@@ -220,21 +317,6 @@ export default function TransferDetailPage() {
       toast.error('Failed to cancel transfer')
     } finally {
       setActionLoading(false)
-    }
-  }
-
-  const handlePrint = () => {
-    window.print()
-  }
-
-  const handleExportPDF = async () => {
-    try {
-      toast.info('Generating PDF...')
-      // Use browser's print to PDF functionality
-      window.print()
-    } catch (error) {
-      console.error('Error exporting to PDF:', error)
-      toast.error('Failed to export to PDF')
     }
   }
 
@@ -418,20 +500,24 @@ export default function TransferDetailPage() {
       })
     }
 
-    // Arrived → Start Verification
-    if (status === 'arrived' && can(PERMISSIONS.STOCK_TRANSFER_VERIFY)) {
-      actions.push({
-        label: 'Start Verification',
-        icon: ClipboardDocumentCheckIcon,
-        onClick: handleStartVerification,
-        variant: 'default' as const
-      })
+    // Arrived → Start Verification ONLY (enforce verification)
+    if (status === 'arrived') {
+      if (can(PERMISSIONS.STOCK_TRANSFER_VERIFY)) {
+        actions.push({
+          label: 'Start Verification',
+          icon: ClipboardDocumentCheckIcon,
+          onClick: handleStartVerification,
+          variant: 'default' as const
+        })
+      }
+      // REMOVED: Quick Receive button - verification is now mandatory for data integrity
+      // Users must verify items before receiving to prevent fraud and inventory discrepancies
     }
 
-    // Verified → Complete
+    // Verified → Receive Transfer (Complete)
     if (status === 'verified' && can(PERMISSIONS.STOCK_TRANSFER_COMPLETE)) {
       actions.push({
-        label: 'Complete Transfer',
+        label: 'Receive Transfer',
         icon: CheckCircleIcon,
         onClick: handleComplete,
         variant: 'default' as const
@@ -482,177 +568,60 @@ export default function TransferDetailPage() {
 
   const availableActions = getAvailableActions()
 
+  const parseQuantity = (value: string | number | null | undefined) => {
+    if (value === null || value === undefined || value === '') {
+      return 0
+    }
+    const numericValue = typeof value === 'number' ? value : parseFloat(value)
+    return Number.isFinite(numericValue) ? numericValue : 0
+  }
+
+  const formatQuantity = (value: string | number | null | undefined) => {
+    if (value === null || value === undefined || value === '') {
+      return 'N/A'
+    }
+    const numericValue = typeof value === 'number' ? value : parseFloat(value)
+    if (!Number.isFinite(numericValue)) {
+      return typeof value === 'string' && value.trim() !== '' ? value : 'N/A'
+    }
+    const isWholeNumber = Math.abs(numericValue - Math.round(numericValue)) < 1e-6
+    return numericValue.toLocaleString(undefined, {
+      minimumFractionDigits: isWholeNumber ? 0 : 2,
+      maximumFractionDigits: 4
+    })
+  }
+
+  const formatUserName = (
+    userRecord: { username: string } | null | undefined,
+    fallbackId: number | null | undefined
+  ) => {
+    if (userRecord?.username) {
+      return userRecord.username
+    }
+    if (fallbackId) {
+      return `User ${fallbackId}`
+    }
+    return 'N/A'
+  }
+
+  const totalOrdered = transfer.items.reduce(
+    (sum, item) => sum + parseQuantity(item.quantity),
+    0
+  )
+
+  const transferDateFormatted = new Date(transfer.transferDate).toLocaleDateString()
+  const printedAt = new Date().toLocaleString()
+
+  const preparedName = formatUserName(transfer.creator, transfer.createdBy)
+  const preparedSignatureName = preparedName === 'N/A' ? '' : preparedName
+  const preparedTimestamp = transfer.createdAt ? new Date(transfer.createdAt).toLocaleString() : ''
+
+  const approvedName = formatUserName(transfer.checker, transfer.checkedBy)
+  const approvedSignatureName = approvedName === 'N/A' ? '' : approvedName
+  const approvedTimestamp = transfer.checkedAt ? new Date(transfer.checkedAt).toLocaleString() : ''
+
   return (
-    <>
-      <style jsx global>{`
-        @media print {
-          @page {
-            size: A4;
-            margin: 0.5cm;
-          }
-          body * {
-            visibility: hidden;
-          }
-          .print-content, .print-content * {
-            visibility: visible;
-          }
-          .print-content {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            padding: 10px;
-            font-size: 11px;
-          }
-          .no-print {
-            display: none !important;
-          }
-          .print-header {
-            text-align: center;
-            margin-bottom: 15px;
-            border-bottom: 2px solid #000;
-            padding-bottom: 8px;
-          }
-          .print-info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-bottom: 15px;
-            font-size: 10px;
-          }
-          .print-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-            font-size: 10px;
-          }
-          .print-table th,
-          .print-table td {
-            border: 1px solid #000;
-            padding: 4px 6px;
-            text-align: left;
-          }
-          .print-table th {
-            background-color: #f0f0f0;
-            font-weight: bold;
-          }
-          .print-footer {
-            margin-top: 20px;
-            padding-top: 10px;
-            border-top: 1px solid #000;
-            font-size: 9px;
-          }
-          .print-signature {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 20px;
-            margin-top: 40px;
-            font-size: 10px;
-          }
-          .print-signature-box {
-            text-align: center;
-            padding-top: 30px;
-            border-top: 1px solid #000;
-          }
-        }
-      `}</style>
-
-      {/* Hidden Print Content */}
-      <div className="print-content" style={{ display: 'none' }}>
-        <div className="print-header">
-          <h1 style={{ margin: 0, fontSize: '16px' }}>STOCK TRANSFER DOCUMENT</h1>
-          <div style={{ fontSize: '12px', marginTop: '4px' }}>{transfer.transferNumber}</div>
-        </div>
-
-        <div className="print-info-grid">
-          <div>
-            <strong>From Location:</strong> {getLocationName(transfer.fromLocationId)}
-          </div>
-          <div>
-            <strong>To Location:</strong> {getLocationName(transfer.toLocationId)}
-          </div>
-          <div>
-            <strong>Transfer Date:</strong> {new Date(transfer.transferDate).toLocaleDateString()}
-          </div>
-          <div>
-            <strong>Status:</strong> {transfer.status.toUpperCase()}
-          </div>
-          <div>
-            <strong>Created By:</strong> {transfer.creator?.username || `User ${transfer.createdBy}`}
-          </div>
-          <div>
-            <strong>Created At:</strong> {new Date(transfer.createdAt).toLocaleString()}
-          </div>
-        </div>
-
-        {transfer.notes && (
-          <div style={{ marginBottom: '10px', fontSize: '10px' }}>
-            <strong>Notes:</strong> {transfer.notes}
-          </div>
-        )}
-
-        <table className="print-table">
-          <thead>
-            <tr>
-              <th style={{ width: '5%' }}>#</th>
-              <th style={{ width: '35%' }}>Product Name</th>
-              <th style={{ width: '25%' }}>Variation</th>
-              <th style={{ width: '15%' }}>SKU</th>
-              <th style={{ width: '10%' }}>Qty</th>
-              <th style={{ width: '10%' }}>Received</th>
-            </tr>
-          </thead>
-          <tbody>
-            {transfer.items.map((item, index) => (
-              <tr key={item.id}>
-                <td>{index + 1}</td>
-                <td>{item.product.name}</td>
-                <td>{item.productVariation.name}</td>
-                <td>{item.productVariation.sku || '-'}</td>
-                <td style={{ textAlign: 'center' }}>{item.quantity}</td>
-                <td style={{ textAlign: 'center' }}>
-                  {item.receivedQuantity || '_____'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={4} style={{ textAlign: 'right', fontWeight: 'bold' }}>
-                Total Items:
-              </td>
-              <td style={{ textAlign: 'center', fontWeight: 'bold' }}>
-                {transfer.items.reduce((sum, item) => sum + parseFloat(item.quantity), 0)}
-              </td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>
-
-        <div className="print-signature">
-          <div className="print-signature-box">
-            <div><strong>Prepared By:</strong></div>
-            <div>{transfer.creator?.username || `User ${transfer.createdBy}`}</div>
-          </div>
-          <div className="print-signature-box">
-            <div><strong>Checked By:</strong></div>
-            <div>_________________</div>
-          </div>
-          <div className="print-signature-box">
-            <div><strong>Received By:</strong></div>
-            <div>_________________</div>
-          </div>
-        </div>
-
-        <div className="print-footer">
-          <div>Printed: {new Date().toLocaleString()}</div>
-          <div style={{ marginTop: '5px', fontSize: '8px' }}>
-            <strong>Instructions:</strong> This document must accompany the physical transfer of goods.
-            The receiver must verify all items and quantities before signing.
-          </div>
-        </div>
-      </div>
-      <div className="p-6 space-y-6 print-area">
+    <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -667,10 +636,34 @@ export default function TransferDetailPage() {
             <p className="text-gray-500 mt-1">Transfer Details</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {getStatusBadge(transfer.status)}
-          {transfer.stockDeducted && (
-            <Badge variant="default">Stock Deducted</Badge>
+        <div className="flex flex-col items-end gap-2">
+          <div className={`px-4 py-2 rounded-lg text-base font-semibold shadow-sm ${
+            transfer.status === 'draft' ? 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100' :
+            transfer.status === 'pending_check' ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200' :
+            transfer.status === 'checked' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200' :
+            transfer.status === 'in_transit' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200' :
+            transfer.status === 'arrived' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200' :
+            transfer.status === 'verifying' ? 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200' :
+            transfer.status === 'verified' ? 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-800 dark:text-cyan-200' :
+            transfer.status === 'completed' ? 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200' :
+            transfer.status === 'cancelled' ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200' :
+            'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+          }`}>
+            {transfer.status === 'draft' ? 'Draft' :
+             transfer.status === 'pending_check' ? 'Pending Check' :
+             transfer.status === 'checked' ? 'Checked' :
+             transfer.status === 'in_transit' ? 'In Transit' :
+             transfer.status === 'arrived' ? 'Arrived' :
+             transfer.status === 'verifying' ? 'Verifying' :
+             transfer.status === 'verified' ? 'Verified' :
+             transfer.status === 'completed' ? 'Completed' :
+             transfer.status === 'cancelled' ? 'Cancelled' :
+             transfer.status.toUpperCase()}
+          </div>
+          {transfer.stockDeducted ? (
+            <Badge variant="default" className="text-sm">Stock Deducted</Badge>
+          ) : (
+            <Badge variant="secondary" className="text-sm">Stock not yet deducted</Badge>
           )}
         </div>
       </div>
@@ -701,26 +694,19 @@ export default function TransferDetailPage() {
           </div>
         )}
 
-        {/* Export & Print Actions */}
+        {/* Export Actions */}
         <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Export & Print</h3>
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">Export</h3>
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={handlePrint}
-              className="bg-green-600 hover:bg-green-700 text-white border-green-600"
-            >
-              <PrinterIcon className="w-4 h-4 mr-2" />
-              Print
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleExportPDF}
-              className="bg-red-600 hover:bg-red-700 text-white border-red-600"
-            >
-              <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
-              Export PDF
-            </Button>
+            <Link href={`/dashboard/transfers/${transferId}/ExportTransfers`}>
+              <Button
+                variant="outline"
+                className="bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+              >
+                <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </Link>
             <Button
               variant="outline"
               onClick={handleExportExcel}
@@ -797,6 +783,115 @@ export default function TransferDetailPage() {
             )}
           </div>
 
+          {/* Verification Summary - Shows when items are being verified or ready for completion */}
+          {(transfer.status === 'verifying' || transfer.status === 'verified') && (
+            <div className={`p-6 rounded-lg shadow space-y-4 ${
+              transfer.status === 'verified'
+                ? 'bg-green-50 dark:bg-green-900/20 border-2 border-green-400 dark:border-green-700'
+                : 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-400 dark:border-blue-700'
+            }`}>
+              <div className="flex items-center gap-3">
+                <ClipboardDocumentCheckIcon className={`w-7 h-7 ${
+                  transfer.status === 'verified' ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'
+                }`} />
+                <h2 className={`text-xl font-bold ${
+                  transfer.status === 'verified' ? 'text-green-900 dark:text-green-200' : 'text-blue-900 dark:text-blue-200'
+                }`}>
+                  {transfer.status === 'verified' ? '✓ All Items Verified - Ready to Complete' : 'Verification In Progress'}
+                </h2>
+              </div>
+
+              {/* Progress Summary */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Total Items</div>
+                  <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                    {transfer.items.length}
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Verified</div>
+                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                    {transfer.items.filter(item => item.verified).length}
+                  </div>
+                </div>
+                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">Remaining</div>
+                  <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                    {transfer.items.filter(item => !item.verified).length}
+                  </div>
+                </div>
+              </div>
+
+              {/* Verified Items Summary */}
+              {transfer.items.some(item => item.verified) && (
+                <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Verified Quantities Summary</h3>
+                  <div className="space-y-2 text-sm">
+                    {transfer.items.filter(item => item.verified).map(item => {
+                      const sent = parseFloat(item.quantity)
+                      const received = item.receivedQuantity ? parseFloat(item.receivedQuantity) : sent
+                      const hasDiscrepancy = sent !== received
+
+                      return (
+                        <div key={item.id} className={`flex justify-between items-center p-2 rounded ${
+                          hasDiscrepancy ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700' : 'bg-gray-50 dark:bg-gray-700/50'
+                        }`}>
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900 dark:text-gray-100">{item.product.name}</div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">{item.productVariation.name}</div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="text-right">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">Sent</div>
+                              <div className="font-medium text-gray-900 dark:text-gray-100">{sent}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">Received</div>
+                              <div className={`font-bold ${
+                                hasDiscrepancy ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400'
+                              }`}>
+                                {received}
+                              </div>
+                            </div>
+                            {hasDiscrepancy && (
+                              <div className="text-right">
+                                <div className="text-xs text-gray-500 dark:text-gray-400">Difference</div>
+                                <div className="font-bold text-red-600 dark:text-red-400">
+                                  {received > sent ? '+' : ''}{(received - sent).toFixed(2)}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Final Warning for Verified Status */}
+              {transfer.status === 'verified' && (
+                <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-400 dark:border-amber-700 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <ExclamationTriangleIcon className="w-6 h-6 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="font-bold text-amber-900 dark:text-amber-200 mb-2">
+                        ⚠️ Review Before Final Completion
+                      </div>
+                      <div className="text-sm text-amber-800 dark:text-amber-300 space-y-1">
+                        <p>• Check all verified quantities above are correct</p>
+                        <p>• Click "Edit" next to any item if you need to make changes</p>
+                        <p>• Once you click "Receive Transfer" below, inventory will be updated</p>
+                        <p className="font-semibold mt-2">⚠️ This action is PERMANENT and cannot be undone!</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Items */}
           <div className="bg-white p-6 rounded-lg shadow space-y-4">
             <h2 className="text-lg font-semibold">Transfer Items ({transfer.items.length})</h2>
@@ -811,12 +906,29 @@ export default function TransferDetailPage() {
                         {item.productVariation.sku && ` • SKU: ${item.productVariation.sku}`}
                       </div>
                     </div>
-                    {item.verified && (
-                      <Badge variant="default">
-                        <CheckIcon className="w-3 h-3 mr-1" />
-                        Verified
-                      </Badge>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {item.verified && (
+                        <>
+                          <Badge variant="default">
+                            <CheckIcon className="w-3 h-3 mr-1" />
+                            Verified
+                          </Badge>
+                          {/* Show Edit button for verified items (if not completed yet) */}
+                          {transfer.status !== 'completed' && can(PERMISSIONS.STOCK_TRANSFER_VERIFY) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleUnverifyItem(item.id)}
+                              disabled={actionLoading}
+                              className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border-yellow-300"
+                            >
+                              <PencilIcon className="w-3 h-3 mr-1" />
+                              Edit
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
@@ -833,22 +945,86 @@ export default function TransferDetailPage() {
 
                   {/* Verification Input */}
                   {transfer.status === 'verifying' && !item.verified && can(PERMISSIONS.STOCK_TRANSFER_VERIFY) && (
-                    <div className="mt-3 flex gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        value={verificationQuantities[item.id] || ''}
-                        onChange={(e) => setVerificationQuantities({
-                          ...verificationQuantities,
-                          [item.id]: parseFloat(e.target.value) || 0
-                        })}
-                        placeholder="Received quantity"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                      <Button onClick={() => handleVerifyItem(item.id)} disabled={actionLoading}>
-                        <CheckIcon className="w-4 h-4 mr-1" />
-                        Verify
+                    <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-300 dark:border-blue-700 rounded-lg space-y-3">
+                      <div className="flex items-center gap-2 text-blue-900 dark:text-blue-200 font-semibold">
+                        <ClipboardDocumentCheckIcon className="w-5 h-5" />
+                        <span>Verify This Item</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+                          <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">Quantity Sent</div>
+                          <div className="text-xl font-bold text-gray-900 dark:text-gray-100">{item.quantity}</div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+                          <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">Quantity Received</div>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={verificationQuantities[item.id] !== undefined ? verificationQuantities[item.id] : item.quantity}
+                            onChange={(e) => {
+                              const received = parseFloat(e.target.value) || 0
+                              setVerificationQuantities({
+                                ...verificationQuantities,
+                                [item.id]: received
+                              })
+                            }}
+                            className="w-full text-xl font-bold px-2 py-1 border-2 border-blue-500 rounded focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:text-white"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Warning for discrepancies */}
+                      {verificationQuantities[item.id] !== undefined &&
+                       verificationQuantities[item.id] !== parseFloat(item.quantity) && (
+                        <div className={`p-3 rounded-lg border-2 ${
+                          verificationQuantities[item.id] < parseFloat(item.quantity)
+                            ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700'
+                            : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700'
+                        }`}>
+                          <div className={`font-semibold mb-1 ${
+                            verificationQuantities[item.id] < parseFloat(item.quantity)
+                              ? 'text-red-900 dark:text-red-200'
+                              : 'text-yellow-900 dark:text-yellow-200'
+                          }`}>
+                            ⚠️ Quantity Discrepancy Detected
+                          </div>
+                          <div className={`text-sm ${
+                            verificationQuantities[item.id] < parseFloat(item.quantity)
+                              ? 'text-red-800 dark:text-red-300'
+                              : 'text-yellow-800 dark:text-yellow-300'
+                          }`}>
+                            {verificationQuantities[item.id] < parseFloat(item.quantity) ? (
+                              <>
+                                <strong>Missing items:</strong> {parseFloat(item.quantity) - verificationQuantities[item.id]} units short
+                                <br />
+                                <strong>Action Required:</strong> Investigate shortage before accepting
+                              </>
+                            ) : (
+                              <>
+                                <strong>Extra items received:</strong> {verificationQuantities[item.id] - parseFloat(item.quantity)} units over
+                                <br />
+                                <strong>Unusual:</strong> Verify this is correct - receiving more than sent?
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      <Button
+                        onClick={() => handleVerifyItem(item.id)}
+                        disabled={actionLoading || verificationQuantities[item.id] === undefined}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 text-lg"
+                        size="lg"
+                      >
+                        <CheckCircleIcon className="w-6 h-6 mr-2" />
+                        ✓ Verify &amp; Confirm Quantity
                       </Button>
+
+                      <p className="text-xs text-gray-600 dark:text-gray-400 text-center">
+                        Click verify only after physically counting the items
+                      </p>
                     </div>
                   )}
                 </div>
@@ -988,6 +1164,5 @@ export default function TransferDetailPage() {
         </div>
       </div>
     </div>
-    </>
   )
 }

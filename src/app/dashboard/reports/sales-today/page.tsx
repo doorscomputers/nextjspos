@@ -95,7 +95,7 @@ interface SalesTodayData {
 export default function SalesTodayPage() {
   const { can } = usePermissions()
 
-  if (!can(PERMISSIONS.REPORT_VIEW)) {
+  if (!can(PERMISSIONS.REPORT_SALES_TODAY)) {
     return (
       <div className="text-center py-12">
         <p className="text-red-600">You do not have permission to view reports</p>

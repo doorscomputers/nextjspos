@@ -1,6 +1,6 @@
-'use client'
+"use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,6 +17,7 @@ import {
   ReceiptPercentIcon,
 } from '@heroicons/react/24/outline'
 import { toast } from 'sonner'
+import ReportFilterPanel from '@/components/reports/ReportFilterPanel'
 
 interface ProfitReportData {
   summary: {
@@ -69,15 +70,18 @@ export default function ProfitReportPage() {
   const [data, setData] = useState<ProfitReportData | null>(null)
 
   // Filters
-  const [startDate, setStartDate] = useState(() => {
+  const defaultStartDate = useMemo(() => {
     const date = new Date()
     date.setDate(date.getDate() - 30)
     return date.toISOString().split('T')[0]
-  })
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0])
+  }, [])
+  const defaultEndDate = useMemo(() => new Date().toISOString().split('T')[0], [])
+  const [startDate, setStartDate] = useState(defaultStartDate)
+  const [endDate, setEndDate] = useState(defaultEndDate)
   const [locationId, setLocationId] = useState<string>('all')
   const [groupBy, setGroupBy] = useState<string>('none')
   const [locations, setLocations] = useState<Array<{ id: number; name: string }>>([])
+  const [showFilters, setShowFilters] = useState(true)
 
   // Fetch locations
   useEffect(() => {
@@ -86,10 +90,18 @@ export default function ProfitReportPage() {
         const res = await fetch('/api/locations')
         if (res.ok) {
           const data = await res.json()
-          setLocations(data)
+          const locData = Array.isArray(data?.locations)
+            ? data.locations
+            : Array.isArray(data)
+            ? data
+            : []
+          setLocations(locData)
+        } else {
+          setLocations([])
         }
       } catch (error) {
         console.error('Error fetching locations:', error)
+        setLocations([])
       }
     }
     fetchLocations()
@@ -116,7 +128,8 @@ export default function ProfitReportPage() {
 
       if (!res.ok) {
         const error = await res.json()
-        throw new Error(error.error || 'Failed to fetch report')
+        console.error('Net Profit API error:', error)
+        throw new Error(error.error || error.details || 'Failed to fetch report')
       }
 
       const reportData = await res.json()
@@ -133,6 +146,24 @@ export default function ProfitReportPage() {
   useEffect(() => {
     fetchReport()
   }, [])
+
+  const handleResetFilters = () => {
+    setStartDate(defaultStartDate)
+    setEndDate(defaultEndDate)
+    setLocationId('all')
+    setGroupBy('none')
+    setTimeout(() => {
+      fetchReport()
+    }, 0)
+  }
+
+  const activeFilterCount = useMemo(() => {
+    return [
+      startDate !== defaultStartDate || endDate !== defaultEndDate,
+      locationId !== 'all',
+      groupBy !== 'none',
+    ].filter(Boolean).length
+  }, [startDate, endDate, defaultStartDate, defaultEndDate, locationId, groupBy])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -174,15 +205,17 @@ export default function ProfitReportPage() {
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Report Filters</CardTitle>
-          <CardDescription>Select date range and grouping options</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <ReportFilterPanel
+        isOpen={showFilters}
+        onToggle={() => setShowFilters(!showFilters)}
+        activeCount={activeFilterCount}
+        onClearAll={handleResetFilters}
+        clearLabel="Reset Filters"
+        description="Pick a reporting window, focus on a location, and choose how to group profit analytics."
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
-              <Label htmlFor="startDate">Start Date</Label>
+              <Label htmlFor="startDate" className="mb-2 block">Start Date</Label>
               <Input
                 id="startDate"
                 type="date"
@@ -192,7 +225,7 @@ export default function ProfitReportPage() {
             </div>
 
             <div>
-              <Label htmlFor="endDate">End Date</Label>
+              <Label htmlFor="endDate" className="mb-2 block">End Date</Label>
               <Input
                 id="endDate"
                 type="date"
@@ -202,10 +235,10 @@ export default function ProfitReportPage() {
             </div>
 
             <div>
-              <Label htmlFor="location">Location</Label>
+              <Label htmlFor="location" className="mb-2 block">Location</Label>
               <Select value={locationId} onValueChange={setLocationId}>
                 <SelectTrigger id="location">
-                  <SelectValue />
+                  <SelectValue placeholder="All Locations" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Locations</SelectItem>
@@ -219,7 +252,7 @@ export default function ProfitReportPage() {
             </div>
 
             <div>
-              <Label htmlFor="groupBy">Group By</Label>
+              <Label htmlFor="groupBy" className="mb-2 block">Group By</Label>
               <Select value={groupBy} onValueChange={setGroupBy}>
                 <SelectTrigger id="groupBy">
                   <SelectValue />
@@ -234,13 +267,16 @@ export default function ProfitReportPage() {
             </div>
 
             <div className="flex items-end">
-              <Button onClick={fetchReport} disabled={loading} className="w-full">
+              <Button
+                onClick={fetchReport}
+                disabled={loading}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md hover:shadow-lg transition-all"
+              >
                 {loading ? 'Loading...' : 'Generate Report'}
               </Button>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </ReportFilterPanel>
 
       {/* Summary Cards */}
       {data && (

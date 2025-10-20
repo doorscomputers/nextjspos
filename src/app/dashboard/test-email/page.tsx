@@ -137,10 +137,10 @@ export default function TestEmailPage() {
             <h4 className="font-semibold text-sm mb-2">📋 Current Configuration:</h4>
             <div className="space-y-1 text-sm text-gray-600">
               <p>
-                <strong>SMTP Host:</strong> {process.env.NEXT_PUBLIC_APP_NAME === 'UltimatePOS Modern' ? 'Gmail (smtp.gmail.com)' : 'Not configured'}
+                <strong>SMTP Host:</strong> {process.env.NEXT_PUBLIC_APP_NAME === 'Igoro Tech(IT) Inventory Management System' ? 'Gmail (smtp.gmail.com)' : 'Not configured'}
               </p>
               <p>
-                <strong>Sender Email:</strong> UltimatePOS &lt;rr3800@gmail.com&gt;
+                <strong>Sender Email:</strong> Igoro Tech(IT) &lt;rr3800@gmail.com&gt;
               </p>
               <p>
                 <strong>Admin Recipients:</strong> rr3800@gmail.com, doors_computers@yahoo.com

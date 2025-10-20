@@ -197,6 +197,8 @@ export type StockTransactionType =
   | 'transfer_in'
   | 'transfer_out'
   | 'adjustment'
+  | 'purchase_return'
+  | 'customer_return'
 
 // ============================================
 // OPENING STOCK TYPES

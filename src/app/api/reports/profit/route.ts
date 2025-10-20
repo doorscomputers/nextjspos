@@ -53,20 +53,21 @@ export async function GET(request: NextRequest) {
       },
     }
 
-    if (locationId) {
+    if (locationId && locationId !== 'all') {
       salesWhere.locationId = parseInt(locationId)
     }
 
-    // Build where clause for expenses
+    // Build where clause for expenses (cash_out transactions)
     const expensesWhere: any = {
       businessId: parseInt(businessId),
-      expenseDate: {
+      type: 'cash_out', // Only cash-out transactions are expenses
+      createdAt: {
         gte: start,
         lte: end,
       },
     }
 
-    if (locationId) {
+    if (locationId && locationId !== 'all') {
       expensesWhere.locationId = parseInt(locationId)
     }
 
@@ -81,33 +82,30 @@ export async function GET(request: NextRequest) {
             unitCost: true,
           },
         },
-        location: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
       },
     })
 
-    // Fetch expenses data
-    const expenses = await prisma.expense.findMany({
+    // Fetch expenses data (cash_out transactions)
+    const expenses = await prisma.cashInOut.findMany({
       where: expensesWhere,
-      include: {
-        category: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        location: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
+      select: {
+        id: true,
+        locationId: true,
+        amount: true,
+        reason: true,
+        createdAt: true,
       },
     })
+
+    // Fetch all locations for lookup (if grouping by location)
+    const locations = groupBy === 'location'
+      ? await prisma.businessLocation.findMany({
+          where: { businessId: parseInt(businessId) },
+          select: { id: true, name: true },
+        })
+      : []
+
+    const locationMap = new Map(locations.map(loc => [loc.id, loc.name]))
 
     // Calculate metrics
     let totalRevenue = 0
@@ -117,9 +115,9 @@ export async function GET(request: NextRequest) {
     // Process sales
     sales.forEach(sale => {
       sale.items.forEach(item => {
-        const quantity = parseFloat(item.quantity.toString())
-        const unitPrice = parseFloat(item.unitPrice.toString())
-        const unitCost = parseFloat(item.unitCost.toString())
+        const quantity = item.quantity ? parseFloat(item.quantity.toString()) : 0
+        const unitPrice = item.unitPrice ? parseFloat(item.unitPrice.toString()) : 0
+        const unitCost = item.unitCost ? parseFloat(item.unitCost.toString()) : 0
 
         totalRevenue += quantity * unitPrice
         totalCOGS += quantity * unitCost
@@ -128,7 +126,7 @@ export async function GET(request: NextRequest) {
 
     // Process expenses
     expenses.forEach(expense => {
-      totalExpenses += parseFloat(expense.amount.toString())
+      totalExpenses += expense.amount ? parseFloat(expense.amount.toString()) : 0
     })
 
     const grossProfit = totalRevenue - totalCOGS
@@ -159,11 +157,14 @@ export async function GET(request: NextRequest) {
 
       // Add sales data by location
       sales.forEach(sale => {
-        const locId = sale.location.id
+        const locId = sale.locationId
+        if (!locId) {
+          return
+        }
         if (!locationMetrics.has(locId)) {
           locationMetrics.set(locId, {
             locationId: locId,
-            locationName: sale.location.name,
+            locationName: locationMap.get(locId) ?? 'Unknown Location',
             revenue: 0,
             cogs: 0,
             expenses: 0,
@@ -174,28 +175,35 @@ export async function GET(request: NextRequest) {
         }
 
         const lm = locationMetrics.get(locId)
-        lm.salesCount++
+        if (lm) {
+          lm.salesCount++
+        }
 
         sale.items.forEach(item => {
-          const quantity = parseFloat(item.quantity.toString())
-          const unitPrice = parseFloat(item.unitPrice.toString())
-          const unitCost = parseFloat(item.unitCost.toString())
+          const quantity = item.quantity ? parseFloat(item.quantity.toString()) : 0
+          const unitPrice = item.unitPrice ? parseFloat(item.unitPrice.toString()) : 0
+          const unitCost = item.unitCost ? parseFloat(item.unitCost.toString()) : 0
 
           const itemRevenue = quantity * unitPrice
           const itemCOGS = quantity * unitCost
 
-          lm.revenue += itemRevenue
-          lm.cogs += itemCOGS
+          if (lm) {
+            lm.revenue += itemRevenue
+            lm.cogs += itemCOGS
+          }
         })
       })
 
       // Add expenses by location
       expenses.forEach(expense => {
-        const locId = expense.location.id
+        const locId = expense.locationId
+        if (!locId) {
+          return
+        }
         if (!locationMetrics.has(locId)) {
           locationMetrics.set(locId, {
             locationId: locId,
-            locationName: expense.location.name,
+            locationName: locationMap.get(locId) ?? 'Unknown Location',
             revenue: 0,
             cogs: 0,
             expenses: 0,
@@ -206,7 +214,10 @@ export async function GET(request: NextRequest) {
         }
 
         const lm = locationMetrics.get(locId)
-        lm.expenses += parseFloat(expense.amount.toString())
+        if (lm) {
+          const amount = expense.amount ? parseFloat(expense.amount.toString()) : 0
+          lm.expenses += amount
+        }
       })
 
       // Calculate profits
@@ -227,7 +238,7 @@ export async function GET(request: NextRequest) {
 
       // Add sales data by date
       sales.forEach(sale => {
-        const dateKey = sale.saleDate.toISOString().split('T')[0]
+        const dateKey = sale.saleDate ? sale.saleDate.toISOString().split('T')[0] : start.toISOString().split('T')[0]
         if (!dateMetrics.has(dateKey)) {
           dateMetrics.set(dateKey, {
             date: dateKey,
@@ -241,24 +252,28 @@ export async function GET(request: NextRequest) {
         }
 
         const dm = dateMetrics.get(dateKey)
-        dm.salesCount++
+        if (dm) {
+          dm.salesCount++
+        }
 
         sale.items.forEach(item => {
-          const quantity = parseFloat(item.quantity.toString())
-          const unitPrice = parseFloat(item.unitPrice.toString())
-          const unitCost = parseFloat(item.unitCost.toString())
+          const quantity = item.quantity ? parseFloat(item.quantity.toString()) : 0
+          const unitPrice = item.unitPrice ? parseFloat(item.unitPrice.toString()) : 0
+          const unitCost = item.unitCost ? parseFloat(item.unitCost.toString()) : 0
 
           const itemRevenue = quantity * unitPrice
           const itemCOGS = quantity * unitCost
 
-          dm.revenue += itemRevenue
-          dm.cogs += itemCOGS
+          if (dm) {
+            dm.revenue += itemRevenue
+            dm.cogs += itemCOGS
+          }
         })
       })
 
       // Add expenses by date
       expenses.forEach(expense => {
-        const dateKey = expense.expenseDate.toISOString().split('T')[0]
+        const dateKey = expense.createdAt ? expense.createdAt.toISOString().split('T')[0] : start.toISOString().split('T')[0]
         if (!dateMetrics.has(dateKey)) {
           dateMetrics.set(dateKey, {
             date: dateKey,
@@ -272,7 +287,10 @@ export async function GET(request: NextRequest) {
         }
 
         const dm = dateMetrics.get(dateKey)
-        dm.expenses += parseFloat(expense.amount.toString())
+        if (dm) {
+          const amount = expense.amount ? parseFloat(expense.amount.toString()) : 0
+          dm.expenses += amount
+        }
       })
 
       // Calculate profits
@@ -287,27 +305,29 @@ export async function GET(request: NextRequest) {
         .sort((a, b) => a.date.localeCompare(b.date))
     }
 
-    // Group by expense category
+    // Group by expense reason
     if (groupBy === 'expense_category') {
-      const categoryMetrics = new Map<number, any>()
+      const reasonMetrics = new Map<string, any>()
 
       expenses.forEach(expense => {
-        const catId = expense.categoryId
-        if (!categoryMetrics.has(catId)) {
-          categoryMetrics.set(catId, {
-            categoryId: catId,
-            categoryName: expense.category?.name || 'Uncategorized',
+        const reasonKey = expense.reason || 'No Reason Specified'
+        if (!reasonMetrics.has(reasonKey)) {
+          reasonMetrics.set(reasonKey, {
+            reason: reasonKey,
             totalExpenses: 0,
             expenseCount: 0,
           })
         }
 
-        const cm = categoryMetrics.get(catId)
-        cm.totalExpenses += parseFloat(expense.amount.toString())
-        cm.expenseCount++
+        const rm = reasonMetrics.get(reasonKey)
+        if (rm) {
+          const amount = expense.amount ? parseFloat(expense.amount.toString()) : 0
+          rm.totalExpenses += amount
+          rm.expenseCount++
+        }
       })
 
-      response.byExpenseCategory = Array.from(categoryMetrics.values())
+      response.byExpenseReason = Array.from(reasonMetrics.values())
         .sort((a, b) => b.totalExpenses - a.totalExpenses)
     }
 
@@ -320,3 +340,7 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
+
+
+

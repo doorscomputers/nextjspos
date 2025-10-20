@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { Prisma } from '@prisma/client'
+import { getManilaDate } from '@/lib/timezone'
 
 /**
  * GET /api/purchases/receipts
@@ -90,17 +91,14 @@ export async function GET(request: NextRequest) {
     // Check location access
     const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
     if (!hasAccessAllLocations) {
-      const userLocations = await prisma.userLocation.findMany({
-        where: {
-          userId: parseInt(user.id),
-        },
-        select: {
-          locationId: true,
-        },
-      })
+      const userLocationIds = user.locationIds || []
 
-      const accessibleLocationIds = userLocations.map((ul) => ul.locationId)
-      where.locationId = { in: accessibleLocationIds }
+      if (userLocationIds.length > 0) {
+        where.locationId = { in: userLocationIds }
+      } else {
+        // If user has no location access, return empty results
+        where.locationId = -1
+      }
     }
 
     console.log('=== GRN API Debug ===')
@@ -248,15 +246,14 @@ export async function POST(request: NextRequest) {
       purchaseId,      // Optional: Null for direct entry
       supplierId,      // Required for direct entry
       locationId,
-      receiptDate,
       items,           // Array of { productId, productVariationId, quantityReceived, serialNumbers?, notes? }
       notes,
     } = body
 
     // Validation
-    if (!locationId || !receiptDate || !items || items.length === 0) {
+    if (!locationId || !items || items.length === 0) {
       return NextResponse.json(
-        { error: 'Missing required fields: locationId, receiptDate, items' },
+        { error: 'Missing required fields: locationId, items' },
         { status: 400 }
       )
     }
@@ -313,6 +310,35 @@ export async function POST(request: NextRequest) {
       finalSupplierId = parseInt(supplierId)
     }
 
+    // Verify location belongs to business
+    const location = await prisma.businessLocation.findFirst({
+      where: {
+        id: parseInt(locationId),
+        businessId,
+        deletedAt: null,
+      },
+    })
+
+    if (!location) {
+      return NextResponse.json(
+        { error: 'Location not found or does not belong to your business' },
+        { status: 404 }
+      )
+    }
+
+    // Check location access
+    const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
+    if (!hasAccessAllLocations) {
+      const userLocationIds = user.locationIds || []
+
+      if (!userLocationIds.includes(parseInt(locationId))) {
+        return NextResponse.json(
+          { error: 'You do not have access to this location' },
+          { status: 403 }
+        )
+      }
+    }
+
     // Generate unique receipt number
     const lastReceipt = await prisma.purchaseReceipt.findFirst({
       where: { businessId },
@@ -335,11 +361,11 @@ export async function POST(request: NextRequest) {
           supplierId: finalSupplierId,
           locationId: parseInt(locationId),
           receiptNumber,
-          receiptDate: new Date(receiptDate),
+          receiptDate: getManilaDate(), // MANILA TIMEZONE (UTC+8) - prevents backdating fraud
           status: 'pending',
           notes: notes || null,
           receivedBy: userId,
-          receivedAt: new Date(),
+          receivedAt: getManilaDate(),
         },
       })
 

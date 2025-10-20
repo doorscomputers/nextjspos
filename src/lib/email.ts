@@ -24,6 +24,7 @@ const alertConfig = {
   creditEnabled: process.env.EMAIL_ALERT_CREDIT_ENABLED === 'true',
   cashOutThreshold: parseFloat(process.env.EMAIL_ALERT_CASH_OUT_THRESHOLD || '5000'),
   lowStockEnabled: process.env.EMAIL_ALERT_LOW_STOCK_ENABLED === 'true',
+  transferDiscrepancyEnabled: process.env.EMAIL_ALERT_TRANSFER_DISCREPANCY_ENABLED === 'true',
 }
 
 // Create reusable transporter
@@ -456,6 +457,135 @@ export async function sendLowStockAlert(data: {
     to: alertConfig.adminRecipients,
     subject: `📦 Low Stock Alert - ${data.products.length} Product(s) Need Reordering`,
     html: getEmailTemplate('Low Stock Alert', content),
+  })
+}
+
+// Alert: Transfer Discrepancy
+export async function sendTransferDiscrepancyAlert(data: {
+  transferNumber: string
+  fromLocationName: string
+  toLocationName: string
+  verifierName: string
+  timestamp: Date
+  businessEmail?: string
+  discrepantItems: Array<{
+    productName: string
+    variationName: string
+    sku: string
+    quantitySent: number
+    quantityReceived: number
+    difference: number
+    discrepancyType: 'shortage' | 'overage'
+  }>
+}): Promise<boolean> {
+  if (!alertConfig.enabled || !alertConfig.transferDiscrepancyEnabled || data.discrepantItems.length === 0) {
+    return false
+  }
+
+  const totalShortage = data.discrepantItems
+    .filter(item => item.discrepancyType === 'shortage')
+    .reduce((sum, item) => sum + Math.abs(item.difference), 0)
+
+  const totalOverage = data.discrepantItems
+    .filter(item => item.discrepancyType === 'overage')
+    .reduce((sum, item) => sum + item.difference, 0)
+
+  const itemRows = data.discrepantItems.map(item => `
+    <tr style="background-color: ${item.discrepancyType === 'shortage' ? '#fef2f2' : '#fffbeb'};">
+      <td style="padding: 10px; border: 1px solid #e5e7eb;">
+        <strong>${item.productName}</strong><br>
+        <small style="color: #6b7280;">${item.variationName}</small><br>
+        <small style="color: #9ca3af;">SKU: ${item.sku}</small>
+      </td>
+      <td style="padding: 10px; border: 1px solid #e5e7eb; text-align: center;">
+        ${item.quantitySent.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+      </td>
+      <td style="padding: 10px; border: 1px solid #e5e7eb; text-align: center;">
+        <strong style="color: ${item.discrepancyType === 'shortage' ? '#ef4444' : '#f59e0b'};">
+          ${item.quantityReceived.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+        </strong>
+      </td>
+      <td style="padding: 10px; border: 1px solid #e5e7eb; text-align: center;">
+        <strong style="color: ${item.discrepancyType === 'shortage' ? '#ef4444' : '#f59e0b'};">
+          ${item.difference > 0 ? '+' : ''}${item.difference.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+        </strong>
+      </td>
+      <td style="padding: 10px; border: 1px solid #e5e7eb; text-align: center;">
+        <span style="background-color: ${item.discrepancyType === 'shortage' ? '#ef4444' : '#f59e0b'}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 11px; text-transform: uppercase;">
+          ${item.discrepancyType}
+        </span>
+      </td>
+    </tr>
+  `).join('')
+
+  const content = `
+    <div class="alert-box">
+      <strong>🚨 Inventory Transfer Discrepancy Detected</strong>
+      <p><strong>URGENT:</strong> A discrepancy was detected during transfer verification. Immediate investigation required.</p>
+    </div>
+
+    <table class="detail-table">
+      <tr><td>Transfer Number:</td><td><strong>${data.transferNumber}</strong></td></tr>
+      <tr><td>From Location:</td><td>${data.fromLocationName}</td></tr>
+      <tr><td>To Location:</td><td>${data.toLocationName}</td></tr>
+      <tr><td>Verified By:</td><td>${data.verifierName}</td></tr>
+      <tr><td>Timestamp:</td><td>${data.timestamp.toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'long' })}</td></tr>
+    </table>
+
+    <h3 style="color: #ef4444; margin-top: 30px; margin-bottom: 15px;">Discrepant Items (${data.discrepantItems.length})</h3>
+
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+      <thead>
+        <tr style="background-color: #f3f4f6;">
+          <th style="padding: 10px; border: 1px solid #e5e7eb; text-align: left;">Product</th>
+          <th style="padding: 10px; border: 1px solid #e5e7eb; text-align: center;">Sent</th>
+          <th style="padding: 10px; border: 1px solid #e5e7eb; text-align: center;">Received</th>
+          <th style="padding: 10px; border: 1px solid #e5e7eb; text-align: center;">Difference</th>
+          <th style="padding: 10px; border: 1px solid #e5e7eb; text-align: center;">Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemRows}
+      </tbody>
+    </table>
+
+    <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0; font-weight: 600; color: #991b1b;">Summary:</p>
+      <p style="margin: 10px 0 0 0; color: #7f1d1d;">
+        🔴 <strong>Shortages:</strong> ${totalShortage.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} units missing<br>
+        🟠 <strong>Overages:</strong> ${totalOverage.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} extra units received
+      </p>
+    </div>
+
+    <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0; font-weight: 600; color: #92400e;">⚠️ Recommended Actions:</p>
+      <ul style="margin: 10px 0 0 0; color: #78350f; padding-left: 20px;">
+        <li>Investigate immediately - check for theft, damage, or shipping errors</li>
+        <li>Review CCTV footage at both locations if available</li>
+        <li>Interview personnel involved in packing and verification</li>
+        <li>Check for damaged or misplaced items</li>
+        <li>Document findings for audit trail</li>
+        <li>Review and improve packing/verification procedures if needed</li>
+      </ul>
+    </div>
+
+    <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/transfers/${data.transferNumber.replace('TR-', '')}" class="button" style="background-color: #ef4444;">
+      View Transfer Details
+    </a>
+  `
+
+  // Prepare recipient list
+  const recipients = [...alertConfig.adminRecipients]
+
+  // Add business email if provided
+  if (data.businessEmail && data.businessEmail.trim()) {
+    recipients.push(data.businessEmail)
+  }
+
+  return sendEmail({
+    to: recipients,
+    subject: `🚨 URGENT: Transfer Discrepancy - ${data.transferNumber} (${data.discrepantItems.length} item${data.discrepantItems.length > 1 ? 's' : ''})`,
+    html: getEmailTemplate('Inventory Transfer Discrepancy Alert', content),
   })
 }
 

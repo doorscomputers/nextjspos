@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
+import { sendTransferDiscrepancyAlert } from '@/lib/email'
 
 /**
  * POST /api/transfers/[id]/verify-item
@@ -117,6 +118,10 @@ export async function POST(
       where: {
         stockTransferId: transferId,
       },
+      include: {
+        product: true,
+        productVariation: true,
+      },
     })
 
     const allVerified = allItems.every(item => item.verified)
@@ -131,6 +136,52 @@ export async function POST(
           verifiedAt: new Date(),
         },
       })
+
+      // Check if there are any discrepancies and send email notification
+      const itemsWithDiscrepancies = allItems.filter(item => {
+        const sent = parseFloat(item.quantity.toString())
+        const received = item.receivedQuantity ? parseFloat(item.receivedQuantity.toString()) : sent
+        return sent !== received
+      })
+
+      if (itemsWithDiscrepancies.length > 0) {
+        // Get transfer with location names
+        const transferWithLocations = await prisma.stockTransfer.findUnique({
+          where: { id: transferId },
+          include: {
+            fromLocation: { select: { name: true } },
+            toLocation: { select: { name: true } },
+            business: { select: { email: true } },
+          },
+        })
+
+        // Send email alert (async, don't wait for it)
+        sendTransferDiscrepancyAlert({
+          transferNumber: transfer.transferNumber,
+          fromLocationName: transferWithLocations?.fromLocation.name || 'Unknown',
+          toLocationName: transferWithLocations?.toLocation.name || 'Unknown',
+          verifierName: user.username || user.name || `User ${userId}`,
+          timestamp: new Date(),
+          businessEmail: transferWithLocations?.business?.email,
+          discrepantItems: itemsWithDiscrepancies.map(item => {
+            const sent = parseFloat(item.quantity.toString())
+            const received = item.receivedQuantity ? parseFloat(item.receivedQuantity.toString()) : sent
+            const difference = received - sent
+            return {
+              productName: item.product.name,
+              variationName: item.productVariation.name,
+              sku: item.productVariation.sku || item.product.sku,
+              quantitySent: sent,
+              quantityReceived: received,
+              difference: difference,
+              discrepancyType: difference < 0 ? 'shortage' : 'overage',
+            }
+          }),
+        }).catch(err => {
+          // Log error but don't fail the request
+          console.error('Failed to send discrepancy email:', err)
+        })
+      }
     }
 
     // Create audit log

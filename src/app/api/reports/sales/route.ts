@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { PERMISSIONS } from '@/lib/rbac'
 
 export async function GET(request: NextRequest) {
   try {
@@ -144,6 +145,11 @@ export async function GET(request: NextRequest) {
       grossProfit: parseFloat(summary._sum.totalAmount?.toString() || '0') - totalCOGS,
     }
 
+    // Field-Level Security: Check permissions
+    const user = session.user as any
+    const canViewCost = user.permissions?.includes(PERMISSIONS.SELL_VIEW_COST)
+    const canViewProfit = user.permissions?.includes(PERMISSIONS.SELL_VIEW_PROFIT)
+
     // Format sales data
     const formattedSales = sales.map((sale) => ({
       id: sale.id,
@@ -164,15 +170,30 @@ export async function GET(request: NextRequest) {
         sku: item.productVariation.sku,
         quantity: parseFloat(item.quantity.toString()),
         unitPrice: parseFloat(item.unitPrice.toString()),
-        unitCost: parseFloat(item.unitCost.toString()),
+        // Only include unitCost if user has permission
+        ...(canViewCost && { unitCost: parseFloat(item.unitCost.toString()) }),
         total: parseFloat(item.quantity.toString()) * parseFloat(item.unitPrice.toString()),
       })),
       notes: sale.notes,
     }))
 
+    // Sanitize summary data based on permissions
+    const sanitizedSummary = {
+      totalSales: summaryData.totalSales,
+      totalRevenue: summaryData.totalRevenue,
+      totalSubtotal: summaryData.totalSubtotal,
+      totalTax: summaryData.totalTax,
+      totalDiscount: summaryData.totalDiscount,
+      totalShipping: summaryData.totalShipping,
+      // Only include COGS if user has permission
+      ...(canViewCost && { totalCOGS: summaryData.totalCOGS }),
+      // Only include grossProfit if user has permission
+      ...(canViewProfit && { grossProfit: summaryData.grossProfit }),
+    }
+
     return NextResponse.json({
       sales: formattedSales,
-      summary: summaryData,
+      summary: sanitizedSummary,
       pagination: {
         page,
         limit,

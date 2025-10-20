@@ -11,7 +11,7 @@ import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } f
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -32,7 +32,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
 
-    const correctionId = parseInt(params.id)
+    const correctionId = parseInt((await params).id)
 
     const correction = await prisma.inventoryCorrection.findFirst({
       where: {
@@ -89,7 +89,7 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -110,7 +110,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
 
-    const correctionId = parseInt(params.id)
+    const correctionId = parseInt((await params).id)
     const body = await request.json()
     const { physicalCount, reason, remarks } = body
 
@@ -230,7 +230,7 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -251,7 +251,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
 
-    const correctionId = parseInt(params.id)
+    const correctionId = parseInt((await params).id)
 
     // Get existing correction
     const existing = await prisma.inventoryCorrection.findFirst({

@@ -300,6 +300,7 @@ export default function ReceiveGoodsPage() {
     toast.success('Template downloaded!')
   }
 
+  
   const handleSubmit = async () => {
     if (!purchase) return
 
@@ -343,16 +344,33 @@ export default function ReceiveGoodsPage() {
       const data = await response.json()
 
       if (response.ok) {
-        toast.success(`GRN ${data.receiptNumber} created successfully! Awaiting approval.`)
-        // Redirect to the GRN detail page instead of back to purchase order
+        console.log('✅ GRN Created Successfully:', data)
+        console.log('🔄 Redirecting to:', `/dashboard/purchases/receipts/${data.id}`)
+
+        toast.success(`GRN ${data.receiptNumber} created successfully! Redirecting...`)
+
+        // Don't reset saving state - keep button disabled during redirect
+        // Redirect to the GRN detail page
         router.push(`/dashboard/purchases/receipts/${data.id}`)
+        return // Exit early, don't reset saving state
       } else {
+        console.error('❌ GRN Creation Failed:', data.error)
+
+        // If a pending GRN already exists, redirect to it
+        if (data.existingGRNId) {
+          toast.error(data.error || 'GRN already exists. Redirecting...')
+          setTimeout(() => {
+            router.push(`/dashboard/purchases/receipts/${data.existingGRNId}`)
+          }, 1500)
+          return // Keep button disabled during redirect
+        }
+
         toast.error(data.error || 'Failed to create GRN')
+        setSaving(false)
       }
     } catch (error: any) {
-      console.error('Error:', error)
+      console.error('❌ Error creating GRN:', error)
       toast.error(error.message || 'Failed to create GRN')
-    } finally {
       setSaving(false)
     }
   }
@@ -381,9 +399,15 @@ export default function ReceiveGoodsPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href={`/dashboard/purchases/${purchaseId}`}>
-            <Button variant="outline" size="sm">
-              <ArrowLeftIcon className="w-4 h-4 mr-2" />
-              Back
+            <Button
+              variant="outline"
+              size="sm"
+              className="group px-4 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 border-2 border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-lg font-semibold"
+            >
+              <ArrowLeftIcon className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform duration-300" />
+              <span className="bg-gradient-to-r from-gray-700 to-gray-900 dark:from-gray-200 dark:to-gray-100 group-hover:from-blue-600 group-hover:to-indigo-600 dark:group-hover:from-blue-400 dark:group-hover:to-indigo-400 bg-clip-text text-transparent">
+                Back
+              </span>
             </Button>
           </Link>
           <div>
@@ -486,6 +510,10 @@ export default function ReceiveGoodsPage() {
                           setEntryMode('scan')
                           setCurrentItemId(item.id)
                         }}
+                        className={entryMode === 'scan'
+                          ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-200 font-medium"
+                          : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
+                        }
                       >
                         <QrCodeIcon className="w-4 h-4 mr-2" />
                         Scan 1 by 1
@@ -498,6 +526,10 @@ export default function ReceiveGoodsPage() {
                           setEntryMode('bulk')
                           setCurrentItemId(item.id)
                         }}
+                        className={entryMode === 'bulk'
+                          ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg transition-all duration-200 font-medium"
+                          : "bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
+                        }
                       >
                         Bulk Import
                       </Button>
@@ -520,7 +552,10 @@ export default function ReceiveGoodsPage() {
                               }
                             }}
                           />
-                          <Button onClick={() => addSerialNumber(item.id)}>
+                          <Button
+                            onClick={() => addSerialNumber(item.id)}
+                            className="px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105"
+                          >
                             Add
                           </Button>
                         </div>
@@ -540,6 +575,7 @@ export default function ReceiveGoodsPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => downloadTemplate(item.id)}
+                            className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 hover:from-purple-100 hover:to-indigo-100 dark:hover:from-purple-900/30 dark:hover:to-indigo-900/30 text-purple-700 dark:text-purple-300 border-2 border-purple-300 dark:border-purple-700 shadow-md hover:shadow-lg transition-all duration-200 font-medium hover:scale-105"
                           >
                             Download Template
                           </Button>
@@ -552,13 +588,17 @@ export default function ReceiveGoodsPage() {
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm"
                         />
                         <div className="flex gap-2">
-                          <Button onClick={() => processBulkSerials(item.id)}>
+                          <Button
+                            onClick={() => processBulkSerials(item.id)}
+                            className="px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105"
+                          >
                             Import Serials
                           </Button>
                           <Button
                             type="button"
                             variant="outline"
                             onClick={() => setBulkSerialInput('')}
+                            className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-700 dark:hover:to-gray-600 border-2 border-gray-300 dark:border-gray-600 shadow-md hover:shadow-lg transition-all duration-200 font-medium"
                           >
                             Clear
                           </Button>
@@ -615,11 +655,21 @@ export default function ReceiveGoodsPage() {
 
       {/* Submit */}
       <div className="bg-white p-6 rounded-lg shadow flex gap-3">
-        <Button onClick={handleSubmit} disabled={saving} size="lg">
+        <Button
+          onClick={handleSubmit}
+          disabled={saving}
+          size="lg"
+          className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold shadow-lg hover:shadow-2xl transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+        >
           <CheckCircleIcon className="w-5 h-5 mr-2" />
           {saving ? 'Creating GRN...' : 'Create GRN'}
         </Button>
-        <Button variant="outline" onClick={() => router.push(`/dashboard/purchases/${purchaseId}`)} size="lg">
+        <Button
+          variant="outline"
+          onClick={() => router.push(`/dashboard/purchases/${purchaseId}`)}
+          size="lg"
+          className="px-6 py-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-700 dark:hover:to-gray-600 border-2 border-gray-300 dark:border-gray-600 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-medium text-gray-700 dark:text-gray-200"
+        >
           Cancel
         </Button>
       </div>

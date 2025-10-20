@@ -3,6 +3,90 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
+import { addStock, StockTransactionType } from '@/lib/stockOperations'
+import { Prisma } from '@prisma/client'
+
+/**
+ * Helper to create bulk opening stock transactions
+ * This is much faster than individual addStock() calls
+ */
+async function createBulkOpeningStock(
+  tx: Prisma.TransactionClient,
+  openingStockData: Array<{
+    businessId: number
+    productId: number
+    productVariationId: number
+    locationId: number
+    quantity: number
+    unitCost: number | null
+    userId: number
+    notes: string
+  }>
+) {
+  if (openingStockData.length === 0) return
+
+  const now = new Date()
+
+  // Prepare bulk data for variation_location_details
+  const vldUpserts = openingStockData.map(data => ({
+    productId: data.productId,
+    productVariationId: data.productVariationId,
+    locationId: data.locationId,
+    qtyAvailable: new Prisma.Decimal(data.quantity),
+  }))
+
+  // Upsert variation_location_details in bulk
+  for (const vld of vldUpserts) {
+    await tx.variationLocationDetails.upsert({
+      where: {
+        productVariationId_locationId: {
+          productVariationId: vld.productVariationId,
+          locationId: vld.locationId,
+        }
+      },
+      create: vld,
+      update: {
+        qtyAvailable: vld.qtyAvailable,
+        updatedAt: now,
+      }
+    })
+  }
+
+  // Prepare bulk data for stock_transactions using raw SQL for maximum performance
+  const stockTransactionValues = openingStockData.map(data => {
+    const unitCostStr = data.unitCost !== null ? data.unitCost.toString() : 'NULL'
+    const quantityStr = data.quantity.toString()
+    const notesEscaped = data.notes.replace(/'/g, "''")
+
+    return `(${data.businessId}, ${data.productId}, ${data.productVariationId}, ${data.locationId}, 'opening_stock', ${quantityStr}, ${unitCostStr}, ${quantityStr}, 'product_import', ${data.productId}, ${data.userId}, '${notesEscaped}', '${now.toISOString()}')`
+  }).join(',\n    ')
+
+  // Bulk insert stock transactions using raw SQL
+  await tx.$executeRawUnsafe(`
+    INSERT INTO stock_transactions
+      (business_id, product_id, product_variation_id, location_id, type, quantity, unit_cost, balance_qty, reference_type, reference_id, created_by, notes, created_at)
+    VALUES
+      ${stockTransactionValues}
+  `)
+
+  // Prepare bulk data for product_history
+  const productHistoryValues = openingStockData.map(data => {
+    const unitCostStr = data.unitCost !== null ? data.unitCost.toString() : 'NULL'
+    const totalValue = data.unitCost !== null ? (data.unitCost * data.quantity).toString() : 'NULL'
+    const quantityStr = data.quantity.toString()
+    const notesEscaped = data.notes.replace(/'/g, "''")
+
+    return `(${data.businessId}, ${data.locationId}, ${data.productId}, ${data.productVariationId}, 'opening_stock', '${now.toISOString()}', 'product_import', ${data.productId}, '${data.productId}', ${quantityStr}, ${quantityStr}, ${unitCostStr}, ${totalValue}, ${data.userId}, 'System', '${notesEscaped}', '${now.toISOString()}')`
+  }).join(',\n    ')
+
+  // Bulk insert product history using raw SQL
+  await tx.$executeRawUnsafe(`
+    INSERT INTO product_history
+      (business_id, location_id, product_id, product_variation_id, transaction_type, transaction_date, reference_type, reference_id, reference_number, quantity_change, balance_quantity, unit_cost, total_value, created_by, created_by_name, reason, created_at)
+    VALUES
+      ${productHistoryValues}
+  `)
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,11 +111,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No products to import' }, { status: 400 })
     }
 
+    // Get all business locations upfront for opening stock
+    const allLocations = await prisma.businessLocation.findMany({
+      where: { businessId },
+      select: { id: true, name: true },
+      orderBy: { id: 'asc' }
+    })
+
+    if (allLocations.length === 0) {
+      return NextResponse.json(
+        { error: 'No business locations found. Please create at least one location first.' },
+        { status: 400 }
+      )
+    }
+
     const results = {
       success: 0,
       failed: 0,
       errors: [] as Array<{ row: number; error: string; data?: any }>
     }
+
+    // Collect all opening stock data for bulk insert
+    const bulkOpeningStockData: Array<{
+      businessId: number
+      productId: number
+      productVariationId: number
+      locationId: number
+      quantity: number
+      unitCost: number | null
+      userId: number
+      notes: string
+    }> = []
 
     // Process each product
     for (let i = 0; i < products.length; i++) {
@@ -70,8 +180,7 @@ export async function POST(request: NextRequest) {
             brand = await prisma.brand.create({
               data: {
                 name: product.brand,
-                businessId,
-                createdBy: user.id
+                businessId
               }
             })
           }
@@ -111,8 +220,7 @@ export async function POST(request: NextRequest) {
             category = await prisma.category.create({
               data: {
                 name: product.category,
-                businessId,
-                createdBy: user.id
+                businessId
               }
             })
           }
@@ -135,8 +243,7 @@ export async function POST(request: NextRequest) {
               data: {
                 name: product.subCategory,
                 parentId: categoryId,
-                businessId,
-                createdBy: user.id
+                businessId
               }
             })
           }
@@ -147,26 +254,17 @@ export async function POST(request: NextRequest) {
         const createdProduct = await prisma.product.create({
           data: {
             name: product.name,
-            sku: product.sku || null,
+            sku: product.sku || `PROD-${Date.now()}`,
             barcodeType: product.barcodeType || 'C128',
-            productType: product.productType,
+            type: product.productType || 'single',
             unitId: unit.id,
             brandId,
             categoryId: subCategoryId || categoryId,
-            manageStock: product.manageStock === '1' || product.manageStock === 1,
+            enableStock: product.manageStock === '1' || product.manageStock === 1 || true,
             alertQuantity: product.alertQuantity ? parseFloat(product.alertQuantity) : null,
-            expiryPeriod: product.expiresIn ? parseFloat(product.expiresIn) : null,
-            expiryPeriodType: product.expiryPeriodUnit || null,
             weight: product.weight ? parseFloat(product.weight) : null,
             productDescription: product.productDescription || null,
-            customField1: product.customField1 || null,
-            customField2: product.customField2 || null,
-            customField3: product.customField3 || null,
-            customField4: product.customField4 || null,
-            notForSelling: product.notForSelling === '1' || product.notForSelling === 1,
-            businessId,
-            createdBy: user.id,
-            isActive: true
+            businessId
           }
         })
 
@@ -203,14 +301,12 @@ export async function POST(request: NextRequest) {
             await prisma.productVariation.create({
               data: {
                 productId: createdProduct.id,
-                variationTemplateId: variationTemplate.id,
-                variationValueId: variationValues[j].id,
-                sku: skus[j] || null,
-                purchasePriceIncTax: purchasePricesIncl[j] ? parseFloat(purchasePricesIncl[j]) : null,
-                purchasePriceExcTax: purchasePricesExcl[j] ? parseFloat(purchasePricesExcl[j]) : null,
-                profitMargin: profitMargins[j] ? parseFloat(profitMargins[j]) : null,
-                sellingPrice: sellingPrices[j] ? parseFloat(sellingPrices[j]) : null,
-                businessId
+                name: variationValues[j].name,
+                sku: skus[j] || `VAR-${createdProduct.id}-${j}`,
+                purchasePrice: purchasePricesIncl[j] ? parseFloat(purchasePricesIncl[j]) : 0,
+                sellingPrice: sellingPrices[j] ? parseFloat(sellingPrices[j]) : 0,
+                businessId,
+                isDefault: j === 0
               }
             })
           }
@@ -219,51 +315,103 @@ export async function POST(request: NextRequest) {
           await prisma.productVariation.create({
             data: {
               productId: createdProduct.id,
-              sku: product.sku || null,
-              purchasePriceIncTax: product.purchasePriceInclTax ? parseFloat(product.purchasePriceInclTax) : null,
-              purchasePriceExcTax: product.purchasePriceExclTax ? parseFloat(product.purchasePriceExclTax) : null,
-              profitMargin: product.profitMargin ? parseFloat(product.profitMargin) : null,
-              sellingPrice: product.sellingPrice ? parseFloat(product.sellingPrice) : null,
-              businessId
+              name: 'Default',
+              sku: product.sku || `VAR-${Date.now()}`,
+              purchasePrice: product.purchasePriceInclTax ? parseFloat(product.purchasePriceInclTax) : 0,
+              sellingPrice: product.sellingPrice ? parseFloat(product.sellingPrice) : 0,
+              businessId,
+              isDefault: true
             }
           })
         }
 
-        // Handle opening stock for multiple locations
-        if (product.openingStock && product.openingStockLocation) {
-          const quantities = product.openingStock.split('|').map((q: string) => q.trim())
-          const locationNames = product.openingStockLocation.split('|').map((l: string) => l.trim())
+        // Collect opening stock data for bulk insert
+        // Get all product variations (could be single or multiple for variable products)
+        const variations = await prisma.productVariation.findMany({
+          where: {
+            productId: createdProduct.id
+          },
+          orderBy: {
+            id: 'asc'
+          }
+        })
 
-          for (let j = 0; j < quantities.length; j++) {
-            const quantity = parseFloat(quantities[j])
-            const locationName = locationNames[j]
+        if (variations.length > 0) {
+          // Parse opening stock quantities (split by | for variable products)
+          const quantities = product.openingStock
+            ? product.openingStock.split('|').map((q: string) => q.trim()).filter((q: string) => q)
+            : []
 
-            if (!quantity || !locationName) continue
+          // Determine location(s)
+          let targetLocationIds: number[] = []
 
-            const location = await prisma.businessLocation.findFirst({
-              where: {
-                name: locationName,
-                businessId
+          if (product.openingStockLocation) {
+            const locationNames = product.openingStockLocation.split('|').map((l: string) => l.trim()).filter((l: string) => l)
+
+            // Map location names to IDs
+            for (const locName of locationNames) {
+              const loc = allLocations.find(l => l.name === locName)
+              if (loc) {
+                targetLocationIds.push(loc.id)
               }
-            })
+            }
+          }
 
-            if (location) {
-              const variation = await prisma.productVariation.findFirst({
-                where: {
-                  productId: createdProduct.id
-                }
+          // If no locations specified or none found, use ALL business locations
+          if (targetLocationIds.length === 0) {
+            targetLocationIds = allLocations.map(l => l.id)
+          }
+
+          // For single products: one variation, possibly multiple locations
+          // For variable products: multiple variations, typically one location (or match variation count)
+          if (product.productType === 'single') {
+            const variation = variations[0]
+            const unitCost = variation.purchasePrice
+              ? parseFloat(variation.purchasePrice.toString())
+              : null
+
+            // Create opening stock for each target location
+            for (let j = 0; j < targetLocationIds.length; j++) {
+              const locationId = targetLocationIds[j]
+              const quantity = quantities[j] ? parseFloat(quantities[j]) : 0
+
+              if (isNaN(quantity)) continue
+
+              bulkOpeningStockData.push({
+                businessId,
+                productId: createdProduct.id,
+                productVariationId: variation.id,
+                locationId,
+                quantity,
+                unitCost,
+                userId: user.id,
+                notes: `Opening stock from CSV import - ${product.name} (Location ${locationId})`
               })
+            }
+          } else if (product.productType === 'variable') {
+            // For variable products: each quantity corresponds to a variation
+            const locationId = targetLocationIds[0] // Use first location for all variations
 
-              if (variation) {
-                await prisma.variationLocationDetail.create({
-                  data: {
-                    productVariationId: variation.id,
-                    locationId: location.id,
-                    qtyAvailable: quantity,
-                    businessId
-                  }
-                })
-              }
+            for (let j = 0; j < variations.length; j++) {
+              const variation = variations[j]
+              const quantity = quantities[j] ? parseFloat(quantities[j]) : 0
+
+              if (isNaN(quantity)) continue
+
+              const unitCost = variation.purchasePrice
+                ? parseFloat(variation.purchasePrice.toString())
+                : null
+
+              bulkOpeningStockData.push({
+                businessId,
+                productId: createdProduct.id,
+                productVariationId: variation.id,
+                locationId,
+                quantity,
+                unitCost,
+                userId: user.id,
+                notes: `Opening stock from CSV import - ${product.name} (Variation ${j + 1})`
+              })
             }
           }
         }
@@ -279,9 +427,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Bulk insert all opening stock transactions in one go
+    if (bulkOpeningStockData.length > 0) {
+      console.log(`Creating ${bulkOpeningStockData.length} opening stock transactions in bulk...`)
+      await prisma.$transaction(async (tx) => {
+        await createBulkOpeningStock(tx, bulkOpeningStockData)
+      })
+      console.log(`Bulk opening stock creation complete!`)
+    }
+
     return NextResponse.json({
       success: true,
-      results
+      results: {
+        ...results,
+        openingStockTransactionsCreated: bulkOpeningStockData.length
+      }
     })
 
   } catch (error: any) {

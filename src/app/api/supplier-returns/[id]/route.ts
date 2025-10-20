@@ -51,22 +51,7 @@ export async function GET(
             name: true,
           },
         },
-        items: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-            productVariation: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
+        items: true, // Can't include nested product/variation due to schema limitations
       },
     })
 
@@ -74,7 +59,63 @@ export async function GET(
       return NextResponse.json({ error: 'Supplier return not found' }, { status: 404 })
     }
 
-    return NextResponse.json(supplierReturn)
+    // Fetch product and variation data separately
+    const productIds = supplierReturn.items.map((item) => item.productId)
+    const variationIds = supplierReturn.items.map((item) => item.productVariationId)
+
+    let productMap: Record<number, { id: number; name: string }> = {}
+    let variationMap: Record<number, { id: number; name: string }> = {}
+
+    if (productIds.length > 0) {
+      const products = await prisma.product.findMany({
+        where: {
+          id: { in: productIds },
+          businessId: parseInt(businessId),
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      })
+
+      productMap = products.reduce((acc, product) => {
+        acc[product.id] = product
+        return acc
+      }, {} as Record<number, { id: number; name: string }>)
+    }
+
+    if (variationIds.length > 0) {
+      const variations = await prisma.productVariation.findMany({
+        where: {
+          id: { in: variationIds },
+          businessId: parseInt(businessId),
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      })
+
+      variationMap = variations.reduce((acc, variation) => {
+        acc[variation.id] = variation
+        return acc
+      }, {} as Record<number, { id: number; name: string }>)
+    }
+
+    // Format the response with product and variation data
+    const response = {
+      ...supplierReturn,
+      items: supplierReturn.items.map((item) => ({
+        ...item,
+        product: productMap[item.productId] || { id: item.productId, name: 'Unknown Product' },
+        productVariation: variationMap[item.productVariationId] || {
+          id: item.productVariationId,
+          name: 'Standard',
+        },
+      })),
+    }
+
+    return NextResponse.json(response)
   } catch (error) {
     console.error('Error fetching supplier return:', error)
     return NextResponse.json(

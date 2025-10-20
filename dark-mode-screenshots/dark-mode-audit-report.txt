@@ -1,0 +1,145 @@
+
+DARK MODE CONTRAST AUDIT REPORT
+Generated: 2025-10-17T00:53:42.875Z
+=================================================================================
+
+PAGES WITH DARK MODE ISSUES:
+1. /dashboard - Dashboard Home
+   Issue: Potential dark-on-dark text (55 elements)
+   Screenshot: dashboard-home.png
+
+2. /dashboard/products - Products List
+   Issue: Potential dark-on-dark text (74 elements)
+   Screenshot: products-list.png
+
+3. /dashboard/products/categories - Product Categories
+   Issue: Potential dark-on-dark text (46 elements)
+   Screenshot: product-categories.png
+
+4. /dashboard/products/brands - Product Brands
+   Issue: Potential dark-on-dark text (46 elements)
+   Screenshot: product-brands.png
+
+5. /dashboard/products/units - Product Units
+   Issue: Potential dark-on-dark text (46 elements)
+   Screenshot: product-units.png
+
+6. /dashboard/products/stock - Stock Management
+   Issue: Potential dark-on-dark text (245 elements), Potential light-on-light text (14 elements)
+   Screenshot: stock-management.png
+
+7. /dashboard/products/print-labels - Print Labels
+   Issue: Potential dark-on-dark text (46 elements)
+   Screenshot: print-labels.png
+
+8. /dashboard/locations - Locations
+   Issue: Potential dark-on-dark text (45 elements)
+   Screenshot: locations.png
+
+9. /dashboard/suppliers - Suppliers
+   Issue: Potential dark-on-dark text (46 elements)
+   Screenshot: suppliers.png
+
+10. /dashboard/customers - Customers
+   Issue: Potential dark-on-dark text (51 elements)
+   Screenshot: customers.png
+
+11. /dashboard/purchases - Purchases
+   Issue: Potential dark-on-dark text (57 elements)
+   Screenshot: purchases.png
+
+12. /dashboard/sales - Sales
+   Issue: Dark mode not active, Potential dark-on-dark text (27 elements)
+   Screenshot: sales.png
+
+13. /dashboard/reports/sales-today - Sales Today Report
+   Issue: Potential dark-on-dark text (56 elements)
+   Screenshot: sales-today-report.png
+
+14. /dashboard/reports/sales-history - Sales History Report
+   Issue: Dark mode not active, Potential dark-on-dark text (34 elements)
+   Screenshot: sales-history-report.png
+
+15. /dashboard/reports/sales-journal - Sales Journal Report
+   Issue: Potential dark-on-dark text (131 elements)
+   Screenshot: sales-journal-report.png
+
+16. /dashboard/reports/sales-per-item - Sales Per Item Report
+   Issue: Potential dark-on-dark text (74 elements)
+   Screenshot: sales-per-item-report.png
+
+17. /dashboard/reports/sales-per-cashier - Sales Per Cashier Report
+   Issue: Potential dark-on-dark text (81 elements)
+   Screenshot: sales-per-cashier-report.png
+
+18. /dashboard/reports/profitability - Profitability Report
+   Issue: Potential dark-on-dark text (48 elements)
+   Screenshot: profitability-report.png
+
+19. /dashboard/reports/profit - Profit Report
+   Issue: Potential dark-on-dark text (47 elements)
+   Screenshot: profit-report.png
+
+20. /dashboard/reports/sales-report - Sales Report
+   Issue: Potential dark-on-dark text (51 elements)
+   Screenshot: sales-report.png
+
+21. /dashboard/reports/purchases-report - Purchases Report
+   Issue: Potential dark-on-dark text (52 elements)
+   Screenshot: purchases-report.png
+
+22. /dashboard/reports/purchases-items - Purchases Items Report
+   Issue: Potential dark-on-dark text (52 elements)
+   Screenshot: purchases-items-report.png
+
+23. /dashboard/reports/audit-trail - Audit Trail
+   Issue: Potential dark-on-dark text (60 elements)
+   Screenshot: audit-trail.png
+
+24. /dashboard/users - Users
+   Issue: Potential dark-on-dark text (90 elements)
+   Screenshot: users.png
+
+25. /dashboard/roles - Roles
+   Issue: Potential dark-on-dark text (63 elements)
+   Screenshot: roles.png
+
+26. /dashboard/settings - Settings
+   Issue: Dark mode not active, Potential dark-on-dark text (39 elements)
+   Screenshot: settings.png
+
+PAGES WITH GOOD DARK MODE:
+None
+
+PAGES NOT FOUND (404):
+None
+
+PAGES WITH ERRORS:
+1. /dashboard/pos - POS
+   Error: page.goto: Timeout 15000ms exceeded.
+Call log:
+[2m  - navigating to "http://localhost:3000/dashboard/pos", waiting until "networkidle"[22m
+
+
+2. /dashboard/reports - Reports Hub
+   Error: page.goto: net::ERR_ABORTED at http://localhost:3000/dashboard/reports
+Call log:
+[2m  - navigating to "http://localhost:3000/dashboard/reports", waiting until "networkidle"[22m
+
+
+3. /dashboard/ai-assistant - AI Assistant
+   Error: page.goto: net::ERR_ABORTED at http://localhost:3000/dashboard/ai-assistant
+Call log:
+[2m  - navigating to "http://localhost:3000/dashboard/ai-assistant", waiting until "networkidle"[22m
+
+
+=================================================================================
+SUMMARY:
+Total Pages Tested: 29
+Pages with Issues: 26
+Pages OK: 0
+Pages Not Found: 0
+Pages with Errors: 3
+
+Screenshots saved to: C:\xampp\htdocs\ultimatepos-modern\dark-mode-screenshots
+=================================================================================

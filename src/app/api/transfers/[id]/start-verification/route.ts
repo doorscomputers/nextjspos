@@ -77,16 +77,11 @@ export async function POST(
       }
     }
 
-    // ENFORCE: Verifier should be different from the user who marked it as arrived
-    if (transfer.arrivedBy === parseInt(userId)) {
-      return NextResponse.json(
-        {
-          error: 'Cannot verify a transfer you marked as arrived. A different user should perform the verification for proper control.',
-          code: 'SAME_USER_VIOLATION'
-        },
-        { status: 403 }
-      )
-    }
+    // REMOVED: Overly restrictive check - separation of duties already enforced at origin
+    // At destination, the receiving user can both mark as arrived AND verify because:
+    // 1. Transfer was already verified at origin (created, checked, sent by different users)
+    // 2. Destination verification is about confirming RECEIPT, not separation of duties
+    // 3. Stock was already deducted at origin - this is just confirming what arrived
 
     // Update transfer to verifying status
     const updatedTransfer = await prisma.stockTransfer.update({

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { processCustomerReturn, getCurrentStock } from '@/lib/stockOperations'
 
 /**
  * POST /api/customer-returns/[id]/approve
@@ -30,7 +31,14 @@ export async function POST(
     const user = session.user as any
     const businessId = user.businessId
     const userId = user.id
+    const businessIdNumber = Number(businessId)
+    const userIdNumber = Number(userId)
+    const userDisplayName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+      user.username ||
+      `User#${userIdNumber}`
     const { id: returnId } = await params
+    const returnIdNumber = Number(returnId)
 
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.CUSTOMER_RETURN_APPROVE)) {
@@ -43,8 +51,8 @@ export async function POST(
     // Get return with all items
     const customerReturn = await prisma.customerReturn.findFirst({
       where: {
-        id: parseInt(returnId),
-        businessId: parseInt(businessId),
+        id: returnIdNumber,
+        businessId: businessIdNumber,
       },
       include: {
         items: true,
@@ -73,71 +81,41 @@ export async function POST(
         const quantity = parseFloat(item.quantity.toString())
         const condition = item.condition
 
-        // Only restore stock if item is resellable
-        if (condition === 'resellable') {
-          // Get current stock at return location
-          const currentStock = await tx.variationLocationDetails.findFirst({
-            where: {
-              productId,
-              productVariationId: variationId,
-              locationId: customerReturn.locationId,
-            },
-          })
+        const unitCost = item.unitPrice ? parseFloat(item.unitPrice.toString()) : 0
 
-          if (!currentStock) {
-            // Create stock record if it doesn't exist
-            await tx.variationLocationDetails.create({
-              data: {
-                productId,
-                productVariationId: variationId,
-                locationId: customerReturn.locationId,
-                qtyAvailable: quantity,
-              },
-            })
-          } else {
-            // Update existing stock (ADD quantity back)
-            const currentQty = parseFloat(currentStock.qtyAvailable.toString())
-            const newQty = currentQty + quantity
-
-            await tx.variationLocationDetails.update({
-              where: { id: currentStock.id },
-              data: {
-                qtyAvailable: newQty,
-                updatedAt: new Date(),
-              },
-            })
-          }
-
-          // Create stock transaction (positive = addition)
-          await tx.stockTransaction.create({
-            data: {
-              businessId: parseInt(businessId),
-              productId,
-              productVariationId: variationId,
-              locationId: customerReturn.locationId,
-              type: 'customer_return', // NEW TYPE for returns
-              quantity: quantity, // POSITIVE for stock addition
-              balanceQty: 0, // Will be calculated
-              referenceType: 'customer_return',
-              referenceId: customerReturn.id,
-              createdBy: parseInt(userId),
-              notes: `Customer return ${customerReturn.returnNumber} approved - resellable`,
-            },
+        if (condition === 'resellable' && quantity > 0) {
+          await processCustomerReturn({
+            businessId: businessIdNumber,
+            productId,
+            productVariationId: variationId,
+            locationId: customerReturn.locationId,
+            quantity,
+            unitCost,
+            returnId: customerReturn.id,
+            userId: userIdNumber,
+            userDisplayName,
+            tx,
           })
         } else {
           // Damaged or defective - just log, don't restore stock
+          const currentBalance = await getCurrentStock({
+            productVariationId: variationId,
+            locationId: customerReturn.locationId,
+            tx,
+          })
+
           await tx.stockTransaction.create({
             data: {
-              businessId: parseInt(businessId),
+              businessId: businessIdNumber,
               productId,
               productVariationId: variationId,
               locationId: customerReturn.locationId,
               type: 'customer_return',
               quantity: 0, // No stock change
-              balanceQty: 0,
+              balanceQty: currentBalance,
               referenceType: 'customer_return',
               referenceId: customerReturn.id,
-              createdBy: parseInt(userId),
+              createdBy: userIdNumber,
               notes: `Customer return ${customerReturn.returnNumber} approved - ${condition} (no stock restoration)`,
             },
           })
@@ -163,7 +141,7 @@ export async function POST(
 
               await tx.productSerialNumber.updateMany({
                 where: {
-                  id: parseInt(serialId),
+                  id: Number(serialId),
                   status: 'sold', // Should be sold status
                 },
                 data: {
@@ -176,12 +154,12 @@ export async function POST(
               // Create movement record
               await tx.serialNumberMovement.create({
                 data: {
-                  serialNumberId: parseInt(serialId),
+                  serialNumberId: Number(serialId),
                   movementType: 'customer_return',
                   toLocationId: condition === 'resellable' ? customerReturn.locationId : null,
                   referenceType: 'customer_return',
                   referenceId: customerReturn.id,
-                  movedBy: parseInt(userId),
+                  movedBy: userIdNumber,
                   notes: `Customer return ${customerReturn.returnNumber} - ${condition}`,
                 },
               })
@@ -195,7 +173,7 @@ export async function POST(
         where: { id: customerReturn.id },
         data: {
           status: 'approved',
-          approvedBy: parseInt(userId),
+          approvedBy: userIdNumber,
           approvedAt: new Date(),
         },
       })
@@ -207,8 +185,8 @@ export async function POST(
 
     // Create audit log
     await createAuditLog({
-      businessId: parseInt(businessId),
-      userId: parseInt(userId),
+      businessId: businessIdNumber,
+      userId: userIdNumber,
       username: user.username,
       action: 'customer_return_approve' as AuditAction,
       entityType: EntityType.SALE,

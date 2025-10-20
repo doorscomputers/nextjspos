@@ -1,6 +1,6 @@
-'use client'
+﻿'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -19,7 +19,6 @@ import {
   GlobeAltIcon,
   EyeIcon,
   DocumentArrowDownIcon,
-  FunnelIcon,
   ChartBarIcon,
   LockClosedIcon,
   ServerIcon,
@@ -27,6 +26,7 @@ import {
   InformationCircleIcon,
 } from '@heroicons/react/24/outline'
 import { toast } from 'sonner'
+import ReportFilterPanel from '@/components/reports/ReportFilterPanel'
 
 interface AuditLog {
   id: number
@@ -225,21 +225,24 @@ export default function AuditTrailPage() {
   })
 
   // Filters
-  const [startDate, setStartDate] = useState(() => {
+  const defaultStartDate = useMemo(() => {
     const date = new Date()
     date.setDate(date.getDate() - 7)
     return date.toISOString().split('T')[0]
-  })
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0])
+  }, [])
+  const defaultEndDate = useMemo(() => new Date().toISOString().split('T')[0], [])
+  const [startDate, setStartDate] = useState(defaultStartDate)
+  const [endDate, setEndDate] = useState(defaultEndDate)
   const [userId, setUserId] = useState<string>('')
   const [username, setUsername] = useState<string>('')
-  const [action, setAction] = useState<string>('')
-  const [entityType, setEntityType] = useState<string>('')
+  const [action, setAction] = useState<string>('all')
+  const [entityType, setEntityType] = useState<string>('all')
   const [ipAddress, setIpAddress] = useState<string>('')
-  const [requiresPassword, setRequiresPassword] = useState<string>('')
+  const [requiresPassword, setRequiresPassword] = useState<string>('all')
   const [search, setSearch] = useState<string>('')
   const [sortBy, setSortBy] = useState<string>('createdAt')
   const [sortOrder, setSortOrder] = useState<string>('desc')
+  const [showFilters, setShowFilters] = useState(true)
 
   // Selected log for details
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
@@ -261,10 +264,10 @@ export default function AuditTrailPage() {
 
       if (userId) params.append('userId', userId)
       if (username) params.append('username', username)
-      if (action) params.append('action', action)
-      if (entityType) params.append('entityType', entityType)
+      if (action !== 'all') params.append('action', action)
+      if (entityType !== 'all') params.append('entityType', entityType)
       if (ipAddress) params.append('ipAddress', ipAddress)
-      if (requiresPassword) params.append('requiresPassword', requiresPassword)
+      if (requiresPassword !== 'all') params.append('requiresPassword', requiresPassword)
       if (search) params.append('search', search)
 
       const res = await fetch(`/api/reports/audit-trail?${params.toString()}`)
@@ -366,15 +369,47 @@ export default function AuditTrailPage() {
   const handleReset = () => {
     setUserId('')
     setUsername('')
-    setAction('')
-    setEntityType('')
+    setAction('all')
+    setEntityType('all')
     setIpAddress('')
-    setRequiresPassword('')
+    setRequiresPassword('all')
     setSearch('')
     setSortBy('createdAt')
     setSortOrder('desc')
-    fetchAuditLogs(1)
+    setStartDate(defaultStartDate)
+    setEndDate(defaultEndDate)
+    setTimeout(() => {
+      handleFilter()
+    }, 0)
   }
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (startDate !== defaultStartDate || endDate !== defaultEndDate) count += 1
+    if (userId) count += 1
+    if (username.trim()) count += 1
+    if (action !== 'all') count += 1
+    if (entityType !== 'all') count += 1
+    if (ipAddress.trim()) count += 1
+    if (requiresPassword !== 'all') count += 1
+    if (search.trim()) count += 1
+    if (sortBy !== 'createdAt' || sortOrder !== 'desc') count += 1
+    return count
+  }, [
+    action,
+    defaultEndDate,
+    defaultStartDate,
+    endDate,
+    entityType,
+    ipAddress,
+    requiresPassword,
+    search,
+    sortBy,
+    sortOrder,
+    startDate,
+    userId,
+    username,
+  ])
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -565,16 +600,15 @@ export default function AuditTrailPage() {
       )}
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FunnelIcon className="w-5 h-5" />
-            Advanced Filters
-          </CardTitle>
-          <CardDescription>Filter audit logs by various criteria</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <ReportFilterPanel
+        isOpen={showFilters}
+        onToggle={() => setShowFilters(!showFilters)}
+        activeCount={activeFilterCount}
+        onClearAll={handleReset}
+        clearLabel="Reset Filters"
+        description="Filter audit logs by user activity, entity type, IP address, and more."
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <Label htmlFor="startDate">Start Date</Label>
               <Input
@@ -609,10 +643,10 @@ export default function AuditTrailPage() {
               <Label htmlFor="action">Action</Label>
               <Select value={action} onValueChange={setAction}>
                 <SelectTrigger id="action">
-                  <SelectValue placeholder="Select action" />
+                  <SelectValue placeholder="All actions" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Actions</SelectItem>
+                  <SelectItem value="all">All Actions</SelectItem>
                   <SelectItem value="bulk_delete">Bulk Delete</SelectItem>
                   <SelectItem value="bulk_activate">Bulk Activate</SelectItem>
                   <SelectItem value="bulk_deactivate">Bulk Deactivate</SelectItem>
@@ -626,10 +660,10 @@ export default function AuditTrailPage() {
               <Label htmlFor="entityType">Entity Type</Label>
               <Select value={entityType} onValueChange={setEntityType}>
                 <SelectTrigger id="entityType">
-                  <SelectValue placeholder="Select entity type" />
+                  <SelectValue placeholder="All entity types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Types</SelectItem>
+                  <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="product">Product</SelectItem>
                   <SelectItem value="user">User</SelectItem>
                   <SelectItem value="sale">Sale</SelectItem>
@@ -661,7 +695,7 @@ export default function AuditTrailPage() {
                   <SelectValue placeholder="All" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All</SelectItem>
+                  <SelectItem value="all">All</SelectItem>
                   <SelectItem value="true">Password Required</SelectItem>
                   <SelectItem value="false">No Password Required</SelectItem>
                 </SelectContent>
@@ -686,9 +720,8 @@ export default function AuditTrailPage() {
                 Reset
               </Button>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      </ReportFilterPanel>
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="audit-logs" className="space-y-4">
@@ -704,7 +737,7 @@ export default function AuditTrailPage() {
             <CardHeader>
               <CardTitle>Audit Log Entries</CardTitle>
               <CardDescription>
-                Showing {pagination.total} total entries • Page {pagination.page} of {pagination.totalPages}
+                Showing {pagination.total} total entries ΓÇó Page {pagination.page} of {pagination.totalPages}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -863,10 +896,36 @@ export default function AuditTrailPage() {
                                   </div>
                                   {selectedLog.metadata && (
                                     <div>
-                                      <Label>Metadata</Label>
-                                      <pre className="text-xs bg-gray-100 p-2 rounded overflow-x-auto">
-                                        {JSON.stringify(selectedLog.metadata, null, 2)}
-                                      </pre>
+                                      <Label className="text-base font-semibold mb-3 block">Additional Details</Label>
+                                      <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                                        {Object.entries(selectedLog.metadata).map(([key, value]) => (
+                                          <div key={key} className="flex items-start border-b border-gray-200 pb-2 last:border-0 last:pb-0">
+                                            <div className="w-1/3 text-sm font-medium text-gray-600 capitalize">
+                                              {key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').trim()}:
+                                            </div>
+                                            <div className="w-2/3 text-sm text-gray-900">
+                                              {typeof value === 'object' && value !== null ? (
+                                                Array.isArray(value) ? (
+                                                  <span className="font-mono text-xs bg-blue-50 px-2 py-1 rounded">
+                                                    {value.length} items: {value.join(', ')}
+                                                  </span>
+                                                ) : (
+                                                  <div className="space-y-1">
+                                                    {Object.entries(value).map(([k, v]) => (
+                                                      <div key={k} className="text-xs">
+                                                        <span className="font-medium text-gray-600">{k}:</span>{' '}
+                                                        <span className="text-gray-900">{String(v)}</span>
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                )
+                                              ) : (
+                                                <span className="font-medium">{String(value)}</span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
                                     </div>
                                   )}
                                   {selectedLog.entityIds.length > 0 && (
@@ -1162,7 +1221,7 @@ export default function AuditTrailPage() {
                               </Badge>
                             </div>
                             <div className="text-sm text-gray-600">
-                              {ip.uniqueUsers} users • {ip.totalActivities} activities
+                              {ip.uniqueUsers} users ΓÇó {ip.totalActivities} activities
                             </div>
                           </div>
                           <div className="mt-2">

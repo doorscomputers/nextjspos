@@ -59,7 +59,7 @@ export default function TransfersPage() {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(25)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
   const [totalTransfers, setTotalTransfers] = useState(0)
 
   // Column visibility state
@@ -257,14 +257,14 @@ export default function TransfersPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Stock Transfers</h1>
-          <p className="text-gray-500 mt-1">Manage stock transfers between locations</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Stock Transfers</h1>
+          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">Manage stock transfers between locations</p>
         </div>
         {can(PERMISSIONS.STOCK_TRANSFER_CREATE) && (
           <Link href="/dashboard/transfers/create">
-            <Button>
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 shadow-lg hover:shadow-xl transition-all duration-200">
               <PlusIcon className="w-5 h-5 mr-2" />
               New Transfer
             </Button>

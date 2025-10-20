@@ -29,6 +29,21 @@ export async function GET(request: NextRequest) {
     // Parse limit parameter
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined
 
+    // Multi-column filter parameters
+    const search = searchParams.get('search')?.trim() || ''
+    const sku = searchParams.get('sku')?.trim() || ''
+    const categoryName = searchParams.get('categoryName')?.trim() || ''
+    const brandName = searchParams.get('brandName')?.trim() || ''
+    const unitName = searchParams.get('unitName')?.trim() || ''
+    const productType = searchParams.get('productType')?.trim() || ''
+    const stockMin = searchParams.get('stockMin') ? parseFloat(searchParams.get('stockMin')!) : undefined
+    const stockMax = searchParams.get('stockMax') ? parseFloat(searchParams.get('stockMax')!) : undefined
+    const purchasePriceMin = searchParams.get('purchasePriceMin') ? parseFloat(searchParams.get('purchasePriceMin')!) : undefined
+    const purchasePriceMax = searchParams.get('purchasePriceMax') ? parseFloat(searchParams.get('purchasePriceMax')!) : undefined
+    const sellingPriceMin = searchParams.get('sellingPriceMin') ? parseFloat(searchParams.get('sellingPriceMin')!) : undefined
+    const sellingPriceMax = searchParams.get('sellingPriceMax') ? parseFloat(searchParams.get('sellingPriceMax')!) : undefined
+    const taxName = searchParams.get('taxName')?.trim() || ''
+
     // Build where clause
     const whereClause: any = {
       businessId: parseInt(businessId),
@@ -45,7 +60,71 @@ export async function GET(request: NextRequest) {
     }
     // If no filter, show all products (active and inactive)
 
-    const products = await prisma.product.findMany({
+    // Apply multi-column filters
+    if (search) {
+      whereClause.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { productDescription: { contains: search, mode: 'insensitive' } }
+      ]
+    }
+
+    if (sku) {
+      whereClause.sku = { contains: sku, mode: 'insensitive' }
+    }
+
+    if (categoryName) {
+      whereClause.category = {
+        name: { contains: categoryName, mode: 'insensitive' }
+      }
+    }
+
+    if (brandName) {
+      whereClause.brand = {
+        name: { contains: brandName, mode: 'insensitive' }
+      }
+    }
+
+    if (unitName) {
+      whereClause.unit = {
+        OR: [
+          { name: { contains: unitName, mode: 'insensitive' } },
+          { shortName: { contains: unitName, mode: 'insensitive' } }
+        ]
+      }
+    }
+
+    if (productType) {
+      whereClause.type = productType
+    }
+
+    if (taxName) {
+      whereClause.tax = {
+        name: { contains: taxName, mode: 'insensitive' }
+      }
+    }
+
+    if (purchasePriceMin !== undefined || purchasePriceMax !== undefined) {
+      whereClause.purchasePrice = {}
+      if (purchasePriceMin !== undefined) {
+        whereClause.purchasePrice.gte = purchasePriceMin
+      }
+      if (purchasePriceMax !== undefined) {
+        whereClause.purchasePrice.lte = purchasePriceMax
+      }
+    }
+
+    if (sellingPriceMin !== undefined || sellingPriceMax !== undefined) {
+      whereClause.sellingPrice = {}
+      if (sellingPriceMin !== undefined) {
+        whereClause.sellingPrice.gte = sellingPriceMin
+      }
+      if (sellingPriceMax !== undefined) {
+        whereClause.sellingPrice.lte = sellingPriceMax
+      }
+    }
+
+    let products = await prisma.product.findMany({
       where: whereClause,
       include: {
         category: true,
@@ -62,6 +141,30 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
       ...(limit && { take: limit })
     })
+
+    // Apply stock filtering (client-side since it requires calculation)
+    if (stockMin !== undefined || stockMax !== undefined) {
+      products = products.filter(product => {
+        if (!product.enableStock) return false // Only filter products that have stock enabled
+
+        let totalStock = 0
+        if (product.type === 'variable') {
+          totalStock = product.variations.reduce((total, variation) => {
+            const varStock = variation.variationLocationDetails.reduce((sum, detail) => sum + Number(detail.qtyAvailable), 0)
+            return total + varStock
+          }, 0)
+        } else if (product.type === 'single') {
+          totalStock = product.variations.reduce((total, variation) => {
+            const varStock = variation.variationLocationDetails.reduce((sum, detail) => sum + Number(detail.qtyAvailable), 0)
+            return total + varStock
+          }, 0)
+        }
+
+        if (stockMin !== undefined && totalStock < stockMin) return false
+        if (stockMax !== undefined && totalStock > stockMax) return false
+        return true
+      })
+    }
 
     console.log(`[API /api/products] Found ${products.length} products for businessId ${businessId}`)
     console.log('[API /api/products] First 3 products:', products.slice(0, 3).map(p => ({ id: p.id, sku: p.sku, name: p.name, variations: p.variations.length })))
@@ -89,7 +192,35 @@ export async function GET(request: NextRequest) {
       }))
     }))
 
-    return NextResponse.json({ products: serializedProducts })
+    // Field-Level Security: Sanitize response based on user permissions
+    const canViewPurchasePrice = user.permissions?.includes(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE)
+    const canViewSupplier = user.permissions?.includes(PERMISSIONS.PRODUCT_VIEW_SUPPLIER)
+
+    const sanitizedProducts = serializedProducts.map(product => {
+      const sanitized: any = { ...product }
+
+      // Remove purchase price if user doesn't have permission
+      if (!canViewPurchasePrice) {
+        sanitized.purchasePrice = null
+        // Also remove from variations
+        if (sanitized.variations) {
+          sanitized.variations = sanitized.variations.map((v: any) => ({
+            ...v,
+            purchasePrice: null
+          }))
+        }
+      }
+
+      // Remove supplier information if user doesn't have permission
+      if (!canViewSupplier && sanitized.supplier) {
+        sanitized.supplier = null
+        sanitized.supplierId = null
+      }
+
+      return sanitized
+    })
+
+    return NextResponse.json({ products: sanitizedProducts })
   } catch (error) {
     console.error('Error fetching products:', error)
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 })

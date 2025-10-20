@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { processSupplierReturn } from '@/lib/stockOperations'
 
 /**
  * POST /api/supplier-returns/[id]/approve
@@ -28,7 +29,14 @@ export async function POST(
     const user = session.user as any
     const businessId = user.businessId
     const userId = user.id
+    const businessIdNumber = Number(businessId)
+    const userIdNumber = Number(userId)
+    const userDisplayName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+      user.username ||
+      `User#${userIdNumber}`
     const { id: returnId } = await params
+    const returnIdNumber = Number(returnId)
 
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.PURCHASE_RETURN_APPROVE)) {
@@ -41,8 +49,8 @@ export async function POST(
     // Get return with all items
     const supplierReturn = await prisma.supplierReturn.findFirst({
       where: {
-        id: parseInt(returnId),
-        businessId: parseInt(businessId),
+        id: returnIdNumber,
+        businessId: businessIdNumber,
       },
       include: {
         items: true,
@@ -69,56 +77,22 @@ export async function POST(
         const productId = item.productId
         const variationId = item.productVariationId
         const quantity = parseFloat(item.quantity.toString())
+        const unitCost = item.unitCost ? parseFloat(item.unitCost.toString()) : 0
 
-        // Get current stock at return location
-        const currentStock = await tx.variationLocationDetails.findUnique({
-          where: {
-            productVariationId_locationId: {
-              productVariationId: variationId,
-              locationId: supplierReturn.locationId,
-            },
-          },
-        })
-
-        if (!currentStock) {
-          throw new Error(`No stock found for product variation ${variationId} at this location`)
-        }
-
-        const currentQty = parseFloat(currentStock.qtyAvailable.toString())
-
-        if (currentQty < quantity) {
-          throw new Error(
-            `Insufficient stock for product ${productId}. Available: ${currentQty}, Trying to return: ${quantity}`
-          )
-        }
-
-        const newQty = currentQty - quantity
-
-        // Update existing stock (SUBTRACT quantity)
-        await tx.variationLocationDetails.update({
-          where: { id: currentStock.id },
-          data: {
-            qtyAvailable: newQty,
-            updatedAt: new Date(),
-          },
-        })
-
-        // Create stock transaction (negative = deduction)
-        await tx.stockTransaction.create({
-          data: {
-            businessId: parseInt(businessId),
+        if (quantity > 0) {
+          await processSupplierReturn({
+            businessId: businessIdNumber,
             productId,
             productVariationId: variationId,
             locationId: supplierReturn.locationId,
-            type: 'supplier_return',
-            quantity: -quantity, // NEGATIVE for stock deduction
-            balanceQty: 0,
-            referenceType: 'supplier_return',
-            referenceId: supplierReturn.id,
-            createdBy: parseInt(userId),
-            notes: `Supplier return ${supplierReturn.returnNumber} approved - ${item.condition}`,
-          },
-        })
+            quantity,
+            unitCost,
+            returnId: supplierReturn.id,
+            userId: userIdNumber,
+            userDisplayName,
+            tx,
+          })
+        }
 
         // Handle serial numbers if present
         if (item.serialNumbers) {
@@ -131,7 +105,7 @@ export async function POST(
               // Update serial number status
               await tx.productSerialNumber.updateMany({
                 where: {
-                  id: parseInt(serialId),
+                  id: Number(serialId),
                   status: 'in_stock', // Should be in stock
                 },
                 data: {
@@ -144,12 +118,12 @@ export async function POST(
               // Create movement record
               await tx.serialNumberMovement.create({
                 data: {
-                  serialNumberId: parseInt(serialId),
+                  serialNumberId: Number(serialId),
                   movementType: 'supplier_return',
                   fromLocationId: supplierReturn.locationId,
                   referenceType: 'supplier_return',
                   referenceId: supplierReturn.id,
-                  movedBy: parseInt(userId),
+                  movedBy: userIdNumber,
                   notes: `Supplier return ${supplierReturn.returnNumber} - ${item.condition}`,
                 },
               })
@@ -173,8 +147,8 @@ export async function POST(
 
     // Create audit log
     await createAuditLog({
-      businessId: parseInt(businessId),
-      userId: parseInt(userId),
+      businessId: businessIdNumber,
+      userId: userIdNumber,
       username: user.username,
       action: 'supplier_return_approve' as AuditAction,
       entityType: EntityType.PURCHASE,

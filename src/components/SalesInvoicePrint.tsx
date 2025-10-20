@@ -39,9 +39,59 @@ export default function SalesInvoicePrint({ sale, isOpen, onClose }: SalesInvoic
     return Math.max(0, totalPaid - totalAmount)
   }
 
+  const businessName = (business.invoiceHeaderName || business.name || 'PcInet Computer Trading').toUpperCase()
+  const ownerTitle = business.ownerTitle || 'Prop.'
+  const proprietorLine = business.ownerName
+    ? `${business.ownerName} - ${ownerTitle}`
+    : 'CHARLIE G. HIADAN - Prop.'
+
+  const vatTin = business.taxNumber1 || business.taxNumber || business.tinNumber || '106-638-378-00000'
+
+  const addressLinePrimary =
+    business.invoiceAddress ||
+    business.billingAddress ||
+    location.landmark ||
+    'B. Aquino Avenue, Quirino'
+
+  const addressLineSecondary = [
+    location.city,
+    location.state,
+    location.zipCode ? location.zipCode.toString() : null,
+  ]
+    .filter(Boolean)
+    .join(', ') || 'Solano, Nueva Vizcaya'
+
+  const emailCandidates = [
+    business.email,
+    business.accountingEmail,
+    business.invoiceEmail,
+    business.supportEmail,
+    location.email,
+  ].filter(Boolean)
+
+  const uniqueEmails = Array.from(new Set(emailCandidates as string[]))
+  const emailLine =
+    uniqueEmails.length > 0
+      ? `E-mail: ${uniqueEmails.join(' • ')}`
+      : 'E-mail: pcinet_s2016@yahoo.com • pcinet_acctgdept@yahoo.com'
+
+  const phoneCandidates = [
+    business.phone,
+    business.contactNumber,
+    business.telephone,
+    location.mobile,
+    location.alternateNumber,
+  ].filter(Boolean)
+
+  const uniquePhones = Array.from(new Set(phoneCandidates as string[]))
+  const phoneLine =
+    uniquePhones.length > 0
+      ? `CP Nos: ${uniquePhones.join(' • ')}`
+      : 'CP Nos: (078) 326-6008 • 0927 364 0644 • 0922 891 0427'
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto print:max-w-full">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto print:static print:top-0 print:left-0 print:translate-x-0 print:translate-y-0 print:transform-none print:w-full print:max-w-full print:max-h-none print:h-auto print:overflow-visible print:p-0 print:m-0 print:shadow-none print:ring-0 print:bg-transparent">
         <div className="print:p-8">
           {/* Action Buttons - Hidden when printing */}
           <div className="flex justify-end gap-2 mb-4 print:hidden">
@@ -57,18 +107,17 @@ export default function SalesInvoicePrint({ sale, isOpen, onClose }: SalesInvoic
           <div className="bg-white p-8 print:p-0" id="invoice-content">
             {/* Header */}
             <div className="text-center border-b-2 border-gray-800 pb-4 mb-4">
-              <h1 className="text-3xl font-bold text-gray-900">{business.name}</h1>
-              <p className="text-sm text-gray-600 mt-1">
-                {location.name} - {location.landmark}
-              </p>
-              <p className="text-sm text-gray-600">
-                {location.city}, {location.state} {location.zipCode}
-              </p>
-              <p className="text-sm text-gray-600">
-                {location.mobile} {location.alternateNumber && `/ ${location.alternateNumber}`}
-              </p>
-              <p className="text-sm font-semibold text-gray-700 mt-2">
-                TIN: {business.taxNumber1}
+              <h1 className="text-4xl font-extrabold tracking-wide text-gray-900 uppercase">
+                {businessName}
+              </h1>
+              <p className="text-sm font-semibold uppercase text-gray-800 mt-1">{proprietorLine}</p>
+              <p className="text-sm text-gray-700">VAT Reg. TIN: {vatTin}</p>
+              <p className="text-sm text-gray-700 mt-1">{addressLinePrimary}</p>
+              <p className="text-sm text-gray-700">{addressLineSecondary}</p>
+              <p className="text-xs text-gray-600 mt-2">{emailLine}</p>
+              <p className="text-xs text-gray-600">{phoneLine}</p>
+              <p className="text-xs text-gray-500 mt-2">
+                {location.name} Branch
               </p>
             </div>
 
@@ -271,7 +320,16 @@ export default function SalesInvoicePrint({ sale, isOpen, onClose }: SalesInvoic
 
         {/* Print Styles */}
         <style jsx global>{`
+          @page {
+            margin: 12mm 10mm 15mm;
+          }
           @media print {
+            html,
+            body {
+              margin: 0;
+              padding: 0;
+              background: #ffffff;
+            }
             body * {
               visibility: hidden;
             }
@@ -280,10 +338,9 @@ export default function SalesInvoicePrint({ sale, isOpen, onClose }: SalesInvoic
               visibility: visible;
             }
             #invoice-content {
-              position: absolute;
-              left: 0;
-              top: 0;
+              position: static;
               width: 100%;
+              margin: 0;
             }
             .print\\:hidden {
               display: none !important;

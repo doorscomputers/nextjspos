@@ -1,9 +1,55 @@
 "use client"
 
-import { useState, useEffect } from 'react'
-import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { useEffect, useMemo, useState } from "react"
+import {
+  DocumentArrowDownIcon,
+  DocumentTextIcon,
+  MagnifyingGlassIcon,
+  PencilIcon,
+  PlusIcon,
+  PrinterIcon,
+  TrashIcon,
+} from "@heroicons/react/24/outline"
+import { toast } from "sonner"
+
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
+import { SortableTableHead } from "@/components/ui/sortable-table-head"
+import { useTableSort } from "@/hooks/useTableSort"
+import { exportToCSV, exportToExcel, exportToPDF, printTable } from "@/lib/exportUtils"
+import { getPageDisplayRange, getPageNumbers } from "@/utils/pagination"
+import { Switch } from "@/components/ui/switch"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface Unit {
+  id: number
+  name: string
+  shortName: string
+  allowDecimal: boolean
+  createdAt: string
+  createdAtTimestamp: number
+}
+
+interface UnitForm {
+  name: string
+  shortName: string
+  allowDecimal: boolean
+}
+
+type AllowDecimalFilter = "all" | "decimal" | "whole"
+
+type UnitApiResponse = {
   id: number
   name: string
   shortName: string
@@ -14,257 +60,492 @@ interface Unit {
 export default function UnitsPage() {
   const [units, setUnits] = useState<Unit[]>([])
   const [loading, setLoading] = useState(true)
-  const [showModal, setShowModal] = useState(false)
+
+  const [searchTerm, setSearchTerm] = useState("")
+  const [allowDecimalFilter, setAllowDecimalFilter] = useState<AllowDecimalFilter>("all")
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [currentPage, setCurrentPage] = useState(1)
+
+  const [dialogOpen, setDialogOpen] = useState(false)
   const [editingUnit, setEditingUnit] = useState<Unit | null>(null)
-  const [formData, setFormData] = useState({
-    name: '',
-    shortName: '',
+  const [formData, setFormData] = useState<UnitForm>({
+    name: "",
+    shortName: "",
     allowDecimal: false,
   })
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     fetchUnits()
   }, [])
 
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, allowDecimalFilter, itemsPerPage])
+
   const fetchUnits = async () => {
+    setLoading(true)
     try {
-      const response = await fetch('/api/units')
+      const response = await fetch("/api/units")
       const data = await response.json()
-      if (response.ok) {
-        setUnits(data.units)
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to fetch units")
       }
+
+      const source: UnitApiResponse[] = Array.isArray(data.units) ? data.units : []
+      const normalized: Unit[] = source.map((unit) => ({
+        id: unit.id,
+        name: unit.name,
+        shortName: unit.shortName,
+        allowDecimal: unit.allowDecimal,
+        createdAt: unit.createdAt,
+        createdAtTimestamp: new Date(unit.createdAt).getTime(),
+      }))
+
+      setUnits(normalized)
     } catch (error) {
-      console.error('Error fetching units:', error)
+      console.error("Error fetching units:", error)
+      toast.error("Failed to load units")
     } finally {
       setLoading(false)
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const filteredUnits = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase()
 
-    try {
-      const url = editingUnit ? `/api/units/${editingUnit.id}` : '/api/units'
-      const method = editingUnit ? 'PUT' : 'POST'
+    return units.filter((unit) => {
+      const matchesSearch =
+        term.length === 0 ||
+        [unit.name, unit.shortName].some((value) => value.toLowerCase().includes(term))
 
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      })
+      const matchesAllowDecimalFilter =
+        allowDecimalFilter === "all" ||
+        (allowDecimalFilter === "decimal" && unit.allowDecimal) ||
+        (allowDecimalFilter === "whole" && !unit.allowDecimal)
 
-      if (response.ok) {
-        setShowModal(false)
-        setEditingUnit(null)
-        resetForm()
-        fetchUnits()
-      } else {
-        const data = await response.json()
-        alert(data.error || 'Failed to save unit')
-      }
-    } catch (error) {
-      console.error('Error saving unit:', error)
-      alert('An error occurred')
-    }
+      return matchesSearch && matchesAllowDecimalFilter
+    })
+  }, [units, searchTerm, allowDecimalFilter])
+
+  const { sortedData, sortConfig, requestSort } = useTableSort<Unit>(filteredUnits, {
+    key: "name",
+    direction: "asc",
+  })
+
+  const totalItems = sortedData.length
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const startIndex = (safeCurrentPage - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedUnits = sortedData.slice(startIndex, endIndex)
+
+  const pageNumbers = useMemo(
+    () => getPageNumbers(totalPages, safeCurrentPage),
+    [totalPages, safeCurrentPage]
+  )
+  const { start: pageStart, end: pageEnd } = useMemo(
+    () => getPageDisplayRange(totalItems, safeCurrentPage, itemsPerPage),
+    [totalItems, safeCurrentPage, itemsPerPage]
+  )
+
+  const openCreateDialog = () => {
+    setEditingUnit(null)
+    setFormData({ name: "", shortName: "", allowDecimal: false })
+    setDialogOpen(true)
   }
 
-  const handleEdit = (unit: Unit) => {
+  const openEditDialog = (unit: Unit) => {
     setEditingUnit(unit)
     setFormData({
       name: unit.name,
       shortName: unit.shortName,
       allowDecimal: unit.allowDecimal,
     })
-    setShowModal(true)
+    setDialogOpen(true)
   }
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this unit?')) return
+  const handleDelete = async (unit: Unit) => {
+    const confirmed = window.confirm(`Delete ${unit.name}? This action cannot be undone.`)
+    if (!confirmed) return
 
     try {
-      const response = await fetch(`/api/units/${id}`, { method: 'DELETE' })
-      if (response.ok) {
-        fetchUnits()
+      const response = await fetch(`/api/units/${unit.id}`, { method: "DELETE" })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to delete unit")
       }
+      toast.success("Unit deleted")
+      fetchUnits()
     } catch (error) {
-      console.error('Error deleting unit:', error)
+      console.error("Error deleting unit:", error)
+      toast.error("Failed to delete unit")
     }
   }
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      shortName: '',
-      allowDecimal: false,
-    })
+  const handleSubmit = async () => {
+    if (!formData.name.trim()) {
+      toast.error("Unit name is required")
+      return
+    }
+    if (!formData.shortName.trim()) {
+      toast.error("Short name is required")
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const url = editingUnit ? `/api/units/${editingUnit.id}` : "/api/units"
+      const method = editingUnit ? "PUT" : "POST"
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to save unit")
+      }
+
+      toast.success(editingUnit ? "Unit updated" : "Unit created")
+      setDialogOpen(false)
+      setEditingUnit(null)
+      setFormData({ name: "", shortName: "", allowDecimal: false })
+      fetchUnits()
+    } catch (error) {
+      console.error("Error saving unit:", error)
+      toast.error("Failed to save unit")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
-  const openCreateModal = () => {
-    setEditingUnit(null)
-    resetForm()
-    setShowModal(true)
+  const handleExport = (type: "csv" | "excel" | "pdf" | "print") => {
+    const rows = sortedData.map((unit) => ({
+      Name: unit.name,
+      "Short Name": unit.shortName,
+      "Allow Decimal": unit.allowDecimal ? "Yes" : "No",
+      "Created At": new Date(unit.createdAt).toLocaleString(),
+    }))
+
+    const columns = [
+      { id: "name", label: "Name", getValue: (row: typeof rows[number]) => row.Name },
+      { id: "shortName", label: "Short Name", getValue: (row: typeof rows[number]) => row["Short Name"] },
+      { id: "allowDecimal", label: "Allow Decimal", getValue: (row: typeof rows[number]) => row["Allow Decimal"] },
+      { id: "createdAt", label: "Created At", getValue: (row: typeof rows[number]) => row["Created At"] },
+    ]
+
+    const payload = {
+      filename: "units",
+      columns,
+      data: rows,
+      title: "Measurement Units",
+    }
+
+    if (type === "csv") exportToCSV(payload)
+    if (type === "excel") exportToExcel(payload)
+    if (type === "pdf") exportToPDF(payload)
+    if (type === "print") printTable(payload)
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Units</h1>
-          <p className="text-gray-600 mt-1">Manage product measurement units</p>
-        </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <PlusIcon className="w-5 h-5 mr-2" />
-          Add Unit
-        </button>
+    <div className="p-6 space-y-8">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-4xl font-bold text-foreground">Units</h1>
+        <p className="text-muted-foreground">
+          Define measurement units for products, including whether decimals are allowed.
+        </p>
       </div>
 
-      {loading ? (
-        <div className="text-center py-12">Loading units...</div>
-      ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Short Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Allow Decimal
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {units.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                    No units found. Click "Add Unit" to create one.
-                  </td>
-                </tr>
-              ) : (
-                units.map((unit) => (
-                  <tr key={unit.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{unit.name}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{unit.shortName}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        unit.allowDecimal ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {unit.allowDecimal ? 'Yes' : 'No'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2">
-                        <button
-                          onClick={() => handleEdit(unit)}
-                          className="text-indigo-600 hover:text-indigo-900"
-                        >
-                          <PencilIcon className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(unit.id)}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          <TrashIcon className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Card className="shadow-sm border border-border">
+        <CardContent className="p-6 space-y-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-1 flex-col gap-3 lg:flex-row lg:items-center">
+              <div className="relative w-full lg:w-80">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name or short name..."
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  className="pl-9 bg-background"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="allow-decimal-filter" className="text-sm text-muted-foreground">
+                  Allow decimal
+                </Label>
+                <Select
+                  value={allowDecimalFilter}
+                  onValueChange={(value: AllowDecimalFilter) => setAllowDecimalFilter(value)}
+                >
+                  <SelectTrigger id="allow-decimal-filter" className="w-36">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="decimal">Decimals allowed</SelectItem>
+                    <SelectItem value="whole">Whole numbers only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-lg w-full">
-            <div className="p-6">
-              <h2 className="text-2xl font-bold mb-6">
-                {editingUnit ? 'Edit Unit' : 'Add New Unit'}
-              </h2>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Unit Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
-                    placeholder="Pieces, Kilograms, Liters, etc."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Short Name <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.shortName}
-                    onChange={(e) => setFormData({ ...formData, shortName: e.target.value })}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
-                    placeholder="Pc(s), Kg, L, etc."
-                  />
-                </div>
-
-                <div>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={formData.allowDecimal}
-                      onChange={(e) => setFormData({ ...formData, allowDecimal: e.target.checked })}
-                      className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <span className="text-sm text-gray-700">Allow Decimal Quantities</span>
-                  </label>
-                  <p className="text-xs text-gray-500 mt-1 ml-6">
-                    Enable this for units that can have decimal values (e.g., 1.5 kg)
-                  </p>
-                </div>
-
-                <div className="flex space-x-3 pt-6">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowModal(false)
-                      setEditingUnit(null)
-                      resetForm()
-                    }}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    {editingUnit ? 'Update' : 'Create'} Unit
-                  </button>
-                </div>
-              </form>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => handleExport("csv")} className="gap-2">
+                <DocumentArrowDownIcon className="h-4 w-4" />
+                CSV
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExport("excel")} className="gap-2">
+                <DocumentArrowDownIcon className="h-4 w-4" />
+                Excel
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExport("pdf")} className="gap-2">
+                <DocumentTextIcon className="h-4 w-4" />
+                PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExport("print")} className="gap-2">
+                <PrinterIcon className="h-4 w-4" />
+                Print
+              </Button>
+              <Button onClick={openCreateDialog} className="gap-2 bg-primary text-primary-foreground">
+                <PlusIcon className="h-4 w-4" />
+                Add Unit
+              </Button>
             </div>
           </div>
-        </div>
-      )}
+
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="text-sm text-muted-foreground">
+              {totalItems === 0 ? "No units to display" : `Showing ${pageStart}-${pageEnd} of ${totalItems} units`}
+            </div>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="units-rows" className="text-sm text-muted-foreground">
+                Rows per page
+              </Label>
+              <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
+                <SelectTrigger id="units-rows" className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[10, 25, 50, 100].map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-xl border border-border bg-card">
+            {loading ? (
+              <div className="py-16 text-center text-muted-foreground">Loading units…</div>
+            ) : paginatedUnits.length === 0 ? (
+              <div className="py-16 text-center text-muted-foreground">
+                {searchTerm || allowDecimalFilter !== "all"
+                  ? "No units match the current filters."
+                  : 'No units yet. Click "Add Unit" to create one.'}
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <SortableTableHead
+                      sortKey="name"
+                      currentSortKey={sortConfig?.key as string}
+                      currentSortDirection={sortConfig?.direction}
+                      onSort={requestSort}
+                      className="min-w-[200px]"
+                    >
+                      Name
+                    </SortableTableHead>
+                    <SortableTableHead
+                      sortKey="shortName"
+                      currentSortKey={sortConfig?.key as string}
+                      currentSortDirection={sortConfig?.direction}
+                      onSort={requestSort}
+                      className="w-40"
+                    >
+                      Short Name
+                    </SortableTableHead>
+                    <SortableTableHead
+                      sortKey="allowDecimal"
+                      currentSortKey={sortConfig?.key as string}
+                      currentSortDirection={sortConfig?.direction}
+                      onSort={requestSort}
+                      className="w-32"
+                    >
+                      Allow Decimal
+                    </SortableTableHead>
+                    <SortableTableHead
+                      sortKey="createdAtTimestamp"
+                      currentSortKey={sortConfig?.key as string}
+                      currentSortDirection={sortConfig?.direction}
+                      onSort={requestSort}
+                      className="w-48"
+                    >
+                      Created
+                    </SortableTableHead>
+                    <TableHead className="w-32 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedUnits.map((unit) => (
+                    <TableRow key={unit.id} className="hover:bg-muted/50 transition-colors">
+                      <TableCell className="font-medium text-foreground">{unit.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="text-xs font-semibold">
+                          {unit.shortName}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={unit.allowDecimal ? "success" : "secondary"}
+                          className={unit.allowDecimal ? "bg-emerald-100 text-emerald-700 border-emerald-200" : ""}
+                        >
+                          {unit.allowDecimal ? "Yes" : "No"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(unit.createdAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            onClick={() => openEditDialog(unit)}
+                            className="h-8 w-8"
+                            title="Edit unit"
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => handleDelete(unit)}
+                            title="Delete unit"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={safeCurrentPage === 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              >
+                Previous
+              </Button>
+              <div className="flex items-center gap-1">
+                {pageNumbers.map((page, index) =>
+                  page === "..." ? (
+                    <span key={`ellipsis-${index}`} className="px-3 py-1 text-muted-foreground">
+                      …
+                    </span>
+                  ) : (
+                    <Button
+                      key={page}
+                      size="sm"
+                      variant={page === safeCurrentPage ? "default" : "outline"}
+                      onClick={() => setCurrentPage(page as number)}
+                    >
+                      {page}
+                    </Button>
+                  )
+                )}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={safeCurrentPage === totalPages}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingUnit ? "Edit Unit" : "Add Unit"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="unit-name">
+                Unit Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="unit-name"
+                value={formData.name}
+                onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))}
+                placeholder="Pieces, Kilograms, Liters..."
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="unit-shortName">
+                Short Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="unit-shortName"
+                value={formData.shortName}
+                onChange={(event) => setFormData((prev) => ({ ...prev, shortName: event.target.value }))}
+                placeholder="Pc(s), Kg, L..."
+                required
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <div className="space-y-1">
+                <Label htmlFor="unit-allowDecimal" className="text-sm">
+                  Allow Decimal Quantities
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Enable if this unit can be sold or purchased in decimal values (e.g., 1.5 kg).
+                </p>
+              </div>
+              <Switch
+                id="unit-allowDecimal"
+                checked={formData.allowDecimal}
+                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, allowDecimal: checked }))}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDialogOpen(false)
+                setEditingUnit(null)
+                setFormData({ name: "", shortName: "", allowDecimal: false })
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit} disabled={submitting} className="gap-2">
+              {submitting && <span className="animate-spin">⏳</span>}
+              {editingUnit ? "Update Unit" : "Create Unit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -48,6 +48,8 @@ export async function GET(
         items: {
           include: {
             purchaseReceiptItem: true,
+            product: true,
+            productVariation: true,
           },
         },
         debitNotes: true,

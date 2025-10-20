@@ -1,224 +1,408 @@
 'use client'
 
 import Link from 'next/link'
+import { useMemo } from 'react'
+import { usePermissions } from '@/hooks/usePermissions'
+import { PERMISSIONS } from '@/lib/rbac'
+
+type ReportCard = {
+  title: string
+  description: string
+  href: string
+  color: string
+  icon?: string
+  permission?: string
+  features?: string[]
+}
+
+type ReportSection = {
+  key: string
+  title: string
+  description: string
+  permission?: string
+  cards: ReportCard[]
+}
+
+const reportSections: ReportSection[] = [
+  {
+    key: 'sales',
+    title: 'Sales Reports',
+    description:
+      'Comprehensive sales analytics, transaction ledgers, and advanced performance dashboards.',
+    cards: [
+      {
+        title: 'Sales Today',
+        description: 'Live summary of today’s sales, cashiers, and payment methods.',
+        href: '/dashboard/reports/sales-today',
+        color: 'from-sky-500 to-sky-600',
+        icon: '📆',
+        permission: PERMISSIONS.REPORT_SALES_TODAY,
+        features: ['Real-time totals', 'Cashier performance', 'Payment breakdown'],
+      },
+      {
+        title: 'Sales History',
+        description: 'Historical ledger with advanced filters and export options.',
+        href: '/dashboard/reports/sales-history',
+        color: 'from-blue-500 to-blue-600',
+        icon: '🗂️',
+        permission: PERMISSIONS.REPORT_SALES_HISTORY,
+        features: ['Invoice search', 'Date presets', 'CSV export'],
+      },
+      {
+        title: 'Sales Journal',
+        description: 'Detailed transaction log with item-level visibility.',
+        href: '/dashboard/reports/sales-journal',
+        color: 'from-indigo-500 to-indigo-600',
+        icon: '🧾',
+        permission: PERMISSIONS.SALES_REPORT_JOURNAL,
+        features: ['Customer details', 'Multi-location filter', 'Sortable columns'],
+      },
+      {
+        title: 'Sales Per Item',
+        description: 'Product performance analysis with profit and margin tracking.',
+        href: '/dashboard/reports/sales-per-item',
+        color: 'from-green-500 to-green-600',
+        icon: '📦',
+        permission: PERMISSIONS.SALES_REPORT_PER_ITEM,
+        features: ['Profitability', 'Category breakdown', 'Location comparison'],
+      },
+      {
+        title: 'Sales Per Cashier',
+        description: 'Cashier productivity, transactions, and trend monitoring.',
+        href: '/dashboard/reports/sales-per-cashier',
+        color: 'from-purple-500 to-purple-600',
+        icon: '🧑‍💼',
+        permission: PERMISSIONS.SALES_REPORT_PER_CASHIER,
+        features: ['Transaction volume', 'Average ticket', 'Payment methods'],
+      },
+      {
+        title: 'Sales Per Location',
+        description: 'Compare performance between locations with hourly trends.',
+        href: '/dashboard/reports/sales-per-location',
+        color: 'from-orange-500 to-orange-600',
+        icon: '📍',
+        permission: PERMISSIONS.SALES_REPORT_PER_LOCATION,
+        features: ['Location ranking', 'Hourly heat map', 'Cashier mix'],
+      },
+      {
+        title: 'Sales Analytics',
+        description: 'Interactive dashboards with KPIs, trends, and forecasts.',
+        href: '/dashboard/reports/sales-analytics',
+        color: 'from-teal-500 to-teal-600',
+        icon: '📊',
+        permission: PERMISSIONS.SALES_REPORT_ANALYTICS,
+        features: ['Trend analysis', 'Period comparison', 'Top products'],
+      },
+      {
+        title: 'Customer Sales Analysis',
+        description: 'Identify top customers and buying behaviour.',
+        href: '/dashboard/reports/customer-sales',
+        color: 'from-pink-500 to-pink-600',
+        icon: '🧑‍🤝‍🧑',
+        permission: PERMISSIONS.SALES_REPORT_CUSTOMER_ANALYSIS,
+        features: ['Customer segmentation', 'Lifetime value', 'Frequency insights'],
+      },
+      {
+        title: 'Payment Method Analysis',
+        description: 'Track payment preferences and settlement trends.',
+        href: '/dashboard/reports/payment-method',
+        color: 'from-violet-500 to-violet-600',
+        icon: '💳',
+        permission: PERMISSIONS.SALES_REPORT_PAYMENT_METHOD,
+      },
+      {
+        title: 'Discount Analysis',
+        description: 'Monitor discount usage by type, cashier, and location.',
+        href: '/dashboard/reports/discount-analysis',
+        color: 'from-red-500 to-red-600',
+        icon: '🏷️',
+        permission: PERMISSIONS.SALES_REPORT_DISCOUNT_ANALYSIS,
+      },
+    ],
+  },
+  {
+    key: 'purchase',
+    title: 'Purchase Reports',
+    description:
+      'Measure procurement volume, supplier performance, and cost trends across the business.',
+    cards: [
+      {
+        title: 'Purchases Report',
+        description: 'Comprehensive purchase order tracking with cost visibility.',
+        href: '/dashboard/reports/purchases-report',
+        color: 'from-emerald-500 to-emerald-600',
+        icon: '🛒',
+        permission: PERMISSIONS.REPORT_PURCHASE_VIEW,
+      },
+      {
+        title: 'Purchase Analytics',
+        description: 'Advanced analytics on purchasing patterns and supplier share.',
+        href: '/dashboard/reports/purchases/analytics',
+        color: 'from-cyan-500 to-cyan-600',
+        icon: '📈',
+        permission: PERMISSIONS.REPORT_PURCHASE_ANALYTICS,
+      },
+      {
+        title: 'Purchase Trends',
+        description: 'Trend analysis for purchasing volume, quantity, and spend.',
+        href: '/dashboard/reports/purchase-trends',
+        color: 'from-sky-500 to-sky-600',
+        icon: '📉',
+        permission: PERMISSIONS.REPORT_PURCHASE_TRENDS,
+      },
+      {
+        title: 'Purchase Items',
+        description: 'Item-level purchase insight with quantity and cost metrics.',
+        href: '/dashboard/reports/purchases-items',
+        color: 'from-blue-500 to-blue-600',
+        icon: '📦',
+        permission: PERMISSIONS.REPORT_PURCHASE_ITEMS,
+      },
+      {
+        title: 'Product Purchase History',
+        description: 'Supplier-by-product purchase history and receiving trail.',
+        href: '/dashboard/reports/product-purchase-history',
+        color: 'from-indigo-500 to-indigo-600',
+        icon: '🔁',
+        permission: PERMISSIONS.REPORT_PRODUCT_PURCHASE_HISTORY,
+      },
+      {
+        title: 'Purchase Returns',
+        description: 'Track supplier returns for damaged, defective, and warranty items.',
+        href: '/dashboard/reports/purchase-returns',
+        color: 'from-red-500 to-red-600',
+        icon: '↩️',
+        permission: PERMISSIONS.PURCHASE_RETURN_VIEW,
+        features: ['Advanced filtering', 'Date presets', 'Export options'],
+      },
+    ],
+  },
+  {
+    key: 'transfer',
+    title: 'Transfer Reports',
+    description:
+      'Track stock movements between locations, highlighting transit times and discrepancies.',
+    cards: [
+      {
+        title: 'Transfers Report',
+        description: 'Detailed log of transfers with source, destination, and status.',
+        href: '/dashboard/reports/transfers-report',
+        color: 'from-amber-500 to-amber-600',
+        icon: '🚚',
+        permission: PERMISSIONS.REPORT_TRANSFER_VIEW,
+      },
+      {
+        title: 'Transfer Trends',
+        description: 'Trend analysis for transfer counts, value, and destinations.',
+        href: '/dashboard/reports/transfer-trends',
+        color: 'from-orange-500 to-orange-600',
+        icon: '📦',
+        permission: PERMISSIONS.REPORT_TRANSFER_TRENDS,
+      },
+    ],
+  },
+  {
+    key: 'inventory',
+    title: 'Inventory Reports',
+    description:
+      'Visibility into stock levels, inventory valuation, and transactional inventory movement.',
+    cards: [
+      {
+        title: 'Stock Alert Report',
+        description: 'Critical stock alerts across locations and products.',
+        href: '/dashboard/reports/stock-alert',
+        color: 'from-rose-500 to-rose-600',
+        icon: '⚠️',
+        permission: PERMISSIONS.REPORT_STOCK_ALERT,
+      },
+      {
+        title: 'Historical Inventory',
+        description: 'Snapshot inventory history with adjustments and corrections.',
+        href: '/dashboard/reports/historical-inventory',
+        color: 'from-purple-500 to-purple-600',
+        icon: '🗃️',
+        permission: PERMISSIONS.VIEW_INVENTORY_REPORTS,
+      },
+      {
+        title: 'Inventory Ledger',
+        description: 'Granular ledger of stock movements for audit purposes.',
+        href: '/dashboard/reports/inventory-ledger',
+        color: 'from-neutral-500 to-neutral-600',
+        icon: '📒',
+        permission: PERMISSIONS.INVENTORY_LEDGER_VIEW,
+      },
+    ],
+  },
+  {
+    key: 'financial',
+    title: 'Financial & Profitability Reports',
+    description:
+      'Evaluate profitability, margins, and consolidated financial performance.',
+    cards: [
+      {
+        title: 'Profitability & COGS',
+        description: 'Gross profit, COGS, and contribution analysis.',
+        href: '/dashboard/reports/profitability',
+        color: 'from-green-600 to-green-700',
+        icon: '💹',
+        permission: PERMISSIONS.REPORT_PROFITABILITY,
+      },
+      {
+        title: 'Net Profit Report',
+        description: 'Net profit view with expense and revenue breakdown.',
+        href: '/dashboard/reports/profit',
+        color: 'from-lime-500 to-lime-600',
+        icon: '🧮',
+        permission: PERMISSIONS.REPORT_PROFIT_LOSS,
+      },
+    ],
+  },
+  {
+    key: 'security',
+    title: 'Security & Compliance Reports',
+    description:
+      'Audit and compliance tooling for monitoring user activity and sensitive operations.',
+    cards: [
+      {
+        title: 'Audit Trail',
+        description: 'Detailed audit log of user actions, approvals, and security events.',
+        href: '/dashboard/reports/audit-trail',
+        color: 'from-slate-500 to-slate-600',
+        icon: '🛡️',
+        permission: PERMISSIONS.AUDIT_LOG_VIEW,
+      },
+    ],
+  },
+]
 
 export default function ReportsPage() {
-  const salesReports = [
-    {
-      title: 'Sales Journal',
-      description: 'Complete transaction log with all sales details, items, and customer information',
-      icon: '📋',
-      href: '/dashboard/reports/sales-journal',
-      color: 'from-blue-500 to-blue-600',
-      features: ['Date filtering', 'Location & cashier filter', 'Search by invoice', 'Export CSV', 'Sortable columns']
-    },
-    {
-      title: 'Sales Per Item',
-      description: 'Product performance analysis showing sales, profit, and margins by product',
-      icon: '📦',
-      href: '/dashboard/reports/sales-per-item',
-      color: 'from-green-500 to-green-600',
-      features: ['Product profitability', 'Category breakdown', 'Location analysis', 'Best sellers', 'Margin tracking']
-    },
-    {
-      title: 'Sales Per Cashier',
-      description: 'Cashier performance metrics including sales, transactions, and daily trends',
-      icon: '👤',
-      href: '/dashboard/reports/sales-per-cashier',
-      color: 'from-purple-500 to-purple-600',
-      features: ['Cashier performance', 'Transaction count', 'Daily breakdown', 'Payment methods', 'Location comparison']
-    },
-    {
-      title: 'Sales Per Location',
-      description: 'Location performance comparison with sales, trends, and hourly analysis',
-      icon: '📍',
-      href: '/dashboard/reports/sales-per-location',
-      color: 'from-orange-500 to-orange-600',
-      features: ['Location rankings', 'Hourly patterns', 'Cashier breakdown', 'Payment analysis', 'Daily trends']
-    },
-    {
-      title: 'Sales Analytics',
-      description: 'Comprehensive sales dashboard with trends, KPIs, and period comparisons',
-      icon: '📊',
-      href: '/dashboard/reports/sales-analytics',
-      color: 'from-teal-500 to-teal-600',
-      features: ['Sales trends', 'Period comparison', 'Top products', 'Category breakdown', 'Hourly patterns']
-    },
-    {
-      title: 'Customer Sales Analysis',
-      description: 'Customer buying patterns, top customers, and lifetime value analysis',
-      icon: '👥',
-      href: '/dashboard/reports/customer-sales',
-      color: 'from-pink-500 to-pink-600',
-      features: ['Top customers', 'Purchase frequency', 'Customer lifetime value', 'Segmentation', 'Purchase history']
-    },
-    {
-      title: 'Payment Method Analysis',
-      description: 'Payment method breakdown, trends, and preferences by location and cashier',
-      icon: '💳',
-      href: '/dashboard/reports/payment-method',
-      color: 'from-indigo-500 to-indigo-600',
-      features: ['Method comparison', 'Daily trends', 'Location breakdown', 'Cashier analysis', 'Transaction patterns']
-    },
-    {
-      title: 'Discount Analysis',
-      description: 'Discount impact analysis showing types, amounts, and trends over time',
-      icon: '🏷️',
-      href: '/dashboard/reports/discount-analysis',
-      color: 'from-red-500 to-red-600',
-      features: ['Discount types', 'Impact analysis', 'Location breakdown', 'Cashier trends', 'Customer patterns']
-    },
-  ]
+  const { can } = usePermissions()
 
-  const existingReports = [
-    {
-      title: 'Purchase Reports',
-      description: 'Comprehensive purchase order analysis and supplier performance',
-      icon: '🛒',
-      href: '/dashboard/reports/purchases-report',
-      color: 'from-cyan-500 to-cyan-600'
-    },
-    {
-      title: 'Transfer Reports',
-      description: 'Inventory transfer analysis between locations with trends',
-      icon: '🔄',
-      href: '/dashboard/reports/transfers-report',
-      color: 'from-amber-500 to-amber-600'
-    },
-  ]
+  const accessibleSections = useMemo(() => {
+    return reportSections
+      .map((section) => {
+        if (section.permission && !can(section.permission)) {
+          return { ...section, cards: [] }
+        }
+        const cards = section.cards.filter((card) => !card.permission || can(card.permission))
+        return { ...section, cards }
+      })
+      .filter((section) => section.cards.length > 0)
+  }, [can])
+
+  const salesSection = accessibleSections.find((section) => section.key === 'sales')
+  const totalAccessibleSales = salesSection?.cards.length ?? 0
+
+  if (accessibleSections.length === 0) {
+    return (
+      <div className="p-4 sm:p-6 md:p-10">
+        <div className="max-w-xl mx-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 sm:p-8 text-center shadow-sm">
+          <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-3">Reports Hub</h1>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">
+            Your role does not currently include access to any reports. Contact an administrator
+            if you believe this is an error.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="p-6 space-y-8 bg-gray-50 min-h-screen">
-      <div>
-        <h1 className="text-4xl font-bold text-gray-900">Sales Reports</h1>
-        <p className="text-gray-600 mt-2 text-lg">
-          Comprehensive sales analytics and reporting tools to help you understand your business performance
+    <div className="p-4 sm:p-6 space-y-6 sm:space-y-10 bg-gray-50 dark:bg-gray-900 min-h-screen">
+      <header className="space-y-2">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100">Reports Hub</h1>
+        <p className="text-gray-600 dark:text-gray-300 text-base sm:text-lg">
+          Explore the reports you are authorised to view. Sections and links are tailored to the
+          permissions granted to your role.
         </p>
-      </div>
+      </header>
 
-      {/* Quick Stats */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg p-8 text-white">
-        <h2 className="text-2xl font-bold mb-4">8 Sales Reports Available</h2>
-        <p className="text-blue-100 mb-6">
-          Access detailed sales data with advanced filtering, sorting, and export capabilities. All reports support date ranges, location filtering, and CSV export.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-            <div className="text-3xl font-bold">📋</div>
-            <div className="text-sm mt-2">Transaction Level</div>
+      {salesSection && (
+        <section className="bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-700 dark:to-purple-700 rounded-xl shadow-lg p-6 sm:p-8 text-white">
+          <h2 className="text-xl sm:text-2xl font-semibold mb-3">Sales Insights Summary</h2>
+          <p className="text-blue-100 dark:text-blue-50 mb-6 text-sm sm:text-base">
+            Gain visibility into transactions, trends, customer performance, and payment behaviour
+            with dedicated sales intelligence reports.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white/10 dark:bg-white/20 backdrop-blur-sm rounded-lg p-4">
+              <div className="text-3xl mb-1">📊</div>
+              <div className="text-xs sm:text-sm uppercase tracking-wide text-blue-100 dark:text-blue-50">Reports Available</div>
+              <div className="text-xl sm:text-2xl font-bold">{totalAccessibleSales}</div>
+            </div>
+            <div className="bg-white/10 dark:bg-white/20 backdrop-blur-sm rounded-lg p-4">
+              <div className="text-3xl mb-1">🧾</div>
+              <div className="text-xs sm:text-sm uppercase tracking-wide text-blue-100 dark:text-blue-50">Transaction Focus</div>
+              <div className="text-xs sm:text-sm font-semibold">Journal & History</div>
+            </div>
+            <div className="bg-white/10 dark:bg-white/20 backdrop-blur-sm rounded-lg p-4">
+              <div className="text-3xl mb-1">📍</div>
+              <div className="text-xs sm:text-sm uppercase tracking-wide text-blue-100 dark:text-blue-50">Location Insights</div>
+              <div className="text-xs sm:text-sm font-semibold">Comparative dashboards</div>
+            </div>
+            <div className="bg-white/10 dark:bg-white/20 backdrop-blur-sm rounded-lg p-4">
+              <div className="text-3xl mb-1">🧑‍🤝‍🧑</div>
+              <div className="text-xs sm:text-sm uppercase tracking-wide text-blue-100 dark:text-blue-50">Customer Analytics</div>
+              <div className="text-xs sm:text-sm font-semibold">Behaviour & loyalty</div>
+            </div>
           </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-            <div className="text-3xl font-bold">📊</div>
-            <div className="text-sm mt-2">Analytics & Trends</div>
-          </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-            <div className="text-3xl font-bold">💰</div>
-            <div className="text-sm mt-2">Profitability</div>
-          </div>
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-            <div className="text-3xl font-bold">🎯</div>
-            <div className="text-sm mt-2">Performance</div>
-          </div>
-        </div>
-      </div>
+        </section>
+      )}
 
-      {/* Sales Reports Grid */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Sales Reports</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {salesReports.map((report, idx) => (
-            <Link
-              key={idx}
-              href={report.href}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-200 hover:-translate-y-1 overflow-hidden group"
-            >
-              <div className={`bg-gradient-to-r ${report.color} p-6 text-white`}>
-                <div className="text-5xl mb-3">{report.icon}</div>
-                <h3 className="text-xl font-bold">{report.title}</h3>
-              </div>
-              <div className="p-6">
-                <p className="text-gray-600 mb-4 text-sm leading-relaxed">{report.description}</p>
-                <div className="space-y-2">
-                  <div className="text-xs font-semibold text-gray-700 mb-2">Key Features:</div>
-                  <div className="flex flex-wrap gap-2">
-                    {report.features.map((feature, fIdx) => (
-                      <span
-                        key={fIdx}
-                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700"
-                      >
-                        {feature}
-                      </span>
-                    ))}
+      {accessibleSections.map((section) => (
+        <section key={section.key} className="space-y-4">
+          <div className="space-y-1">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{section.title}</h2>
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">{section.description}</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {section.cards.map((card) => (
+              <Link
+                key={card.href}
+                href={card.href}
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-lg dark:hover:shadow-2xl transition-all duration-200 hover:-translate-y-1 overflow-hidden group"
+              >
+                <div className={`bg-gradient-to-r ${card.color} p-6 text-white`}>
+                  <div className="text-3xl sm:text-4xl mb-3">{card.icon ?? '📄'}</div>
+                  <h3 className="text-lg sm:text-xl font-semibold">{card.title}</h3>
+                </div>
+                <div className="p-4 sm:p-6 space-y-4">
+                  <p className="text-gray-600 dark:text-gray-300 text-sm leading-relaxed">{card.description}</p>
+                  {card.features && card.features.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-xs font-semibold text-gray-700 dark:text-gray-200 uppercase tracking-wide">
+                        Highlights
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {card.features.map((feature) => (
+                          <span
+                            key={feature}
+                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200"
+                          >
+                            {feature}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <div className="mt-2 flex items-center text-sm font-medium text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300">
+                    View Report
+                    <svg
+                      className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
                   </div>
                 </div>
-                <div className="mt-4 flex items-center text-sm font-medium text-blue-600 group-hover:text-blue-700">
-                  View Report
-                  <svg className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Other Reports */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Other Reports</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {existingReports.map((report, idx) => (
-            <Link
-              key={idx}
-              href={report.href}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-200 hover:-translate-y-1 overflow-hidden group"
-            >
-              <div className={`bg-gradient-to-r ${report.color} p-6 text-white flex items-center justify-between`}>
-                <div>
-                  <div className="text-3xl mb-2">{report.icon}</div>
-                  <h3 className="text-xl font-bold">{report.title}</h3>
-                </div>
-              </div>
-              <div className="p-6">
-                <p className="text-gray-600 text-sm">{report.description}</p>
-                <div className="mt-4 flex items-center text-sm font-medium text-blue-600 group-hover:text-blue-700">
-                  View Report
-                  <svg className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Help Section */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
-        <h3 className="text-lg font-bold text-blue-900 mb-2">📘 Report Features</h3>
-        <ul className="space-y-2 text-sm text-blue-800">
-          <li className="flex items-start">
-            <span className="mr-2">✓</span>
-            <span><strong>Date Filtering:</strong> All reports support custom date ranges for flexible analysis</span>
-          </li>
-          <li className="flex items-start">
-            <span className="mr-2">✓</span>
-            <span><strong>Location & User Filtering:</strong> Filter by specific locations or users/cashiers</span>
-          </li>
-          <li className="flex items-start">
-            <span className="mr-2">✓</span>
-            <span><strong>Sortable Columns:</strong> Click column headers to sort data ascending or descending</span>
-          </li>
-          <li className="flex items-start">
-            <span className="mr-2">✓</span>
-            <span><strong>CSV Export:</strong> Export any report to CSV for further analysis in Excel</span>
-          </li>
-          <li className="flex items-start">
-            <span className="mr-2">✓</span>
-            <span><strong>Real-time Data:</strong> All reports use live data from your database</span>
-          </li>
-        </ul>
-      </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   )
 }

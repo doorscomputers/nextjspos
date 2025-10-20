@@ -69,7 +69,7 @@ export default function PurchasesPage() {
   const [customEndDate, setCustomEndDate] = useState('')
 
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(25)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
   const [totalPurchases, setTotalPurchases] = useState(0)
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
@@ -300,7 +300,7 @@ export default function PurchasesPage() {
 
     if (statusLower === 'pending') {
       return (
-        <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-300">
+        <Badge className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 border-yellow-300 dark:border-yellow-700">
           Pending
         </Badge>
       )
@@ -308,7 +308,7 @@ export default function PurchasesPage() {
 
     if (statusLower === 'received') {
       return (
-        <Badge className="bg-green-100 text-green-800 hover:bg-green-200 border-green-300">
+        <Badge className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-900/50 border-green-300 dark:border-green-700">
           Received
         </Badge>
       )
@@ -316,7 +316,7 @@ export default function PurchasesPage() {
 
     if (statusLower === 'partially_received') {
       return (
-        <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-300">
+        <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-900/50 border-blue-300 dark:border-blue-700">
           Partially Received
         </Badge>
       )
@@ -347,8 +347,8 @@ export default function PurchasesPage() {
 
   if (!can(PERMISSIONS.PURCHASE_VIEW)) {
     return (
-      <div className="p-8">
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
+      <div className="p-6 sm:p-8">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-4 py-3 rounded-lg">
           You do not have permission to view purchases.
         </div>
       </div>
@@ -356,15 +356,15 @@ export default function PurchasesPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Purchase Orders</h1>
-          <p className="text-gray-500 mt-1">Manage purchase orders from suppliers</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Purchase Orders</h1>
+          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">Manage purchase orders from suppliers</p>
         </div>
         {can(PERMISSIONS.PURCHASE_CREATE) && (
           <Link href="/dashboard/purchases/create">
-            <Button>
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 shadow-lg hover:shadow-xl transition-all duration-200">
               <PlusIcon className="w-5 h-5 mr-2" />
               New Purchase Order
             </Button>
@@ -455,13 +455,13 @@ export default function PurchasesPage() {
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1">
           <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
+            <Input
               type="text"
               placeholder="Search by PO number or supplier name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10"
             />
           </div>
         </div>
@@ -473,24 +473,24 @@ export default function PurchasesPage() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={() => handleExport('csv')}>
+        <Button onClick={() => handleExport('csv')} variant="secondary" className="bg-gray-600 hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600 text-white">
           <DocumentTextIcon className="w-4 h-4 mr-2" />
-          Export CSV
+          <span className="hidden sm:inline">Export </span>CSV
         </Button>
-        <Button variant="outline" size="sm" onClick={() => handleExport('excel')}>
+        <Button onClick={() => handleExport('excel')} variant="secondary" className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 text-white">
           <DocumentArrowDownIcon className="w-4 h-4 mr-2" />
-          Export Excel
+          <span className="hidden sm:inline">Export </span>Excel
         </Button>
-        <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
+        <Button onClick={() => handleExport('pdf')} variant="secondary" className="bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white">
           <DocumentTextIcon className="w-4 h-4 mr-2" />
-          Export PDF
+          <span className="hidden sm:inline">Export </span>PDF
         </Button>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <Card className="shadow-lg border-gray-200 dark:border-gray-700">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
                 {visibleColumns.includes('poNumber') && (
                   <SortableTableHead
@@ -574,58 +574,58 @@ export default function PurchasesPage() {
                 )}
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {loading ? (
                 <tr>
-                  <td colSpan={visibleColumns.length} className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan={visibleColumns.length} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
                     Loading purchases...
                   </td>
                 </tr>
               ) : sortedData.length === 0 ? (
                 <tr>
-                  <td colSpan={visibleColumns.length} className="px-6 py-4 text-center text-gray-500">
+                  <td colSpan={visibleColumns.length} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
                     No purchases found
                   </td>
                 </tr>
               ) : (
                 sortedData.map((purchase) => (
-                  <tr key={purchase.id} className="hover:bg-gray-50">
+                  <tr key={purchase.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     {visibleColumns.includes('poNumber') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                         {purchase.purchaseOrderNumber}
                       </td>
                     )}
                     {visibleColumns.includes('date') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {formatDate(purchase.purchaseDate)}
                       </td>
                     )}
                     {visibleColumns.includes('supplier') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         {purchase.supplier ? (
                           <div>
                             <div className="font-medium">{purchase.supplier.name}</div>
                             {purchase.supplier.mobile && (
-                              <div className="text-gray-500 text-xs">{purchase.supplier.mobile}</div>
+                              <div className="text-gray-500 dark:text-gray-400 text-xs">{purchase.supplier.mobile}</div>
                             )}
                           </div>
                         ) : (
-                          <span className="text-gray-500">N/A</span>
+                          <span className="text-gray-500 dark:text-gray-400">N/A</span>
                         )}
                       </td>
                     )}
                     {visibleColumns.includes('items') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {purchase.items.length} {purchase.items.length === 1 ? 'item' : 'items'}
                       </td>
                     )}
                     {visibleColumns.includes('received') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {getReceivedStatus(purchase.items)}
                       </td>
                     )}
                     {visibleColumns.includes('total') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">
                         {formatCurrency(purchase.totalAmount)}
                       </td>
                     )}
@@ -650,7 +650,7 @@ export default function PurchasesPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </Card>
 
       {!loading && sortedData.length > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">

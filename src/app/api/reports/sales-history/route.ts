@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { PERMISSIONS } from '@/lib/rbac'
+import { PERMISSIONS, getUserAccessibleLocationIds } from '@/lib/rbac'
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,9 +14,10 @@ export async function GET(request: NextRequest) {
 
     const user = session.user as any
     const businessId = user.businessId
+    const businessIdInt = parseInt(businessId)
 
     // Check permission
-    if (!user.permissions?.includes(PERMISSIONS.REPORT_VIEW)) {
+    if (!user.permissions?.includes(PERMISSIONS.REPORT_SALES_HISTORY)) {
       return NextResponse.json(
         { error: 'Forbidden - Insufficient permissions' },
         { status: 403 }
@@ -88,6 +89,36 @@ export async function GET(request: NextRequest) {
           const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
           dateFilter = { gte: lastMonthStart, lte: lastMonthEnd }
           break
+        case 'thisQuarter': {
+          const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3
+          const quarterStart = new Date(now.getFullYear(), quarterStartMonth, 1)
+          dateFilter = { gte: quarterStart }
+          break
+        }
+        case 'lastQuarter': {
+          const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3
+          const lastQuarterStart = new Date(now.getFullYear(), quarterStartMonth - 3, 1)
+          const lastQuarterEnd = new Date(
+            now.getFullYear(),
+            quarterStartMonth,
+            0,
+            23,
+            59,
+            59,
+            999
+          )
+          dateFilter = { gte: lastQuarterStart, lte: lastQuarterEnd }
+          break
+        }
+        case 'thisYear':
+          const yearStart = new Date(now.getFullYear(), 0, 1)
+          dateFilter = { gte: yearStart }
+          break
+        case 'lastYear':
+          const lastYearStart = new Date(now.getFullYear() - 1, 0, 1)
+          const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999)
+          dateFilter = { gte: lastYearStart, lte: lastYearEnd }
+          break
       }
     } else if (startDate || endDate) {
       if (startDate) dateFilter.gte = new Date(startDate)
@@ -99,12 +130,72 @@ export async function GET(request: NextRequest) {
     }
 
     const where: any = {
-      businessId: parseInt(businessId),
+      businessId: businessIdInt,
       deletedAt: null,
     }
 
+    // Automatic location filtering based on user's assigned locations
+    const accessibleLocationIds = getUserAccessibleLocationIds({
+      id: user.id,
+      permissions: user.permissions || [],
+      roles: user.roles || [],
+      businessId: user.businessId,
+      locationIds: user.locationIds || []
+    })
+
+    // Get all locations for this business to ensure business ID filtering
+    const businessLocations = await prisma.businessLocation.findMany({
+      where: { businessId: businessIdInt, deletedAt: null },
+      select: { id: true }
+    })
+    const businessLocationIds = businessLocations.map(loc => loc.id)
+
+    // If user has limited location access, enforce it
+    if (accessibleLocationIds !== null) {
+      const normalizedLocationIds = accessibleLocationIds
+        .map((id) => Number(id))
+        .filter((id): id is number => Number.isFinite(id) && Number.isInteger(id))
+        .filter((id) => businessLocationIds.includes(id)) // Ensure they're in current business
+
+      if (normalizedLocationIds.length === 0) {
+        // User has no location access - return empty results
+        return NextResponse.json({
+          sales: [],
+          summary: {
+            totalSales: 0,
+            totalRevenue: 0,
+            totalSubtotal: 0,
+            totalTax: 0,
+            totalDiscount: 0,
+            totalCOGS: 0,
+            grossProfit: 0,
+          },
+          pagination: {
+            total: 0,
+            page,
+            limit,
+            totalPages: 0,
+          },
+        })
+      }
+      where.locationId = { in: normalizedLocationIds }
+    } else {
+      // User has access to all locations, but still filter by business
+      where.locationId = { in: businessLocationIds }
+    }
+
+    // Override with specific location filter if provided
     if (locationId && locationId !== 'all') {
-      where.locationId = parseInt(locationId)
+      const requestedLocationId = parseInt(locationId)
+      // Verify the requested location is in the user's accessible locations
+      if (accessibleLocationIds !== null) {
+        const normalizedIds = accessibleLocationIds.map((id) => Number(id))
+        if (normalizedIds.includes(requestedLocationId)) {
+          where.locationId = requestedLocationId
+        }
+      } else if (businessLocationIds.includes(requestedLocationId)) {
+        where.locationId = requestedLocationId
+      }
     }
 
     if (customerId && customerId !== 'all') {
@@ -208,49 +299,119 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch data with pagination
-    const [sales, total] = await Promise.all([
-      prisma.sale.findMany({
-        where,
-        include: {
-          customer: {
-            select: {
-              id: true,
-              name: true,
-              mobile: true,
-              email: true,
-            },
+    const salesPromise = prisma.sale.findMany({
+      where,
+      include: {
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            mobile: true,
+            email: true,
           },
-          location: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          items: {
-            include: {
-              product: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
-              productVariation: {
-                select: {
-                  id: true,
-                  name: true,
-                  sku: true,
-                },
-              },
-            },
-          },
-          payments: true,
         },
-        orderBy,
-        skip: offset,
-        take: limit,
-      }),
-      prisma.sale.count({ where }),
-    ])
+        items: true,
+        payments: true,
+      },
+      orderBy,
+      skip: offset,
+      take: limit,
+    })
+
+    const countPromise = prisma.sale.count({ where })
+
+    const [sales, total] = await Promise.all([salesPromise, countPromise])
+
+    const locationIds = Array.from(
+      new Set(
+        sales
+          .map((sale) => sale.locationId)
+          .filter((id): id is number => typeof id === 'number')
+      )
+    )
+
+    let locationMap: Record<number, { id: number; name: string }> = {}
+
+    if (locationIds.length > 0) {
+      const locations = await prisma.businessLocation.findMany({
+        where: {
+          id: { in: locationIds },
+          deletedAt: null,
+          businessId: businessIdInt,
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      })
+
+      locationMap = locations.reduce((acc, loc) => {
+        acc[loc.id] = loc
+        return acc
+      }, {} as Record<number, { id: number; name: string }>)
+    }
+
+    const productIds = Array.from(
+      new Set(
+        sales.flatMap((sale) => sale.items.map((item) => item.productId)).filter(
+          (id): id is number => typeof id === 'number'
+        )
+      )
+    )
+
+    const variationIds = Array.from(
+      new Set(
+        sales
+          .flatMap((sale) => sale.items.map((item) => item.productVariationId))
+          .filter((id): id is number => typeof id === 'number')
+      )
+    )
+
+    let productMap: Record<number, { id: number; name: string }> = {}
+    let variationMap: Record<
+      number,
+      { id: number; name: string; sku: string | null; productId: number }
+    > = {}
+
+    if (productIds.length > 0) {
+      const products = await prisma.product.findMany({
+        where: {
+          id: { in: productIds },
+          deletedAt: null,
+          businessId: businessIdInt,
+        },
+        select: {
+          id: true,
+          name: true,
+        },
+      })
+
+      productMap = products.reduce((acc, product) => {
+        acc[product.id] = product
+        return acc
+      }, {} as Record<number, { id: number; name: string }>)
+    }
+
+    if (variationIds.length > 0) {
+      const variations = await prisma.productVariation.findMany({
+        where: {
+          id: { in: variationIds },
+          deletedAt: null,
+          businessId: businessIdInt,
+        },
+        select: {
+          id: true,
+          name: true,
+          sku: true,
+          productId: true,
+        },
+      })
+
+      variationMap = variations.reduce((acc, variation) => {
+        acc[variation.id] = variation
+        return acc
+      }, {} as Record<number, { id: number; name: string; sku: string | null; productId: number }>)
+    }
 
     // Calculate summary for all matching records (not just current page)
     const allSales = await prisma.sale.findMany({
@@ -290,7 +451,7 @@ export async function GET(request: NextRequest) {
       customerId: sale.customerId,
       customerEmail: sale.customer?.email || null,
       customerMobile: sale.customer?.mobile || null,
-      location: sale.location?.name || 'Unknown',
+      location: locationMap[sale.locationId]?.name || 'Unknown',
       locationId: sale.locationId,
       status: sale.status,
       subtotal: parseFloat(sale.subtotal.toString()),
@@ -301,15 +462,20 @@ export async function GET(request: NextRequest) {
       discountType: sale.discountType,
       notes: sale.notes,
       itemCount: sale.items.length,
-      items: sale.items.map((item) => ({
-        productName: item.product.name,
-        variationName: item.productVariation.name,
-        sku: item.productVariation.sku,
-        quantity: parseFloat(item.quantity.toString()),
-        unitPrice: parseFloat(item.unitPrice.toString()),
-        unitCost: parseFloat(item.unitCost.toString()),
-        total: parseFloat(item.quantity.toString()) * parseFloat(item.unitPrice.toString()),
-      })),
+      items: sale.items.map((item) => {
+        const variation = variationMap[item.productVariationId]
+        const product = variation ? productMap[variation.productId] : productMap[item.productId]
+
+        return {
+          productName: product?.name || 'Unknown Product',
+          variationName: variation?.name || 'Standard',
+          sku: variation?.sku ?? '',
+          quantity: parseFloat(item.quantity.toString()),
+          unitPrice: parseFloat(item.unitPrice.toString()),
+          unitCost: parseFloat(item.unitCost.toString()),
+          total: parseFloat(item.quantity.toString()) * parseFloat(item.unitPrice.toString()),
+        }
+      }),
       payments: sale.payments.map((p) => ({
         method: p.paymentMethod,
         amount: parseFloat(p.amount.toString()),

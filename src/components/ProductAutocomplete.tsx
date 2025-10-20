@@ -182,9 +182,7 @@ export default function ProductAutocomplete({
     // Focus back on input for quick consecutive additions
     inputRef.current?.focus()
 
-    // Show success message based on match type
-    const matchType = product.matchType === 'exact' ? '(Exact SKU/Barcode match)' : ''
-    toast.success(`Added: ${product.name} - ${variation.name} ${matchType}`)
+    // Toast notification removed - handled by parent component
   }
 
   // Clear search

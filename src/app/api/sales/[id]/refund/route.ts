@@ -4,9 +4,12 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
+import { addStock, StockTransactionType } from '@/lib/stockOperations'
 import bcrypt from 'bcryptjs'
 import { sendRefundTransactionAlert } from '@/lib/email'
 import { sendTelegramRefundTransactionAlert } from '@/lib/telegram'
+import { withIdempotency } from '@/lib/idempotency'
+import { getNextReturnNumber } from '@/lib/atomicNumbers'
 
 /**
  * POST /api/sales/[id]/refund - Process a refund for a sale
@@ -16,10 +19,12 @@ import { sendTelegramRefundTransactionAlert } from '@/lib/telegram'
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const session = await getServerSession(authOptions)
+  const { id } = await params
+  return withIdempotency(request, `/api/sales/${id}/refund`, async () => {
+    try {
+      const session = await getServerSession(authOptions)
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -34,7 +39,7 @@ export async function POST(
       )
     }
 
-    const saleId = parseInt(params.id)
+    const saleId = parseInt(id)
     const body = await request.json()
     const { refundItems, refundReason, managerPassword } = body
 
@@ -155,28 +160,8 @@ export async function POST(
 
     // Process refund in transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Generate refund number
-      const currentYear = new Date().getFullYear()
-      const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0')
-      const lastReturn = await tx.customerReturn.findFirst({
-        where: {
-          businessId: parseInt(user.businessId),
-          returnNumber: {
-            startsWith: `RET-${currentYear}${currentMonth}`,
-          },
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-      })
-
-      let returnNumber
-      if (lastReturn) {
-        const lastNumber = parseInt(lastReturn.returnNumber.split('-').pop() || '0')
-        returnNumber = `RET-${currentYear}${currentMonth}-${String(lastNumber + 1).padStart(4, '0')}`
-      } else {
-        returnNumber = `RET-${currentYear}${currentMonth}-0001`
-      }
+      // Generate refund number atomically
+      const returnNumber = await getNextReturnNumber(parseInt(user.businessId), tx)
 
       // Create customer return record
       const customerReturn = await tx.customerReturn.create({
@@ -215,50 +200,22 @@ export async function POST(
           },
         })
 
-        // Restore inventory
-        const currentStock = await tx.variationLocationDetails.findUnique({
-          where: {
-            productVariationId_locationId: {
-              productVariationId: saleItem.productVariationId,
-              locationId: sale.locationId,
-            },
+        // Restore inventory using centralized helper
+        await addStock(
+          saleItem.productVariationId,
+          sale.locationId,
+          refundQty,
+          {
+            type: StockTransactionType.RETURN,
+            referenceType: 'return',
+            referenceId: customerReturn.id,
+            notes: `Refund ${returnNumber} for sale ${sale.invoiceNumber}`,
+            createdBy: parseInt(user.id),
+            businessId: parseInt(user.businessId),
+            displayName: user.username,
           },
-        })
-
-        if (currentStock) {
-          const restoredQty =
-            parseFloat(currentStock.qtyAvailable.toString()) + refundQty
-
-          await tx.variationLocationDetails.update({
-            where: {
-              productVariationId_locationId: {
-                productVariationId: saleItem.productVariationId,
-                locationId: sale.locationId,
-              },
-            },
-            data: {
-              qtyAvailable: restoredQty,
-            },
-          })
-
-          // Create stock transaction
-          await tx.stockTransaction.create({
-            data: {
-              businessId: parseInt(user.businessId),
-              productId: saleItem.productId,
-              productVariationId: saleItem.productVariationId,
-              locationId: sale.locationId,
-              type: 'return',
-              quantity: refundQty, // Positive for restoration
-              unitCost: 0,
-              balanceQty: restoredQty,
-              referenceType: 'return',
-              referenceId: customerReturn.id,
-              createdBy: parseInt(user.id),
-              notes: `Refund ${returnNumber} for sale ${sale.invoiceNumber}`,
-            },
-          })
-        }
+          tx
+        )
 
         // Handle serial numbers if applicable
         if (
@@ -360,4 +317,5 @@ export async function POST(
       { status: 500 }
     )
   }
+  }) // Close idempotency wrapper
 }

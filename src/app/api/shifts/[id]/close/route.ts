@@ -19,7 +19,7 @@ import bcrypt from 'bcryptjs'
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -31,7 +31,7 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden - Missing shift.close permission' }, { status: 403 })
     }
 
-    const shiftId = parseInt(params.id)
+    const shiftId = parseInt((await params).id)
     const body = await request.json()
     const { endingCash, closingNotes, cashDenomination, managerPassword } = body
 

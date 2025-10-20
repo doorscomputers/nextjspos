@@ -62,7 +62,7 @@ export default function CustomerReturnsPage() {
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(25)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
   const [totalReturns, setTotalReturns] = useState(0)
 
   // Column visibility state

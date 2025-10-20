@@ -237,17 +237,17 @@ export default function DashboardPage() {
       {/* Header with Location Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
             Dashboard Overview
           </h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1">
             Welcome back, {user?.name}
           </p>
         </div>
 
         {locations.length > 0 && (
           <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-gray-700">Location:</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-200">Location:</label>
             <Select value={locationFilter} onValueChange={setLocationFilter}>
               <SelectTrigger className="w-[200px]">
                 <SelectValue placeholder="Select location" />
@@ -276,8 +276,8 @@ export default function DashboardPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">{metric.name}</p>
-                    <p className="text-2xl font-bold text-gray-900 mt-2">
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-300">{metric.name}</p>
+                    <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-2">
                       {formatAmount(metric.value)}
                     </p>
                   </div>
@@ -372,7 +372,7 @@ export default function DashboardPage() {
                   <TableBody>
                     {stats?.tables.salesPaymentDue.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center text-gray-500">
+                        <TableCell colSpan={4} className="text-center text-gray-500 dark:text-gray-400">
                           No payment due
                         </TableCell>
                       </TableRow>
@@ -415,7 +415,7 @@ export default function DashboardPage() {
                   <TableBody>
                     {stats?.tables.purchasePaymentDue.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center text-gray-500">
+                        <TableCell colSpan={4} className="text-center text-gray-500 dark:text-gray-400">
                           No payment due
                         </TableCell>
                       </TableRow>
@@ -454,19 +454,19 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-gray-300">
                   {stats?.tables.stockAlerts.length === 0
                     ? "All products are well stocked"
                     : `${stats?.tables.stockAlerts.length} product(s) below alert level`}
                 </p>
                 <button
-                  className="w-full mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center gap-2"
+                  className="w-full mt-4 px-6 py-2.5 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 dark:from-orange-500 dark:to-orange-400 dark:hover:from-orange-600 dark:hover:to-orange-500 text-white rounded-lg transition-all duration-200 flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl hover:scale-105"
                   onClick={(e) => {
                     e.stopPropagation()
                     window.location.href = '/dashboard/reports/stock-alert'
                   }}
                 >
-                  <ExclamationTriangleIcon className="h-4 w-4" />
+                  <ExclamationTriangleIcon className="h-5 w-5" />
                   View Detailed Report
                 </button>
               </div>
@@ -497,7 +497,7 @@ export default function DashboardPage() {
                   <TableBody>
                     {stats?.tables.pendingShipments.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-center text-gray-500">
+                        <TableCell colSpan={4} className="text-center text-gray-500 dark:text-gray-400">
                           No pending shipments
                         </TableCell>
                       </TableRow>
@@ -507,9 +507,9 @@ export default function DashboardPage() {
                           <TableCell className="font-medium">{item.transferNumber}</TableCell>
                           <TableCell>
                             <div className="text-sm">
-                              <span className="text-gray-600">{item.from}</span>
+                              <span className="text-gray-600 dark:text-gray-400">{item.from}</span>
                               {" → "}
-                              <span className="text-gray-900">{item.to}</span>
+                              <span className="text-gray-900 dark:text-gray-100">{item.to}</span>
                             </div>
                           </TableCell>
                           <TableCell>

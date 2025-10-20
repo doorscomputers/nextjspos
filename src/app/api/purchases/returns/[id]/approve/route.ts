@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { processSupplierReturn } from '@/lib/stockOperations'
 
 /**
  * POST /api/purchases/returns/[id]/approve
@@ -26,7 +27,14 @@ export async function POST(
     const user = session.user as any
     const businessId = user.businessId
     const userId = user.id
+    const businessIdNumber = Number(businessId)
+    const userIdNumber = Number(userId)
+    const userDisplayName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+      user.username ||
+      `User#${userIdNumber}`
     const { id: returnId } = await params
+    const returnIdNumber = Number(returnId)
 
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.PURCHASE_RETURN_APPROVE)) {
@@ -39,8 +47,8 @@ export async function POST(
     // Fetch purchase return with all details
     const purchaseReturn = await prisma.purchaseReturn.findFirst({
       where: {
-        id: parseInt(returnId),
-        businessId: parseInt(businessId),
+        id: returnIdNumber,
+        businessId: businessIdNumber,
       },
       include: {
         supplier: true,
@@ -75,7 +83,7 @@ export async function POST(
       const userLocation = await prisma.userLocation.findUnique({
         where: {
           userId_locationId: {
-            userId: parseInt(userId),
+            userId: userIdNumber,
             locationId: purchaseReturn.locationId,
           },
         },
@@ -96,77 +104,37 @@ export async function POST(
         where: { id: purchaseReturn.id },
         data: {
           status: 'approved',
-          approvedBy: parseInt(userId),
+          approvedBy: userIdNumber,
           approvedAt: new Date(),
         },
       })
 
       // 2. Reduce inventory for each item
       for (const item of purchaseReturn.items) {
-        // Get current inventory
-        const inventoryRecord = await tx.variationLocationDetails.findUnique({
-          where: {
-            productVariationId_locationId: {
-              productVariationId: item.productVariationId,
-              locationId: purchaseReturn.locationId,
-            },
-          },
-        })
-
-        if (!inventoryRecord) {
-          throw new Error(
-            `Inventory record not found for product variation ${item.productVariationId} at location ${purchaseReturn.locationId}`
-          )
-        }
-
-        // Check if sufficient stock available
-        const currentQty = parseFloat(String(inventoryRecord.qtyAvailable))
         const returnQty = parseFloat(String(item.quantityReturned))
+        const unitCost = item.unitCost ? parseFloat(String(item.unitCost)) : 0
 
-        if (currentQty < returnQty) {
-          throw new Error(
-            `Insufficient stock to return. Available: ${currentQty}, Requested: ${returnQty} for product variation ${item.productVariationId}`
-          )
-        }
-
-        // Update inventory - REDUCE stock
-        const newQty = currentQty - returnQty
-        await tx.variationLocationDetails.update({
-          where: {
-            productVariationId_locationId: {
-              productVariationId: item.productVariationId,
-              locationId: purchaseReturn.locationId,
-            },
-          },
-          data: {
-            qtyAvailable: newQty,
-          },
-        })
-
-        // Create stock transaction record
-        await tx.stockTransaction.create({
-          data: {
-            businessId: parseInt(businessId),
+        if (returnQty > 0) {
+          await processSupplierReturn({
+            businessId: businessIdNumber,
             productId: item.productId,
             productVariationId: item.productVariationId,
             locationId: purchaseReturn.locationId,
-            type: 'purchase_return',
-            quantity: -returnQty, // Negative because it's a reduction
-            unitCost: item.unitCost,
-            balanceQty: newQty,
-            referenceType: 'purchase_return',
-            referenceId: purchaseReturn.id,
-            createdBy: parseInt(userId),
-            notes: `Return to supplier: ${purchaseReturn.supplier.name} - ${purchaseReturn.returnReason}`,
-          },
-        })
+            quantity: returnQty,
+            unitCost,
+            returnId: purchaseReturn.id,
+            userId: userIdNumber,
+            userDisplayName,
+            tx,
+          })
+        }
 
         // Update serial numbers status if applicable
         if (item.serialNumbers && Array.isArray(item.serialNumbers)) {
           for (const serialInfo of item.serialNumbers as any[]) {
             await tx.productSerialNumber.updateMany({
               where: {
-                businessId: parseInt(businessId),
+                businessId: businessIdNumber,
                 serialNumber: serialInfo.serialNumber,
                 productVariationId: item.productVariationId,
               },
@@ -181,14 +149,14 @@ export async function POST(
 
       // 3. Generate debit note number
       const debitNoteCount = await tx.debitNote.count({
-        where: { businessId: parseInt(businessId) },
+        where: { businessId: businessIdNumber },
       })
       const debitNoteNumber = `DN-${String(debitNoteCount + 1).padStart(6, '0')}`
 
       // 4. Create debit note
       const debitNote = await tx.debitNote.create({
         data: {
-          businessId: parseInt(businessId),
+          businessId: businessIdNumber,
           supplierId: purchaseReturn.supplierId,
           purchaseReturnId: purchaseReturn.id,
           debitNoteNumber,
@@ -196,7 +164,7 @@ export async function POST(
           amount: purchaseReturn.totalAmount,
           status: 'pending',
           notes: `Debit note for return ${purchaseReturn.returnNumber} - ${purchaseReturn.returnReason}`,
-          createdBy: parseInt(userId),
+          createdBy: userIdNumber,
         },
       })
 
@@ -204,7 +172,7 @@ export async function POST(
       if (purchaseReturn.purchaseReceipt.purchaseId) {
         const accountsPayable = await tx.accountsPayable.findFirst({
           where: {
-            businessId: parseInt(businessId),
+            businessId: businessIdNumber,
             purchaseId: purchaseReturn.purchaseReceipt.purchaseId,
           },
         })
@@ -235,8 +203,8 @@ export async function POST(
 
     // Create audit log
     await createAuditLog({
-      businessId: parseInt(businessId),
-      userId: parseInt(userId),
+      businessId: businessIdNumber,
+      userId: userIdNumber,
       username: user.username,
       action: 'purchase_return_approve' as AuditAction,
       entityType: EntityType.PURCHASE,

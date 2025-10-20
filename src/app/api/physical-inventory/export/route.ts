@@ -100,8 +100,8 @@ export async function GET(request: NextRequest) {
     const emptyRow = ['', '', '', '', '', '']
 
     const dataRows = filteredData.map(detail => {
-      // Hide "DUMMY" variation for single products - show empty string instead
-      const variationName = detail.productVariation.name === 'DUMMY'
+      // Hide "DUMMY" or "Default" variation for single products - show empty string instead
+      const variationName = (detail.productVariation.name === 'DUMMY' || detail.productVariation.name === 'Default')
         ? ''
         : (detail.productVariation.name || '')
 

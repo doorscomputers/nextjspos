@@ -67,7 +67,7 @@ export default function PaymentsPage() {
   const [customEndDate, setCustomEndDate] = useState('')
 
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(25)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
   const [totalPayments, setTotalPayments] = useState(0)
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>([

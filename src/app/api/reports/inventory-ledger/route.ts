@@ -161,7 +161,8 @@ export async function GET(request: NextRequest) {
         salesBefore,
         transfersOutBefore,
         transfersInBefore,
-        correctionsBefore
+        correctionsBefore,
+        historyBefore
       ] = await Promise.all([
         // Purchase Receipts before start date
         prisma.purchaseReceipt.findMany({
@@ -212,12 +213,16 @@ export async function GET(request: NextRequest) {
         }),
 
         // Transfers Out before start date
+        // NOTE: Use sentAt and stockDeducted because stock is deducted when sent, not when completed
         prisma.stockTransfer.findMany({
           where: {
             businessId,
             fromLocationId: locId,
-            status: 'completed',
-            completedAt: { lt: startDate },
+            status: {
+              in: ['in_transit', 'received', 'completed']
+            },
+            stockDeducted: true,
+            sentAt: { lt: startDate },
             items: {
               some: {
                 productId: prodId,
@@ -236,12 +241,15 @@ export async function GET(request: NextRequest) {
         }),
 
         // Transfers In before start date
+        // NOTE: Use receivedAt because stock is added when received, not when completed
         prisma.stockTransfer.findMany({
           where: {
             businessId,
             toLocationId: locId,
-            status: 'completed',
-            completedAt: { lt: startDate },
+            status: {
+              in: ['received', 'completed']
+            },
+            receivedAt: { lt: startDate },
             items: {
               some: {
                 productId: prodId,
@@ -270,6 +278,22 @@ export async function GET(request: NextRequest) {
             approvedAt: { lt: startDate }
           },
           orderBy: { approvedAt: 'desc' }
+        }),
+
+        // Product History before start date - ONLY unique transaction types
+        prisma.productHistory.findMany({
+          where: {
+            businessId,
+            locationId: locId,
+            productId: prodId,
+            productVariationId: varId,
+            transactionDate: { lt: startDate },
+            // Only include transaction types unique to ProductHistory
+            transactionType: {
+              notIn: ['purchase', 'sale', 'transfer_in', 'transfer_out', 'purchase_return', 'customer_return']
+            }
+          },
+          orderBy: { transactionDate: 'asc' }
         })
       ])
 
@@ -311,11 +335,20 @@ export async function GET(request: NextRequest) {
         }
 
         for (const transfer of transfersInBefore) {
-          if ((transfer.completedAt || transfer.createdAt) > correctionDate) {
+          if ((transfer.receivedAt || transfer.createdAt) > correctionDate) {
             const item = transfer.items[0]
             if (item) {
               baselineQuantity += parseFloat(item.quantity.toString())
             }
+          }
+        }
+
+        // Add product history transactions after correction but before start date
+        // (opening stock, adjustments, etc.)
+        for (const history of historyBefore) {
+          if (history.transactionDate > correctionDate) {
+            const quantityChange = parseFloat(history.quantityChange.toString())
+            baselineQuantity += quantityChange
           }
         }
       } else {
@@ -349,7 +382,14 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        baselineDescription = `Opening balance calculated from ${receiptsBefore.length + salesBefore.length + transfersOutBefore.length + transfersInBefore.length} transaction(s) before ${startDate.toLocaleDateString()}`
+        // Add product history transactions (opening stock, adjustments, etc.)
+        for (const history of historyBefore) {
+          const quantityChange = parseFloat(history.quantityChange.toString())
+          baselineQuantity += quantityChange
+        }
+
+        const totalTransactionCount = receiptsBefore.length + salesBefore.length + transfersOutBefore.length + transfersInBefore.length + historyBefore.length
+        baselineDescription = `Opening balance calculated from ${totalTransactionCount} transaction(s) before ${startDate.toLocaleDateString()}`
       }
 
       console.log(`[Ledger] Opening balance calculated: ${baselineQuantity} units`)
@@ -357,6 +397,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Step 3: Query all transaction types in parallel
+    // Note: We fetch ProductHistory ONLY for transaction types not covered by dedicated tables
+    // (e.g., opening_stock, manual adjustments) to avoid duplicates while capturing all transactions
     const [
       purchaseReceipts,
       sales,
@@ -364,7 +406,8 @@ export async function GET(request: NextRequest) {
       transfersIn,
       corrections,
       purchaseReturns,
-      customerReturns
+      customerReturns,
+      productHistoryRecords
     ] = await Promise.all([
       // a) Stock Received (Purchase Receipts/GRN)
       prisma.purchaseReceipt.findMany({
@@ -426,12 +469,16 @@ export async function GET(request: NextRequest) {
       }),
 
       // c) Stock Transferred Out
+      // NOTE: Include both 'in_transit' and 'completed' because stock is deducted at SEND (in_transit), not at completion
       prisma.stockTransfer.findMany({
         where: {
           businessId,
           fromLocationId: locId,
-          status: 'completed',
-          completedAt: {
+          status: {
+            in: ['in_transit', 'received', 'completed']  // Stock deducted when sent, so include in_transit
+          },
+          stockDeducted: true, // Only transfers where stock was actually deducted
+          sentAt: {
             gte: startDate,
             lte: endDate
           },
@@ -453,16 +500,19 @@ export async function GET(request: NextRequest) {
             select: { name: true }
           }
         },
-        orderBy: { completedAt: 'asc' }
+        orderBy: { sentAt: 'asc' }
       }),
 
       // d) Stock Transferred In
+      // NOTE: Use receivedAt because stock is added when received, not when completed
       prisma.stockTransfer.findMany({
         where: {
           businessId,
           toLocationId: locId,
-          status: 'completed',
-          completedAt: {
+          status: {
+            in: ['received', 'completed']
+          },
+          receivedAt: {
             gte: startDate,
             lte: endDate
           },
@@ -484,7 +534,7 @@ export async function GET(request: NextRequest) {
             select: { name: true }
           }
         },
-        orderBy: { completedAt: 'asc' }
+        orderBy: { receivedAt: 'asc' }
       }),
 
       // e) Inventory Corrections (after baseline)
@@ -565,6 +615,27 @@ export async function GET(request: NextRequest) {
           }
         },
         orderBy: { approvedAt: 'asc' }
+      }),
+
+      // h) Product History - ONLY for transaction types NOT covered by dedicated tables
+      // This includes: opening_stock, stock_adjustment, and other manual entries
+      // Exclude: purchase, sale, transfer_in, transfer_out (already fetched above)
+      prisma.productHistory.findMany({
+        where: {
+          businessId,
+          locationId: locId,
+          productId: prodId,
+          productVariationId: varId,
+          transactionDate: {
+            gte: startDate,
+            lte: endDate
+          },
+          // Only include transaction types that are unique to ProductHistory
+          transactionType: {
+            notIn: ['purchase', 'sale', 'transfer_in', 'transfer_out', 'purchase_return', 'customer_return']
+          }
+        },
+        orderBy: { transactionDate: 'asc' }
       })
     ])
 
@@ -615,10 +686,10 @@ export async function GET(request: NextRequest) {
       if (!item) continue
 
       transactions.push({
-        date: transfer.completedAt || transfer.createdAt,
+        date: transfer.sentAt || transfer.createdAt, // Use sentAt because stock is deducted when sent, not when completed
         type: 'Transfer Out',
         referenceNumber: transfer.transferNumber,
-        description: `Transfer Out to ${transfer.toLocation?.name || 'Unknown'} - TR #${transfer.transferNumber}`,
+        description: `Transfer Out to ${transfer.toLocation?.name || 'Unknown'} - TR #${transfer.transferNumber}${transfer.status === 'in_transit' ? ' (In Transit)' : ''}`,
         quantityIn: 0,
         quantityOut: parseFloat(item.quantity.toString()),
         runningBalance: 0,
@@ -635,7 +706,7 @@ export async function GET(request: NextRequest) {
       if (!item) continue
 
       transactions.push({
-        date: transfer.completedAt || transfer.createdAt,
+        date: transfer.receivedAt || transfer.createdAt,
         type: 'Transfer In',
         referenceNumber: transfer.transferNumber,
         description: `Transfer In from ${transfer.fromLocation?.name || 'Unknown'} - TR #${transfer.transferNumber}`,
@@ -702,6 +773,29 @@ export async function GET(request: NextRequest) {
         user: 'System',
         referenceId: returnDoc.id,
         referenceType: 'customer_return'
+      })
+    }
+
+    // Add product history records - ONLY for unique transaction types
+    // (opening_stock, stock_adjustment, etc. that are NOT in dedicated tables)
+    for (const historyRecord of productHistoryRecords) {
+      const quantityChange = parseFloat(historyRecord.quantityChange.toString())
+      const isIncrease = quantityChange > 0
+
+      // Determine transaction type label
+      let typeLabel = historyRecord.transactionType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+
+      transactions.push({
+        date: historyRecord.transactionDate,
+        type: typeLabel,
+        referenceNumber: historyRecord.referenceNumber || `${historyRecord.transactionType.toUpperCase()}-${historyRecord.id}`,
+        description: historyRecord.reason || `${typeLabel} - ${historyRecord.referenceType}`,
+        quantityIn: isIncrease ? Math.abs(quantityChange) : 0,
+        quantityOut: isIncrease ? 0 : Math.abs(quantityChange),
+        runningBalance: 0,
+        user: historyRecord.createdByName || 'System',
+        referenceId: historyRecord.referenceId,
+        referenceType: historyRecord.referenceType
       })
     }
 

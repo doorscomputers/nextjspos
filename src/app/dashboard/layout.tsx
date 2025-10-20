@@ -7,7 +7,6 @@ import Header from "@/components/Header"
 import { redirect } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Toaster } from "@/components/ui/sonner"
-import { ThemeProvider } from "@/components/theme-provider"
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -57,9 +56,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
-      <ThemeProvider defaultTheme="light" defaultMode="light" defaultSidebarStyle="default">
-        <DashboardLayoutContent>{children}</DashboardLayoutContent>
-      </ThemeProvider>
+      <DashboardLayoutContent>{children}</DashboardLayoutContent>
     </SessionProvider>
   )
 }

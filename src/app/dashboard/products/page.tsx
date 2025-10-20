@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import Link from 'next/link'
@@ -22,6 +22,8 @@ import { DocumentArrowDownIcon, PrinterIcon, DocumentTextIcon } from '@heroicons
 import { AddToLocationModal, RemoveFromLocationModal } from '@/components/BulkLocationModals'
 import { useTableSort } from '@/hooks/useTableSort'
 import { SortableTableHead } from '@/components/ui/sortable-table-head'
+import ProductFiltersPanel, { ProductFilters } from '@/components/ProductFiltersPanel'
+import { debounce } from '@/utils/debounce'
 
 interface Product {
   id: number
@@ -68,9 +70,27 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [activeFilter, setActiveFilter] = useState<string>('all') // all, active, inactive
 
+  // Multi-column filter state
+  const [filters, setFilters] = useState<ProductFilters>({
+    search: '',
+    sku: '',
+    categoryName: '',
+    brandName: '',
+    unitName: '',
+    productType: '',
+    stockMin: '',
+    stockMax: '',
+    purchasePriceMin: '',
+    purchasePriceMax: '',
+    sellingPriceMin: '',
+    sellingPriceMax: '',
+    taxName: ''
+  })
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
+
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(25)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
   // Column visibility state - Actions is now second (right after Product)
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
@@ -88,15 +108,26 @@ export default function ProductsPage() {
   const [showRemoveModal, setShowRemoveModal] = useState(false)
   const [modalLocationName, setModalLocationName] = useState('')
 
+  const PRODUCT_TYPE_OPTIONS = [
+    { value: 'all', label: 'All Types' },
+    { value: 'single', label: 'Single' },
+    { value: 'variable', label: 'Variable' },
+    { value: 'combo', label: 'Combo' },
+  ]
+
   useEffect(() => {
-    fetchProducts()
     fetchLocations()
-  }, [activeFilter])
+  }, [])
 
   // Reset to page 1 when search or filter changes
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, activeFilter])
+  }, [searchTerm, activeFilter, filters])
+
+  // Update searchTerm when filters.search changes
+  useEffect(() => {
+    setSearchTerm(filters.search)
+  }, [filters.search])
 
   const fetchLocations = async () => {
     try {
@@ -110,16 +141,26 @@ export default function ProductsPage() {
     }
   }
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     setLoading(true)
     try {
-      let url = '/api/products'
+      const params = new URLSearchParams()
+
+      // Add active filter
       if (activeFilter === 'active') {
-        url += '?active=true'
+        params.append('active', 'true')
       } else if (activeFilter === 'inactive') {
-        url += '?active=false'
+        params.append('active', 'false')
       }
 
+      // Add multi-column filters
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) {
+          params.append(key, value)
+        }
+      })
+
+      const url = `/api/products${params.toString() ? '?' + params.toString() : ''}`
       const response = await fetch(url)
       const data = await response.json()
       if (response.ok) {
@@ -130,7 +171,15 @@ export default function ProductsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [activeFilter, filters])
+
+  // Debounced fetch function to avoid excessive API calls
+  const debouncedFetchProducts = useCallback(debounce(fetchProducts, 300), [fetchProducts])
+
+  // Update fetchProducts to use debounced version for filter changes
+  useEffect(() => {
+    debouncedFetchProducts()
+  }, [debouncedFetchProducts])
 
   const toggleProductActive = async (productId: number, currentStatus: boolean) => {
     try {
@@ -416,15 +465,8 @@ export default function ProductsPage() {
     return '0.00'
   }
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.brand?.name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  // Apply sorting to filtered products
-  const { sortedData, sortConfig, requestSort } = useTableSort<Product>(filteredProducts, { key: 'name', direction: 'asc' })
+  // Apply sorting to filtered products (server-side filtering is now done in API)
+  const { sortedData, sortConfig, requestSort } = useTableSort<Product>(products, { key: 'name', direction: 'asc' })
 
   // Pagination logic
   const totalItems = sortedData.length
@@ -447,6 +489,26 @@ export default function ProductsPage() {
     { id: 'type', label: 'Type' },
     { id: 'tax', label: 'Tax' }
   ]
+
+  // Helper function to count active filters
+  const getActiveFilterCount = () => {
+    return Object.values(filters).filter(value => value !== '').length
+  }
+
+  // Helper function to handle filter changes
+  const handleFiltersChange = (newFilters: ProductFilters) => {
+    setFilters(newFilters)
+  }
+
+  const handleSimpleFilterChange = (key: keyof ProductFilters, value: string) => {
+    if (key === 'search') {
+      setSearchTerm(value)
+    }
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
+    }))
+  }
 
   // Export handlers - respecting visible columns
   const getExportColumns = (): ExportColumn[] => {
@@ -518,7 +580,7 @@ export default function ProductsPage() {
     exportToCSV({
       filename: 'products',
       columns: getExportColumns(),
-      data: filteredProducts,
+      data: sortedData,
       title: 'Products'
     })
     toast.success('Products exported to CSV')
@@ -528,7 +590,7 @@ export default function ProductsPage() {
     exportToExcel({
       filename: 'products',
       columns: getExportColumns(),
-      data: filteredProducts,
+      data: sortedData,
       title: 'Products'
     })
     toast.success('Products exported to Excel')
@@ -538,7 +600,7 @@ export default function ProductsPage() {
     exportToPDF({
       filename: 'products',
       columns: getExportColumns(),
-      data: filteredProducts,
+      data: sortedData,
       title: 'Products Export'
     })
     toast.success('Products exported to PDF')
@@ -548,21 +610,21 @@ export default function ProductsPage() {
     printTable({
       filename: 'products',
       columns: getExportColumns(),
-      data: filteredProducts,
+      data: sortedData,
       title: 'Products'
     })
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
       {/* Header Section with Gradient */}
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div className="space-y-1">
-            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-slate-900 via-blue-800 to-slate-900 bg-clip-text text-transparent">
+            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-slate-900 via-blue-800 to-slate-900 dark:from-gray-100 dark:via-blue-300 dark:to-gray-100 bg-clip-text text-transparent">
               Products
             </h1>
-            <p className="text-slate-600 text-sm sm:text-base">Manage your inventory with ease</p>
+            <p className="text-slate-600 dark:text-gray-300 text-sm sm:text-base">Manage your inventory with ease</p>
           </div>
           {can(PERMISSIONS.PRODUCT_CREATE) && (
             <Button asChild size="lg" className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
@@ -575,23 +637,35 @@ export default function ProductsPage() {
         </div>
       </div>
 
+      {/* Advanced Filters Panel */}
+      <ProductFiltersPanel
+        filters={filters}
+        onFiltersChange={handleFiltersChange}
+        isVisible={showAdvancedFilters}
+        onToggleVisibility={() => setShowAdvancedFilters(!showAdvancedFilters)}
+        activeFilterCount={getActiveFilterCount()}
+      />
+
       {/* Search Bar and Filter - Modern Card Design */}
-      <Card className="mb-6 border-slate-200 shadow-md hover:shadow-lg transition-shadow duration-300">
+      <Card className="mb-6 border-slate-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-shadow duration-300">
         <CardContent className="pt-6">
           <div className="flex gap-4 flex-col md:flex-row">
             <div className="relative flex-1">
-              <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 transition-colors" />
+              <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-gray-500 transition-colors" />
               <Input
                 type="text"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value)
+                  handleSimpleFilterChange('search', e.target.value)
+                }}
                 placeholder="Search by product name, SKU, category, or brand..."
-                className="pl-10 h-11 bg-white border-slate-200 focus:border-blue-400 focus:ring-blue-400/20 transition-all"
+                className="pl-10 h-11 transition-all"
               />
             </div>
             <div className="w-full md:w-56">
               <Select value={activeFilter} onValueChange={setActiveFilter}>
-                <SelectTrigger className="h-11 bg-white border-slate-200 focus:border-blue-400 focus:ring-blue-400/20">
+                <SelectTrigger className="h-11">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -612,7 +686,7 @@ export default function ProductsPage() {
 
       {/* Export buttons and Results info */}
       <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
-        <div className="bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+        <div className="bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-gray-700 shadow-sm">
           <ResultsInfo
             startIndex={startIndex}
             endIndex={endIndex}
@@ -627,7 +701,7 @@ export default function ProductsPage() {
             onClick={handleExportCSV}
             variant="outline"
             size="sm"
-            className="shadow-sm hover:shadow-md transition-all hover:border-blue-300"
+            className="shadow-sm hover:shadow-md transition-all"
             title="Export CSV"
           >
             <DocumentTextIcon className="w-4 h-4" />
@@ -638,7 +712,7 @@ export default function ProductsPage() {
             onClick={handleExportExcel}
             variant="outline"
             size="sm"
-            className="shadow-sm hover:shadow-md transition-all hover:border-green-300"
+            className="shadow-sm hover:shadow-md transition-all"
             title="Export Excel"
           >
             <DocumentArrowDownIcon className="w-4 h-4" />
@@ -649,7 +723,7 @@ export default function ProductsPage() {
             onClick={handlePrint}
             variant="outline"
             size="sm"
-            className="shadow-sm hover:shadow-md transition-all hover:border-purple-300"
+            className="shadow-sm hover:shadow-md transition-all"
             title="Print"
           >
             <PrinterIcon className="w-4 h-4" />
@@ -660,7 +734,7 @@ export default function ProductsPage() {
             onClick={handleExportPDF}
             variant="outline"
             size="sm"
-            className="shadow-sm hover:shadow-md transition-all hover:border-red-300"
+            className="shadow-sm hover:shadow-md transition-all"
             title="Export PDF"
           >
             <DocumentTextIcon className="w-4 h-4" />
@@ -681,21 +755,23 @@ export default function ProductsPage() {
         <Card className="shadow-lg">
           <CardContent className="py-12">
             <div className="flex flex-col items-center justify-center space-y-4">
-              <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-              <p className="text-slate-600 font-medium">Loading products...</p>
+              <div className="w-16 h-16 border-4 border-blue-200 dark:border-blue-800 border-t-blue-600 dark:border-t-blue-400 rounded-full animate-spin"></div>
+              <p className="text-slate-600 dark:text-gray-300 font-medium">Loading products...</p>
             </div>
           </CardContent>
         </Card>
       ) : (
-        <Card className="shadow-xl border-slate-200 overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-gradient-to-r from-slate-50 to-blue-50/50 hover:from-slate-100 hover:to-blue-50">
+        <div className="relative">
+          <Card className="shadow-xl border-slate-200 dark:border-gray-700">
+            <div className="overflow-auto max-h-[calc(100vh-350px)]">
+              <Table noWrapper className="min-w-full">
+                <TableHeader className="sticky top-0 z-30 bg-gradient-to-r from-slate-50 to-blue-50/50 dark:from-gray-800 dark:to-gray-800/80 shadow-sm">
+                  <TableRow className="bg-gradient-to-r from-slate-50 to-blue-50/50 dark:from-gray-800 dark:to-gray-800/80 hover:from-slate-100 hover:to-blue-50 dark:hover:from-gray-700 dark:hover:to-gray-700/80">
                 <SortableTableHead className="w-12">
                   <Checkbox
                     checked={paginatedProducts.length > 0 && selectedProductIds.length === paginatedProducts.length}
                     onCheckedChange={handleSelectAll}
-                    className="border-slate-400"
+                    className="border-slate-400 dark:border-gray-500"
                   />
                 </SortableTableHead>
                 {visibleColumns.includes('product') && (
@@ -704,13 +780,13 @@ export default function ProductsPage() {
                     currentSortKey={sortConfig?.key as string}
                     currentSortDirection={sortConfig?.direction}
                     onSort={requestSort}
-                    className="font-semibold text-slate-700"
+                    className="font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Product
                   </SortableTableHead>
                 )}
                 {visibleColumns.includes('actions') && (
-                  <SortableTableHead className="font-semibold text-slate-700">Actions</SortableTableHead>
+                  <SortableTableHead className="font-semibold text-slate-700 dark:text-gray-200">Actions</SortableTableHead>
                 )}
                 {visibleColumns.includes('sku') && (
                   <SortableTableHead
@@ -718,7 +794,7 @@ export default function ProductsPage() {
                     currentSortKey={sortConfig?.key as string}
                     currentSortDirection={sortConfig?.direction}
                     onSort={requestSort}
-                    className="font-semibold text-slate-700"
+                    className="font-semibold text-slate-700 dark:text-gray-200"
                   >
                     SKU
                   </SortableTableHead>
@@ -729,7 +805,7 @@ export default function ProductsPage() {
                     currentSortKey={sortConfig?.key as string}
                     currentSortDirection={sortConfig?.direction}
                     onSort={requestSort}
-                    className="font-semibold text-slate-700"
+                    className="font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Status
                   </SortableTableHead>
@@ -740,7 +816,7 @@ export default function ProductsPage() {
                     currentSortKey={sortConfig?.key as string}
                     currentSortDirection={sortConfig?.direction}
                     onSort={requestSort}
-                    className="font-semibold text-slate-700"
+                    className="font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Category
                   </SortableTableHead>
@@ -751,7 +827,7 @@ export default function ProductsPage() {
                     currentSortKey={sortConfig?.key as string}
                     currentSortDirection={sortConfig?.direction}
                     onSort={requestSort}
-                    className="font-semibold text-slate-700"
+                    className="font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Brand
                   </SortableTableHead>
@@ -762,7 +838,7 @@ export default function ProductsPage() {
                     currentSortKey={sortConfig?.key as string}
                     currentSortDirection={sortConfig?.direction}
                     onSort={requestSort}
-                    className="font-semibold text-slate-700"
+                    className="font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Unit
                   </SortableTableHead>
@@ -773,7 +849,7 @@ export default function ProductsPage() {
                     currentSortKey={sortConfig?.key as string}
                     currentSortDirection={sortConfig?.direction}
                     onSort={requestSort}
-                    className="font-semibold text-slate-700"
+                    className="font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Purchase Price
                   </SortableTableHead>
@@ -784,13 +860,13 @@ export default function ProductsPage() {
                     currentSortKey={sortConfig?.key as string}
                     currentSortDirection={sortConfig?.direction}
                     onSort={requestSort}
-                    className="font-semibold text-slate-700"
+                    className="font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Selling Price
                   </SortableTableHead>
                 )}
                 {visibleColumns.includes('stock') && (
-                  <SortableTableHead className="font-semibold text-slate-700">Stock</SortableTableHead>
+                  <SortableTableHead className="font-semibold text-slate-700 dark:text-gray-200">Stock</SortableTableHead>
                 )}
                 {visibleColumns.includes('type') && (
                   <SortableTableHead
@@ -798,7 +874,7 @@ export default function ProductsPage() {
                     currentSortKey={sortConfig?.key as string}
                     currentSortDirection={sortConfig?.direction}
                     onSort={requestSort}
-                    className="font-semibold text-slate-700"
+                    className="font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Type
                   </SortableTableHead>
@@ -809,10 +885,167 @@ export default function ProductsPage() {
                     currentSortKey={sortConfig?.key as string}
                     currentSortDirection={sortConfig?.direction}
                     onSort={requestSort}
-                    className="font-semibold text-slate-700"
+                    className="font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Tax
                   </SortableTableHead>
+                )}
+              </TableRow>
+              <TableRow className="bg-slate-100/80 dark:bg-gray-700/50 text-xs hover:bg-slate-100/80 dark:hover:bg-gray-700/50">
+                <TableCell className="bg-slate-100/80 dark:bg-gray-700/50"></TableCell>
+                {visibleColumns.includes('product') && (
+                  <TableCell className="bg-slate-100/80 dark:bg-gray-700/50">
+                    <Input
+                      value={filters.search}
+                      onChange={(e) => handleSimpleFilterChange('search', e.target.value)}
+                      placeholder="Filter product name..."
+                      className="h-8 text-xs"
+                    />
+                  </TableCell>
+                )}
+                {visibleColumns.includes('actions') && <TableCell className="bg-slate-100/80 dark:bg-gray-700/50"></TableCell>}
+                {visibleColumns.includes('sku') && (
+                  <TableCell className="bg-slate-100/80 dark:bg-gray-700/50">
+                    <Input
+                      value={filters.sku}
+                      onChange={(e) => handleSimpleFilterChange('sku', e.target.value)}
+                      placeholder="Filter SKU..."
+                      className="h-8 text-xs font-mono"
+                    />
+                  </TableCell>
+                )}
+                {visibleColumns.includes('status') && (
+                  <TableCell className="bg-slate-100/80 dark:bg-gray-700/50">
+                    <Select value={activeFilter} onValueChange={(value) => setActiveFilter(value as 'all' | 'active' | 'inactive')}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                )}
+                {visibleColumns.includes('category') && (
+                  <TableCell className="bg-slate-100/80 dark:bg-gray-700/50">
+                    <Input
+                      value={filters.categoryName}
+                      onChange={(e) => handleSimpleFilterChange('categoryName', e.target.value)}
+                      placeholder="Filter category..."
+                      className="h-8 text-xs"
+                    />
+                  </TableCell>
+                )}
+                {visibleColumns.includes('brand') && (
+                  <TableCell className="bg-slate-100/80 dark:bg-gray-700/50">
+                    <Input
+                      value={filters.brandName}
+                      onChange={(e) => handleSimpleFilterChange('brandName', e.target.value)}
+                      placeholder="Filter brand..."
+                      className="h-8 text-xs"
+                    />
+                  </TableCell>
+                )}
+                {visibleColumns.includes('unit') && (
+                  <TableCell className="bg-slate-100/80 dark:bg-gray-700/50">
+                    <Input
+                      value={filters.unitName}
+                      onChange={(e) => handleSimpleFilterChange('unitName', e.target.value)}
+                      placeholder="Filter unit..."
+                      className="h-8 text-xs"
+                    />
+                  </TableCell>
+                )}
+                {can(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE) && visibleColumns.includes('purchasePrice') && (
+                  <TableCell className="bg-slate-100/80 dark:bg-gray-700/50">
+                    <div className="flex flex-col gap-1">
+                      <Input
+                        type="number"
+                        value={filters.purchasePriceMin}
+                        onChange={(e) => handleSimpleFilterChange('purchasePriceMin', e.target.value)}
+                        placeholder="Min"
+                        className="h-8 text-xs"
+                      />
+                      <Input
+                        type="number"
+                        value={filters.purchasePriceMax}
+                        onChange={(e) => handleSimpleFilterChange('purchasePriceMax', e.target.value)}
+                        placeholder="Max"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </TableCell>
+                )}
+                {visibleColumns.includes('sellingPrice') && (
+                  <TableCell className="bg-slate-100/80 dark:bg-gray-700/50">
+                    <div className="flex flex-col gap-1">
+                      <Input
+                        type="number"
+                        value={filters.sellingPriceMin}
+                        onChange={(e) => handleSimpleFilterChange('sellingPriceMin', e.target.value)}
+                        placeholder="Min"
+                        className="h-8 text-xs"
+                      />
+                      <Input
+                        type="number"
+                        value={filters.sellingPriceMax}
+                        onChange={(e) => handleSimpleFilterChange('sellingPriceMax', e.target.value)}
+                        placeholder="Max"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </TableCell>
+                )}
+                {visibleColumns.includes('stock') && (
+                  <TableCell className="bg-slate-100/80 dark:bg-gray-700/50">
+                    <div className="flex flex-col gap-1">
+                      <Input
+                        type="number"
+                        value={filters.stockMin}
+                        onChange={(e) => handleSimpleFilterChange('stockMin', e.target.value)}
+                        placeholder="Min"
+                        className="h-8 text-xs"
+                      />
+                      <Input
+                        type="number"
+                        value={filters.stockMax}
+                        onChange={(e) => handleSimpleFilterChange('stockMax', e.target.value)}
+                        placeholder="Max"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </TableCell>
+                )}
+                {visibleColumns.includes('type') && (
+                  <TableCell className="bg-slate-100/80 dark:bg-gray-700/50">
+                    <Select
+                      value={filters.productType || 'all'}
+                      onValueChange={(value) => handleSimpleFilterChange('productType', value === 'all' ? '' : value)}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="All types" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PRODUCT_TYPE_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                )}
+                {visibleColumns.includes('tax') && (
+                  <TableCell className="bg-slate-100/80 dark:bg-gray-700/50">
+                    <Input
+                      value={filters.taxName}
+                      onChange={(e) => handleSimpleFilterChange('taxName', e.target.value)}
+                      placeholder="Filter tax..."
+                      className="h-8 text-xs"
+                    />
+                  </TableCell>
                 )}
               </TableRow>
             </TableHeader>
@@ -821,9 +1054,9 @@ export default function ProductsPage() {
                 <TableRow>
                   <TableCell colSpan={visibleColumns.length + 1} className="h-32 text-center">
                     <div className="flex flex-col items-center justify-center space-y-2">
-                      <p className="text-slate-500 font-medium">No products found</p>
+                      <p className="text-slate-500 dark:text-gray-400 font-medium">No products found</p>
                       {can(PERMISSIONS.PRODUCT_CREATE) && (
-                        <p className="text-slate-400 text-sm">Click &quot;Add Product&quot; to create one</p>
+                        <p className="text-slate-400 dark:text-gray-500 text-sm">Click &quot;Add Product&quot; to create one</p>
                       )}
                     </div>
                   </TableCell>
@@ -834,15 +1067,15 @@ export default function ProductsPage() {
                     key={product.id}
                     className={`transition-all duration-200 ${
                       !product.isActive
-                        ? 'bg-slate-50/50 hover:bg-slate-100/50'
-                        : 'hover:bg-blue-50/30'
+                        ? 'bg-slate-50/50 dark:bg-gray-800/30 hover:bg-slate-100/50 dark:hover:bg-gray-700/30'
+                        : 'hover:bg-blue-50/30 dark:hover:bg-gray-700/50'
                     }`}
                   >
                     <TableCell>
                       <Checkbox
                         checked={selectedProductIds.includes(product.id)}
                         onCheckedChange={(checked) => handleSelectProduct(product.id, checked as boolean)}
-                        className="border-slate-400"
+                        className="border-slate-400 dark:border-gray-500"
                       />
                     </TableCell>
                     {visibleColumns.includes('product') && (
@@ -852,16 +1085,16 @@ export default function ProductsPage() {
                             <img
                               src={product.image}
                               alt={product.name}
-                              className="h-12 w-12 rounded-lg object-cover shadow-sm ring-1 ring-slate-200"
+                              className="h-12 w-12 rounded-lg object-cover shadow-sm ring-1 ring-slate-200 dark:ring-gray-700"
                             />
                           ) : (
-                            <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-400 text-xs font-medium shadow-sm">
+                            <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center text-slate-400 dark:text-gray-500 text-xs font-medium shadow-sm">
                               No img
                             </div>
                           )}
                           <div className="min-w-0 flex-1">
                             <div className={`text-sm font-semibold truncate ${
-                              product.isActive ? 'text-slate-900' : 'text-slate-500'
+                              product.isActive ? 'text-slate-900 dark:text-gray-100' : 'text-slate-500 dark:text-gray-500'
                             }`}>
                               {product.name}
                             </div>
@@ -882,7 +1115,7 @@ export default function ProductsPage() {
                       </TableCell>
                     )}
                     {visibleColumns.includes('sku') && (
-                      <TableCell className="font-mono text-sm text-slate-700">
+                      <TableCell className="font-mono text-sm text-slate-700 dark:text-gray-300">
                         {product.sku}
                       </TableCell>
                     )}
@@ -890,11 +1123,11 @@ export default function ProductsPage() {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           {product.isActive ? (
-                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border-emerald-200 shadow-sm">
+                            <Badge className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 border-emerald-200 dark:border-emerald-700 shadow-sm">
                               Active
                             </Badge>
                           ) : (
-                            <Badge variant="secondary" className="bg-slate-200 text-slate-600 border-slate-300 shadow-sm">
+                            <Badge variant="secondary" className="bg-slate-200 dark:bg-gray-700 text-slate-600 dark:text-gray-300 border-slate-300 dark:border-gray-600 shadow-sm">
                               Inactive
                             </Badge>
                           )}
@@ -909,27 +1142,27 @@ export default function ProductsPage() {
                       </TableCell>
                     )}
                     {visibleColumns.includes('category') && (
-                      <TableCell className={`text-sm ${product.isActive ? 'text-slate-700' : 'text-slate-500'}`}>
-                        {product.category?.name || <span className="text-slate-400">-</span>}
+                      <TableCell className={`text-sm ${product.isActive ? 'text-slate-700 dark:text-gray-300' : 'text-slate-500 dark:text-gray-500'}`}>
+                        {product.category?.name || <span className="text-slate-400 dark:text-gray-600">-</span>}
                       </TableCell>
                     )}
                     {visibleColumns.includes('brand') && (
-                      <TableCell className={`text-sm ${product.isActive ? 'text-slate-700' : 'text-slate-500'}`}>
-                        {product.brand?.name || <span className="text-slate-400">-</span>}
+                      <TableCell className={`text-sm ${product.isActive ? 'text-slate-700 dark:text-gray-300' : 'text-slate-500 dark:text-gray-500'}`}>
+                        {product.brand?.name || <span className="text-slate-400 dark:text-gray-600">-</span>}
                       </TableCell>
                     )}
                     {visibleColumns.includes('unit') && (
-                      <TableCell className={`text-sm ${product.isActive ? 'text-slate-700' : 'text-slate-500'}`}>
-                        {product.unit?.shortName || <span className="text-slate-400">-</span>}
+                      <TableCell className={`text-sm ${product.isActive ? 'text-slate-700 dark:text-gray-300' : 'text-slate-500 dark:text-gray-500'}`}>
+                        {product.unit?.shortName || <span className="text-slate-400 dark:text-gray-600">-</span>}
                       </TableCell>
                     )}
                     {can(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE) && visibleColumns.includes('purchasePrice') && (
-                      <TableCell className={`text-sm font-medium ${product.isActive ? 'text-slate-900' : 'text-slate-500'}`}>
+                      <TableCell className={`text-sm font-medium ${product.isActive ? 'text-slate-900 dark:text-gray-100' : 'text-slate-500 dark:text-gray-500'}`}>
                         <span className="font-mono">{product.purchasePrice ? Number(product.purchasePrice).toFixed(2) : '0.00'}</span>
                       </TableCell>
                     )}
                     {visibleColumns.includes('sellingPrice') && (
-                      <TableCell className={`text-sm font-medium ${product.isActive ? 'text-slate-900' : 'text-slate-500'}`}>
+                      <TableCell className={`text-sm font-medium ${product.isActive ? 'text-slate-900 dark:text-gray-100' : 'text-slate-500 dark:text-gray-500'}`}>
                         <span className="font-mono">{product.sellingPrice ? Number(product.sellingPrice).toFixed(2) : '0.00'}</span>
                       </TableCell>
                     )}
@@ -942,16 +1175,16 @@ export default function ProductsPage() {
                       <TableCell>
                         <Badge className={`shadow-sm ${
                           product.type === 'single'
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                            : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
+                            ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/50'
+                            : 'bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-700 hover:bg-purple-100 dark:hover:bg-purple-900/50'
                         }`}>
                           {product.type}
                         </Badge>
                       </TableCell>
                     )}
                     {visibleColumns.includes('tax') && (
-                      <TableCell className={`text-sm ${product.isActive ? 'text-slate-700' : 'text-slate-500'}`}>
-                        {product.tax ? `${product.tax.name} (${product.tax.amount}%)` : <span className="text-slate-400">-</span>}
+                      <TableCell className={`text-sm ${product.isActive ? 'text-slate-700 dark:text-gray-300' : 'text-slate-500 dark:text-gray-500'}`}>
+                        {product.tax ? `${product.tax.name} (${product.tax.amount}%)` : <span className="text-slate-400 dark:text-gray-600">-</span>}
                       </TableCell>
                     )}
                   </TableRow>
@@ -959,14 +1192,15 @@ export default function ProductsPage() {
               )}
             </TableBody>
           </Table>
+          </div>
 
           {/* Bulk Action Buttons */}
           {selectedProductIds.length > 0 && (
-            <div className="px-6 py-5 border-t border-slate-200 bg-gradient-to-r from-blue-50/50 to-slate-50/50">
+            <div className="px-6 py-5 border-t border-slate-200 dark:border-gray-700 bg-gradient-to-r from-blue-50/50 to-slate-50/50 dark:from-gray-800/50 dark:to-gray-800/30">
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
-                    <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-base px-3 py-1">
+                    <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-700 text-base px-3 py-1">
                       {selectedProductIds.length} selected
                     </Badge>
                   </div>
@@ -974,7 +1208,7 @@ export default function ProductsPage() {
                     onClick={() => setSelectedProductIds([])}
                     variant="ghost"
                     size="sm"
-                    className="text-slate-600 hover:text-slate-900"
+                    className="text-slate-600 dark:text-gray-300 hover:text-slate-900 dark:hover:text-gray-100"
                   >
                     Clear selection
                   </Button>
@@ -1063,9 +1297,10 @@ export default function ProductsPage() {
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={setCurrentPage}
-            className="px-6 py-4 border-t border-slate-200 bg-gradient-to-r from-slate-50 to-blue-50/30"
+            className="px-6 py-4 border-t border-slate-200 dark:border-gray-700 bg-gradient-to-r from-slate-50 to-blue-50/30 dark:from-gray-800/50 dark:to-gray-800/30"
           />
-        </Card>
+          </Card>
+        </div>
       )}
 
       {/* Add to Location Modal */}

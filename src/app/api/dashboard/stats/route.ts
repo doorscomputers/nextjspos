@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getUserAccessibleLocationIds } from '@/lib/rbac'
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,11 +23,66 @@ export async function GET(request: NextRequest) {
     const businessId = parseInt(session.user.businessId)
     const userId = parseInt(session.user.id)
 
+    // Automatic location filtering based on user's assigned locations
+    const accessibleLocationIds = getUserAccessibleLocationIds({
+      id: session.user.id,
+      permissions: session.user.permissions || [],
+      roles: session.user.roles || [],
+      businessId: session.user.businessId,
+      locationIds: session.user.locationIds || []
+    })
+
+    // Get all locations for this business
+    const businessLocations = await prisma.businessLocation.findMany({
+      where: { businessId, deletedAt: null },
+      select: { id: true }
+    })
+    const businessLocationIds = businessLocations.map(loc => loc.id)
+
     // Build where clause for filtering
     const whereClause: any = { businessId }
 
-    if (locationId && locationId !== 'all') {
-      whereClause.locationId = parseInt(locationId)
+    // Apply automatic location filtering
+    if (accessibleLocationIds !== null) {
+      const normalizedLocationIds = accessibleLocationIds
+        .map((id) => Number(id))
+        .filter((id): id is number => Number.isFinite(id) && Number.isInteger(id))
+        .filter((id) => businessLocationIds.includes(id))
+
+      if (normalizedLocationIds.length === 0) {
+        // User has no location access - use first business location or return empty
+        if (businessLocationIds.length > 0) {
+          whereClause.locationId = businessLocationIds[0]
+        }
+      } else if (normalizedLocationIds.length === 1) {
+        // User has access to only one location - auto-filter to that location
+        whereClause.locationId = normalizedLocationIds[0]
+      } else {
+        // User has access to multiple locations
+        // Use the first accessible location if no specific location is provided
+        if (!locationId || locationId === 'all') {
+          whereClause.locationId = normalizedLocationIds[0]
+        } else {
+          const requestedLocationId = parseInt(locationId)
+          if (normalizedLocationIds.includes(requestedLocationId)) {
+            whereClause.locationId = requestedLocationId
+          } else {
+            // User requested a location they don't have access to - use first accessible
+            whereClause.locationId = normalizedLocationIds[0]
+          }
+        }
+      }
+    } else {
+      // User has access to all locations
+      if (locationId && locationId !== 'all') {
+        const requestedLocationId = parseInt(locationId)
+        if (businessLocationIds.includes(requestedLocationId)) {
+          whereClause.locationId = requestedLocationId
+        }
+      } else if (businessLocationIds.length > 0) {
+        // Default to first business location for "Sales Today"
+        whereClause.locationId = businessLocationIds[0]
+      }
     }
 
     const dateFilter: any = {}
@@ -201,20 +257,45 @@ export async function GET(request: NextRequest) {
       })
       .slice(0, 10) // Take top 10 after filtering
 
-    // Pending Shipments (Stock Transfers in transit) - TODO: Fix relation names
-    const pendingShipments: any[] = [] // Placeholder until StockTransfer relations are fixed
-    // const pendingShipments = await prisma.stockTransfer.findMany({
-    //   where: {
-    //     businessId,
-    //     status: { in: ['submitted', 'checked', 'approved', 'sent', 'arrived'] },
-    //   },
-    //   include: {
-    //     fromLocation: { select: { name: true } },
-    //     toLocation: { select: { name: true } },
-    //   },
-    //   orderBy: { createdAt: 'desc' },
-    //   take: 10,
-    //   })
+    // Pending Shipments (Stock Transfers in transit or pending)
+    // Show transfers that are not yet completed, cancelled, or received
+    // Filter by user's accessible locations (either fromLocation or toLocation)
+    const transferWhereClause: any = {
+      businessId,
+      status: {
+        notIn: ['completed', 'cancelled']
+      },
+      // Exclude transfers that have been received (receivedAt is set)
+      receivedAt: null,
+      // Exclude transfers that have been completed (completedAt is set)
+      completedAt: null,
+    }
+
+    // Apply location filtering for transfers
+    // Show transfers where user has access to either source or destination location
+    if (accessibleLocationIds !== null) {
+      const normalizedLocationIds = accessibleLocationIds
+        .map((id) => Number(id))
+        .filter((id): id is number => Number.isFinite(id) && Number.isInteger(id))
+        .filter((id) => businessLocationIds.includes(id))
+
+      if (normalizedLocationIds.length > 0) {
+        transferWhereClause.OR = [
+          { fromLocationId: { in: normalizedLocationIds } },
+          { toLocationId: { in: normalizedLocationIds } },
+        ]
+      }
+    }
+
+    const pendingShipments = await prisma.stockTransfer.findMany({
+      where: transferWhereClause,
+      include: {
+        fromLocation: { select: { name: true } },
+        toLocation: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    })
 
     // Sales Payment Due
     const salesPaymentDue = await prisma.sale.findMany({

@@ -229,7 +229,7 @@ async function main() {
 
   // Assign permissions to Branch Admin Role
   const branchAdminPermissions = permissionRecords.filter((p) =>
-    DEFAULT_ROLES.BRANCH_ADMIN.permissions.includes(p.name)
+    (DEFAULT_ROLES.BRANCH_ADMIN.permissions as any).includes(p.name)
   )
   for (const permission of branchAdminPermissions) {
     await prisma.rolePermission.upsert({
@@ -249,7 +249,7 @@ async function main() {
 
   // Assign permissions to Branch Manager Role
   const branchManagerPermissions = permissionRecords.filter((p) =>
-    DEFAULT_ROLES.BRANCH_MANAGER.permissions.includes(p.name)
+    (DEFAULT_ROLES.BRANCH_MANAGER.permissions as any).includes(p.name)
   )
   for (const permission of branchManagerPermissions) {
     await prisma.rolePermission.upsert({
@@ -269,7 +269,7 @@ async function main() {
 
   // Assign permissions to Accounting Staff Role
   const accountingStaffPermissions = permissionRecords.filter((p) =>
-    DEFAULT_ROLES.ACCOUNTING_STAFF.permissions.includes(p.name)
+    (DEFAULT_ROLES.ACCOUNTING_STAFF.permissions as any).includes(p.name)
   )
   for (const permission of accountingStaffPermissions) {
     await prisma.rolePermission.upsert({
@@ -289,7 +289,7 @@ async function main() {
 
   // Assign permissions to Regular Staff Role
   const regularStaffPermissions = permissionRecords.filter((p) =>
-    DEFAULT_ROLES.REGULAR_STAFF.permissions.includes(p.name)
+    (DEFAULT_ROLES.REGULAR_STAFF.permissions as any).includes(p.name)
   )
   for (const permission of regularStaffPermissions) {
     await prisma.rolePermission.upsert({
@@ -309,7 +309,7 @@ async function main() {
 
   // Assign permissions to Cashier Role
   const cashierPermissions = permissionRecords.filter((p) =>
-    DEFAULT_ROLES.CASHIER.permissions.includes(p.name)
+    (DEFAULT_ROLES.CASHIER.permissions as any).includes(p.name)
   )
   for (const permission of cashierPermissions) {
     await prisma.rolePermission.upsert({

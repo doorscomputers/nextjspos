@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth'
+import { useSession } from 'next-auth/react'
 import { useRouter, useParams } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { Button } from '@/components/ui/button'
@@ -68,6 +68,14 @@ interface PurchaseReturn {
     condition: string
     notes?: string
     serialNumbers?: any
+    product: {
+      id: number
+      name: string
+    }
+    productVariation: {
+      id: number
+      name: string
+    }
     purchaseReceiptItem: {
       id: number
       productId: number
@@ -411,9 +419,9 @@ export default function ReturnDetailPage() {
                     >
                       <TableCell className="text-gray-900 dark:text-white">
                         <div>
-                          <p className="font-medium">Product #{item.productId}</p>
+                          <p className="font-medium">{item.product.name}</p>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
-                            Variation #{item.productVariationId}
+                            {item.productVariation.name}
                           </p>
                           {item.notes && (
                             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">

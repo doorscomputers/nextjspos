@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const businessId = user.businessId
 
     // Check permission
-    if (!user.permissions?.includes(PERMISSIONS.REPORT_VIEW)) {
+    if (!user.permissions?.includes(PERMISSIONS.REPORT_SALES_TODAY)) {
       return NextResponse.json(
         { error: 'Forbidden - Insufficient permissions' },
         { status: 403 }

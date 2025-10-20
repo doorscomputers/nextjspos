@@ -57,6 +57,19 @@ export async function GET(
         items: {
           include: {
             receiptItems: true,
+            product: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+              },
+            },
+            productVariation: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
       },
@@ -69,38 +82,59 @@ export async function GET(
       )
     }
 
-    // Manually fetch product and variation details for each item
-    const itemsWithDetails = await Promise.all(
-      purchase.items.map(async (item) => {
-        const product = await prisma.product.findUnique({
-          where: { id: item.productId },
-          select: {
-            id: true,
-            name: true,
-            sku: true,
-            enableProductInfo: true,
-          },
-        })
-
-        const variation = await prisma.productVariation.findUnique({
-          where: { id: item.productVariationId },
-          select: {
-            id: true,
-            name: true,
-          },
-        })
-
-        return {
-          ...item,
-          product,
-          variation,
-        }
-      })
-    )
+    const [business, location] = await Promise.all([
+      prisma.business.findUnique({
+        where: { id: purchase.businessId },
+        select: {
+          name: true,
+          taxLabel1: true,
+          taxNumber1: true,
+          taxLabel2: true,
+          taxNumber2: true,
+        },
+      }),
+      prisma.businessLocation.findUnique({
+        where: { id: purchase.locationId },
+        select: {
+          id: true,
+          name: true,
+          landmark: true,
+          country: true,
+          state: true,
+          city: true,
+          zipCode: true,
+          mobile: true,
+          alternateNumber: true,
+          email: true,
+        },
+      }),
+    ])
 
     const purchaseWithDetails = {
       ...purchase,
-      items: itemsWithDetails,
+      business: business
+        ? {
+            name: business.name,
+            taxNumberPrimary: business.taxNumber1,
+            taxLabelPrimary: business.taxLabel1,
+            taxNumberSecondary: business.taxNumber2,
+            taxLabelSecondary: business.taxLabel2,
+          }
+        : null,
+      location: location
+        ? {
+            id: location.id,
+            name: location.name,
+            landmark: location.landmark,
+            country: location.country,
+            state: location.state,
+            city: location.city,
+            zipCode: location.zipCode,
+            mobile: location.mobile,
+            alternateNumber: location.alternateNumber,
+            email: location.email,
+          }
+        : null,
     }
 
     return NextResponse.json({ data: purchaseWithDetails })

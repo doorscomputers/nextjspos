@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { getManilaDate } from '@/lib/timezone'
 
 // GET - List all purchase orders
 export async function GET(request: NextRequest) {
@@ -171,7 +172,6 @@ export async function POST(request: NextRequest) {
     const {
       locationId,
       supplierId,
-      purchaseDate,
       expectedDeliveryDate,
       items, // Array of { productId, productVariationId, quantity, unitCost, requiresSerial }
       taxAmount = 0,
@@ -181,9 +181,9 @@ export async function POST(request: NextRequest) {
     } = body
 
     // Validation
-    if (!locationId || !supplierId || !purchaseDate || !items || items.length === 0) {
+    if (!locationId || !supplierId || !items || items.length === 0) {
       return NextResponse.json(
-        { error: 'Missing required fields: locationId, supplierId, purchaseDate, items' },
+        { error: 'Missing required fields: locationId, supplierId, items' },
         { status: 400 }
       )
     }
@@ -223,16 +223,9 @@ export async function POST(request: NextRequest) {
     // Check location access
     const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
     if (!hasAccessAllLocations) {
-      const userLocation = await prisma.userLocation.findUnique({
-        where: {
-          userId_locationId: {
-            userId: parseInt(userId),
-            locationId: parseInt(locationId),
-          },
-        },
-      })
+      const userLocationIds = user.locationIds || []
 
-      if (!userLocation) {
+      if (!userLocationIds.includes(parseInt(locationId))) {
         return NextResponse.json(
           { error: 'You do not have access to this location' },
           { status: 403 }
@@ -303,7 +296,7 @@ export async function POST(request: NextRequest) {
           locationId: parseInt(locationId),
           supplierId: parseInt(supplierId),
           purchaseOrderNumber: poNumber,
-          purchaseDate: new Date(purchaseDate),
+          purchaseDate: getManilaDate(), // MANILA TIMEZONE (UTC+8) - prevents backdating fraud
           expectedDeliveryDate: expectedDeliveryDate ? new Date(expectedDeliveryDate) : null,
           status: 'pending',
           subtotal,

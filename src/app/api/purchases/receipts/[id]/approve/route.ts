@@ -4,7 +4,9 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { processPurchaseReceipt } from '@/lib/stockOperations'
 import { SerialNumberCondition } from '@/lib/serialNumber'
+import { withIdempotency } from '@/lib/idempotency'
 
 /**
  * POST /api/purchases/receipts/[id]/approve
@@ -15,8 +17,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const session = await getServerSession(authOptions)
+  const { id: receiptId } = await params
+  return withIdempotency(request, `/api/purchases/receipts/${receiptId}/approve`, async () => {
+    try {
+      const session = await getServerSession(authOptions)
 
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -25,7 +29,13 @@ export async function POST(
     const user = session.user as any
     const businessId = user.businessId
     const userId = user.id
-    const { id: receiptId } = await params
+    const businessIdNumber = Number(businessId)
+    const userIdNumber = Number(userId)
+    const userDisplayName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+      user.username ||
+      `User#${userIdNumber}`
+    const receiptIdNumber = Number(receiptId)
 
     // Check permission - user must have approval permission
     if (!user.permissions?.includes(PERMISSIONS.PURCHASE_RECEIPT_APPROVE)) {
@@ -38,8 +48,8 @@ export async function POST(
     // Fetch receipt with all details
     const receipt = await prisma.purchaseReceipt.findFirst({
       where: {
-        id: parseInt(receiptId),
-        businessId: parseInt(businessId),
+        id: receiptIdNumber,
+        businessId: businessIdNumber,
       },
       include: {
         purchase: {
@@ -82,16 +92,9 @@ export async function POST(
     // Verify location access
     const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
     if (!hasAccessAllLocations) {
-      const userLocation = await prisma.userLocation.findUnique({
-        where: {
-          userId_locationId: {
-            userId: parseInt(userId),
-            locationId: receipt.locationId,
-          },
-        },
-      })
+      const userLocationIds = user.locationIds || []
 
-      if (!userLocation) {
+      if (!userLocationIds.includes(receipt.locationId)) {
         return NextResponse.json(
           { error: 'You do not have access to this location' },
           { status: 403 }
@@ -110,7 +113,7 @@ export async function POST(
           const existing = await prisma.productSerialNumber.findUnique({
             where: {
               businessId_serialNumber: {
-                businessId: parseInt(businessId),
+                businessId: businessIdNumber,
                 serialNumber: serialNumber,
               },
             },
@@ -138,55 +141,23 @@ export async function POST(
 
         const quantity = parseFloat(item.quantityReceived.toString())
 
-        // Get current stock before creating transaction
-        const currentStock = await tx.variationLocationDetails.findUnique({
-          where: {
-            productVariationId_locationId: {
-              productVariationId: item.productVariationId,
-              locationId: receipt.locationId,
-            },
-          },
-        })
+        const unitCost = parseFloat(purchaseItem.unitCost.toString())
 
-        const newQty = currentStock
-          ? parseFloat(currentStock.qtyAvailable.toString()) + quantity
-          : quantity
-
-        // Create stock transaction with correct balance
-        await tx.stockTransaction.create({
-          data: {
-            businessId: parseInt(businessId),
+        if (quantity > 0) {
+          await processPurchaseReceipt({
+            businessId: businessIdNumber,
             productId: item.productId,
             productVariationId: item.productVariationId,
             locationId: receipt.locationId,
-            type: 'purchase',
-            quantity: quantity,
-            unitCost: parseFloat(purchaseItem.unitCost.toString()),
-            balanceQty: newQty, // Running balance after this transaction
-            referenceType: 'purchase',
-            referenceId: receipt.id,
-            createdBy: parseInt(userId),
-            notes: `Approved GRN ${receipt.receiptNumber} - PO ${receipt.purchase.purchaseOrderNumber}`,
-          },
-        })
-
-        await tx.variationLocationDetails.upsert({
-          where: {
-            productVariationId_locationId: {
-              productVariationId: item.productVariationId,
-              locationId: receipt.locationId,
-            },
-          },
-          update: {
-            qtyAvailable: newQty,
-          },
-          create: {
-            productId: item.productId,
-            productVariationId: item.productVariationId,
-            locationId: receipt.locationId,
-            qtyAvailable: newQty,
-          },
-        })
+            quantity,
+            unitCost,
+            purchaseId: receipt.purchaseId,
+            receiptId: receipt.id,
+            userId: userIdNumber,
+            userDisplayName,
+            tx,
+          })
+        }
 
         // Create serial number records if required
         if (purchaseItem.requiresSerial && item.serialNumbers) {
@@ -197,7 +168,7 @@ export async function POST(
             const serialNumberRecord = await tx.productSerialNumber.upsert({
               where: {
                 businessId_serialNumber: {
-                  businessId: parseInt(businessId),
+                  businessId: businessIdNumber,
                   serialNumber: sn.serialNumber,
                 },
               },
@@ -213,7 +184,7 @@ export async function POST(
                 purchaseCost: parseFloat(purchaseItem.unitCost.toString()),
               },
               create: {
-                businessId: parseInt(businessId),
+                businessId: businessIdNumber,
                 productId: item.productId,
                 productVariationId: item.productVariationId,
                 serialNumber: sn.serialNumber,
@@ -238,7 +209,7 @@ export async function POST(
                 toLocationId: receipt.locationId,
                 referenceType: 'purchase',
                 referenceId: receipt.id,
-                movedBy: parseInt(userId),
+                movedBy: userIdNumber,
                 notes: `Approved via ${receipt.receiptNumber}`,
               },
             })
@@ -332,7 +303,7 @@ export async function POST(
         where: { id: receipt.id },
         data: {
           status: 'approved',
-          approvedBy: parseInt(userId),
+          approvedBy: userIdNumber,
           approvedAt: new Date(),
         },
         include: {
@@ -373,7 +344,7 @@ export async function POST(
           // Create accounts payable entry
           await tx.accountsPayable.create({
             data: {
-              businessId: parseInt(businessId),
+              businessId: businessIdNumber,
               purchaseId: receipt.purchaseId,
               supplierId: receipt.purchase.supplierId,
               invoiceNumber: receipt.purchase.purchaseOrderNumber, // Use PO number as default, can be updated later
@@ -393,13 +364,13 @@ export async function POST(
 
       return approved
     }, {
-      timeout: 30000, // 30 seconds timeout
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     // Create audit log
     await createAuditLog({
-      businessId: parseInt(businessId),
-      userId: parseInt(userId),
+      businessId: businessIdNumber,
+      userId: userIdNumber,
       username: user.username,
       action: 'purchase_receipt_approve' as AuditAction,
       entityType: EntityType.PURCHASE,
@@ -419,7 +390,7 @@ export async function POST(
           0
         ),
         receivedBy: receipt.receivedBy,
-        approvedBy: parseInt(userId),
+        approvedBy: userIdNumber,
       },
       ipAddress: getIpAddress(request),
       userAgent: getUserAgent(request),
@@ -436,4 +407,5 @@ export async function POST(
       { status: 500 }
     )
   }
+  }) // Close idempotency wrapper
 }

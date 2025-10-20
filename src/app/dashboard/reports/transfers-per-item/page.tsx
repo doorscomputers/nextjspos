@@ -1,0 +1,676 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { usePermissions } from '@/hooks/usePermissions'
+import { PERMISSIONS } from '@/lib/rbac'
+import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
+import DataGrid, {
+  Column,
+  Export,
+  FilterRow,
+  Grouping,
+  GroupPanel,
+  Pager,
+  Paging,
+  SearchPanel,
+  Summary,
+  TotalItem,
+  GroupItem,
+  Sorting,
+  HeaderFilter,
+  ColumnChooser,
+  ColumnFixing,
+  StateStoring,
+} from 'devextreme-react/data-grid'
+import { Workbook } from 'exceljs'
+import { saveAs } from 'file-saver'
+import { exportDataGrid } from 'devextreme/excel_exporter'
+
+export default function TransfersPerItemReport() {
+  const { can } = usePermissions()
+  const [reportData, setReportData] = useState<any[]>([])
+  const [summary, setSummary] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [locations, setLocations] = useState<any[]>([])
+  const [products, setProducts] = useState<any[]>([])
+  const [productSearch, setProductSearch] = useState('')
+
+  // Filter state
+  const [dateRangePreset, setDateRangePreset] = useState('custom')
+  const [filters, setFilters] = useState({
+    startDate: '',
+    endDate: '',
+    productId: '',
+    fromLocationId: '',
+    toLocationId: '',
+    status: 'all',
+  })
+
+  // Date range presets
+  const getDateRange = (preset: string) => {
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+
+    const startOfWeek = new Date(today)
+    startOfWeek.setDate(today.getDate() - today.getDay())
+
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+
+    const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+    const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0)
+
+    const formatDate = (date: Date) => date.toISOString().split('T')[0]
+
+    switch (preset) {
+      case 'today':
+        return { startDate: formatDate(today), endDate: formatDate(today) }
+      case 'yesterday':
+        return { startDate: formatDate(yesterday), endDate: formatDate(yesterday) }
+      case 'this_week':
+        return { startDate: formatDate(startOfWeek), endDate: formatDate(today) }
+      case 'this_month':
+        return { startDate: formatDate(startOfMonth), endDate: formatDate(today) }
+      case 'last_month':
+        return { startDate: formatDate(startOfLastMonth), endDate: formatDate(endOfLastMonth) }
+      case 'custom':
+      default:
+        return { startDate: filters.startDate, endDate: filters.endDate }
+    }
+  }
+
+  const handleDateRangePresetChange = (preset: string) => {
+    setDateRangePreset(preset)
+    if (preset !== 'custom') {
+      const { startDate, endDate } = getDateRange(preset)
+      setFilters({ ...filters, startDate, endDate })
+    }
+  }
+
+  // Filter products based on search
+  const filteredProducts = products.filter(product =>
+    product.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+    (product.sku && product.sku.toLowerCase().includes(productSearch.toLowerCase()))
+  )
+
+  useEffect(() => {
+    fetchLocations()
+    fetchProducts()
+    generateReport()
+  }, [])
+
+  const fetchLocations = async () => {
+    try {
+      const response = await fetch('/api/locations')
+      const data = await response.json()
+      if (response.ok) {
+        setLocations(data.locations || [])
+      }
+    } catch (error) {
+      console.error('Error fetching locations:', error)
+    }
+  }
+
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch('/api/products')
+      const data = await response.json()
+      if (response.ok) {
+        setProducts(data.products || [])
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error)
+    }
+  }
+
+  const generateReport = async () => {
+    try {
+      setLoading(true)
+
+      const params = new URLSearchParams()
+      if (filters.startDate) params.append('startDate', filters.startDate)
+      if (filters.endDate) params.append('endDate', filters.endDate)
+      if (filters.productId) params.append('productId', filters.productId)
+      if (filters.fromLocationId) params.append('fromLocationId', filters.fromLocationId)
+      if (filters.toLocationId) params.append('toLocationId', filters.toLocationId)
+      if (filters.status) params.append('status', filters.status)
+
+      const response = await fetch(`/api/reports/transfers-per-item?${params}`)
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        setReportData(result.data)
+        setSummary(result.summary)
+        toast.success(`Report generated: ${result.data.length} records found`)
+      } else {
+        toast.error(result.error || 'Failed to generate report')
+      }
+    } catch (error) {
+      console.error('Error generating report:', error)
+      toast.error('Failed to generate report')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const onExporting = useCallback((e: any) => {
+    const workbook = new Workbook()
+    const worksheet = workbook.addWorksheet('Transfers per Item')
+
+    exportDataGrid({
+      component: e.component,
+      worksheet,
+      autoFilterEnabled: true,
+      customizeCell: ({ gridCell, excelCell }: any) => {
+        if (gridCell.rowType === 'data') {
+          // Format dates
+          if (gridCell.column.dataField?.includes('Date') || gridCell.column.dataField?.includes('At')) {
+            if (gridCell.value) {
+              excelCell.value = new Date(gridCell.value)
+              excelCell.numFmt = 'yyyy-mm-dd hh:mm:ss'
+            }
+          }
+          // Format numbers
+          if (gridCell.column.dataField?.includes('quantity') || gridCell.column.dataField?.includes('Quantity')) {
+            if (typeof gridCell.value === 'number') {
+              excelCell.numFmt = '#,##0.00'
+            }
+          }
+        }
+      }
+    }).then(() => {
+      workbook.xlsx.writeBuffer().then((buffer) => {
+        saveAs(
+          new Blob([buffer], { type: 'application/octet-stream' }),
+          `Transfers_per_Item_${new Date().toISOString().split('T')[0]}.xlsx`
+        )
+      })
+    })
+  }, [])
+
+  if (!can(PERMISSIONS.STOCK_TRANSFER_VIEW)) {
+    return (
+      <div className="p-8">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-4 py-3 rounded">
+          You do not have permission to view transfer reports.
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Transfers per Item Report</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">
+          Detailed view of all stock transfers with item-level information
+        </p>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-4">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Filters</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Date Range Preset */}
+          <div className="md:col-span-3">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Date Range
+            </label>
+            <select
+              value={dateRangePreset}
+              onChange={(e) => handleDateRangePresetChange(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            >
+              <option value="today">Today</option>
+              <option value="yesterday">Yesterday</option>
+              <option value="this_week">This Week</option>
+              <option value="this_month">This Month</option>
+              <option value="last_month">Last Month</option>
+              <option value="custom">Custom Range</option>
+            </select>
+          </div>
+
+          {/* Custom Date Range - Only show when Custom is selected */}
+          {dateRangePreset === 'custom' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  value={filters.startDate}
+                  onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  value={filters.endDate}
+                  onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                />
+              </div>
+            </>
+          )}
+
+          {/* Product Filter with Search */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Product
+            </label>
+            <div className="space-y-2">
+              <input
+                type="text"
+                placeholder="Search products..."
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              />
+              <select
+                value={filters.productId}
+                onChange={(e) => setFilters({ ...filters, productId: e.target.value })}
+                size={5}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              >
+                <option value="">All Products</option>
+                {filteredProducts.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name} {product.sku ? `(${product.sku})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* From Location */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              From Location
+            </label>
+            <select
+              value={filters.fromLocationId}
+              onChange={(e) => setFilters({ ...filters, fromLocationId: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            >
+              <option value="">All Locations</option>
+              {locations.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* To Location */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              To Location
+            </label>
+            <select
+              value={filters.toLocationId}
+              onChange={(e) => setFilters({ ...filters, toLocationId: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            >
+              <option value="">All Locations</option>
+              {locations.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Status
+            </label>
+            <select
+              value={filters.status}
+              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+            >
+              <option value="all">All Statuses</option>
+              <option value="draft">Draft</option>
+              <option value="pending_check">Pending Check</option>
+              <option value="checked">Checked</option>
+              <option value="in_transit">In Transit</option>
+              <option value="arrived">Arrived</option>
+              <option value="verifying">Verifying</option>
+              <option value="verified">Verified</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex gap-3">
+          <Button
+            onClick={generateReport}
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {loading ? 'Generating...' : 'Generate Report'}
+          </Button>
+
+          <Button
+            onClick={() => {
+              setFilters({
+                startDate: '',
+                endDate: '',
+                productId: '',
+                fromLocationId: '',
+                toLocationId: '',
+                status: 'all',
+              })
+              setDateRangePreset('custom')
+              setProductSearch('')
+            }}
+            variant="outline"
+          >
+            Clear Filters
+          </Button>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      {summary && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+              <div className="text-sm text-gray-500 dark:text-gray-400">Total Transfers</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{summary.totalTransfers}</div>
+            </div>
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+              <div className="text-sm text-gray-500 dark:text-gray-400">Total Items</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{summary.totalItems}</div>
+            </div>
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+              <div className="text-sm text-gray-500 dark:text-gray-400">Quantity Sent</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {summary.totalQuantitySent.toLocaleString()}
+              </div>
+            </div>
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+              <div className="text-sm text-gray-500 dark:text-gray-400">Quantity Received</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {summary.totalQuantityReceived.toLocaleString()}
+              </div>
+            </div>
+          </div>
+
+          {/* Transfer Flow Summary - Shows quantities by From/To Location */}
+          {(filters.fromLocationId || filters.toLocationId) && (
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-6 rounded-lg shadow border-2 border-blue-200 dark:border-blue-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                📊 Transfer Flow Summary
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filters.fromLocationId && summary.byFromLocation && (
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg">
+                    <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                      From: {locations.find(l => l.id === parseInt(filters.fromLocationId))?.name}
+                    </div>
+                    <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                      {summary.byFromLocation[locations.find(l => l.id === parseInt(filters.fromLocationId))?.name]?.toLocaleString() || 0} units
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total sent</div>
+                  </div>
+                )}
+                {filters.toLocationId && summary.byToLocation && (
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg">
+                    <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+                      To: {locations.find(l => l.id === parseInt(filters.toLocationId))?.name}
+                    </div>
+                    <div className="text-3xl font-bold text-green-600 dark:text-green-400">
+                      {summary.byToLocation[locations.find(l => l.id === parseInt(filters.toLocationId))?.name]?.toLocaleString() || 0} units
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total received</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* DataGrid */}
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+        <DataGrid
+          dataSource={reportData}
+          showBorders={true}
+          showRowLines={true}
+          showColumnLines={true}
+          rowAlternationEnabled={true}
+          allowColumnReordering={true}
+          allowColumnResizing={true}
+          columnAutoWidth={true}
+          wordWrapEnabled={false}
+          onExporting={onExporting}
+        >
+          <StateStoring enabled={true} type="localStorage" storageKey="transfersPerItemGrid" />
+          <Export enabled={true} allowExportSelectedData={true} />
+          <FilterRow visible={true} />
+          <HeaderFilter visible={true} />
+          <SearchPanel visible={true} width={240} placeholder="Search..." />
+          <GroupPanel visible={true} />
+          <Grouping autoExpandAll={false} />
+          <ColumnChooser enabled={true} mode="select" />
+          <ColumnFixing enabled={true} />
+
+          <Sorting mode="multiple" />
+
+          <Paging defaultPageSize={20} />
+          <Pager
+            visible={true}
+            allowedPageSizes={[10, 20, 50, 100]}
+            showPageSizeSelector={true}
+            showInfo={true}
+            showNavigationButtons={true}
+          />
+
+          {/* Transfer Information */}
+          <Column
+            dataField="transferNumber"
+            caption="Transfer #"
+            width={150}
+            fixed={true}
+          />
+          <Column
+            dataField="transferDateFormatted"
+            caption="Transfer Date"
+            dataType="date"
+            width={120}
+          />
+          <Column
+            dataField="statusLabel"
+            caption="Status"
+            width={120}
+          />
+
+          {/* Product Information */}
+          <Column caption="Product" alignment="left">
+            <Column
+              dataField="productName"
+              caption="Product Name"
+              minWidth={200}
+            />
+            <Column
+              dataField="productSku"
+              caption="Product SKU"
+              width={120}
+            />
+            <Column
+              dataField="variationName"
+              caption="Variation"
+              width={150}
+            />
+            <Column
+              dataField="variationSku"
+              caption="Variation SKU"
+              width={120}
+            />
+          </Column>
+
+          {/* Location Information */}
+          <Column caption="Locations" alignment="left">
+            <Column
+              dataField="fromLocationName"
+              caption="From"
+              width={150}
+            />
+            <Column
+              dataField="toLocationName"
+              caption="To"
+              width={150}
+            />
+          </Column>
+
+          {/* Quantity Information */}
+          <Column caption="Quantities" alignment="right">
+            <Column
+              dataField="quantitySent"
+              caption="Sent"
+              dataType="number"
+              format="#,##0.##"
+              width={100}
+            />
+            <Column
+              dataField="quantityReceived"
+              caption="Received"
+              dataType="number"
+              format="#,##0.##"
+              width={100}
+            />
+            <Column
+              dataField="quantityVariance"
+              caption="Variance"
+              dataType="number"
+              format="#,##0.##"
+              width={100}
+              cellRender={(cellData: any) => {
+                if (cellData.value === null) return 'N/A'
+                const variance = cellData.value
+                const color = variance === 0 ? 'text-green-600' : variance > 0 ? 'text-blue-600' : 'text-red-600'
+                return (
+                  <span className={color}>
+                    {variance > 0 ? '+' : ''}{variance.toFixed(2)}
+                  </span>
+                )
+              }}
+            />
+          </Column>
+
+          {/* User IDs */}
+          <Column caption="User IDs" alignment="left">
+            <Column
+              dataField="createdById"
+              caption="Created By ID"
+              width={120}
+              dataType="number"
+            />
+            <Column
+              dataField="sentById"
+              caption="Sent By ID"
+              width={120}
+              dataType="number"
+            />
+            <Column
+              dataField="completedById"
+              caption="Completed By ID"
+              width={120}
+              dataType="number"
+            />
+          </Column>
+
+          {/* Timestamps */}
+          <Column caption="Dates" alignment="left">
+            <Column
+              dataField="createdAtFormatted"
+              caption="Created"
+              dataType="date"
+              width={110}
+            />
+            <Column
+              dataField="completedAtFormatted"
+              caption="Completed"
+              dataType="date"
+              width={110}
+            />
+          </Column>
+
+          {/* Flags */}
+          <Column
+            dataField="verified"
+            caption="Verified"
+            dataType="boolean"
+            width={90}
+          />
+          <Column
+            dataField="hasDiscrepancy"
+            caption="Has Discrepancy"
+            dataType="boolean"
+            width={130}
+          />
+          <Column
+            dataField="stockDeducted"
+            caption="Stock Deducted"
+            dataType="boolean"
+            width={130}
+          />
+
+          {/* Summary */}
+          <Summary>
+            <TotalItem
+              column="transferNumber"
+              summaryType="count"
+              displayFormat="Total: {0}"
+            />
+            <TotalItem
+              column="quantitySent"
+              summaryType="sum"
+              valueFormat="#,##0.##"
+              displayFormat="Sum: {0}"
+            />
+            <TotalItem
+              column="quantityReceived"
+              summaryType="sum"
+              valueFormat="#,##0.##"
+              displayFormat="Sum: {0}"
+            />
+            <TotalItem
+              column="quantityVariance"
+              summaryType="sum"
+              valueFormat="#,##0.##"
+              displayFormat="Sum: {0}"
+            />
+
+            <GroupItem
+              column="quantitySent"
+              summaryType="sum"
+              valueFormat="#,##0.##"
+              displayFormat="Sum: {0}"
+              alignByColumn={true}
+            />
+            <GroupItem
+              column="quantityReceived"
+              summaryType="sum"
+              valueFormat="#,##0.##"
+              displayFormat="Sum: {0}"
+              alignByColumn={true}
+            />
+          </Summary>
+        </DataGrid>
+      </div>
+    </div>
+  )
+}

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,10 +11,11 @@ import { ExportButtons } from "@/components/reports/ExportButtons"
 import {
   ChevronDownIcon,
   ChevronUpIcon,
-  FunnelIcon,
   MagnifyingGlassIcon,
   ArrowPathIcon
 } from "@heroicons/react/24/outline"
+import ReportFilterPanel from "@/components/reports/ReportFilterPanel"
+import { countActiveFilters } from "@/lib/reportFilterUtils"
 
 interface PurchaseReportData {
   purchases: any[]
@@ -129,7 +131,23 @@ export default function PurchasesReportPage() {
     setMinAmount("")
     setMaxAmount("")
     setPage(1)
+    setTimeout(() => {
+      fetchReport()
+    }, 0)
   }
+
+  const activeFilterCount = useMemo(
+    () =>
+      countActiveFilters([
+        () => locationId !== "all",
+        () => supplierId !== "all",
+        () => status !== "all",
+        () => purchaseOrderNumber.trim() !== "",
+        () => Boolean(startDate || endDate),
+        () => Boolean(minAmount || maxAmount),
+      ]),
+    [locationId, supplierId, status, purchaseOrderNumber, startDate, endDate, minAmount, maxAmount]
+  )
 
   const toggleRow = (id: number) => {
     const newExpanded = new Set(expandedRows)
@@ -222,24 +240,16 @@ export default function PurchasesReportPage() {
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Filters</CardTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-              className="hover:bg-gray-100"
-            >
-              <FunnelIcon className="w-5 h-5 mr-2" />
-              {showFilters ? "Hide" : "Show"} Filters
-            </Button>
-          </div>
-        </CardHeader>
-        {showFilters && (
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <ReportFilterPanel
+        isOpen={showFilters}
+        onToggle={() => setShowFilters(!showFilters)}
+        activeCount={activeFilterCount}
+        onClearAll={handleReset}
+        clearLabel="Reset Filters"
+        description="Narrow purchase orders by location, supplier, status, PO number, date range, and amount limits."
+        contentClassName="space-y-4"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Location Filter */}
               <div>
                 <label className="block text-sm font-medium mb-2">Location</label>
@@ -348,41 +358,39 @@ export default function PurchasesReportPage() {
                   onChange={(e) => setMaxAmount(e.target.value)}
                 />
               </div>
-            </div>
+        </div>
 
-            <div className="flex gap-3">
-              <Button
-                onClick={handleSearch}
-                disabled={loading}
-                className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-                size="default"
-              >
-                {loading ? (
-                  <>
-                    <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  <>
-                    <MagnifyingGlassIcon className="w-5 h-5 mr-2" />
-                    Apply Filters
-                  </>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleReset}
-                disabled={loading}
-                className="border-gray-300 hover:bg-gray-50"
-                size="default"
-              >
-                <ArrowPathIcon className="w-5 h-5 mr-2" />
-                Reset Filters
-              </Button>
-            </div>
-          </CardContent>
-        )}
-      </Card>
+        <div className="flex gap-3 flex-wrap">
+          <Button
+            onClick={handleSearch}
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+            size="default"
+          >
+            {loading ? (
+              <>
+                <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
+                Loading...
+              </>
+            ) : (
+              <>
+                <MagnifyingGlassIcon className="w-5 h-5 mr-2" />
+                Apply Filters
+              </>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleReset}
+            disabled={loading}
+            className="border-gray-300 hover:bg-gray-50"
+            size="default"
+          >
+            <ArrowPathIcon className="w-5 h-5 mr-2" />
+            Reset Filters
+          </Button>
+        </div>
+      </ReportFilterPanel>
 
       {/* Summary Cards */}
       {reportData && (
@@ -498,7 +506,14 @@ export default function PurchasesReportPage() {
                     {reportData.purchases.map((purchase) => (
                       <>
                         <tr key={purchase.id} className="border-b hover:bg-muted/50">
-                          <td className="p-3 font-medium">{purchase.purchaseOrderNumber}</td>
+                          <td className="p-3 font-medium">
+                            <Link
+                              href={`/dashboard/purchases/${purchase.id}`}
+                              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                            >
+                              {purchase.purchaseOrderNumber}
+                            </Link>
+                          </td>
                           <td className="p-3">{purchase.purchaseDate}</td>
                           <td className="p-3">{purchase.expectedDeliveryDate || "N/A"}</td>
                           <td className="p-3">{purchase.supplier}</td>

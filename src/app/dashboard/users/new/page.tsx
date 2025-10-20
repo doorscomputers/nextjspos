@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -23,6 +23,20 @@ export default function NewUserPage() {
     allowLogin: true,
   })
 
+  // Check if selected roles require location assignment
+  const locationRequired = useMemo(() => {
+    if (formData.roleIds.length === 0) return true
+
+    const selectedRoles = roles.filter(r => formData.roleIds.includes(r.id))
+    const selectedRoleNames = selectedRoles.map(r => r.name)
+
+    // If user has ANY admin role (Super Admin or Branch Admin), location is NOT required
+    const adminRoles = ['Super Admin', 'Branch Admin', 'All Branch Admin']
+    const hasAdminRole = selectedRoleNames.some(name => adminRoles.includes(name))
+
+    return !hasAdminRole
+  }, [formData.roleIds, roles])
+
   useEffect(() => {
     fetchData()
   }, [])
@@ -34,7 +48,12 @@ export default function NewUserPage() {
         fetch('/api/locations'),
       ])
 
-      if (rolesRes.ok) setRoles(await rolesRes.json())
+      if (rolesRes.ok) {
+        const rolesData = await rolesRes.json()
+        // Sort roles alphabetically by name for easier finding
+        const sortedRoles = rolesData.sort((a: any, b: any) => a.name.localeCompare(b.name))
+        setRoles(sortedRoles)
+      }
 
       if (locationsRes.ok) {
         const locData = await locationsRes.json()
@@ -194,25 +213,40 @@ export default function NewUserPage() {
         </div>
 
         <div>
-          <h3 className="text-sm font-medium mb-3">Assign Location (Branch) *</h3>
+          <h3 className="text-sm font-medium mb-3">
+            Assign Location (Branch) {locationRequired && '*'}
+            {!locationRequired && (
+              <span className="text-xs font-normal text-blue-600 ml-2">
+                (Optional for Admin roles - user can access all locations)
+              </span>
+            )}
+          </h3>
           <p className="text-xs text-gray-500 mb-2">
-            Select the primary location for this user. Each user must be assigned to exactly one location.
+            {locationRequired
+              ? 'Select the primary location for this user. Transactional roles (Cashier, Manager, Staff) require a specific location assignment.'
+              : 'Admin users can work across all locations. Leave empty to grant access to all locations, or select a specific location if needed.'
+            }
           </p>
           <select
             value={formData.locationId || ''}
             onChange={(e) => setFormData({ ...formData, locationId: e.target.value ? parseInt(e.target.value) : null })}
             className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
+            required={locationRequired}
           >
-            <option value="">-- Select Location --</option>
+            <option value="">
+              {locationRequired ? '-- Select Location --' : '-- All Locations (No Restriction) --'}
+            </option>
             {locations.map((location) => (
               <option key={location.id} value={location.id}>
                 {location.name} ({location.city}, {location.state})
               </option>
             ))}
           </select>
-          {!formData.locationId && (
-            <p className="text-sm text-red-500 mt-1">Please select a location</p>
+          {locationRequired && !formData.locationId && (
+            <p className="text-sm text-red-500 mt-1">Please select a location for transactional roles</p>
+          )}
+          {!locationRequired && !formData.locationId && (
+            <p className="text-sm text-blue-600 mt-1">User will have access to all locations within the business</p>
           )}
           {locations.length === 0 && (
             <p className="text-sm text-gray-500 mt-2">No locations available</p>
@@ -222,7 +256,7 @@ export default function NewUserPage() {
         <div className="flex gap-3 pt-4 border-t">
           <button
             type="submit"
-            disabled={submitting || formData.roleIds.length === 0 || !formData.locationId}
+            disabled={submitting || formData.roleIds.length === 0 || (locationRequired && !formData.locationId)}
             className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
           >
             {submitting ? 'Creating...' : 'Create User'}

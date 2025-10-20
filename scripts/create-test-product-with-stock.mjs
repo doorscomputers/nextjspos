@@ -37,7 +37,7 @@ async function main() {
   const variation = await prisma.productVariation.create({
     data: {
       productId: product.id,
-      name: 'DUMMY',
+      name: 'Default',
       sku: product.sku,
       purchasePrice: 50,
       sellingPrice: 75,

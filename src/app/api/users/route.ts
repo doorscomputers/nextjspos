@@ -86,8 +86,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Required fields missing' }, { status: 400 })
     }
 
-    if (!locationId) {
-      return NextResponse.json({ error: 'Location is required. Please select a location for the user.' }, { status: 400 })
+    // Validate location requirement based on assigned roles
+    if (roleIds && Array.isArray(roleIds) && roleIds.length > 0) {
+      // Get role names for the assigned role IDs
+      const assignedRoles = await prisma.role.findMany({
+        where: { id: { in: roleIds } },
+        select: { name: true }
+      })
+
+      const roleNames = assignedRoles.map(r => r.name)
+      const adminRoles = ['Super Admin', 'Branch Admin', 'All Branch Admin']
+      const hasAdminRole = roleNames.some(name => adminRoles.includes(name))
+
+      // Location is ONLY required if user does NOT have an admin role
+      if (!hasAdminRole && !locationId) {
+        return NextResponse.json({
+          error: 'Location is required for transactional roles (Cashier, Manager, Staff). Admin roles can work across all locations.'
+        }, { status: 400 })
+      }
+    } else if (!locationId) {
+      // If no roles assigned, require location
+      return NextResponse.json({ error: 'Location is required when no admin role is assigned.' }, { status: 400 })
     }
 
     // Check if username already exists

@@ -197,14 +197,16 @@ export async function POST(
       }
 
       // Update transfer status to completed - IMMUTABLE from now on
+      const now = new Date()
       const updatedTransfer = await tx.stockTransfer.update({
         where: { id: transferId },
         data: {
           status: 'completed',
           completedBy: parseInt(userId),
-          completedAt: new Date(),
+          completedAt: now,
           verifiedBy: parseInt(userId),
-          verifiedAt: new Date(),
+          verifiedAt: now,
+          receivedAt: now, // CRITICAL: Set receivedAt for inventory ledger tracking
           verifierNotes: notes || null,
         },
       })

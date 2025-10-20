@@ -34,9 +34,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid date format' }, { status: 400 });
     }
 
-    // Don't allow future dates
+    // Don't allow future dates - compare at date level only (ignore time component)
     const now = new Date();
-    if (targetDateTime > now) {
+    const nowDateOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const targetDateOnly = new Date(targetDateTime.getFullYear(), targetDateTime.getMonth(), targetDateTime.getDate());
+
+    if (targetDateOnly > nowDateOnly) {
       return NextResponse.json({ error: 'Cannot generate inventory reports for future dates' }, { status: 400 });
     }
 

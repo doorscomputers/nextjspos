@@ -17,19 +17,19 @@ interface PurchaseItem {
   id: number
   productId: number
   productVariationId: number
-  quantity: string
-  quantityReceived: string
-  unitCost: string
+  quantity: number
+  quantityReceived: number
+  unitCost: number
   requiresSerial: boolean
   product: {
     id: number
     name: string
     sku: string
-  }
+  } | null
   productVariation: {
     id: number
     name: string
-  }
+  } | null
 }
 
 interface Purchase {
@@ -38,11 +38,11 @@ interface Purchase {
   purchaseDate: string
   expectedDeliveryDate: string | null
   status: string
-  subtotal: number | string
-  taxAmount: number | string
-  discountAmount: number | string
-  shippingCost: number | string
-  totalAmount: number | string
+  subtotal: number
+  taxAmount: number
+  discountAmount: number
+  shippingCost: number
+  totalAmount: number
   notes: string | null
   createdAt: string
   supplier: {
@@ -52,6 +52,28 @@ interface Purchase {
     email: string | null
   }
   items: PurchaseItem[]
+  business?: {
+    name: string
+    taxNumberPrimary?: string | null
+    taxLabelPrimary?: string | null
+    taxNumberSecondary?: string | null
+    taxLabelSecondary?: string | null
+    phone?: string | null
+    email?: string | null
+    address?: string | null
+  } | null
+  location?: {
+    id: number
+    name: string
+    landmark?: string | null
+    country?: string | null
+    state?: string | null
+    city?: string | null
+    zipCode?: string | null
+    mobile?: string | null
+    alternateNumber?: string | null
+    email?: string | null
+  } | null
 }
 
 export default function PurchaseDetailPage() {
@@ -85,6 +107,133 @@ export default function PurchaseDetailPage() {
   const [emailSubject, setEmailSubject] = useState(`Purchase Order ${purchase?.purchaseOrderNumber}`)
   const [emailMessage, setEmailMessage] = useState(`Dear Supplier,\n\nPlease find attached our purchase order ${purchase?.purchaseOrderNumber}.\n\nKindly confirm receipt and expected delivery date.\n\nThank you for your continued partnership.`)
 
+  const toNumber = (value: unknown): number => {
+    if (value === null || value === undefined) return 0
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : 0
+    }
+    const parsed = Number.parseFloat(String(value))
+    return Number.isNaN(parsed) ? 0 : parsed
+  }
+
+  const normalizePurchase = (raw: any): Purchase => {
+    const items: PurchaseItem[] = (raw.items ?? []).map((item: any) => ({
+      id: item.id,
+      productId: item.productId,
+      productVariationId: item.productVariationId,
+      quantity: toNumber(item.quantity),
+      quantityReceived: toNumber(item.quantityReceived),
+      unitCost: toNumber(item.unitCost),
+      requiresSerial: Boolean(item.requiresSerial),
+      product: item.product
+        ? {
+            id: item.product.id,
+            name: item.product.name ?? 'Unnamed Product',
+            sku: item.product.sku ?? '',
+          }
+        : null,
+      productVariation: item.productVariation
+        ? {
+            id: item.productVariation.id,
+            name: item.productVariation.name ?? 'Standard',
+          }
+        : null,
+    }))
+
+    const locationMeta = raw.location
+      ? {
+          id: raw.location.id,
+          name: raw.location.name ?? '',
+          landmark: raw.location.landmark ?? null,
+          country: raw.location.country ?? null,
+          state: raw.location.state ?? null,
+          city: raw.location.city ?? null,
+          zipCode: raw.location.zipCode ?? null,
+          mobile: raw.location.mobile ?? null,
+          alternateNumber: raw.location.alternateNumber ?? null,
+          email: raw.location.email ?? null,
+        }
+      : null
+
+    const businessMeta = raw.business
+      ? {
+          name: raw.business.name ?? 'Company Name',
+          taxNumberPrimary: raw.business.taxNumberPrimary ?? null,
+          taxLabelPrimary: raw.business.taxLabelPrimary ?? null,
+          taxNumberSecondary: raw.business.taxNumberSecondary ?? null,
+          taxLabelSecondary: raw.business.taxLabelSecondary ?? null,
+          phone: raw.business.phone ?? null,
+          email: raw.business.email ?? null,
+          address: raw.business.address ?? null,
+        }
+      : null
+
+    if (businessMeta && !businessMeta.address && locationMeta) {
+      const addressParts = [
+        locationMeta.landmark,
+        [locationMeta.city, locationMeta.state].filter(Boolean).join(', '),
+        locationMeta.country,
+        locationMeta.zipCode,
+      ]
+        .filter((part) => part && String(part).trim().length > 0)
+        .map((part) => String(part).trim())
+
+      businessMeta.address = addressParts.join(' | ') || null
+
+      if (!businessMeta.phone) {
+        businessMeta.phone = locationMeta.mobile || locationMeta.alternateNumber || null
+      }
+
+      if (!businessMeta.email) {
+        businessMeta.email = locationMeta.email || null
+      }
+    }
+
+    return {
+      id: raw.id,
+      purchaseOrderNumber: raw.purchaseOrderNumber,
+      purchaseDate: raw.purchaseDate,
+      expectedDeliveryDate: raw.expectedDeliveryDate,
+      status: raw.status,
+      subtotal: toNumber(raw.subtotal),
+      taxAmount: toNumber(raw.taxAmount),
+      discountAmount: toNumber(raw.discountAmount),
+      shippingCost: toNumber(raw.shippingCost),
+      totalAmount: toNumber(raw.totalAmount),
+      notes: raw.notes ?? null,
+      createdAt: raw.createdAt,
+      supplier: {
+        id: raw.supplier?.id ?? 0,
+        name: raw.supplier?.name ?? 'Unknown Supplier',
+        mobile: raw.supplier?.mobile ?? null,
+        email: raw.supplier?.email ?? null,
+      },
+      items,
+      business: businessMeta,
+      location: locationMeta,
+    }
+  }
+
+  const extractErrorMessage = async (response: Response) => {
+    const contentType = response.headers.get('content-type') || ''
+
+    if (contentType.includes('application/json')) {
+      try {
+        const data = await response.json()
+        return data?.error || data?.message || null
+      } catch (_error) {
+        return null
+      }
+    }
+
+    try {
+      const text = await response.text()
+      return text
+    } catch (_error) {
+      return null
+    }
+  }
+
   useEffect(() => {
     fetchPurchase()
   }, [purchaseId])
@@ -92,27 +241,24 @@ export default function PurchaseDetailPage() {
   const fetchPurchase = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/purchases?page=1&limit=1000`)
+      const response = await fetch(`/api/purchases/${purchaseId}`)
       const data = await response.json()
 
-      if (response.ok) {
-        const foundPurchase = data.purchases?.find((p: Purchase) => p.id === parseInt(purchaseId))
-        if (foundPurchase) {
-          setPurchase(foundPurchase)
-          // Initialize receive quantities with remaining amounts
-          const quantities: { [key: number]: number } = {}
-          foundPurchase.items.forEach((item: PurchaseItem) => {
-            const remaining = parseFloat(item.quantity) - parseFloat(item.quantityReceived)
-            quantities[item.id] = remaining > 0 ? remaining : 0
-          })
-          setReceiveQuantities(quantities)
-        } else {
-          toast.error('Purchase order not found')
-          router.push('/dashboard/purchases')
-        }
-      } else {
-        toast.error(data.error || 'Failed to fetch purchase')
+      if (!response.ok) {
+        toast.error(data?.error || 'Failed to fetch purchase')
+        router.push('/dashboard/purchases')
+        return
       }
+
+      const normalizedPurchase = normalizePurchase(data.data)
+      setPurchase(normalizedPurchase)
+
+      const quantities: { [key: number]: number } = {}
+      normalizedPurchase.items.forEach((item: PurchaseItem) => {
+        const remaining = Math.max(item.quantity - item.quantityReceived, 0)
+        quantities[item.id] = remaining
+      })
+      setReceiveQuantities(quantities)
     } catch (error) {
       console.error('Error fetching purchase:', error)
       toast.error('Failed to fetch purchase')
@@ -134,7 +280,8 @@ export default function PurchaseDetailPage() {
 
           // Validate serial numbers if required
           if (purchaseItem?.requiresSerial && itemSerialNumbers.length !== qty) {
-            throw new Error(`Product "${purchaseItem.product.name}" requires ${qty} serial number(s), but ${itemSerialNumbers.length} provided`)
+            const productName = purchaseItem.product?.name ?? 'Unknown product'
+            throw new Error(`Product "${productName}" requires ${qty} serial number(s), but ${itemSerialNumbers.length} provided`)
           }
 
           return {
@@ -185,6 +332,16 @@ export default function PurchaseDetailPage() {
     }
   }
 
+  const hasIncompleteSerials = purchase
+    ? purchase.items.some((item) => {
+        if (!item.requiresSerial) return false
+        const qty = receiveQuantities[item.id] || 0
+        if (qty <= 0) return false
+        const serials = serialNumbers[item.id] || []
+        return serials.length !== qty
+      })
+    : false
+
   const handleClosePurchaseOrder = async () => {
     if (!purchase) return
 
@@ -230,6 +387,10 @@ export default function PurchaseDetailPage() {
 
     try {
       const response = await fetch(`/api/purchases/${purchaseId}/export?format=excel`)
+      if (!response.ok) {
+        const errorMessage = await extractErrorMessage(response)
+        throw new Error(errorMessage || 'Failed to export to Excel')
+      }
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -242,7 +403,8 @@ export default function PurchaseDetailPage() {
       toast.success('Purchase Order exported to Excel')
     } catch (error) {
       console.error('Error exporting to Excel:', error)
-      toast.error('Failed to export to Excel')
+      const message = error instanceof Error ? error.message : 'Failed to export to Excel'
+      toast.error(message)
     }
   }
 
@@ -251,6 +413,10 @@ export default function PurchaseDetailPage() {
 
     try {
       const response = await fetch(`/api/purchases/${purchaseId}/export?format=pdf`)
+      if (!response.ok) {
+        const errorMessage = await extractErrorMessage(response)
+        throw new Error(errorMessage || 'Failed to export to PDF')
+      }
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -263,38 +429,54 @@ export default function PurchaseDetailPage() {
       toast.success('Purchase Order exported to PDF')
     } catch (error) {
       console.error('Error exporting to PDF:', error)
-      toast.error('Failed to export to PDF')
+      const message = error instanceof Error ? error.message : 'Failed to export to PDF'
+      toast.error(message)
     }
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+    if (!dateString) return ''
+    const parsed = new Date(dateString)
+    if (Number.isNaN(parsed.getTime())) {
+      return dateString
+    }
+    return parsed.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     })
   }
 
-  const formatCurrency = (amount: number | string) => {
-    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
-    return `₱${numAmount.toFixed(2)}`
+  const formatCurrency = (amount: number | string | null | undefined) => {
+    const numericAmount = toNumber(amount)
+    return `PHP ${numericAmount.toLocaleString('en-PH', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`
   }
 
   const getStatusBadge = (status: string) => {
-    const config: { [key: string]: { variant: "default" | "secondary" | "destructive" | "outline", label: string } } = {
-      'pending': { variant: 'secondary', label: 'Pending' },
+    const config: { [key: string]: { variant: "default" | "secondary" | "destructive" | "outline", label: string, className?: string } } = {
+      'pending': { variant: 'outline', label: 'Pending', className: 'border-yellow-600 text-yellow-700 dark:text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20' },
       'approved': { variant: 'default', label: 'Approved' },
       'partially_received': { variant: 'secondary', label: 'Partially Received' },
       'received': { variant: 'default', label: 'Received' },
       'cancelled': { variant: 'destructive', label: 'Cancelled' },
     }
     const statusConfig = config[status] || { variant: 'outline', label: status }
-    return <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+    return (
+      <Badge
+        variant={statusConfig.variant}
+        className={`text-lg px-4 py-1.5 font-semibold ${statusConfig.className || ''}`}
+      >
+        {statusConfig.label}
+      </Badge>
+    )
   }
 
   const getItemReceivedStatus = (item: PurchaseItem) => {
-    const ordered = parseFloat(item.quantity)
-    const received = parseFloat(item.quantityReceived)
+    const ordered = item.quantity
+    const received = item.quantityReceived
     const percentage = ordered > 0 ? (received / ordered) * 100 : 0
 
     if (received === 0) {
@@ -337,6 +519,30 @@ export default function PurchaseDetailPage() {
   const canReceive = purchase.status !== 'received' && purchase.status !== 'cancelled'
   const canClose = purchase.status === 'partially_received' && can(PERMISSIONS.PURCHASE_UPDATE)
 
+  const businessName = purchase.business?.name || user?.businessName || 'Company Name'
+  const businessAddress =
+    purchase.business?.address ||
+    purchase.location?.landmark ||
+    user?.businessAddress ||
+    '123 Business Street'
+  const cityStateCountry = (() => {
+    const cityState = [purchase.location?.city, purchase.location?.state].filter(Boolean).join(', ')
+    const countryZip = [purchase.location?.country, purchase.location?.zipCode].filter(Boolean).join(' ')
+    const segments = [cityState, countryZip].filter((segment) => segment && segment.trim().length > 0)
+    if (segments.length > 0) {
+      return segments.join(', ')
+    }
+    return `${user?.businessCity || 'City'}, ${user?.businessState || 'State'} ${user?.businessZip || '12345'}`
+  })()
+  const businessPhone =
+    purchase.business?.phone ||
+    purchase.location?.mobile ||
+    purchase.location?.alternateNumber ||
+    user?.businessPhone ||
+    '(123) 456-7890'
+  const businessEmail =
+    purchase.business?.email || purchase.location?.email || user?.businessEmail || 'info@company.com'
+
   return (
     <div className="p-6 space-y-6">
       {/* Print-Only Header - Professional PO Template */}
@@ -345,12 +551,12 @@ export default function PurchaseDetailPage() {
           {/* Company Header */}
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h1 className="text-4xl font-bold text-blue-600 mb-2">{user?.businessName || 'Company Name'}</h1>
+              <h1 className="text-4xl font-bold text-blue-600 mb-2">{businessName}</h1>
               <div className="text-sm text-gray-600 space-y-1">
-                <p>{user?.businessAddress || '123 Business Street'}</p>
-                <p>{user?.businessCity || 'City'}, {user?.businessState || 'State'} {user?.businessZip || '12345'}</p>
-                <p>Phone: {user?.businessPhone || '(123) 456-7890'}</p>
-                <p>Email: {user?.businessEmail || 'info@company.com'}</p>
+                <p>{businessAddress}</p>
+                <p>{cityStateCountry}</p>
+                <p>Phone: {businessPhone}</p>
+                <p>Email: {businessEmail}</p>
               </div>
             </div>
             <div className="text-right">
@@ -381,7 +587,7 @@ export default function PurchaseDetailPage() {
       <div className="print:hidden flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/purchases">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
               <ArrowLeftIcon className="w-4 h-4 mr-2" />
               Back
             </Button>
@@ -397,19 +603,19 @@ export default function PurchaseDetailPage() {
       </div>
 
       {/* Action Buttons */}
-      <div className="bg-white p-4 rounded-lg shadow space-y-3">
+      <div className="bg-white p-4 rounded-lg shadow space-y-3 print:hidden">
         <div className="flex items-center gap-3 flex-wrap">
           {can(PERMISSIONS.PURCHASE_RECEIPT_CREATE) && canReceive && (
             <Link href={`/dashboard/purchases/${purchaseId}/receive`}>
-              <Button>
-                <TruckIcon className="w-4 h-4 mr-2" />
+              <Button className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold">
+                <TruckIcon className="w-5 h-5 mr-2" />
                 Receive Goods (GRN)
               </Button>
             </Link>
           )}
 
           {canClose && (
-            <Button variant="outline" onClick={() => setShowCloseDialog(true)} className="border-orange-500 text-orange-600 hover:bg-orange-50">
+            <Button variant="outline" onClick={() => setShowCloseDialog(true)} className="border-orange-500 text-orange-600 hover:bg-orange-50 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
               <LockClosedIcon className="w-4 h-4 mr-2" />
               Close PO (Partial Delivery)
             </Button>
@@ -433,15 +639,15 @@ export default function PurchaseDetailPage() {
 
         {/* Print & Export Buttons */}
         <div className="flex items-center gap-2 pt-3 border-t">
-          <Button variant="outline" size="sm" onClick={handlePrint} className="no-print">
+          <Button onClick={handlePrint} className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white no-print shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
             <PrinterIcon className="w-4 h-4 mr-2" />
             Print
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExportPDF} className="no-print">
+          <Button onClick={handleExportPDF} className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white no-print shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
             <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
             Export PDF
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExportExcel} className="no-print">
+          <Button onClick={handleExportExcel} className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white no-print shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
             <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
             Export Excel
           </Button>
@@ -477,12 +683,14 @@ export default function PurchaseDetailPage() {
                 <div className="bg-gray-50 p-4 rounded-lg space-y-2 text-sm">
                   <h4 className="font-semibold text-gray-700">Current Status Summary:</h4>
                   {purchase.items.map((item) => {
-                    const ordered = parseFloat(item.quantity)
-                    const received = parseFloat(item.quantityReceived)
+                    const ordered = item.quantity
+                    const received = item.quantityReceived
                     const pending = ordered - received
+                    const productName = item.product?.name ?? 'Unnamed Product'
+                    const variationName = item.productVariation?.name ?? 'Standard'
                     return (
                       <div key={item.id} className="flex justify-between">
-                        <span className="text-gray-600">{item.product.name} - {item.productVariation.name}:</span>
+                        <span className="text-gray-600">{productName} - {variationName}:</span>
                         <span className={pending > 0 ? 'text-orange-600 font-medium' : 'text-green-600'}>
                           {received}/{ordered} received {pending > 0 && `(${pending} pending)`}
                         </span>
@@ -558,19 +766,22 @@ export default function PurchaseDetailPage() {
                   <h4 className="font-medium mb-2">Items to Receive:</h4>
                   <div className="space-y-3">
                     {purchase.items.map((item) => {
-                      const ordered = parseFloat(item.quantity)
-                      const received = parseFloat(item.quantityReceived)
+                      const ordered = item.quantity
+                      const received = item.quantityReceived
                       const remaining = ordered - received
+                      const productName = item.product?.name ?? 'Unnamed Product'
+                      const variationName = item.productVariation?.name ?? 'Standard'
+                      const sku = item.product?.sku ?? 'N/A'
 
                       return (
                         <div key={item.id} className="p-3 border border-gray-200 rounded-lg">
                           <div className="flex justify-between items-start mb-2">
                             <div>
                               <div className="font-medium">
-                                {item.product.name}
+                                {productName}
                               </div>
                               <div className="text-sm text-gray-500">
-                                {item.productVariation.name} • SKU: {item.product.sku}
+                                {variationName} • SKU: {sku}
                               </div>
                               <div className="text-sm text-gray-500 mt-1">
                                 Ordered: {ordered} | Already Received: {received} | Remaining: {remaining}
@@ -600,7 +811,7 @@ export default function PurchaseDetailPage() {
                             <div className="mt-4 border-t pt-4">
                               <SerialNumberInputInline
                                 requiredCount={receiveQuantities[item.id]}
-                                productName={`${item.product.name} - ${item.productVariation.name}`}
+                                productName={`${productName} - ${variationName}`}
                                 onSerialNumbersChange={(serials) => {
                                   setSerialNumbers({
                                     ...serialNumbers,
@@ -664,18 +875,21 @@ export default function PurchaseDetailPage() {
           </thead>
           <tbody>
             {purchase.items.map((item, index) => {
-              const quantity = parseFloat(item.quantity)
-              const unitCost = parseFloat(item.unitCost)
+              const quantity = item.quantity
+              const unitCost = item.unitCost
               const lineTotal = quantity * unitCost
+              const productName = item.product?.name ?? 'Unnamed Product'
+              const variationName = item.productVariation?.name ?? 'Standard'
+              const sku = item.product?.sku ?? 'N/A'
 
               return (
                 <tr key={item.id}>
                   <td className="border border-gray-300 px-4 py-2">{index + 1}</td>
                   <td className="border border-gray-300 px-4 py-2">
-                    <div className="font-medium">{item.product.name}</div>
-                    <div className="text-xs text-gray-600">{item.productVariation.name}</div>
+                    <div className="font-medium">{productName}</div>
+                    <div className="text-xs text-gray-600">{variationName}</div>
                   </td>
-                  <td className="border border-gray-300 px-4 py-2 text-sm">{item.product.sku}</td>
+                  <td className="border border-gray-300 px-4 py-2 text-sm">{sku}</td>
                   <td className="border border-gray-300 px-4 py-2 text-right">{quantity}</td>
                   {can(PERMISSIONS.PURCHASE_VIEW_COST) && (
                     <>
@@ -687,37 +901,43 @@ export default function PurchaseDetailPage() {
               )
             })}
           </tbody>
-          {can(PERMISSIONS.PURCHASE_VIEW_COST) && (
-            <tfoot>
-              <tr>
-                <td colSpan={4} className="border border-gray-300 px-4 py-2 text-right font-semibold">Subtotal:</td>
-                <td colSpan={2} className="border border-gray-300 px-4 py-2 text-right font-semibold">{formatCurrency(purchase.subtotal)}</td>
-              </tr>
-              {purchase.taxAmount > 0 && (
-                <tr>
-                  <td colSpan={4} className="border border-gray-300 px-4 py-2 text-right">Tax:</td>
-                  <td colSpan={2} className="border border-gray-300 px-4 py-2 text-right">{formatCurrency(purchase.taxAmount)}</td>
-                </tr>
-              )}
-              {purchase.discountAmount > 0 && (
-                <tr>
-                  <td colSpan={4} className="border border-gray-300 px-4 py-2 text-right">Discount:</td>
-                  <td colSpan={2} className="border border-gray-300 px-4 py-2 text-right text-green-600">-{formatCurrency(purchase.discountAmount)}</td>
-                </tr>
-              )}
-              {purchase.shippingCost > 0 && (
-                <tr>
-                  <td colSpan={4} className="border border-gray-300 px-4 py-2 text-right">Shipping:</td>
-                  <td colSpan={2} className="border border-gray-300 px-4 py-2 text-right">{formatCurrency(purchase.shippingCost)}</td>
-                </tr>
-              )}
-              <tr className="bg-gray-100">
-                <td colSpan={4} className="border border-gray-300 px-4 py-3 text-right text-lg font-bold">TOTAL:</td>
-                <td colSpan={2} className="border border-gray-300 px-4 py-3 text-right text-lg font-bold">{formatCurrency(purchase.totalAmount)}</td>
-              </tr>
-            </tfoot>
-          )}
         </table>
+
+        {/* Print Summary - Outside table so it only appears at the end */}
+        {can(PERMISSIONS.PURCHASE_VIEW_COST) && (
+          <div className="mt-6 border border-gray-300 rounded">
+            <div className="flex justify-end">
+              <div className="w-1/2 min-w-[300px]">
+                <div className="flex justify-between border-b border-gray-300 px-4 py-2">
+                  <span className="font-semibold">Subtotal:</span>
+                  <span className="font-semibold">{formatCurrency(purchase.subtotal)}</span>
+                </div>
+                {purchase.taxAmount > 0 && (
+                  <div className="flex justify-between border-b border-gray-300 px-4 py-2">
+                    <span>Tax:</span>
+                    <span>{formatCurrency(purchase.taxAmount)}</span>
+                  </div>
+                )}
+                {purchase.discountAmount > 0 && (
+                  <div className="flex justify-between border-b border-gray-300 px-4 py-2">
+                    <span>Discount:</span>
+                    <span className="text-green-600">-{formatCurrency(purchase.discountAmount)}</span>
+                  </div>
+                )}
+                {purchase.shippingCost > 0 && (
+                  <div className="flex justify-between border-b border-gray-300 px-4 py-2">
+                    <span>Shipping:</span>
+                    <span>{formatCurrency(purchase.shippingCost)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between bg-gray-100 px-4 py-3">
+                  <span className="text-lg font-bold">TOTAL:</span>
+                  <span className="text-lg font-bold">{formatCurrency(purchase.totalAmount)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Print Notes */}
         {purchase.notes && (
@@ -811,16 +1031,19 @@ export default function PurchaseDetailPage() {
             <h2 className="text-lg font-semibold">Purchase Items ({purchase.items.length})</h2>
             <div className="space-y-3">
               {purchase.items.map((item) => {
-                const ordered = parseFloat(item.quantity)
-                const received = parseFloat(item.quantityReceived)
+                const ordered = item.quantity
+                const received = item.quantityReceived
                 const remaining = ordered - received
+                const productName = item.product?.name ?? 'Unnamed Product'
+                const variationName = item.productVariation?.name ?? 'Standard'
+                const sku = item.product?.sku ?? 'N/A'
 
                 return (
                   <div key={item.id} className="p-4 border border-gray-200 rounded-lg">
                     <div className="flex justify-between items-start mb-2">
                       <div>
-                        <div className="font-medium">{item.product.name}</div>
-                        <div className="text-sm text-gray-500">{item.productVariation.name} • SKU: {item.product.sku}</div>
+                        <div className="font-medium">{productName}</div>
+                        <div className="text-sm text-gray-500">{variationName} • SKU: {sku}</div>
                       </div>
                       {getItemReceivedStatus(item)}
                     </div>
@@ -930,11 +1153,11 @@ export default function PurchaseDetailPage() {
             purchase={{
               id: purchase.id,
               referenceNo: purchase.purchaseOrderNumber,
-              totalAmount: typeof purchase.totalAmount === 'string' ? parseFloat(purchase.totalAmount) : purchase.totalAmount,
-              subtotal: typeof purchase.subtotal === 'string' ? parseFloat(purchase.subtotal) : purchase.subtotal,
-              taxAmount: typeof purchase.taxAmount === 'string' ? parseFloat(purchase.taxAmount) : purchase.taxAmount,
-              discountAmount: typeof purchase.discountAmount === 'string' ? parseFloat(purchase.discountAmount) : purchase.discountAmount,
-              shippingCharges: typeof purchase.shippingCost === 'string' ? parseFloat(purchase.shippingCost) : purchase.shippingCost,
+              totalAmount: purchase.totalAmount,
+              subtotal: purchase.subtotal,
+              taxAmount: purchase.taxAmount,
+              discountAmount: purchase.discountAmount,
+              shippingCharges: purchase.shippingCost,
               deliveryDate: purchase.expectedDeliveryDate || undefined,
               paymentTerms: undefined,
               notes: purchase.notes || undefined,

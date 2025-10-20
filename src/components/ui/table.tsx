@@ -4,7 +4,21 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+interface TableProps extends React.ComponentProps<"table"> {
+  noWrapper?: boolean
+}
+
+function Table({ className, noWrapper = false, ...props }: TableProps) {
+  if (noWrapper) {
+    return (
+      <table
+        data-slot="table"
+        className={cn("w-full caption-bottom text-sm", className)}
+        {...props}
+      />
+    )
+  }
+
   return (
     <div
       data-slot="table-container"
@@ -83,7 +97,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
     <td
       data-slot="table-cell"
       className={cn(
-        "p-3 align-middle text-gray-700 dark:text-gray-300 text-sm whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "p-3 align-middle text-gray-700 dark:text-gray-100 text-sm whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className
       )}
       {...props}

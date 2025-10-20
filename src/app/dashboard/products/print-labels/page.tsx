@@ -22,23 +22,35 @@ interface Product {
   sku: string
   type: string
   sellingPrice: number
-  variations?: ProductVariation[]
+  tax?: { amount: number } | null
+  variations?: Array<{
+    id: number
+    name: string
+    sku: string
+    sellingPrice: number
+    isDefault?: boolean
+  }>
 }
 
-interface ProductVariation {
-  id: number
-  name: string
+interface SearchResultItem {
+  productId: number
+  variationId: number | null
+  productName: string
+  variationName: string
   sku: string
   sellingPrice: number
-  productName: string
+  taxRate: number | null
 }
 
 interface LabelProduct {
   id: string
+  productId: number
+  variationId: number | null
   name: string
   variation: string
   sku: string
   price: number
+  taxRate: number | null
   quantity: number
   packingDate: string
   priceGroup: string
@@ -48,7 +60,7 @@ export default function PrintLabelsPage() {
   const searchParams = useSearchParams()
   const [products, setProducts] = useState<Product[]>([])
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<ProductVariation[]>([])
+  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([])
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [selectedProducts, setSelectedProducts] = useState<LabelProduct[]>([])
   const [loading, setLoading] = useState(false)
@@ -107,10 +119,13 @@ export default function PrintLabelsPage() {
           product.variations.forEach(variation => {
             const newProduct: LabelProduct = {
               id: `${variation.id}-${Date.now()}-${Math.random()}`,
+              productId: product.id,
+              variationId: variation.id,
               name: product.name,
               variation: variation.name,
               sku: variation.sku,
               price: variation.sellingPrice,
+              taxRate: product.tax?.amount ?? null,
               quantity: 1,
               packingDate: new Date().toISOString().split('T')[0],
               priceGroup: 'default'
@@ -121,10 +136,13 @@ export default function PrintLabelsPage() {
           // Add single product
           const newProduct: LabelProduct = {
             id: `${product.id}-${Date.now()}`,
+            productId: product.id,
+            variationId: null,
             name: product.name,
             variation: 'Default',
             sku: product.sku,
             price: product.sellingPrice || 0,
+            taxRate: product.tax?.amount ?? null,
             quantity: 1,
             packingDate: new Date().toISOString().split('T')[0],
             priceGroup: 'default'
@@ -143,7 +161,7 @@ export default function PrintLabelsPage() {
       return
     }
 
-    const results: ProductVariation[] = []
+    const results: SearchResultItem[] = []
     const query = searchQuery.toLowerCase()
 
     products.forEach((product) => {
@@ -156,8 +174,13 @@ export default function PrintLabelsPage() {
             variation.sku.toLowerCase().includes(query)
           ) {
             results.push({
-              ...variation,
-              productName: product.name
+              productId: product.id,
+              variationId: variation.id,
+              productName: product.name,
+              variationName: variation.name,
+              sku: variation.sku,
+              sellingPrice: variation.sellingPrice,
+              taxRate: product.tax?.amount ?? null
             })
           }
         })
@@ -168,11 +191,13 @@ export default function PrintLabelsPage() {
           product.sku.toLowerCase().includes(query)
         ) {
           results.push({
-            id: product.id,
-            name: 'Default',
+            productId: product.id,
+            variationId: null,
+            productName: product.name,
+            variationName: 'Default',
             sku: product.sku,
             sellingPrice: product.sellingPrice || 0,
-            productName: product.name
+            taxRate: product.tax?.amount ?? null
           })
         }
       }
@@ -193,13 +218,16 @@ export default function PrintLabelsPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const addProduct = (result: ProductVariation) => {
+  const addProduct = (result: SearchResultItem) => {
     const newProduct: LabelProduct = {
-      id: `${result.id}-${Date.now()}`,
+      id: `${result.productId}-${result.variationId ?? 'default'}-${Date.now()}`,
+      productId: result.productId,
+      variationId: result.variationId,
       name: result.productName,
-      variation: result.name,
+      variation: result.variationName,
       sku: result.sku,
       price: result.sellingPrice,
+      taxRate: result.taxRate,
       quantity: 1,
       packingDate: new Date().toISOString().split('T')[0],
       priceGroup: 'default'
@@ -303,10 +331,10 @@ export default function PrintLabelsPage() {
                       <div>
                         <p className="font-medium">{result.productName}</p>
                         <p className="text-sm text-muted-foreground">
-                          {result.name} - {result.sku}
+                          {result.variationName} - {result.sku}
                         </p>
                       </div>
-                      <p className="font-medium">${result.sellingPrice.toFixed(2)}</p>
+                      <p className="font-medium">{result.sellingPrice.toFixed(2)}</p>
                     </button>
                   ))}
                 </div>

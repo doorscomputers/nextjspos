@@ -273,10 +273,10 @@ export default function InventoryCorrectionDetailPage() {
             <div>
               <label className="text-sm font-medium text-gray-500">Variation</label>
               <p className="text-gray-900">
-                {correction.productVariation.name === 'DUMMY' ? 'N/A (Single Product)' : correction.productVariation.name}
+                {(correction.productVariation.name === 'DUMMY' || correction.productVariation.name === 'Default') ? 'N/A (Single Product)' : correction.productVariation.name}
               </p>
             </div>
-            {correction.productVariation.name !== 'DUMMY' && (
+            {(correction.productVariation.name !== 'DUMMY' && correction.productVariation.name !== 'Default') && (
               <div>
                 <label className="text-sm font-medium text-gray-500">Variation SKU</label>
                 <p className="text-gray-900">{correction.productVariation.sku}</p>

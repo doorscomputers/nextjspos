@@ -1,0 +1,6 @@
+name,unit,productType,sku,brand,category,purchasePriceInclTax,sellingPrice,openingStock,openingStockLocation
+Test Widget A,Piece,single,TWA001,TestBrand,Electronics,10.00,15.00,100,Main Store
+Test Widget B,Piece,single,TWB002,TestBrand,Electronics,5.00,8.00,50,Main Store
+Test Widget C,Piece,single,TWC003,TestBrand,Electronics,7.50,12.00,75,Main Warehouse
+Multi-Location Widget,Piece,single,MLW004,TestBrand,Electronics,20.00,30.00,10|20|30,Main Store|Main Warehouse|Bambang
+Zero Stock Widget,Piece,single,ZSW005,TestBrand,Electronics,15.00,25.00,0,Main Store

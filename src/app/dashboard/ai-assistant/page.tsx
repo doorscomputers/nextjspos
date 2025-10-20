@@ -1,6 +1,6 @@
 "use client"
 
-import { useChat } from 'ai/react'
+import { useChat } from '@ai-sdk/react'
 import { useSession } from 'next-auth/react'
 import { PaperAirplaneIcon, SparklesIcon } from '@heroicons/react/24/outline'
 import { useEffect, useRef } from 'react'

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import { Button } from '@/components/ui/button'
@@ -12,11 +12,11 @@ import { toast } from 'sonner'
 import {
   ChartBarIcon,
   CurrencyDollarIcon,
-  TrendingUpIcon,
   ShoppingCartIcon,
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon
 } from '@heroicons/react/24/outline'
+import ReportFilterPanel from '@/components/reports/ReportFilterPanel'
 
 interface Location {
   id: number
@@ -80,10 +80,16 @@ export default function ProfitabilityReportPage() {
   const [loading, setLoading] = useState(false)
 
   // Filters
-  const [startDate, setStartDate] = useState(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0])
-  const [locationId, setLocationId] = useState('')
+  const defaultStartDate = useMemo(() => {
+    const date = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    return date.toISOString().split('T')[0]
+  }, [])
+  const defaultEndDate = useMemo(() => new Date().toISOString().split('T')[0], [])
+  const [startDate, setStartDate] = useState(defaultStartDate)
+  const [endDate, setEndDate] = useState(defaultEndDate)
+  const [locationId, setLocationId] = useState('all')
   const [groupBy, setGroupBy] = useState('product')
+  const [showFilters, setShowFilters] = useState(true)
 
   useEffect(() => {
     fetchLocations()
@@ -95,10 +101,18 @@ export default function ProfitabilityReportPage() {
       const response = await fetch('/api/locations')
       const resData = await response.json()
       if (response.ok) {
-        setLocations(resData.locations || resData || [])
+        const locData = Array.isArray(resData?.locations)
+          ? resData.locations
+          : Array.isArray(resData)
+          ? resData
+          : []
+        setLocations(locData)
+      } else {
+        setLocations([])
       }
     } catch (error) {
       console.error('Error fetching locations:', error)
+      setLocations([])
     }
   }
 
@@ -111,7 +125,7 @@ export default function ProfitabilityReportPage() {
         groupBy,
       })
 
-      if (locationId) {
+      if (locationId && locationId !== 'all') {
         params.append('locationId', locationId)
       }
 
@@ -121,7 +135,8 @@ export default function ProfitabilityReportPage() {
       if (response.ok) {
         setData(resData)
       } else {
-        toast.error(resData.error || 'Failed to fetch profitability report')
+        console.error('Profitability API error:', resData)
+        toast.error(resData.error || resData.details || 'Failed to fetch profitability report')
       }
     } catch (error) {
       console.error('Error fetching report:', error)
@@ -130,6 +145,24 @@ export default function ProfitabilityReportPage() {
       setLoading(false)
     }
   }
+
+  const handleResetFilters = () => {
+    setStartDate(defaultStartDate)
+    setEndDate(defaultEndDate)
+    setLocationId('all')
+    setGroupBy('product')
+    setTimeout(() => {
+      fetchReport()
+    }, 0)
+  }
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (startDate !== defaultStartDate || endDate !== defaultEndDate) count += 1
+    if (locationId !== 'all') count += 1
+    if (groupBy !== 'product') count += 1
+    return count
+  }, [startDate, endDate, defaultStartDate, defaultEndDate, locationId, groupBy])
 
   const formatCurrency = (amount: number) => {
     return `$${amount.toFixed(2)}`
@@ -157,13 +190,15 @@ export default function ProfitabilityReportPage() {
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Report Filters</CardTitle>
-          <CardDescription>Select date range and grouping options</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <ReportFilterPanel
+        isOpen={showFilters}
+        onToggle={() => setShowFilters(!showFilters)}
+        activeCount={activeFilterCount}
+        onClearAll={handleResetFilters}
+        clearLabel="Reset Filters"
+        description="Choose a date window, focus a specific location, and adjust how results are grouped."
+      >
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="startDate">Start Date</Label>
               <Input
@@ -191,7 +226,7 @@ export default function ProfitabilityReportPage() {
                   <SelectValue placeholder="All Locations" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Locations</SelectItem>
+                  <SelectItem value="all">All Locations</SelectItem>
                   {locations.map((location) => (
                     <SelectItem key={location.id} value={location.id.toString()}>
                       {location.name}
@@ -215,15 +250,14 @@ export default function ProfitabilityReportPage() {
                 </SelectContent>
               </Select>
             </div>
-          </div>
+        </div>
 
-          <div className="mt-4">
-            <Button onClick={fetchReport} disabled={loading}>
-              {loading ? 'Loading...' : 'Generate Report'}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        <div className="mt-4">
+          <Button onClick={fetchReport} disabled={loading}>
+            {loading ? 'Loading...' : 'Generate Report'}
+          </Button>
+        </div>
+      </ReportFilterPanel>
 
       {/* Summary Cards */}
       {data && (
@@ -254,7 +288,7 @@ export default function ProfitabilityReportPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Gross Profit</CardTitle>
-                <TrendingUpIcon className="h-4 w-4 text-blue-600" />
+                <ArrowTrendingUpIcon className="h-4 w-4 text-blue-600" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{formatCurrency(data.summary.totalGrossProfit)}</div>

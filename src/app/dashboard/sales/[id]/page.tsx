@@ -314,7 +314,7 @@ export default function SaleDetailsPage() {
       <div className="flex items-center justify-between print:hidden">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/sales">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
               <ArrowLeftIcon className="w-4 h-4 mr-2" />
               Back
             </Button>
@@ -325,7 +325,7 @@ export default function SaleDetailsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handlePrint}>
+          <Button variant="outline" onClick={handlePrint} className="shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
             <PrinterIcon className="w-4 h-4 mr-2" />
             Print
           </Button>
@@ -333,13 +333,14 @@ export default function SaleDetailsPage() {
             <Button
               variant="outline"
               onClick={handleOpenReturnDialog}
+              className="shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
             >
               <ArrowUturnLeftIcon className="w-4 h-4 mr-2" />
               Create Return
             </Button>
           )}
           {can(PERMISSIONS.SELL_DELETE) && sale.status !== 'voided' && (
-            <Button variant="destructive" onClick={handleVoidSale}>
+            <Button variant="destructive" onClick={handleVoidSale} className="shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
               <XMarkIcon className="w-4 h-4 mr-2" />
               Void Sale
             </Button>
@@ -617,12 +618,14 @@ export default function SaleDetailsPage() {
               variant="outline"
               onClick={() => setReturnDialogOpen(false)}
               disabled={submittingReturn}
+              className="shadow-md hover:shadow-lg transition-all duration-200"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSubmitReturn}
               disabled={submittingReturn}
+              className="shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
             >
               {submittingReturn ? 'Creating Return...' : 'Create Return'}
             </Button>

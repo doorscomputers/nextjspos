@@ -207,12 +207,12 @@ export default function RolesPage() {
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) {
-      return <ChevronUpIcon className="w-4 h-4 text-gray-400 opacity-50" />
+      return <ChevronUpIcon className="w-4 h-4 text-gray-400 dark:text-gray-500 opacity-50" />
     }
     return sortDirection === 'asc' ? (
-      <ChevronUpIcon className="w-4 h-4 text-blue-600" />
+      <ChevronUpIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
     ) : (
-      <ChevronDownIcon className="w-4 h-4 text-blue-600" />
+      <ChevronDownIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
     )
   }
 
@@ -258,46 +258,46 @@ export default function RolesPage() {
     return filtered
   }, [roles, searchQuery, sortField, sortDirection])
 
-  if (loading) return <div className="p-8">Loading...</div>
+  if (loading) return <div className="p-8 text-gray-900 dark:text-gray-100">Loading...</div>
 
   return (
-    <div className="p-8">
+    <div className="p-8 bg-gray-50 dark:bg-gray-900 min-h-screen">
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">Roles & Permissions</h1>
-          <p className="text-gray-600 mt-1">Manage user roles and their permissions</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Roles & Permissions</h1>
+          <p className="text-gray-600 dark:text-gray-300 mt-1">Manage user roles and their permissions</p>
         </div>
         <button
           onClick={handleCreate}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
         >
           Add Role
         </button>
       </div>
 
       {/* Search Bar */}
-      <div className="mb-4 bg-white rounded-lg shadow p-4">
+      <div className="mb-4 bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-4">
         <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
           <input
             type="text"
             placeholder="Search roles by name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
           />
         </div>
-        <div className="mt-2 text-sm text-gray-600">
+        <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">
           Showing {filteredAndSortedRoles.length} of {roles.length} roles
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 overflow-hidden">
         <table className="w-full">
-          <thead className="bg-gray-50 border-b">
+          <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
             <tr>
               <th
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => handleSort('name')}
               >
                 <div className="flex items-center gap-2">
@@ -306,7 +306,7 @@ export default function RolesPage() {
                 </div>
               </th>
               <th
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => handleSort('type')}
               >
                 <div className="flex items-center gap-2">
@@ -315,7 +315,7 @@ export default function RolesPage() {
                 </div>
               </th>
               <th
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => handleSort('permissions')}
               >
                 <div className="flex items-center gap-2">
@@ -324,7 +324,7 @@ export default function RolesPage() {
                 </div>
               </th>
               <th
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700"
                 onClick={() => handleSort('users')}
               >
                 <div className="flex items-center gap-2">
@@ -332,39 +332,39 @@ export default function RolesPage() {
                   <SortIcon field="users" />
                 </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
             {filteredAndSortedRoles.map((role) => (
-              <tr key={role.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 font-medium">{role.name}</td>
+              <tr key={role.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <td className="px-6 py-4 font-medium text-gray-900 dark:text-gray-100">{role.name}</td>
                 <td className="px-6 py-4">
-                  <span className={`px-2 py-1 text-xs rounded ${role.isDefault ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'}`}>
+                  <span className={`px-2 py-1 text-xs rounded ${role.isDefault ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'}`}>
                     {role.isDefault ? 'System' : 'Custom'}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-gray-500">{role.permissionCount}</td>
-                <td className="px-6 py-4 text-gray-500">{role.userCount}</td>
+                <td className="px-6 py-4 text-gray-500 dark:text-gray-300">{role.permissionCount}</td>
+                <td className="px-6 py-4 text-gray-500 dark:text-gray-300">{role.userCount}</td>
                 <td className="px-6 py-4">
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleEdit(role)}
                       disabled={role.isDefault}
-                      className="text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                      className="px-3 py-1.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800 disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed rounded-md font-medium transition-all shadow-sm hover:shadow-md"
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => handleDuplicate(role)}
-                      className="text-green-600 hover:text-green-800"
+                      className="px-3 py-1.5 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-800 rounded-md font-medium transition-all shadow-sm hover:shadow-md"
                     >
                       Duplicate
                     </button>
                     <button
                       onClick={() => handleDelete(role)}
                       disabled={role.isDefault || role.userCount > 0}
-                      className="text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                      className="px-3 py-1.5 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800 disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed rounded-md font-medium transition-all shadow-sm hover:shadow-md"
                     >
                       Delete
                     </button>
@@ -378,13 +378,13 @@ export default function RolesPage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg w-full h-full m-0 flex flex-col">
-            <div className="p-6 border-b">
-              <h2 className="text-xl font-bold">
+          <div className="bg-white dark:bg-gray-800 rounded-lg w-full h-full m-0 flex flex-col">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
                 {modalMode === 'create' ? 'Create' : modalMode === 'edit' ? 'Edit' : 'Duplicate'} Role
               </h2>
               {modalMode === 'duplicate' && (
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
                   Creating a copy of &quot;{selectedRole?.name}&quot; with all its permissions. Change the name and select locations.
                 </p>
               )}
@@ -393,22 +393,22 @@ export default function RolesPage() {
             <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="mb-6">
-                  <label className="block text-sm font-medium mb-2">Role Name</label>
+                  <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Role Name</label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                     required
                   />
                 </div>
 
                 <div className="mb-6">
-                  <h3 className="text-sm font-medium mb-3">Permissions</h3>
-                  <div className="space-y-4 border rounded p-4">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Permissions</h3>
+                  <div className="space-y-4 border border-gray-300 dark:border-gray-600 rounded p-4 bg-gray-50 dark:bg-gray-800/50">
                   {Object.entries(allPermissions).map(([category, perms]) => (
-                    <div key={category} className="border-b pb-3 last:border-b-0">
-                      <label className="flex items-center gap-2 font-medium mb-2 cursor-pointer">
+                    <div key={category} className="border-b border-gray-200 dark:border-gray-700 pb-3 last:border-b-0">
+                      <label className="flex items-center gap-2 font-medium text-gray-900 dark:text-gray-100 mb-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={perms.every(p => formData.permissions.includes(p))}
@@ -434,7 +434,7 @@ export default function RolesPage() {
                                 onChange={() => togglePermission(perm)}
                                 className="w-4 h-4"
                               />
-                              <span className="text-gray-700">{label}</span>
+                              <span className="text-gray-700 dark:text-gray-300">{label}</span>
                             </label>
                           )
                         })}
@@ -445,9 +445,9 @@ export default function RolesPage() {
                 </div>
 
                 <div className="mb-6">
-                  <h3 className="text-sm font-medium mb-3">Branch/Location Access</h3>
-                  <div className="border rounded p-4">
-                    <label className="flex items-center gap-2 font-medium mb-3 cursor-pointer">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">Branch/Location Access</h3>
+                  <div className="border border-gray-300 dark:border-gray-600 rounded p-4 bg-gray-50 dark:bg-gray-800/50">
+                    <label className="flex items-center gap-2 font-medium text-gray-900 dark:text-gray-100 mb-3 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={locations.length > 0 && locations.every(loc => formData.locations.includes(loc.id))}
@@ -465,29 +465,29 @@ export default function RolesPage() {
                             onChange={() => toggleLocation(location.id)}
                             className="w-4 h-4"
                           />
-                          <span className="text-gray-700">{location.name}</span>
+                          <span className="text-gray-700 dark:text-gray-300">{location.name}</span>
                         </label>
                       ))}
                     </div>
                     {locations.length === 0 && (
-                      <p className="text-gray-500 text-sm">No locations available</p>
+                      <p className="text-gray-500 dark:text-gray-400 text-sm">No locations available</p>
                     )}
                   </div>
                 </div>
               </div>
 
-              <div className="border-t p-6 bg-gray-50">
+              <div className="border-t border-gray-200 dark:border-gray-700 p-6 bg-gray-50 dark:bg-gray-700">
                 <div className="flex gap-3">
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                    className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
                   >
                     {modalMode === 'create' ? 'Create' : modalMode === 'edit' ? 'Update' : 'Duplicate Role'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}
-                    className="px-4 py-2 border rounded hover:bg-gray-50"
+                    className="px-6 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm hover:shadow-md transition-all"
                   >
                     Cancel
                   </button>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { usePermissions } from "@/hooks/usePermissions"
 import { PERMISSIONS } from "@/lib/rbac"
 import { formatCurrency } from "@/lib/currencyUtils"
@@ -34,6 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import ReportFilterPanel from "@/components/reports/ReportFilterPanel"
 
 interface SaleItem {
   productName: string
@@ -95,7 +96,7 @@ interface SalesHistoryData {
 export default function SalesHistoryPage() {
   const { can } = usePermissions()
 
-  if (!can(PERMISSIONS.REPORT_VIEW)) {
+  if (!can(PERMISSIONS.REPORT_SALES_HISTORY)) {
     return (
       <div className="text-center py-12">
         <p className="text-red-600">You do not have permission to view reports</p>
@@ -117,7 +118,7 @@ export default function SalesHistoryPage() {
   const [endDate, setEndDate] = useState("")
   const [productSearch, setProductSearch] = useState("")
   const [paymentMethod, setPaymentMethod] = useState("all")
-  const [dateRange, setDateRange] = useState("")
+  const [dateRange, setDateRange] = useState("custom")
 
   // Sorting states
   const [sortBy, setSortBy] = useState("createdAt")
@@ -145,7 +146,13 @@ export default function SalesHistoryPage() {
       const response = await fetch("/api/locations")
       if (response.ok) {
         const data = await response.json()
-        setLocations(data.locations || data)
+        const locationsList = data.locations || data
+        setLocations(locationsList)
+
+        // Automatically set the first accessible location as default if available
+        if (locationsList.length > 0 && locationId === "all") {
+          setLocationId(locationsList[0].id.toString())
+        }
       }
     } catch (error) {
       console.error("Failed to fetch locations:", error)
@@ -182,7 +189,7 @@ export default function SalesHistoryPage() {
       if (productSearch) params.append("productSearch", productSearch)
       if (paymentMethod !== "all") params.append("paymentMethod", paymentMethod)
 
-      if (dateRange) {
+      if (dateRange && dateRange !== "custom") {
         params.append("dateRange", dateRange)
       } else {
         if (startDate) params.append("startDate", startDate)
@@ -215,7 +222,7 @@ export default function SalesHistoryPage() {
     setEndDate("")
     setProductSearch("")
     setPaymentMethod("all")
-    setDateRange("")
+    setDateRange("custom")
     setSortBy("createdAt")
     setSortOrder("desc")
     setPage(1)
@@ -315,25 +322,34 @@ export default function SalesHistoryPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sales History</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Sales History per Location</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Complete sales transaction history with advanced filtering
+            Complete sales transaction history filtered by your assigned location(s)
           </p>
         </div>
-
-        <div className="flex gap-2">
+        <div className="flex gap-3 flex-wrap">
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={() => setShowFilters(!showFilters)}
+            className="shadow-sm"
           >
             <FunnelIcon className="h-4 w-4 mr-2" />
             {showFilters ? "Hide" : "Show"} Filters
           </Button>
-          <Button onClick={exportToCSV} disabled={!reportData} variant="outline">
+          <Button
+            onClick={exportToCSV}
+            disabled={!reportData}
+            variant="default"
+            className="shadow-sm"
+          >
             <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
-          <Button onClick={() => window.print()} variant="outline">
+          <Button
+            onClick={() => window.print()}
+            variant="secondary"
+            className="shadow-sm"
+          >
             <PrinterIcon className="h-4 w-4 mr-2" />
             Print
           </Button>
@@ -341,19 +357,21 @@ export default function SalesHistoryPage() {
       </div>
 
       {/* Filters */}
-      {showFilters && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Search & Filter</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <ReportFilterPanel
+        isOpen={showFilters}
+        onToggle={() => setShowFilters(!showFilters)}
+        activeCount={activeFilterCount}
+        onClearAll={handleReset}
+        clearLabel="Reset All Filters"
+        description="Adjust quick date ranges and additional criteria to refine the sales dataset."
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Date Range Presets */}
-              <div>
+              <div className="flex flex-col gap-2">
                 <Label>Quick Date Range</Label>
                 <Select value={dateRange} onValueChange={(val) => {
                   setDateRange(val)
-                  if (val) {
+                  if (val !== "custom") {
                     setStartDate("")
                     setEndDate("")
                   }
@@ -362,47 +380,50 @@ export default function SalesHistoryPage() {
                     <SelectValue placeholder="Select range" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Custom Range</SelectItem>
+                    <SelectItem value="custom">Custom Range</SelectItem>
                     <SelectItem value="today">Today</SelectItem>
                     <SelectItem value="yesterday">Yesterday</SelectItem>
                     <SelectItem value="thisWeek">This Week</SelectItem>
                     <SelectItem value="lastWeek">Last Week</SelectItem>
                     <SelectItem value="thisMonth">This Month</SelectItem>
                     <SelectItem value="lastMonth">Last Month</SelectItem>
+                    <SelectItem value="thisQuarter">This Quarter</SelectItem>
+                    <SelectItem value="lastQuarter">Last Quarter</SelectItem>
+                    <SelectItem value="thisYear">This Year</SelectItem>
+                    <SelectItem value="lastYear">Last Year</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               {/* Start Date */}
-              <div>
+              <div className="flex flex-col gap-2">
                 <Label>Start Date</Label>
                 <Input
                   type="date"
                   value={startDate}
                   onChange={(e) => {
                     setStartDate(e.target.value)
-                    if (e.target.value) setDateRange("")
+                    if (e.target.value) setDateRange("custom")
                   }}
-                  disabled={!!dateRange}
+                  disabled={dateRange !== "custom"}
                 />
               </div>
 
               {/* End Date */}
-              <div>
+              <div className="flex flex-col gap-2">
                 <Label>End Date</Label>
                 <Input
                   type="date"
                   value={endDate}
                   onChange={(e) => {
                     setEndDate(e.target.value)
-                    if (e.target.value) setDateRange("")
+                    if (e.target.value) setDateRange("custom")
                   }}
-                  disabled={!!dateRange}
+                  disabled={dateRange !== "custom"}
                 />
               </div>
-
               {/* Location */}
-              <div>
+              <div className="flex flex-col gap-2">
                 <Label>Location</Label>
                 <Select value={locationId} onValueChange={setLocationId}>
                   <SelectTrigger>
@@ -420,7 +441,7 @@ export default function SalesHistoryPage() {
               </div>
 
               {/* Customer */}
-              <div>
+              <div className="flex flex-col gap-2">
                 <Label>Customer</Label>
                 <Select value={customerId} onValueChange={setCustomerId}>
                   <SelectTrigger>
@@ -438,7 +459,7 @@ export default function SalesHistoryPage() {
               </div>
 
               {/* Status */}
-              <div>
+              <div className="flex flex-col gap-2">
                 <Label>Status</Label>
                 <Select value={status} onValueChange={setStatus}>
                   <SelectTrigger>
@@ -456,7 +477,7 @@ export default function SalesHistoryPage() {
               </div>
 
               {/* Payment Method */}
-              <div>
+              <div className="flex flex-col gap-2">
                 <Label>Payment Method</Label>
                 <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                   <SelectTrigger>
@@ -475,7 +496,7 @@ export default function SalesHistoryPage() {
               </div>
 
               {/* Invoice Number */}
-              <div>
+              <div className="flex flex-col gap-2">
                 <Label>Invoice Number</Label>
                 <Input
                   placeholder="Search invoice..."
@@ -485,7 +506,7 @@ export default function SalesHistoryPage() {
               </div>
 
               {/* Product Search */}
-              <div className="lg:col-span-2">
+              <div className="lg:col-span-2 flex flex-col gap-2">
                 <Label>Product Name / SKU</Label>
                 <Input
                   placeholder="Search by product name or SKU..."
@@ -495,18 +516,20 @@ export default function SalesHistoryPage() {
               </div>
             </div>
 
-            <div className="flex gap-2 mt-4">
-              <Button onClick={handleSearch}>
+            <div className="flex gap-3 mt-6 flex-wrap">
+              <Button onClick={handleSearch} className="shadow-sm px-6">
                 <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
                 Search
               </Button>
-              <Button variant="outline" onClick={handleReset}>
+              <Button
+                variant="secondary"
+                onClick={handleReset}
+                className="shadow-sm px-6"
+              >
                 Reset All Filters
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
+      </ReportFilterPanel>
 
       {/* Summary Cards */}
       {reportData && (
@@ -766,3 +789,29 @@ export default function SalesHistoryPage() {
     </div>
   )
 }
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (locationId !== "all") count += 1
+    if (customerId !== "all") count += 1
+    if (status !== "all") count += 1
+    if (paymentMethod !== "all") count += 1
+    if (invoiceNumber.trim() !== "") count += 1
+    if (productSearch.trim() !== "") count += 1
+    if (dateRange !== "custom") count += 1
+    if (!dateRange && startDate) count += 1
+    if (!dateRange && endDate) count += 1
+    if (sortBy !== "createdAt" || sortOrder !== "desc") count += 1
+    return count
+  }, [
+    locationId,
+    customerId,
+    status,
+    paymentMethod,
+    invoiceNumber,
+    productSearch,
+    dateRange,
+    startDate,
+    endDate,
+    sortBy,
+    sortOrder,
+  ])

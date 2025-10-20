@@ -17,7 +17,9 @@ export function getTransactionTypeLabel(type: StockTransactionType): string {
     purchase: 'Purchase',
     transfer_in: 'Transfer In',
     transfer_out: 'Transfer Out',
-    adjustment: 'Stock Adjustment'
+    adjustment: 'Stock Adjustment',
+    purchase_return: 'Purchase Return',
+    customer_return: 'Customer Return'
   }
 
   return labels[type] || type
@@ -25,7 +27,8 @@ export function getTransactionTypeLabel(type: StockTransactionType): string {
 
 /**
  * Get stock history for a specific variation at a location
- * Rebuilds history from stock transactions
+ * COMPREHENSIVE MULTI-SOURCE QUERY - Matches Inventory Ledger logic
+ * Pulls from ALL transaction sources to prevent fraud and ensure accuracy
  */
 export async function getVariationStockHistory(
   productId: number,
@@ -35,80 +38,364 @@ export async function getVariationStockHistory(
   startDate?: Date,
   endDate?: Date
 ): Promise<StockHistoryEntry[]> {
-  // Build where clause
-  const where: any = {
-    businessId,
-    productId,
-    productVariationId: variationId,
-    locationId
-  }
+  // Set default date range if not provided
+  const finalStartDate = startDate || new Date('1970-01-01')
+  const finalEndDate = endDate || new Date('2099-12-31')
 
-  if (startDate || endDate) {
-    where.createdAt = {}
-    if (startDate) {
-      where.createdAt.gte = startDate
-    }
-    if (endDate) {
-      where.createdAt.lte = endDate
-    }
-  }
-
-  // Fetch all transactions for this variation at this location
-  const transactions = await prisma.stockTransaction.findMany({
-    where,
-    include: {
-      createdByUser: {
-        select: {
-          username: true,
-          firstName: true,
-          lastName: true
+  // Query ALL transaction sources in parallel (same as Inventory Ledger)
+  const [
+    purchaseReceipts,
+    sales,
+    transfersOut,
+    transfersIn,
+    inventoryCorrections,
+    purchaseReturns,
+    customerReturns,
+    productHistoryRecords
+  ] = await Promise.all([
+    // 1. Purchase Receipts (GRN) - Stock Received
+    prisma.purchaseReceipt.findMany({
+      where: {
+        businessId,
+        locationId,
+        status: 'approved',
+        approvedAt: {
+          gte: finalStartDate,
+          lte: finalEndDate
         }
+      },
+      include: {
+        items: {
+          where: {
+            productId,
+            productVariationId: variationId
+          }
+        },
+        supplier: { select: { name: true } }
+      },
+      orderBy: { approvedAt: 'asc' }
+    }),
+
+    // 2. Sales - Stock Sold
+    prisma.sale.findMany({
+      where: {
+        businessId,
+        locationId,
+        saleDate: {
+          gte: finalStartDate,
+          lte: finalEndDate
+        }
+      },
+      include: {
+        items: {
+          where: {
+            productId,
+            productVariationId: variationId
+          }
+        },
+        customer: { select: { name: true } }
+      },
+      orderBy: { saleDate: 'asc' }
+    }),
+
+    // 3. Transfers Out (from this location)
+    prisma.stockTransfer.findMany({
+      where: {
+        businessId,
+        fromLocationId: locationId,
+        stockDeducted: true,
+        sentAt: {
+          gte: finalStartDate,
+          lte: finalEndDate
+        }
+      },
+      include: {
+        items: {
+          where: {
+            productId,
+            productVariationId: variationId
+          }
+        },
+        toLocation: { select: { name: true } }
+      },
+      orderBy: { sentAt: 'asc' }
+    }),
+
+    // 4. Transfers In (to this location)
+    prisma.stockTransfer.findMany({
+      where: {
+        businessId,
+        toLocationId: locationId,
+        status: 'completed',
+        completedAt: {
+          gte: finalStartDate,
+          lte: finalEndDate
+        }
+      },
+      include: {
+        items: {
+          where: {
+            productId,
+            productVariationId: variationId
+          }
+        },
+        fromLocation: { select: { name: true } }
+      },
+      orderBy: { completedAt: 'asc' }
+    }),
+
+    // 5. Inventory Corrections
+    prisma.inventoryCorrection.findMany({
+      where: {
+        businessId,
+        locationId,
+        productId,
+        productVariationId: variationId,
+        status: 'approved',
+        approvedAt: {
+          gte: finalStartDate,
+          lte: finalEndDate
+        }
+      },
+      orderBy: { approvedAt: 'asc' }
+    }),
+
+    // 6. Purchase Returns (returned to supplier)
+    prisma.supplierReturn.findMany({
+      where: {
+        businessId,
+        locationId: locationId,
+        status: 'approved',
+        approvedAt: {
+          gte: finalStartDate,
+          lte: finalEndDate
+        }
+      },
+      include: {
+        items: {
+          where: {
+            productId,
+            productVariationId: variationId
+          }
+        },
+        supplier: { select: { name: true } }
+      },
+      orderBy: { approvedAt: 'asc' }
+    }),
+
+    // 7. Customer Returns (returned by customers)
+    prisma.customerReturn.findMany({
+      where: {
+        businessId,
+        locationId,
+        status: 'approved',
+        approvedAt: {
+          gte: finalStartDate,
+          lte: finalEndDate
+        }
+      },
+      include: {
+        items: {
+          where: {
+            productId,
+            productVariationId: variationId
+          }
+        },
+        customer: { select: { name: true } }
+      },
+      orderBy: { approvedAt: 'asc' }
+    }),
+
+    // 8. Product History - ONLY for unique transaction types
+    // (opening_stock, manual adjustments that aren't in dedicated tables)
+    prisma.productHistory.findMany({
+      where: {
+        businessId,
+        locationId,
+        productId,
+        productVariationId: variationId,
+        transactionDate: {
+          gte: finalStartDate,
+          lte: finalEndDate
+        },
+        // Exclude transaction types that are already covered by dedicated tables above
+        transactionType: {
+          notIn: ['purchase', 'sale', 'transfer_in', 'transfer_out', 'purchase_return', 'customer_return']
+        }
+      },
+      orderBy: { transactionDate: 'asc' }
+    })
+  ])
+
+  // Build unified transaction array
+  const transactions: any[] = []
+
+  // Process Purchase Receipts
+  for (const receipt of purchaseReceipts) {
+    if (receipt.items.length > 0) {
+      for (const item of receipt.items) {
+        transactions.push({
+          date: receipt.approvedAt!,
+          type: 'purchase',
+          typeLabel: 'Purchase',
+          referenceNumber: receipt.receiptNumber,
+          quantityAdded: parseFloat(item.quantityReceived.toString()),
+          quantityRemoved: 0,
+          notes: `Stock Received - GRN #${receipt.receiptNumber} from ${receipt.supplier.name}`,
+          createdBy: receipt.supplier.name
+        })
       }
-    },
-    orderBy: {
-      createdAt: 'asc' // Build in ascending order for proper running balance
     }
-  })
+  }
 
-  // Build history entries with running balance
-  const history: StockHistoryEntry[] = []
-  let runningBalance = 0
-
-  for (const transaction of transactions) {
-    const quantity = parseFloat(transaction.quantity.toString())
-
-    // Calculate quantity added/removed
-    let quantityAdded = 0
-    let quantityRemoved = 0
-
-    if (quantity > 0) {
-      quantityAdded = quantity
-    } else {
-      quantityRemoved = Math.abs(quantity)
+  // Process Sales
+  for (const sale of sales) {
+    if (sale.items.length > 0) {
+      for (const item of sale.items) {
+        transactions.push({
+          date: sale.saleDate,
+          type: 'sale',
+          typeLabel: 'Sale',
+          referenceNumber: sale.invoiceNumber,
+          quantityAdded: 0,
+          quantityRemoved: parseFloat(item.quantity.toString()),
+          notes: `Sale to ${sale.customer?.name || 'Walk-in Customer'}`,
+          createdBy: sale.customer?.name || 'Walk-in Customer'
+        })
+      }
     }
+  }
 
-    runningBalance = parseFloat(transaction.balanceQty.toString())
+  // Process Transfers Out
+  for (const transfer of transfersOut) {
+    if (transfer.items.length > 0) {
+      for (const item of transfer.items) {
+        transactions.push({
+          date: transfer.sentAt!,
+          type: 'transfer_out',
+          typeLabel: 'Transfer Out',
+          referenceNumber: transfer.transferNumber,
+          quantityAdded: 0,
+          quantityRemoved: parseFloat(item.quantity.toString()),
+          notes: `Transfer to ${transfer.toLocation.name}`,
+          createdBy: `To: ${transfer.toLocation.name}`
+        })
+      }
+    }
+  }
 
-    const createdBy = transaction.createdByUser
-      ? `${transaction.createdByUser.firstName} ${transaction.createdByUser.lastName || ''}`.trim()
-      : 'Unknown'
+  // Process Transfers In
+  for (const transfer of transfersIn) {
+    if (transfer.items.length > 0) {
+      for (const item of transfer.items) {
+        transactions.push({
+          date: transfer.completedAt!,
+          type: 'transfer_in',
+          typeLabel: 'Transfer In',
+          referenceNumber: transfer.transferNumber,
+          quantityAdded: parseFloat(item.quantity.toString()),
+          quantityRemoved: 0,
+          notes: `Transfer from ${transfer.fromLocation.name}`,
+          createdBy: `From: ${transfer.fromLocation.name}`
+        })
+      }
+    }
+  }
 
-    history.push({
-      id: transaction.id,
-      date: transaction.createdAt,
-      referenceNumber: transaction.referenceId?.toString() || null,
-      transactionType: transaction.type as StockTransactionType,
-      transactionTypeLabel: getTransactionTypeLabel(transaction.type as StockTransactionType),
-      quantityAdded,
-      quantityRemoved,
-      runningBalance,
-      unitCost: transaction.unitCost ? parseFloat(transaction.unitCost.toString()) : null,
-      notes: transaction.notes,
-      createdBy
+  // Process Inventory Corrections
+  for (const correction of inventoryCorrections) {
+    const adjustment = parseFloat(correction.adjustment.toString())
+    transactions.push({
+      date: correction.approvedAt!,
+      type: 'adjustment',
+      typeLabel: 'Stock Adjustment',
+      referenceNumber: correction.correctionNumber,
+      quantityAdded: adjustment > 0 ? adjustment : 0,
+      quantityRemoved: adjustment < 0 ? Math.abs(adjustment) : 0,
+      notes: correction.reason || 'Stock adjustment',
+      createdBy: 'Stock Correction'
     })
   }
 
-  // Reverse the array so newest transactions appear first
+  // Process Purchase Returns
+  for (const returnRecord of purchaseReturns) {
+    if (returnRecord.items.length > 0) {
+      for (const item of returnRecord.items) {
+        transactions.push({
+          date: returnRecord.approvedAt!,
+          type: 'purchase_return',
+          typeLabel: 'Purchase Return',
+          referenceNumber: returnRecord.returnNumber,
+          quantityAdded: 0,
+          quantityRemoved: parseFloat(item.quantity.toString()),
+          notes: `Returned to ${returnRecord.supplier.name}`,
+          createdBy: returnRecord.supplier.name
+        })
+      }
+    }
+  }
+
+  // Process Customer Returns
+  for (const returnRecord of customerReturns) {
+    if (returnRecord.items.length > 0) {
+      for (const item of returnRecord.items) {
+        transactions.push({
+          date: returnRecord.approvedAt!,
+          type: 'customer_return',
+          typeLabel: 'Customer Return',
+          referenceNumber: returnRecord.returnNumber,
+          quantityAdded: parseFloat(item.quantityReturned.toString()),
+          quantityRemoved: 0,
+          notes: `Return from ${returnRecord.customer?.name || 'Customer'}`,
+          createdBy: returnRecord.customer?.name || 'Customer'
+        })
+      }
+    }
+  }
+
+  // Process Product History records (opening stock, etc.)
+  for (const historyRecord of productHistoryRecords) {
+    const quantityChange = parseFloat(historyRecord.quantityChange.toString())
+    transactions.push({
+      date: historyRecord.transactionDate,
+      type: historyRecord.transactionType,
+      typeLabel: historyRecord.transactionType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      referenceNumber: historyRecord.referenceNumber || `${historyRecord.transactionType.toUpperCase()}-${historyRecord.id}`,
+      quantityAdded: quantityChange > 0 ? quantityChange : 0,
+      quantityRemoved: quantityChange < 0 ? Math.abs(quantityChange) : 0,
+      notes: historyRecord.reason || '',
+      createdBy: historyRecord.createdByName || 'System'
+    })
+  }
+
+  // Sort all transactions by date (ascending)
+  transactions.sort((a, b) => a.date.getTime() - b.date.getTime())
+
+  // Calculate running balance
+  let runningBalance = 0
+  const history: StockHistoryEntry[] = []
+
+  for (let i = 0; i < transactions.length; i++) {
+    const txn = transactions[i]
+    runningBalance += txn.quantityAdded
+    runningBalance -= txn.quantityRemoved
+
+    history.push({
+      id: i + 1,
+      date: txn.date,
+      referenceNumber: txn.referenceNumber,
+      transactionType: txn.type as StockTransactionType,
+      transactionTypeLabel: txn.typeLabel,
+      quantityAdded: txn.quantityAdded,
+      quantityRemoved: txn.quantityRemoved,
+      runningBalance,
+      unitCost: null,
+      notes: txn.notes,
+      createdBy: txn.createdBy
+    })
+  }
+
+  // Reverse so newest appears first
   return history.reverse()
 }
 

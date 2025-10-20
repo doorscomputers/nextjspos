@@ -77,7 +77,7 @@ export default function AccountsPayablePage() {
   const [agingData, setAgingData] = useState<AgingData | null>(null)
 
   const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(25)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
   const [totalPayables, setTotalPayables] = useState(0)
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>([

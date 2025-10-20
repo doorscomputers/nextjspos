@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Calendar, Download, Search, Package, TrendingDown, AlertTriangle, DollarSign, Filter } from 'lucide-react';
 import { format } from 'date-fns';
+import { debounce } from '@/utils/debounce';
 
 interface InventoryItem {
   id: number;
@@ -96,7 +97,8 @@ export default function HistoricalInventoryPage() {
     // Fetch locations for filter dropdown
     fetchLocations();
 
-    // Don't auto-generate report - let user click the button
+    // Auto-generate report on initial load with today's date
+    generateReport(1);
   }, []);
 
   const fetchLocations = async () => {
@@ -111,7 +113,20 @@ export default function HistoricalInventoryPage() {
     }
   };
 
-  const generateReport = async (page = 1) => {
+  // Handler functions for filter changes
+  const handleDateChange = (value: string) => {
+    setSelectedDate(value);
+  };
+
+  const handleLocationChange = (value: string) => {
+    setSelectedLocation(value);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+  };
+
+  const generateReport = useCallback(async (page = 1) => {
     if (!selectedDate) return;
 
     setLoading(true);
@@ -143,30 +158,19 @@ export default function HistoricalInventoryPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedDate, selectedLocation, searchTerm]);
 
-  const handleSearch = () => {
-    setCurrentPage(1);
-    // Just reset page - DO NOT auto-generate report
-    // User must click "Generate Report" button
-  };
+  // Debounced version for auto-search
+  const debouncedGenerateReport = useCallback(
+    debounce(() => generateReport(1), 500),
+    [generateReport]
+  );
 
-  const handleSearchChange = (value: string) => {
-    setSearchTerm(value);
-    // Just update search term, don't auto-generate
-  };
-
-  const handleDateChange = (date: string) => {
-    setSelectedDate(date);
-    setCurrentPage(1);
-    // Just update date, don't auto-generate
-  };
-
-  const handleLocationChange = (location: string) => {
-    setSelectedLocation(location);
-    setCurrentPage(1);
-    // Just update location, don't auto-generate
-  };
+  // Auto-generate report when filters change (with debouncing for search)
+  useEffect(() => {
+    if (!canViewReports || !selectedDate) return;
+    debouncedGenerateReport();
+  }, [searchTerm, selectedLocation, selectedDate, debouncedGenerateReport, canViewReports]);
 
   const handleExportCSV = () => {
     if (!reportData) return;
@@ -279,31 +283,39 @@ export default function HistoricalInventoryPage() {
               <Label htmlFor="search" className="text-sm font-medium">
                 Search Products
               </Label>
-              <Input
-                id="search"
-                placeholder="Name, SKU or barcode..."
-                value={searchTerm}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                className="h-10"
-              />
-              <p className="text-xs text-muted-foreground">Type to search, then click "Generate Report"</p>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  id="search"
+                  placeholder="Search by name, SKU or barcode..."
+                  value={searchTerm}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !loading && selectedDate) {
+                      generateReport(1);
+                    }
+                  }}
+                  className="h-10 pl-10"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Search auto-updates after typing (500ms delay)</p>
             </div>
 
             <div className="flex items-end">
               <Button
                 onClick={() => generateReport(1)}
                 disabled={loading || !selectedDate}
-                className="w-full h-10 font-medium"
+                className="w-full h-12 font-semibold text-base bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
                 size="lg"
               >
                 {loading ? (
                   <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                     Generating...
                   </>
                 ) : (
                   <>
-                    <Calendar className="w-4 h-4 mr-2" />
+                    <Calendar className="w-5 h-5 mr-2" />
                     Generate Report
                   </>
                 )}
@@ -319,9 +331,9 @@ export default function HistoricalInventoryPage() {
           <h3 className="font-semibold text-blue-900 mb-2">How to use this report:</h3>
           <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
             <li>Select a target date to see inventory levels as of that date</li>
-            <li>Optionally select a location from the dropdown</li>
-            <li>Optionally type product names, SKUs, or barcodes to search</li>
-            <li>CLICK "Generate Report" BUTTON TO VIEW RESULTS</li>
+            <li>Optionally select a location from the dropdown - report auto-updates</li>
+            <li>Optionally type product names, SKUs, or barcodes to search - report auto-updates</li>
+            <li>You can also click "Generate Report" button manually to refresh</li>
             <li>Export to CSV using the Export button above</li>
           </ol>
         </CardContent>

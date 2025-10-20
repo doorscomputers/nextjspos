@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import "devextreme/dist/css/dx.light.css";
 import Providers from "./providers";
 import { PageLoader } from "@/components/PageLoader";
 
@@ -11,8 +12,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "UltimatePOS Modern - Fast & Responsive POS System",
-  description: "Modern, fast, and responsive Point of Sale system with multi-tenant support and role-based access control",
+  title: "Igoro Tech(IT) Inventory Management System",
+  description: "Modern Point of Sale and Inventory Management system with multi-tenant support and role-based access control",
 };
 
 export default function RootLayout({

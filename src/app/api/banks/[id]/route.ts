@@ -7,7 +7,7 @@ import { PERMISSIONS, hasPermission } from '@/lib/rbac'
 // GET - Get single bank
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -21,7 +21,8 @@ export async function GET(
     }
 
     const businessId = session.user.businessId
-    const bankId = parseInt(params.id)
+    const { id } = await params
+    const bankId = parseInt(id)
 
     const bank = await prisma.bank.findFirst({
       where: {
@@ -54,7 +55,7 @@ export async function GET(
 // PUT - Update bank
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -68,7 +69,8 @@ export async function PUT(
     }
 
     const businessId = session.user.businessId
-    const bankId = parseInt(params.id)
+    const { id } = await params
+    const bankId = parseInt(id)
 
     const body = await request.json()
     const {
@@ -147,7 +149,7 @@ export async function PUT(
 // DELETE - Soft delete bank
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -161,7 +163,8 @@ export async function DELETE(
     }
 
     const businessId = session.user.businessId
-    const bankId = parseInt(params.id)
+    const { id } = await params
+    const bankId = parseInt(id)
 
     // Check if bank exists
     const existingBank = await prisma.bank.findFirst({

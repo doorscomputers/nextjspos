@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
-import { ArrowLeft, Search, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Search, RefreshCw, BookOpen } from 'lucide-react'
 import { StockHistoryEntry } from '@/types/product'
+import { generateStockHistoryNarrative } from '@/utils/stockHistoryNarrative'
 import {
   Select,
   SelectContent,
@@ -187,7 +188,7 @@ export default function ProductStockHistoryPage() {
                     {product.variations && product.variations.length > 0 ? (
                       product.variations.map(variation => (
                         <SelectItem key={variation.id} value={variation.id.toString()}>
-                          {variation.name === 'DUMMY' ? product.name : variation.name} - {variation.sku}
+                          {(variation.name === 'DUMMY' || variation.name === 'Default') ? product.name : variation.name} - {variation.sku}
                         </SelectItem>
                       ))
                     ) : (
@@ -320,6 +321,37 @@ export default function ProductStockHistoryPage() {
           </div>
           </CardContent>
         </Card>
+
+        {/* Stock Story Narrative */}
+        {selectedVariation && selectedLocation && history.length > 0 && (
+          <Card className="mb-6 bg-blue-50 border-blue-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-blue-900">
+                <BookOpen className="w-5 h-5" />
+                Understanding Your Stock Numbers
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="prose prose-sm max-w-none text-gray-700">
+                {generateStockHistoryNarrative(
+                  history,
+                  product.name,
+                  locations.find(loc => loc.id === selectedLocation)?.name || 'Unknown Location'
+                ).split('\n').map((line, index) => {
+                  if (line.startsWith('📊') || line.startsWith('✅') || line.startsWith('❌') || line.startsWith('🔢') || line.startsWith('⚠️') || line.startsWith('📝')) {
+                    return <p key={index} className="font-semibold mb-2 text-gray-900">{line}</p>
+                  } else if (line.startsWith('- ')) {
+                    return <p key={index} className="ml-4 mb-1">{line}</p>
+                  } else if (line.trim() === '') {
+                    return <div key={index} className="h-2" />
+                  } else {
+                    return <p key={index} className="mb-2">{line}</p>
+                  }
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stock History Table */}
         <Card>

@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { PERMISSIONS, getUserAccessibleLocationIds } from '@/lib/rbac'
 
 // GET - Fetch all locations for user's business (filtered by user permissions)
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
 
@@ -21,6 +21,10 @@ export async function GET() {
       return NextResponse.json({ error: 'No business associated with user' }, { status: 400 })
     }
 
+    // Get query parameter to control whether to show inactive locations
+    const { searchParams } = new URL(request.url)
+    const includeInactive = searchParams.get('includeInactive') === 'true'
+
     // Get accessible location IDs using the RBAC utility function
     const accessibleLocationIds = getUserAccessibleLocationIds(user)
 
@@ -29,16 +33,25 @@ export async function GET() {
     console.log('Business ID:', businessId)
     console.log('User:', user.username)
     console.log('Accessible Location IDs:', accessibleLocationIds)
+    console.log('Include Inactive:', includeInactive)
 
     let locations
+
+    // Build base where clause
+    const baseWhere: any = {
+      businessId: parseInt(businessId),
+      deletedAt: null
+    }
+
+    // Filter by active status unless explicitly requested to include inactive
+    if (!includeInactive) {
+      baseWhere.isActive = true
+    }
 
     if (accessibleLocationIds === null) {
       // User can access all locations in their business
       locations = await prisma.businessLocation.findMany({
-        where: {
-          businessId: parseInt(businessId),
-          deletedAt: null
-        },
+        where: baseWhere,
         orderBy: { createdAt: 'desc' }
       })
       console.log('Returned all business locations:', locations.length)
@@ -50,9 +63,8 @@ export async function GET() {
       // User can only access specific locations
       locations = await prisma.businessLocation.findMany({
         where: {
-          id: { in: accessibleLocationIds },
-          businessId: parseInt(businessId),
-          deletedAt: null
+          ...baseWhere,
+          id: { in: accessibleLocationIds }
         },
         orderBy: { createdAt: 'desc' }
       })
@@ -118,7 +130,8 @@ export async function POST(request: NextRequest) {
           mobile,
           alternateNumber,
           email,
-        }
+          isActive: true
+        } as any
       })
 
       // Get all product variations for this business

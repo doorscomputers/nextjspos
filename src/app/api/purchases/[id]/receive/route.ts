@@ -82,21 +82,37 @@ export async function POST(
     // Verify location access
     const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
     if (!hasAccessAllLocations) {
-      const userLocation = await prisma.userLocation.findUnique({
-        where: {
-          userId_locationId: {
-            userId: parseInt(userId),
-            locationId: purchase.locationId,
-          },
-        },
-      })
+      const userLocationIds = user.locationIds || []
 
-      if (!userLocation) {
+      if (!userLocationIds.includes(purchase.locationId)) {
         return NextResponse.json(
           { error: 'You do not have access to this location' },
           { status: 403 }
         )
       }
+    }
+
+    // Check if there's already a pending GRN for this purchase order
+    // to prevent duplicate submissions
+    const existingPendingGRN = await prisma.purchaseReceipt.findFirst({
+      where: {
+        purchaseId: parseInt(purchaseId),
+        status: 'pending',
+      },
+      select: {
+        id: true,
+        receiptNumber: true,
+      },
+    })
+
+    if (existingPendingGRN) {
+      return NextResponse.json(
+        {
+          error: `A pending GRN (${existingPendingGRN.receiptNumber}) already exists for this purchase order. Please approve or delete it first.`,
+          existingGRNId: existingPendingGRN.id,
+        },
+        { status: 400 }
+      )
     }
 
     // Validate items and quantities

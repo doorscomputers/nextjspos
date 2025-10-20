@@ -1,48 +1,124 @@
 "use client"
 
 import { signOut } from "next-auth/react"
-import { Bars3Icon, BellIcon, UserCircleIcon, Bars3BottomLeftIcon } from "@heroicons/react/24/outline"
-import { useState } from "react"
+import { Bars3Icon, BellIcon, UserCircleIcon, CheckIcon } from "@heroicons/react/24/outline"
+import { useState, useEffect } from "react"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { useRouter } from "next/navigation"
-import { useTheme } from "@/components/theme-provider"
 
 interface HeaderProps {
   toggleSidebar: () => void
 }
 
+interface Notification {
+  id: number
+  type: string
+  title: string
+  message: string
+  actionUrl: string | null
+  isRead: boolean
+  priority: string
+  createdAt: string
+}
+
 export default function Header({ toggleSidebar }: HeaderProps) {
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const { sidebarStyle, setSidebarStyle } = useTheme()
 
-  const toggleSidebarCollapse = () => {
-    if (sidebarStyle === 'default') {
-      setSidebarStyle('icons-only')
-    } else {
-      setSidebarStyle('default')
+  // Fetch notifications
+  useEffect(() => {
+    fetchNotifications()
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  async function fetchNotifications() {
+    try {
+      const response = await fetch('/api/notifications?limit=10')
+      if (response.ok) {
+        const data = await response.json()
+        setNotifications(data.notifications)
+        setUnreadCount(data.unreadCount)
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error)
     }
   }
 
+  async function markAsRead(notificationId: number) {
+    try {
+      const response = await fetch(`/api/notifications/${notificationId}/mark-read`, {
+        method: 'PUT'
+      })
+      if (response.ok) {
+        fetchNotifications()
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error)
+    }
+  }
+
+  async function markAllAsRead() {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/notifications/mark-all-read', {
+        method: 'PUT'
+      })
+      if (response.ok) {
+        fetchNotifications()
+      }
+    } catch (error) {
+      console.error('Error marking all as read:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function handleNotificationClick(notification: Notification) {
+    if (!notification.isRead) {
+      markAsRead(notification.id)
+    }
+    if (notification.actionUrl) {
+      setShowNotifications(false)
+      router.push(notification.actionUrl)
+    }
+  }
+
+  function getPriorityColor(priority: string) {
+    switch (priority) {
+      case 'urgent': return 'text-red-600 dark:text-red-400'
+      case 'high': return 'text-orange-600 dark:text-orange-400'
+      case 'low': return 'text-gray-500 dark:text-gray-400'
+      default: return 'text-blue-600 dark:text-blue-400'
+    }
+  }
+
+  function getTimeAgo(dateString: string) {
+    const date = new Date(dateString)
+    const now = new Date()
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+
+    if (seconds < 60) return 'Just now'
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
+    return `${Math.floor(seconds / 86400)}d ago`
+  }
+
   return (
-    <header className="bg-white dark:bg-gray-900 shadow-md z-10 border-b border-gray-200 dark:border-gray-800">
+    <header className="bg-white dark:bg-gray-900 shadow-md z-10 border-b border-gray-200 dark:border-gray-800 print:hidden">
       <div className="flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
         {/* Mobile menu button */}
         <button
           onClick={toggleSidebar}
-          className="lg:hidden p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
+          className="lg:hidden p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
         >
           <Bars3Icon className="h-6 w-6" />
-        </button>
-
-        {/* Desktop Sidebar Collapse Button */}
-        <button
-          onClick={toggleSidebarCollapse}
-          title={`Sidebar: ${sidebarStyle === 'default' ? 'Normal (click to collapse)' : 'Icons Only (click to expand)'}`}
-          className="hidden lg:block p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
-        >
-          <Bars3BottomLeftIcon className="h-6 w-6" />
         </button>
 
         {/* Spacer */}
@@ -54,10 +130,100 @@ export default function Header({ toggleSidebar }: HeaderProps) {
           <ThemeSwitcher />
 
           {/* Notifications */}
-          <button className="relative p-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200">
-            <BellIcon className="h-6 w-6" />
-            <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-gray-900"></span>
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="relative p-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
+            >
+              <BellIcon className="h-6 w-6" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 h-5 w-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center ring-2 ring-white dark:ring-gray-900">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {/* Notification Dropdown */}
+            {showNotifications && (
+              <div className="absolute right-0 mt-2 w-96 max-h-[500px] bg-white dark:bg-gray-800 rounded-lg shadow-2xl border-2 border-gray-200 dark:border-gray-700 overflow-hidden z-50">
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Notifications
+                    {unreadCount > 0 && (
+                      <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
+                        ({unreadCount} new)
+                      </span>
+                    )}
+                  </h3>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={markAllAsRead}
+                      disabled={loading}
+                      className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium disabled:opacity-50"
+                    >
+                      <CheckIcon className="h-5 w-5 inline mr-1" />
+                      Mark all read
+                    </button>
+                  )}
+                </div>
+
+                {/* Notification List */}
+                <div className="overflow-y-auto max-h-[400px]">
+                  {notifications.length === 0 ? (
+                    <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                      <BellIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No notifications</p>
+                    </div>
+                  ) : (
+                    notifications.map((notification) => (
+                      <button
+                        key={notification.id}
+                        onClick={() => handleNotificationClick(notification)}
+                        className={`w-full text-left px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all duration-200 ${
+                          !notification.isRead ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className={`font-semibold text-sm ${getPriorityColor(notification.priority)}`}>
+                                {notification.title}
+                              </p>
+                              {!notification.isRead && (
+                                <span className="h-2 w-2 bg-blue-500 rounded-full flex-shrink-0"></span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                              {notification.message}
+                            </p>
+                          </div>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                            {getTimeAgo(notification.createdAt)}
+                          </span>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+
+                {/* Footer */}
+                {notifications.length > 0 && (
+                  <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+                    <button
+                      onClick={() => {
+                        setShowNotifications(false)
+                        router.push('/dashboard/notifications')
+                      }}
+                      className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium"
+                    >
+                      View all notifications →
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* User menu */}
           <div className="relative">

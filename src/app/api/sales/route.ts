@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { checkStockAvailability, processSale } from '@/lib/stockOperations'
 import {
   sendLargeDiscountAlert,
   sendCreditSaleAlert,
@@ -12,6 +13,8 @@ import {
   sendTelegramLargeDiscountAlert,
   sendTelegramCreditSaleAlert,
 } from '@/lib/telegram'
+import { withIdempotency } from '@/lib/idempotency'
+import { getNextInvoiceNumber } from '@/lib/atomicNumbers'
 
 // GET - List all sales
 export async function GET(request: NextRequest) {
@@ -25,6 +28,13 @@ export async function GET(request: NextRequest) {
     const user = session.user as any
     const businessId = user.businessId
     const userId = user.id
+    const businessIdNumber = Number(businessId)
+    const userIdNumber = Number(userId)
+    if (Number.isNaN(businessIdNumber) || Number.isNaN(userIdNumber)) {
+      return NextResponse.json({ error: 'Invalid user context' }, { status: 400 })
+    }
+    const userDisplayName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || `User#${userIdNumber}`
 
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.SELL_VIEW) &&
@@ -119,24 +129,25 @@ export async function GET(request: NextRequest) {
 
 // POST - Create new sale
 export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
+  return withIdempotency(request, '/api/sales', async () => {
+    try {
+      const session = await getServerSession(authOptions)
 
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+      if (!session?.user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
 
-    const user = session.user as any
-    const businessId = user.businessId
-    const userId = user.id
+      const user = session.user as any
+      const businessId = user.businessId
+      const userId = user.id
 
-    // Check permission
-    if (!user.permissions?.includes(PERMISSIONS.SELL_CREATE)) {
-      return NextResponse.json(
-        { error: 'Forbidden - Insufficient permissions' },
-        { status: 403 }
-      )
-    }
+      // Check permission
+      if (!user.permissions?.includes(PERMISSIONS.SELL_CREATE)) {
+        return NextResponse.json(
+          { error: 'Forbidden - Insufficient permissions' },
+          { status: 403 }
+        )
+      }
 
     const body = await request.json()
     const {
@@ -159,6 +170,24 @@ export async function POST(request: NextRequest) {
       discountApprovedBy,
       vatExempt = false,
     } = body
+
+    const locationIdNumber = Number(locationId)
+    if (Number.isNaN(locationIdNumber)) {
+      return NextResponse.json({ error: 'Invalid locationId' }, { status: 400 })
+    }
+
+    const customerIdNumber = customerId !== undefined && customerId !== null ? Number(customerId) : null
+    if (customerIdNumber !== null && Number.isNaN(customerIdNumber)) {
+      return NextResponse.json({ error: 'Invalid customerId' }, { status: 400 })
+    }
+
+    const discountApprovedByNumber =
+      discountApprovedBy !== undefined && discountApprovedBy !== null
+        ? Number(discountApprovedBy)
+        : null
+    if (discountApprovedByNumber !== null && Number.isNaN(discountApprovedByNumber)) {
+      return NextResponse.json({ error: 'Invalid discountApprovedBy value' }, { status: 400 })
+    }
 
     // Validation
     if (!locationId || !saleDate || !items || items.length === 0) {
@@ -188,8 +217,8 @@ export async function POST(request: NextRequest) {
     // Verify location belongs to business
     const location = await prisma.businessLocation.findFirst({
       where: {
-        id: parseInt(locationId),
-        businessId: parseInt(businessId),
+        id: locationIdNumber,
+        businessId: businessIdNumber,
         deletedAt: null,
       },
     })
@@ -207,8 +236,8 @@ export async function POST(request: NextRequest) {
       const userLocation = await prisma.userLocation.findUnique({
         where: {
           userId_locationId: {
-            userId: parseInt(userId),
-            locationId: parseInt(locationId),
+            userId: userIdNumber,
+            locationId: locationIdNumber,
           },
         },
       })
@@ -224,9 +253,9 @@ export async function POST(request: NextRequest) {
     // Check for open cashier shift - REQUIRED FOR POS
     const currentShift = await prisma.cashierShift.findFirst({
       where: {
-        userId: parseInt(userId),
+        userId: userIdNumber,
         status: 'open',
-        businessId: parseInt(businessId),
+        businessId: businessIdNumber,
       },
     })
 
@@ -239,11 +268,11 @@ export async function POST(request: NextRequest) {
 
     // Verify customer if provided and get customer name for serial numbers
     let customerName: string | null = null
-    if (customerId) {
+    if (customerIdNumber !== null) {
       const customer = await prisma.customer.findFirst({
         where: {
-          id: parseInt(customerId),
-          businessId: parseInt(businessId),
+          id: customerIdNumber,
+          businessId: businessIdNumber,
           deletedAt: null,
         },
       })
@@ -278,21 +307,17 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Check stock availability
-      const stock = await prisma.variationLocationDetails.findUnique({
-        where: {
-          productVariationId_locationId: {
-            productVariationId: parseInt(item.productVariationId),
-            locationId: parseInt(locationId),
-          },
-        },
+      // Check stock availability via centralized stock helper
+      const availability = await checkStockAvailability({
+        productVariationId: Number(item.productVariationId),
+        locationId: locationIdNumber,
+        quantity,
       })
 
-      if (!stock || parseFloat(stock.qtyAvailable.toString()) < quantity) {
-        const availableQty = stock ? parseFloat(stock.qtyAvailable.toString()) : 0
+      if (!availability.available) {
         return NextResponse.json(
           {
-            error: `Insufficient stock for item ${item.productId}. Available: ${availableQty}, Required: ${quantity}`,
+            error: `Insufficient stock for item ${item.productId}. Available: ${availability.currentStock}, Required: ${quantity}`,
           },
           { status: 400 }
         )
@@ -320,10 +345,10 @@ export async function POST(request: NextRequest) {
         for (const serialNumberId of item.serialNumberIds) {
           const serialNumber = await prisma.productSerialNumber.findFirst({
             where: {
-              id: parseInt(serialNumberId),
-              businessId: parseInt(businessId),
-              productVariationId: parseInt(item.productVariationId),
-              currentLocationId: parseInt(locationId),
+              id: Number(serialNumberId),
+              businessId: businessIdNumber,
+              productVariationId: Number(item.productVariationId),
+              currentLocationId: locationIdNumber,
               status: 'in_stock',
             },
           })
@@ -364,37 +389,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Generate invoice number
-    const currentYear = new Date().getFullYear()
-    const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0')
-    const lastSale = await prisma.sale.findFirst({
-      where: {
-        businessId: parseInt(businessId),
-        invoiceNumber: {
-          startsWith: `INV-${currentYear}${currentMonth}`,
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    })
-
-    let invoiceNumber
-    if (lastSale) {
-      const lastNumber = parseInt(lastSale.invoiceNumber.split('-').pop() || '0')
-      invoiceNumber = `INV-${currentYear}${currentMonth}-${String(lastNumber + 1).padStart(4, '0')}`
-    } else {
-      invoiceNumber = `INV-${currentYear}${currentMonth}-0001`
-    }
-
     // Create sale and deduct stock in transaction
     const sale = await prisma.$transaction(async (tx) => {
+      // Generate invoice number atomically inside transaction
+      const invoiceNumber = await getNextInvoiceNumber(businessIdNumber, tx)
+
       // Create sale
       const newSale = await tx.sale.create({
         data: {
-          businessId: parseInt(businessId),
-          locationId: parseInt(locationId),
-          customerId: customerId ? parseInt(customerId) : null,
+          businessId: businessIdNumber,
+          locationId: locationIdNumber,
+          customerId: customerIdNumber,
           invoiceNumber,
           saleDate: new Date(saleDate),
           status: isCreditSale ? 'pending' : 'completed', // Use status from request
@@ -411,17 +416,26 @@ export async function POST(request: NextRequest) {
           seniorCitizenName: seniorCitizenName || null,
           pwdId: pwdId || null,
           pwdName: pwdName || null,
-          discountApprovedBy: discountApprovedBy ? parseInt(discountApprovedBy) : null,
+          discountApprovedBy: discountApprovedByNumber,
           vatExempt: vatExempt || false,
-          createdBy: parseInt(userId),
+          createdBy: userIdNumber,
         },
       })
 
       // Create sale items and deduct stock
       for (const item of items) {
+        const productIdNumber = Number(item.productId)
+        const productVariationIdNumber = Number(item.productVariationId)
+        const quantityNumber = parseFloat(item.quantity)
+        const unitPriceNumber = parseFloat(item.unitPrice)
+
+        if (Number.isNaN(productIdNumber) || Number.isNaN(productVariationIdNumber)) {
+          throw new Error('Invalid product identifiers in sale item')
+        }
+
         // Get product variation to fetch purchase price for unitCost
         const variation = await tx.productVariation.findUnique({
-          where: { id: parseInt(item.productVariationId) },
+          where: { id: productVariationIdNumber },
         })
 
         if (!variation) {
@@ -434,7 +448,7 @@ export async function POST(request: NextRequest) {
           // Fetch serial numbers to get their details
           const serialNumberRecords = await tx.productSerialNumber.findMany({
             where: {
-              id: { in: item.serialNumberIds.map((id: any) => parseInt(id)) },
+              id: { in: item.serialNumberIds.map((id: any) => Number(id)) },
             },
           })
           serialNumbersData = serialNumberRecords.map(sn => ({
@@ -445,62 +459,29 @@ export async function POST(request: NextRequest) {
         }
 
         // Create sale item
-        const saleItem = await tx.saleItem.create({
+        await tx.saleItem.create({
           data: {
             saleId: newSale.id,
-            productId: parseInt(item.productId),
-            productVariationId: parseInt(item.productVariationId),
-            quantity: parseFloat(item.quantity),
-            unitPrice: parseFloat(item.unitPrice),
+            productId: productIdNumber,
+            productVariationId: productVariationIdNumber,
+            quantity: quantityNumber,
+            unitPrice: unitPriceNumber,
             unitCost: parseFloat(variation.purchasePrice.toString()), // Use purchase price as unit cost
             serialNumbers: serialNumbersData, // Store serial numbers as JSON
           },
         })
 
-        // Deduct stock
-        const currentStock = await tx.variationLocationDetails.findUnique({
-          where: {
-            productVariationId_locationId: {
-              productVariationId: parseInt(item.productVariationId),
-              locationId: parseInt(locationId),
-            },
-          },
-        })
-
-        if (!currentStock) {
-          throw new Error(`Stock record not found for variation ${item.productVariationId}`)
-        }
-
-        const newQty = parseFloat(currentStock.qtyAvailable.toString()) - parseFloat(item.quantity)
-
-        await tx.variationLocationDetails.update({
-          where: {
-            productVariationId_locationId: {
-              productVariationId: parseInt(item.productVariationId),
-              locationId: parseInt(locationId),
-            },
-          },
-          data: {
-            qtyAvailable: newQty,
-          },
-        })
-
-        // Create stock transaction
-        await tx.stockTransaction.create({
-          data: {
-            businessId: parseInt(businessId),
-            productId: parseInt(item.productId),
-            productVariationId: parseInt(item.productVariationId),
-            locationId: parseInt(locationId),
-            type: 'sale',
-            quantity: -parseFloat(item.quantity), // Negative for deduction
-            unitCost: 0, // Will be calculated from FIFO/LIFO later
-            balanceQty: newQty,
-            referenceType: 'sale',
-            referenceId: newSale.id,
-            createdBy: parseInt(userId),
-            notes: `Sale ${invoiceNumber}`,
-          },
+        await processSale({
+          tx,
+          businessId: businessIdNumber,
+          productId: productIdNumber,
+          productVariationId: productVariationIdNumber,
+          locationId: locationIdNumber,
+          quantity: quantityNumber,
+          unitCost: parseFloat(variation.purchasePrice.toString()),
+          saleId: newSale.id,
+          userId: userIdNumber,
+          userDisplayName,
         })
 
         // Handle serial numbers if required
@@ -508,7 +489,7 @@ export async function POST(request: NextRequest) {
           for (const serialNumberId of item.serialNumberIds) {
             // Update serial number status to sold
             const serialNumberRecord = await tx.productSerialNumber.update({
-              where: { id: parseInt(serialNumberId) },
+              where: { id: Number(serialNumberId) },
               data: {
                 status: 'sold',
                 saleId: newSale.id,
@@ -522,10 +503,10 @@ export async function POST(request: NextRequest) {
               data: {
                 serialNumberId: serialNumberRecord.id, // CRITICAL: Use actual ID
                 movementType: 'sale',
-                fromLocationId: parseInt(locationId),
+                fromLocationId: locationIdNumber,
                 referenceType: 'sale',
                 referenceId: newSale.id,
-                movedBy: parseInt(userId),
+                movedBy: userIdNumber,
                 notes: `Sold via ${invoiceNumber}`,
               },
             })
@@ -559,26 +540,26 @@ export async function POST(request: NextRequest) {
 
       return newSale
     }, {
-      timeout: 30000, // 30 seconds timeout for complex transaction
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     // Create audit log
     await createAuditLog({
-      businessId: parseInt(businessId),
-      userId: parseInt(userId),
+      businessId: businessIdNumber,
+      userId: userIdNumber,
       username: user.username,
       action: 'sale_create' as AuditAction,
       entityType: EntityType.SALE,
       entityIds: [sale.id],
-      description: `Created Sale ${invoiceNumber}`,
+      description: `Created Sale ${sale.invoiceNumber}`,
       metadata: {
         saleId: sale.id,
-        invoiceNumber,
-        customerId: customerId ? parseInt(customerId) : null,
-        locationId: parseInt(locationId),
+        invoiceNumber: sale.invoiceNumber,
+        customerId: customerIdNumber,
+        locationId: locationIdNumber,
         totalAmount,
         itemCount: items.length,
-        paymentMethods: payments.map((p: any) => p.method),
+        paymentMethods: (payments || []).map((p: any) => p.method),
       },
       ipAddress: getIpAddress(request),
       userAgent: getUserAgent(request),
@@ -601,7 +582,7 @@ export async function POST(request: NextRequest) {
         if (discountAmount && parseFloat(discountAmount) > 0) {
           await Promise.all([
             sendLargeDiscountAlert({
-              saleNumber: invoiceNumber,
+              saleNumber: sale.invoiceNumber,
               discountAmount: parseFloat(discountAmount),
               discountType: discountType || 'Regular Discount',
               totalAmount,
@@ -611,7 +592,7 @@ export async function POST(request: NextRequest) {
               reason: notes || undefined,
             }),
             sendTelegramLargeDiscountAlert({
-              saleNumber: invoiceNumber,
+              saleNumber: sale.invoiceNumber,
               discountAmount: parseFloat(discountAmount),
               discountType: discountType || 'Regular Discount',
               totalAmount,
@@ -627,7 +608,7 @@ export async function POST(request: NextRequest) {
         if (isCreditSale && customerName) {
           await Promise.all([
             sendCreditSaleAlert({
-              saleNumber: invoiceNumber,
+              saleNumber: sale.invoiceNumber,
               creditAmount: totalAmount,
               customerName,
               cashierName: user.username || user.name || 'Unknown',
@@ -635,7 +616,7 @@ export async function POST(request: NextRequest) {
               timestamp: new Date(saleDate),
             }),
             sendTelegramCreditSaleAlert({
-              saleNumber: invoiceNumber,
+              saleNumber: sale.invoiceNumber,
               creditAmount: totalAmount,
               customerName,
               cashierName: user.username || user.name || 'Unknown',
@@ -661,4 +642,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+  }) // Close idempotency wrapper
 }

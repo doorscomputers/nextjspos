@@ -7,7 +7,7 @@ import { PERMISSIONS } from '@/lib/rbac'
 // PUT - Update customer
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -18,7 +18,8 @@ export async function PUT(
 
     const user = session.user as any
     const businessId = user.businessId
-    const customerId = parseInt(params.id)
+    const { id } = await params
+    const customerId = parseInt(id)
 
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.CUSTOMER_UPDATE)) {
@@ -124,7 +125,7 @@ export async function PUT(
 // DELETE - Soft delete customer
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -135,7 +136,8 @@ export async function DELETE(
 
     const user = session.user as any
     const businessId = user.businessId
-    const customerId = parseInt(params.id)
+    const { id } = await params
+    const customerId = parseInt(id)
 
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.CUSTOMER_DELETE)) {

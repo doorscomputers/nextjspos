@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theme Test</title>
+    <style>
+        :root {
+            --primary: 221 83% 53%;
+            --background: 0 0% 100%;
+        }
+
+        body {
+            background-color: hsl(var(--background));
+            color: hsl(var(--primary));
+            padding: 50px;
+            font-family: Arial, sans-serif;
+        }
+
+        .test-box {
+            background-color: hsl(var(--primary));
+            color: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Theme Override Test</h1>
+    <div class="test-box">This box should change color when you click the buttons</div>
+
+    <button onclick="applyTheme1()">Theme 1 (Blue)</button>
+    <button onclick="applyTheme2()">Theme 2 (Orange - Sunset)</button>
+    <button onclick="applyTheme3()">Theme 3 (Green)</button>
+
+    <div id="debug"></div>
+
+    <script>
+        function applyTheme1() {
+            const style = document.createElement('style');
+            style.id = 'theme-override';
+
+            // Remove old style
+            const old = document.getElementById('theme-override');
+            if (old) old.remove();
+
+            style.textContent = `
+                :root {
+                    --primary: 221 83% 53% !important;
+                }
+            `;
+
+            document.head.appendChild(style);
+            document.getElementById('debug').textContent = 'Applied Blue theme';
+        }
+
+        function applyTheme2() {
+            const style = document.createElement('style');
+            style.id = 'theme-override';
+
+            // Remove old style
+            const old = document.getElementById('theme-override');
+            if (old) old.remove();
+
+            style.textContent = `
+                :root {
+                    --primary: 14 77% 62% !important;
+                }
+            `;
+
+            document.head.appendChild(style);
+            document.getElementById('debug').textContent = 'Applied Orange theme (Sunset)';
+        }
+
+        function applyTheme3() {
+            const style = document.createElement('style');
+            style.id = 'theme-override';
+
+            // Remove old style
+            const old = document.getElementById('theme-override');
+            if (old) old.remove();
+
+            style.textContent = `
+                :root {
+                    --primary: 120 25% 25% !important;
+                }
+            `;
+
+            document.head.appendChild(style);
+            document.getElementById('debug').textContent = 'Applied Green theme';
+        }
+    </script>
+</body>
+</html>

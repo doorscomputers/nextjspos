@@ -85,7 +85,6 @@ export default function CreatePurchaseOrderPage() {
   const [supplierId, setSupplierId] = useState('')
   const [warehouseLocationId, setWarehouseLocationId] = useState('')
   const [warehouseLocationName, setWarehouseLocationName] = useState('')
-  const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0])
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('')
   const [items, setItems] = useState<POItem[]>([])
   const [taxAmount, setTaxAmount] = useState(0)
@@ -259,7 +258,7 @@ export default function CreatePurchaseOrderPage() {
       const poData = {
         supplierId: parseInt(supplierId),
         locationId: parseInt(warehouseLocationId),
-        purchaseDate: new Date(purchaseDate).toISOString(),
+        // purchaseDate removed - server will use real-time timestamp
         expectedDeliveryDate: expectedDeliveryDate ? new Date(expectedDeliveryDate).toISOString() : null,
         items: items.map(item => ({
           productId: item.productId,
@@ -325,9 +324,15 @@ export default function CreatePurchaseOrderPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-4">
         <Link href="/dashboard/purchases">
-          <Button variant="outline" size="sm">
-            <ArrowLeftIcon className="w-4 h-4 mr-2" />
-            Back
+          <Button
+            variant="outline"
+            size="sm"
+            className="group px-4 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 hover:from-blue-50 hover:to-indigo-50 dark:hover:from-blue-900/30 dark:hover:to-indigo-900/30 border-2 border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 rounded-lg font-semibold"
+          >
+            <ArrowLeftIcon className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform duration-300" />
+            <span className="bg-gradient-to-r from-gray-700 to-gray-900 dark:from-gray-200 dark:to-gray-100 group-hover:from-blue-600 group-hover:to-indigo-600 dark:group-hover:from-blue-400 dark:group-hover:to-indigo-400 bg-clip-text text-transparent">
+              Back
+            </span>
           </Button>
         </Link>
         <div>
@@ -369,7 +374,7 @@ export default function CreatePurchaseOrderPage() {
                   type="button"
                   variant="outline"
                   onClick={() => setShowSupplierDialog(true)}
-                  className="shrink-0"
+                  className="shrink-0 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 hover:from-green-100 hover:to-emerald-100 dark:hover:from-green-900/30 dark:hover:to-emerald-900/30 text-green-700 dark:text-green-300 border-2 border-green-300 dark:border-green-700 shadow-md hover:shadow-lg transition-all duration-200 font-medium hover:scale-105"
                 >
                   <PlusIcon className="w-4 h-4 mr-1" />
                   Quick Add
@@ -423,17 +428,12 @@ export default function CreatePurchaseOrderPage() {
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="purchaseDate" className="text-gray-900 dark:text-gray-200">
-                Purchase Date <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="purchaseDate"
-                type="date"
-                value={purchaseDate}
-                onChange={(e) => setPurchaseDate(e.target.value)}
-                required
-              />
+            <div className="space-y-2 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+              <p className="text-sm text-blue-800 dark:text-blue-300">
+                <strong>📅 Purchase Date:</strong> Automatically recorded as current date/time when you submit.
+                <br />
+                <span className="text-xs">This prevents backdating and ensures accurate audit trails.</span>
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -620,11 +620,20 @@ export default function CreatePurchaseOrderPage() {
         {/* Submit Buttons */}
         <div className="flex justify-end gap-3">
           <Link href="/dashboard/purchases">
-            <Button type="button" variant="outline" disabled={submitting}>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={submitting}
+              className="px-6 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-700 dark:hover:to-gray-600 border-2 border-gray-300 dark:border-gray-600 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-medium text-gray-700 dark:text-gray-200"
+            >
               Cancel
             </Button>
           </Link>
-          <Button type="submit" disabled={submitting || items.length === 0 || !warehouseLocationId}>
+          <Button
+            type="submit"
+            disabled={submitting || items.length === 0 || !warehouseLocationId}
+            className="px-8 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg hover:shadow-2xl transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+          >
             {submitting ? 'Creating...' : 'Create Purchase Order'}
           </Button>
         </div>
@@ -684,14 +693,14 @@ export default function CreatePurchaseOrderPage() {
               variant="outline"
               onClick={() => setShowSupplierDialog(false)}
               disabled={addingSupplier}
-              className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="px-6 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-700 dark:hover:to-gray-600 border-2 border-gray-300 dark:border-gray-600 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-medium text-gray-700 dark:text-gray-200"
             >
               Cancel
             </Button>
             <Button
               onClick={handleQuickAddSupplier}
               disabled={addingSupplier}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {addingSupplier ? 'Adding...' : 'Add Supplier'}
             </Button>

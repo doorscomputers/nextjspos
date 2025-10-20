@@ -189,7 +189,7 @@ export default function InventoryCorrectionsReportPage() {
       accessorKey: 'productVariation.name',
       header: 'Variation',
       filterType: 'text',
-      cell: ({ row }) => row.original.productVariation.name === 'DUMMY' ? '-' : row.original.productVariation.name
+      cell: ({ row }) => (row.original.productVariation.name === 'DUMMY' || row.original.productVariation.name === 'Default') ? '-' : row.original.productVariation.name
     },
     {
       accessorKey: 'systemCount',

@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
+import Link from "next/link"
 import { usePermissions } from "@/hooks/usePermissions"
 import { PERMISSIONS } from "@/lib/rbac"
 import {
   MagnifyingGlassIcon,
-  FunnelIcon,
   ArrowDownTrayIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -30,6 +30,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import ReportFilterPanel from "@/components/reports/ReportFilterPanel"
+import { countActiveFilters } from "@/lib/reportFilterUtils"
 
 interface SaleItem {
   productName: string
@@ -188,8 +190,23 @@ export default function SalesReportPage() {
     setMinAmount("")
     setMaxAmount("")
     setPage(1)
-    fetchReport()
+    setTimeout(() => {
+      fetchReport()
+    }, 0)
   }
+
+  const activeFilterCount = useMemo(
+    () =>
+      countActiveFilters([
+        () => locationId !== "all",
+        () => customerId !== "all",
+        () => status !== "all",
+        () => invoiceNumber.trim() !== "",
+        () => Boolean(startDate || endDate),
+        () => Boolean(minAmount || maxAmount),
+      ]),
+    [locationId, customerId, status, invoiceNumber, startDate, endDate, minAmount, maxAmount]
+  )
 
   const exportToCSV = () => {
     if (!reportData) return
@@ -274,13 +291,6 @@ export default function SalesReportPage() {
         </div>
 
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setShowFilters(!showFilters)}
-          >
-            <FunnelIcon className="h-4 w-4 mr-2" />
-            {showFilters ? "Hide" : "Show"} Filters
-          </Button>
           <Button onClick={exportToCSV} disabled={!reportData}>
             <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
             Export CSV
@@ -289,13 +299,15 @@ export default function SalesReportPage() {
       </div>
 
       {/* Filters */}
-      {showFilters && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Filters</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <ReportFilterPanel
+        isOpen={showFilters}
+        onToggle={() => setShowFilters(!showFilters)}
+        activeCount={activeFilterCount}
+        onClearAll={handleReset}
+        clearLabel="Reset Filters"
+        description="Filter the sales dataset by location, customer, status, date range, and amount thresholds."
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <Label>Location</Label>
                 <Select value={locationId} onValueChange={setLocationId}>
@@ -391,20 +403,18 @@ export default function SalesReportPage() {
                   onChange={(e) => setMaxAmount(e.target.value)}
                 />
               </div>
-            </div>
+        </div>
 
-            <div className="flex gap-2 mt-4">
-              <Button onClick={handleSearch}>
-                <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
-                Search
-              </Button>
-              <Button variant="outline" onClick={handleReset}>
-                Reset
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+        <div className="flex gap-2 mt-4 flex-wrap">
+          <Button onClick={handleSearch}>
+            <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
+            Search
+          </Button>
+          <Button variant="outline" onClick={handleReset}>
+            Reset
+          </Button>
+        </div>
+      </ReportFilterPanel>
 
       {/* Summary Cards */}
       {reportData && (
@@ -423,22 +433,26 @@ export default function SalesReportPage() {
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm text-gray-600">Total COGS</div>
-              <div className="text-2xl font-bold">
-                {formatCurrency(reportData.summary.totalCOGS)}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-sm text-gray-600">Gross Profit</div>
-              <div className="text-2xl font-bold text-green-600">
-                {formatCurrency(reportData.summary.grossProfit)}
-              </div>
-            </CardContent>
-          </Card>
+          {can(PERMISSIONS.SELL_VIEW_COST) && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-sm text-gray-600">Total COGS</div>
+                <div className="text-2xl font-bold">
+                  {formatCurrency(reportData.summary.totalCOGS)}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {can(PERMISSIONS.SELL_VIEW_PROFIT) && (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-sm text-gray-600">Gross Profit</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {formatCurrency(reportData.summary.grossProfit)}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
@@ -479,7 +493,12 @@ export default function SalesReportPage() {
                       <>
                         <TableRow key={sale.id} className="cursor-pointer hover:bg-gray-50">
                           <TableCell className="font-medium">
-                            {sale.invoiceNumber}
+                            <Link
+                              href={`/dashboard/sales/${sale.id}`}
+                              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                            >
+                              {sale.invoiceNumber}
+                            </Link>
                           </TableCell>
                           <TableCell>{sale.saleDate}</TableCell>
                           <TableCell>{sale.customer}</TableCell>
@@ -516,7 +535,9 @@ export default function SalesReportPage() {
                                       <TableHead>SKU</TableHead>
                                       <TableHead className="text-right">Qty</TableHead>
                                       <TableHead className="text-right">Price</TableHead>
-                                      <TableHead className="text-right">Cost</TableHead>
+                                      {can(PERMISSIONS.SELL_VIEW_COST) && (
+                                        <TableHead className="text-right">Cost</TableHead>
+                                      )}
                                       <TableHead className="text-right">Total</TableHead>
                                     </TableRow>
                                   </TableHeader>
@@ -533,9 +554,11 @@ export default function SalesReportPage() {
                                         <TableCell className="text-right">
                                           {formatCurrency(item.unitPrice)}
                                         </TableCell>
-                                        <TableCell className="text-right">
-                                          {formatCurrency(item.unitCost)}
-                                        </TableCell>
+                                        {can(PERMISSIONS.SELL_VIEW_COST) && (
+                                          <TableCell className="text-right">
+                                            {formatCurrency(item.unitCost)}
+                                          </TableCell>
+                                        )}
                                         <TableCell className="text-right">
                                           {formatCurrency(item.total)}
                                         </TableCell>

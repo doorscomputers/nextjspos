@@ -1,0 +1,88 @@
+================================================================================
+DARK MODE CONTRAST AUDIT - QUICK REFERENCE
+UltimatePOS Modern - October 17, 2025
+================================================================================
+
+PAGES WITH DARK MODE ISSUES (Ranked by Severity):
+================================================================================
+
+CRITICAL (Immediate Fix Required):
+1. /dashboard/products/stock - Stock Management
+   - Dark text on dark background (CRITICAL - 245 elements)
+   - Light text on light background (14 elements)
+   - Filter headers, table headers nearly invisible
+
+HIGH PRIORITY (100+ elements with issues):
+2. /dashboard/reports/sales-journal - Sales Journal Report
+   - Dark on dark (131 elements)
+   - Filter panel inputs barely visible
+
+MEDIUM-HIGH (70-100 elements):
+3. /dashboard/users - User Management (90 elements)
+4. /dashboard/reports/sales-per-cashier - Sales Per Cashier (81 elements)
+5. /dashboard/products - Products List (74 elements)
+6. /dashboard/reports/sales-per-item - Sales Per Item (74 elements)
+
+MEDIUM (45-70 elements):
+7. /dashboard/roles - Roles (63 elements)
+8. /dashboard/reports/audit-trail - Audit Trail (60 elements)
+9. /dashboard/purchases - Purchases (57 elements)
+10. /dashboard/reports/sales-today - Sales Today (56 elements)
+11. /dashboard - Dashboard Home (55 elements)
+12. /dashboard/reports/purchases-report - Purchases Report (52 elements)
+13. /dashboard/reports/purchases-items - Purchases Items (52 elements)
+14. /dashboard/customers - Customers (51 elements)
+15. /dashboard/reports/sales-report - Sales Report (51 elements)
+16. /dashboard/reports/profitability - Profitability Report (48 elements)
+17. /dashboard/reports/profit - Profit Report (47 elements)
+18. /dashboard/products/categories - Product Categories (46 elements)
+19. /dashboard/products/brands - Product Brands (46 elements)
+20. /dashboard/products/print-labels - Print Labels (46 elements)
+21. /dashboard/suppliers - Suppliers (46 elements)
+22. /dashboard/products/units - Product Units (46 elements)
+23. /dashboard/locations - Locations (45 elements)
+
+SPECIAL CONCERN (Dark mode not activating properly):
+24. /dashboard/sales - Dark mode not active (27 elements)
+25. /dashboard/reports/sales-history - Dark mode not active (34 elements)
+26. /dashboard/settings - Dark mode not active (39 elements)
+
+================================================================================
+PAGES WITH GOOD DARK MODE:
+================================================================================
+NONE - All tested pages have contrast issues
+
+================================================================================
+PAGES WITH ERRORS (Could Not Test):
+================================================================================
+1. /dashboard/pos - Timeout (page too slow to load)
+2. /dashboard/reports - Navigation aborted
+3. /dashboard/ai-assistant - Navigation aborted (missing OPENAI_API_KEY)
+
+================================================================================
+SUMMARY STATISTICS:
+================================================================================
+Total Pages Tested: 29
+Pages with Issues: 26 (90%)
+Pages Passing: 0 (0%)
+Pages with Errors: 3 (10%)
+
+Worst Offender: Stock Management (245 dark-on-dark + 14 light-on-light)
+Average Issues per Page: 61 elements
+
+================================================================================
+TOP 5 PAGES NEEDING IMMEDIATE ATTENTION:
+================================================================================
+1. Stock Management - 259 total issues (CRITICAL)
+2. Sales Journal Report - 131 issues
+3. User Management - 90 issues
+4. Sales Per Cashier Report - 81 issues
+5. Products List - 74 issues
+
+================================================================================
+ALL SCREENSHOTS AVAILABLE IN:
+C:\xampp\htdocs\ultimatepos-modern\dark-mode-screenshots\
+
+DETAILED REPORT:
+C:\xampp\htdocs\ultimatepos-modern\DARK_MODE_AUDIT_SUMMARY.md
+================================================================================

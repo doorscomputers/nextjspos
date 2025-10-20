@@ -69,7 +69,7 @@ async function testAutoInventory() {
     const testVariation = await prisma.productVariation.create({
       data: {
         productId: testProduct.id,
-        name: 'DUMMY',
+        name: 'Default',
         sku: testProduct.sku,
         purchasePrice: 100,
         sellingPrice: 150,
