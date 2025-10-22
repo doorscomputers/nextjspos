@@ -31,7 +31,7 @@ async function exportData() {
     exportData.businesses = await prisma.business.findMany({
       include: {
         locations: true,
-        currencies: true,
+        currency: true,
       },
     });
     console.log(`✓ Exported ${exportData.businesses.length} businesses`);
@@ -45,12 +45,12 @@ async function exportData() {
         },
       },
       include: {
-        userRoles: {
+        roles: {
           include: {
             role: true,
           },
         },
-        userPermissions: {
+        permissions: {
           include: {
             permission: true,
           },
@@ -63,7 +63,7 @@ async function exportData() {
     console.log('Exporting roles and permissions...');
     exportData.roles = await prisma.role.findMany({
       include: {
-        rolePermissions: {
+        permissions: {
           include: {
             permission: true,
           },
@@ -111,7 +111,7 @@ async function exportData() {
 
     // Export Stock (Inventory)
     console.log('Exporting stock/inventory...');
-    exportData.stock = await prisma.stock.findMany();
+    exportData.stock = await prisma.variationLocationDetails.findMany();
     console.log(`✓ Exported ${exportData.stock.length} stock records`);
 
     // Export Suppliers
