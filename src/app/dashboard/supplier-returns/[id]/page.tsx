@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
-import Link from 'next/link'
 import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon, WrenchIcon } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Button as DxButton } from 'devextreme-react/button'
 import {
   Dialog,
   DialogContent,
@@ -127,8 +127,14 @@ export default function SupplierReturnDetailPage() {
     })
   }
 
-  const formatCurrency = (amount: number) => {
-    return `$${amount.toFixed(2)}`
+  const formatCurrency = (amount: number | string | undefined | null) => {
+    const numAmount = Number(amount) || 0
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(numAmount).replace('PHP', '₱')
   }
 
   const getStatusBadge = (status: string) => {
@@ -240,12 +246,12 @@ export default function SupplierReturnDetailPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard/supplier-returns">
-            <Button variant="outline" size="sm">
-              <ArrowLeftIcon className="w-4 h-4 mr-2" />
-              Back
-            </Button>
-          </Link>
+          <DxButton
+            text="Back"
+            icon="back"
+            stylingMode="outlined"
+            onClick={() => router.push('/dashboard/supplier-returns')}
+          />
           <div>
             <h1 className="text-3xl font-bold">{supplierReturn.returnNumber}</h1>
             <p className="text-gray-500 mt-1">Supplier Return Details</p>
@@ -253,10 +259,14 @@ export default function SupplierReturnDetailPage() {
         </div>
         <div className="flex items-center gap-3">
           {supplierReturn.status === 'pending' && can(PERMISSIONS.PURCHASE_RETURN_APPROVE) && (
-            <Button onClick={() => setApproveDialogOpen(true)}>
-              <CheckCircleIcon className="w-4 h-4 mr-2" />
-              Approve Return
-            </Button>
+            <DxButton
+              text="Approve Return"
+              type="success"
+              icon="check"
+              stylingMode="contained"
+              onClick={() => setApproveDialogOpen(true)}
+              hint="Approve this supplier return and deduct stock"
+            />
           )}
         </div>
       </div>

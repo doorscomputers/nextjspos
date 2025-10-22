@@ -1,10 +1,12 @@
 "use client"
 
-import { signOut } from "next-auth/react"
+import { signOut, useSession } from "next-auth/react"
 import { Bars3Icon, BellIcon, UserCircleIcon, CheckIcon } from "@heroicons/react/24/outline"
 import { useState, useEffect } from "react"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
+import AnnouncementTicker from "@/components/AnnouncementTicker"
 
 interface HeaderProps {
   toggleSidebar: () => void
@@ -29,6 +31,24 @@ export default function Header({ toggleSidebar }: HeaderProps) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const { data: session } = useSession()
+  const user = session?.user as any
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (!target.closest('.user-menu-container') && !target.closest('.notifications-container')) {
+        setShowUserMenu(false)
+        setShowNotifications(false)
+      }
+    }
+
+    if (showUserMenu || showNotifications) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showUserMenu, showNotifications])
 
   // Fetch notifications
   useEffect(() => {
@@ -111,26 +131,29 @@ export default function Header({ toggleSidebar }: HeaderProps) {
   }
 
   return (
-    <header className="bg-white dark:bg-gray-900 shadow-md z-10 border-b border-gray-200 dark:border-gray-800 print:hidden">
-      <div className="flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-        {/* Mobile menu button */}
-        <button
-          onClick={toggleSidebar}
-          className="lg:hidden p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-        >
-          <Bars3Icon className="h-6 w-6" />
-        </button>
+    <header className="bg-white dark:bg-gray-900 shadow-md z-40 relative border-b border-gray-200 dark:border-gray-800 print:hidden">
+      <div className="flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8 gap-4">
+        {/* Left side: Mobile menu + Announcement Ticker */}
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {/* Mobile menu button */}
+          <button
+            onClick={toggleSidebar}
+            className="lg:hidden p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex-shrink-0"
+          >
+            <Bars3Icon className="h-6 w-6" />
+          </button>
 
-        {/* Spacer */}
-        <div className="flex-1"></div>
+          {/* Announcement Ticker */}
+          <AnnouncementTicker />
+        </div>
 
         {/* Right side actions */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 flex-shrink-0">
           {/* Theme Switcher */}
           <ThemeSwitcher />
 
           {/* Notifications */}
-          <div className="relative">
+          <div className="relative notifications-container">
             <button
               onClick={() => setShowNotifications(!showNotifications)}
               className="relative p-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
@@ -145,7 +168,7 @@ export default function Header({ toggleSidebar }: HeaderProps) {
 
             {/* Notification Dropdown */}
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-96 max-h-[500px] bg-white dark:bg-gray-800 rounded-lg shadow-2xl border-2 border-gray-200 dark:border-gray-700 overflow-hidden z-50">
+              <div className="fixed right-20 top-16 w-96 max-h-[500px] bg-white dark:bg-gray-800 rounded-lg shadow-2xl border-2 border-gray-200 dark:border-gray-700 overflow-hidden z-50">
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -226,7 +249,7 @@ export default function Header({ toggleSidebar }: HeaderProps) {
           </div>
 
           {/* User menu */}
-          <div className="relative">
+          <div className="relative user-menu-container">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
               className="flex items-center space-x-2 p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200"
@@ -235,39 +258,83 @@ export default function Header({ toggleSidebar }: HeaderProps) {
             </button>
 
             {showUserMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border-2 border-gray-200 dark:border-gray-700 overflow-hidden">
-                <button
-                  onClick={async () => {
-                    if (isLoggingOut) return
-                    setIsLoggingOut(true)
+              <div className="fixed right-4 top-16 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-2xl border-2 border-gray-200 dark:border-gray-700 overflow-hidden z-50">
+                {/* User Info Header */}
+                <div className="px-4 py-3 bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-900 border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-3">
+                    <UserCircleIcon className="h-10 w-10 text-blue-600 dark:text-blue-400" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                        {user?.name}
+                      </p>
+                      <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+                        @{user?.username}
+                      </p>
+                    </div>
+                  </div>
 
-                    try {
-                      // Log logout activity before signing out
-                      await fetch('/api/auth/logout', {
-                        method: 'POST',
-                      }).catch(err => {
-                        console.error("Failed to log logout:", err)
-                        // Continue with logout even if audit logging fails
-                      })
+                  {/* User Roles */}
+                  {user?.roles && user.roles.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {user.roles.map((role: string, index: number) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+                        >
+                          {role}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-                      // Sign out
-                      await signOut({ redirect: false })
+                {/* Menu Items */}
+                <div className="py-1">
+                  <Link
+                    href="/dashboard/profile"
+                    onClick={() => setShowUserMenu(false)}
+                    className="flex items-center px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200"
+                  >
+                    <UserCircleIcon className="h-5 w-5 mr-3 text-gray-500 dark:text-gray-400" />
+                    My Details
+                  </Link>
 
-                      // Redirect to login
-                      router.push("/login")
-                    } catch (err) {
-                      console.error("Logout error:", err)
-                      // Redirect anyway
-                      router.push("/login")
-                    } finally {
-                      setIsLoggingOut(false)
-                    }
-                  }}
-                  disabled={isLoggingOut}
-                  className="block w-full text-left px-4 py-3 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 disabled:opacity-50"
-                >
-                  {isLoggingOut ? "Signing out..." : "Sign out"}
-                </button>
+                  <button
+                    onClick={async () => {
+                      if (isLoggingOut) return
+                      setIsLoggingOut(true)
+
+                      try {
+                        // Log logout activity before signing out
+                        await fetch('/api/auth/logout', {
+                          method: 'POST',
+                        }).catch(err => {
+                          console.error("Failed to log logout:", err)
+                          // Continue with logout even if audit logging fails
+                        })
+
+                        // Sign out
+                        await signOut({ redirect: false })
+
+                        // Redirect to login
+                        router.push("/login")
+                      } catch (err) {
+                        console.error("Logout error:", err)
+                        // Redirect anyway
+                        router.push("/login")
+                      } finally {
+                        setIsLoggingOut(false)
+                      }
+                    }}
+                    disabled={isLoggingOut}
+                    className="flex items-center w-full text-left px-4 py-3 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200 disabled:opacity-50 border-t border-gray-200 dark:border-gray-700"
+                  >
+                    <svg className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    {isLoggingOut ? "Signing out..." : "Sign out"}
+                  </button>
+                </div>
               </div>
             )}
           </div>

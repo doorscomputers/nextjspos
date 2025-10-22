@@ -13,17 +13,8 @@ import {
   ReceiptRefundIcon,
   ExclamationTriangleIcon,
   TruckIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline"
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Select,
@@ -32,8 +23,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import DataGrid, { Column, Export, Summary, TotalItem } from 'devextreme-react/data-grid'
+import Chart, {
+  CommonSeriesSettings,
+  Series,
+  ArgumentAxis,
+  ValueAxis,
+  Legend,
+  Title,
+  Tooltip as ChartTooltip,
+  Grid,
+} from 'devextreme-react/chart'
+import PieChart, {
+  Series as PieSeries,
+  Label,
+  Connector,
+  Legend as PieLegend,
+  Tooltip as PieTooltip,
+} from 'devextreme-react/pie-chart'
+import { toast } from 'sonner'
 
 interface DashboardStats {
   metrics: {
@@ -43,7 +53,7 @@ interface DashboardStats {
     totalSellReturn: number
     totalPurchase: number
     purchaseDue: number
-    totalPurchaseReturn: number
+    totalSupplierReturn: number
     expense: number
     salesCount: number
     purchaseCount: number
@@ -86,13 +96,25 @@ interface DashboardStats {
   }
 }
 
-export default function DashboardPage() {
+interface SalesByLocationData {
+  period: string
+  locations: string[]
+  salesByLocation: Record<string, Array<{ period: string; amount: number }>>
+  totals: Array<{ location: string; total: number }>
+}
+
+export default function DashboardPageV2() {
   const { can, user } = usePermissions()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [locationFilter, setLocationFilter] = useState("all")
   const [locations, setLocations] = useState<Array<{ id: number; name: string }>>([])
   const [showAllLocationsOption, setShowAllLocationsOption] = useState(false)
+
+  // Sales by location states
+  const [salesPeriod, setSalesPeriod] = useState<'day' | 'month' | 'quarter' | 'year'>('day')
+  const [salesByLocation, setSalesByLocation] = useState<SalesByLocationData | null>(null)
+  const [loadingSales, setLoadingSales] = useState(false)
 
   useEffect(() => {
     fetchLocations()
@@ -102,6 +124,13 @@ export default function DashboardPage() {
     fetchDashboardStats()
   }, [locationFilter])
 
+  useEffect(() => {
+    // Fetch sales by location - API will return empty data if user lacks permission
+    if (user) {
+      fetchSalesByLocation()
+    }
+  }, [salesPeriod, user])
+
   const fetchLocations = async () => {
     try {
       const response = await fetch("/api/locations")
@@ -110,23 +139,16 @@ export default function DashboardPage() {
         const fetchedLocations = Array.isArray(data.locations) ? data.locations : (Array.isArray(data) ? data : [])
         setLocations(fetchedLocations)
 
-        // Only show "All Locations" option if user has access to multiple locations
-        // If user has only 1 location, auto-select it and hide the "All" option
         if (fetchedLocations.length > 1) {
           setShowAllLocationsOption(true)
           setLocationFilter("all")
         } else if (fetchedLocations.length === 1) {
-          // User has only one location - auto-select it
           setShowAllLocationsOption(false)
           setLocationFilter(fetchedLocations[0].id.toString())
         } else {
-          // User has no locations
           setShowAllLocationsOption(false)
           setLocations([])
         }
-      } else {
-        console.error("Failed to fetch locations, status:", response.status)
-        setLocations([])
       }
     } catch (error) {
       console.error("Failed to fetch locations:", error)
@@ -145,15 +167,31 @@ export default function DashboardPage() {
       const response = await fetch(`/api/dashboard/stats?${params.toString()}`)
       if (response.ok) {
         const data = await response.json()
-        console.log('Dashboard stats received:', data)
-        console.log('Stock alerts count:', data.tables?.stockAlerts?.length)
-        console.log('Stock alerts data:', data.tables?.stockAlerts)
         setStats(data)
       }
     } catch (error) {
       console.error("Failed to fetch dashboard stats:", error)
+      toast.error('Failed to load dashboard statistics')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchSalesByLocation = async () => {
+    try {
+      setLoadingSales(true)
+      const response = await fetch(`/api/dashboard/sales-by-location?period=${salesPeriod}`)
+      if (response.ok) {
+        const data = await response.json()
+        setSalesByLocation(data)
+      } else {
+        toast.error('Failed to load sales by location')
+      }
+    } catch (error) {
+      console.error("Failed to fetch sales by location:", error)
+      toast.error('Failed to load sales by location')
+    } finally {
+      setLoadingSales(false)
     }
   }
 
@@ -166,56 +204,64 @@ export default function DashboardPage() {
       name: "Total Sales",
       value: stats?.metrics.totalSales || 0,
       icon: CurrencyDollarIcon,
-      color: "bg-blue-50 text-blue-600",
+      color: "from-blue-500 to-blue-600",
+      textColor: "text-blue-600",
       permission: PERMISSIONS.SELL_VIEW,
     },
     {
       name: "Net Amount",
       value: stats?.metrics.netAmount || 0,
       icon: BanknotesIcon,
-      color: "bg-green-50 text-green-600",
+      color: "from-green-500 to-green-600",
+      textColor: "text-green-600",
       permission: PERMISSIONS.SELL_VIEW,
     },
     {
       name: "Invoice Due",
       value: stats?.metrics.invoiceDue || 0,
       icon: ArrowTrendingUpIcon,
-      color: "bg-orange-50 text-orange-600",
+      color: "from-orange-500 to-orange-600",
+      textColor: "text-orange-600",
       permission: PERMISSIONS.SELL_VIEW,
     },
     {
       name: "Total Sell Return",
       value: stats?.metrics.totalSellReturn || 0,
       icon: ReceiptRefundIcon,
-      color: "bg-red-50 text-red-600",
+      color: "from-red-500 to-red-600",
+      textColor: "text-red-600",
       permission: PERMISSIONS.CUSTOMER_RETURN_VIEW,
     },
     {
       name: "Total Purchase",
       value: stats?.metrics.totalPurchase || 0,
       icon: ShoppingCartIcon,
-      color: "bg-purple-50 text-purple-600",
+      color: "from-purple-500 to-purple-600",
+      textColor: "text-purple-600",
       permission: PERMISSIONS.PURCHASE_VIEW,
     },
     {
       name: "Purchase Due",
       value: stats?.metrics.purchaseDue || 0,
       icon: ArrowTrendingDownIcon,
-      color: "bg-yellow-50 text-yellow-600",
+      color: "from-yellow-500 to-yellow-600",
+      textColor: "text-yellow-600",
       permission: PERMISSIONS.PURCHASE_VIEW,
     },
     {
-      name: "Total Purchase Return",
-      value: stats?.metrics.totalPurchaseReturn || 0,
+      name: "Total Supplier Return",
+      value: stats?.metrics.totalSupplierReturn || 0,
       icon: ReceiptRefundIcon,
-      color: "bg-pink-50 text-pink-600",
+      color: "from-pink-500 to-pink-600",
+      textColor: "text-pink-600",
       permission: PERMISSIONS.SUPPLIER_RETURN_VIEW,
     },
     {
       name: "Expense",
       value: stats?.metrics.expense || 0,
       icon: BanknotesIcon,
-      color: "bg-gray-50 text-gray-600",
+      color: "from-gray-500 to-gray-600",
+      textColor: "text-gray-600",
       permission: PERMISSIONS.EXPENSE_VIEW,
     },
   ]
@@ -223,6 +269,26 @@ export default function DashboardPage() {
   const filteredMetrics = metricCards.filter(
     (metric) => !metric.permission || can(metric.permission)
   )
+
+  // Transform data for bar chart
+  const getChartData = () => {
+    if (!salesByLocation) return []
+
+    const allPeriods = new Set<string>()
+    Object.values(salesByLocation.salesByLocation).forEach((locationData) => {
+      locationData.forEach((item) => allPeriods.add(item.period))
+    })
+
+    return Array.from(allPeriods).map((period) => {
+      const dataPoint: any = { period }
+      salesByLocation.locations.forEach((location) => {
+        const locationData = salesByLocation.salesByLocation[location]
+        const item = locationData?.find((d) => d.period === period)
+        dataPoint[location] = item?.amount || 0
+      })
+      return dataPoint
+    })
+  }
 
   if (loading && !stats) {
     return (
@@ -237,7 +303,7 @@ export default function DashboardPage() {
       {/* Header with Location Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
             Dashboard Overview
           </h1>
           <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1">
@@ -245,26 +311,32 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {locations.length > 0 && (
-          <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-200">Location:</label>
-            <Select value={locationFilter} onValueChange={setLocationFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Select location" />
-              </SelectTrigger>
-              <SelectContent>
-                {showAllLocationsOption && (
-                  <SelectItem value="all">All Locations</SelectItem>
-                )}
-                {locations.map((location) => (
-                  <SelectItem key={location.id} value={location.id.toString()}>
-                    {location.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {locations.length > 0 && (
+            <>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-200">Location:</label>
+              <Select value={locationFilter} onValueChange={setLocationFilter}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {showAllLocationsOption && (
+                    <SelectItem value="all">All Locations</SelectItem>
+                  )}
+                  {locations.map((location) => (
+                    <SelectItem key={location.id} value={location.id.toString()}>
+                      {location.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )}
+          <Button onClick={fetchDashboardStats} variant="outline" size="sm">
+            <ArrowPathIcon className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Metric Cards Grid */}
@@ -272,175 +344,268 @@ export default function DashboardPage() {
         {filteredMetrics.map((metric) => {
           const Icon = metric.icon
           return (
-            <Card key={metric.name} className="hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600 dark:text-gray-300">{metric.name}</p>
-                    <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mt-2">
-                      {formatAmount(metric.value)}
-                    </p>
-                  </div>
-                  <div className={`p-3 rounded-full ${metric.color}`}>
-                    <Icon className="h-6 w-6" />
-                  </div>
+            <div key={metric.name} className={`relative overflow-hidden rounded-lg shadow-lg bg-gradient-to-br ${metric.color} p-6 text-white hover:shadow-xl transition-all duration-200 hover:scale-105`}>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-sm font-medium opacity-90">{metric.name}</p>
+                  <p className="text-2xl sm:text-3xl font-bold mt-2">
+                    {formatAmount(metric.value)}
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="p-3 bg-white/20 rounded-full backdrop-blur-sm">
+                  <Icon className="h-8 w-8" />
+                </div>
+              </div>
+            </div>
           )
         })}
       </div>
 
-      {/* Charts Section */}
+      {/* Sales by Location Charts */}
+      {can(PERMISSIONS.SELL_VIEW) && (
+        <Card className="shadow-lg">
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <CardTitle className="text-xl font-bold">Sales by Location</CardTitle>
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Period:</label>
+                <Select value={salesPeriod} onValueChange={(value) => setSalesPeriod(value as any)}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="day">Today</SelectItem>
+                    <SelectItem value="month">This Month</SelectItem>
+                    <SelectItem value="quarter">This Quarter</SelectItem>
+                    <SelectItem value="year">This Year</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {loadingSales ? (
+              <div className="flex items-center justify-center h-96">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              </div>
+            ) : !salesByLocation || salesByLocation.locations.length === 0 || salesByLocation.totals.every(t => t.total === 0) ? (
+              <div className="flex flex-col items-center justify-center h-96 text-gray-500 dark:text-gray-400">
+                <svg className="w-24 h-24 mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                <p className="text-lg font-medium">No sales data available</p>
+                <p className="text-sm mt-2">Sales data will appear here once you start making sales</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Bar Chart */}
+                <div>
+                  <Chart
+                    dataSource={getChartData()}
+                    height={350}
+                  >
+                    <Title text={`Sales by Location (${salesPeriod.charAt(0).toUpperCase() + salesPeriod.slice(1)})`} />
+                    <CommonSeriesSettings argumentField="period" type="bar" />
+                    {salesByLocation?.locations.map((location, index) => (
+                      <Series
+                        key={location}
+                        valueField={location}
+                        name={location}
+                        color={['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'][index % 6]}
+                      />
+                    ))}
+                    <ArgumentAxis>
+                      <Grid visible={true} />
+                    </ArgumentAxis>
+                    <ValueAxis>
+                      <Grid visible={true} />
+                    </ValueAxis>
+                    <Legend verticalAlignment="bottom" horizontalAlignment="center" />
+                    <ChartTooltip
+                      enabled={true}
+                      customizeTooltip={(pointInfo: any) => ({
+                        text: `${pointInfo.seriesName}: ${formatAmount(pointInfo.value)}`,
+                      })}
+                    />
+                    <Export enabled={true} />
+                  </Chart>
+                </div>
+
+                {/* Pie Chart - Totals */}
+                <div>
+                  <PieChart
+                    dataSource={salesByLocation?.totals || []}
+                    height={350}
+                  >
+                    <Title text="Total Sales Distribution" />
+                    <PieSeries
+                      argumentField="location"
+                      valueField="total"
+                    >
+                      <Label visible={true} customizeText={(pointInfo: any) => `${formatAmount(pointInfo.value)}`}>
+                        <Connector visible={true} width={1} />
+                      </Label>
+                    </PieSeries>
+                    <PieLegend verticalAlignment="bottom" horizontalAlignment="center" />
+                    <PieTooltip
+                      enabled={true}
+                      customizeTooltip={(pointInfo: any) => ({
+                        text: `${pointInfo.argumentText}: ${formatAmount(pointInfo.value)}`,
+                      })}
+                    />
+                    <Export enabled={true} />
+                  </PieChart>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Original Charts Section with DevExtreme */}
       {can(PERMISSIONS.SELL_VIEW) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Sales Last 30 Days */}
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Sales Last 30 Days</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={stats?.charts.salesLast30Days || []}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" fontSize={12} />
-                  <YAxis fontSize={12} />
-                  <Tooltip
-                    formatter={(value: number) => formatAmount(value)}
-                  />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="amount"
-                    stroke="#3b82f6"
-                    strokeWidth={2}
-                    name="Sales"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <Chart
+                dataSource={stats?.charts.salesLast30Days || []}
+                height={300}
+              >
+                <Series
+                  argumentField="date"
+                  valueField="amount"
+                  name="Sales"
+                  type="line"
+                  color="#3b82f6"
+                />
+                <ArgumentAxis>
+                  <Grid visible={true} />
+                </ArgumentAxis>
+                <ValueAxis>
+                  <Grid visible={true} />
+                </ValueAxis>
+                <Legend visible={false} />
+                <ChartTooltip
+                  enabled={true}
+                  customizeTooltip={(pointInfo: any) => ({
+                    text: `${pointInfo.argumentText}: ${formatAmount(pointInfo.value)}`,
+                  })}
+                />
+                <Export enabled={true} />
+              </Chart>
             </CardContent>
           </Card>
 
           {/* Sales Current Financial Year */}
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Sales Current Financial Year</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={stats?.charts.salesCurrentYear || []}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" fontSize={12} />
-                  <YAxis fontSize={12} />
-                  <Tooltip
-                    formatter={(value: number) => formatAmount(value)}
-                  />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="amount"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    name="Sales"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <Chart
+                dataSource={stats?.charts.salesCurrentYear || []}
+                height={300}
+              >
+                <Series
+                  argumentField="date"
+                  valueField="amount"
+                  name="Sales"
+                  type="line"
+                  color="#10b981"
+                />
+                <ArgumentAxis>
+                  <Grid visible={true} />
+                </ArgumentAxis>
+                <ValueAxis>
+                  <Grid visible={true} />
+                </ValueAxis>
+                <Legend visible={false} />
+                <ChartTooltip
+                  enabled={true}
+                  customizeTooltip={(pointInfo: any) => ({
+                    text: `${pointInfo.argumentText}: ${formatAmount(pointInfo.value)}`,
+                  })}
+                />
+                <Export enabled={true} />
+              </Chart>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Tables Section */}
+      {/* Tables Section with DevExtreme DataGrid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Sales Payment Due */}
         {can(PERMISSIONS.SELL_VIEW) && (
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Sales Payment Due</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Invoice</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {stats?.tables.salesPaymentDue.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center text-gray-500 dark:text-gray-400">
-                          No payment due
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      stats?.tables.salesPaymentDue.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.invoiceNumber}</TableCell>
-                          <TableCell>{item.customer}</TableCell>
-                          <TableCell>{item.date}</TableCell>
-                          <TableCell className="text-right">
-                            {formatAmount(item.amount)}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              <DataGrid
+                dataSource={stats?.tables.salesPaymentDue || []}
+                showBorders={true}
+                columnAutoWidth={true}
+                height={300}
+                keyExpr="id"
+              >
+                <Column dataField="invoiceNumber" caption="Invoice" />
+                <Column dataField="customer" caption="Customer" />
+                <Column dataField="date" caption="Date" width={100} />
+                <Column
+                  dataField="amount"
+                  caption="Amount"
+                  dataType="number"
+                  format="₱#,##0.00"
+                  alignment="right"
+                />
+                <Summary>
+                  <TotalItem column="amount" summaryType="sum" valueFormat="₱#,##0.00" />
+                </Summary>
+              </DataGrid>
             </CardContent>
           </Card>
         )}
 
         {/* Purchase Payment Due */}
         {can(PERMISSIONS.PURCHASE_VIEW) && (
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Purchase Payment Due</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>PO Number</TableHead>
-                      <TableHead>Supplier</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {stats?.tables.purchasePaymentDue.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center text-gray-500 dark:text-gray-400">
-                          No payment due
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      stats?.tables.purchasePaymentDue.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.purchaseOrderNumber}</TableCell>
-                          <TableCell>{item.supplier}</TableCell>
-                          <TableCell>{item.date}</TableCell>
-                          <TableCell className="text-right">
-                            {formatAmount(item.amount)}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              <DataGrid
+                dataSource={stats?.tables.purchasePaymentDue || []}
+                showBorders={true}
+                columnAutoWidth={true}
+                height={300}
+                keyExpr="id"
+              >
+                <Column dataField="purchaseOrderNumber" caption="PO Number" />
+                <Column dataField="supplier" caption="Supplier" />
+                <Column dataField="date" caption="Date" width={100} />
+                <Column
+                  dataField="amount"
+                  caption="Amount"
+                  dataType="number"
+                  format="₱#,##0.00"
+                  alignment="right"
+                />
+                <Summary>
+                  <TotalItem column="amount" summaryType="sum" valueFormat="₱#,##0.00" />
+                </Summary>
+              </DataGrid>
             </CardContent>
           </Card>
         )}
 
         {/* Product Stock Alert Summary */}
         {can(PERMISSIONS.PRODUCT_VIEW) && (
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => window.location.href = '/dashboard/reports/stock-alert'}>
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer shadow-lg" onClick={() => window.location.href = '/dashboard/reports/stock-alert'}>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -460,7 +625,7 @@ export default function DashboardPage() {
                     : `${stats?.tables.stockAlerts.length} product(s) below alert level`}
                 </p>
                 <button
-                  className="w-full mt-4 px-6 py-2.5 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 dark:from-orange-500 dark:to-orange-400 dark:hover:from-orange-600 dark:hover:to-orange-500 text-white rounded-lg transition-all duration-200 flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl hover:scale-105"
+                  className="w-full mt-4 px-6 py-2.5 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white rounded-lg transition-all duration-200 flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl hover:scale-105"
                   onClick={(e) => {
                     e.stopPropagation()
                     window.location.href = '/dashboard/reports/stock-alert'
@@ -476,7 +641,7 @@ export default function DashboardPage() {
 
         {/* Pending Shipments */}
         {can(PERMISSIONS.STOCK_TRANSFER_VIEW) && (
-          <Card>
+          <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TruckIcon className="h-5 w-5 text-blue-600" />
@@ -484,46 +649,27 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Transfer #</TableHead>
-                      <TableHead>Route</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {stats?.tables.pendingShipments.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center text-gray-500 dark:text-gray-400">
-                          No pending shipments
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      stats?.tables.pendingShipments.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.transferNumber}</TableCell>
-                          <TableCell>
-                            <div className="text-sm">
-                              <span className="text-gray-600 dark:text-gray-400">{item.from}</span>
-                              {" → "}
-                              <span className="text-gray-900 dark:text-gray-100">{item.to}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="capitalize">
-                              {item.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm">{item.date}</TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              <DataGrid
+                dataSource={stats?.tables.pendingShipments || []}
+                showBorders={true}
+                columnAutoWidth={true}
+                height={300}
+                keyExpr="id"
+              >
+                <Column dataField="transferNumber" caption="Transfer #" width={120} />
+                <Column
+                  caption="Route"
+                  cellRender={(data: any) => (
+                    <div className="text-sm">
+                      <span className="text-gray-600">{data.data.from}</span>
+                      {" → "}
+                      <span className="text-gray-900 dark:text-gray-100">{data.data.to}</span>
+                    </div>
+                  )}
+                />
+                <Column dataField="status" caption="Status" width={100} />
+                <Column dataField="date" caption="Date" width={100} />
+              </DataGrid>
             </CardContent>
           </Card>
         )}

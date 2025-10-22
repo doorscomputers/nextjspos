@@ -48,24 +48,44 @@ export async function GET(request: NextRequest) {
       whereClause.supplierId = parseInt(supplierId)
     }
 
-    if (locationId) {
-      whereClause.locationId = parseInt(locationId)
-    }
-
-    // Check location access
+    // Handle location filtering
     const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
-    if (!hasAccessAllLocations && locationId) {
-      const userLocation = await prisma.userLocation.findUnique({
+
+    if (hasAccessAllLocations) {
+      // User has access to all locations - apply locationId filter only if provided
+      if (locationId) {
+        whereClause.locationId = parseInt(locationId)
+      }
+    } else {
+      // User has limited location access - get their accessible locations
+      const userLocations = await prisma.userLocation.findMany({
         where: {
-          userId_locationId: {
-            userId: parseInt(user.id),
-            locationId: parseInt(locationId),
-          },
+          userId: parseInt(user.id),
+        },
+        select: {
+          locationId: true,
         },
       })
 
-      if (!userLocation) {
-        return NextResponse.json({ error: 'You do not have access to this location' }, { status: 403 })
+      const accessibleLocationIds = userLocations.map(ul => ul.locationId)
+
+      if (accessibleLocationIds.length === 0) {
+        // User has no location access - return empty
+        return NextResponse.json({ returns: [], count: 0 })
+      }
+
+      // If specific locationId provided, verify user has access to it
+      if (locationId) {
+        const requestedLocationId = parseInt(locationId)
+        if (!accessibleLocationIds.includes(requestedLocationId)) {
+          return NextResponse.json({ error: 'You do not have access to this location' }, { status: 403 })
+        }
+        whereClause.locationId = requestedLocationId
+      } else {
+        // Filter by user's accessible locations
+        whereClause.locationId = {
+          in: accessibleLocationIds,
+        }
       }
     }
 

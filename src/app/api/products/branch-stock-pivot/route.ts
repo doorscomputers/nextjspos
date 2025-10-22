@@ -42,6 +42,7 @@ type PivotRow = {
   unit: string
   lastDeliveryDate: string | null
   lastQtyDelivered: number
+  lastPurchaseCost: number
   cost: number
   price: number
   stockByLocation: Record<number, number>
@@ -143,7 +144,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid business context' }, { status: 400 })
     }
 
-    const body = (await request.json().catch(() => ({}))) as Partial<{
+    const body = (await request.json().catch((err) => {
+      console.error('[Branch Stock Pivot] Error parsing request body:', err)
+      return {}
+    })) as Partial<{
       page: number
       limit: number
       sortKey: string
@@ -163,6 +167,8 @@ export async function POST(request: NextRequest) {
     const baseLimit = Math.max(1, Number(limit) || 25)
     const requestedPage = Math.max(1, Number(page) || 1)
     const isDescending = sortOrder === 'desc'
+
+    console.log('[Branch Stock Pivot] Starting query for businessId:', businessId)
 
     // Fetch stock records with supplier and last purchase info
     const stockData = await prisma.variationLocationDetails.findMany({
@@ -189,63 +195,10 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Get last purchase info for each variation
-    const variationIds = [...new Set(stockData.map((item) => item.productVariationId))]
+    console.log('[Branch Stock Pivot] Found stock data records:', stockData.length)
 
-    const lastPurchaseMap = new Map<number, Date>()
-    const lastQtyMap = new Map<number, number>()
-
-    // Only fetch purchase data if there are variations
-    if (variationIds.length > 0) {
-      try {
-        // Get all purchase receipt items with their receipt info
-        const purchaseItems = await prisma.purchaseReceiptItem.findMany({
-          where: {
-            productVariationId: { in: variationIds },
-          },
-          include: {
-            purchaseReceipt: {
-              select: {
-                id: true,
-                businessId: true,
-                status: true,
-                deletedAt: true,
-                createdAt: true,
-              },
-            },
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
-        })
-
-        // Filter for approved receipts from the correct business and build maps
-        const validPurchases = purchaseItems.filter(
-          (item) =>
-            item.purchaseReceipt &&
-            item.purchaseReceipt.businessId === businessId &&
-            item.purchaseReceipt.status === 'approved' &&
-            !item.purchaseReceipt.deletedAt
-        )
-
-        // Build last purchase date map
-        validPurchases.forEach((item) => {
-          if (!lastPurchaseMap.has(item.productVariationId)) {
-            lastPurchaseMap.set(item.productVariationId, item.purchaseReceipt.createdAt)
-          }
-        })
-
-        // Build last quantity map
-        validPurchases.forEach((item) => {
-          if (!lastQtyMap.has(item.productVariationId)) {
-            lastQtyMap.set(item.productVariationId, toNumber(item.quantity))
-          }
-        })
-      } catch (error) {
-        console.error('Error fetching purchase data:', error)
-        // Continue without purchase data if there's an error
-      }
-    }
+    // Last purchase info is now stored directly in ProductVariation
+    // No need for complex queries - data is readily available from stockData.productVariation
 
     const allLocations = await prisma.businessLocation.findMany({
       where: {
@@ -265,44 +218,55 @@ export async function POST(request: NextRequest) {
     const pivotMap = new Map<string, PivotRow>()
 
     stockData.forEach((item) => {
-      const key = `${item.productId}-${item.productVariationId}`
-      const qty = toNumber(item.qtyAvailable)
-      const cost = toNumber(item.productVariation.purchasePrice)
-      const price = toNumber(item.productVariation.sellingPrice)
+      try {
+        const key = `${item.productId}-${item.productVariationId}`
+        const qty = toNumber(item.qtyAvailable)
+        const cost = toNumber(item.productVariation.purchasePrice)
+        const price = toNumber(item.productVariation.sellingPrice)
 
-      if (!pivotMap.has(key)) {
-        const lastDelivery = lastPurchaseMap.get(item.productVariationId)
-        const lastQty = lastQtyMap.get(item.productVariationId) || 0
+        if (!pivotMap.has(key)) {
+          // Use last purchase data directly from ProductVariation
+          const lastDelivery = item.productVariation.lastPurchaseDate
+          const lastQty = toNumber(item.productVariation.lastPurchaseQuantity)
+          const lastCost = toNumber(item.productVariation.lastPurchaseCost)
 
-        pivotMap.set(key, {
+          pivotMap.set(key, {
+            productId: item.productId,
+            variationId: item.productVariationId,
+            productName: item.product.name,
+            productSku: item.product.sku,
+            productImage: item.product.image,
+            variationName: item.productVariation.name,
+            variationSku: item.productVariation.sku,
+            supplier: item.productVariation.supplier?.name || '',
+            category: item.product.category?.name || '',
+            brand: item.product.brand?.name || '',
+            unit: item.productVariation.unit?.shortName || item.product.unit?.shortName || 'N/A',
+            lastDeliveryDate: lastDelivery ? lastDelivery.toISOString().split('T')[0] : null,
+            lastQtyDelivered: lastQty,
+            lastPurchaseCost: lastCost,
+            cost,
+            price,
+            stockByLocation: {},
+            totalStock: 0,
+            totalCost: 0,
+            totalPrice: 0,
+            isActive: item.product.isActive,
+          })
+        }
+
+        const row = pivotMap.get(key)!
+        row.stockByLocation[item.locationId] = qty
+        row.totalStock += qty
+        row.totalCost += qty * cost
+        row.totalPrice += qty * price
+      } catch (itemError) {
+        console.error('[Branch Stock Pivot] Error processing item:', {
           productId: item.productId,
           variationId: item.productVariationId,
-          productName: item.product.name,
-          productSku: item.product.sku,
-          productImage: item.product.image,
-          variationName: item.productVariation.name,
-          variationSku: item.productVariation.sku,
-          supplier: item.productVariation.supplier?.name || '',
-          category: item.product.category?.name || '',
-          brand: item.product.brand?.name || '',
-          unit: item.productVariation.unit?.shortName || item.product.unit?.shortName || 'N/A',
-          lastDeliveryDate: lastDelivery ? lastDelivery.toISOString().split('T')[0] : null,
-          lastQtyDelivered: lastQty,
-          cost,
-          price,
-          stockByLocation: {},
-          totalStock: 0,
-          totalCost: 0,
-          totalPrice: 0,
-          isActive: item.product.isActive,
+          error: itemError instanceof Error ? itemError.message : String(itemError),
         })
       }
-
-      const row = pivotMap.get(key)!
-      row.stockByLocation[item.locationId] = qty
-      row.totalStock += qty
-      row.totalCost += qty * cost
-      row.totalPrice += qty * price
     })
 
     let pivotRows = Array.from(pivotMap.values())
@@ -391,6 +355,14 @@ export async function POST(request: NextRequest) {
       ? pivotRows
       : pivotRows.slice(startIndex, startIndex + effectiveLimit)
 
+    console.log('[Branch Stock Pivot] Returning response:', {
+      rowsCount: paginatedRows.length,
+      locationsCount: allLocations.length,
+      totalCount,
+      page: safePage,
+      totalPages,
+    })
+
     return NextResponse.json({
       rows: paginatedRows,
       locations: allLocations,
@@ -414,7 +386,18 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Error generating branch stock pivot:', error)
-    return NextResponse.json({ error: 'Failed to generate branch stock pivot' }, { status: 500 })
+    console.error('[Branch Stock Pivot] Error generating branch stock pivot:', error)
+    console.error('[Branch Stock Pivot] Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    console.error('[Branch Stock Pivot] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : 'Unknown',
+    })
+    return NextResponse.json(
+      {
+        error: 'Failed to generate branch stock pivot',
+        details: error instanceof Error ? error.message : String(error)
+      },
+      { status: 500 }
+    )
   }
 }

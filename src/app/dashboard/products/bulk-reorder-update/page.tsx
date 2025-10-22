@@ -10,6 +10,13 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
   Table,
   TableBody,
   TableCell,
@@ -24,6 +31,7 @@ import {
   SparklesIcon,
   ArrowLeftIcon,
   CheckCircleIcon,
+  FunnelIcon,
 } from "@heroicons/react/24/outline"
 
 interface Product {
@@ -44,12 +52,18 @@ export default function BulkReorderUpdatePage() {
   const router = useRouter()
 
   const [products, setProducts] = useState<Product[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set())
   const [updating, setUpdating] = useState(false)
 
+  // Filters
+  const [categoryFilter, setCategoryFilter] = useState("all")
+  const [autoReorderFilter, setAutoReorderFilter] = useState("all")
+  const [searchTerm, setSearchTerm] = useState("")
+
   // Bulk settings
-  const [bulkEnableAutoReorder, setBulkEnableAutoReorder] = useState(false)
+  const [bulkEnableAutoReorder, setBulkEnableAutoReorder] = useState("enable") // "enable" or "disable"
   const [bulkReorderPoint, setBulkReorderPoint] = useState("")
   const [bulkReorderQuantity, setBulkReorderQuantity] = useState("")
   const [bulkLeadTimeDays, setBulkLeadTimeDays] = useState("")
@@ -65,10 +79,39 @@ export default function BulkReorderUpdatePage() {
     fetchProducts()
   }, [])
 
+  // Filter products whenever filters change
+  useEffect(() => {
+    let filtered = [...products]
+
+    // Category filter
+    if (categoryFilter !== "all") {
+      filtered = filtered.filter(p => p.category === categoryFilter)
+    }
+
+    // Auto-reorder status filter
+    if (autoReorderFilter === "enabled") {
+      filtered = filtered.filter(p => p.enableAutoReorder)
+    } else if (autoReorderFilter === "disabled") {
+      filtered = filtered.filter(p => !p.enableAutoReorder)
+    }
+
+    // Search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase()
+      filtered = filtered.filter(p =>
+        p.name.toLowerCase().includes(term) ||
+        p.sku.toLowerCase().includes(term)
+      )
+    }
+
+    setFilteredProducts(filtered)
+  }, [products, categoryFilter, autoReorderFilter, searchTerm])
+
   const fetchProducts = async () => {
     setLoading(true)
     try {
-      const response = await fetch("/api/products")
+      // Only fetch products with stock tracking enabled (exclude services, etc.)
+      const response = await fetch("/api/products?stockEnabled=true")
 
       if (!response.ok) {
         throw new Error("Failed to fetch products")
@@ -111,12 +154,15 @@ export default function BulkReorderUpdatePage() {
   }
 
   const toggleAll = () => {
-    if (selectedProducts.size === products.length) {
+    if (selectedProducts.size === filteredProducts.length) {
       setSelectedProducts(new Set())
     } else {
-      setSelectedProducts(new Set(products.map((p) => p.id)))
+      setSelectedProducts(new Set(filteredProducts.map((p) => p.id)))
     }
   }
+
+  // Get unique categories from products
+  const categories = Array.from(new Set(products.map(p => p.category))).sort()
 
   const handleBulkUpdate = async () => {
     if (selectedProducts.size === 0) {
@@ -150,7 +196,7 @@ export default function BulkReorderUpdatePage() {
       const settings: any = {}
 
       if (applyEnableAutoReorder) {
-        settings.enableAutoReorder = bulkEnableAutoReorder
+        settings.enableAutoReorder = bulkEnableAutoReorder === "enable"
       }
 
       if (applyReorderPoint && bulkReorderPoint) {
@@ -247,6 +293,84 @@ export default function BulkReorderUpdatePage() {
         </Button>
       </div>
 
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FunnelIcon className="h-5 w-5" />
+            Filter Products
+          </CardTitle>
+          <CardDescription>
+            Filter products to find the ones you want to update
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Search */}
+            <div>
+              <Label htmlFor="search">Search by Name or SKU</Label>
+              <Input
+                id="search"
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+
+            {/* Category Filter */}
+            <div>
+              <Label htmlFor="categoryFilter">Category</Label>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger id="categoryFilter" className="mt-1">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Auto-Reorder Status Filter */}
+            <div>
+              <Label htmlFor="autoReorderFilter">Auto-Reorder Status</Label>
+              <Select value={autoReorderFilter} onValueChange={setAutoReorderFilter}>
+                <SelectTrigger id="autoReorderFilter" className="mt-1">
+                  <SelectValue placeholder="All Products" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Products</SelectItem>
+                  <SelectItem value="enabled">Enabled Only</SelectItem>
+                  <SelectItem value="disabled">Disabled Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mt-4 pt-4 border-t">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Showing {filteredProducts.length} of {products.length} products
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearchTerm("")
+                setCategoryFilter("all")
+                setAutoReorderFilter("all")
+              }}
+            >
+              Clear Filters
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Bulk Settings Form */}
       <Card>
         <CardHeader>
@@ -257,27 +381,45 @@ export default function BulkReorderUpdatePage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Enable Auto Reorder */}
-            <div className="flex items-center space-x-2 p-3 border rounded-lg">
+            {/* Enable/Disable Auto Reorder */}
+            <div className="flex items-start space-x-2 p-4 border rounded-lg bg-gray-50 dark:bg-gray-900">
               <Checkbox
                 id="applyEnableAutoReorder"
                 checked={applyEnableAutoReorder}
                 onCheckedChange={(checked) => setApplyEnableAutoReorder(checked === true)}
+                className="mt-1"
               />
               <div className="flex-1">
-                <Label htmlFor="applyEnableAutoReorder" className="cursor-pointer font-semibold">
-                  Enable Auto Reorder
+                <Label htmlFor="applyEnableAutoReorder" className="cursor-pointer font-semibold text-base">
+                  Auto Reorder Status
                 </Label>
                 {applyEnableAutoReorder && (
-                  <div className="mt-2">
-                    <Checkbox
-                      id="bulkEnableAutoReorder"
-                      checked={bulkEnableAutoReorder}
-                      onCheckedChange={(checked) => setBulkEnableAutoReorder(checked === true)}
-                    />
-                    <Label htmlFor="bulkEnableAutoReorder" className="ml-2 cursor-pointer">
-                      Enable for selected products
-                    </Label>
+                  <div className="mt-3 space-y-2">
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant={bulkEnableAutoReorder === "enable" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setBulkEnableAutoReorder("enable")}
+                        className="flex-1"
+                      >
+                        ✓ Enable
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={bulkEnableAutoReorder === "disable" ? "destructive" : "outline"}
+                        size="sm"
+                        onClick={() => setBulkEnableAutoReorder("disable")}
+                        className="flex-1"
+                      >
+                        ✗ Disable
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {bulkEnableAutoReorder === "enable"
+                        ? "Selected products will be monitored for auto-reorder"
+                        : "Selected products will NOT be included in purchase suggestions"}
+                    </p>
                   </div>
                 )}
               </div>
@@ -408,11 +550,16 @@ export default function BulkReorderUpdatePage() {
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Select Products</span>
-            {selectedProducts.size > 0 && (
-              <Badge variant="secondary" className="text-lg px-3 py-1">
-                {selectedProducts.size} selected
-              </Badge>
-            )}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-normal text-gray-600 dark:text-gray-400">
+                {filteredProducts.length} products
+              </span>
+              {selectedProducts.size > 0 && (
+                <Badge variant="secondary" className="text-lg px-3 py-1">
+                  {selectedProducts.size} selected
+                </Badge>
+              )}
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -428,7 +575,7 @@ export default function BulkReorderUpdatePage() {
                   <TableRow>
                     <TableHead className="w-12">
                       <Checkbox
-                        checked={selectedProducts.size === products.length && products.length > 0}
+                        checked={selectedProducts.size === filteredProducts.length && filteredProducts.length > 0}
                         onCheckedChange={toggleAll}
                       />
                     </TableHead>
@@ -442,7 +589,14 @@ export default function BulkReorderUpdatePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map((product) => (
+                  {filteredProducts.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-12 text-gray-500">
+                        No products found matching your filters.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredProducts.map((product) => (
                     <TableRow key={product.id}>
                       <TableCell>
                         <Checkbox
@@ -479,7 +633,7 @@ export default function BulkReorderUpdatePage() {
                         {product.safetyStockDays ?? "-"}
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )))}
                 </TableBody>
               </Table>
             </div>

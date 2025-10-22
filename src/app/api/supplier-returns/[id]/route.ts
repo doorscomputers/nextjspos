@@ -45,12 +45,6 @@ export async function GET(
             email: true,
           },
         },
-        location: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
         items: true, // Can't include nested product/variation due to schema limitations
       },
     })
@@ -58,6 +52,17 @@ export async function GET(
     if (!supplierReturn) {
       return NextResponse.json({ error: 'Supplier return not found' }, { status: 404 })
     }
+
+    // Fetch location data
+    const location = await prisma.businessLocation.findUnique({
+      where: {
+        id: supplierReturn.locationId,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    })
 
     // Fetch product and variation data separately
     const productIds = supplierReturn.items.map((item) => item.productId)
@@ -102,9 +107,10 @@ export async function GET(
       }, {} as Record<number, { id: number; name: string }>)
     }
 
-    // Format the response with product and variation data
+    // Format the response with product, variation, and location data
     const response = {
       ...supplierReturn,
+      location: location || { id: supplierReturn.locationId, name: 'Unknown Location' },
       items: supplierReturn.items.map((item) => ({
         ...item,
         product: productMap[item.productId] || { id: item.productId, name: 'Unknown Product' },

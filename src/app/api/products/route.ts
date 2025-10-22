@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const activeFilter = searchParams.get('active') // 'true', 'false', or null (all)
     const forTransaction = searchParams.get('forTransaction') === 'true' // Only active products
+    const stockEnabledOnly = searchParams.get('stockEnabled') === 'true' // Only products with stock tracking enabled
 
     // Parse limit parameter
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined
@@ -59,6 +60,11 @@ export async function GET(request: NextRequest) {
       whereClause.isActive = activeFilter === 'true'
     }
     // If no filter, show all products (active and inactive)
+
+    // Apply stock enabled filter (for reorder management pages)
+    if (stockEnabledOnly) {
+      whereClause.enableStock = true
+    }
 
     // Apply multi-column filters
     if (search) {
@@ -134,7 +140,13 @@ export async function GET(request: NextRequest) {
         variations: {
           where: { deletedAt: null },
           include: {
-            variationLocationDetails: true
+            variationLocationDetails: true,
+            supplier: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
           }
         }
       },

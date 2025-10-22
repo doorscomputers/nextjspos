@@ -19,6 +19,16 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
 import ProductAutocomplete from '@/components/ProductAutocomplete'
 
@@ -91,6 +101,7 @@ export default function CreatePurchaseOrderPage() {
   const [discountAmount, setDiscountAmount] = useState(0)
   const [shippingCost, setShippingCost] = useState(0)
   const [notes, setNotes] = useState('')
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -220,9 +231,7 @@ export default function CreatePurchaseOrderPage() {
     return subtotal + taxAmount + shippingCost - discountAmount
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
+  const handleCreatePurchaseClick = () => {
     // Comprehensive validation with friendly messages
     if (!supplierId) {
       toast.error('Please select a supplier before creating the purchase order')
@@ -251,6 +260,13 @@ export default function CreatePurchaseOrderPage() {
       toast.error(`Invalid unit cost for ${invalidCostItems[0].productName}. Cost cannot be negative.`)
       return
     }
+
+    // All validations passed - show confirmation dialog
+    setShowConfirmDialog(true)
+  }
+
+  const handleSubmit = async () => {
+    setShowConfirmDialog(false)
 
     try {
       setSubmitting(true)
@@ -341,7 +357,7 @@ export default function CreatePurchaseOrderPage() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
         {/* Header Information */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Order Information</h2>
@@ -630,7 +646,8 @@ export default function CreatePurchaseOrderPage() {
             </Button>
           </Link>
           <Button
-            type="submit"
+            type="button"
+            onClick={handleCreatePurchaseClick}
             disabled={submitting || items.length === 0 || !warehouseLocationId}
             className="px-8 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg hover:shadow-2xl transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
@@ -638,6 +655,45 @@ export default function CreatePurchaseOrderPage() {
           </Button>
         </div>
       </form>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900 dark:text-white">Confirm Purchase Order Creation</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 text-gray-600 dark:text-gray-400">
+              <p className="text-base">
+                You are about to create a purchase order with <strong className="text-gray-900 dark:text-white">{items.length} item(s)</strong> for a total of:
+              </p>
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                <p className="text-2xl font-bold text-blue-900 dark:text-blue-200">
+                  ₱{calculateTotal().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                  Supplier: {suppliers.find(s => s.id.toString() === supplierId)?.name || 'Unknown'}
+                </p>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Receiving Location: {locations.find(l => l.id.toString() === warehouseLocationId)?.name || 'Unknown'}
+                </p>
+              </div>
+              <p className="text-sm mt-2">
+                <strong>Important:</strong> Please review all details carefully. Once created, you cannot edit the purchase order directly.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-700 dark:hover:to-gray-600 border-2 border-gray-300 dark:border-gray-600 shadow-md hover:shadow-lg transition-all duration-200">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSubmit}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
+            >
+              Yes, Create Purchase Order
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Quick Add Supplier Dialog */}
       <Dialog open={showSupplierDialog} onOpenChange={setShowSupplierDialog}>

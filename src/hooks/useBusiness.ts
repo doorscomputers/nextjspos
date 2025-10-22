@@ -59,7 +59,7 @@ export function useBusiness() {
     business,
     loading,
     error,
-    companyName: business?.name || 'UltimatePOS', // Fallback to UltimatePOS if not loaded
+    companyName: business?.name || '', // No fallback - will show business name once loaded
     refetch: fetchBusiness
   }
 }

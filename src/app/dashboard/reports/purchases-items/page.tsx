@@ -6,12 +6,37 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { ExportButtons } from "@/components/reports/ExportButtons"
 import {
   FunnelIcon,
   MagnifyingGlassIcon,
   ArrowPathIcon
 } from "@heroicons/react/24/outline"
+import { toast } from "sonner"
+import DataGrid, {
+  Column,
+  Export,
+  FilterRow,
+  HeaderFilter,
+  Paging,
+  Grouping,
+  GroupPanel,
+  Summary,
+  TotalItem,
+  SearchPanel,
+  ColumnChooser,
+  ColumnFixing,
+  StateStoring,
+  LoadPanel,
+  Scrolling,
+  Selection,
+} from 'devextreme-react/data-grid'
+import { exportDataGrid as exportToExcel } from 'devextreme/excel_exporter'
+import { exportDataGrid as exportToPDF } from 'devextreme/pdf_exporter'
+import { Workbook } from 'exceljs'
+// @ts-ignore - file-saver types not available
+import { saveAs } from 'file-saver'
+import { jsPDF } from 'jspdf'
+import 'jspdf-autotable'
 
 interface PurchaseItemsReportData {
   items: any[]
@@ -31,10 +56,32 @@ interface PurchaseItemsReportData {
   }
 }
 
+interface PurchaseItem {
+  id: number
+  productName: string
+  variationName: string
+  sku: string
+  purchaseOrderNumber: string
+  purchaseDate: string
+  expectedDeliveryDate: string | null
+  supplier: string
+  supplierId: number
+  location: string
+  locationId: number
+  status: string
+  quantityOrdered: number
+  quantityReceived: number
+  unitCost: number
+  itemTotal: number
+  receivedTotal: number
+  requiresSerial: boolean
+}
+
 export default function PurchaseItemsReportPage() {
   const [reportData, setReportData] = useState<PurchaseItemsReportData | null>(null)
   const [loading, setLoading] = useState(false)
   const [showFilters, setShowFilters] = useState(true)
+  const [dataSource, setDataSource] = useState<PurchaseItem[]>([])
 
   // Filter states
   const [locationId, setLocationId] = useState("all")
@@ -48,32 +95,6 @@ export default function PurchaseItemsReportPage() {
   const [minAmount, setMinAmount] = useState("")
   const [maxAmount, setMaxAmount] = useState("")
 
-  const initialColumnFilters = {
-    product: "",
-    variation: "",
-    sku: "",
-    poNumber: "",
-    poDate: "",
-    supplier: "",
-    location: "",
-    status: "all",
-    qtyOrderedMin: "",
-    qtyOrderedMax: "",
-    qtyReceivedMin: "",
-    qtyReceivedMax: "",
-    unitCostMin: "",
-    unitCostMax: "",
-    itemTotalMin: "",
-    itemTotalMax: "",
-    serial: "all",
-  }
-
-  const [columnFilters, setColumnFilters] = useState(initialColumnFilters)
-
-  // Pagination
-  const [page, setPage] = useState(1)
-  const [limit] = useState(50)
-
   // Dropdown data
   const [locations, setLocations] = useState<any[]>([])
   const [suppliers, setSuppliers] = useState<any[]>([])
@@ -81,11 +102,8 @@ export default function PurchaseItemsReportPage() {
   useEffect(() => {
     fetchLocations()
     fetchSuppliers()
-  }, [])
-
-  useEffect(() => {
     fetchReport()
-  }, [page])
+  }, [])
 
   const fetchLocations = async () => {
     try {
@@ -109,19 +127,12 @@ export default function PurchaseItemsReportPage() {
     }
   }
 
-  const handleColumnFilterChange = (key: keyof typeof initialColumnFilters, value: string) => {
-    setColumnFilters((prev) => ({
-      ...prev,
-      [key]: value,
-    }))
-  }
-
   const fetchReport = async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
-      params.append("page", page.toString())
-      params.append("limit", limit.toString())
+      params.append("page", "1")
+      params.append("limit", "10000") // Fetch all for DevExtreme to handle pagination
 
       if (locationId !== "all") params.append("locationId", locationId)
       if (supplierId !== "all") params.append("supplierId", supplierId)
@@ -139,89 +150,24 @@ export default function PurchaseItemsReportPage() {
 
       if (response.ok && data.items) {
         setReportData(data)
+        setDataSource(data.items)
       } else {
         console.error("API Error:", data.error || data.details || "Unknown error")
         setReportData(null)
+        setDataSource([])
+        toast.error(data.error || "Failed to load report data")
       }
     } catch (error) {
       console.error("Failed to fetch report:", error)
       setReportData(null)
+      setDataSource([])
+      toast.error("Failed to load report data")
     } finally {
       setLoading(false)
     }
   }
 
-  const statusOptions = [
-    { value: "all", label: "All Statuses" },
-    { value: "DRAFT", label: "Draft" },
-    { value: "SUBMITTED", label: "Submitted" },
-    { value: "APPROVED", label: "Approved" },
-    { value: "PARTIALLY_RECEIVED", label: "Partially Received" },
-    { value: "RECEIVED", label: "Received" },
-    { value: "COMPLETED", label: "Completed" },
-    { value: "CANCELLED", label: "Cancelled" },
-  ]
-
-  const applyColumnFilters = (items: any[]) => {
-    return items.filter((item) => {
-      const matchesText = (value: string, target: string | null | undefined) => {
-        if (!value) return true
-        if (!target) return false
-        return target.toLowerCase().includes(value.toLowerCase())
-      }
-
-      if (!matchesText(columnFilters.product, item.productName)) return false
-      if (!matchesText(columnFilters.variation, item.variationName)) return false
-      if (!matchesText(columnFilters.sku, item.sku)) return false
-      if (!matchesText(columnFilters.poNumber, item.purchaseOrderNumber)) return false
-      if (columnFilters.poDate && !(item.purchaseDate || "").includes(columnFilters.poDate)) return false
-      if (!matchesText(columnFilters.supplier, item.supplier)) return false
-      if (!matchesText(columnFilters.location, item.location)) return false
-
-      if (columnFilters.status !== "all" && item.status !== columnFilters.status) {
-        return false
-      }
-
-      const qtyOrdered = Number(item.quantityOrdered ?? 0)
-      const qtyReceived = Number(item.quantityReceived ?? 0)
-      const unitCost = Number(item.unitCost ?? 0)
-      const itemTotal = Number(item.itemTotal ?? 0)
-
-      const minOrdered = parseFloat(columnFilters.qtyOrderedMin)
-      if (!Number.isNaN(minOrdered) && qtyOrdered < minOrdered) return false
-
-      const maxOrdered = parseFloat(columnFilters.qtyOrderedMax)
-      if (!Number.isNaN(maxOrdered) && qtyOrdered > maxOrdered) return false
-
-      const minReceived = parseFloat(columnFilters.qtyReceivedMin)
-      if (!Number.isNaN(minReceived) && qtyReceived < minReceived) return false
-
-      const maxReceived = parseFloat(columnFilters.qtyReceivedMax)
-      if (!Number.isNaN(maxReceived) && qtyReceived > maxReceived) return false
-
-      const minUnitCost = parseFloat(columnFilters.unitCostMin)
-      if (!Number.isNaN(minUnitCost) && unitCost < minUnitCost) return false
-
-      const maxUnitCost = parseFloat(columnFilters.unitCostMax)
-      if (!Number.isNaN(maxUnitCost) && unitCost > maxUnitCost) return false
-
-      const minItemTotal = parseFloat(columnFilters.itemTotalMin)
-      if (!Number.isNaN(minItemTotal) && itemTotal < minItemTotal) return false
-
-      const maxItemTotal = parseFloat(columnFilters.itemTotalMax)
-      if (!Number.isNaN(maxItemTotal) && itemTotal > maxItemTotal) return false
-
-      if (columnFilters.serial === "yes" && !item.requiresSerial) return false
-      if (columnFilters.serial === "no" && item.requiresSerial) return false
-
-      return true
-    })
-  }
-
-  const filteredItems = reportData ? applyColumnFilters(reportData.items) : []
-
   const handleSearch = () => {
-    setPage(1)
     fetchReport()
   }
 
@@ -236,8 +182,6 @@ export default function PurchaseItemsReportPage() {
     setEndDate("")
     setMinAmount("")
     setMaxAmount("")
-    setColumnFilters(initialColumnFilters)
-    setPage(1)
   }
 
   const formatNumber = (num: number) => {
@@ -247,77 +191,120 @@ export default function PurchaseItemsReportPage() {
     }).format(num)
   }
 
-  const getExportData = () => {
-    if (!reportData) return { headers: [], data: [] }
-
-    const headers = [
-      "Product",
-      "Variation",
-      "SKU",
-      "PO Number",
-      "PO Date",
-      "Expected Delivery",
-      "Supplier",
-      "Location",
-      "Status",
-      "Qty Ordered",
-      "Qty Received",
-      "Unit Cost",
-      "Item Total",
-      "Received Total",
-      "Serial?"
-    ]
-
-    const data = applyColumnFilters(reportData.items).map((item) => [
-      item.productName,
-      item.variationName,
-      item.sku,
-      item.purchaseOrderNumber,
-      item.purchaseDate,
-      item.expectedDeliveryDate || "N/A",
-      item.supplier,
-      item.location,
-      item.status,
-      item.quantityOrdered.toFixed(2),
-      item.quantityReceived.toFixed(2),
-      item.unitCost.toFixed(2),
-      item.itemTotal.toFixed(2),
-      item.receivedTotal.toFixed(2),
-      item.requiresSerial ? "Yes" : "No"
-    ])
-
-    return { headers, data }
-  }
-
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      DRAFT: "bg-gray-100 text-gray-800",
-      SUBMITTED: "bg-blue-100 text-blue-800",
-      APPROVED: "bg-green-100 text-green-800",
-      PARTIALLY_RECEIVED: "bg-yellow-100 text-yellow-800",
-      RECEIVED: "bg-green-100 text-green-800",
-      COMPLETED: "bg-purple-100 text-purple-800",
-      CANCELLED: "bg-red-100 text-red-800",
+      DRAFT: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200",
+      SUBMITTED: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+      APPROVED: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+      PARTIALLY_RECEIVED: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
+      RECEIVED: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
+      COMPLETED: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+      CANCELLED: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
     }
-    return colors[status] || "bg-gray-100 text-gray-800"
+    return colors[status] || "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+  }
+
+  const onExporting = (e: any) => {
+    const timestamp = new Date().toISOString().split("T")[0]
+
+    if (e.format === 'xlsx') {
+      const workbook = new Workbook()
+      const worksheet = workbook.addWorksheet('Purchase Items Report')
+
+      exportToExcel({
+        component: e.component,
+        worksheet,
+        autoFilterEnabled: true,
+        customizeCell: ({ gridCell, excelCell }: any) => {
+          // Apply header formatting
+          if (gridCell.rowType === 'header') {
+            excelCell.font = { bold: true, color: { argb: 'FFFFFF' } }
+            excelCell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: '2980B9' },
+            }
+          }
+          // Apply summary row formatting
+          if (gridCell.rowType === 'totalFooter') {
+            excelCell.font = { bold: true }
+            excelCell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'E8F5E9' },
+            }
+          }
+        },
+      }).then(() => {
+        workbook.xlsx.writeBuffer().then((buffer: any) => {
+          saveAs(
+            new Blob([buffer], { type: 'application/octet-stream' }),
+            `purchase-items-report-${timestamp}.xlsx`
+          )
+        })
+      })
+      e.cancel = true
+    } else if (e.format === 'pdf') {
+      const doc = new jsPDF('landscape', 'pt', 'a4')
+
+      exportToPDF({
+        jsPDFDocument: doc,
+        component: e.component,
+        autoTableOptions: {
+          styles: { fontSize: 7, cellPadding: 2 },
+          headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+          footStyles: { fillColor: [232, 245, 233], fontStyle: 'bold' },
+        },
+      } as any).then(() => {
+        doc.save(`purchase-items-report-${timestamp}.pdf`)
+      })
+      e.cancel = true
+    }
+  }
+
+  const statusCellRender = (data: any) => {
+    return (
+      <Badge className={getStatusColor(data.value)}>
+        {data.value}
+      </Badge>
+    )
+  }
+
+  const serialCellRender = (data: any) => {
+    return (
+      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+        data.value
+          ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
+          : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+      }`}>
+        {data.value ? 'Yes' : 'No'}
+      </span>
+    )
   }
 
   return (
     <div className="p-6 space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Purchase Items Report</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+            Purchase Items Report
+          </h1>
+          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
             Detailed view of all purchased items across purchase orders
           </p>
         </div>
-        <ExportButtons
-          data={getExportData().data}
-          headers={getExportData().headers}
-          filename={`purchase-items-report-${new Date().toISOString().split("T")[0]}`}
-          title="Purchase Items Report"
-          disabled={!reportData || reportData.items.length === 0}
-        />
+        <Button
+          onClick={fetchReport}
+          variant="outline"
+          size="sm"
+          disabled={loading}
+          className="shadow-sm hover:shadow-md transition-all"
+        >
+          <ArrowPathIcon className="w-4 h-4 mr-2" />
+          Refresh
+        </Button>
       </div>
 
       {/* Filters */}
@@ -329,7 +316,7 @@ export default function PurchaseItemsReportPage() {
               variant="ghost"
               size="sm"
               onClick={() => setShowFilters(!showFilters)}
-              className="hover:bg-gray-100"
+              className="hover:bg-gray-100 dark:hover:bg-gray-700"
             >
               <FunnelIcon className="w-5 h-5 mr-2" />
               {showFilters ? "Hide" : "Show"} Filters
@@ -341,7 +328,7 @@ export default function PurchaseItemsReportPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Location Filter */}
               <div>
-                <label className="block text-sm font-medium mb-2">Location</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Location</label>
                 <Select value={locationId} onValueChange={setLocationId}>
                   <SelectTrigger>
                     <SelectValue />
@@ -359,7 +346,7 @@ export default function PurchaseItemsReportPage() {
 
               {/* Supplier Filter */}
               <div>
-                <label className="block text-sm font-medium mb-2">Supplier</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Supplier</label>
                 <Select value={supplierId} onValueChange={setSupplierId}>
                   <SelectTrigger>
                     <SelectValue />
@@ -377,7 +364,7 @@ export default function PurchaseItemsReportPage() {
 
               {/* Status Filter */}
               <div>
-                <label className="block text-sm font-medium mb-2">Status</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Status</label>
                 <Select value={status} onValueChange={setStatus}>
                   <SelectTrigger>
                     <SelectValue />
@@ -397,7 +384,7 @@ export default function PurchaseItemsReportPage() {
 
               {/* Product Name */}
               <div>
-                <label className="block text-sm font-medium mb-2">Product Name</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Product Name</label>
                 <Input
                   type="text"
                   placeholder="Search product..."
@@ -408,7 +395,7 @@ export default function PurchaseItemsReportPage() {
 
               {/* SKU */}
               <div>
-                <label className="block text-sm font-medium mb-2">SKU</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">SKU</label>
                 <Input
                   type="text"
                   placeholder="Search SKU..."
@@ -419,7 +406,7 @@ export default function PurchaseItemsReportPage() {
 
               {/* PO Number */}
               <div>
-                <label className="block text-sm font-medium mb-2">PO Number</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">PO Number</label>
                 <Input
                   type="text"
                   placeholder="Search PO number..."
@@ -430,7 +417,7 @@ export default function PurchaseItemsReportPage() {
 
               {/* Start Date */}
               <div>
-                <label className="block text-sm font-medium mb-2">Start Date</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Start Date</label>
                 <Input
                   type="date"
                   value={startDate}
@@ -440,7 +427,7 @@ export default function PurchaseItemsReportPage() {
 
               {/* End Date */}
               <div>
-                <label className="block text-sm font-medium mb-2">End Date</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">End Date</label>
                 <Input
                   type="date"
                   value={endDate}
@@ -450,7 +437,7 @@ export default function PurchaseItemsReportPage() {
 
               {/* Min Amount */}
               <div>
-                <label className="block text-sm font-medium mb-2">Min Item Total</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Min Item Total</label>
                 <Input
                   type="number"
                   placeholder="0.00"
@@ -461,7 +448,7 @@ export default function PurchaseItemsReportPage() {
 
               {/* Max Amount */}
               <div>
-                <label className="block text-sm font-medium mb-2">Max Item Total</label>
+                <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Max Item Total</label>
                 <Input
                   type="number"
                   placeholder="0.00"
@@ -494,7 +481,7 @@ export default function PurchaseItemsReportPage() {
                 variant="outline"
                 onClick={handleReset}
                 disabled={loading}
-                className="border-gray-300 hover:bg-gray-50"
+                className="border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700"
                 size="default"
               >
                 <ArrowPathIcon className="w-5 h-5 mr-2" />
@@ -508,20 +495,20 @@ export default function PurchaseItemsReportPage() {
       {/* Summary Cards */}
       {reportData && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-          <Card>
+          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium opacity-90">
                 Total Items
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">{reportData.summary.totalItems}</p>
+              <p className="text-2xl font-bold">{reportData.summary.totalItems.toLocaleString()}</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white shadow-lg">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium opacity-90">
                 Qty Ordered
               </CardTitle>
             </CardHeader>
@@ -532,9 +519,9 @@ export default function PurchaseItemsReportPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium opacity-90">
                 Qty Received
               </CardTitle>
             </CardHeader>
@@ -545,9 +532,9 @@ export default function PurchaseItemsReportPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium opacity-90">
                 Total Value
               </CardTitle>
             </CardHeader>
@@ -558,9 +545,9 @@ export default function PurchaseItemsReportPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-pink-500 to-pink-600 text-white shadow-lg">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium opacity-90">
                 Received Value
               </CardTitle>
             </CardHeader>
@@ -571,9 +558,9 @@ export default function PurchaseItemsReportPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium opacity-90">
                 Avg Unit Cost
               </CardTitle>
             </CardHeader>
@@ -586,278 +573,166 @@ export default function PurchaseItemsReportPage() {
         </div>
       )}
 
-      {/* Data Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Purchase Items</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : reportData && reportData.items.length > 0 ? (
-            <div className="space-y-4">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="text-left p-3 font-medium">Product</th>
-                      <th className="text-left p-3 font-medium">Variation</th>
-                      <th className="text-left p-3 font-medium">SKU</th>
-                      <th className="text-left p-3 font-medium">PO Number</th>
-                      <th className="text-left p-3 font-medium">PO Date</th>
-                      <th className="text-left p-3 font-medium">Supplier</th>
-                      <th className="text-left p-3 font-medium">Location</th>
-                      <th className="text-left p-3 font-medium">Status</th>
-                      <th className="text-right p-3 font-medium">Qty Ordered</th>
-                      <th className="text-right p-3 font-medium">Qty Received</th>
-                      <th className="text-right p-3 font-medium">Unit Cost</th>
-                      <th className="text-right p-3 font-medium">Item Total</th>
-                      <th className="text-center p-3 font-medium">Serial?</th>
-                    </tr>
-                    <tr className="bg-muted/40 text-xs">
-                      <th className="p-2">
-                        <Input
-                          value={columnFilters.product}
-                          onChange={(e) => handleColumnFilterChange("product", e.target.value)}
-                          placeholder="Filter product..."
-                          className="h-8 text-xs"
-                        />
-                      </th>
-                      <th className="p-2">
-                        <Input
-                          value={columnFilters.variation}
-                          onChange={(e) => handleColumnFilterChange("variation", e.target.value)}
-                          placeholder="Filter variation..."
-                          className="h-8 text-xs"
-                        />
-                      </th>
-                      <th className="p-2">
-                        <Input
-                          value={columnFilters.sku}
-                          onChange={(e) => handleColumnFilterChange("sku", e.target.value)}
-                          placeholder="Filter SKU..."
-                          className="h-8 text-xs font-mono"
-                        />
-                      </th>
-                      <th className="p-2">
-                        <Input
-                          value={columnFilters.poNumber}
-                          onChange={(e) => handleColumnFilterChange("poNumber", e.target.value)}
-                          placeholder="Filter PO number..."
-                          className="h-8 text-xs"
-                        />
-                      </th>
-                      <th className="p-2">
-                        <Input
-                          type="date"
-                          value={columnFilters.poDate}
-                          onChange={(e) => handleColumnFilterChange("poDate", e.target.value)}
-                          className="h-8 text-xs"
-                        />
-                      </th>
-                      <th className="p-2">
-                        <Input
-                          value={columnFilters.supplier}
-                          onChange={(e) => handleColumnFilterChange("supplier", e.target.value)}
-                          placeholder="Filter supplier..."
-                          className="h-8 text-xs"
-                        />
-                      </th>
-                      <th className="p-2">
-                        <Input
-                          value={columnFilters.location}
-                          onChange={(e) => handleColumnFilterChange("location", e.target.value)}
-                          placeholder="Filter location..."
-                          className="h-8 text-xs"
-                        />
-                      </th>
-                      <th className="p-2">
-                        <Select
-                          value={columnFilters.status}
-                          onValueChange={(value) => handleColumnFilterChange("status", value)}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="All statuses" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {statusOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </th>
-                      <th className="p-2">
-                        <div className="flex flex-col gap-1">
-                          <Input
-                            type="number"
-                            value={columnFilters.qtyOrderedMin}
-                            onChange={(e) => handleColumnFilterChange("qtyOrderedMin", e.target.value)}
-                            placeholder="Min"
-                            className="h-8 text-xs"
-                          />
-                          <Input
-                            type="number"
-                            value={columnFilters.qtyOrderedMax}
-                            onChange={(e) => handleColumnFilterChange("qtyOrderedMax", e.target.value)}
-                            placeholder="Max"
-                            className="h-8 text-xs"
-                          />
-                        </div>
-                      </th>
-                      <th className="p-2">
-                        <div className="flex flex-col gap-1">
-                          <Input
-                            type="number"
-                            value={columnFilters.qtyReceivedMin}
-                            onChange={(e) => handleColumnFilterChange("qtyReceivedMin", e.target.value)}
-                            placeholder="Min"
-                            className="h-8 text-xs"
-                          />
-                          <Input
-                            type="number"
-                            value={columnFilters.qtyReceivedMax}
-                            onChange={(e) => handleColumnFilterChange("qtyReceivedMax", e.target.value)}
-                            placeholder="Max"
-                            className="h-8 text-xs"
-                          />
-                        </div>
-                      </th>
-                      <th className="p-2">
-                        <div className="flex flex-col gap-1">
-                          <Input
-                            type="number"
-                            value={columnFilters.unitCostMin}
-                            onChange={(e) => handleColumnFilterChange("unitCostMin", e.target.value)}
-                            placeholder="Min"
-                            className="h-8 text-xs"
-                          />
-                          <Input
-                            type="number"
-                            value={columnFilters.unitCostMax}
-                            onChange={(e) => handleColumnFilterChange("unitCostMax", e.target.value)}
-                            placeholder="Max"
-                            className="h-8 text-xs"
-                          />
-                        </div>
-                      </th>
-                      <th className="p-2">
-                        <div className="flex flex-col gap-1">
-                          <Input
-                            type="number"
-                            value={columnFilters.itemTotalMin}
-                            onChange={(e) => handleColumnFilterChange("itemTotalMin", e.target.value)}
-                            placeholder="Min"
-                            className="h-8 text-xs"
-                          />
-                          <Input
-                            type="number"
-                            value={columnFilters.itemTotalMax}
-                            onChange={(e) => handleColumnFilterChange("itemTotalMax", e.target.value)}
-                            placeholder="Max"
-                            className="h-8 text-xs"
-                          />
-                        </div>
-                      </th>
-                      <th className="p-2 text-center">
-                        <Select
-                          value={columnFilters.serial}
-                          onValueChange={(value) => handleColumnFilterChange("serial", value)}
-                        >
-                          <SelectTrigger className="h-8 text-xs">
-                            <SelectValue placeholder="Serial?" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All</SelectItem>
-                            <SelectItem value="yes">Yes</SelectItem>
-                            <SelectItem value="no">No</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredItems.length > 0 ? (
-                      filteredItems.map((item) => (
-                        <tr key={item.id} className="border-b hover:bg-muted/50">
-                          <td className="p-3 font-medium">{item.productName}</td>
-                          <td className="p-3">{item.variationName}</td>
-                          <td className="p-3">{item.sku}</td>
-                          <td className="p-3">{item.purchaseOrderNumber}</td>
-                          <td className="p-3">{item.purchaseDate}</td>
-                          <td className="p-3">{item.supplier}</td>
-                          <td className="p-3">{item.location}</td>
-                          <td className="p-3">
-                            <Badge className={getStatusColor(item.status)}>
-                              {item.status}
-                            </Badge>
-                          </td>
-                          <td className="p-3 text-right">{formatNumber(item.quantityOrdered)}</td>
-                          <td className="p-3 text-right">{formatNumber(item.quantityReceived)}</td>
-                          <td className="p-3 text-right">{formatNumber(item.unitCost)}</td>
-                          <td className="p-3 text-right font-medium">
-                            {formatNumber(item.itemTotal)}
-                          </td>
-                          <td className="p-3 text-center">
-                            {item.requiresSerial ? "Yes" : "No"}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={13} className="p-6 text-center text-sm text-muted-foreground">
-                          No purchase items match the current column filters.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+      {/* DevExtreme DataGrid */}
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+        <DataGrid
+          dataSource={dataSource}
+          showBorders={true}
+          columnAutoWidth={true}
+          rowAlternationEnabled={true}
+          height={700}
+          keyExpr="id"
+          onExporting={onExporting}
+          wordWrapEnabled={false}
+          allowColumnReordering={true}
+          allowColumnResizing={true}
+          noDataText="No purchase items found. Try adjusting your filters."
+        >
+          <StateStoring enabled={true} type="localStorage" storageKey="purchaseItemsReportState" />
+          <LoadPanel enabled={true} />
+          <Scrolling mode="virtual" />
+          <Selection mode="multiple" showCheckBoxesMode="always" />
+          <Export enabled={true} formats={['xlsx', 'pdf']} allowExportSelectedData={true} />
+          <ColumnChooser enabled={true} mode="select" />
+          <ColumnFixing enabled={true} />
+          <SearchPanel visible={true} width={300} placeholder="Search purchase items..." />
+          <FilterRow visible={true} />
+          <HeaderFilter visible={true} />
+          <Paging defaultPageSize={50} />
+          <Grouping autoExpandAll={false} />
+          <GroupPanel visible={true} emptyPanelText="Drag column headers here to group by status, supplier, or location" />
 
-              {/* Pagination */}
-              {reportData.pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">
-                    Showing {filteredItems.length} of {reportData.items.length} items on this page
-                  </p>
-                  <div className="flex gap-3">
-                    <Button
-                      variant="outline"
-                      size="default"
-                      onClick={() => setPage(page - 1)}
-                      disabled={page === 1 || loading}
-                      className="border-gray-300 hover:bg-gray-50 shadow-sm"
-                    >
-                      Previous
-                    </Button>
-                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-md border border-gray-200">
-                      <span className="text-sm font-medium text-gray-700">
-                        Page {page} of {reportData.pagination.totalPages}
-                      </span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="default"
-                      onClick={() => setPage(page + 1)}
-                      disabled={page === reportData.pagination.totalPages || loading}
-                      className="border-gray-300 hover:bg-gray-50 shadow-sm"
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No purchase items found. Try adjusting your filters.
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          {/* Product Information */}
+          <Column
+            dataField="productName"
+            caption="Product"
+            minWidth={200}
+            fixed={true}
+            fixedPosition="left"
+            cellRender={(data) => <span className="font-medium text-gray-900 dark:text-gray-100">{data.text}</span>}
+          />
+          <Column
+            dataField="variationName"
+            caption="Variation"
+            width={150}
+          />
+          <Column
+            dataField="sku"
+            caption="SKU"
+            width={130}
+            cellRender={(data) => <span className="font-mono text-sm">{data.text}</span>}
+          />
+
+          {/* Purchase Order Information */}
+          <Column
+            dataField="purchaseOrderNumber"
+            caption="PO Number"
+            width={150}
+            cellRender={(data) => <span className="font-medium text-blue-600 dark:text-blue-400">{data.text}</span>}
+          />
+          <Column
+            dataField="purchaseDate"
+            caption="PO Date"
+            dataType="date"
+            width={120}
+            format="MMM dd, yyyy"
+          />
+          <Column
+            dataField="expectedDeliveryDate"
+            caption="Expected Delivery"
+            dataType="date"
+            width={140}
+            format="MMM dd, yyyy"
+            cellRender={(data) => data.value ? data.text : <span className="text-gray-400">N/A</span>}
+          />
+
+          {/* Supplier and Location */}
+          <Column
+            dataField="supplier"
+            caption="Supplier"
+            width={150}
+          />
+          <Column
+            dataField="location"
+            caption="Location"
+            width={150}
+          />
+
+          {/* Status */}
+          <Column
+            dataField="status"
+            caption="Status"
+            width={140}
+            alignment="center"
+            cellRender={statusCellRender}
+          />
+
+          {/* Quantities */}
+          <Column
+            dataField="quantityOrdered"
+            caption="Qty Ordered"
+            dataType="number"
+            width={120}
+            alignment="right"
+            format="#,##0.00"
+          />
+          <Column
+            dataField="quantityReceived"
+            caption="Qty Received"
+            dataType="number"
+            width={130}
+            alignment="right"
+            format="#,##0.00"
+          />
+
+          {/* Costs and Totals */}
+          <Column
+            dataField="unitCost"
+            caption="Unit Cost"
+            dataType="number"
+            width={120}
+            alignment="right"
+            format="#,##0.00"
+          />
+          <Column
+            dataField="itemTotal"
+            caption="Item Total"
+            dataType="number"
+            width={130}
+            alignment="right"
+            format="#,##0.00"
+            cssClass="bg-yellow-50 dark:bg-yellow-900/20"
+          />
+          <Column
+            dataField="receivedTotal"
+            caption="Received Total"
+            dataType="number"
+            width={140}
+            alignment="right"
+            format="#,##0.00"
+            cssClass="bg-green-50 dark:bg-green-900/20"
+          />
+
+          {/* Serial */}
+          <Column
+            dataField="requiresSerial"
+            caption="Serial?"
+            width={100}
+            alignment="center"
+            cellRender={serialCellRender}
+          />
+
+          {/* Summary Totals */}
+          <Summary>
+            <TotalItem column="productName" summaryType="count" displayFormat="Total: {0} items" />
+            <TotalItem column="quantityOrdered" summaryType="sum" valueFormat="#,##0.00" displayFormat="{0}" />
+            <TotalItem column="quantityReceived" summaryType="sum" valueFormat="#,##0.00" displayFormat="{0}" />
+            <TotalItem column="itemTotal" summaryType="sum" valueFormat="#,##0.00" displayFormat="{0}" />
+            <TotalItem column="receivedTotal" summaryType="sum" valueFormat="#,##0.00" displayFormat="{0}" />
+            <TotalItem column="unitCost" summaryType="avg" valueFormat="#,##0.00" displayFormat="Avg: {0}" />
+          </Summary>
+        </DataGrid>
+      </div>
     </div>
   )
 }

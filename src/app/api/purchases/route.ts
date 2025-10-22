@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
     const locationId = searchParams.get('locationId')
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
+    const includeDetails = searchParams.get('includeDetails') === 'true'
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = (page - 1) * limit
@@ -89,37 +90,46 @@ export async function GET(request: NextRequest) {
       console.log('End date ISO:', localEnd.toISOString())
     }
 
-    const [purchases, total] = await Promise.all([
-      prisma.purchase.findMany({
-        where,
+    // Build include object dynamically
+    const includeObject: any = {
+      supplier: {
+        select: {
+          id: true,
+          name: true,
+          mobile: true,
+          email: true,
+        },
+      },
+      items: {
         include: {
-          supplier: {
+          receiptItems: true,
+          product: {
             select: {
               id: true,
               name: true,
-              mobile: true,
-              email: true,
+              sku: true,
             },
           },
-          items: {
-            include: {
-              receiptItems: true,
-              product: {
-                select: {
-                  id: true,
-                  name: true,
-                  sku: true,
-                },
-              },
-              productVariation: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
+          productVariation: {
+            select: {
+              id: true,
+              name: true,
+              sku: true,
             },
           },
         },
+      },
+    }
+
+    // If includeDetails is true, add receipts
+    if (includeDetails) {
+      includeObject.receipts = true
+    }
+
+    const [purchases, total] = await Promise.all([
+      prisma.purchase.findMany({
+        where,
+        include: includeObject,
         orderBy: {
           createdAt: 'desc',
         },

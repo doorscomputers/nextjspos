@@ -60,6 +60,7 @@ model User {
   requestedFreebies            FreebieLog[]               @relation("FreebieRequestedBy")
   approvedFreebies             FreebieLog[]               @relation("FreebieApprovedBy")
   notifications                Notification[]             @relation("NotificationRecipient")
+  announcements                Announcement[]
 
   @@map("users")
 }
@@ -132,6 +133,7 @@ model Business {
   subscriptions        Subscription[]
   inventoryCorrections InventoryCorrection[]
   productVariations    ProductVariation[]
+  announcements        Announcement[]
 
   @@map("business")
 }
@@ -508,6 +510,7 @@ model Product {
   freebieLogs              FreebieLog[]
   quotationItems           QuotationItem[]
   purchaseReturnItems      PurchaseReturnItem[]       @relation("PurchaseReturnItemProduct")
+  stockTransferItems       StockTransferItem[]
 
   @@unique([businessId, sku]) // SKU must be unique within each business
   @@index([businessId])
@@ -552,6 +555,15 @@ model ProductVariation {
   supplierId Int?      @map("supplier_id")
   supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
+  // Warranty relationship (defines warranty period for this product)
+  warrantyId Int?      @map("warranty_id")
+  warranty   Warranty? @relation(fields: [warrantyId], references: [id], onDelete: SetNull)
+
+  // Last purchase information (updated when purchase receipt is approved)
+  lastPurchaseDate     DateTime? @map("last_purchase_date")
+  lastPurchaseCost     Decimal?  @map("last_purchase_cost") @db.Decimal(22, 4)
+  lastPurchaseQuantity Decimal?  @map("last_purchase_quantity") @db.Decimal(22, 4)
+
   // Relations
   variationLocationDetails VariationLocationDetails[]
   stockTransactions        StockTransaction[]
@@ -560,12 +572,14 @@ model ProductVariation {
   serialNumbers            ProductSerialNumber[]      @relation("SerialNumberVariation")
   freebieLogs              FreebieLog[]
   purchaseReturnItems      PurchaseReturnItem[]       @relation("PurchaseReturnItemVariation")
+  stockTransferItems       StockTransferItem[]
 
   @@unique([businessId, sku]) // SKU must be unique within each business
   @@index([productId])
   @@index([businessId])
   @@index([sku])
   @@index([supplierId])
+  @@index([warrantyId])
   @@map("product_variations")
 }
 
@@ -649,6 +663,9 @@ model Warranty {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
+
+  // Relations
+  productVariations ProductVariation[]
 
   @@index([businessId])
   @@map("warranties")
@@ -1554,8 +1571,10 @@ model StockTransferItem {
   stockTransferId Int           @map("stock_transfer_id")
   stockTransfer   StockTransfer @relation(fields: [stockTransferId], references: [id], onDelete: Cascade)
 
-  productId          Int @map("product_id")
-  productVariationId Int @map("product_variation_id")
+  productId          Int              @map("product_id")
+  product            Product          @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productVariationId Int              @map("product_variation_id")
+  productVariation   ProductVariation @relation(fields: [productVariationId], references: [id], onDelete: Restrict)
 
   quantity Decimal @db.Decimal(22, 4)
 
@@ -2436,4 +2455,53 @@ model Notification {
   @@index([createdAt])
   @@index([expiresAt])
   @@map("notifications")
+}
+
+// ============================================
+// ANNOUNCEMENT SYSTEM
+// ============================================
+
+model Announcement {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Announcement content
+  title   String @db.VarChar(255)
+  message String @db.Text
+
+  // Type and Priority
+  type     String @default("system") @db.VarChar(50) // system, business_reminder, promotional, location_specific
+  priority String @default("info") @db.VarChar(20) // info, warning, urgent, success
+
+  // Scheduling
+  startDate DateTime? @map("start_date") // When to start showing
+  endDate   DateTime? @map("end_date") // When to stop showing
+
+  // Targeting
+  targetRoles     String? @map("target_roles") @db.Text // Comma-separated role names, null = all roles
+  targetLocations String? @map("target_locations") @db.Text // Comma-separated location IDs, null = all locations
+
+  // Display settings
+  isActive     Boolean @default(true) @map("is_active")
+  displayOrder Int     @default(0) @map("display_order") // Lower numbers show first
+  icon         String? @db.VarChar(50) // Emoji or icon name
+
+  // Tracking
+  createdById Int      @map("created_by_id")
+  createdBy   User     @relation(fields: [createdById], references: [id])
+
+  // Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([businessId])
+  @@index([isActive])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([type])
+  @@index([priority])
+  @@index([displayOrder])
+  @@map("announcements")
 }

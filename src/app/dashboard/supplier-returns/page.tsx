@@ -1,18 +1,30 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
-import Link from 'next/link'
-import { MagnifyingGlassIcon, EyeIcon } from '@heroicons/react/24/outline'
-import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Button } from '@/components/ui/button'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import ColumnVisibilityToggle, { Column } from '@/components/ColumnVisibilityToggle'
-import Pagination, { ItemsPerPage, ResultsInfo } from '@/components/Pagination'
-import { exportToCSV, exportToExcel, exportToPDF, ExportColumn } from '@/lib/exportUtils'
-import { DocumentArrowDownIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
+import DataGrid, {
+  Column,
+  Export,
+  SearchPanel,
+  Paging,
+  Pager,
+  FilterRow,
+  HeaderFilter,
+  Scrolling,
+  LoadPanel,
+  Toolbar,
+  Item,
+} from 'devextreme-react/data-grid'
+import { Workbook } from 'exceljs'
+import { saveAs } from 'file-saver-es'
+import { exportDataGrid as exportDataGridToPdf } from 'devextreme/pdf_exporter'
+import { exportDataGrid as exportDataGridToExcel } from 'devextreme/excel_exporter'
+import { jsPDF } from 'jspdf'
+import Button from 'devextreme-react/button'
+import SelectBox from 'devextreme-react/select-box'
 
 interface SupplierReturn {
   id: number
@@ -37,48 +49,29 @@ interface SupplierReturn {
   }[]
 }
 
-const AVAILABLE_COLUMNS: Column[] = [
-  { id: 'returnNumber', label: 'Return #' },
-  { id: 'date', label: 'Return Date' },
-  { id: 'supplier', label: 'Supplier' },
-  { id: 'reason', label: 'Reason' },
-  { id: 'items', label: 'Items' },
-  { id: 'conditions', label: 'Conditions' },
-  { id: 'total', label: 'Total' },
-  { id: 'status', label: 'Status' },
-  { id: 'actions', label: 'Actions' },
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'All Status' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'approved', label: 'Approved' },
 ]
 
 export default function SupplierReturnsPage() {
   const { can } = usePermissions()
+  const router = useRouter()
+  const dataGridRef = useRef<DataGrid>(null)
+
   const [returns, setReturns] = useState<SupplierReturn[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
-
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
-  const [totalReturns, setTotalReturns] = useState(0)
-
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([
-    'returnNumber', 'date', 'supplier', 'reason', 'items', 'conditions', 'total', 'status', 'actions'
-  ])
 
   useEffect(() => {
     fetchReturns()
-  }, [statusFilter, currentPage, itemsPerPage])
-
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchTerm, statusFilter])
+  }, [statusFilter])
 
   const fetchReturns = async () => {
     try {
       setLoading(true)
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        limit: itemsPerPage.toString(),
-      })
+      const params = new URLSearchParams()
 
       if (statusFilter && statusFilter !== 'all') {
         params.append('status', statusFilter)
@@ -89,7 +82,6 @@ export default function SupplierReturnsPage() {
 
       if (response.ok) {
         setReturns(data.returns || [])
-        setTotalReturns(data.pagination?.total || 0)
       } else {
         toast.error(data.error || 'Failed to fetch supplier returns')
       }
@@ -101,39 +93,14 @@ export default function SupplierReturnsPage() {
     }
   }
 
-  const filteredReturns = returns.filter(ret => {
-    if (!searchTerm) return true
-    const searchLower = searchTerm.toLowerCase()
-    return (
-      ret.returnNumber.toLowerCase().includes(searchLower) ||
-      ret.supplier?.name.toLowerCase().includes(searchLower)
-    )
-  })
-
-  const handleExport = (format: 'csv' | 'excel' | 'pdf') => {
-    const columns: ExportColumn[] = [
-      { header: 'Return #', key: 'returnNumber' },
-      { header: 'Date', key: 'returnDate' },
-      { header: 'Supplier', key: 'supplier', formatter: (val: any) => val?.name || 'N/A' },
-      { header: 'Reason', key: 'returnReason' },
-      { header: 'Items', key: 'items', formatter: (val: any[]) => val.length.toString() },
-      { header: 'Total', key: 'totalAmount', formatter: (val: number) => `$${val.toFixed(2)}` },
-      { header: 'Status', key: 'status' },
-    ]
-
-    const filename = `supplier_returns_${new Date().toISOString().split('T')[0]}`
-
-    switch (format) {
-      case 'csv':
-        exportToCSV(filteredReturns, columns, filename)
-        break
-      case 'excel':
-        exportToExcel(filteredReturns, columns, filename)
-        break
-      case 'pdf':
-        exportToPDF(filteredReturns, columns, filename, 'Supplier Returns Report')
-        break
-    }
+  const formatCurrency = (amount: number | null | undefined) => {
+    if (!amount) return '₱0.00'
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount).replace('PHP', '₱')
   }
 
   const formatDate = (dateString: string) => {
@@ -144,27 +111,21 @@ export default function SupplierReturnsPage() {
     })
   }
 
-  const formatCurrency = (amount: number) => {
-    return `$${amount.toFixed(2)}`
+  const getStatusDisplay = (status: string) => {
+    const config: { [key: string]: { color: string, text: string } } = {
+      'pending': { color: '#f59e0b', text: 'Pending' },
+      'approved': { color: '#10b981', text: 'Approved' },
+    }
+    return config[status] || { color: '#6b7280', text: status }
   }
 
-  const getStatusBadge = (status: string) => {
-    const config: { [key: string]: { variant: "default" | "secondary" | "destructive" | "outline", label: string } } = {
-      'pending': { variant: 'secondary', label: 'Pending' },
-      'approved': { variant: 'default', label: 'Approved' },
+  const getReasonDisplay = (reason: string) => {
+    const config: { [key: string]: { color: string, text: string } } = {
+      'warranty': { color: '#3b82f6', text: 'Warranty' },
+      'defective': { color: '#ef4444', text: 'Defective' },
+      'damaged': { color: '#f59e0b', text: 'Damaged' },
     }
-    const statusConfig = config[status] || { variant: 'outline', label: status }
-    return <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
-  }
-
-  const getReasonBadge = (reason: string) => {
-    const config: { [key: string]: { variant: "default" | "secondary" | "destructive" | "outline", label: string } } = {
-      'warranty': { variant: 'default', label: 'Warranty' },
-      'defective': { variant: 'destructive', label: 'Defective' },
-      'damaged': { variant: 'secondary', label: 'Damaged' },
-    }
-    const reasonConfig = config[reason] || { variant: 'outline', label: reason }
-    return <Badge variant={reasonConfig.variant}>{reasonConfig.label}</Badge>
+    return config[reason] || { color: '#6b7280', text: reason }
   }
 
   const getConditionSummary = (items: SupplierReturn['items']) => {
@@ -180,6 +141,39 @@ export default function SupplierReturnsPage() {
     return parts.length > 0 ? parts.join(', ') : 'None'
   }
 
+  const onExporting = (e: any) => {
+    if (e.format === 'pdf') {
+      const doc = new jsPDF()
+      exportDataGridToPdf({
+        jsPDFDocument: doc,
+        component: e.component,
+      }).then(() => {
+        doc.save(`supplier_returns_${new Date().toISOString().split('T')[0]}.pdf`)
+      })
+    } else if (e.format === 'xlsx') {
+      const workbook = new Workbook()
+      const worksheet = workbook.addWorksheet('Supplier Returns')
+
+      exportDataGridToExcel({
+        component: e.component,
+        worksheet,
+        autoFilterEnabled: true,
+      }).then(() => {
+        workbook.xlsx.writeBuffer().then((buffer) => {
+          saveAs(
+            new Blob([buffer], { type: 'application/octet-stream' }),
+            `supplier_returns_${new Date().toISOString().split('T')[0]}.xlsx`
+          )
+        })
+      })
+    }
+    e.cancel = true
+  }
+
+  const handleViewReturn = (returnId: number) => {
+    router.push(`/dashboard/supplier-returns/${returnId}`)
+  }
+
   if (!can(PERMISSIONS.PURCHASE_RETURN_VIEW)) {
     return (
       <div className="p-8">
@@ -192,210 +186,193 @@ export default function SupplierReturnsPage() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Supplier Returns</h1>
-          <p className="text-gray-500 mt-1">Manage returns to suppliers for damaged, defective, or warranty items</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Supplier Returns
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Manage returns to suppliers for damaged, defective, or warranty items
+          </p>
         </div>
-      </div>
-
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by return number or supplier name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-        </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-          </SelectContent>
-        </Select>
-        <ColumnVisibilityToggle
-          availableColumns={AVAILABLE_COLUMNS}
-          visibleColumns={visibleColumns}
-          onChange={setVisibleColumns}
-        />
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={() => handleExport('csv')}>
-          <DocumentTextIcon className="w-4 h-4 mr-2" />
-          Export CSV
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => handleExport('excel')}>
-          <DocumentArrowDownIcon className="w-4 h-4 mr-2" />
-          Export Excel
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
-          <DocumentTextIcon className="w-4 h-4 mr-2" />
-          Export PDF
-        </Button>
-      </div>
-
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                {visibleColumns.includes('returnNumber') && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Return #
-                  </th>
-                )}
-                {visibleColumns.includes('date') && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
-                  </th>
-                )}
-                {visibleColumns.includes('supplier') && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Supplier
-                  </th>
-                )}
-                {visibleColumns.includes('reason') && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Reason
-                  </th>
-                )}
-                {visibleColumns.includes('items') && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Items
-                  </th>
-                )}
-                {visibleColumns.includes('conditions') && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Conditions
-                  </th>
-                )}
-                {visibleColumns.includes('total') && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total
-                  </th>
-                )}
-                {visibleColumns.includes('status') && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                )}
-                {visibleColumns.includes('actions') && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
-                <tr>
-                  <td colSpan={visibleColumns.length} className="px-6 py-4 text-center text-gray-500">
-                    Loading supplier returns...
-                  </td>
-                </tr>
-              ) : filteredReturns.length === 0 ? (
-                <tr>
-                  <td colSpan={visibleColumns.length} className="px-6 py-4 text-center text-gray-500">
-                    No supplier returns found
-                  </td>
-                </tr>
-              ) : (
-                filteredReturns.map((ret) => (
-                  <tr key={ret.id} className="hover:bg-gray-50">
-                    {visibleColumns.includes('returnNumber') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {ret.returnNumber}
-                      </td>
-                    )}
-                    {visibleColumns.includes('date') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(ret.returnDate)}
-                      </td>
-                    )}
-                    {visibleColumns.includes('supplier') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {ret.supplier ? (
-                          <div>
-                            <div className="font-medium">{ret.supplier.name}</div>
-                            {ret.supplier.mobile && (
-                              <div className="text-gray-500 text-xs">{ret.supplier.mobile}</div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-gray-500">N/A</span>
-                        )}
-                      </td>
-                    )}
-                    {visibleColumns.includes('reason') && (
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getReasonBadge(ret.returnReason)}
-                      </td>
-                    )}
-                    {visibleColumns.includes('items') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {ret.items.length} {ret.items.length === 1 ? 'item' : 'items'}
-                      </td>
-                    )}
-                    {visibleColumns.includes('conditions') && (
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {getConditionSummary(ret.items)}
-                      </td>
-                    )}
-                    {visibleColumns.includes('total') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                        {formatCurrency(ret.totalAmount)}
-                      </td>
-                    )}
-                    {visibleColumns.includes('status') && (
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(ret.status)}
-                      </td>
-                    )}
-                    {visibleColumns.includes('actions') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <Link href={`/dashboard/supplier-returns/${ret.id}`}>
-                          <Button variant="ghost" size="sm">
-                            <EyeIcon className="w-4 h-4" />
-                          </Button>
-                        </Link>
-                      </td>
-                    )}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {!loading && filteredReturns.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <ResultsInfo
-            currentPage={currentPage}
-            itemsPerPage={itemsPerPage}
-            totalItems={totalReturns}
+        {can(PERMISSIONS.PURCHASE_RETURN_CREATE) && (
+          <Button
+            text="Create Return (Manual)"
+            icon="add"
+            type="default"
+            stylingMode="contained"
+            onClick={() => router.push('/dashboard/supplier-returns/create-manual')}
           />
-          <div className="flex items-center gap-4">
-            <ItemsPerPage value={itemsPerPage} onChange={setItemsPerPage} />
-            <Pagination
-              currentPage={currentPage}
-              totalItems={totalReturns}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-            />
-          </div>
+        )}
+      </div>
+
+      {/* Filters */}
+      <div className="flex gap-4 items-center">
+        <div className="w-64">
+          <SelectBox
+            dataSource={STATUS_OPTIONS}
+            displayExpr="label"
+            valueExpr="value"
+            value={statusFilter}
+            onValueChanged={(e) => setStatusFilter(e.value)}
+            placeholder="Filter by status"
+            searchEnabled={false}
+          />
         </div>
-      )}
+      </div>
+
+      {/* DataGrid */}
+      <DataGrid
+        ref={dataGridRef}
+        dataSource={returns}
+        keyExpr="id"
+        showBorders={true}
+        showRowLines={true}
+        showColumnLines={true}
+        rowAlternationEnabled={true}
+        hoverStateEnabled={true}
+        allowColumnReordering={true}
+        allowColumnResizing={true}
+        columnAutoWidth={true}
+        wordWrapEnabled={false}
+        onExporting={onExporting}
+      >
+        <SearchPanel visible={true} width={300} placeholder="Search..." />
+        <FilterRow visible={true} />
+        <HeaderFilter visible={true} />
+        <Scrolling mode="virtual" />
+        <LoadPanel enabled={true} />
+        <Paging enabled={true} defaultPageSize={20} />
+        <Pager
+          visible={true}
+          showPageSizeSelector={true}
+          allowedPageSizes={[10, 20, 50, 100]}
+          showInfo={true}
+          showNavigationButtons={true}
+        />
+
+        <Export
+          enabled={true}
+          formats={['xlsx', 'pdf']}
+          allowExportSelectedData={false}
+        />
+
+        <Toolbar>
+          <Item name="searchPanel" />
+          <Item name="exportButton" />
+          <Item name="columnChooserButton" />
+        </Toolbar>
+
+        <Column
+          dataField="returnNumber"
+          caption="Return #"
+          width={150}
+          fixed={true}
+          allowFiltering={true}
+        />
+
+        <Column
+          dataField="returnDate"
+          caption="Date"
+          dataType="date"
+          format="MMM dd, yyyy"
+          width={120}
+          customizeText={(cellInfo) => formatDate(cellInfo.value)}
+        />
+
+        <Column
+          dataField="supplier.name"
+          caption="Supplier"
+          width={200}
+          allowFiltering={true}
+        />
+
+        <Column
+          dataField="returnReason"
+          caption="Reason"
+          width={120}
+          cellRender={(cellData) => {
+            const reasonInfo = getReasonDisplay(cellData.value)
+            return (
+              <span
+                style={{
+                  backgroundColor: reasonInfo.color + '20',
+                  color: reasonInfo.color,
+                  padding: '4px 12px',
+                  borderRadius: '12px',
+                  fontWeight: '500',
+                  fontSize: '12px',
+                }}
+              >
+                {reasonInfo.text}
+              </span>
+            )
+          }}
+        />
+
+        <Column
+          caption="Items"
+          width={80}
+          alignment="center"
+          calculateCellValue={(rowData: SupplierReturn) => rowData.items.length}
+        />
+
+        <Column
+          caption="Conditions"
+          width={200}
+          allowFiltering={false}
+          calculateCellValue={(rowData: SupplierReturn) => getConditionSummary(rowData.items)}
+        />
+
+        <Column
+          dataField="totalAmount"
+          caption="Total"
+          dataType="number"
+          width={120}
+          format={{ type: 'currency', currency: 'PHP' }}
+          customizeText={(cellInfo) => formatCurrency(cellInfo.value)}
+        />
+
+        <Column
+          dataField="status"
+          caption="Status"
+          width={100}
+          cellRender={(cellData) => {
+            const statusInfo = getStatusDisplay(cellData.value)
+            return (
+              <span
+                style={{
+                  backgroundColor: statusInfo.color + '20',
+                  color: statusInfo.color,
+                  padding: '4px 12px',
+                  borderRadius: '12px',
+                  fontWeight: '500',
+                  fontSize: '12px',
+                }}
+              >
+                {statusInfo.text}
+              </span>
+            )
+          }}
+        />
+
+        <Column
+          caption="Actions"
+          width={100}
+          alignment="center"
+          allowFiltering={false}
+          allowSorting={false}
+          allowExporting={false}
+          cellRender={(cellData) => (
+            <Button
+              icon="eyeopen"
+              hint="View Details"
+              onClick={() => handleViewReturn(cellData.data.id)}
+            />
+          )}
+        />
+      </DataGrid>
     </div>
   )
 }

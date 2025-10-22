@@ -143,6 +143,41 @@ export async function POST(
 
         const unitCost = parseFloat(purchaseItem.unitCost.toString())
 
+        // Get product variation with warranty info FIRST (needed for serial numbers)
+        const productVariation = await tx.productVariation.findUnique({
+          where: { id: item.productVariationId },
+          select: {
+            purchasePrice: true,
+            warrantyId: true,
+            warranty: {
+              select: {
+                duration: true,
+                durationType: true,
+              },
+            },
+          },
+        })
+
+        // Calculate warranty dates based on product warranty configuration
+        let warrantyStartDate: Date | null = null
+        let warrantyEndDate: Date | null = null
+
+        if (productVariation?.warranty) {
+          warrantyStartDate = new Date(receipt.receiptDate)
+          const endDate = new Date(receipt.receiptDate)
+
+          // Calculate end date based on duration type
+          if (productVariation.warranty.durationType === 'months') {
+            endDate.setMonth(endDate.getMonth() + productVariation.warranty.duration)
+          } else if (productVariation.warranty.durationType === 'years') {
+            endDate.setFullYear(endDate.getFullYear() + productVariation.warranty.duration)
+          } else if (productVariation.warranty.durationType === 'days') {
+            endDate.setDate(endDate.getDate() + productVariation.warranty.duration)
+          }
+
+          warrantyEndDate = endDate
+        }
+
         if (quantity > 0) {
           await processPurchaseReceipt({
             businessId: businessIdNumber,
@@ -182,6 +217,9 @@ export async function POST(
                 purchaseReceiptId: receipt.id,
                 purchasedAt: receipt.receiptDate,
                 purchaseCost: parseFloat(purchaseItem.unitCost.toString()),
+                // Auto-set warranty dates based on product warranty configuration
+                warrantyStartDate: warrantyStartDate,
+                warrantyEndDate: warrantyEndDate,
               },
               create: {
                 businessId: businessIdNumber,
@@ -198,6 +236,9 @@ export async function POST(
                 purchaseReceiptId: receipt.id,
                 purchasedAt: receipt.receiptDate,
                 purchaseCost: parseFloat(purchaseItem.unitCost.toString()),
+                // Auto-set warranty dates based on product warranty configuration
+                warrantyStartDate: warrantyStartDate,
+                warrantyEndDate: warrantyEndDate,
               },
             })
 
@@ -217,13 +258,6 @@ export async function POST(
         }
 
         // Update product variation purchase price (weighted average costing)
-        const productVariation = await tx.productVariation.findUnique({
-          where: { id: item.productVariationId },
-          select: {
-            purchasePrice: true,
-          },
-        })
-
         if (productVariation) {
           // Get current total stock across all locations
           const stockAcrossLocations = await tx.variationLocationDetails.findMany({
@@ -258,11 +292,16 @@ export async function POST(
               (previousTotalStock * currentCost + newItemQty * newItemCost) / currentTotalStock
           }
 
-          // Update product variation purchase price
+          // Update product variation purchase price and last purchase info
           await tx.productVariation.update({
             where: { id: item.productVariationId },
             data: {
               purchasePrice: weightedAverageCost,
+              // Track last purchase information for supplier analysis
+              supplierId: receipt.purchase.supplierId,
+              lastPurchaseDate: receipt.receiptDate,
+              lastPurchaseCost: newItemCost,
+              lastPurchaseQuantity: newItemQty,
             },
           })
         }

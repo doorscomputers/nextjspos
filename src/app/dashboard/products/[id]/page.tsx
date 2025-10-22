@@ -14,8 +14,15 @@ import {
   CurrencyDollarIcon,
   BuildingStorefrontIcon,
   ChartBarIcon,
-  PrinterIcon
+  PrinterIcon,
+  ArrowUturnLeftIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import CreateReturnModal from '@/components/purchases/CreateReturnModal'
+import { toast } from 'sonner'
 
 interface ProductDetail {
   id: number
@@ -93,6 +100,13 @@ export default function ProductViewPage() {
   const [stockDetails, setStockDetails] = useState<StockDetail[]>([])
   const [businessName, setBusinessName] = useState<string>('Business')
   const [printFormat, setPrintFormat] = useState<'standard' | 'compact'>('standard')
+
+  // Create Return states
+  const [showGrnSelectModal, setShowGrnSelectModal] = useState(false)
+  const [showCreateReturnModal, setShowCreateReturnModal] = useState(false)
+  const [availableGrns, setAvailableGrns] = useState<any[]>([])
+  const [selectedGrn, setSelectedGrn] = useState<any | null>(null)
+  const [loadingGrns, setLoadingGrns] = useState(false)
 
   useEffect(() => {
     fetchProduct()
@@ -181,6 +195,52 @@ export default function ProductViewPage() {
         document.title = originalTitle
       }, 100)
     }, 100)
+  }
+
+  // Fetch all GRNs containing this product
+  const fetchProductGrns = async () => {
+    if (!product) return
+
+    setLoadingGrns(true)
+    try {
+      const response = await fetch(`/api/products/${product.id}/grns`)
+      const data = await response.json()
+
+      if (response.ok) {
+        setAvailableGrns(data.receipts || [])
+        if (data.receipts.length === 0) {
+          toast.error('No approved GRNs found for this product')
+        } else {
+          setShowGrnSelectModal(true)
+        }
+      } else {
+        toast.error(data.error || 'Failed to fetch GRNs')
+      }
+    } catch (error) {
+      console.error('Error fetching GRNs:', error)
+      toast.error('Failed to fetch GRNs for this product')
+    } finally {
+      setLoadingGrns(false)
+    }
+  }
+
+  // Handle Create Return button click
+  const handleCreateReturnClick = () => {
+    fetchProductGrns()
+  }
+
+  // Handle GRN selection
+  const handleGrnSelected = (grn: any) => {
+    setSelectedGrn(grn)
+    setShowGrnSelectModal(false)
+    setShowCreateReturnModal(true)
+  }
+
+  // Handle return creation success
+  const handleReturnSuccess = () => {
+    setShowCreateReturnModal(false)
+    setSelectedGrn(null)
+    toast.success('Purchase return created successfully')
   }
 
   if (loading) {
@@ -1138,6 +1198,16 @@ export default function ProductViewPage() {
                 Edit Product
               </Link>
             )}
+            {can(PERMISSIONS.PURCHASE_RETURN_CREATE) && (
+              <button
+                onClick={handleCreateReturnClick}
+                disabled={loadingGrns}
+                className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors print:hidden disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ArrowUturnLeftIcon className="w-5 h-5 mr-2" />
+                {loadingGrns ? 'Loading...' : 'Create Return'}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1646,6 +1716,140 @@ export default function ProductViewPage() {
           </div>
         </div>
       </div>
+
+      {/* GRN Selection Modal */}
+      <Dialog open={showGrnSelectModal} onOpenChange={setShowGrnSelectModal}>
+        <DialogContent className="sm:max-w-[900px] max-h-[80vh] bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-gray-900 dark:text-white">
+              <ArrowUturnLeftIcon className="w-6 h-6 text-orange-600" />
+              Select GRN to Create Return
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-300">
+              Choose which goods received note (GRN) you want to create a return for. Showing recent GRNs containing <strong>{product?.name}</strong>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 overflow-y-auto max-h-[60vh]">
+            {availableGrns.length === 0 ? (
+              <div className="text-center py-12 text-gray-600 dark:text-gray-300">
+                <p>No approved GRNs found for this product.</p>
+                <p className="text-sm mt-2 text-gray-500">
+                  Returns can only be created from approved GRNs.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {availableGrns.map((grn) => (
+                  <div
+                    key={grn.id}
+                    className="border border-gray-300 dark:border-gray-600 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer transition-colors"
+                    onClick={() => handleGrnSelected(grn)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h4 className="font-semibold text-gray-900 dark:text-white">
+                            {grn.receiptNumber}
+                          </h4>
+                          <Badge className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                            {grn.status}
+                          </Badge>
+                          {grn.purchaseOrderNumber && (
+                            <span className="text-sm text-gray-600 dark:text-gray-400">
+                              PO: {grn.purchaseOrderNumber}
+                            </span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-600 dark:text-gray-400">Date:</span>{' '}
+                            <span className="text-gray-900 dark:text-white font-medium">
+                              {new Date(grn.receiptDate).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600 dark:text-gray-400">Supplier:</span>{' '}
+                            <span className="text-gray-900 dark:text-white font-medium">
+                              {grn.supplierName}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600 dark:text-gray-400">Location:</span>{' '}
+                            <span className="text-gray-900 dark:text-white font-medium">
+                              {grn.locationName}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600 dark:text-gray-400">Total Items:</span>{' '}
+                            <span className="text-gray-900 dark:text-white font-medium">
+                              {grn.totalItems} ({grn.totalQuantity} units)
+                            </span>
+                          </div>
+                        </div>
+                        {/* Show product items in this GRN */}
+                        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
+                            Items in this GRN:
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {grn.items.map((item: any, idx: number) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs rounded"
+                              >
+                                {item.variationName} (Qty: {item.quantityReceived})
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="ml-4">
+                        <Button
+                          onClick={() => handleGrnSelected(grn)}
+                          className="bg-orange-600 hover:bg-orange-700 text-white"
+                        >
+                          Select
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowGrnSelectModal(false)}
+            >
+              <XMarkIcon className="w-4 h-4 mr-2" />
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Return Modal */}
+      {selectedGrn && (
+        <CreateReturnModal
+          open={showCreateReturnModal}
+          onClose={() => {
+            setShowCreateReturnModal(false)
+            setSelectedGrn(null)
+          }}
+          receipt={{
+            id: selectedGrn.id,
+            receiptNumber: selectedGrn.receiptNumber,
+            supplierId: selectedGrn.supplierId,
+            supplierName: selectedGrn.supplierName,
+            items: selectedGrn.items,
+          }}
+          onSuccess={handleReturnSuccess}
+        />
+      )}
     </div>
   )
 }

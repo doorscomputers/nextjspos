@@ -6,6 +6,16 @@ import { PERMISSIONS } from '@/lib/rbac'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
 import { ArrowLeftIcon, CheckIcon, XMarkIcon, TruckIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ArrowDownTrayIcon, TableCellsIcon, PencilIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
@@ -80,6 +90,12 @@ export default function TransferDetailPage() {
   // For rejection
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
+
+  // Confirmation dialogs for critical actions
+  const [showSendConfirm, setShowSendConfirm] = useState(false)
+  const [showCompleteConfirm, setShowCompleteConfirm] = useState(false)
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [itemToUnverify, setItemToUnverify] = useState<number | null>(null)
 
   useEffect(() => {
     fetchLocations()
@@ -177,8 +193,12 @@ export default function TransferDetailPage() {
     setRejectionReason('')
   }
 
-  const handleSend = () => {
-    if (!confirm('Are you sure? Stock will be deducted from origin location.')) return
+  const handleSendClick = () => {
+    setShowSendConfirm(true)
+  }
+
+  const handleSendConfirmed = () => {
+    setShowSendConfirm(false)
     handleAction('send', 'Transfer sent - stock deducted')
   }
 
@@ -203,38 +223,25 @@ export default function TransferDetailPage() {
     })
   }
 
-  const handleUnverifyItem = async (itemId: number) => {
-    if (!confirm('Edit this verified item? You can change the quantity and verify again.')) return
-    await handleAction('unverify-item', 'Item unverified - you can now edit', {
-      itemId
-    })
+  const handleUnverifyItemClick = (itemId: number) => {
+    setItemToUnverify(itemId)
   }
 
-  const handleComplete = () => {
-    // Count total items and verified items for final review
-    const totalItems = transfer?.items.length || 0
-    const verifiedItems = transfer?.items.filter(item => item.verified).length || 0
+  const handleUnverifyItemConfirmed = async () => {
+    if (itemToUnverify) {
+      await handleAction('unverify-item', 'Item unverified - you can now edit', {
+        itemId: itemToUnverify
+      })
+    }
+    setItemToUnverify(null)
+  }
 
-    const warningMessage = `
-⚠️ FINAL CONFIRMATION ⚠️
+  const handleCompleteClick = () => {
+    setShowCompleteConfirm(true)
+  }
 
-You are about to COMPLETE this transfer and UPDATE INVENTORY.
-
-Items verified: ${verifiedItems}/${totalItems}
-
-This action will:
-✓ Add stock to destination location
-✓ Update inventory ledgers permanently
-✓ Make this transfer IMMUTABLE (cannot be edited)
-
-⚠️ Once completed, you CANNOT change verified quantities!
-
-Review all verified quantities carefully before proceeding.
-
-Are you absolutely sure all quantities are correct?
-    `.trim()
-
-    if (!confirm(warningMessage)) return
+  const handleCompleteConfirmed = () => {
+    setShowCompleteConfirm(false)
     handleAction('complete', 'Transfer completed - stock added to destination')
   }
 
@@ -295,8 +302,12 @@ Are you absolutely sure all quantities are correct?
     }
   }
 
-  const handleCancel = async () => {
-    if (!confirm('Cancel this transfer? This action cannot be undone.')) return
+  const handleCancelClick = () => {
+    setShowCancelConfirm(true)
+  }
+
+  const handleCancelConfirmed = async () => {
+    setShowCancelConfirm(false)
 
     try {
       setActionLoading(true)
@@ -484,7 +495,7 @@ Are you absolutely sure all quantities are correct?
         actions.push({
           label: 'Send Transfer',
           icon: TruckIcon,
-          onClick: handleSend,
+          onClick: handleSendClick,
           variant: 'default' as const
         })
       }
@@ -519,7 +530,7 @@ Are you absolutely sure all quantities are correct?
       actions.push({
         label: 'Receive Transfer',
         icon: CheckCircleIcon,
-        onClick: handleComplete,
+        onClick: handleCompleteClick,
         variant: 'default' as const
       })
     }
@@ -530,7 +541,7 @@ Are you absolutely sure all quantities are correct?
       actions.push({
         label: 'Cancel Transfer',
         icon: XMarkIcon,
-        onClick: handleCancel,
+        onClick: handleCancelClick,
         variant: 'destructive' as const
       })
     }
@@ -918,7 +929,7 @@ Are you absolutely sure all quantities are correct?
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleUnverifyItem(item.id)}
+                              onClick={() => handleUnverifyItemClick(item.id)}
                               disabled={actionLoading}
                               className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border-yellow-300"
                             >
@@ -1163,6 +1174,159 @@ Are you absolutely sure all quantities are correct?
           </div>
         </div>
       </div>
+
+      {/* Send Transfer Confirmation Dialog */}
+      <AlertDialog open={showSendConfirm} onOpenChange={setShowSendConfirm}>
+        <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900 dark:text-white">Confirm Send Transfer</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 text-gray-600 dark:text-gray-400">
+              <p className="text-base">
+                Are you sure you want to send this transfer?
+              </p>
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-4">
+                <p className="font-semibold text-amber-900 dark:text-amber-200 mb-2">
+                  ⚠️ Important: Stock will be deducted
+                </p>
+                <p className="text-sm text-amber-800 dark:text-amber-300">
+                  Stock will be immediately deducted from the origin location. This action affects inventory levels.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="shadow-md hover:shadow-lg transition-all duration-200">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSendConfirmed}
+              className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
+            >
+              Yes, Send Transfer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Complete Transfer Confirmation Dialog */}
+      <AlertDialog open={showCompleteConfirm} onOpenChange={setShowCompleteConfirm}>
+        <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900 dark:text-white text-xl">
+              ⚠️ FINAL CONFIRMATION - Complete Transfer
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 text-gray-600 dark:text-gray-400">
+              <p className="text-base font-semibold text-gray-900 dark:text-white">
+                You are about to COMPLETE this transfer and UPDATE INVENTORY.
+              </p>
+
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                <p className="text-sm text-blue-800 dark:text-blue-300">
+                  <strong>Items verified:</strong> {transfer?.items.filter(item => item.verified).length} / {transfer?.items.length}
+                </p>
+              </div>
+
+              <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-700 rounded-lg p-4">
+                <p className="font-bold text-amber-900 dark:text-amber-200 mb-3">
+                  This action will:
+                </p>
+                <ul className="text-sm text-amber-800 dark:text-amber-300 space-y-2">
+                  <li>✓ Add stock to destination location</li>
+                  <li>✓ Update inventory ledgers permanently</li>
+                  <li>✓ Make this transfer IMMUTABLE (cannot be edited)</li>
+                </ul>
+              </div>
+
+              <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 rounded-lg p-4">
+                <p className="font-bold text-red-900 dark:text-red-200 mb-2">
+                  ⚠️ WARNING
+                </p>
+                <p className="text-sm text-red-800 dark:text-red-300">
+                  Once completed, you CANNOT change verified quantities! Review all verified quantities carefully before proceeding.
+                </p>
+              </div>
+
+              <p className="text-base font-semibold text-gray-900 dark:text-white mt-4">
+                Are you absolutely sure all quantities are correct?
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="shadow-md hover:shadow-lg transition-all duration-200">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCompleteConfirmed}
+              className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
+            >
+              Yes, Complete Transfer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Cancel Transfer Confirmation Dialog */}
+      <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+        <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900 dark:text-white">Cancel Transfer</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 text-gray-600 dark:text-gray-400">
+              <p className="text-base">
+                Are you sure you want to cancel this transfer?
+              </p>
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4">
+                <p className="font-semibold text-red-900 dark:text-red-200 mb-2">
+                  ⚠️ This action cannot be undone
+                </p>
+                <p className="text-sm text-red-800 dark:text-red-300">
+                  The transfer will be permanently cancelled and cannot be recovered.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="shadow-md hover:shadow-lg transition-all duration-200">
+              No, Keep Transfer
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelConfirmed}
+              className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
+            >
+              Yes, Cancel Transfer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Unverify Item Confirmation Dialog */}
+      <AlertDialog open={itemToUnverify !== null} onOpenChange={(open) => !open && setItemToUnverify(null)}>
+        <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900 dark:text-white">Edit Verified Item</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 text-gray-600 dark:text-gray-400">
+              <p className="text-base">
+                Do you want to edit this verified item?
+              </p>
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                <p className="text-sm text-blue-800 dark:text-blue-300">
+                  You can change the quantity and verify it again. This will unmark the item as verified.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="shadow-md hover:shadow-lg transition-all duration-200">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleUnverifyItemConfirmed}
+              className="bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-700 hover:to-yellow-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
+            >
+              Yes, Edit Item
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

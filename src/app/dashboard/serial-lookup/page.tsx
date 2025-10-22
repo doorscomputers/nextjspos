@@ -173,6 +173,37 @@ export default function SerialNumberLookupPage() {
       {/* Results */}
       {result && (
         <div className="space-y-6">
+          {/* Quick Action Buttons */}
+          {result.supplier && result.status === 'in_stock' && (
+            <div className="flex gap-3 justify-end">
+              <Button
+                onClick={() => {
+                  // Navigate to supplier return page with pre-filled data
+                  const returnData = encodeURIComponent(JSON.stringify({
+                    serialNumber: result.serialNumber,
+                    productId: result.product.id,
+                    productName: result.product.name,
+                    sku: result.product.sku,
+                    variation: result.product.variation,
+                    supplierId: result.supplier!.id,
+                    supplierName: result.supplier!.name,
+                    currentLocationId: result.currentLocation?.id,
+                    currentLocationName: result.currentLocation?.name,
+                    purchaseCost: result.purchaseCost,
+                  }))
+                  window.location.href = `/dashboard/supplier-returns/new?data=${returnData}`
+                }}
+                className="bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
+                size="lg"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                </svg>
+                Create Supplier Return
+              </Button>
+            </div>
+          )}
+
           {/* Supplier Info Card (MOST IMPORTANT for warranty returns!) */}
           <Card className="border-2 border-blue-200 dark:border-blue-800">
             <CardHeader className="bg-blue-50 dark:bg-blue-950/30">

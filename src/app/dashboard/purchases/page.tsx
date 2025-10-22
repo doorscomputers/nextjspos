@@ -4,20 +4,25 @@ import { useState, useEffect } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import Link from 'next/link'
-import { PlusIcon, MagnifyingGlassIcon, EyeIcon, FunnelIcon, XMarkIcon } from '@heroicons/react/24/outline'
-import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { PlusIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import ColumnVisibilityToggle, { Column } from '@/components/ColumnVisibilityToggle'
-import Pagination, { ItemsPerPage, ResultsInfo } from '@/components/Pagination'
-import { exportToCSV, exportToExcel, exportToPDF, ExportColumn } from '@/lib/exportUtils'
-import { DocumentArrowDownIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
-import { useTableSort } from '@/hooks/useTableSort'
-import { SortableTableHead } from '@/components/ui/sortable-table-head'
+import DataGrid, {
+  Column,
+  MasterDetail,
+  Paging,
+  FilterRow,
+  HeaderFilter,
+  SearchPanel,
+  Export,
+  ColumnChooser,
+  StateStoring,
+  Selection,
+  Toolbar,
+  Item,
+} from 'devextreme-react/data-grid'
+import { Template } from 'devextreme-react/core/template'
+import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/currencyUtils'
 
 interface Purchase {
@@ -39,637 +44,402 @@ interface Purchase {
     mobile: string | null
     email: string | null
   }
-  items: {
+  items: Array<{
     id: number
     quantity: number
     quantityReceived: number
     unitCost: number
-  }[]
+    lineTotal: number
+    product: {
+      name: string
+      sku: string
+    }
+    productVariation: {
+      name: string
+      sku: string | null
+    }
+  }>
+  receipts: Array<{
+    id: number
+    receiptNumber: string
+    receivedDate: string
+    status: string
+    notes: string | null
+    receivedBy: number
+    receivedAt: string
+  }>
 }
 
-const AVAILABLE_COLUMNS: Column[] = [
-  { id: 'poNumber', label: 'PO Number' },
-  { id: 'date', label: 'PO Date' },
-  { id: 'supplier', label: 'Supplier' },
-  { id: 'items', label: 'Items' },
-  { id: 'received', label: 'Received' },
-  { id: 'total', label: 'Total' },
-  { id: 'status', label: 'Status' },
-  { id: 'actions', label: 'Actions' },
-]
-
-export default function PurchasesPage() {
+export default function PurchasesDevExtremePage() {
   const { can } = usePermissions()
   const [purchases, setPurchases] = useState<Purchase[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [dateFilter, setDateFilter] = useState('all')
-  const [customStartDate, setCustomStartDate] = useState('')
-  const [customEndDate, setCustomEndDate] = useState('')
-
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
-  const [totalPurchases, setTotalPurchases] = useState(0)
-
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([
-    'poNumber', 'date', 'supplier', 'items', 'received', 'total', 'status', 'actions'
-  ])
 
   useEffect(() => {
     fetchPurchases()
-  }, [statusFilter, currentPage, itemsPerPage, dateFilter, customStartDate, customEndDate])
-
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchTerm, statusFilter, dateFilter])
-
-  const getDateRange = (filter: string) => {
-    const today = new Date()
-    const year = today.getFullYear()
-    const month = String(today.getMonth() + 1).padStart(2, '0')
-    const day = String(today.getDate()).padStart(2, '0')
-    const todayStr = `${year}-${month}-${day}`
-
-    const result = { start: '', end: '' }
-
-    const formatDate = (date: Date) => {
-      const y = date.getFullYear()
-      const m = String(date.getMonth() + 1).padStart(2, '0')
-      const d = String(date.getDate()).padStart(2, '0')
-      return `${y}-${m}-${d}`
-    }
-
-    switch (filter) {
-      case 'today':
-        result.start = todayStr
-        result.end = todayStr
-        break
-      case 'yesterday':
-        const yesterday = new Date(today)
-        yesterday.setDate(yesterday.getDate() - 1)
-        const yesterdayStr = formatDate(yesterday)
-        result.start = yesterdayStr
-        result.end = yesterdayStr
-        break
-      case 'this_week':
-        const weekStart = new Date(today)
-        weekStart.setDate(today.getDate() - today.getDay())
-        result.start = formatDate(weekStart)
-        result.end = todayStr
-        break
-      case 'last_week':
-        const lastWeekStart = new Date(today)
-        lastWeekStart.setDate(today.getDate() - today.getDay() - 7)
-        const lastWeekEnd = new Date(lastWeekStart)
-        lastWeekEnd.setDate(lastWeekStart.getDate() + 6)
-        result.start = formatDate(lastWeekStart)
-        result.end = formatDate(lastWeekEnd)
-        break
-      case 'this_month':
-        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-        result.start = formatDate(monthStart)
-        result.end = todayStr
-        break
-      case 'last_month':
-        const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-        const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0)
-        result.start = formatDate(lastMonthStart)
-        result.end = formatDate(lastMonthEnd)
-        break
-      case 'this_quarter':
-        const currentQuarter = Math.floor(today.getMonth() / 3)
-        const quarterStart = new Date(today.getFullYear(), currentQuarter * 3, 1)
-        result.start = formatDate(quarterStart)
-        result.end = todayStr
-        break
-      case 'last_quarter':
-        const lastQuarter = Math.floor(today.getMonth() / 3) - 1
-        const lastQuarterYear = lastQuarter < 0 ? today.getFullYear() - 1 : today.getFullYear()
-        const lastQuarterMonth = lastQuarter < 0 ? 9 : lastQuarter * 3
-        const lastQuarterStart = new Date(lastQuarterYear, lastQuarterMonth, 1)
-        const lastQuarterEnd = new Date(lastQuarterYear, lastQuarterMonth + 3, 0)
-        result.start = formatDate(lastQuarterStart)
-        result.end = formatDate(lastQuarterEnd)
-        break
-      case 'this_year':
-        const yearStart = new Date(today.getFullYear(), 0, 1)
-        result.start = formatDate(yearStart)
-        result.end = todayStr
-        break
-      case 'last_year':
-        const lastYearStart = new Date(today.getFullYear() - 1, 0, 1)
-        const lastYearEnd = new Date(today.getFullYear() - 1, 11, 31)
-        result.start = formatDate(lastYearStart)
-        result.end = formatDate(lastYearEnd)
-        break
-      case 'custom':
-        if (customStartDate) result.start = customStartDate
-        if (customEndDate) result.end = customEndDate
-        break
-    }
-
-    return result
-  }
+  }, [])
 
   const fetchPurchases = async () => {
     try {
       setLoading(true)
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        limit: '100', // Fetch more for client-side filtering
-      })
-
-      if (statusFilter && statusFilter !== 'all') {
-        params.append('status', statusFilter)
-      }
-
-      // NOTE: Date filtering is done client-side to avoid timezone issues
-      // Do NOT send startDate/endDate to API
-
-      const response = await fetch(`/api/purchases?${params}`)
-      const data = await response.json()
-
+      const response = await fetch('/api/purchases?includeDetails=true')
       if (response.ok) {
+        const data = await response.json()
         setPurchases(data.purchases || [])
-        setTotalPurchases(data.purchases?.length || 0)
       } else {
-        toast.error(data.error || 'Failed to fetch purchases')
+        toast.error('Failed to fetch purchase orders')
       }
     } catch (error) {
-      console.error('Error fetching purchases:', error)
-      toast.error('Failed to fetch purchases')
+      console.error('Failed to fetch purchases:', error)
+      toast.error('Failed to fetch purchase orders')
     } finally {
       setLoading(false)
     }
   }
 
-  const filteredPurchases = purchases.filter(purchase => {
-    // Apply search filter
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase()
-      const matchesSearch = (
-        purchase.purchaseOrderNumber.toLowerCase().includes(searchLower) ||
-        purchase.supplier?.name.toLowerCase().includes(searchLower)
-      )
-      if (!matchesSearch) return false
-    }
-
-    // Apply client-side date filter to fix timezone issues
-    const dateRange = getDateRange(dateFilter)
-    if (dateRange.start || dateRange.end) {
-      const purchaseDate = new Date(purchase.purchaseDate)
-      const year = purchaseDate.getFullYear()
-      const month = String(purchaseDate.getMonth() + 1).padStart(2, '0')
-      const day = String(purchaseDate.getDate()).padStart(2, '0')
-      const purchaseDateStr = `${year}-${month}-${day}`
-
-      if (dateRange.start && purchaseDateStr < dateRange.start) {
-        return false
-      }
-      if (dateRange.end && purchaseDateStr > dateRange.end) {
-        return false
-      }
-    }
-
-    return true
-  })
-
-  // Add sorting
-  const { sortedData, sortConfig, requestSort } = useTableSort(filteredPurchases, { key: 'id', direction: 'desc' })
-
-  const handleExport = (format: 'csv' | 'excel' | 'pdf') => {
-    const columns: ExportColumn[] = [
-      {
-        id: 'purchaseOrderNumber',
-        label: 'PO #',
-        getValue: (row: any) => row.purchaseOrderNumber
-      },
-      {
-        id: 'purchaseDate',
-        label: 'Date',
-        getValue: (row: any) => formatDate(row.purchaseDate)
-      },
-      {
-        id: 'supplier',
-        label: 'Supplier',
-        getValue: (row: any) => row.supplier?.name || 'N/A'
-      },
-      {
-        id: 'items',
-        label: 'Items',
-        getValue: (row: any) => row.items.length.toString()
-      },
-      {
-        id: 'totalAmount',
-        label: 'Total',
-        getValue: (row: any) => formatCurrency(row.totalAmount)
-      },
-      {
-        id: 'status',
-        label: 'Status',
-        getValue: (row: any) => row.status
-      },
-    ]
-
-    const filename = `purchases_${new Date().toISOString().split('T')[0]}`
-
-    switch (format) {
-      case 'csv':
-        exportToCSV({ data: sortedData, columns, filename })
-        break
-      case 'excel':
-        exportToExcel({ data: sortedData, columns, filename, title: 'Purchase Orders' })
-        break
-      case 'pdf':
-        exportToPDF({ data: sortedData, columns, filename, title: 'Purchase Orders Report' })
-        break
-    }
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  }
-
   const getStatusBadge = (status: string) => {
-    const statusLower = status.toLowerCase()
-
-    if (statusLower === 'pending') {
-      return (
-        <Badge className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 border-yellow-300 dark:border-yellow-700">
-          Pending
-        </Badge>
-      )
+    const statusConfig: Record<string, { variant: any; label: string }> = {
+      'draft': { variant: 'secondary', label: 'Draft' },
+      'pending': { variant: 'default', label: 'Pending' },
+      'ordered': { variant: 'default', label: 'Ordered' },
+      'partial': { variant: 'default', label: 'Partial' },
+      'received': { variant: 'default', label: 'Received' },
+      'completed': { variant: 'default', label: 'Completed' },
+      'cancelled': { variant: 'destructive', label: 'Cancelled' },
     }
 
-    if (statusLower === 'received') {
-      return (
-        <Badge className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-900/50 border-green-300 dark:border-green-700">
-          Received
-        </Badge>
-      )
-    }
+    const config = statusConfig[status] || { variant: 'secondary', label: status }
 
-    if (statusLower === 'partially_received') {
-      return (
-        <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-900/50 border-blue-300 dark:border-blue-700">
-          Partially Received
-        </Badge>
-      )
-    }
-
-    if (statusLower === 'cancelled') {
-      return <Badge variant="destructive">Cancelled</Badge>
-    }
-
-    return <Badge variant="outline">{status}</Badge>
+    return (
+      <Badge variant={config.variant} className="capitalize">
+        {config.label}
+      </Badge>
+    )
   }
 
-  const getReceivedStatus = (items: Purchase['items']) => {
-    const totalOrdered = items.reduce((sum, item) => sum + parseFloat(item.quantity.toString()), 0)
-    const totalReceived = items.reduce((sum, item) => sum + parseFloat(item.quantityReceived.toString()), 0)
+  const DetailTemplate = (props: { data: { data: Purchase } }) => {
+    const purchase = props.data.data
 
-    if (totalReceived === 0) return `0 / ${totalOrdered}`
-    return `${totalReceived} / ${totalOrdered}`
-  }
+    return (
+      <div className="p-6 bg-gray-50 dark:bg-gray-900">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Purchase Items */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
+              Purchase Order Items ({purchase.items.length})
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-800">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Product</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Ordered</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Received</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Unit Cost</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  {purchase.items.map((item) => (
+                    <tr key={item.id}>
+                      <td className="px-4 py-2">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {item.product.name}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {item.productVariation.name}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 text-right text-sm text-gray-900 dark:text-gray-100">
+                        {item.quantity}
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <span className={`text-sm font-medium ${
+                          item.quantityReceived >= item.quantity
+                            ? 'text-green-600'
+                            : item.quantityReceived > 0
+                            ? 'text-yellow-600'
+                            : 'text-red-600'
+                        }`}>
+                          {item.quantityReceived}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-right text-sm text-gray-900 dark:text-gray-100">
+                        {formatCurrency(item.unitCost)}
+                      </td>
+                      <td className="px-4 py-2 text-right text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {formatCurrency(item.lineTotal)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-gray-50 dark:bg-gray-800">
+                  <tr>
+                    <td colSpan={4} className="px-4 py-2 text-right text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Total:
+                    </td>
+                    <td className="px-4 py-2 text-right text-sm font-bold text-gray-900 dark:text-gray-100">
+                      {formatCurrency(purchase.totalAmount)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
 
-  const clearFilters = () => {
-    setStatusFilter('all')
-    setDateFilter('all')
-    setCustomStartDate('')
-    setCustomEndDate('')
-    setSearchTerm('')
+          {/* Related GRN (Goods Received Notes) */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
+              Goods Received Notes (GRN) - {purchase.receipts.length}
+            </h3>
+            {purchase.receipts.length === 0 ? (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <p>No GRN records found</p>
+                <p className="text-sm mt-2">Items haven't been received yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {purchase.receipts.map((receipt) => (
+                  <div
+                    key={receipt.id}
+                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <div className="font-medium text-gray-900 dark:text-gray-100">
+                          {receipt.receiptNumber}
+                        </div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          Received: {new Date(receipt.receivedDate).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <Badge
+                        variant={receipt.status === 'received' ? 'default' : 'secondary'}
+                        className="capitalize"
+                      >
+                        {receipt.status}
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Received: {new Date(receipt.receivedAt).toLocaleString()}
+                    </div>
+                    {receipt.notes && (
+                      <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 italic">
+                        Note: {receipt.notes}
+                      </div>
+                    )}
+                    <div className="mt-3">
+                      <Link href={`/dashboard/purchases/receipts/${receipt.id}`}>
+                        <Button size="sm" variant="outline" className="text-xs">
+                          View GRN Details
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {purchase.receipts.length === 0 && can(PERMISSIONS.PURCHASE_RECEIPT_CREATE) && (
+              <div className="mt-4">
+                <Link href={`/dashboard/purchases/receipts/create?purchaseId=${purchase.id}`}>
+                  <Button size="sm" className="w-full">
+                    Create GRN (Receive Items)
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Additional Info */}
+        <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">Subtotal:</span>
+              <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
+                {formatCurrency(purchase.subtotal)}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">Tax:</span>
+              <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
+                {formatCurrency(purchase.taxAmount)}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">Discount:</span>
+              <span className="ml-2 font-medium text-red-600 dark:text-red-400">
+                -{formatCurrency(purchase.discountAmount)}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">Shipping:</span>
+              <span className="ml-2 font-medium text-gray-900 dark:text-gray-100">
+                {formatCurrency(purchase.shippingCost)}
+              </span>
+            </div>
+          </div>
+          {purchase.notes && (
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <span className="text-gray-500 dark:text-gray-400 text-sm">Notes:</span>
+              <p className="mt-1 text-gray-900 dark:text-gray-100">{purchase.notes}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    )
   }
 
   if (!can(PERMISSIONS.PURCHASE_VIEW)) {
     return (
-      <div className="p-6 sm:p-8">
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-4 py-3 rounded-lg">
-          You do not have permission to view purchases.
+      <div className="p-8">
+        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
+          You do not have permission to view purchase orders.
         </div>
       </div>
     )
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">Purchase Orders</h1>
-          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 mt-1">Manage purchase orders from suppliers</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+            Purchase Orders
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300 mt-1">
+            Manage purchase orders with master-detail view
+          </p>
         </div>
-        {can(PERMISSIONS.PURCHASE_CREATE) && (
-          <Link href="/dashboard/purchases/create">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 shadow-lg hover:shadow-xl transition-all duration-200">
-              <PlusIcon className="w-5 h-5 mr-2" />
-              New Purchase Order
-            </Button>
-          </Link>
-        )}
-      </div>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <FunnelIcon className="w-5 h-5" />
-              Filters
-            </CardTitle>
-            {(statusFilter !== 'all' || dateFilter !== 'all' || searchTerm !== '') && (
-              <Button variant="outline" size="sm" onClick={clearFilters}>
-                <XMarkIcon className="w-4 h-4 mr-1" />
-                Clear Filters
+        <div className="flex gap-2">
+          <Button onClick={fetchPurchases} variant="outline" size="sm">
+            <ArrowPathIcon className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+          {can(PERMISSIONS.PURCHASE_CREATE) && (
+            <Link href="/dashboard/purchases/create">
+              <Button className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600">
+                <PlusIcon className="w-4 h-4 mr-2" />
+                New Purchase Order
               </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="partially_received">Partially Received</SelectItem>
-                  <SelectItem value="received">Received</SelectItem>
-                  <SelectItem value="cancelled">Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Date Range</Label>
-              <Select value={dateFilter} onValueChange={setDateFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Dates" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Dates</SelectItem>
-                  <SelectItem value="today">Today</SelectItem>
-                  <SelectItem value="yesterday">Yesterday</SelectItem>
-                  <SelectItem value="this_week">This Week</SelectItem>
-                  <SelectItem value="last_week">Last Week</SelectItem>
-                  <SelectItem value="this_month">This Month</SelectItem>
-                  <SelectItem value="last_month">Last Month</SelectItem>
-                  <SelectItem value="this_quarter">This Quarter</SelectItem>
-                  <SelectItem value="last_quarter">Last Quarter</SelectItem>
-                  <SelectItem value="this_year">This Year</SelectItem>
-                  <SelectItem value="last_year">Last Year</SelectItem>
-                  <SelectItem value="custom">Custom Range</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {dateFilter === 'custom' && (
-              <>
-                <div className="space-y-2">
-                  <Label>From Date</Label>
-                  <Input
-                    type="date"
-                    value={customStartDate}
-                    onChange={(e) => setCustomStartDate(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>To Date</Label>
-                  <Input
-                    type="date"
-                    value={customEndDate}
-                    onChange={(e) => setCustomEndDate(e.target.value)}
-                  />
-                </div>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
-            <Input
-              type="text"
-              placeholder="Search by PO number or supplier name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10"
-            />
-          </div>
+            </Link>
+          )}
         </div>
-        <ColumnVisibilityToggle
-          availableColumns={AVAILABLE_COLUMNS}
-          visibleColumns={visibleColumns}
-          onChange={setVisibleColumns}
-        />
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Button onClick={() => handleExport('csv')} variant="secondary" className="bg-gray-600 hover:bg-gray-700 dark:bg-gray-500 dark:hover:bg-gray-600 text-white">
-          <DocumentTextIcon className="w-4 h-4 mr-2" />
-          <span className="hidden sm:inline">Export </span>CSV
-        </Button>
-        <Button onClick={() => handleExport('excel')} variant="secondary" className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 text-white">
-          <DocumentArrowDownIcon className="w-4 h-4 mr-2" />
-          <span className="hidden sm:inline">Export </span>Excel
-        </Button>
-        <Button onClick={() => handleExport('pdf')} variant="secondary" className="bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600 text-white">
-          <DocumentTextIcon className="w-4 h-4 mr-2" />
-          <span className="hidden sm:inline">Export </span>PDF
-        </Button>
-      </div>
+      {/* DevExtreme DataGrid with Master-Detail */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+        <DataGrid
+          dataSource={purchases}
+          keyExpr="id"
+          showBorders={true}
+          columnAutoWidth={true}
+          rowAlternationEnabled={true}
+          height={700}
+        >
+          <StateStoring enabled={true} type="localStorage" storageKey="purchasesGridState" />
+          <Selection mode="multiple" showCheckBoxesMode="always" />
+          <FilterRow visible={true} />
+          <HeaderFilter visible={true} />
+          <SearchPanel visible={true} width={300} placeholder="Search purchase orders..." />
+          <ColumnChooser enabled={true} mode="select" />
+          <Paging defaultPageSize={25} />
+          <Export enabled={true} formats={['xlsx', 'pdf']} />
 
-      <Card className="shadow-lg border-gray-200 dark:border-gray-700">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-800">
-              <tr>
-                {visibleColumns.includes('poNumber') && (
-                  <SortableTableHead
-                    sortKey="purchaseOrderNumber"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
-                    className="px-6 py-3 text-xs font-medium uppercase tracking-wider"
-                  >
-                    PO Number
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('date') && (
-                  <SortableTableHead
-                    sortKey="purchaseDate"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
-                    className="px-6 py-3 text-xs font-medium uppercase tracking-wider"
-                  >
-                    Date
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('supplier') && (
-                  <SortableTableHead
-                    sortKey="supplier.name"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
-                    className="px-6 py-3 text-xs font-medium uppercase tracking-wider"
-                  >
-                    Supplier
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('items') && (
-                  <SortableTableHead
-                    sortKey="items"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
-                    className="px-6 py-3 text-xs font-medium uppercase tracking-wider"
-                  >
-                    Items
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('received') && (
-                  <SortableTableHead
-                    className="px-6 py-3 text-xs font-medium uppercase tracking-wider"
-                  >
-                    Received
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('total') && (
-                  <SortableTableHead
-                    sortKey="totalAmount"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
-                    className="px-6 py-3 text-xs font-medium uppercase tracking-wider"
-                  >
-                    Total
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('status') && (
-                  <SortableTableHead
-                    sortKey="status"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
-                    className="px-6 py-3 text-xs font-medium uppercase tracking-wider"
-                  >
-                    Status
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('actions') && (
-                  <SortableTableHead
-                    className="px-6 py-3 text-xs font-medium uppercase tracking-wider"
-                  >
-                    Actions
-                  </SortableTableHead>
-                )}
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {loading ? (
-                <tr>
-                  <td colSpan={visibleColumns.length} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                    Loading purchases...
-                  </td>
-                </tr>
-              ) : sortedData.length === 0 ? (
-                <tr>
-                  <td colSpan={visibleColumns.length} className="px-6 py-4 text-center text-gray-500 dark:text-gray-400">
-                    No purchases found
-                  </td>
-                </tr>
-              ) : (
-                sortedData.map((purchase) => (
-                  <tr key={purchase.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                    {visibleColumns.includes('poNumber') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {purchase.purchaseOrderNumber}
-                      </td>
-                    )}
-                    {visibleColumns.includes('date') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {formatDate(purchase.purchaseDate)}
-                      </td>
-                    )}
-                    {visibleColumns.includes('supplier') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                        {purchase.supplier ? (
-                          <div>
-                            <div className="font-medium">{purchase.supplier.name}</div>
-                            {purchase.supplier.mobile && (
-                              <div className="text-gray-500 dark:text-gray-400 text-xs">{purchase.supplier.mobile}</div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-gray-500 dark:text-gray-400">N/A</span>
-                        )}
-                      </td>
-                    )}
-                    {visibleColumns.includes('items') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {purchase.items.length} {purchase.items.length === 1 ? 'item' : 'items'}
-                      </td>
-                    )}
-                    {visibleColumns.includes('received') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {getReceivedStatus(purchase.items)}
-                      </td>
-                    )}
-                    {visibleColumns.includes('total') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-gray-100">
-                        {formatCurrency(purchase.totalAmount)}
-                      </td>
-                    )}
-                    {visibleColumns.includes('status') && (
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(purchase.status)}
-                      </td>
-                    )}
-                    {visibleColumns.includes('actions') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <Link href={`/dashboard/purchases/${purchase.id}`}>
-                          <Button variant="ghost" size="sm">
-                            <EyeIcon className="w-4 h-4 mr-1" />
-                            View
-                          </Button>
-                        </Link>
-                      </td>
-                    )}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {!loading && sortedData.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <ResultsInfo
-            currentPage={currentPage}
-            itemsPerPage={itemsPerPage}
-            totalItems={totalPurchases}
+          {/* Master-Detail Configuration */}
+          <MasterDetail
+            enabled={true}
+            component={DetailTemplate}
           />
-          <div className="flex items-center gap-4">
-            <ItemsPerPage value={itemsPerPage} onChange={setItemsPerPage} />
-            <Pagination
-              currentPage={currentPage}
-              totalItems={totalPurchases}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-            />
-          </div>
-        </div>
-      )}
+
+          <Column
+            dataField="purchaseOrderNumber"
+            caption="PO Number"
+            width={150}
+            cellRender={(data) => (
+              <Link href={`/dashboard/purchases/${data.data.id}`}>
+                <span className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium underline cursor-pointer">
+                  {data.text}
+                </span>
+              </Link>
+            )}
+          />
+
+          <Column
+            dataField="purchaseDate"
+            caption="PO Date"
+            dataType="date"
+            format="MMM dd, yyyy"
+            width={120}
+          />
+
+          <Column
+            dataField="supplier.name"
+            caption="Supplier"
+            minWidth={150}
+          />
+
+          <Column
+            caption="Items"
+            width={80}
+            alignment="center"
+            calculateCellValue={(data: Purchase) => data.items.length}
+            cellRender={(data) => (
+              <Badge variant="outline" className="text-xs">
+                {data.text}
+              </Badge>
+            )}
+          />
+
+          <Column
+            caption="GRN Count"
+            width={100}
+            alignment="center"
+            calculateCellValue={(data: Purchase) => data.receipts?.length || 0}
+            cellRender={(data) => (
+              <Badge
+                variant={data.value > 0 ? 'default' : 'secondary'}
+                className="text-xs"
+              >
+                {data.text}
+              </Badge>
+            )}
+          />
+
+          <Column
+            dataField="totalAmount"
+            caption="Total Amount"
+            dataType="number"
+            format="₱#,##0.00"
+            width={130}
+            alignment="right"
+          />
+
+          <Column
+            dataField="status"
+            caption="Status"
+            width={120}
+            alignment="center"
+            cellRender={(data) => getStatusBadge(data.value)}
+          />
+
+          <Column
+            dataField="expectedDeliveryDate"
+            caption="Expected Delivery"
+            dataType="date"
+            format="MMM dd, yyyy"
+            width={140}
+          />
+
+          <Toolbar>
+            <Item name="groupPanel" />
+            <Item name="searchPanel" />
+            <Item name="exportButton" />
+            <Item name="columnChooserButton" />
+          </Toolbar>
+        </DataGrid>
+      </div>
     </div>
   )
 }

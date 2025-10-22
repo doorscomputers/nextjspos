@@ -31,6 +31,7 @@ import {
   XMarkIcon,
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
+  SpeakerWaveIcon,
 } from "@heroicons/react/24/outline"
 
 interface MenuItem {
@@ -172,12 +173,12 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       icon: ChartBarIcon,
       permission: PERMISSIONS.DASHBOARD_VIEW,
     },
-    {
-      name: "AI Assistant",
-      href: "/dashboard/ai-assistant",
-      icon: SparklesIcon,
-      permission: PERMISSIONS.DASHBOARD_VIEW,
-    },
+    // {
+    //   name: "AI Assistant",
+    //   href: "/dashboard/ai-assistant",
+    //   icon: SparklesIcon,
+    //   permission: PERMISSIONS.DASHBOARD_VIEW,
+    // },
     {
       name: "POS & Sales",
       href: "/dashboard/pos",
@@ -229,6 +230,12 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           permission: PERMISSIONS.PRODUCT_VIEW,
         },
         {
+          name: "List Products V2",
+          href: "/dashboard/products/list-v2",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.PRODUCT_VIEW,
+        },
+        {
           name: "All Branch Stock",
           href: "/dashboard/products/stock",
           icon: CubeIcon,
@@ -250,6 +257,12 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           name: "Add Product",
           href: "/dashboard/products/add",
           icon: CubeIcon,
+          permission: PERMISSIONS.PRODUCT_CREATE,
+        },
+        {
+          name: "Add Product V2",
+          href: "/dashboard/products/add-v2",
+          icon: SparklesIcon,
           permission: PERMISSIONS.PRODUCT_CREATE,
         },
         {
@@ -427,6 +440,12 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       permission: PERMISSIONS.PURCHASE_RETURN_VIEW,
     },
     {
+      name: "Supplier Returns",
+      href: "/dashboard/supplier-returns",
+      icon: ArrowUturnLeftIcon,
+      permission: PERMISSIONS.PURCHASE_RETURN_VIEW,
+    },
+    {
       name: "Expenses",
       href: "/dashboard/expenses",
       icon: CreditCardIcon,
@@ -599,6 +618,12 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           permission: PERMISSIONS.REPORT_PURCHASE_ITEMS,
         },
         {
+          name: "Products-Suppliers Report",
+          href: "/dashboard/reports/products-suppliers",
+          icon: TruckIcon,
+          permission: PERMISSIONS.REPORT_PURCHASE_VIEW,
+        },
+        {
           name: "--- TRANSFER REPORTS ---",
           href: "#",
           icon: TruckIcon,
@@ -674,6 +699,12 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       ],
     },
     {
+      name: "Announcements",
+      href: "/dashboard/announcements",
+      icon: SpeakerWaveIcon,
+      permission: PERMISSIONS.ANNOUNCEMENT_VIEW,
+    },
+    {
       name: "Settings",
       href: "/dashboard/settings",
       icon: CogIcon,
@@ -736,28 +767,81 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       `}
     >
       <div className="flex flex-col h-full">
-        {/* Logo and Collapse Button */}
-        <div className={`flex items-center ${isIconOnly ? 'justify-center' : 'justify-between'} h-16 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-700 dark:to-indigo-700 shadow-lg`}>
-          <h1 className={`${isIconOnly ? 'text-lg' : isCompact ? 'text-lg' : 'text-xl'} font-bold text-white drop-shadow-sm ${isIconOnly ? '' : 'flex-1 text-center'}`}>
-            {isIconOnly ? companyName.substring(0, 2).toUpperCase() : companyName}
-          </h1>
+        {/* Logo and Company Name */}
+        <div className={`${isIconOnly ? 'h-16' : 'h-auto'} px-3 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-700 dark:to-indigo-700 shadow-lg relative`}>
           {!isIconOnly && (
-            <button
-              onClick={toggleCollapse}
-              className="p-1.5 rounded-lg hover:bg-white/20 transition-colors duration-200 text-white"
-              title="Collapse sidebar"
-            >
-              <ChevronDoubleLeftIcon className="w-5 h-5" />
-            </button>
+            <div className="flex flex-col items-start gap-2">
+              {/* Company Logo */}
+              <div className="w-full bg-white rounded-md overflow-hidden shadow-md" style={{ height: '60px' }}>
+                <img
+                  src="/logo.svg"
+                  alt="Company Logo"
+                  className="w-full h-full object-contain p-2"
+                  onError={(e) => {
+                    // Try PNG fallback
+                    const target = e.target as HTMLImageElement;
+                    if (target.src.endsWith('.svg')) {
+                      target.src = '/logo.png';
+                    } else {
+                      // Final fallback to initials
+                      target.style.display = 'none';
+                      target.parentElement!.innerHTML = `<div class="w-full h-full flex items-center justify-center text-blue-600 font-bold text-2xl">${companyName.substring(0, 2).toUpperCase()}</div>`;
+                    }
+                  }}
+                />
+              </div>
+
+              {/* Company Name and Collapse Button */}
+              <div className="w-full flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <h1
+                    className="text-sm font-bold text-white drop-shadow-sm leading-tight break-words"
+                    title={companyName}
+                  >
+                    {companyName}
+                  </h1>
+                </div>
+                <button
+                  onClick={toggleCollapse}
+                  className="flex-shrink-0 ml-2 p-1.5 rounded-lg hover:bg-white/20 transition-colors duration-200 text-white"
+                  title="Collapse sidebar"
+                >
+                  <ChevronDoubleLeftIcon className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
           )}
+
           {isIconOnly && (
-            <button
-              onClick={toggleCollapse}
-              className="absolute top-4 -right-3 p-1 rounded-full bg-blue-600 hover:bg-blue-700 transition-colors duration-200 text-white shadow-lg border-2 border-white dark:border-gray-800 z-50"
-              title="Expand sidebar"
-            >
-              <ChevronDoubleRightIcon className="w-4 h-4" />
-            </button>
+            <>
+              <div className="flex items-center justify-center h-full">
+                <div className="w-10 h-10 bg-white rounded-lg overflow-hidden shadow-md">
+                  <img
+                    src="/logo.svg"
+                    alt="Company Logo"
+                    className="w-full h-full object-contain p-1"
+                    onError={(e) => {
+                      // Try PNG fallback
+                      const target = e.target as HTMLImageElement;
+                      if (target.src.endsWith('.svg')) {
+                        target.src = '/logo.png';
+                      } else {
+                        // Final fallback to initials
+                        target.style.display = 'none';
+                        target.parentElement!.innerHTML = `<div class="w-full h-full flex items-center justify-center text-blue-600 font-bold text-sm">${companyName.substring(0, 2).toUpperCase()}</div>`;
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+              <button
+                onClick={toggleCollapse}
+                className="absolute top-4 -right-3 p-1 rounded-full bg-blue-600 hover:bg-blue-700 transition-colors duration-200 text-white shadow-lg border-2 border-white dark:border-gray-800 z-50"
+                title="Expand sidebar"
+              >
+                <ChevronDoubleRightIcon className="w-4 h-4" />
+              </button>
+            </>
           )}
         </div>
 
@@ -766,7 +850,6 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           <div className={`px-4 ${isCompact ? 'py-3' : 'py-4'} bg-gradient-to-br from-gray-50 to-blue-50 dark:from-gray-800 dark:to-gray-900 border-b border-gray-200 dark:border-gray-700`}>
             <p className={`${isCompact ? 'text-xs' : 'text-sm'} font-semibold text-gray-900 dark:text-white truncate`}>{user?.name}</p>
             <p className="text-xs text-gray-600 dark:text-gray-300 truncate">{user?.businessName}</p>
-            <p className="text-xs font-medium text-blue-600 dark:text-blue-400 mt-1 truncate">{user?.roles?.[0]}</p>
           </div>
         )}
 

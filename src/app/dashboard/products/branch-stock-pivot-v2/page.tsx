@@ -41,6 +41,7 @@ interface PivotRow {
   unit: string
   lastDeliveryDate: string | null
   lastQtyDelivered: number
+  lastPurchaseCost: number
   cost: number
   price: number
   stockByLocation: Record<number, number>
@@ -63,6 +64,8 @@ export default function BranchStockPivotV2Page() {
   const fetchStockData = async () => {
     try {
       setLoading(true)
+      console.log('[Branch Stock Pivot V2] Fetching stock data...')
+
       const response = await fetch('/api/products/branch-stock-pivot', {
         method: 'POST',
         headers: {
@@ -89,11 +92,20 @@ export default function BranchStockPivotV2Page() {
         }),
       })
 
+      console.log('[Branch Stock Pivot V2] Response status:', response.status)
+
       if (!response.ok) {
-        throw new Error('Failed to fetch stock data')
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('[Branch Stock Pivot V2] Error response:', errorData)
+        throw new Error(errorData.details || errorData.error || 'Failed to fetch stock data')
       }
 
       const data = await response.json()
+      console.log('[Branch Stock Pivot V2] Received data:', {
+        rowsCount: data.rows?.length || 0,
+        locationsCount: data.locations?.length || 0,
+      })
+
       const rows: PivotRow[] = data.rows || []
 
       // Transform data for DevExtreme
@@ -110,7 +122,8 @@ export default function BranchStockPivotV2Page() {
           unit: row.unit,
           lastDeliveryDate: row.lastDeliveryDate ? new Date(row.lastDeliveryDate) : null,
           lastQtyDelivered: row.lastQtyDelivered,
-          cost: row.cost,
+          lastCost: row.cost, // Cost BEFORE the latest purchase (previous cost)
+          cost: row.lastPurchaseCost, // Cost FROM the latest purchase (current cost)
           price: row.price,
           totalStock: row.totalStock,
           totalCost: row.totalCost,
@@ -136,8 +149,13 @@ export default function BranchStockPivotV2Page() {
 
       setLocations(activeLocations)
     } catch (error) {
-      console.error('Error fetching stock data:', error)
-      toast.error('Failed to load stock data')
+      console.error('[Branch Stock Pivot V2] Error fetching stock data:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load stock data'
+      toast.error(errorMessage)
+
+      // Set empty data on error to avoid showing stale data
+      setDataSource([])
+      setLocations([])
     } finally {
       setLoading(false)
     }
@@ -341,12 +359,22 @@ export default function BranchStockPivotV2Page() {
             alignment="right"
           />
           <Column
-            dataField="cost"
-            caption="Cost"
+            dataField="lastCost"
+            caption="Last Cost (Previous)"
             dataType="number"
             format="₱#,##0.00"
-            width={100}
+            width={130}
             alignment="right"
+            cssClass="bg-orange-50 dark:bg-orange-900/20"
+          />
+          <Column
+            dataField="cost"
+            caption="Cost (Latest Purchase)"
+            dataType="number"
+            format="₱#,##0.00"
+            width={150}
+            alignment="right"
+            cssClass="bg-blue-50 dark:bg-blue-900/20"
           />
           <Column
             dataField="price"

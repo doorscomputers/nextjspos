@@ -6,7 +6,7 @@ import { PERMISSIONS } from '@/lib/rbac'
 import { useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { ArrowLeftIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, PrinterIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import DataGrid, { Column, Export, Summary, TotalItem } from 'devextreme-react/data-grid'
 import { exportDataGrid as exportToExcel } from 'devextreme/excel_exporter'
@@ -101,6 +101,10 @@ export default function TransferDevExtremePage() {
     return `Location ${locationId}`
   }
 
+  const handlePrint = () => {
+    window.print()
+  }
+
   const onExporting = (e: any) => {
     if (e.format === 'pdf') {
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
@@ -178,9 +182,57 @@ export default function TransferDevExtremePage() {
   if (loading) return <div className="p-8">Loading...</div>
   if (!transfer) return <div className="p-8">Transfer not found</div>
 
+  const totalQuantity = gridData.reduce((sum, item) => sum + item.quantity, 0)
+
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Print-Only Header - Professional Transfer Template */}
+      <div className="hidden print:block print-header">
+        <div className="border-b-4 border-blue-600 pb-6 mb-6">
+          {/* Company Header */}
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h1 className="text-4xl font-bold text-blue-600 mb-2">Igoro Tech(IT)</h1>
+              <div className="text-sm text-gray-600 space-y-1">
+                <p>Inventory Management System</p>
+                <p>Stock Transfer Report</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-3xl font-bold text-gray-800 mb-2">STOCK TRANSFER</div>
+              <div className="text-sm text-gray-600">
+                <p><strong>Transfer #:</strong> {transfer.transferNumber}</p>
+                <p><strong>Date:</strong> {new Date(transfer.transferDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                <p><strong>Printed:</strong> {new Date().toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Transfer Route Information */}
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+              <h3 className="font-bold text-gray-800 mb-2">FROM LOCATION</h3>
+              <div className="text-sm">
+                <p className="font-semibold text-gray-900">{getLocationName(transfer.fromLocationId)}</p>
+              </div>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+              <h3 className="font-bold text-gray-800 mb-2">TO LOCATION</h3>
+              <div className="text-sm">
+                <p className="font-semibold text-gray-900">{getLocationName(transfer.toLocationId)}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Status */}
+          <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+            <p className="text-sm"><strong>Status:</strong> <span className="uppercase font-semibold text-blue-800">{transfer.status}</span></p>
+          </div>
+        </div>
+      </div>
+
+      {/* Screen-Only Header */}
+      <div className="print:hidden flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/transfers">
             <Button variant="outline" size="sm"><ArrowLeftIcon className="w-4 h-4 mr-2" />Back</Button>
@@ -190,9 +242,82 @@ export default function TransferDevExtremePage() {
             <p className="text-gray-500 dark:text-gray-400 mt-1">DevExtreme Professional Report</p>
           </div>
         </div>
+        <div>
+          <Button onClick={handlePrint} className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
+            <PrinterIcon className="w-4 h-4 mr-2" />
+            Print
+          </Button>
+        </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+      {/* Print-Only Items Table */}
+      <div className="hidden print:block">
+        <table className="w-full border-collapse border border-gray-300 mt-6">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="border border-gray-300 px-4 py-2 text-left">#</th>
+              <th className="border border-gray-300 px-4 py-2 text-left">Product</th>
+              <th className="border border-gray-300 px-4 py-2 text-left">Variation</th>
+              <th className="border border-gray-300 px-4 py-2 text-left">SKU</th>
+              <th className="border border-gray-300 px-4 py-2 text-right">Quantity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {gridData.map((item) => (
+              <tr key={item.itemNumber}>
+                <td className="border border-gray-300 px-4 py-2 text-center">{item.itemNumber}</td>
+                <td className="border border-gray-300 px-4 py-2">{item.productName}</td>
+                <td className="border border-gray-300 px-4 py-2">{item.variation || '-'}</td>
+                <td className="border border-gray-300 px-4 py-2 text-sm">{item.sku}</td>
+                <td className="border border-gray-300 px-4 py-2 text-right font-medium">{item.quantity.toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr className="bg-gray-100 font-bold">
+              <td colSpan={4} className="border border-gray-300 px-4 py-2 text-right">TOTAL:</td>
+              <td className="border border-gray-300 px-4 py-2 text-right">{totalQuantity.toLocaleString()}</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        {/* Print Notes */}
+        {transfer.notes && (
+          <div className="mt-6 border border-gray-300 p-4 rounded">
+            <h3 className="font-semibold mb-2">Notes:</h3>
+            <p className="text-sm">{transfer.notes}</p>
+          </div>
+        )}
+
+        {/* Print Signature Section */}
+        <div className="mt-12 border-t border-gray-300 pt-6">
+          <div className="grid grid-cols-2 gap-8">
+            <div>
+              <p className="text-sm font-semibold mb-4">Prepared By:</p>
+              <div className="border-b border-gray-400 w-48 mb-1"></div>
+              <p className="text-xs text-gray-600">Signature & Date</p>
+              {transfer.creator?.username && (
+                <p className="text-xs text-gray-700 mt-2 font-medium">{transfer.creator.username}</p>
+              )}
+            </div>
+            <div>
+              <p className="text-sm font-semibold mb-4">Approved By:</p>
+              <div className="border-b border-gray-400 w-48 mb-1"></div>
+              <p className="text-xs text-gray-600">Signature & Date</p>
+              {transfer.checker?.username && (
+                <p className="text-xs text-gray-700 mt-2 font-medium">{transfer.checker.username}</p>
+              )}
+            </div>
+          </div>
+          <div className="mt-8 text-center text-xs text-gray-500">
+            <p>This is a computer-generated stock transfer report and is valid without signature.</p>
+            <p>Date Printed: {new Date().toLocaleString()}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Screen-Only Content with DevExtreme Grid */}
+      <div className="print:hidden bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
         <h2 className="text-xl font-semibold mb-4">Transfer Details</h2>
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div><span className="text-gray-500">From:</span> <strong>{getLocationName(transfer.fromLocationId)}</strong></div>
@@ -214,7 +339,7 @@ export default function TransferDevExtremePage() {
         </DataGrid>
 
         <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-          <p className="text-sm text-blue-800 dark:text-blue-200"><strong>💡 Tip:</strong> Click export icon (top-right) → Perfect PDF with balanced margins!</p>
+          <p className="text-sm text-blue-800 dark:text-blue-200"><strong>💡 Tip:</strong> Click export icon (top-right) for DevExtreme PDF, or use Print button for browser print with clean margins!</p>
         </div>
       </div>
     </div>

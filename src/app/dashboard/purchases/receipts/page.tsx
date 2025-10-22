@@ -167,13 +167,26 @@ export default function PurchaseReceiptsPage() {
         const approvedBy = receipt.approvedByUser ? getFullName(receipt.approvedByUser).toLowerCase() : ''
         const status = receipt.status.toLowerCase()
 
+        // Search through product names and SKUs in items
+        const hasMatchingProduct = receipt.items?.some((item: any) => {
+          const productName = item.product?.name?.toLowerCase() || ''
+          const variationName = item.productVariation?.name?.toLowerCase() || ''
+          const sku = item.productVariation?.sku?.toLowerCase() || ''
+          return (
+            productName.includes(lowercaseSearch) ||
+            variationName.includes(lowercaseSearch) ||
+            sku.includes(lowercaseSearch)
+          )
+        }) || false
+
         return (
           grnNumber.includes(lowercaseSearch) ||
           poNumber.includes(lowercaseSearch) ||
           supplierName.includes(lowercaseSearch) ||
           receivedBy.includes(lowercaseSearch) ||
           approvedBy.includes(lowercaseSearch) ||
-          status.includes(lowercaseSearch)
+          status.includes(lowercaseSearch) ||
+          hasMatchingProduct
         )
       })
     }
@@ -387,7 +400,7 @@ export default function PurchaseReceiptsPage() {
         <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
         <Input
           type="text"
-          placeholder="Search by GRN#, PO#, Supplier, Received By, Approved By, or Status..."
+          placeholder="Search by GRN#, PO#, Supplier, Product Name, SKU, Received By, Approved By, or Status..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10 pr-10"

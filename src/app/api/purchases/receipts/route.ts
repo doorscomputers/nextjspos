@@ -153,6 +153,19 @@ export async function GET(request: NextRequest) {
           items: {
             select: {
               quantityReceived: true,
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+              productVariation: {
+                select: {
+                  id: true,
+                  name: true,
+                  sku: true,
+                },
+              },
             },
           },
         },

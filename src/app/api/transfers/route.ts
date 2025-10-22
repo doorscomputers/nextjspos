@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
     const toLocationId = searchParams.get('toLocationId')
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
+    const includeDetails = searchParams.get('includeDetails') === 'true'
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = (page - 1) * limit
@@ -77,12 +78,62 @@ export async function GET(request: NextRequest) {
       ]
     }
 
+    // Build include object dynamically
+    const includeObject: any = {
+      items: {
+        include: {
+          product: {
+            select: {
+              name: true,
+              sku: true,
+            },
+          },
+          productVariation: {
+            select: {
+              name: true,
+              sku: true,
+            },
+          },
+        },
+      },
+      fromLocation: {
+        select: {
+          name: true,
+        },
+      },
+      toLocation: {
+        select: {
+          name: true,
+        },
+      },
+    }
+
+    // If includeDetails is true, add user relationships
+    if (includeDetails) {
+      includeObject.creator = {
+        select: { username: true },
+      }
+      includeObject.checker = {
+        select: { username: true },
+      }
+      includeObject.sender = {
+        select: { username: true },
+      }
+      includeObject.arrivalMarker = {
+        select: { username: true },
+      }
+      includeObject.verifier = {
+        select: { username: true },
+      }
+      includeObject.completer = {
+        select: { username: true },
+      }
+    }
+
     const [transfers, total] = await Promise.all([
       prisma.stockTransfer.findMany({
         where,
-        include: {
-          items: true,
-        },
+        include: includeObject,
         orderBy: {
           createdAt: 'desc',
         },
@@ -92,39 +143,7 @@ export async function GET(request: NextRequest) {
       prisma.stockTransfer.count({ where }),
     ])
 
-    // Fetch location names for all transfers
-    const locationIds = Array.from(
-      new Set(
-        transfers.flatMap(t => [t.fromLocationId, t.toLocationId])
-      )
-    )
-
-    const locations = await prisma.businessLocation.findMany({
-      where: {
-        id: { in: locationIds },
-        businessId: parseInt(businessId),
-      },
-      select: { id: true, name: true },
-    })
-
-    const locationMap = new Map(locations.map(l => [l.id, l.name]))
-
-    // Add location names to transfers
-    const transfersWithLocations = transfers.map(transfer => ({
-      ...transfer,
-      fromLocationName: locationMap.get(transfer.fromLocationId) || `Location ${transfer.fromLocationId}`,
-      toLocationName: locationMap.get(transfer.toLocationId) || `Location ${transfer.toLocationId}`,
-    }))
-
-    return NextResponse.json({
-      transfers: transfersWithLocations,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    })
+    return NextResponse.json(transfers)
   } catch (error) {
     console.error('Error fetching stock transfers:', error)
     return NextResponse.json(

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getUserAccessibleLocationIds } from '@/lib/rbac'
+import { getUserAccessibleLocationIds, PERMISSIONS } from '@/lib/rbac'
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,6 +22,10 @@ export async function GET(request: NextRequest) {
 
     const businessId = parseInt(session.user.businessId)
     const userId = parseInt(session.user.id)
+    const userPermissions = session.user.permissions || []
+
+    // Helper function to check permissions
+    const hasPermission = (permission: string) => userPermissions.includes(permission)
 
     // Automatic location filtering based on user's assigned locations
     const accessibleLocationIds = getUserAccessibleLocationIds({
@@ -93,8 +97,8 @@ export async function GET(request: NextRequest) {
       dateFilter.lte = new Date(endDate)
     }
 
-    // Total Sales
-    const salesData = await prisma.sale.aggregate({
+    // Total Sales - only query if user has permission
+    const salesData = hasPermission(PERMISSIONS.SELL_VIEW) ? await prisma.sale.aggregate({
       where: {
         ...whereClause,
         ...(Object.keys(dateFilter).length > 0 ? { saleDate: dateFilter } : {}),
@@ -104,7 +108,7 @@ export async function GET(request: NextRequest) {
         subtotal: true,
       },
       _count: true,
-    })
+    }) : { _sum: { totalAmount: null, subtotal: null }, _count: 0 }
 
     // Total Purchases - sum of all purchase amounts
     const purchaseData = await prisma.accountsPayable.aggregate({
@@ -133,8 +137,8 @@ export async function GET(request: NextRequest) {
     //   },
     // })
 
-    // Customer Returns
-    const customerReturnData = await prisma.customerReturn.aggregate({
+    // Customer Returns - only query if user has permission
+    const customerReturnData = hasPermission(PERMISSIONS.CUSTOMER_RETURN_VIEW) ? await prisma.customerReturn.aggregate({
       where: {
         businessId,
         ...(Object.keys(dateFilter).length > 0 ? { returnDate: dateFilter } : {}),
@@ -143,7 +147,7 @@ export async function GET(request: NextRequest) {
         totalRefundAmount: true,
       },
       _count: true,
-    })
+    }) : { _sum: { totalRefundAmount: null }, _count: 0 }
 
     // Supplier Returns
     const supplierReturnData = await prisma.supplierReturn.aggregate({
@@ -157,8 +161,8 @@ export async function GET(request: NextRequest) {
       _count: true,
     })
 
-    // Invoice Due (Sales with unpaid amounts)
-    const invoiceDue = await prisma.sale.aggregate({
+    // Invoice Due (Sales with unpaid amounts) - only query if user has permission
+    const invoiceDue = hasPermission(PERMISSIONS.SELL_VIEW) ? await prisma.sale.aggregate({
       where: {
         ...whereClause,
         status: { not: 'cancelled' },
@@ -166,7 +170,7 @@ export async function GET(request: NextRequest) {
       _sum: {
         totalAmount: true,
       },
-    })
+    }) : { _sum: { totalAmount: null } }
 
     // Purchase Due (Outstanding balance from Accounts Payable)
     const purchaseDue = await prisma.accountsPayable.aggregate({
@@ -182,11 +186,11 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Sales Last 30 Days
+    // Sales Last 30 Days - only query if user has permission
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-    const salesLast30Days = await prisma.sale.groupBy({
+    const salesLast30Days = hasPermission(PERMISSIONS.SELL_VIEW) ? await prisma.sale.groupBy({
       by: ['saleDate'],
       where: {
         ...whereClause,
@@ -198,13 +202,13 @@ export async function GET(request: NextRequest) {
       orderBy: {
         saleDate: 'asc',
       },
-    })
+    }) : []
 
-    // Sales Current Financial Year
+    // Sales Current Financial Year - only query if user has permission
     const currentYear = new Date().getFullYear()
     const financialYearStart = new Date(currentYear, 0, 1)
 
-    const salesCurrentYear = await prisma.sale.groupBy({
+    const salesCurrentYear = hasPermission(PERMISSIONS.SELL_VIEW) ? await prisma.sale.groupBy({
       by: ['saleDate'],
       where: {
         ...whereClause,
@@ -216,7 +220,7 @@ export async function GET(request: NextRequest) {
       orderBy: {
         saleDate: 'asc',
       },
-    })
+    }) : []
 
     // Product Stock Alert (products below alert quantity)
     // Get ALL products with alert quantity set, then filter
@@ -335,7 +339,7 @@ export async function GET(request: NextRequest) {
         totalSellReturn: parseFloat(customerReturnData._sum.totalRefundAmount?.toString() || '0'),
         totalPurchase: parseFloat(purchaseData._sum.totalAmount?.toString() || '0'),
         purchaseDue: parseFloat(purchaseDue._sum.balanceAmount?.toString() || '0'),
-        totalPurchaseReturn: parseFloat(supplierReturnData._sum.totalAmount?.toString() || '0'),
+        totalSupplierReturn: parseFloat(supplierReturnData._sum.totalAmount?.toString() || '0'),
         expense: parseFloat(expenseData._sum.amount?.toString() || '0'),
         salesCount: salesData._count,
         purchaseCount: purchaseData._count,

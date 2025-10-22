@@ -95,6 +95,37 @@
       display: none !important;
     }
 
+    /* Hide dashboard layout elements */
+    aside,
+    header,
+    nav[class*="sidebar"],
+    [class*="sidebar"],
+    .sidebar {
+      display: none !important;
+    }
+
+    /* Make main content full width without sidebar */
+    main {
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0.5cm !important;
+    }
+
+    /* Reset flex layouts for printing */
+    .flex.h-screen,
+    [class*="flex"][class*="h-screen"] {
+      display: block !important;
+      height: auto !important;
+    }
+
+    /* Ensure print content container fills page */
+    body > div,
+    #__next {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+
     body {
       @apply bg-white text-black;
       overflow: visible !important;
