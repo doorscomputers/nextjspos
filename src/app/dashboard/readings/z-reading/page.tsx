@@ -8,23 +8,43 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 
 export default function ZReadingPage() {
   const searchParams = useSearchParams()
-  const shiftId = searchParams.get('shiftId')
+  const shiftIdFromParams = searchParams.get('shiftId')
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [zReading, setZReading] = useState<any>(null)
+  const [shiftId, setShiftId] = useState<string | null>(shiftIdFromParams)
 
-  const generateReading = async () => {
-    if (!shiftId) {
-      setError('Shift ID is required for Z Reading')
-      return
+  // Fetch most recent closed shift if no shiftId provided
+  const fetchRecentClosedShift = async () => {
+    try {
+      const res = await fetch('/api/shifts?status=closed&limit=1')
+      const data = await res.json()
+
+      if (!res.ok || !data.shifts || data.shifts.length === 0) {
+        throw new Error('No closed shifts found. Please close a shift first.')
+      }
+
+      return data.shifts[0].id.toString()
+    } catch (err: any) {
+      throw new Error(err.message || 'Failed to fetch recent closed shift')
     }
+  }
 
+  const generateReading = async (useShiftId?: string) => {
     setLoading(true)
     setError('')
 
     try {
-      const res = await fetch(`/api/readings/z-reading?shiftId=${shiftId}`)
+      let targetShiftId = useShiftId || shiftId
+
+      // If no shift ID, fetch the most recent closed shift
+      if (!targetShiftId) {
+        targetShiftId = await fetchRecentClosedShift()
+        setShiftId(targetShiftId)
+      }
+
+      const res = await fetch(`/api/readings/z-reading?shiftId=${targetShiftId}`)
       const data = await res.json()
 
       if (!res.ok) {
@@ -41,7 +61,7 @@ export default function ZReadingPage() {
 
   useEffect(() => {
     generateReading()
-  }, [shiftId])
+  }, [])
 
   const printReading = () => {
     window.print()
@@ -64,10 +84,18 @@ export default function ZReadingPage() {
         <Alert variant="destructive">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
-        <div className="mt-4">
-          <Button onClick={() => window.history.back()} variant="outline">
-            Go Back
-          </Button>
+        <div className="mt-4 space-y-2">
+          <p className="text-sm text-muted-foreground">
+            To view past Z readings, go to <a href="/dashboard/readings/history" className="text-primary underline">Readings History</a>
+          </p>
+          <div className="flex gap-2">
+            <Button onClick={() => window.history.back()} variant="outline">
+              Go Back
+            </Button>
+            <Button onClick={() => window.location.href = '/dashboard/readings/history'} variant="default">
+              View Readings History
+            </Button>
+          </div>
         </div>
       </div>
     )

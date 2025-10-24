@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (!hasPermission(session.user, PERMISSIONS.REPORT_VIEW)) {
+    if (!hasPermission(session.user as any, PERMISSIONS.REPORT_VIEW)) {
       return NextResponse.json({ error: 'Forbidden - Missing report.view permission' }, { status: 403 })
     }
 
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const locationId = searchParams.get('locationId')
     const cashierId = searchParams.get('cashierId')
 
-    const businessId = parseInt(session.user.businessId)
+    const businessId = parseInt((session.user as any).businessId)
 
     // Date range for the day
     const startDate = new Date(date)
@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
     const location = locationId
       ? await prisma.businessLocation.findUnique({
           where: { id: parseInt(locationId) },
-          select: { name: true, address: true },
+          select: { name: true, landmark: true, city: true, state: true, country: true },
         })
       : null
 
@@ -149,8 +149,6 @@ export async function GET(request: NextRequest) {
       where: { id: businessId },
       select: {
         name: true,
-        address1: true,
-        city: true,
         taxNumber1: true,
         taxLabel1: true,
         accumulatedSales: true, // BIR Grand Accumulated Total
@@ -184,9 +182,9 @@ export async function GET(request: NextRequest) {
       reportDate: date,
       businessName: business?.name || '',
       businessTIN: business?.taxNumber1 || '',
-      businessAddress: `${business?.address1 || ''}, ${business?.city || ''}`,
+      businessAddress: '', // Business address stored in locations
       location: location?.name || 'All Locations',
-      locationAddress: location?.address || '',
+      locationAddress: location ? `${location.landmark || ''}, ${location.city}, ${location.state}, ${location.country}`.replace(/^, /, '') : '',
       cashier: cashier
         ? `${cashier.firstName || ''} ${cashier.lastName || ''}`.trim() || cashier.username
         : 'All Cashiers',

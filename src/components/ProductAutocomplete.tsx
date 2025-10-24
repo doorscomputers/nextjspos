@@ -43,7 +43,7 @@ export default function ProductAutocomplete({
 
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const searchTimeoutRef = useRef<NodeJS.Timeout>()
+  const searchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
   // Calculate total variations and build flat list for keyboard navigation
   const flatVariations = useCallback(() => {

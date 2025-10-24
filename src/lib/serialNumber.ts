@@ -561,7 +561,7 @@ export async function bulkCreateSerialNumbers({
 
   return {
     success: results.length,
-    errors: errors.length,
+    errorCount: errors.length,
     results,
     errors,
   }

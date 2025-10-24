@@ -28,13 +28,14 @@ import {
   ExclamationTriangleIcon,
   ShieldCheckIcon,
   MagnifyingGlassIcon,
+  ClockIcon,
   XMarkIcon,
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
   SpeakerWaveIcon,
   CalendarIcon,
-  ClockIcon,
   BellAlertIcon,
+  PrinterIcon,
 } from "@heroicons/react/24/outline"
 
 interface MenuItem {
@@ -50,10 +51,18 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
   const { can, user } = usePermissions()
   const { companyName } = useBusiness()
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({
-    Products: true, // Products menu expanded by default
-    Purchases: true, // Purchases menu expanded by default
-    Reports: true, // Reports menu expanded by default
-    "POS & Sales": true, // POS menu expanded by default
+    Products: false,
+    Purchases: false,
+    Reports: false,
+    "POS & Sales": false,
+    "Product & Inventory": false,
+    "Sales Reports": false,
+    "Purchase Reports": false,
+    "Transfer Reports": false,
+    "Financial Reports": false,
+    "BIR Reports": false,
+    "Security Reports": false,
+    "HR & Attendance": false,
   })
   const [searchQuery, setSearchQuery] = useState('')
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -223,6 +232,18 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           href: "/dashboard/readings/x-reading",
           icon: DocumentTextIcon,
           permission: PERMISSIONS.X_READING,
+        },
+        {
+          name: "Z Reading",
+          href: "/dashboard/readings/z-reading",
+          icon: DocumentTextIcon,
+          permission: PERMISSIONS.Z_READING,
+        },
+        {
+          name: "Readings History",
+          href: "/dashboard/readings/history",
+          icon: ClockIcon,
+          permission: PERMISSIONS.X_READING, // Any user who can view X/Z can view history
         },
         {
           name: "Sales List",
@@ -562,12 +583,14 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           icon: ChartBarIcon,
           permission: PERMISSIONS.REPORT_VIEW,
         },
-        {
-          name: "--- INVENTORY REPORTS ---",
-          href: "#",
-          icon: ClipboardDocumentListIcon,
-          permission: PERMISSIONS.REPORT_VIEW,
-        },
+      ],
+    },
+    {
+      name: "Product & Inventory",
+      href: "#",
+      icon: CubeIcon,
+      permission: PERMISSIONS.REPORT_VIEW,
+      children: [
         {
           name: "Stock Alert Report",
           href: "/dashboard/reports/stock-alert",
@@ -592,12 +615,14 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           icon: ClipboardDocumentListIcon,
           permission: PERMISSIONS.PRODUCT_VIEW,
         },
-        {
-          name: "--- SALES REPORTS ---",
-          href: "#",
-          icon: ChartBarIcon,
-          permission: PERMISSIONS.SALES_REPORT_VIEW,
-        },
+      ],
+    },
+    {
+      name: "Sales Reports",
+      href: "#",
+      icon: ShoppingCartIcon,
+      permission: PERMISSIONS.SALES_REPORT_VIEW,
+      children: [
         {
           name: "Sales Today",
           href: "/dashboard/reports/sales-today",
@@ -634,12 +659,14 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           icon: ChartBarIcon,
           permission: PERMISSIONS.SALES_REPORT_PER_CASHIER,
         },
-        {
-          name: "--- PURCHASE REPORTS ---",
-          href: "#",
-          icon: TruckIcon,
-          permission: PERMISSIONS.REPORT_PURCHASE_VIEW,
-        },
+      ],
+    },
+    {
+      name: "Purchase Reports",
+      href: "#",
+      icon: TruckIcon,
+      permission: PERMISSIONS.REPORT_PURCHASE_VIEW,
+      children: [
         {
           name: "Purchase Reports",
           href: "/dashboard/reports/purchases",
@@ -676,12 +703,14 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           icon: TruckIcon,
           permission: PERMISSIONS.REPORT_PURCHASE_VIEW,
         },
-        {
-          name: "--- TRANSFER REPORTS ---",
-          href: "#",
-          icon: TruckIcon,
-          permission: PERMISSIONS.REPORT_TRANSFER_VIEW,
-        },
+      ],
+    },
+    {
+      name: "Transfer Reports",
+      href: "#",
+      icon: TruckIcon,
+      permission: PERMISSIONS.REPORT_TRANSFER_VIEW,
+      children: [
         {
           name: "Transfers Report",
           href: "/dashboard/reports/transfers-report",
@@ -700,18 +729,25 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           icon: ChartBarIcon,
           permission: PERMISSIONS.STOCK_TRANSFER_VIEW,
         },
-        // Hidden: Pivot version available at /dashboard/reports/transfers-per-item-pivot
-        // {
-        //   name: "Transfers per Item (Pivot)",
-        //   href: "/dashboard/reports/transfers-per-item-pivot",
-        //   icon: ChartBarIcon,
-        //   permission: PERMISSIONS.REPORT_TRANSFER_TRENDS,
-        // },
+      ],
+    },
+    {
+      name: "Financial Reports",
+      href: "#",
+      icon: CurrencyDollarIcon,
+      permission: PERMISSIONS.REPORT_PROFIT_LOSS,
+      children: [
         {
-          name: "--- FINANCIAL REPORTS ---",
-          href: "#",
-          icon: CurrencyDollarIcon,
+          name: "Profit / Loss Report",
+          href: "/dashboard/reports/profit-loss",
+          icon: ChartBarIcon,
           permission: PERMISSIONS.REPORT_PROFIT_LOSS,
+        },
+        {
+          name: "Purchase & Sale Report",
+          href: "/dashboard/reports/purchase-sale",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.REPORT_VIEW,
         },
         {
           name: "Profitability & COGS",
@@ -743,24 +779,48 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           icon: ChartBarIcon,
           permission: PERMISSIONS.PURCHASE_RETURN_VIEW,
         },
+      ],
+    },
+    {
+      name: "BIR Reports",
+      href: "#",
+      icon: DocumentTextIcon,
+      permission: PERMISSIONS.REPORT_VIEW,
+      children: [
         {
-          name: "--- SECURITY REPORTS ---",
-          href: "#",
-          icon: ShieldCheckIcon,
-          permission: PERMISSIONS.AUDIT_LOG_VIEW,
+          name: "Daily Sales Summary",
+          href: "/dashboard/reports/bir/daily-sales-summary",
+          icon: DocumentTextIcon,
+          permission: PERMISSIONS.REPORT_VIEW,
         },
+        {
+          name: "Tax Report",
+          href: "/dashboard/reports/tax",
+          icon: DocumentTextIcon,
+          permission: PERMISSIONS.REPORT_VIEW,
+        },
+      ],
+    },
+    {
+      name: "Security Reports",
+      href: "#",
+      icon: ShieldCheckIcon,
+      permission: PERMISSIONS.AUDIT_LOG_VIEW,
+      children: [
         {
           name: "Audit Trail Report",
           href: "/dashboard/reports/audit-trail",
           icon: ShieldCheckIcon,
           permission: PERMISSIONS.AUDIT_LOG_VIEW,
         },
-        {
-          name: "--- ATTENDANCE REPORTS ---",
-          href: "#",
-          icon: ClockIcon,
-          permission: PERMISSIONS.ATTENDANCE_REPORT,
-        },
+      ],
+    },
+    {
+      name: "HR & Attendance",
+      href: "#",
+      icon: ClockIcon,
+      permission: PERMISSIONS.ATTENDANCE_REPORT,
+      children: [
         {
           name: "Attendance Report",
           href: "/dashboard/reports/attendance",
@@ -792,6 +852,12 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           href: "/dashboard/locations",
           icon: BuildingStorefrontIcon,
           permission: PERMISSIONS.LOCATION_VIEW,
+        },
+        {
+          name: "Printers",
+          href: "/dashboard/printers",
+          icon: PrinterIcon,
+          permission: PERMISSIONS.PRINTER_VIEW,
         },
         {
           name: "Invoice Settings",

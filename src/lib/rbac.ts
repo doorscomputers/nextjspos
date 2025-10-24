@@ -251,6 +251,8 @@ export const PERMISSIONS = {
   STOCK_TRANSFER_VERIFY: 'stock_transfer.verify',
   STOCK_TRANSFER_COMPLETE: 'stock_transfer.complete',
   STOCK_TRANSFER_CANCEL: 'stock_transfer.cancel',
+  TRANSFER_APPROVE: 'stock_transfer.approve', // Alias for consistency
+  TRANSFER_MANAGE: 'stock_transfer.manage', // Combined manage permission
 
   // Customer Returns
   CUSTOMER_RETURN_VIEW: 'customer_return.view',
@@ -262,6 +264,7 @@ export const PERMISSIONS = {
   SUPPLIER_RETURN_VIEW: 'supplier_return.view',
   SUPPLIER_RETURN_CREATE: 'supplier_return.create',
   SUPPLIER_RETURN_APPROVE: 'supplier_return.approve',
+  SUPPLIER_RETURN_MANAGE: 'supplier_return.manage', // Combined manage permission
   SUPPLIER_RETURN_DELETE: 'supplier_return.delete',
 
   // Serial Numbers
@@ -338,6 +341,13 @@ export const PERMISSIONS = {
   LOCATION_UPDATE: 'location.update',
   LOCATION_DELETE: 'location.delete',
   ACCESS_ALL_LOCATIONS: 'access_all_locations',
+
+  // Printers
+  PRINTER_VIEW: 'printer.view',
+  PRINTER_CREATE: 'printer.create',
+  PRINTER_UPDATE: 'printer.update',
+  PRINTER_DELETE: 'printer.delete',
+  PRINTER_ASSIGN: 'printer.assign', // Assign printers to locations
 
   // Audit Logs
   AUDIT_LOG_VIEW: 'audit_log.view',
@@ -557,6 +567,8 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.LOCATION_UPDATE,
       PERMISSIONS.LOCATION_DELETE,
       PERMISSIONS.ACCESS_ALL_LOCATIONS,
+      PERMISSIONS.PRINTER_VIEW,
+      PERMISSIONS.PRINTER_ASSIGN,
     ],
   },
 
@@ -568,6 +580,11 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.DASHBOARD_VIEW,
       PERMISSIONS.BUSINESS_SETTINGS_VIEW,
       PERMISSIONS.BUSINESS_SETTINGS_EDIT,
+      PERMISSIONS.PRINTER_VIEW,
+      PERMISSIONS.PRINTER_CREATE,
+      PERMISSIONS.PRINTER_UPDATE,
+      PERMISSIONS.PRINTER_DELETE,
+      PERMISSIONS.PRINTER_ASSIGN,
     ],
   },
 
@@ -1532,6 +1549,13 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.LOCATION_CREATE,
       PERMISSIONS.LOCATION_UPDATE,
       PERMISSIONS.ACCESS_ALL_LOCATIONS,
+
+      // Printer Management - Full Access
+      PERMISSIONS.PRINTER_VIEW,
+      PERMISSIONS.PRINTER_CREATE,
+      PERMISSIONS.PRINTER_UPDATE,
+      PERMISSIONS.PRINTER_DELETE,
+      PERMISSIONS.PRINTER_ASSIGN,
 
       // Stock Transfers - View & Approve Only (NO CREATE)
       PERMISSIONS.STOCK_TRANSFER_VIEW,

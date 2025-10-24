@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
-import { logAuditTrail } from '@/lib/auditLog'
+import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 
 /**
  * POST /api/cash/in-out - Record cash in or cash out transaction
@@ -69,13 +69,14 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    await logAuditTrail({
+    await createAuditLog({
       businessId: parseInt(session.user.businessId),
       userId: parseInt(session.user.id),
-      action: type === 'cash_in' ? 'cash_in_created' : 'cash_out_created',
-      entityType: 'cash_in_out',
-      entityId: cashInOut.id,
-      details: `${type === 'cash_in' ? 'Cash In' : 'Cash Out'} of ${amount} - ${reason}`,
+      username: session.user.username,
+      action: type === 'cash_in' ? AuditAction.CASH_IN : AuditAction.CASH_OUT,
+      entityType: EntityType.CASH_IN_OUT,
+      entityIds: [cashInOut.id],
+      description: `${type === 'cash_in' ? 'Cash In' : 'Cash Out'} of ${amount} - ${reason}`,
       metadata: { type, amount: amountFloat, reason, requiresApproval },
     })
 

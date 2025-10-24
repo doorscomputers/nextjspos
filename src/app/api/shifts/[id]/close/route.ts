@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { hasPermission, PERMISSIONS, hasAnyRole } from '@/lib/rbac'
-import { logAuditTrail } from '@/lib/auditLog'
+import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 import bcrypt from 'bcryptjs'
 
 /**
@@ -96,7 +96,7 @@ export async function POST(
       include: {
         sales: {
           include: {
-            salePayments: true,
+            payments: true,
           },
         },
         cashInOutRecords: true,
@@ -119,14 +119,29 @@ export async function POST(
     // Calculate system cash (beginning cash + sales cash - cash out + cash in)
     let systemCash = shift.beginningCash
 
-    // Add cash sales
+    // Add cash sales - IMPORTANT: Account for overpayment/change
     const cashSales = shift.sales
       .filter(sale => sale.status === 'completed')
       .reduce((total, sale) => {
-        const cashPayments = sale.salePayments
+        const saleTotal = parseFloat(sale.totalAmount.toString())
+        const totalPayments = sale.payments
+          .reduce((sum, payment) => sum + parseFloat(payment.amount.toString()), 0)
+
+        const cashPayments = sale.payments
           .filter(payment => payment.paymentMethod === 'cash')
           .reduce((sum, payment) => sum + parseFloat(payment.amount.toString()), 0)
-        return total + cashPayments
+
+        // If overpayment (change given), allocate proportionally
+        // Example: Sale ₱100, paid Cash ₱150 + Digital ₱50 = ₱200 total
+        // Overpayment: ₱100, so we keep only 50% = Cash ₱75 + Digital ₱25
+        let actualCashInDrawer = cashPayments
+        if (totalPayments > saleTotal) {
+          // There was overpayment (change given)
+          const allocationRatio = saleTotal / totalPayments
+          actualCashInDrawer = cashPayments * allocationRatio
+        }
+
+        return total + actualCashInDrawer
       }, 0)
 
     systemCash = systemCash.plus(cashSales)
@@ -220,13 +235,14 @@ export async function POST(
     })
 
     // Log audit trail with authorizing manager info
-    await logAuditTrail({
+    await createAuditLog({
       businessId: parseInt(session.user.businessId),
       userId: parseInt(session.user.id),
-      action: 'shift_closed',
-      entityType: 'cashier_shift',
-      entityId: shift.id,
-      details: `Closed shift ${shift.shiftNumber}. Authorized by: ${authorizingUser?.username}. System: ${systemCash}, Actual: ${endingCash}, Over: ${cashOver}, Short: ${cashShort}`,
+      username: session.user.username,
+      action: AuditAction.SHIFT_CLOSE,
+      entityType: EntityType.CASHIER_SHIFT,
+      entityIds: [shift.id],
+      description: `Closed shift ${shift.shiftNumber}. Authorized by: ${authorizingUser?.username}. System: ${systemCash}, Actual: ${endingCash}, Over: ${cashOver}, Short: ${cashShort}`,
       metadata: {
         shiftNumber: shift.shiftNumber,
         systemCash: parseFloat(systemCash.toString()),
@@ -238,6 +254,8 @@ export async function POST(
         authorizedBy: authorizingUser?.id,
         authorizedByUsername: authorizingUser?.username,
       },
+      requiresPassword: true,
+      passwordVerified: true,
     })
 
     return NextResponse.json({

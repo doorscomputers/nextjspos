@@ -134,7 +134,7 @@ export async function apiPost<T = any>(
     ? undefined
     : `${crypto.randomUUID()}`
 
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...options?.headers,
   }

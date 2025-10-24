@@ -19,7 +19,9 @@ export function getTransactionTypeLabel(type: StockTransactionType): string {
     transfer_out: 'Transfer Out',
     adjustment: 'Stock Adjustment',
     purchase_return: 'Purchase Return',
-    customer_return: 'Customer Return'
+    customer_return: 'Customer Return',
+    supplier_return: 'Supplier Return',
+    correction: 'Stock Correction'
   }
 
   return labels[type] || type

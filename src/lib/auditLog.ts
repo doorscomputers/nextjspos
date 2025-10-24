@@ -46,6 +46,8 @@ export enum AuditAction {
   QUOTATION_DELETE = 'quotation_delete',
   WARRANTY_CLAIM_CREATE = 'warranty_claim_create',
   WARRANTY_CLAIM_RESOLVE = 'warranty_claim_resolve',
+  CASH_IN = 'cash_in',
+  CASH_OUT = 'cash_out',
 
   // Workforce management
   EMPLOYEE_SCHEDULE_CREATE = 'employee_schedule_create',
@@ -65,6 +67,7 @@ export enum EntityType {
   WARRANTY_CLAIM = 'warranty_claim',
   DISCOUNT = 'discount',
   EMPLOYEE_SCHEDULE = 'employee_schedule',
+  CASH_IN_OUT = 'cash_in_out',
 }
 
 interface AuditLogParams {

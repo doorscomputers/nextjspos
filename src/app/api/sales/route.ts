@@ -119,6 +119,15 @@ export async function GET(request: NextRequest) {
               email: true,
             },
           },
+          creator: {
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+              surname: true,
+            },
+          },
           items: true,
           payments: true,
         },
@@ -420,8 +429,8 @@ export async function POST(request: NextRequest) {
 
     // Create sale and deduct stock in transaction
     const sale = await prisma.$transaction(async (tx) => {
-      // Generate invoice number atomically inside transaction
-      const invoiceNumber = await getNextInvoiceNumber(businessIdNumber, tx)
+      // Generate location-specific invoice number atomically inside transaction
+      const invoiceNumber = await getNextInvoiceNumber(businessIdNumber, locationIdNumber, location.name, tx)
 
       // Create sale
       const newSale = await tx.sale.create({

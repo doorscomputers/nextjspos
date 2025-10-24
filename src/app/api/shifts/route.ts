@@ -20,44 +20,82 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') || 'open'
-    const userId = searchParams.get('userId') || session.user.id
+    const userId = searchParams.get('userId')
+    const limit = parseInt(searchParams.get('limit') || '50')
 
-    // Permission check - can view all shifts or just own shifts
-    const canViewAll = hasPermission(session.user, PERMISSIONS.SHIFT_VIEW_ALL)
-    if (!canViewAll && userId !== session.user.id) {
-      return NextResponse.json({ error: 'Forbidden - Cannot view other users shifts' }, { status: 403 })
+    const user = session.user as any
+
+    // CRITICAL: Get user's assigned locations with Super Admin/All Branch Admin exception
+    const isSuperAdmin = user.roles?.includes('Super Admin')
+    const isAllBranchAdmin = user.roles?.includes('All Branch Admin')
+
+    let userLocationIds: number[] = []
+
+    if (isSuperAdmin || isAllBranchAdmin) {
+      // Super Admin / All Branch Admin: Get ALL locations in their business
+      const allLocations = await prisma.businessLocation.findMany({
+        where: {
+          businessId: parseInt(user.businessId),
+          deletedAt: null
+        },
+        select: { id: true },
+      })
+      userLocationIds = allLocations.map(loc => loc.id)
+    } else {
+      // Regular users: Get only assigned locations
+      const userLocations = await prisma.userLocation.findMany({
+        where: { userId: parseInt(user.id) },
+        select: { locationId: true },
+      })
+      userLocationIds = userLocations.map(ul => ul.locationId)
     }
 
+    // Build where clause
     const whereClause: any = {
       businessId: parseInt(session.user.businessId),
-      userId: parseInt(userId),
     }
 
+    // Filter by status if not 'all'
     if (status !== 'all') {
       whereClause.status = status
     }
 
+    // Filter by location access
+    if (userLocationIds.length > 0) {
+      whereClause.locationId = { in: userLocationIds }
+    }
+
+    // Filter by specific user if requested AND has permission
+    if (userId) {
+      const canViewAll = hasPermission(session.user, PERMISSIONS.SHIFT_VIEW_ALL)
+      if (!canViewAll && userId !== session.user.id) {
+        return NextResponse.json({ error: 'Forbidden - Cannot view other users shifts' }, { status: 403 })
+      }
+      whereClause.userId = parseInt(userId)
+    }
+
     const shifts = await prisma.cashierShift.findMany({
       where: whereClause,
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            name: true,
+          },
+        },
+        location: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
       orderBy: { openedAt: 'desc' },
-      take: 50,
+      take: Math.min(limit, 200), // Max 200 to prevent abuse
     })
 
-    // Manually fetch location names for each shift
-    const shiftsWithLocation = await Promise.all(
-      shifts.map(async (shift) => {
-        const location = await prisma.businessLocation.findUnique({
-          where: { id: shift.locationId },
-          select: { id: true, name: true },
-        })
-        return {
-          ...shift,
-          location,
-        }
-      })
-    )
-
-    return NextResponse.json({ shifts: shiftsWithLocation })
+    return NextResponse.json({ shifts })
   } catch (error: any) {
     console.error('Error fetching shifts:', error)
     return NextResponse.json(

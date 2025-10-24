@@ -28,17 +28,36 @@ export async function GET(request: NextRequest) {
     const shiftIdParam = searchParams.get('shiftId')
 
     // CRITICAL SECURITY: Get user's assigned locations first
-    const userLocations = await prisma.userLocation.findMany({
-      where: { userId: parseInt(user.id) },
-      select: { locationId: true },
-    })
-    const userLocationIds = userLocations.map(ul => ul.locationId)
+    // EXCEPTION: Super Admin and All Branch Admin can access all locations
+    const isSuperAdmin = user.roles?.includes('Super Admin')
+    const isAllBranchAdmin = user.roles?.includes('All Branch Admin')
 
-    if (userLocationIds.length === 0) {
-      return NextResponse.json(
-        { error: 'No location assigned. Please contact your administrator.' },
-        { status: 403 }
-      )
+    let userLocationIds: number[] = []
+
+    if (isSuperAdmin || isAllBranchAdmin) {
+      // Super Admin / All Branch Admin: Get ALL locations in their business
+      const allLocations = await prisma.businessLocation.findMany({
+        where: {
+          businessId: parseInt(user.businessId),
+          deletedAt: null
+        },
+        select: { id: true },
+      })
+      userLocationIds = allLocations.map(loc => loc.id)
+    } else {
+      // Regular users: Get only assigned locations
+      const userLocations = await prisma.userLocation.findMany({
+        where: { userId: parseInt(user.id) },
+        select: { locationId: true },
+      })
+      userLocationIds = userLocations.map(ul => ul.locationId)
+
+      if (userLocationIds.length === 0) {
+        return NextResponse.json(
+          { error: 'No location assigned. Please contact your administrator.' },
+          { status: 403 }
+        )
+      }
     }
 
     let shift
