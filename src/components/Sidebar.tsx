@@ -32,6 +32,9 @@ import {
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
   SpeakerWaveIcon,
+  CalendarIcon,
+  ClockIcon,
+  BellAlertIcon,
 } from "@heroicons/react/24/outline"
 
 interface MenuItem {
@@ -173,6 +176,18 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       icon: ChartBarIcon,
       permission: PERMISSIONS.DASHBOARD_VIEW,
     },
+    {
+      name: "Clock In/Out",
+      href: "/dashboard/clock",
+      icon: ClockIcon,
+      permission: PERMISSIONS.ATTENDANCE_CLOCK_IN,
+    },
+    {
+      name: "Notifications",
+      href: "/dashboard/notifications",
+      icon: BellAlertIcon,
+      permission: PERMISSIONS.LEAVE_REQUEST_APPROVE,
+    },
     // {
     //   name: "AI Assistant",
     //   href: "/dashboard/ai-assistant",
@@ -213,7 +228,7 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           name: "Sales List",
           href: "/dashboard/sales",
           icon: ShoppingCartIcon,
-          permission: PERMISSIONS.SELL_VIEW,
+          permission: PERMISSIONS.SELL_VIEW_OWN, // Changed to allow cashiers to see their sales
         },
       ],
     },
@@ -504,6 +519,38 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       ],
     },
     {
+      name: "Schedules & Attendance",
+      href: "/dashboard/schedules",
+      icon: CalendarIcon,
+      permission: PERMISSIONS.SCHEDULE_VIEW,
+      children: [
+        {
+          name: "Employee Schedules",
+          href: "/dashboard/schedules",
+          icon: CalendarIcon,
+          permission: PERMISSIONS.SCHEDULE_VIEW,
+        },
+        {
+          name: "Attendance Records",
+          href: "/dashboard/attendance",
+          icon: ClockIcon,
+          permission: PERMISSIONS.ATTENDANCE_VIEW,
+        },
+        {
+          name: "Location Change Requests",
+          href: "/dashboard/location-changes",
+          icon: TruckIcon,
+          permission: PERMISSIONS.LOCATION_CHANGE_REQUEST_VIEW,
+        },
+        {
+          name: "Leave Requests",
+          href: "/dashboard/leave-requests",
+          icon: CalendarIcon,
+          permission: PERMISSIONS.LEAVE_REQUEST_VIEW_OWN,
+        },
+      ],
+    },
+    {
       name: "Reports",
       href: "/dashboard/reports",
       icon: ChartBarIcon,
@@ -538,6 +585,12 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           href: "/dashboard/reports/inventory-ledger",
           icon: ClipboardDocumentListIcon,
           permission: PERMISSIONS.INVENTORY_LEDGER_VIEW,
+        },
+        {
+          name: "Stock History V2",
+          href: "/dashboard/reports/stock-history-v2",
+          icon: ClipboardDocumentListIcon,
+          permission: PERMISSIONS.PRODUCT_VIEW,
         },
         {
           name: "--- SALES REPORTS ---",
@@ -685,6 +738,12 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           permission: PERMISSIONS.PURCHASE_RETURN_VIEW,
         },
         {
+          name: "Returns Analysis",
+          href: "/dashboard/reports/returns-analysis",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.PURCHASE_RETURN_VIEW,
+        },
+        {
           name: "--- SECURITY REPORTS ---",
           href: "#",
           icon: ShieldCheckIcon,
@@ -695,6 +754,18 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           href: "/dashboard/reports/audit-trail",
           icon: ShieldCheckIcon,
           permission: PERMISSIONS.AUDIT_LOG_VIEW,
+        },
+        {
+          name: "--- ATTENDANCE REPORTS ---",
+          href: "#",
+          icon: ClockIcon,
+          permission: PERMISSIONS.ATTENDANCE_REPORT,
+        },
+        {
+          name: "Attendance Report",
+          href: "/dashboard/reports/attendance",
+          icon: ClockIcon,
+          permission: PERMISSIONS.ATTENDANCE_REPORT,
         },
       ],
     },
@@ -710,16 +781,6 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       icon: CogIcon,
       permission: PERMISSIONS.BUSINESS_SETTINGS_VIEW,
       children: [
-        {
-          name: "Theme Demo (Simple)",
-          href: "/dashboard/theme-demo-simple",
-          icon: SparklesIcon,
-        },
-        {
-          name: "Theme Demo (Full)",
-          href: "/dashboard/theme-demo",
-          icon: SparklesIcon,
-        },
         {
           name: "Business Settings",
           href: "/dashboard/business-settings",
@@ -742,6 +803,24 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           name: "Barcode Settings",
           href: "/dashboard/settings/barcode-settings",
           icon: CogIcon,
+          permission: PERMISSIONS.BUSINESS_SETTINGS_VIEW,
+        },
+        {
+          name: "Schedule Login Security",
+          href: "/dashboard/settings/schedule-login",
+          icon: CogIcon,
+          permission: PERMISSIONS.BUSINESS_SETTINGS_VIEW,
+        },
+        {
+          name: "SOD Rules (Separation of Duties)",
+          href: "/dashboard/settings/sod-rules",
+          icon: ShieldCheckIcon,
+          permission: PERMISSIONS.BUSINESS_SETTINGS_VIEW,
+        },
+        {
+          name: "Inactivity Timeout",
+          href: "/dashboard/settings/inactivity",
+          icon: ClockIcon,
           permission: PERMISSIONS.BUSINESS_SETTINGS_VIEW,
         },
         {

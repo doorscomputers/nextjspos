@@ -14,7 +14,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Igoro Tech(IT) Inventory Management System",
+  title: "",
   description: "Modern Point of Sale and Inventory Management system with multi-tenant support and role-based access control",
 };
 

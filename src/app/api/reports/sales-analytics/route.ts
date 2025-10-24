@@ -22,8 +22,8 @@ export async function GET(request: NextRequest) {
       status: { not: 'VOID' },
     }
 
-    let start = startDate ? new Date(startDate) : new Date()
-    let end = endDate ? new Date(endDate) : new Date()
+    const start = startDate ? new Date(startDate) : new Date()
+    const end = endDate ? new Date(endDate) : new Date()
 
     if (!startDate) {
       start.setHours(0, 0, 0, 0)

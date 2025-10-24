@@ -3,43 +3,276 @@
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
+import { Printer, X, FileText } from 'lucide-react'
 
 interface SalesInvoicePrintProps {
   sale: any
   isOpen: boolean
+  isReprint?: boolean
   onClose: () => void
+  business?: any
+  location?: any
 }
 
-export default function SalesInvoicePrint({ sale, isOpen, onClose }: SalesInvoicePrintProps) {
-  const [business, setBusiness] = useState<any>(null)
-  const [location, setLocation] = useState<any>(null)
+export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onClose, business: propBusiness, location: propLocation }: SalesInvoicePrintProps) {
+  // Handle nested location object if API returns {location: {...}}
+  const normalizedLocation = propLocation?.location ? propLocation.location : propLocation
+
+  const [business, setBusiness] = useState<any>(propBusiness || null)
+  const [location, setLocation] = useState<any>(normalizedLocation || null)
+  const [cashier, setCashier] = useState<any>(null)
+  const [paperSize, setPaperSize] = useState<'80mm' | 'a4' | 'letter' | 'legal'>('letter')
+
 
   useEffect(() => {
     if (isOpen && sale) {
-      // Fetch business and location details
-      Promise.all([
-        fetch('/api/business').then(res => res.json()),
-        fetch(`/api/locations/${sale.locationId}`).then(res => res.json())
-      ]).then(([businessData, locationData]) => {
-        setBusiness(businessData)
-        setLocation(locationData)
+      // Set cashier from sale.creator if available
+      if ((sale as any).creator) {
+        setCashier((sale as any).creator)
+      } else if (sale.createdBy) {
+        setCashier({ id: sale.createdBy, username: `User #${sale.createdBy}` })
+      }
+
+      // Fetch data only if not provided as props
+      const fetchPromises = []
+
+      if (!propBusiness) {
+        fetchPromises.push(
+          fetch('/api/business').then(res => res.json()).catch(() => null)
+        )
+      } else {
+        fetchPromises.push(Promise.resolve(propBusiness))
+      }
+
+      if (!normalizedLocation && sale.locationId) {
+        fetchPromises.push(
+          fetch(`/api/locations/${sale.locationId}`)
+            .then(res => res.json())
+            .then(data => data.location ? data.location : data)
+            .catch(() => null)
+        )
+      } else {
+        fetchPromises.push(Promise.resolve(normalizedLocation))
+      }
+
+      Promise.all(fetchPromises).then(([businessData, locationData]) => {
+        if (businessData) setBusiness(businessData)
+        if (locationData) setLocation(locationData)
       })
     }
-  }, [isOpen, sale])
+  }, [isOpen, sale, propBusiness, propLocation, normalizedLocation])
 
   const handlePrint = () => {
-    window.print()
+    // Create a new window with just the invoice content
+    const printWindow = window.open('', '_blank', 'width=800,height=600')
+    if (!printWindow) {
+      alert('Please allow popups to print')
+      return
+    }
+
+    const invoiceContent = document.getElementById('invoice-content')
+    if (!invoiceContent) return
+
+    // Get the computed paper size settings
+    let pageSize = ''
+    let pageMargin = ''
+    let contentWidth = ''
+    let fontSize = ''
+    let smallFont = ''
+    let tinyFont = ''
+
+    if (paperSize === '80mm') {
+      pageSize = 'size: 80mm auto;'
+      pageMargin = 'margin: 0;'
+      contentWidth = '80mm'
+      fontSize = '10px'
+      smallFont = '9px'
+      tinyFont = '8px'
+    } else if (paperSize === 'a4') {
+      pageSize = 'size: A4 portrait;'
+      pageMargin = 'margin: 10mm;'
+      contentWidth = '100%'
+      fontSize = '14px'
+      smallFont = '12px'
+      tinyFont = '11px'
+    } else if (paperSize === 'letter') {
+      pageSize = 'size: letter portrait;'
+      pageMargin = 'margin: 10mm;'
+      contentWidth = '100%'
+      fontSize = '14px'
+      smallFont = '12px'
+      tinyFont = '11px'
+    } else {
+      pageSize = 'size: legal portrait;'
+      pageMargin = 'margin: 10mm;'
+      contentWidth = '100%'
+      fontSize = '14px'
+      smallFont = '12px'
+      tinyFont = '11px'
+    }
+
+    // Clone the invoice content and get its HTML
+    const clonedContent = invoiceContent.cloneNode(true) as HTMLElement
+
+    // Write the complete HTML document with all necessary styles
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Sales Invoice - ${sale.invoiceNumber}</title>
+          <style>
+            @page {
+              ${pageSize}
+              ${pageMargin}
+            }
+
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+              width: ${contentWidth};
+              margin: 0 auto;
+              padding: ${paperSize === '80mm' ? '2mm' : '0'};
+              background: white;
+              color: #000;
+              font-size: ${fontSize};
+              line-height: 1.4;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+
+            .text-center { text-align: center; }
+            .text-left { text-align: left; }
+            .text-right { text-align: right; }
+            .font-bold { font-weight: 700; }
+            .font-semibold { font-weight: 600; }
+            .uppercase { text-transform: uppercase; }
+            .capitalize { text-transform: capitalize; }
+
+            .text-gray-900 { color: #111827; }
+            .text-gray-800 { color: #1f2937; }
+            .text-gray-700 { color: #374151; }
+            .text-gray-600 { color: #4b5563; }
+            .text-gray-500 { color: #6b7280; }
+            .text-red-600 { color: #dc2626; }
+            .text-blue-700 { color: #1d4ed8; }
+            .text-green-600 { color: #16a34a; }
+
+            .bg-yellow-50 { background-color: #fefce8; }
+            .border-yellow-300 { border-color: #fde047; }
+
+            .border-b-2 { border-bottom-width: 2px; }
+            .border-black { border-color: #000; }
+            .border-t-2 { border-top-width: 2px; }
+            .border-y-2 { border-top-width: 2px; border-bottom-width: 2px; }
+            .border-y { border-top-width: 1px; border-bottom-width: 1px; }
+            .border-t { border-top-width: 1px; }
+            .border-b { border-bottom-width: 1px; }
+            .border-dashed { border-style: dashed; }
+            .border-solid { border-style: solid; }
+            .border { border-width: 1px; }
+            .border-gray-400 { border-color: #9ca3af; }
+            .border-gray-300 { border-color: #d1d5db; }
+            .rounded { border-radius: 0.25rem; }
+
+            .pb-2 { padding-bottom: 0.5rem; }
+            .pt-2 { padding-top: 0.5rem; }
+            .pt-3 { padding-top: 0.75rem; }
+            .py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+            .py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+            .py-0\\.5 { padding-top: 0.125rem; padding-bottom: 0.125rem; }
+            .px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+            .p-2 { padding: 0.5rem; }
+            .p-4 { padding: 1rem; }
+
+            .mb-1 { margin-bottom: 0.25rem; }
+            .mb-2 { margin-bottom: 0.5rem; }
+            .mb-3 { margin-bottom: 0.75rem; }
+            .mt-1 { margin-top: 0.25rem; }
+            .mt-2 { margin-top: 0.5rem; }
+            .mt-3 { margin-top: 0.75rem; }
+            .my-2 { margin-top: 0.5rem; margin-bottom: 0.5rem; }
+
+            .w-full { width: 100%; }
+            .border-collapse { border-collapse: collapse; }
+
+            table { width: 100%; border-collapse: collapse; }
+            td, th { padding: 0.25rem; }
+
+            .grid { display: grid; }
+            .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .gap-4 { gap: 1rem; }
+            .flex { display: flex; }
+            .justify-between { justify-content: space-between; }
+            .space-y-2 > * + * { margin-top: 0.5rem; }
+
+            ${paperSize === '80mm' ? `
+              .text-sm { font-size: ${fontSize}; }
+              .text-xs { font-size: ${smallFont}; }
+              .text-\\[10px\\] { font-size: ${tinyFont}; }
+              .text-lg { font-size: 11px; }
+              .text-2xl { font-size: 12px; }
+              .text-base { font-size: ${fontSize}; }
+            ` : `
+              .text-sm { font-size: ${smallFont}; }
+              .text-xs { font-size: ${tinyFont}; }
+              .text-\\[10px\\] { font-size: 10px; }
+              .text-lg { font-size: 18px; }
+              .text-2xl { font-size: 24px; }
+              .text-base { font-size: 16px; }
+            `}
+
+            @media print {
+              body {
+                width: ${contentWidth};
+              }
+            }
+          </style>
+        </head>
+        <body>
+          ${clonedContent.innerHTML}
+        </body>
+      </html>
+    `)
+
+    printWindow.document.close()
+
+    // Wait for content to load, then print
+    setTimeout(() => {
+      printWindow.print()
+      setTimeout(() => {
+        printWindow.close()
+      }, 100)
+    }, 500)
   }
 
-  if (!sale || !business || !location) return null
+  if (!sale || !business) return null
 
-  const calculateChange = () => {
-    const totalPaid = sale.payments?.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0) || 0
-    const totalAmount = parseFloat(sale.totalAmount || 0)
-    return Math.max(0, totalPaid - totalAmount)
+  // Calculate payment totals
+  const totalPaid = sale.payments?.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0) || 0
+  const totalAmount = parseFloat(sale.totalAmount || 0)
+  const changeAmount = Math.max(0, totalPaid - totalAmount)
+
+  // BIR VAT Calculation (12% VAT)
+  const isVATExempt = sale.vatExempt || sale.discountType === 'senior' || sale.discountType === 'pwd'
+  let vatableSales = 0
+  let vatAmount = 0
+  let vatExemptAmount = 0
+
+  if (isVATExempt) {
+    vatExemptAmount = totalAmount
+  } else {
+    // VAT-Inclusive calculation
+    vatableSales = totalAmount / 1.12
+    vatAmount = vatableSales * 0.12
   }
 
-  const businessName = (business.invoiceHeaderName || business.name || 'PcInet Computer Trading').toUpperCase()
+  const businessName = (business.invoiceHeaderName || business.name || 'PciNet Computer Trading').toUpperCase()
   const ownerTitle = business.ownerTitle || 'Prop.'
   const proprietorLine = business.ownerName
     ? `${business.ownerName} - ${ownerTitle}`
@@ -91,44 +324,128 @@ export default function SalesInvoicePrint({ sale, isOpen, onClose }: SalesInvoic
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto print:static print:top-0 print:left-0 print:translate-x-0 print:translate-y-0 print:transform-none print:w-full print:max-w-full print:max-h-none print:h-auto print:overflow-visible print:p-0 print:m-0 print:shadow-none print:ring-0 print:bg-transparent">
-        <div className="print:p-8">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="bg-white">
           {/* Action Buttons - Hidden when printing */}
-          <div className="flex justify-end gap-2 mb-4 print:hidden">
-            <Button onClick={handlePrint} variant="default">
-              Print Invoice
-            </Button>
-            <Button onClick={onClose} variant="outline">
-              Close
-            </Button>
+          <div className="flex justify-between items-center mb-4 print:hidden bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                onClick={() => setPaperSize('80mm')}
+                size="sm"
+                className={`gap-2 font-semibold transition-all ${
+                  paperSize === '80mm'
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-700 shadow-lg'
+                    : 'bg-white hover:bg-gray-100 text-gray-700 border-2 border-gray-300'
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+                80mm Thermal
+                {paperSize === '80mm' && <span className="ml-1">✓</span>}
+              </Button>
+              <Button
+                onClick={() => setPaperSize('a4')}
+                size="sm"
+                className={`gap-2 font-semibold transition-all ${
+                  paperSize === 'a4'
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-700 shadow-lg'
+                    : 'bg-white hover:bg-gray-100 text-gray-700 border-2 border-gray-300'
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+                A4
+                {paperSize === 'a4' && <span className="ml-1">✓</span>}
+              </Button>
+              <Button
+                onClick={() => setPaperSize('letter')}
+                size="sm"
+                className={`gap-2 font-semibold transition-all ${
+                  paperSize === 'letter'
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-700 shadow-lg'
+                    : 'bg-white hover:bg-gray-100 text-gray-700 border-2 border-gray-300'
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+                Letter
+                {paperSize === 'letter' && <span className="ml-1">✓</span>}
+              </Button>
+              <Button
+                onClick={() => setPaperSize('legal')}
+                size="sm"
+                className={`gap-2 font-semibold transition-all ${
+                  paperSize === 'legal'
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-700 shadow-lg'
+                    : 'bg-white hover:bg-gray-100 text-gray-700 border-2 border-gray-300'
+                }`}
+              >
+                <FileText className="h-4 w-4" />
+                Legal
+                {paperSize === 'legal' && <span className="ml-1">✓</span>}
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={handlePrint}
+                className="gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6"
+                size="lg"
+              >
+                <Printer className="h-5 w-5" />
+                Print Receipt
+              </Button>
+              <Button onClick={onClose} variant="outline" size="lg" className="gap-2">
+                <X className="h-5 w-5" />
+                Close
+              </Button>
+            </div>
           </div>
 
           {/* Invoice Content */}
-          <div className="bg-white p-8 print:p-0" id="invoice-content">
+          <div
+            className={`bg-white ${paperSize === '80mm' ? 'max-w-[80mm] mx-auto' : 'p-8'}`}
+            id="invoice-content"
+          >
             {/* Header */}
-            <div className="text-center border-b-2 border-gray-800 pb-4 mb-4">
-              <h1 className="text-4xl font-extrabold tracking-wide text-gray-900 uppercase">
+            <div className="text-center border-b-2 border-black pb-2 mb-3">
+              <h1 className={`font-bold tracking-wide text-gray-900 uppercase ${paperSize === '80mm' ? 'text-sm' : 'text-2xl'}`}>
                 {businessName}
               </h1>
-              <p className="text-sm font-semibold uppercase text-gray-800 mt-1">{proprietorLine}</p>
-              <p className="text-sm text-gray-700">VAT Reg. TIN: {vatTin}</p>
-              <p className="text-sm text-gray-700 mt-1">{addressLinePrimary}</p>
-              <p className="text-sm text-gray-700">{addressLineSecondary}</p>
-              <p className="text-xs text-gray-600 mt-2">{emailLine}</p>
-              <p className="text-xs text-gray-600">{phoneLine}</p>
-              <p className="text-xs text-gray-500 mt-2">
-                {location.name} Branch
+              <p className={`font-semibold uppercase text-gray-800 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                {proprietorLine}
+              </p>
+              <p className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                VAT Reg. TIN: {vatTin}
+              </p>
+              <p className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                {addressLinePrimary}
+              </p>
+              <p className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                {addressLineSecondary}
+              </p>
+              <p className={`text-gray-600 mt-1 ${paperSize === '80mm' ? 'text-[10px]' : 'text-xs'}`}>
+                {emailLine}
+              </p>
+              <p className={`text-gray-600 ${paperSize === '80mm' ? 'text-[10px]' : 'text-xs'}`}>
+                {phoneLine}
+              </p>
+              <p className={`text-gray-500 mt-1 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                {location.name}
               </p>
             </div>
 
-            {/* Invoice Details */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
+            {/* Invoice Info */}
+            <div className={`mb-3 ${paperSize === '80mm' ? 'text-center' : 'grid grid-cols-2 gap-4'}`}>
               <div>
-                <h2 className="text-lg font-bold text-gray-900 mb-2">SALES INVOICE</h2>
-                <p className="text-sm text-gray-700">
+                <h2 className={`font-bold text-gray-900 mb-1 ${paperSize === '80mm' ? 'text-sm' : 'text-lg'}`}>
+                  SALES INVOICE
+                </h2>
+                {isReprint && (
+                  <div className={`${paperSize === '80mm' ? 'text-xs' : 'text-base'} font-bold text-red-600 mb-2 border-2 border-red-600 inline-block px-3 py-1 rounded`}>
+                    ⚠ RE-PRINT
+                  </div>
+                )}
+                <p className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
                   <span className="font-semibold">Invoice #:</span> {sale.invoiceNumber}
                 </p>
-                <p className="text-sm text-gray-700">
+                <p className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
                   <span className="font-semibold">Date:</span>{' '}
                   {new Date(sale.saleDate).toLocaleDateString('en-PH', {
                     year: 'numeric',
@@ -136,57 +453,59 @@ export default function SalesInvoicePrint({ sale, isOpen, onClose }: SalesInvoic
                     day: 'numeric'
                   })}
                 </p>
-                <p className="text-sm text-gray-700">
+                <p className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
                   <span className="font-semibold">Time:</span>{' '}
                   {new Date(sale.createdAt).toLocaleTimeString('en-PH')}
                 </p>
-              </div>
-
-              <div className="text-right">
-                <h3 className="text-sm font-bold text-gray-900 mb-2">SOLD TO:</h3>
-                <p className="text-sm text-gray-700 font-semibold">
-                  {sale.customer?.name || 'Walk-in Customer'}
+                <p className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                  <span className="font-semibold">Cashier:</span>{' '}
+                  {cashier
+                    ? (cashier.firstName && cashier.lastName
+                      ? `${cashier.firstName} ${cashier.lastName}`
+                      : cashier.username || 'Unknown')
+                    : 'Loading...'}
                 </p>
-                {sale.customer?.mobile && (
-                  <p className="text-sm text-gray-600">{sale.customer.mobile}</p>
-                )}
-                {sale.customer?.email && (
-                  <p className="text-sm text-gray-600">{sale.customer.email}</p>
-                )}
+                <p className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                  <span className="font-semibold">Location:</span>{' '}
+                  {location?.name || (sale.locationId ? 'Loading...' : 'N/A')}
+                </p>
               </div>
             </div>
 
             {/* Items Table */}
-            <table className="w-full mb-6 border-collapse">
+            <table className="w-full mb-3 border-collapse">
               <thead>
-                <tr className="border-b-2 border-gray-800">
-                  <th className="text-left py-2 px-2 text-sm font-bold">ITEM</th>
-                  <th className="text-center py-2 px-2 text-sm font-bold">QTY</th>
-                  <th className="text-right py-2 px-2 text-sm font-bold">PRICE</th>
-                  <th className="text-right py-2 px-2 text-sm font-bold">AMOUNT</th>
+                <tr className="border-b-2 border-black">
+                  <th className={`text-left py-1 font-bold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                    ITEM
+                  </th>
+                  <th className={`text-center py-1 font-bold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                    QTY
+                  </th>
+                  <th className={`text-right py-1 font-bold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                    PRICE
+                  </th>
+                  <th className={`text-right py-1 font-bold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                    AMOUNT
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {sale.items?.map((item: any, index: number) => (
-                  <tr key={index} className="border-b border-gray-300">
-                    <td className="py-2 px-2 text-sm text-gray-700">
+                  <tr key={index} className="border-b border-dashed border-gray-300">
+                    <td className={`py-1 text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
                       {item.product?.name || `Product #${item.productId}`}
-                      {item.serialNumbers && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          Serial: {item.serialNumbers.map((sn: any) => sn.serialNumber || sn.imei).join(', ')}
-                        </div>
-                      )}
                     </td>
-                    <td className="py-2 px-2 text-sm text-center text-gray-700">
+                    <td className={`py-1 text-center text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
                       {parseFloat(item.quantity).toFixed(2)}
                     </td>
-                    <td className="py-2 px-2 text-sm text-right text-gray-700">
+                    <td className={`py-1 text-right text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
                       ₱{parseFloat(item.unitPrice).toLocaleString('en-PH', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
                       })}
                     </td>
-                    <td className="py-2 px-2 text-sm text-right text-gray-700">
+                    <td className={`py-1 text-right text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
                       ₱{(parseFloat(item.quantity) * parseFloat(item.unitPrice)).toLocaleString('en-PH', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
@@ -197,95 +516,193 @@ export default function SalesInvoicePrint({ sale, isOpen, onClose }: SalesInvoic
               </tbody>
             </table>
 
-            {/* Totals */}
-            <div className="flex justify-end mb-6">
-              <div className="w-64">
-                <div className="flex justify-between py-1 text-sm">
-                  <span className="text-gray-700">Subtotal:</span>
-                  <span className="text-gray-900 font-semibold">
-                    ₱{parseFloat(sale.subtotal).toLocaleString('en-PH', {
+            {/* Totals Section */}
+            <div className="border-t-2 border-black pt-2">
+              {/* Subtotal */}
+              <div className="flex justify-between py-1">
+                <span className={`text-gray-700 font-semibold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                  Subtotal:
+                </span>
+                <span className={`text-gray-900 font-bold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                  ₱{parseFloat(sale.subtotal).toLocaleString('en-PH', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })}
+                </span>
+              </div>
+
+              {/* Discount */}
+              {parseFloat(sale.discountAmount) > 0 && (
+                <div className="flex justify-between py-1">
+                  <span className={`text-red-600 font-semibold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                    Discount {sale.discountType && `(${sale.discountType})`}:
+                  </span>
+                  <span className={`text-red-600 font-bold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                    -₱{parseFloat(sale.discountAmount).toLocaleString('en-PH', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })}
+                  </span>
+                </div>
+              )}
+
+              {/* BIR VAT Breakdown */}
+              <div className="border-y border-dashed border-gray-400 my-2 py-2">
+                <p className={`font-bold text-gray-900 mb-1 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                  BIR VAT BREAKDOWN:
+                </p>
+                {isVATExempt ? (
+                  <div className="flex justify-between py-0.5">
+                    <span className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                      VAT-Exempt Sales:
+                    </span>
+                    <span className={`text-gray-900 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                      ₱{vatExemptAmount.toLocaleString('en-PH', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between py-0.5">
+                      <span className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                        VATable Sales:
+                      </span>
+                      <span className={`text-gray-900 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                        ₱{vatableSales.toLocaleString('en-PH', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-0.5">
+                      <span className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                        VAT Amount (12%):
+                      </span>
+                      <span className={`text-gray-900 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                        ₱{vatAmount.toLocaleString('en-PH', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Grand Total */}
+              <div className="flex justify-between py-2 border-y-2 border-black my-2">
+                <span className={`font-bold text-gray-900 ${paperSize === '80mm' ? 'text-sm' : 'text-lg'}`}>
+                  TOTAL:
+                </span>
+                <span className={`font-bold text-gray-900 ${paperSize === '80mm' ? 'text-sm' : 'text-lg'}`}>
+                  ₱{totalAmount.toLocaleString('en-PH', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  })}
+                </span>
+              </div>
+
+              {/* Payment Details */}
+              <div className="mt-2 pt-2 border-t border-dashed border-gray-400">
+                <p className={`font-bold text-gray-900 mb-1 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                  PAYMENT DETAILS:
+                </p>
+                {sale.payments?.map((payment: any, index: number) => (
+                  <div key={index} className="flex justify-between py-0.5">
+                    <span className={`text-gray-700 capitalize ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                      {payment.paymentMethod}:
+                    </span>
+                    <span className={`text-gray-900 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                      ₱{parseFloat(payment.amount).toLocaleString('en-PH', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
+                    </span>
+                  </div>
+                ))}
+
+                {/* Amount Tendered */}
+                <div className="flex justify-between py-0.5 font-semibold">
+                  <span className={`text-blue-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                    Amount Tendered:
+                  </span>
+                  <span className={`text-blue-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                    ₱{totalPaid.toLocaleString('en-PH', {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2
                     })}
                   </span>
                 </div>
 
-                {parseFloat(sale.discountAmount) > 0 && (
-                  <div className="flex justify-between py-1 text-sm text-red-600">
-                    <span>Discount {sale.discountType && `(${sale.discountType})`}:</span>
-                    <span className="font-semibold">
-                      -₱{parseFloat(sale.discountAmount).toLocaleString('en-PH', {
+                {/* Customer Information */}
+                <div className="mt-2 pt-2 border-t border-gray-300 space-y-1">
+                  <div className="flex py-0.5">
+                    <span className={`text-gray-700 font-semibold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'} w-24`}>
+                      Sold to:
+                    </span>
+                    <span className={`text-gray-900 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'} flex-1`}>
+                      {sale.customer?.name || 'Walk-in Customer'}
+                    </span>
+                  </div>
+                  <div className="flex py-0.5">
+                    <span className={`text-gray-700 font-semibold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'} w-24`}>
+                      Address:
+                    </span>
+                    <span className={`text-gray-900 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'} flex-1`}>
+                      {sale.customer?.address || '_______________________________'}
+                    </span>
+                  </div>
+                  <div className="flex py-0.5">
+                    <span className={`text-gray-700 font-semibold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'} w-24`}>
+                      TIN:
+                    </span>
+                    <span className={`text-gray-900 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'} flex-1`}>
+                      {sale.customer?.taxNumber || '_______________________________'}
+                    </span>
+                  </div>
+                  <div className="flex py-0.5">
+                    <span className={`text-gray-700 font-semibold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'} w-24`}>
+                      Bus. Style:
+                    </span>
+                    <span className={`text-gray-900 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'} flex-1`}>
+                      {sale.customer?.businessStyle || '_______________________________'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Change */}
+                {changeAmount > 0 && (
+                  <div className="flex justify-between py-0.5 font-bold mt-2">
+                    <span className={`text-green-600 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                      Change:
+                    </span>
+                    <span className={`text-green-600 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                      ₱{changeAmount.toLocaleString('en-PH', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
                       })}
                     </span>
                   </div>
                 )}
-
-                {parseFloat(sale.taxAmount) > 0 && (
-                  <div className="flex justify-between py-1 text-sm">
-                    <span className="text-gray-700">Tax:</span>
-                    <span className="text-gray-900 font-semibold">
-                      ₱{parseFloat(sale.taxAmount).toLocaleString('en-PH', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                      })}
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex justify-between py-2 text-lg border-t-2 border-gray-800 mt-2">
-                  <span className="font-bold text-gray-900">TOTAL:</span>
-                  <span className="font-bold text-gray-900">
-                    ₱{parseFloat(sale.totalAmount).toLocaleString('en-PH', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2
-                    })}
-                  </span>
-                </div>
-
-                {/* Payment Information */}
-                <div className="mt-4 pt-4 border-t border-gray-300">
-                  <p className="text-sm font-semibold text-gray-700 mb-2">PAYMENT:</p>
-                  {sale.payments?.map((payment: any, index: number) => (
-                    <div key={index} className="flex justify-between py-1 text-sm">
-                      <span className="text-gray-600 capitalize">{payment.paymentMethod}:</span>
-                      <span className="text-gray-900">
-                        ₱{parseFloat(payment.amount).toLocaleString('en-PH', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
-                        })}
-                      </span>
-                    </div>
-                  ))}
-
-                  {calculateChange() > 0 && (
-                    <div className="flex justify-between py-1 text-sm font-semibold">
-                      <span className="text-green-600">Change:</span>
-                      <span className="text-green-600">
-                        ₱{calculateChange().toLocaleString('en-PH', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
-                        })}
-                      </span>
-                    </div>
-                  )}
-                </div>
               </div>
             </div>
 
             {/* Discount Details (if applicable) */}
             {(sale.seniorCitizenId || sale.pwdId) && (
-              <div className="mb-6 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                <p className="text-sm font-semibold text-gray-900 mb-1">BIR DISCOUNT DETAILS:</p>
+              <div className="mt-3 p-2 bg-yellow-50 border border-yellow-300 rounded">
+                <p className={`font-bold text-gray-900 mb-1 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                  BIR DISCOUNT DETAILS:
+                </p>
                 {sale.seniorCitizenId && (
-                  <div className="text-sm text-gray-700">
+                  <div className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
                     <p>Senior Citizen ID: {sale.seniorCitizenId}</p>
                     <p>Name: {sale.seniorCitizenName}</p>
                   </div>
                 )}
                 {sale.pwdId && (
-                  <div className="text-sm text-gray-700">
+                  <div className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
                     <p>PWD ID: {sale.pwdId}</p>
                     <p>Name: {sale.pwdName}</p>
                   </div>
@@ -293,66 +710,21 @@ export default function SalesInvoicePrint({ sale, isOpen, onClose }: SalesInvoic
               </div>
             )}
 
-            {/* Warranty Remarks */}
-            {business.invoiceWarrantyRemarks && (
-              <div className="mb-6 p-3 bg-blue-50 border border-blue-200 rounded">
-                <p className="text-sm font-semibold text-gray-900 mb-1">WARRANTY & TERMS:</p>
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                  {business.invoiceWarrantyRemarks}
-                </p>
-              </div>
-            )}
-
             {/* Footer */}
-            <div className="text-center pt-6 border-t-2 border-gray-800 mt-6">
-              <p className="text-sm text-gray-600 mb-2">
-                Thank you for your business!
+            <div className="text-center pt-3 border-t-2 border-black mt-3">
+              <p className={`text-gray-600 mb-1 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                Thank you for shopping with us!
               </p>
-              <p className="text-xs text-gray-500">
-                This serves as your official receipt. Please keep for your records.
+              <p className={`text-gray-500 ${paperSize === '80mm' ? 'text-[10px]' : 'text-xs'}`}>
+                This serves as your Warranty Slip. Please keep for your records.
               </p>
-              <p className="text-xs text-gray-500 mt-2">
+              <p className={`text-gray-500 mt-1 ${paperSize === '80mm' ? 'text-[10px]' : 'text-xs'}`}>
                 Generated by: {business.name} POS System
               </p>
             </div>
           </div>
         </div>
 
-        {/* Print Styles */}
-        <style jsx global>{`
-          @page {
-            margin: 12mm 10mm 15mm;
-          }
-          @media print {
-            html,
-            body {
-              margin: 0;
-              padding: 0;
-              background: #ffffff;
-            }
-            body * {
-              visibility: hidden;
-            }
-            #invoice-content,
-            #invoice-content * {
-              visibility: visible;
-            }
-            #invoice-content {
-              position: static;
-              width: 100%;
-              margin: 0;
-            }
-            .print\\:hidden {
-              display: none !important;
-            }
-            .print\\:p-0 {
-              padding: 0 !important;
-            }
-            .print\\:max-w-full {
-              max-width: 100% !important;
-            }
-          }
-        `}</style>
       </DialogContent>
     </Dialog>
   )

@@ -27,10 +27,29 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const shiftIdParam = searchParams.get('shiftId')
 
+    // CRITICAL SECURITY: Get user's assigned locations first
+    const userLocations = await prisma.userLocation.findMany({
+      where: { userId: parseInt(user.id) },
+      select: { locationId: true },
+    })
+    const userLocationIds = userLocations.map(ul => ul.locationId)
+
+    if (userLocationIds.length === 0) {
+      return NextResponse.json(
+        { error: 'No location assigned. Please contact your administrator.' },
+        { status: 403 }
+      )
+    }
+
     let shift
     if (shiftIdParam) {
-      shift = await prisma.cashierShift.findUnique({
-        where: { id: parseInt(shiftIdParam) },
+      // CRITICAL: Validate that the requested shift belongs to user's assigned location
+      shift = await prisma.cashierShift.findFirst({
+        where: {
+          id: parseInt(shiftIdParam),
+          businessId: parseInt(businessId),
+          locationId: { in: userLocationIds }, // SECURITY: Only shifts from user's locations
+        },
         include: {
           sales: {
             include: {
@@ -51,11 +70,12 @@ export async function GET(request: NextRequest) {
         },
       })
     } else {
-      // Get current open shift
+      // Get current open shift for this user at their assigned location(s)
       shift = await prisma.cashierShift.findFirst({
         where: {
           userId: parseInt(user.id),
           businessId: parseInt(businessId),
+          locationId: { in: userLocationIds }, // SECURITY: Only user's locations
           status: 'open',
         },
         include: {
@@ -80,7 +100,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (!shift) {
-      return NextResponse.json({ error: 'No shift found for Z Reading' }, { status: 404 })
+      return NextResponse.json(
+        { error: 'No shift found for Z Reading at your assigned location' },
+        { status: 404 }
+      )
     }
 
     // Calculate all totals
@@ -104,12 +127,21 @@ export async function GET(request: NextRequest) {
     }, 0)
 
     // Payment method breakdown
+    // IMPORTANT: Handle overpayment (change) correctly
+    // If total payments > sale total, allocate proportionally to avoid counting change as sales
     const paymentBreakdown: any = {}
     completedSales.forEach(sale => {
+      const saleTotal = parseFloat(sale.totalAmount.toString())
+      const paymentsTotal = sale.payments.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0)
+
+      // If overpaid (change given), allocate proportionally
+      const allocationRatio = paymentsTotal > saleTotal ? saleTotal / paymentsTotal : 1
+
       sale.payments.forEach(payment => {
         const method = payment.paymentMethod
         const amount = parseFloat(payment.amount.toString())
-        paymentBreakdown[method] = (paymentBreakdown[method] || 0) + amount
+        const allocatedAmount = amount * allocationRatio // Adjust for change
+        paymentBreakdown[method] = (paymentBreakdown[method] || 0) + allocatedAmount
       })
     })
 

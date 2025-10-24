@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate variance for each purchase
     const variances: any[] = []
-    let totalPurchases = purchases.length
+    const totalPurchases = purchases.length
     let purchasesWithVariance = 0
     let totalQuantityVariance = 0
     let totalAmountVariance = 0

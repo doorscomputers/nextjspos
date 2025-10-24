@@ -98,20 +98,36 @@ export default function PurchasesDevExtremePage() {
   }
 
   const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { variant: any; label: string }> = {
+    const statusConfig: Record<string, { variant: any; label: string; className?: string }> = {
       'draft': { variant: 'secondary', label: 'Draft' },
-      'pending': { variant: 'default', label: 'Pending' },
+      'pending': {
+        variant: 'default',
+        label: 'Pending',
+        className: 'bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-700'
+      },
       'ordered': { variant: 'default', label: 'Ordered' },
-      'partial': { variant: 'default', label: 'Partial' },
-      'received': { variant: 'default', label: 'Received' },
-      'completed': { variant: 'default', label: 'Completed' },
+      'partial': {
+        variant: 'default',
+        label: 'Partial',
+        className: 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-700'
+      },
+      'received': {
+        variant: 'default',
+        label: 'Received',
+        className: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-700'
+      },
+      'completed': {
+        variant: 'default',
+        label: 'Completed',
+        className: 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/30 dark:text-green-400 dark:border-green-700'
+      },
       'cancelled': { variant: 'destructive', label: 'Cancelled' },
     }
 
     const config = statusConfig[status] || { variant: 'secondary', label: status }
 
     return (
-      <Badge variant={config.variant} className="capitalize">
+      <Badge variant={config.variant} className={`capitalize ${config.className || ''}`}>
         {config.label}
       </Badge>
     )
@@ -312,15 +328,23 @@ export default function PurchasesDevExtremePage() {
             Manage purchase orders with master-detail view
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={fetchPurchases} variant="outline" size="sm">
+        <div className="flex gap-3">
+          <Button
+            onClick={fetchPurchases}
+            variant="outline"
+            size="default"
+            className="border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 shadow-sm"
+          >
             <ArrowPathIcon className="w-4 h-4 mr-2" />
             Refresh
           </Button>
           {can(PERMISSIONS.PURCHASE_CREATE) && (
             <Link href="/dashboard/purchases/create">
-              <Button className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600">
-                <PlusIcon className="w-4 h-4 mr-2" />
+              <Button
+                size="default"
+                className="bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all font-semibold"
+              >
+                <PlusIcon className="w-5 h-5 mr-2" />
                 New Purchase Order
               </Button>
             </Link>

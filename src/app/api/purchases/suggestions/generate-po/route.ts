@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
       for (const variation of supplierVariations) {
         // Get suggested order quantity from product reorderQuantity or calculate it
         const product = variation.product
-        let quantity = product.reorderQuantity
+        const quantity = product.reorderQuantity
           ? parseFloat(product.reorderQuantity.toString())
           : 100 // Default fallback
 

@@ -121,13 +121,16 @@ export default function POSEnhancedPage() {
   // Search State
   const [searchTerm, setSearchTerm] = useState('')
 
+  // Only run checks when session is ready
   useEffect(() => {
-    checkShift()
-    fetchCategories()
-    fetchCustomers()
-    fetchQuotations()
-    loadHeldTransactions()
-  }, [])
+    if (session) {
+      checkShift()
+      fetchCategories()
+      fetchCustomers()
+      fetchQuotations()
+      loadHeldTransactions()
+    }
+  }, [session])
 
   // Fetch products after shift is loaded
   useEffect(() => {
@@ -302,22 +305,32 @@ export default function POSEnhancedPage() {
 
   const checkShift = async () => {
     try {
+      console.log('[POS] Checking for active shift...')
       const res = await fetch('/api/shifts?status=open')
       const data = await res.json()
+
+      console.log('[POS] API response:', data)
+
       if (data.shifts && data.shifts.length > 0) {
         const shift = data.shifts[0]
+        console.log('[POS] Found shift:', shift.shiftNumber, 'Beginning cash:', shift.beginningCash)
+
         if (!shift.beginningCash || parseFloat(shift.beginningCash) <= 0) {
+          console.error('[POS] Invalid shift - no beginning cash')
           setError('Invalid shift: No beginning cash found.')
           router.push('/dashboard/shifts/begin')
           return
         }
+
+        console.log('[POS] Setting current shift and loading products...')
         setCurrentShift(shift)
       } else {
+        console.log('[POS] No open shift found - redirecting to begin shift')
         setError('No active shift found. Please begin your shift first.')
         router.push('/dashboard/shifts/begin')
       }
     } catch (err) {
-      console.error('Error checking shift:', err)
+      console.error('[POS] Error checking shift:', err)
       setError('Unable to verify your shift status.')
     }
   }
@@ -1445,8 +1458,13 @@ export default function POSEnhancedPage() {
             <h1 className="text-xl font-bold">PciNet Computer</h1>
             <p className="text-sm text-blue-200">Trading and Services</p>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-col space-y-1">
             <span className="text-sm bg-blue-500 px-4 py-1 rounded-full font-medium">Terminal #1</span>
+            {currentShift?.location?.name && (
+              <span className="text-xs bg-green-500 px-3 py-1 rounded-full font-medium text-center">
+                📍 {currentShift.location.name}
+              </span>
+            )}
           </div>
         </div>
 
@@ -1491,9 +1509,9 @@ export default function POSEnhancedPage() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden gap-2">
         {/* Left Side - Products */}
-        <div className="flex-1 flex flex-col p-4 space-y-3">
+        <div className="flex-[1.5] flex flex-col p-4 space-y-3 min-w-0">
           {/* Barcode Search */}
           <div className="bg-white p-3 rounded-lg shadow-md">
             <Label className="text-sm font-medium mb-2 block">
@@ -1635,9 +1653,9 @@ export default function POSEnhancedPage() {
           <Tabs
             value={selectedCategory}
             onValueChange={setSelectedCategory}
-            className="flex-1 flex flex-col bg-white rounded-lg shadow-md min-h-0"
+            className="flex-1 flex flex-col bg-white rounded-lg shadow-md min-h-0 mt-3"
           >
-            <TabsList className="w-full justify-start overflow-x-auto bg-gradient-to-r from-blue-50 to-blue-100 border-b-2 border-blue-200 rounded-t-lg flex-shrink-0">
+            <TabsList className="w-full justify-start overflow-x-auto bg-gradient-to-r from-blue-50 to-blue-100 border-b-2 border-blue-200 rounded-t-lg flex-shrink-0 h-auto py-2">
               {categories.map((cat) => (
                 <TabsTrigger
                   key={cat.id}
@@ -1653,11 +1671,11 @@ export default function POSEnhancedPage() {
               value={selectedCategory}
               className="flex-1 overflow-y-auto p-3 min-h-0"
             >
-              <div className="grid grid-cols-4 lg:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 {currentProducts.map((product) => (
                   <Card
                     key={product.id}
-                    className="hover:shadow-xl transition-all hover:border-blue-400 hover:scale-105"
+                    className="bg-white hover:shadow-xl transition-all hover:border-blue-400 cursor-pointer border"
                   >
                     <CardContent className="p-3">
                       <h3 className="font-bold text-xs mb-1 line-clamp-2 h-8">
@@ -1720,7 +1738,7 @@ export default function POSEnhancedPage() {
         </div>
 
         {/* Right Side - Cart & Checkout */}
-        <div className="w-[550px] bg-white border-l flex flex-col shadow-2xl">
+        <div className="flex-1 min-w-[400px] max-w-[550px] bg-white border-l flex flex-col shadow-2xl">
           {/* Customer Selection */}
           <div className="p-2 border-b bg-gradient-to-r from-gray-50 to-gray-100">
             <Label className="text-xs font-medium mb-1 block">Customer</Label>
@@ -2148,7 +2166,7 @@ export default function POSEnhancedPage() {
               </Button>
               <Button
                 onClick={confirmKeypadValue}
-                className="h-12 bg-blue-600 hover:bg-blue-700"
+                className="h-12 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md"
               >
                 OK
               </Button>

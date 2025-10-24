@@ -195,7 +195,7 @@ export async function saveOpeningStock(
         }
 
         // Get or create variation location detail
-        let variationLocation = await tx.variationLocationDetails.findFirst({
+        const variationLocation = await tx.variationLocationDetails.findFirst({
           where: {
             productId,
             productVariationId: variationId,

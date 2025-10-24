@@ -50,6 +50,7 @@ export type UpdateStockParams = {
   unitCost?: number
   referenceType?: string
   referenceId?: number
+  referenceNumber?: string
   userId: number
   userDisplayName?: string
   notes?: string
@@ -150,6 +151,7 @@ async function executeStockUpdate(
     unitCost,
     referenceType,
     referenceId,
+    referenceNumber,
     userId,
     userDisplayName,
     notes,
@@ -222,6 +224,8 @@ async function executeStockUpdate(
   const unitCostDecimal = unitCost !== undefined ? toDecimal(unitCost) : null
   const historyReferenceId = referenceId ?? transaction.id
   const historyReferenceType = referenceType ?? 'stock_transaction'
+  // Use provided referenceNumber, or fall back to ID as string
+  const historyReferenceNumber = referenceNumber ?? historyReferenceId?.toString() ?? null
 
   await tx.productHistory.create({
     data: {
@@ -233,7 +237,7 @@ async function executeStockUpdate(
       transactionDate: transaction.createdAt,
       referenceType: historyReferenceType,
       referenceId: historyReferenceId,
-      referenceNumber: historyReferenceId?.toString() ?? null,
+      referenceNumber: historyReferenceNumber,
       quantityChange: quantityDecimal,
       balanceQuantity: newBalanceDecimal,
       unitCost: unitCostDecimal ?? undefined,
@@ -308,6 +312,7 @@ export async function addStock({
   unitCost,
   referenceType,
   referenceId,
+  referenceNumber,
   userId,
   userDisplayName,
   notes,
@@ -322,6 +327,7 @@ export async function addStock({
   unitCost?: number
   referenceType?: string
   referenceId?: number
+  referenceNumber?: string
   userId: number
   userDisplayName?: string
   notes?: string
@@ -341,6 +347,7 @@ export async function addStock({
     unitCost,
     referenceType,
     referenceId,
+    referenceNumber,
     userId,
     userDisplayName,
     notes,
@@ -361,6 +368,7 @@ export async function deductStock({
   unitCost,
   referenceType,
   referenceId,
+  referenceNumber,
   userId,
   notes,
   allowNegative = false,
@@ -376,6 +384,7 @@ export async function deductStock({
   unitCost?: number
   referenceType?: string
   referenceId?: number
+  referenceNumber?: string
   userId: number
   notes?: string
   allowNegative?: boolean
@@ -411,6 +420,7 @@ export async function deductStock({
     unitCost,
     referenceType,
     referenceId,
+    referenceNumber,
     userId,
     notes,
     allowNegative,
@@ -651,6 +661,9 @@ export async function processSupplierReturn({
   quantity,
   unitCost,
   returnId,
+  returnNumber,
+  supplierName,
+  returnReason,
   userId,
   userDisplayName,
   tx,
@@ -662,10 +675,21 @@ export async function processSupplierReturn({
   quantity: number
   unitCost: number
   returnId: number
+  returnNumber?: string
+  supplierName?: string
+  returnReason?: string
   userId: number
   userDisplayName?: string
   tx?: TransactionClient
 }) {
+  // Build detailed notes with supplier and reason information
+  const parts = ['Supplier Return']
+  if (returnNumber) parts.push(returnNumber)
+  if (supplierName) parts.push(`to ${supplierName}`)
+  if (returnReason) parts.push(`(${returnReason})`)
+
+  const notes = parts.join(' ')
+
   return await deductStock({
     businessId,
     productId,
@@ -676,8 +700,9 @@ export async function processSupplierReturn({
     unitCost,
     referenceType: 'supplier_return',
     referenceId: returnId,
+    referenceNumber: returnNumber, // Pass the actual SR number
     userId,
-    notes: `Supplier Return #${returnId}`,
+    notes,
     userDisplayName,
     tx,
   })

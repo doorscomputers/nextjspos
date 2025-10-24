@@ -50,12 +50,18 @@ interface TransferItem {
   availableStock: number
 }
 
+interface Location {
+  id: number
+  name: string
+  isAssigned?: boolean
+}
+
 export default function CreateTransferPage() {
   const { can, user } = usePermissions()
   const router = useRouter()
 
-  const [allLocations, setAllLocations] = useState<any[]>([]) // All business locations for To dropdown
-  const [userLocations, setUserLocations] = useState<any[]>([]) // User's assigned locations
+  const [allLocations, setAllLocations] = useState<Location[]>([]) // All business locations for To dropdown
+  const [userLocations, setUserLocations] = useState<Location[]>([]) // User's assigned locations
   const [loadingLocations, setLoadingLocations] = useState(true)
 
   const [fromLocationId, setFromLocationId] = useState('')
@@ -86,16 +92,31 @@ export default function CreateTransferPage() {
       console.log('🔍 User locations API response:', userLocationsData)
       console.log('📍 Number of locations:', userLocationsData.locations?.length || 0)
       console.log('🔓 Has access to all:', userLocationsData.hasAccessToAll)
+      console.log('🏠 Primary location ID:', userLocationsData.primaryLocationId)
 
       if (userLocationsData.locations && userLocationsData.locations.length > 0) {
         setUserLocations(userLocationsData.locations)
 
-        // Auto-assign first user location as "From Location" regardless of permissions
-        // This ensures the field is always populated for a better UX
-        const firstLocationId = userLocationsData.locations[0].id.toString()
-        setFromLocationId(firstLocationId)
-        console.log('✅ Auto-assigned from location:', firstLocationId, '-', userLocationsData.locations[0].name)
-        toast.success(`From Location set to: ${userLocationsData.locations[0].name}`)
+        // Use primaryLocationId if available (user's actual assigned location)
+        // This prioritizes the user's home location even if they have ACCESS_ALL_LOCATIONS
+        const defaultLocationId = userLocationsData.primaryLocationId
+          ? userLocationsData.primaryLocationId.toString()
+          : userLocationsData.locations[0].id.toString()
+
+        setFromLocationId(defaultLocationId)
+
+        const defaultLocation = userLocationsData.locations.find(
+          loc => loc.id.toString() === defaultLocationId
+        )
+
+        if (defaultLocation) {
+          const locationLabel = defaultLocation.isAssigned
+            ? `${defaultLocation.name} (Your Assigned Location)`
+            : defaultLocation.name
+
+          console.log('✅ Auto-assigned from location:', defaultLocationId, '-', locationLabel)
+          toast.success(`From Location set to: ${locationLabel}`)
+        }
       } else {
         console.warn('⚠️ No locations found for user')
         toast.warning('No locations assigned. Please contact your administrator.')
@@ -109,7 +130,22 @@ export default function CreateTransferPage() {
       console.log('🏢 All business locations:', allLocationsData.locations?.length || 0)
 
       if (allLocationsRes.ok) {
-        setAllLocations(allLocationsData.locations || [])
+        const locations = allLocationsData.locations || []
+        setAllLocations(locations)
+
+        // HUB-AND-SPOKE MODEL: Auto-set destination based on from location
+        // If from location is NOT Main Warehouse, auto-set to Main Warehouse
+        // This ensures all branch transfers go to Main Warehouse (centralized model)
+        const mainWarehouse = locations.find(loc => loc.name === 'Main Warehouse')
+        const defaultFromLocation = userLocationsData.locations.find(
+          loc => loc.id === userLocationsData.primaryLocationId
+        )
+
+        if (mainWarehouse && defaultFromLocation && defaultFromLocation.name !== 'Main Warehouse') {
+          setToLocationId(mainWarehouse.id.toString())
+          console.log('🏭 Auto-set destination to Main Warehouse (Hub-and-Spoke model)')
+          toast.info('Destination auto-set to Main Warehouse (centralized transfer policy)')
+        }
       }
     } catch (error) {
       console.error('❌ Error fetching initial data:', error)
@@ -285,50 +321,82 @@ export default function CreateTransferPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   From Location <span className="text-red-500">*</span>
                 </label>
-                <Select
-                  value={fromLocationId}
-                  onValueChange={setFromLocationId}
-                  disabled={loadingLocations}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select origin location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {userLocations.map(loc => (
-                      <SelectItem key={loc.id} value={loc.id.toString()}>{loc.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {fromLocationId && userLocations.length === 1 && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Auto-assigned to your location
-                  </p>
-                )}
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={
+                      userLocations.find(loc => loc.id.toString() === fromLocationId)?.name || 'Loading...'
+                    }
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 cursor-not-allowed dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300"
+                    placeholder="Your assigned location"
+                  />
+                  {userLocations.find(loc => loc.id.toString() === fromLocationId)?.isAssigned && (
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded dark:bg-green-900 dark:text-green-300">
+                      Assigned
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  <strong>Auto-assigned:</strong> This is automatically set to your primary assigned location
+                </p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   To Location <span className="text-red-500">*</span>
                 </label>
-                <Select value={toLocationId} onValueChange={setToLocationId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select destination location" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {allLocations
-                      .filter(loc => {
-                        // Exclude the selected "From Location"
-                        if (fromLocationId && loc.id === parseInt(fromLocationId)) return false
-                        return true
-                      })
-                      .map(loc => (
-                        <SelectItem key={loc.id} value={loc.id.toString()}>{loc.name}</SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                {(() => {
+                  // HUB-AND-SPOKE MODEL LOGIC
+                  const fromLocation = userLocations.find(loc => loc.id.toString() === fromLocationId)
+                  const isFromMainWarehouse = fromLocation?.name === 'Main Warehouse'
+                  const mainWarehouse = allLocations.find(loc => loc.name === 'Main Warehouse')
+
+                  // If transferring FROM a branch (not Main Warehouse), TO location is locked to Main Warehouse
+                  if (!isFromMainWarehouse && mainWarehouse) {
+                    return (
+                      <>
+                        <input
+                          type="text"
+                          value="Main Warehouse"
+                          disabled
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 cursor-not-allowed dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300"
+                        />
+                        <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                          <strong>🏭 Centralized Transfer Policy:</strong> All branch transfers must go to Main Warehouse
+                        </p>
+                      </>
+                    )
+                  }
+
+                  // If transferring FROM Main Warehouse, allow selecting any other location
+                  return (
+                    <>
+                      <Select value={toLocationId} onValueChange={setToLocationId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select destination location" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {allLocations
+                            .filter(loc => {
+                              // Exclude Main Warehouse itself (can't transfer to itself)
+                              if (fromLocationId && loc.id === parseInt(fromLocationId)) return false
+                              return true
+                            })
+                            .map(loc => (
+                              <SelectItem key={loc.id} value={loc.id.toString()}>{loc.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                        <strong>✅ Main Warehouse:</strong> Can transfer to any branch location
+                      </p>
+                    </>
+                  )
+                })()}
               </div>
             </div>
 

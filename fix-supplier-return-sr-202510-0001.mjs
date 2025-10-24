@@ -117,6 +117,34 @@ async function fixSupplierReturnAccounting() {
     console.log(`Total Updates: ${updates.length}`)
     console.log()
 
+    // Generate payment number (format: PAY-YYYYMM-0001)
+    const returnDate = new Date(supplierReturn.returnDate)
+    const currentYear = returnDate.getFullYear()
+    const currentMonth = String(returnDate.getMonth() + 1).padStart(2, '0')
+
+    const lastPayment = await prisma.payment.findFirst({
+      where: {
+        businessId: supplierReturn.businessId,
+        paymentNumber: {
+          startsWith: `PAY-${currentYear}${currentMonth}`,
+        },
+      },
+      orderBy: {
+        paymentNumber: 'desc',
+      },
+    })
+
+    let paymentNumber
+    if (lastPayment) {
+      const lastNumber = parseInt(lastPayment.paymentNumber.split('-').pop() || '0')
+      paymentNumber = `PAY-${currentYear}${currentMonth}-${String(lastNumber + 1).padStart(4, '0')}`
+    } else {
+      paymentNumber = `PAY-${currentYear}${currentMonth}-0001`
+    }
+
+    console.log(`Generated Payment Number: ${paymentNumber}`)
+    console.log()
+
     // Apply updates in a transaction
     await prisma.$transaction(async (tx) => {
       for (const update of updates) {
@@ -138,16 +166,17 @@ async function fixSupplierReturnAccounting() {
           businessId: supplierReturn.businessId,
           supplierId: supplierReturn.supplierId,
           amount: Number(supplierReturn.totalAmount),
+          paymentNumber,
           paymentDate: supplierReturn.returnDate,
           paymentMethod: 'supplier_return_credit',
-          referenceNumber: supplierReturn.returnNumber,
+          transactionReference: supplierReturn.returnNumber,
           status: 'completed',
           notes: `Credit from supplier return ${supplierReturn.returnNumber} - ${supplierReturn.returnReason}`,
           createdBy: supplierReturn.createdBy
         }
       })
 
-      console.log(`✅ Created Payment record: ${payment.referenceNumber}`)
+      console.log(`✅ Created Payment record: ${payment.paymentNumber}`)
     })
 
     console.log()

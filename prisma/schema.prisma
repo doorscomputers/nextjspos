@@ -61,6 +61,24 @@ model User {
   approvedFreebies             FreebieLog[]               @relation("FreebieApprovedBy")
   notifications                Notification[]             @relation("NotificationRecipient")
   announcements                Announcement[]
+  createdTransfers             StockTransfer[]            @relation("TransferCreator")
+  checkedTransfers             StockTransfer[]            @relation("TransferChecker")
+  sentTransfers                StockTransfer[]            @relation("TransferSender")
+  arrivedTransfers             StockTransfer[]            @relation("TransferArrivalMarker")
+  verifiedTransfers            StockTransfer[]            @relation("TransferVerifier")
+  completedTransfers           StockTransfer[]            @relation("TransferCompleter")
+  employeeSchedules            EmployeeSchedule[]
+  attendances                  Attendance[]
+  switchApprovals              Attendance[]               @relation("AttendanceSwitchApprover")
+  requestedLocationChanges     LocationChangeRequest[]    @relation("LocationChangeRequestUser")
+  approvedLocationChanges      LocationChangeRequest[]    @relation("LocationChangeApprover")
+  leaveRequests                LeaveRequest[]             @relation("LeaveRequestUser")
+  approvedLeaveRequests        LeaveRequest[]             @relation("LeaveRequestApprover")
+  replacementLeaveRequests     LeaveRequest[]             @relation("LeaveRequestReplacement")
+  overtimeApprovals            Attendance[]               @relation("OvertimeApprover")
+  overtimeAlerts               OvertimeAlert[]            @relation("OvertimeAlertUser")
+  overtimeAlertsAcknowledged   OvertimeAlert[]            @relation("OvertimeAlertAcknowledger")
+  salesCreated                 Sale[]                     @relation("SaleCreator")
 
   @@map("users")
 }
@@ -127,13 +145,22 @@ model Business {
   lastZReadingDate DateTime? @map("last_z_reading_date") // Last Z-Reading timestamp
 
   // Relations
-  locations            BusinessLocation[]
-  users                User[]
-  roles                Role[]
-  subscriptions        Subscription[]
-  inventoryCorrections InventoryCorrection[]
-  productVariations    ProductVariation[]
-  announcements        Announcement[]
+  locations              BusinessLocation[]
+  users                  User[]
+  roles                  Role[]
+  subscriptions          Subscription[]
+  inventoryCorrections   InventoryCorrection[]
+  productVariations      ProductVariation[]
+  announcements          Announcement[]
+  employeeSchedules      EmployeeSchedule[]
+  attendances            Attendance[]
+  locationChangeRequests LocationChangeRequest[]
+  leaveRequests          LeaveRequest[]
+  overtimeConfigurations OvertimeConfiguration[]
+  overtimeAlerts         OvertimeAlert[]
+  scheduleLoginConfig    ScheduleLoginConfiguration?
+  sodSettings            BusinessSODSettings?
+  inactivitySettings     InactivitySettings?
 
   @@map("business")
 }
@@ -164,8 +191,14 @@ model BusinessLocation {
   roleLocations        RoleLocation[]
   inventoryCorrections InventoryCorrection[]
   serialNumbers        ProductSerialNumber[]
-  transfersFrom        StockTransfer[]       @relation("TransfersFrom")
-  transfersTo          StockTransfer[]       @relation("TransfersTo")
+  transfersFrom        StockTransfer[]         @relation("TransfersFrom")
+  transfersTo          StockTransfer[]         @relation("TransfersTo")
+  employeeSchedules    EmployeeSchedule[]
+  attendances          Attendance[]            @relation("AttendanceLocation")
+  switchedAttendances  Attendance[]            @relation("AttendanceSwitchedLocation")
+  locationChangesFrom  LocationChangeRequest[] @relation("LocationChangeFrom")
+  locationChangesTo    LocationChangeRequest[] @relation("LocationChangeTo")
+  overtimeAlerts       OvertimeAlert[]
 
   @@index([businessId])
   @@map("business_locations")
@@ -285,6 +318,62 @@ model Currency {
   businesses Business[]
 
   @@map("currencies")
+}
+
+// ============================================
+// ATOMIC NUMBER SEQUENCES
+// ============================================
+
+// Atomic sequence generator for invoice numbers
+model InvoiceSequence {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  year       Int
+  month      Int
+  sequence   Int @default(1)
+
+  @@unique([businessId, year, month])
+  @@index([businessId])
+  @@map("invoice_sequences")
+}
+
+// Atomic sequence generator for receipt (GRN) numbers
+model ReceiptSequence {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  year       Int
+  month      Int
+  sequence   Int @default(1)
+
+  @@unique([businessId, year, month])
+  @@index([businessId])
+  @@map("receipt_sequences")
+}
+
+// Atomic sequence generator for transfer numbers
+model TransferSequence {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  year       Int
+  month      Int
+  sequence   Int @default(1)
+
+  @@unique([businessId, year, month])
+  @@index([businessId])
+  @@map("transfer_sequences")
+}
+
+// Atomic sequence generator for return numbers
+model ReturnSequence {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  year       Int
+  month      Int
+  sequence   Int @default(1)
+
+  @@unique([businessId, year, month])
+  @@index([businessId])
+  @@map("return_sequences")
 }
 
 // Session management for NextAuth
@@ -511,6 +600,7 @@ model Product {
   quotationItems           QuotationItem[]
   purchaseReturnItems      PurchaseReturnItem[]       @relation("PurchaseReturnItemProduct")
   stockTransferItems       StockTransferItem[]
+  purchaseReceiptItems     PurchaseReceiptItem[]
 
   @@unique([businessId, sku]) // SKU must be unique within each business
   @@index([businessId])
@@ -573,6 +663,7 @@ model ProductVariation {
   freebieLogs              FreebieLog[]
   purchaseReturnItems      PurchaseReturnItem[]       @relation("PurchaseReturnItemVariation")
   stockTransferItems       StockTransferItem[]
+  purchaseReceiptItems     PurchaseReceiptItem[]
 
   @@unique([businessId, sku]) // SKU must be unique within each business
   @@index([productId])
@@ -787,8 +878,9 @@ model Customer {
   country         String? @db.VarChar(100)
   zipCode         String? @map("zip_code") @db.VarChar(10)
 
-  taxNumber   String?  @map("tax_number") @db.VarChar(100)
-  creditLimit Decimal? @map("credit_limit") @db.Decimal(22, 4)
+  taxNumber     String?  @map("tax_number") @db.VarChar(100)
+  businessStyle String?  @map("business_style") @db.VarChar(100)
+  creditLimit   Decimal? @map("credit_limit") @db.Decimal(22, 4)
 
   isActive Boolean @default(true) @map("is_active")
 
@@ -905,7 +997,7 @@ model Purchase {
   supplierId Int      @map("supplier_id")
   supplier   Supplier @relation(fields: [supplierId], references: [id])
 
-  purchaseOrderNumber String @unique @map("purchase_order_number") @db.VarChar(100)
+  purchaseOrderNumber String  @map("purchase_order_number") @db.VarChar(100)
 
   purchaseDate         DateTime  @map("purchase_date") @db.Date
   expectedDeliveryDate DateTime? @map("expected_delivery_date") @db.Date
@@ -941,6 +1033,7 @@ model Purchase {
   @@index([supplierId])
   @@index([status])
   @@index([purchaseDate])
+  @@unique([businessId, purchaseOrderNumber])
   @@map("purchases")
 }
 
@@ -1041,7 +1134,7 @@ model PurchaseReceipt {
 
   locationId Int @map("location_id")
 
-  receiptNumber String   @unique @map("receipt_number") @db.VarChar(100)
+  receiptNumber String   @map("receipt_number") @db.VarChar(100)
   receiptDate   DateTime @map("receipt_date") @db.Date
 
   status String @default("pending") @db.VarChar(50) // pending, approved, rejected
@@ -1063,6 +1156,7 @@ model PurchaseReceipt {
   qualityControlInspections QualityControlInspection[]
   serialNumbers             ProductSerialNumber[]
 
+  @@unique([businessId, receiptNumber])
   @@index([businessId])
   @@index([purchaseId])
   @@index([supplierId])
@@ -1094,7 +1188,9 @@ model PurchaseReceiptItem {
   createdAt DateTime @default(now()) @map("created_at")
 
   // Relations
-  returnItems PurchaseReturnItem[]
+  product          Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productVariation ProductVariation     @relation(fields: [productVariationId], references: [id], onDelete: Restrict)
+  returnItems      PurchaseReturnItem[]
 
   @@index([purchaseReceiptId])
   @@index([purchaseItemId])
@@ -1117,7 +1213,7 @@ model QualityControlInspection {
   purchaseReceiptId Int             @map("purchase_receipt_id")
   purchaseReceipt   PurchaseReceipt @relation(fields: [purchaseReceiptId], references: [id], onDelete: Restrict)
 
-  inspectionNumber String   @unique @map("inspection_number") @db.VarChar(100)
+  inspectionNumber String  @map("inspection_number") @db.VarChar(100)
   inspectionDate   DateTime @map("inspection_date") @db.Date
 
   // Status: pending, in_progress, passed, failed, conditional_pass
@@ -1149,6 +1245,7 @@ model QualityControlInspection {
   @@index([purchaseReceiptId])
   @@index([status])
   @@index([inspectionDate])
+  @@unique([businessId, inspectionNumber])
   @@map("quality_control_inspections")
 }
 
@@ -1261,7 +1358,7 @@ model PurchaseReturn {
   supplierId Int      @map("supplier_id")
   supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
 
-  returnNumber String   @unique @map("return_number") @db.VarChar(100)
+  returnNumber String  @map("return_number") @db.VarChar(100)
   returnDate   DateTime @map("return_date") @db.Date
 
   // Status: pending, approved, completed, rejected
@@ -1310,6 +1407,7 @@ model PurchaseReturn {
   @@index([status])
   @@index([returnDate])
   @@index([returnReason])
+  @@unique([businessId, returnNumber])
   @@map("purchase_returns")
 }
 
@@ -1358,7 +1456,7 @@ model DebitNote {
   purchaseReturnId Int            @map("purchase_return_id")
   purchaseReturn   PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
 
-  debitNoteNumber String   @unique @map("debit_note_number") @db.VarChar(100)
+  debitNoteNumber String  @map("debit_note_number") @db.VarChar(100)
   debitNoteDate   DateTime @map("debit_note_date") @db.Date
 
   // Amount to be deducted from accounts payable or refunded
@@ -1373,6 +1471,7 @@ model DebitNote {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@unique([businessId, debitNoteNumber])
   @@index([businessId])
   @@index([supplierId])
   @@index([purchaseReturnId])
@@ -1392,7 +1491,7 @@ model Sale {
   customerId Int?      @map("customer_id")
   customer   Customer? @relation(fields: [customerId], references: [id])
 
-  invoiceNumber String   @unique @map("invoice_number") @db.VarChar(100)
+  invoiceNumber String   @map("invoice_number") @db.VarChar(100)
   saleDate      DateTime @map("sale_date") @db.Date
 
   status String @default("completed") @db.VarChar(50) // draft, completed, cancelled, voided
@@ -1425,6 +1524,7 @@ model Sale {
   notes String? @db.Text
 
   createdBy Int       @map("created_by")
+  creator   User      @relation("SaleCreator", fields: [createdBy], references: [id])
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
@@ -1437,6 +1537,7 @@ model Sale {
   voidTransactions VoidTransaction[]
   freebieLogs      FreebieLog[]
 
+  @@unique([businessId, invoiceNumber])
   @@index([businessId])
   @@index([locationId])
   @@index([customerId])
@@ -1495,7 +1596,7 @@ model StockTransfer {
   id         Int @id @default(autoincrement())
   businessId Int @map("business_id")
 
-  transferNumber String @unique @map("transfer_number") @db.VarChar(100)
+  transferNumber String @map("transfer_number") @db.VarChar(100)
 
   fromLocationId Int @map("from_location_id")
   toLocationId   Int @map("to_location_id")
@@ -1554,10 +1655,17 @@ model StockTransfer {
   deletedAt DateTime? @map("deleted_at")
 
   // Relations
-  items        StockTransferItem[]
-  fromLocation BusinessLocation    @relation("TransfersFrom", fields: [fromLocationId], references: [id], onDelete: Restrict)
-  toLocation   BusinessLocation    @relation("TransfersTo", fields: [toLocationId], references: [id], onDelete: Restrict)
+  items         StockTransferItem[]
+  fromLocation  BusinessLocation    @relation("TransfersFrom", fields: [fromLocationId], references: [id], onDelete: Restrict)
+  toLocation    BusinessLocation    @relation("TransfersTo", fields: [toLocationId], references: [id], onDelete: Restrict)
+  creator       User                @relation("TransferCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  checker       User?               @relation("TransferChecker", fields: [checkedBy], references: [id], onDelete: Restrict)
+  sender        User?               @relation("TransferSender", fields: [sentBy], references: [id], onDelete: Restrict)
+  arrivalMarker User?               @relation("TransferArrivalMarker", fields: [arrivedBy], references: [id], onDelete: Restrict)
+  verifier      User?               @relation("TransferVerifier", fields: [verifiedBy], references: [id], onDelete: Restrict)
+  completer     User?               @relation("TransferCompleter", fields: [completedBy], references: [id], onDelete: Restrict)
 
+  @@unique([businessId, transferNumber])
   @@index([businessId])
   @@index([fromLocationId])
   @@index([toLocationId])
@@ -1616,7 +1724,7 @@ model CustomerReturn {
   customerId Int?      @map("customer_id")
   customer   Customer? @relation(fields: [customerId], references: [id])
 
-  returnNumber String   @unique @map("return_number") @db.VarChar(100)
+  returnNumber String   @map("return_number") @db.VarChar(100)
   returnDate   DateTime @map("return_date") @db.Date
 
   status String @default("pending") @db.VarChar(50) // pending, approved, rejected
@@ -1634,6 +1742,7 @@ model CustomerReturn {
   // Relations
   items CustomerReturnItem[]
 
+  @@unique([businessId, returnNumber])
   @@index([businessId])
   @@index([locationId])
   @@index([saleId])
@@ -1681,7 +1790,7 @@ model SupplierReturn {
   supplierId Int      @map("supplier_id")
   supplier   Supplier @relation(fields: [supplierId], references: [id])
 
-  returnNumber String   @unique @map("return_number") @db.VarChar(100)
+  returnNumber String  @map("return_number") @db.VarChar(100)
   returnDate   DateTime @map("return_date") @db.Date
 
   status String @default("pending") @db.VarChar(50) // pending, approved, completed
@@ -1706,6 +1815,7 @@ model SupplierReturn {
   @@index([supplierId])
   @@index([status])
   @@index([returnDate])
+  @@unique([businessId, returnNumber])
   @@map("supplier_returns")
 }
 
@@ -1854,7 +1964,7 @@ model Payment {
   accountsPayableId Int?             @map("accounts_payable_id")
   accountsPayable   AccountsPayable? @relation(fields: [accountsPayableId], references: [id])
 
-  paymentNumber String   @unique @map("payment_number") @db.VarChar(100)
+  paymentNumber String  @map("payment_number") @db.VarChar(100)
   paymentDate   DateTime @map("payment_date") @db.Date
 
   // Payment method: cash, cheque, bank_transfer, credit_card, debit_card
@@ -1892,6 +2002,7 @@ model Payment {
   // Relations
   bankTransactions BankTransaction[]
 
+  @@unique([businessId, paymentNumber])
   @@index([businessId])
   @@index([supplierId])
   @@index([accountsPayableId])
@@ -2027,7 +2138,7 @@ model ProductHistory {
 
   // Transaction details
   transactionType String   @map("transaction_type") @db.VarChar(50) // purchase, sale, transfer_in, transfer_out, adjustment, return
-  transactionDate DateTime @map("transaction_date") @db.Date
+  transactionDate DateTime @map("transaction_date") @db.Timestamp(6)
 
   // Reference to source transaction
   referenceType   String  @map("reference_type") @db.VarChar(50) // purchase, sale, transfer, return, correction
@@ -2073,7 +2184,7 @@ model CashierShift {
   locationId Int @map("location_id")
   userId     Int @map("user_id")
 
-  shiftNumber String    @unique @map("shift_number") @db.VarChar(100)
+  shiftNumber String  @map("shift_number") @db.VarChar(100)
   openedAt    DateTime  @map("opened_at")
   closedAt    DateTime? @map("closed_at")
 
@@ -2107,16 +2218,18 @@ model CashierShift {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  sales             Sale[]
-  cashInOutRecords  CashInOut[]
-  cashDenominations CashDenomination[]
-  freebieLogs       FreebieLog[]
+  sales                  Sale[]
+  cashInOutRecords       CashInOut[]
+  cashDenominations      CashDenomination[]
+  freebieLogs            FreebieLog[]
+  locationChangeRequests LocationChangeRequest[]
 
   @@index([businessId])
   @@index([locationId])
   @@index([userId])
   @@index([status])
   @@index([openedAt])
+  @@unique([businessId, shiftNumber])
   @@map("cashier_shifts")
 }
 
@@ -2129,7 +2242,7 @@ model Quotation {
   customer     Customer? @relation(fields: [customerId], references: [id])
   customerName String?   @map("customer_name") @db.VarChar(191) // For walk-in customers
 
-  quotationNumber String    @unique @map("quotation_number") @db.VarChar(100)
+  quotationNumber String  @map("quotation_number") @db.VarChar(100)
   quotationDate   DateTime  @map("quotation_date") @db.Date
   expiryDate      DateTime? @map("expiry_date") @db.Date
   validDays       Int       @default(7) @map("valid_days") // Default 7 days validity
@@ -2161,6 +2274,7 @@ model Quotation {
   @@index([status])
   @@index([quotationDate])
   @@index([expiryDate])
+  @@unique([businessId, quotationNumber])
   @@map("quotations")
 }
 
@@ -2231,7 +2345,7 @@ model WarrantyClaim {
   // Serial number if applicable
   serialNumber String? @map("serial_number") @db.VarChar(191)
 
-  claimNumber      String   @unique @map("claim_number") @db.VarChar(100)
+  claimNumber String  @map("claim_number") @db.VarChar(100)
   claimDate        DateTime @map("claim_date") @db.Date
   issueDescription String   @map("issue_description") @db.Text
 
@@ -2260,6 +2374,7 @@ model WarrantyClaim {
   @@index([claimType])
   @@index([status])
   @@index([claimDate])
+  @@unique([businessId, claimNumber])
   @@map("warranty_claims")
 }
 
@@ -2426,17 +2541,17 @@ model Notification {
   user   User @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
 
   // Notification details
-  type        String  @db.VarChar(50) // transfer_pending, transfer_to_receive, low_stock, approval_needed, etc.
-  title       String  @db.VarChar(255)
-  message     String  @db.Text
-  actionUrl   String? @map("action_url") @db.VarChar(500) // URL to navigate when clicked
+  type      String  @db.VarChar(50) // transfer_pending, transfer_to_receive, low_stock, approval_needed, etc.
+  title     String  @db.VarChar(255)
+  message   String  @db.Text
+  actionUrl String? @map("action_url") @db.VarChar(500) // URL to navigate when clicked
 
   // Related entities (optional - for filtering and context)
   relatedType String? @map("related_type") @db.VarChar(50) // transfer, purchase, sale, etc.
   relatedId   Int?    @map("related_id") // ID of related entity
 
   // Status
-  isRead Boolean  @default(false) @map("is_read")
+  isRead Boolean   @default(false) @map("is_read")
   readAt DateTime? @map("read_at")
 
   // Priority
@@ -2446,7 +2561,7 @@ model Notification {
   metadata Json? // Additional data in JSON format
 
   // Timestamps
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime  @default(now()) @map("created_at")
   expiresAt DateTime? @map("expires_at") // Auto-delete after this date
 
   @@index([businessId])
@@ -2488,8 +2603,8 @@ model Announcement {
   icon         String? @db.VarChar(50) // Emoji or icon name
 
   // Tracking
-  createdById Int      @map("created_by_id")
-  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdById Int  @map("created_by_id")
+  createdBy   User @relation(fields: [createdById], references: [id])
 
   // Timestamps
   createdAt DateTime  @default(now()) @map("created_at")
@@ -2504,4 +2619,445 @@ model Announcement {
   @@index([priority])
   @@index([displayOrder])
   @@map("announcements")
+}
+
+// ============================================
+// EMPLOYEE SCHEDULING & ATTENDANCE SYSTEM
+// ============================================
+
+// Employee schedule configuration
+model EmployeeSchedule {
+  id         Int              @id @default(autoincrement())
+  userId     Int              @map("user_id")
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessId Int              @map("business_id")
+  business   Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  locationId Int              @map("location_id")
+  location   BusinessLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  // Schedule details
+  dayOfWeek Int @map("day_of_week") // 0=Sunday, 1=Monday, ..., 6=Saturday
+  startTime String @map("start_time") @db.VarChar(5) // "08:00" format (HH:MM)
+  endTime   String @map("end_time") @db.VarChar(5) // "17:00" format (HH:MM)
+
+  // Effective date range
+  effectiveFrom DateTime @map("effective_from") // When this schedule starts
+  effectiveTo   DateTime? @map("effective_to") // When this schedule ends (null = ongoing)
+
+  // Status
+  isActive Boolean @default(true) @map("is_active")
+
+  // Audit fields
+  createdBy Int? @map("created_by")
+  updatedBy Int? @map("updated_by")
+
+  // Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([userId, dayOfWeek])
+  @@index([businessId, locationId])
+  @@index([effectiveFrom, effectiveTo])
+  @@index([isActive])
+  @@map("employee_schedules")
+}
+
+// Daily attendance tracking with clock in/out
+model Attendance {
+  id         Int              @id @default(autoincrement())
+  userId     Int              @map("user_id")
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessId Int              @map("business_id")
+  business   Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  locationId Int              @map("location_id")
+  location   BusinessLocation @relation("AttendanceLocation", fields: [locationId], references: [id], onDelete: Cascade)
+
+  // Date and time tracking
+  date     DateTime  @db.Date
+  clockIn  DateTime? @map("clock_in")
+  clockOut DateTime? @map("clock_out")
+
+  // Scheduled times (for comparison)
+  scheduledStart String? @map("scheduled_start") @db.VarChar(5) // "08:00"
+  scheduledEnd   String? @map("scheduled_end") @db.VarChar(5) // "17:00"
+
+  // Status tracking
+  status String // on_time, late, absent, early, emergency_change, location_switch
+
+  // Location switch support (mid-shift relocation)
+  switchedToLocationId Int?              @map("switched_to_location_id")
+  switchedToLocation   BusinessLocation? @relation("AttendanceSwitchedLocation", fields: [switchedToLocationId], references: [id])
+  switchTime           DateTime?         @map("switch_time")
+  switchApprovedBy     Int?              @map("switch_approved_by")
+  switchApprover       User?             @relation("AttendanceSwitchApprover", fields: [switchApprovedBy], references: [id])
+  switchReason         String?           @map("switch_reason") @db.Text
+
+  // Cash management for location switches
+  xReadingPrinted    Boolean  @default(false) @map("x_reading_printed")
+  cashCountSubmitted Boolean  @default(false) @map("cash_count_submitted")
+  expectedCash       Decimal? @map("expected_cash") @db.Decimal(12, 2)
+  actualCash         Decimal? @map("actual_cash") @db.Decimal(12, 2)
+  cashVariance       Decimal? @map("cash_variance") @db.Decimal(12, 2)
+
+  // Additional notes
+  notes String? @db.Text
+
+  // Overtime tracking
+  totalHoursWorked   Decimal? @map("total_hours_worked") @db.Decimal(5, 2) // Total hours for this attendance
+  scheduledHours     Decimal? @map("scheduled_hours") @db.Decimal(5, 2) // Scheduled hours for this day
+  overtimeHours      Decimal? @default(0) @map("overtime_hours") @db.Decimal(5, 2) // Overtime hours
+  overtimeMinutes    Int?     @default(0) @map("overtime_minutes") // Overtime in minutes
+  isOvertime         Boolean  @default(false) @map("is_overtime") // Quick flag for overtime
+  overtimeApproved   Boolean? @map("overtime_approved") // Manager approval status
+  overtimeApprovedBy Int?     @map("overtime_approved_by")
+  overtimeApprover   User?    @relation("OvertimeApprover", fields: [overtimeApprovedBy], references: [id])
+  overtimeApprovedAt DateTime? @map("overtime_approved_at")
+
+  // Relations
+  locationChangeRequests LocationChangeRequest[]
+  overtimeAlerts         OvertimeAlert[]
+
+  // Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@unique([userId, date, locationId], name: "user_date_location_unique")
+  @@index([userId, date])
+  @@index([businessId, locationId, date])
+  @@index([status])
+  @@index([clockIn])
+  @@index([clockOut])
+  @@index([isOvertime])
+  @@index([overtimeApproved])
+  @@map("attendances")
+}
+
+// Location change approval requests (for exceptions)
+model LocationChangeRequest {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Related attendance record
+  attendanceId Int?       @map("attendance_id")
+  attendance   Attendance? @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+
+  // Location change details
+  fromLocationId Int              @map("from_location_id")
+  fromLocation   BusinessLocation @relation("LocationChangeFrom", fields: [fromLocationId], references: [id])
+  toLocationId   Int              @map("to_location_id")
+  toLocation     BusinessLocation @relation("LocationChangeTo", fields: [toLocationId], references: [id])
+
+  // Request details
+  requestedBy Int      @map("requested_by")
+  requestedByUser User @relation("LocationChangeRequestUser", fields: [requestedBy], references: [id], onDelete: Cascade)
+  requestedAt DateTime @default(now()) @map("requested_at")
+  reason      String   @db.Text
+
+  // Approval workflow
+  status      String    @db.VarChar(20) // pending, approved, rejected, cancelled
+  approvedBy  Int?      @map("approved_by")
+  approvedByUser User?  @relation("LocationChangeApprover", fields: [approvedBy], references: [id])
+  approvedAt  DateTime? @map("approved_at")
+  switchTime  DateTime? @map("switch_time")
+  notes       String?   @db.Text
+
+  // X-Reading Integration for cash reconciliation
+  xReadingRequired    Boolean   @default(false) @map("x_reading_required")
+  xReadingData        Json?     @map("x_reading_data")
+  xReadingGeneratedAt DateTime? @map("x_reading_generated_at")
+  cashierShiftId      Int?      @map("cashier_shift_id")
+  cashierShift        CashierShift? @relation(fields: [cashierShiftId], references: [id])
+
+  // Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([requestedBy, status])
+  @@index([businessId, status])
+  @@index([requestedAt])
+  @@index([status])
+  @@index([attendanceId])
+  @@map("location_change_requests")
+}
+
+// ============================================
+// LEAVE REQUEST MANAGEMENT
+// ============================================
+
+model LeaveRequest {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  user       User     @relation("LeaveRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+  businessId Int      @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Leave details
+  leaveType   String   @map("leave_type") @db.VarChar(50) // sick, vacation, personal, bereavement, emergency
+  startDate   DateTime @map("start_date") @db.Date
+  endDate     DateTime @map("end_date") @db.Date
+  halfDay     Boolean  @default(false) @map("half_day") // True if half-day leave
+  totalDays   Decimal  @map("total_days") @db.Decimal(4, 1) // 1.0, 0.5, 2.0, etc.
+  reason      String   @db.Text
+  attachments Json?    // Array of file paths/URLs for medical certificates, etc.
+
+  // Approval workflow
+  status        String    @db.VarChar(20) // pending, approved, rejected, cancelled
+  approvedBy    Int?      @map("approved_by")
+  approver      User?     @relation("LeaveRequestApprover", fields: [approvedBy], references: [id])
+  approvedAt    DateTime? @map("approved_at")
+  approverNotes String?   @map("approver_notes") @db.Text
+
+  // Schedule impact tracking
+  affectedSchedules Json?   @map("affected_schedules") // Array of schedule IDs that will be impacted
+  replacementUser   Int?    @map("replacement_user") // Optional: who will cover the shift
+  replacement       User?   @relation("LeaveRequestReplacement", fields: [replacementUser], references: [id])
+
+  // Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([userId, status])
+  @@index([businessId, status])
+  @@index([startDate, endDate])
+  @@index([leaveType])
+  @@index([status])
+  @@map("leave_requests")
+}
+
+// ============================================
+// OVERTIME MANAGEMENT
+// ============================================
+
+model OvertimeConfiguration {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Daily overtime thresholds
+  dailyStandardHours       Decimal @default(8) @map("daily_standard_hours") @db.Decimal(5, 2) // Standard working hours per day
+  dailyOvertimeThreshold   Decimal @default(8) @map("daily_overtime_threshold") @db.Decimal(5, 2) // Hours after which overtime starts
+
+  // Weekly overtime thresholds
+  weeklyStandardHours      Decimal @default(40) @map("weekly_standard_hours") @db.Decimal(5, 2) // Standard hours per week
+  weeklyOvertimeThreshold  Decimal @default(40) @map("weekly_overtime_threshold") @db.Decimal(5, 2) // Hours after which weekly OT starts
+
+  // Alert thresholds (when to notify managers)
+  alertThresholdMinutes    Int     @default(30) @map("alert_threshold_minutes") // Alert after X minutes of overtime
+  alertManagerOnOvertime   Boolean @default(true) @map("alert_manager_on_overtime") // Send alert to managers
+  alertEmployeeOnOvertime  Boolean @default(true) @map("alert_employee_on_overtime") // Send alert to employee
+
+  // Approval settings
+  requireOvertimeApproval  Boolean @default(false) @map("require_overtime_approval") // Require manager approval
+  autoApproveUnder         Int?    @default(30) @map("auto_approve_under") // Auto-approve if under X minutes
+
+  // Overtime rates (for future payroll integration)
+  overtimeRate             Decimal? @default(1.5) @map("overtime_rate") @db.Decimal(5, 2) // 1.5x regular rate
+  weekendOvertimeRate      Decimal? @default(2.0) @map("weekend_overtime_rate") @db.Decimal(5, 2) // 2.0x for weekends
+  holidayOvertimeRate      Decimal? @default(3.0) @map("holiday_overtime_rate") @db.Decimal(5, 2) // 3.0x for holidays
+
+  // Status
+  isActive   Boolean   @default(true) @map("is_active")
+
+  // Timestamps
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  @@unique([businessId])
+  @@map("overtime_configurations")
+}
+
+model OvertimeAlert {
+  id           Int        @id @default(autoincrement())
+  businessId   Int        @map("business_id")
+  business     Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Related records
+  attendanceId Int        @map("attendance_id")
+  attendance   Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  userId       Int        @map("user_id")
+  user         User       @relation("OvertimeAlertUser", fields: [userId], references: [id], onDelete: Cascade)
+  locationId   Int        @map("location_id")
+  location     BusinessLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  // Alert details
+  alertType    String     @map("alert_type") @db.VarChar(50) // daily_overtime, weekly_overtime, excessive_overtime
+  severity     String     @db.VarChar(20) // info, warning, critical
+  overtimeHours Decimal   @map("overtime_hours") @db.Decimal(5, 2)
+  overtimeMinutes Int     @map("overtime_minutes")
+  message      String     @db.Text
+
+  // Alert status
+  status       String     @default("pending") @db.VarChar(20) // pending, acknowledged, resolved
+  acknowledgedBy Int?     @map("acknowledged_by")
+  acknowledger User?      @relation("OvertimeAlertAcknowledger", fields: [acknowledgedBy], references: [id])
+  acknowledgedAt DateTime? @map("acknowledged_at")
+  resolution   String?    @db.Text
+
+  // Timestamps
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  deletedAt    DateTime?  @map("deleted_at")
+
+  @@index([businessId, status])
+  @@index([userId, status])
+  @@index([attendanceId])
+  @@index([alertType])
+  @@index([severity])
+  @@index([createdAt])
+  @@map("overtime_alerts")
+}
+
+// ============================================
+// SCHEDULE-BASED LOGIN CONFIGURATION
+// ============================================
+
+model ScheduleLoginConfiguration {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Feature toggle
+  enforceScheduleLogin Boolean @default(true) @map("enforce_schedule_login")
+
+  // Grace periods (in minutes)
+  earlyClockInGraceMinutes Int @default(30) @map("early_clock_in_grace_minutes")
+  lateClockOutGraceMinutes Int @default(60) @map("late_clock_out_grace_minutes")
+
+  // Exempt roles (comma-separated role names)
+  exemptRoles String? @default("Super Admin,System Administrator,Super Admin (Legacy),Admin (Legacy)") @map("exempt_roles") @db.Text
+
+  // Custom messages
+  tooEarlyMessage String? @map("too_early_message") @db.Text
+  tooLateMessage  String? @map("too_late_message") @db.Text
+
+  // Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@unique([businessId])
+  @@map("schedule_login_configurations")
+}
+
+// ============================================
+// SEPARATION OF DUTIES (SOD) SETTINGS
+// ============================================
+
+model BusinessSODSettings {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @unique @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // =======================
+  // TRANSFER SOD RULES
+  // =======================
+
+  // Master toggle - if false, all transfer SOD checks are bypassed
+  enforceTransferSOD Boolean @default(true) @map("enforce_transfer_sod")
+
+  // Create -> Check/Approve
+  allowCreatorToCheck Boolean @default(false) @map("allow_creator_to_check")
+
+  // Create -> Send
+  allowCreatorToSend Boolean @default(false) @map("allow_creator_to_send")
+
+  // Check -> Send
+  allowCheckerToSend Boolean @default(false) @map("allow_checker_to_send")
+
+  // Send -> Check/Approve (allows person who sent to also check/approve)
+  allowSenderToCheck Boolean @default(false) @map("allow_sender_to_check")
+
+  // Create -> Receive
+  allowCreatorToReceive Boolean @default(false) @map("allow_creator_to_receive")
+
+  // Send -> Complete
+  allowSenderToComplete Boolean @default(false) @map("allow_sender_to_complete")
+
+  // Create -> Complete
+  allowCreatorToComplete Boolean @default(false) @map("allow_creator_to_complete")
+
+  // Receive -> Complete
+  allowReceiverToComplete Boolean @default(true) @map("allow_receiver_to_complete")
+
+  // =======================
+  // PURCHASE SOD RULES
+  // =======================
+
+  // Master toggle - if false, all purchase SOD checks are bypassed
+  enforcePurchaseSOD Boolean @default(true) @map("enforce_purchase_sod")
+
+  // Amendment: Creator -> Approve
+  allowAmendmentCreatorToApprove Boolean @default(false) @map("allow_amendment_creator_to_approve")
+
+  // Purchase Order: Creator -> Approve
+  allowPOCreatorToApprove Boolean @default(false) @map("allow_po_creator_to_approve")
+
+  // GRN: Creator -> Approve
+  allowGRNCreatorToApprove Boolean @default(false) @map("allow_grn_creator_to_approve")
+
+  // =======================
+  // RETURN SOD RULES
+  // =======================
+
+  // Master toggle for returns
+  enforceReturnSOD Boolean @default(true) @map("enforce_return_sod")
+
+  // Customer Return: Creator -> Approve
+  allowCustomerReturnCreatorToApprove Boolean @default(false) @map("allow_customer_return_creator_to_approve")
+
+  // Supplier Return: Creator -> Approve
+  allowSupplierReturnCreatorToApprove Boolean @default(false) @map("allow_supplier_return_creator_to_approve")
+
+  // =======================
+  // GENERAL SOD OVERRIDES
+  // =======================
+
+  // Exempt roles that bypass ALL SOD checks (comma-separated role names)
+  exemptRoles String? @default("Super Admin,System Administrator") @map("exempt_roles") @db.Text
+
+  // Minimum staff warning - show warning if location has fewer than this many active users
+  minStaffWarningThreshold Int @default(3) @map("min_staff_warning_threshold")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("business_sod_settings")
+}
+
+// ============================================
+// INACTIVITY TIMEOUT SETTINGS
+// ============================================
+
+model InactivitySettings {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @unique @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Master toggle - if false, inactivity timeout is disabled
+  enabled Boolean @default(true)
+
+  // Timeout durations (in minutes) - role-based
+  superAdminTimeout Int @default(60) @map("super_admin_timeout")
+  adminTimeout      Int @default(45) @map("admin_timeout")
+  managerTimeout    Int @default(30) @map("manager_timeout")
+  cashierTimeout    Int @default(15) @map("cashier_timeout")
+  defaultTimeout    Int @default(30) @map("default_timeout")
+
+  // Warning before logout (in minutes)
+  warningTime Int @default(2) @map("warning_time")
+
+  // Custom warning message
+  warningMessage String? @default("You have been inactive. You will be logged out soon.") @map("warning_message") @db.Text
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("inactivity_settings")
 }

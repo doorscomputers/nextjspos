@@ -91,27 +91,38 @@ export async function GET(request: NextRequest) {
             mobile: true,
           },
         },
-        items: {
-          include: {
-            product: {
-              select: {
-                name: true,
-                sku: true,
-              },
-            },
-            productVariation: {
-              select: {
-                name: true,
-                sku: true,
-              },
-            },
-          },
-        },
+        items: true, // Can't include product/productVariation as they don't have relations
       },
       orderBy: { saleDate: 'desc' },
       skip,
       take: limit,
     })
+
+    // Get unique product and variation IDs from sale items
+    const productIds = new Set<number>()
+    const variationIds = new Set<number>()
+
+    sales.forEach((sale) => {
+      sale.items.forEach((item) => {
+        productIds.add(item.productId)
+        variationIds.add(item.productVariationId)
+      })
+    })
+
+    // Fetch product and variation data separately
+    const products = await prisma.product.findMany({
+      where: { id: { in: Array.from(productIds) } },
+      select: { id: true, name: true, sku: true }
+    })
+
+    const variations = await prisma.productVariation.findMany({
+      where: { id: { in: Array.from(variationIds) } },
+      select: { id: true, name: true, sku: true }
+    })
+
+    // Create lookup maps
+    const productMap = new Map(products.map((p) => [p.id, p]))
+    const variationMap = new Map(variations.map((v) => [v.id, v]))
 
     // Calculate summary statistics
     const summary = await prisma.sale.aggregate({
@@ -164,16 +175,20 @@ export async function GET(request: NextRequest) {
       shippingCost: parseFloat(sale.shippingCost.toString()),
       totalAmount: parseFloat(sale.totalAmount.toString()),
       itemCount: sale.items.length,
-      items: sale.items.map((item) => ({
-        productName: item.product.name,
-        variationName: item.productVariation.name,
-        sku: item.productVariation.sku,
-        quantity: parseFloat(item.quantity.toString()),
-        unitPrice: parseFloat(item.unitPrice.toString()),
-        // Only include unitCost if user has permission
-        ...(canViewCost && { unitCost: parseFloat(item.unitCost.toString()) }),
-        total: parseFloat(item.quantity.toString()) * parseFloat(item.unitPrice.toString()),
-      })),
+      items: sale.items.map((item) => {
+        const product = productMap.get(item.productId)
+        const variation = variationMap.get(item.productVariationId)
+        return {
+          productName: product?.name || `Product #${item.productId}`,
+          variationName: variation?.name || `Variation #${item.productVariationId}`,
+          sku: variation?.sku || product?.sku || 'N/A',
+          quantity: parseFloat(item.quantity.toString()),
+          unitPrice: parseFloat(item.unitPrice.toString()),
+          // Only include unitCost if user has permission
+          ...(canViewCost && { unitCost: parseFloat(item.unitCost.toString()) }),
+          total: parseFloat(item.quantity.toString()) * parseFloat(item.unitPrice.toString()),
+        }
+      }),
       notes: sale.notes,
     }))
 

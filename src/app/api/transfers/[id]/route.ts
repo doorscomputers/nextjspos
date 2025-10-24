@@ -99,24 +99,38 @@ export async function GET(
     })
     const locationMap = new Map(locations.map(l => [l.id, l.name]))
 
-    // Verify user has access to either source or destination location
-    const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
-    if (!hasAccessAllLocations) {
-      const userLocations = await prisma.userLocation.findMany({
-        where: { userId: parseInt(userId) },
-        select: { locationId: true },
-      })
-      const locationIds = userLocations.map(ul => ul.locationId)
+    // CRITICAL SECURITY: Verify user has access to either source or destination location
+    // This check is ALWAYS enforced, regardless of ACCESS_ALL_LOCATIONS permission
+    const userLocations = await prisma.userLocation.findMany({
+      where: { userId: parseInt(userId) },
+      select: { locationId: true },
+    })
+    const locationIds = userLocations.map(ul => ul.locationId)
 
-      if (!locationIds.includes(transfer.fromLocationId) && !locationIds.includes(transfer.toLocationId)) {
-        return NextResponse.json(
-          { error: 'You do not have access to view this transfer' },
-          { status: 403 }
-        )
-      }
+    // User must be assigned to EITHER the from location OR the to location
+    if (!locationIds.includes(transfer.fromLocationId) && !locationIds.includes(transfer.toLocationId)) {
+      return NextResponse.json(
+        { error: 'Access denied. You can only view transfers involving your assigned locations.' },
+        { status: 403 }
+      )
     }
 
-    // Build response with user details and location names
+    // Fetch SOD settings for the business
+    const sodSettings = await prisma.businessSODSettings.findUnique({
+      where: { businessId: parseInt(businessId) },
+      select: {
+        enforceTransferSOD: true,
+        allowCreatorToCheck: true,
+        allowCreatorToSend: true,
+        allowCheckerToSend: true,
+        allowCreatorToReceive: true,
+        allowSenderToComplete: true,
+        allowCreatorToComplete: true,
+        allowReceiverToComplete: true,
+      },
+    })
+
+    // Build response with user details, location names, and SOD settings
     const response = {
       ...transfer,
       items: itemsWithDetails,
@@ -128,6 +142,16 @@ export async function GET(
       arrivalMarker: transfer.arrivedBy ? userMap.get(transfer.arrivedBy) : null,
       verifier: transfer.verifiedBy ? userMap.get(transfer.verifiedBy) : null,
       completer: transfer.completedBy ? userMap.get(transfer.completedBy) : null,
+      sodSettings: sodSettings || {
+        enforceTransferSOD: true,
+        allowCreatorToCheck: false,
+        allowCreatorToSend: false,
+        allowCheckerToSend: false,
+        allowCreatorToReceive: false,
+        allowSenderToComplete: false,
+        allowCreatorToComplete: false,
+        allowReceiverToComplete: true,
+      },
     }
 
     return NextResponse.json(response)

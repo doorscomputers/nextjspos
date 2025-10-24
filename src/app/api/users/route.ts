@@ -178,23 +178,41 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
+    const body = await request.json()
+    const { userId } = body
 
-    if (!id) {
+    if (!userId) {
       return NextResponse.json({ error: 'User ID required' }, { status: 400 })
+    }
+
+    // Verify the user exists and belongs to the same business
+    const targetUser = await prisma.user.findFirst({
+      where: {
+        id: parseInt(userId),
+        businessId: parseInt(user.businessId),
+        deletedAt: null,
+      },
+    })
+
+    if (!targetUser) {
+      return NextResponse.json({ error: 'User not found or already deleted' }, { status: 404 })
+    }
+
+    // Prevent self-deletion
+    if (targetUser.id === parseInt(user.id)) {
+      return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 })
     }
 
     // Soft delete
     await prisma.user.update({
-      where: { id: parseInt(id) },
+      where: { id: parseInt(userId) },
       data: {
         deletedAt: new Date(),
         allowLogin: false,
       },
     })
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, message: 'User deleted successfully' })
   } catch (error) {
     console.error('Error deleting user:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

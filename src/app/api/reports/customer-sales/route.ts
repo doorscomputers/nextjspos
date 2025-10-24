@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Convert to array and calculate derived metrics
-    let customerSummary = Array.from(customerMap.values()).map((customer) => {
+    const customerSummary = Array.from(customerMap.values()).map((customer) => {
       const avgPurchaseValue =
         customer.purchaseCount > 0 ? customer.totalSpent / customer.purchaseCount : 0
 

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
-import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon, WrenchIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, ArrowPathIcon, CheckCircleIcon, ExclamationTriangleIcon, WrenchIcon } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Button as DxButton } from 'devextreme-react/button'
@@ -278,7 +278,10 @@ export default function SupplierReturnDetailPage() {
             <div>
               <h3 className="font-semibold text-yellow-900">Stock Deduction Warning</h3>
               <p className="text-yellow-800 text-sm mt-1">
-                Approving this return will <strong>REMOVE {supplierReturn.items.reduce((sum, item) => sum + parseFloat(item.quantity.toString()), 0)} units</strong> from stock at {supplierReturn.location.name}.
+                Approving this return will <strong>REMOVE {(() => {
+                  const totalQty = supplierReturn.items.reduce((sum, item) => sum + parseFloat(item.quantity.toString()), 0);
+                  return `${totalQty} unit${totalQty === 1 ? '' : 's'}`;
+                })()}</strong> from stock at {supplierReturn.location.name}.
               </p>
               <p className="text-yellow-800 text-sm mt-1">
                 Serial numbers will be marked as 'supplier_return' and removed from circulation.
@@ -491,7 +494,10 @@ export default function SupplierReturnDetailPage() {
                   <p className="font-semibold text-red-900 mb-2">This action will:</p>
                   <ul className="list-disc list-inside space-y-1 text-red-800">
                     <li>
-                      <strong>REMOVE {supplierReturn.items.reduce((sum, item) => sum + parseFloat(item.quantity.toString()), 0)} units</strong> from stock at {supplierReturn.location.name}
+                      <strong>REMOVE {(() => {
+                        const totalQty = supplierReturn.items.reduce((sum, item) => sum + parseFloat(item.quantity.toString()), 0);
+                        return `${totalQty} unit${totalQty === 1 ? '' : 's'}`;
+                      })()}</strong> from stock at {supplierReturn.location.name}
                     </li>
                     <li>Mark serial numbers as 'supplier_return'</li>
                     <li>Remove items from inventory circulation</li>
@@ -513,8 +519,12 @@ export default function SupplierReturnDetailPage() {
             <Button
               onClick={handleApprove}
               disabled={processing}
+              className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {processing ? 'Approving...' : 'Approve Return'}
+              {processing && (
+                <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
+              )}
+              {processing ? 'Approving Return...' : 'Approve Return'}
             </Button>
           </DialogFooter>
         </DialogContent>

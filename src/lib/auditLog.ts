@@ -46,6 +46,11 @@ export enum AuditAction {
   QUOTATION_DELETE = 'quotation_delete',
   WARRANTY_CLAIM_CREATE = 'warranty_claim_create',
   WARRANTY_CLAIM_RESOLVE = 'warranty_claim_resolve',
+
+  // Workforce management
+  EMPLOYEE_SCHEDULE_CREATE = 'employee_schedule_create',
+  EMPLOYEE_SCHEDULE_UPDATE = 'employee_schedule_update',
+  EMPLOYEE_SCHEDULE_DELETE = 'employee_schedule_delete',
 }
 
 export enum EntityType {
@@ -59,6 +64,7 @@ export enum EntityType {
   QUOTATION = 'quotation',
   WARRANTY_CLAIM = 'warranty_claim',
   DISCOUNT = 'discount',
+  EMPLOYEE_SCHEDULE = 'employee_schedule',
 }
 
 interface AuditLogParams {

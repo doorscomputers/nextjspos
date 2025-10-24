@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import CreateReturnModal from '@/components/purchases/CreateReturnModal'
 import { toast } from 'sonner'
+import { formatCurrency } from '@/lib/currencyUtils'
 
 interface ProductDetail {
   id: number
@@ -1349,7 +1350,7 @@ export default function ProductViewPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-600">Purchase Price</label>
                   <p className="mt-1 text-gray-900 text-lg font-semibold">
-                    ${parseFloat(product.purchasePrice.toString()).toFixed(2)}
+                    {formatCurrency(product.purchasePrice)}
                   </p>
                 </div>
               )}
@@ -1357,7 +1358,7 @@ export default function ProductViewPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-600">Selling Price</label>
                   <p className="mt-1 text-gray-900 text-lg font-semibold">
-                    ${parseFloat(product.sellingPrice.toString()).toFixed(2)}
+                    {formatCurrency(product.sellingPrice)}
                   </p>
                 </div>
               )}
@@ -1418,12 +1419,12 @@ export default function ProductViewPage() {
                         <>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {product.purchasePrice ? (
-                              `Php ${parseFloat(product.purchasePrice.toString()).toFixed(2)}`
+                              `Php ${formatCurrency(product.purchasePrice)}`
                             ) : '--'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {product.purchasePrice && product.tax ? (
-                              `Php ${(parseFloat(product.purchasePrice.toString()) * (1 + parseFloat(product.tax.amount.toString()) / 100)).toFixed(2)}`
+                              `Php ${formatCurrency(parseFloat(product.purchasePrice.toString()) * (1 + parseFloat(product.tax.amount.toString()) / 100))}`
                             ) : '--'}
                           </td>
                         </>
@@ -1431,17 +1432,17 @@ export default function ProductViewPage() {
                       {can(PERMISSIONS.PRODUCT_VIEW_PROFIT_MARGIN) && (
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {product.purchasePrice && product.sellingPrice ? (
-                            `${(((parseFloat(product.sellingPrice.toString()) - parseFloat(product.purchasePrice.toString())) / parseFloat(product.purchasePrice.toString())) * 100).toFixed(2)}`
+                            `${formatCurrency(((parseFloat(product.sellingPrice.toString()) - parseFloat(product.purchasePrice.toString())) / parseFloat(product.purchasePrice.toString())) * 100)}`
                           ) : '--'}
                         </td>
                       )}
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {product.sellingPrice ? `Php ${parseFloat(product.sellingPrice.toString()).toFixed(2)}` : '--'}
+                        {product.sellingPrice ? `Php ${formatCurrency(product.sellingPrice)}` : '--'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {product.sellingPrice && product.tax ? (
-                          `Php ${(parseFloat(product.sellingPrice.toString()) * (1 + parseFloat(product.tax.amount.toString()) / 100)).toFixed(2)}`
-                        ) : product.sellingPrice ? `Php ${parseFloat(product.sellingPrice.toString()).toFixed(2)}` : '--'}
+                          `Php ${formatCurrency(parseFloat(product.sellingPrice.toString()) * (1 + parseFloat(product.tax.amount.toString()) / 100))}`
+                        ) : product.sellingPrice ? `Php ${formatCurrency(product.sellingPrice)}` : '--'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         --
@@ -1503,22 +1504,22 @@ export default function ProductViewPage() {
                           {detail.locationName}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          Php {detail.unitPrice.toFixed(2)}
+                          Php {formatCurrency(detail.unitPrice)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {detail.currentStock.toFixed(2)}Pc(s)
+                          {formatCurrency(detail.currentStock)}Pc(s)
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          Php {detail.stockValue.toFixed(2)}
+                          Php {formatCurrency(detail.stockValue)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {detail.totalUnitSold.toFixed(2)}Pc(s)
+                          {formatCurrency(detail.totalUnitSold)}Pc(s)
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {detail.totalUnitTransferred.toFixed(2)}Pc(s)
+                          {formatCurrency(detail.totalUnitTransferred)}Pc(s)
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {detail.totalUnitAdjusted.toFixed(2)}Pc(s)
+                          {formatCurrency(detail.totalUnitAdjusted)}Pc(s)
                         </td>
                       </tr>
                     ))}
@@ -1558,11 +1559,11 @@ export default function ProductViewPage() {
                         <td className="px-4 py-3 text-sm text-gray-900 font-mono">{variation.sku}</td>
                         {can(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE) && (
                           <td className="px-4 py-3 text-sm text-gray-900">
-                            ${parseFloat(variation.purchasePrice.toString()).toFixed(2)}
+                            {formatCurrency(variation.purchasePrice)}
                           </td>
                         )}
                         <td className="px-4 py-3 text-sm text-gray-900">
-                          ${parseFloat(variation.sellingPrice.toString()).toFixed(2)}
+                          {formatCurrency(variation.sellingPrice)}
                         </td>
                         {product.enableStock && (
                           <td className="px-4 py-3 text-sm text-gray-900">

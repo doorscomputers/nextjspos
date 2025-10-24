@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
+import SalesInvoicePrint from '@/components/SalesInvoicePrint'
 
 interface SaleItem {
   id: number
@@ -70,6 +71,8 @@ export default function SaleDetailsPage() {
   const router = useRouter()
   const { can } = usePermissions()
   const [sale, setSale] = useState<Sale | null>(null)
+  const [business, setBusiness] = useState<any>(null)
+  const [location, setLocation] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   // Customer return dialog state
@@ -79,11 +82,30 @@ export default function SaleDetailsPage() {
   const [returnNotes, setReturnNotes] = useState('')
   const [submittingReturn, setSubmittingReturn] = useState(false)
 
+  // Print dialog state
+  const [showPrintDialog, setShowPrintDialog] = useState(false)
+
   useEffect(() => {
     if (params.id) {
       fetchSale(params.id as string)
     }
   }, [params.id])
+
+  useEffect(() => {
+    fetchBusinessInfo()
+  }, [])
+
+  const fetchBusinessInfo = async () => {
+    try {
+      const response = await fetch('/api/business')
+      if (response.ok) {
+        const data = await response.json()
+        setBusiness(data)
+      }
+    } catch (error) {
+      console.error('Error fetching business info:', error)
+    }
+  }
 
   const fetchSale = async (id: string) => {
     try {
@@ -93,6 +115,15 @@ export default function SaleDetailsPage() {
 
       if (response.ok) {
         setSale(data)
+
+        // Fetch location details if sale has locationId
+        if (data.locationId) {
+          const locationResponse = await fetch(`/api/locations/${data.locationId}`)
+          if (locationResponse.ok) {
+            const locationData = await locationResponse.json()
+            setLocation(locationData)
+          }
+        }
       } else {
         toast.error(data.error || 'Failed to fetch sale')
         router.push('/dashboard/sales')
@@ -132,7 +163,7 @@ export default function SaleDetailsPage() {
   }
 
   const handlePrint = () => {
-    window.print()
+    setShowPrintDialog(true)
   }
 
   const handleOpenReturnDialog = () => {
@@ -256,8 +287,11 @@ export default function SaleDetailsPage() {
     })
   }
 
-  const formatCurrency = (amount: number) => {
-    return `$${amount.toFixed(2)}`
+  const formatCurrency = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined || isNaN(Number(amount))) {
+      return '0.00'
+    }
+    return Number(amount).toFixed(2)
   }
 
   const getStatusBadge = (status: string) => {
@@ -352,19 +386,32 @@ export default function SaleDetailsPage() {
       <div className="bg-white rounded-lg shadow-lg p-8 print:shadow-none print:rounded-none">
         {/* Invoice Header */}
         <div className="border-b pb-6 mb-6">
-          <div className="flex justify-between items-start">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">SALES INVOICE</h2>
-              <p className="text-gray-600">{sale.invoiceNumber}</p>
-              <p className="text-gray-600">Date: {formatDate(sale.saleDate)}</p>
-              <div className="mt-2">{getStatusBadge(sale.status)}</div>
-            </div>
-            <div className="text-right">
-              <h3 className="font-semibold text-lg">Your Business Name</h3>
-              <p className="text-gray-600 text-sm">Business Address</p>
-              <p className="text-gray-600 text-sm">City, State, ZIP</p>
-              <p className="text-gray-600 text-sm">Phone: (123) 456-7890</p>
-            </div>
+          {/* Company Name at Top Center */}
+          <div className="text-center mb-4">
+            <h1 className="text-2xl font-bold text-gray-900">{business?.name || 'Business Name'}</h1>
+            {business?.address && <p className="text-gray-600 text-sm">{business.address}</p>}
+            {(business?.city || business?.state || business?.zipCode) && (
+              <p className="text-gray-600 text-sm">
+                {[business?.city, business?.state, business?.zipCode].filter(Boolean).join(', ')}
+              </p>
+            )}
+            {business?.phone && <p className="text-gray-600 text-sm">Tel: {business.phone}</p>}
+            {business?.email && <p className="text-gray-600 text-sm">Email: {business.email}</p>}
+            {location && (
+              <div className="mt-2 pt-2 border-t border-gray-300">
+                <p className="text-gray-700 text-sm font-medium">{location.name}</p>
+                {location.address && <p className="text-gray-600 text-xs">{location.address}</p>}
+                {location.mobile && <p className="text-gray-600 text-xs">Mobile: {location.mobile}</p>}
+              </div>
+            )}
+          </div>
+
+          {/* Invoice Info */}
+          <div className="text-center">
+            <h2 className="text-xl font-bold mb-2">SALES INVOICE</h2>
+            <p className="text-gray-600">{sale.invoiceNumber}</p>
+            <p className="text-gray-600">Date: {formatDate(sale.saleDate)}</p>
+            <div className="mt-2 flex justify-center">{getStatusBadge(sale.status)}</div>
           </div>
         </div>
 
@@ -632,6 +679,17 @@ export default function SaleDetailsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Print Dialog with Paper Size Options */}
+      {sale && (
+        <SalesInvoicePrint
+          sale={sale}
+          isOpen={showPrintDialog}
+          onClose={() => setShowPrintDialog(false)}
+          business={business}
+          location={location}
+        />
+      )}
     </div>
   )
 }

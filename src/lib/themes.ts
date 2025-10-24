@@ -5,6 +5,7 @@
 export type ThemeName =
   | 'light'
   | 'dark'
+  | 'argon'
   | 'ocean'
   | 'forest'
   | 'purple'
@@ -139,6 +140,65 @@ export const themes: Record<ThemeName, Theme> = {
         border: '217.2 32.6% 17.5%',
         input: '217.2 32.6% 17.5%',
         ring: '212.7 26.8% 83.9%',
+      },
+    },
+  },
+  argon: {
+    name: 'argon',
+    label: 'Argon Dashboard',
+    metadata: {
+      category: 'premium',
+      description: 'Beautiful dark theme with teal accents and purple highlights, perfect for modern dashboards',
+      bestFor: ['Tech companies', 'SaaS platforms', 'Modern retail', 'Analytics dashboards'],
+      accessibility: {
+        contrastRatio: 'AAA',
+        colorBlindSafe: true,
+      },
+    },
+    cssVars: {
+      light: {
+        background: '0 0% 100%',
+        foreground: '222.2 84% 4.9%',
+        card: '0 0% 100%',
+        'card-foreground': '222.2 84% 4.9%',
+        popover: '0 0% 100%',
+        'popover-foreground': '222.2 84% 4.9%',
+        primary: '243 75% 59%',
+        'primary-foreground': '0 0% 100%',
+        secondary: '210 40% 96.1%',
+        'secondary-foreground': '222.2 47.4% 11.2%',
+        muted: '210 40% 96.1%',
+        'muted-foreground': '215.4 16.3% 46.9%',
+        accent: '174 72% 56%',
+        'accent-foreground': '0 0% 100%',
+        destructive: '0 84.2% 60.2%',
+        'destructive-foreground': '210 40% 98%',
+        border: '214.3 31.8% 91.4%',
+        input: '214.3 31.8% 91.4%',
+        ring: '174 72% 56%',
+        radius: '0.5rem',
+      },
+      dark: {
+        background: '222 47% 11%',
+        foreground: '210 40% 98%',
+        card: '220 26% 18%',
+        'card-foreground': '210 40% 98%',
+        popover: '220 26% 18%',
+        'popover-foreground': '210 40% 98%',
+        primary: '243 75% 59%',
+        'primary-foreground': '0 0% 100%',
+        secondary: '220 26% 21%',
+        'secondary-foreground': '210 40% 98%',
+        muted: '220 26% 21%',
+        'muted-foreground': '215 20% 65%',
+        accent: '174 72% 56%',
+        'accent-foreground': '220 26% 14%',
+        destructive: '0 84% 60%',
+        'destructive-foreground': '0 0% 100%',
+        border: '220 26% 28%',
+        input: '220 26% 21%',
+        ring: '174 72% 56%',
+        radius: '0.5rem',
       },
     },
   },

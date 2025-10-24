@@ -40,7 +40,13 @@ export async function getVariationStockHistory(
 ): Promise<StockHistoryEntry[]> {
   // Set default date range if not provided
   const finalStartDate = startDate || new Date('1970-01-01')
-  const finalEndDate = endDate || new Date('2099-12-31')
+
+  // Adjust end date to include the entire day (add 1 day to include all transactions on that date)
+  let finalEndDate = endDate || new Date('2099-12-31')
+  if (endDate) {
+    finalEndDate = new Date(endDate)
+    finalEndDate.setDate(finalEndDate.getDate() + 1) // Add 1 day to include entire end date
+  }
 
   // Query ALL transaction sources in parallel (same as Inventory Ledger)
   const [
@@ -157,6 +163,9 @@ export async function getVariationStockHistory(
           lte: finalEndDate
         }
       },
+      include: {
+        stockTransaction: true  // Include the linked stock transaction to get actual adjustment
+      },
       orderBy: { approvedAt: 'asc' }
     }),
 
@@ -219,8 +228,9 @@ export async function getVariationStockHistory(
           lte: finalEndDate
         },
         // Exclude transaction types that are already covered by dedicated tables above
+        // INCLUDING 'adjustment' since inventory corrections are now handled separately
         transactionType: {
-          notIn: ['purchase', 'sale', 'transfer_in', 'transfer_out', 'purchase_return', 'customer_return']
+          notIn: ['purchase', 'sale', 'transfer_in', 'transfer_out', 'purchase_return', 'supplier_return', 'customer_return', 'adjustment']
         }
       },
       orderBy: { transactionDate: 'asc' }
@@ -304,17 +314,21 @@ export async function getVariationStockHistory(
 
   // Process Inventory Corrections
   for (const correction of inventoryCorrections) {
-    const adjustment = parseFloat(correction.adjustment.toString())
-    transactions.push({
-      date: correction.approvedAt!,
-      type: 'adjustment',
-      typeLabel: 'Stock Adjustment',
-      referenceNumber: correction.correctionNumber,
-      quantityAdded: adjustment > 0 ? adjustment : 0,
-      quantityRemoved: adjustment < 0 ? Math.abs(adjustment) : 0,
-      notes: correction.reason || 'Stock adjustment',
-      createdBy: 'Stock Correction'
-    })
+    // Get the actual adjustment from the linked stock transaction
+    // The stock transaction quantity is positive for additions, negative for subtractions
+    if (correction.stockTransaction) {
+      const adjustment = parseFloat(correction.stockTransaction.quantity.toString())
+      transactions.push({
+        date: correction.approvedAt!,
+        type: 'adjustment',
+        typeLabel: 'Inventory Correction',
+        referenceNumber: correction.correctionNumber,
+        quantityAdded: adjustment > 0 ? adjustment : 0,
+        quantityRemoved: adjustment < 0 ? Math.abs(adjustment) : 0,
+        notes: `Inventory correction: ${correction.reason}${correction.remarks ? ' - ' + correction.remarks : ''}`,
+        createdBy: 'Inventory Correction'
+      })
+    }
   }
 
   // Process Purchase Returns

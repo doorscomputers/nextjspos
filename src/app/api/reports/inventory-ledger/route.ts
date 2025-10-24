@@ -132,7 +132,9 @@ export async function GET(request: NextRequest) {
       isCustomDateRange = true
       baselineDescription = 'Custom date range - Opening balance calculated from historical transactions'
     } else if (lastCorrection) {
-      startDate = lastCorrection.createdAt
+      // Use approvedAt (not createdAt) to match the query filter below
+      // This ensures the baseline correction is NOT included in transactions
+      startDate = lastCorrection.approvedAt || lastCorrection.createdAt
       baselineQuantity = parseFloat(lastCorrection.physicalCount.toString())
       baselineDescription = `Last Inventory Correction (${lastCorrection.reason})`
     } else {
@@ -289,8 +291,9 @@ export async function GET(request: NextRequest) {
             productVariationId: varId,
             transactionDate: { lt: startDate },
             // Only include transaction types unique to ProductHistory
+            // Exclude 'adjustment' since inventory corrections are handled separately
             transactionType: {
-              notIn: ['purchase', 'sale', 'transfer_in', 'transfer_out', 'purchase_return', 'customer_return']
+              notIn: ['purchase', 'sale', 'transfer_in', 'transfer_out', 'purchase_return', 'customer_return', 'adjustment']
             }
           },
           orderBy: { transactionDate: 'asc' }
@@ -618,8 +621,8 @@ export async function GET(request: NextRequest) {
       }),
 
       // h) Product History - ONLY for transaction types NOT covered by dedicated tables
-      // This includes: opening_stock, stock_adjustment, and other manual entries
-      // Exclude: purchase, sale, transfer_in, transfer_out (already fetched above)
+      // This includes: opening_stock and other manual entries
+      // Exclude: purchase, sale, transfer_in, transfer_out, and adjustment (handled via InventoryCorrection)
       prisma.productHistory.findMany({
         where: {
           businessId,
@@ -631,8 +634,9 @@ export async function GET(request: NextRequest) {
             lte: endDate
           },
           // Only include transaction types that are unique to ProductHistory
+          // Exclude 'adjustment' since inventory corrections are handled separately
           transactionType: {
-            notIn: ['purchase', 'sale', 'transfer_in', 'transfer_out', 'purchase_return', 'customer_return']
+            notIn: ['purchase', 'sale', 'transfer_in', 'transfer_out', 'purchase_return', 'customer_return', 'adjustment']
           }
         },
         orderBy: { transactionDate: 'asc' }
@@ -783,7 +787,7 @@ export async function GET(request: NextRequest) {
       const isIncrease = quantityChange > 0
 
       // Determine transaction type label
-      let typeLabel = historyRecord.transactionType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+      const typeLabel = historyRecord.transactionType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
 
       transactions.push({
         date: historyRecord.transactionDate,

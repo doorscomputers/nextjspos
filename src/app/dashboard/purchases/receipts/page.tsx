@@ -106,7 +106,7 @@ export default function PurchaseReceiptsPage() {
       const data = await res.json()
 
       // Client-side sorting as fallback
-      let sortedReceipts = data.data || []
+      const sortedReceipts = data.data || []
       sortedReceipts.sort((a: PurchaseReceipt, b: PurchaseReceipt) => {
         let aVal: any, bVal: any
 

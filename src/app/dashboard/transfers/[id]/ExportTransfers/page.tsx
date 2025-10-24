@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { ArrowLeftIcon, PrinterIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
-import DataGrid, { Column, Export, Summary, TotalItem } from 'devextreme-react/data-grid'
+import DataGrid, { Column, Export, Summary, TotalItem, Toolbar, Item } from 'devextreme-react/data-grid'
 import { exportDataGrid as exportToExcel } from 'devextreme/excel_exporter'
 import { exportDataGrid as exportToPDF } from 'devextreme/pdf_exporter'
 import { Workbook } from 'exceljs'
@@ -111,11 +111,11 @@ export default function TransferDevExtremePage() {
 
       doc.setFontSize(18)
       doc.setFont('helvetica', 'bold')
-      doc.text('STOCK TRANSFER REPORT', 105, 20, { align: 'center' })
+      doc.text('STOCK TRANSFER', 105, 20, { align: 'center' })
 
       doc.setFontSize(10)
       doc.setFont('helvetica', 'normal')
-      doc.text(`Igoro Tech(IT) • Inventory Management System`, 105, 28, { align: 'center' })
+      doc.text(`PciNet Computer Trading and Services`, 105, 28, { align: 'center' })
 
       doc.setFontSize(11)
       doc.setFont('helvetica', 'bold')
@@ -130,8 +130,8 @@ export default function TransferDevExtremePage() {
       exportToPDF({
         jsPDFDocument: doc,
         component: e.component,
-        topLeft: { x: 5, y: 75 },
-        columnWidths: [15, 70, 40, 30, 30],
+        topLeft: { x: 10, y: 58 },
+        columnWidths: [12, 65, 35, 30, 28],
       }).then(() => {
         const finalY = (doc as any).lastAutoTable?.finalY || 200
 
@@ -192,18 +192,14 @@ export default function TransferDevExtremePage() {
           {/* Company Header */}
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h1 className="text-4xl font-bold text-blue-600 mb-2">Igoro Tech(IT)</h1>
-              <div className="text-sm text-gray-600 space-y-1">
-                <p>Inventory Management System</p>
-                <p>Stock Transfer Report</p>
-              </div>
+              <h1 className="text-4xl font-bold text-blue-600 mb-2">PciNet Computer Trading and Services</h1>
             </div>
             <div className="text-right">
               <div className="text-3xl font-bold text-gray-800 mb-2">STOCK TRANSFER</div>
               <div className="text-sm text-gray-600">
                 <p><strong>Transfer #:</strong> {transfer.transferNumber}</p>
                 <p><strong>Date:</strong> {new Date(transfer.transferDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                <p><strong>Printed:</strong> {new Date().toLocaleString()}</p>
+                <p className="text-xs"><strong>Printed:</strong> {new Date().toLocaleString()}</p>
               </div>
             </div>
           </div>
@@ -328,6 +324,9 @@ export default function TransferDevExtremePage() {
 
         <DataGrid dataSource={gridData} showBorders={true} columnAutoWidth={true} rowAlternationEnabled={true} onExporting={onExporting} height={400}>
           <Export enabled={true} formats={['xlsx', 'pdf']} />
+          <Toolbar>
+            <Item name="exportButton" />
+          </Toolbar>
           <Column dataField="itemNumber" caption="#" width={60} alignment="center" />
           <Column dataField="productName" caption="Product" />
           <Column dataField="variation" caption="Variation" />
@@ -339,7 +338,7 @@ export default function TransferDevExtremePage() {
         </DataGrid>
 
         <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-          <p className="text-sm text-blue-800 dark:text-blue-200"><strong>💡 Tip:</strong> Click export icon (top-right) for DevExtreme PDF, or use Print button for browser print with clean margins!</p>
+          <p className="text-sm text-blue-800 dark:text-blue-200"><strong>💡 Tip:</strong> Click the export button in the grid toolbar above to download as PDF or Excel, or use the Print button (page header) for browser print with clean margins!</p>
         </div>
       </div>
     </div>

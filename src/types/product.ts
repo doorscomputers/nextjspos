@@ -198,6 +198,7 @@ export type StockTransactionType =
   | 'transfer_out'
   | 'adjustment'
   | 'purchase_return'
+  | 'supplier_return'
   | 'customer_return'
 
 // ============================================

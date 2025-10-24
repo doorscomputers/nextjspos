@@ -6,6 +6,7 @@ import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 import { transferStockOut } from '@/lib/stockOperations'
 import { withIdempotency } from '@/lib/idempotency'
+import { validateSOD, getUserRoles } from '@/lib/sodValidation'
 
 /**
  * POST /api/transfers/[id]/send
@@ -91,22 +92,32 @@ export async function POST(
       }
     }
 
-    // ENFORCE: Sender must be different from creator and checker (separation of duties)
-    if (transfer.createdBy === userIdNumber) {
-      return NextResponse.json(
-        {
-          error: 'Cannot send your own transfer. A different user must send this transfer for proper control and audit compliance.',
-          code: 'SAME_USER_VIOLATION'
-        },
-        { status: 403 }
-      )
-    }
+    // CONFIGURABLE SOD VALIDATION
+    // Check business rules for separation of duties
+    const userRoles = await getUserRoles(userIdNumber)
+    const sodValidation = await validateSOD({
+      businessId: businessIdNumber,
+      userId: userIdNumber,
+      action: 'send',
+      entity: {
+        id: transfer.id,
+        createdBy: transfer.createdBy,
+        checkedBy: transfer.checkedBy,
+        sentBy: transfer.sentBy,
+        receivedBy: transfer.receivedBy
+      },
+      entityType: 'transfer',
+      userRoles
+    })
 
-    if (transfer.checkedBy === userIdNumber) {
+    if (!sodValidation.allowed) {
       return NextResponse.json(
         {
-          error: 'Cannot send a transfer you checked. A different user must send this transfer for proper separation of duties.',
-          code: 'SAME_USER_VIOLATION'
+          error: sodValidation.reason,
+          code: sodValidation.code,
+          configurable: sodValidation.configurable,
+          suggestion: sodValidation.suggestion,
+          ruleField: sodValidation.ruleField
         },
         { status: 403 }
       )

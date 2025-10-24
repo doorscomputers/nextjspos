@@ -47,12 +47,20 @@ export default function BeginShiftPage() {
     try {
       const res = await fetch('/api/shifts?status=open')
       const data = await res.json()
+
+      console.log('[BeginShift] Checking existing shifts:', data)
+
       if (data.shifts && data.shifts.length > 0) {
-        // User already has an open shift
-        router.push('/dashboard/pos')
+        const shift = data.shifts[0]
+        console.log('[BeginShift] Found existing open shift:', shift.shiftNumber)
+        console.log('[BeginShift] Redirecting to POS page...')
+        // User already has an open shift - redirect immediately
+        router.replace('/dashboard/pos')
+      } else {
+        console.log('[BeginShift] No open shifts found - ready to start new shift')
       }
     } catch (err) {
-      console.error('Error checking shift:', err)
+      console.error('[BeginShift] Error checking shift:', err)
     }
   }
 

@@ -40,12 +40,13 @@ interface Location {
 export default function ProductStockHistoryPage() {
   const params = useParams()
   const router = useRouter()
-  const { can } = usePermissions()
+  const { can, hasAnyRole, user } = usePermissions()
   const [product, setProduct] = useState<Product | null>(null)
   const [locations, setLocations] = useState<Location[]>([])
   const [history, setHistory] = useState<StockHistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [userAssignedLocationId, setUserAssignedLocationId] = useState<number | null>(null)
 
   // Filters
   const [selectedVariation, setSelectedVariation] = useState<number | null>(null)
@@ -60,6 +61,7 @@ export default function ProductStockHistoryPage() {
       return
     }
     fetchProduct()
+    fetchUserAssignedLocation()
     fetchLocations()
   }, [params.id])
 
@@ -68,6 +70,38 @@ export default function ProductStockHistoryPage() {
       fetchStockHistory()
     }
   }, [selectedVariation, selectedLocation, startDate, endDate, autoCorrect])
+
+  // Effect to set default location when userAssignedLocationId and locations are available
+  useEffect(() => {
+    if (locations.length > 0 && selectedLocation === null) {
+      // Check if user has admin roles
+      const isAdmin = hasAnyRole([
+        'Super Admin',
+        'System Administrator',
+        'Super Admin (Legacy)',
+        'Admin (Legacy)'
+      ])
+
+      // Default location selection logic:
+      // - For non-admin users: default to their assigned location if available
+      // - For admin users: default to first location in the list
+      if (!isAdmin && userAssignedLocationId) {
+        // Check if the assigned location exists in the locations list
+        const assignedLocationExists = locations.some(
+          (loc: Location) => loc.id === userAssignedLocationId
+        )
+        if (assignedLocationExists) {
+          setSelectedLocation(userAssignedLocationId)
+        } else {
+          // Fallback to first location if assigned location not found
+          setSelectedLocation(locations[0].id)
+        }
+      } else {
+        // For admin users or when no assigned location, use first location
+        setSelectedLocation(locations[0].id)
+      }
+    }
+  }, [locations, userAssignedLocationId])
 
   const fetchProduct = async () => {
     try {
@@ -87,16 +121,25 @@ export default function ProductStockHistoryPage() {
     }
   }
 
+  const fetchUserAssignedLocation = async () => {
+    try {
+      const response = await fetch('/api/user-locations/my-location')
+      const data = await response.json()
+      if (response.ok && data.location) {
+        setUserAssignedLocationId(data.location.id)
+      }
+    } catch (error) {
+      console.error('Error fetching user assigned location:', error)
+    }
+  }
+
   const fetchLocations = async () => {
     try {
       const response = await fetch('/api/locations')
       const data = await response.json()
       if (response.ok && data.locations) {
         setLocations(data.locations)
-        // Auto-select first location if available
-        if (data.locations.length > 0) {
-          setSelectedLocation(data.locations[0].id)
-        }
+        // Location will be auto-selected by the useEffect that watches locations and userAssignedLocationId
       }
     } catch (error) {
       console.error('Error fetching locations:', error)

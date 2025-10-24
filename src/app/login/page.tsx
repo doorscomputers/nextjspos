@@ -3,7 +3,8 @@
 import { signIn } from "next-auth/react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Eye, EyeOff, Building2 } from "lucide-react"
+import { Eye, EyeOff } from "lucide-react"
+import AnimatedLogo from "@/components/AnimatedLogo"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -45,20 +46,22 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 py-12 px-4 sm:px-6 lg:px-8">
-      {/* Centered Login Card */}
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8">
-        {/* Icon */}
-        <div className="flex justify-center mb-4">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full flex items-center justify-center">
-            <Building2 className="w-8 h-8 text-white" />
-          </div>
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-400 via-orange-400 to-yellow-500 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Animated background blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-orange-300 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-yellow-300 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000"></div>
+      </div>
 
-        {/* Header */}
+      {/* Centered Login Card */}
+      <div className="max-w-md w-full bg-black/90 backdrop-blur-xl rounded-2xl shadow-2xl p-8 relative z-10 border border-purple-500/20">
+        {/* Animated Logo */}
+        <AnimatedLogo className="mb-8" />
+
+        {/* Login Header */}
         <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Welcome Back</h2>
-          <p className="text-sm text-gray-600 mt-1">Login to your InventorySystem</p>
+          <h2 className="text-2xl font-bold text-white">Login</h2>
         </div>
 
         {/* Form */}
@@ -69,10 +72,10 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Username Field */}
+          {/* Email/Username Field */}
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-              Username
+            <label htmlFor="username" className="block text-sm font-medium text-gray-300 mb-2 sr-only">
+              User Name
             </label>
             <input
               id="username"
@@ -80,8 +83,8 @@ export default function LoginPage() {
               type="text"
               autoComplete="username"
               required
-              className="appearance-none block w-full px-4 py-3 border border-gray-300 rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-              placeholder="Username"
+              className="appearance-none block w-full px-4 py-3 bg-transparent border-2 border-blue-500 rounded-lg placeholder-gray-400 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+              placeholder="User Name"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
             />
@@ -89,14 +92,9 @@ export default function LoginPage() {
 
           {/* Password Field */}
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <a href="#" className="text-sm text-blue-600 hover:text-blue-800">
-                Forgot Your Password?
-              </a>
-            </div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2 sr-only">
+              Password
+            </label>
             <div className="relative">
               <input
                 id="password"
@@ -104,7 +102,7 @@ export default function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
                 required
-                className="appearance-none block w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="appearance-none block w-full px-4 py-3 pr-12 bg-transparent border-2 border-blue-500 rounded-lg placeholder-gray-400 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -112,35 +110,20 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
           </div>
 
-          {/* Remember Me */}
-          <div className="flex items-center">
-            <input
-              id="remember-me"
-              name="remember-me"
-              type="checkbox"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-              Remember Me
-            </label>
-          </div>
-
           {/* Login Button */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-md"
+            className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-gradient-to-r from-blue-600 via-blue-700 to-blue-600 hover:from-blue-700 hover:via-blue-800 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg uppercase tracking-wider"
           >
-            {loading ? "Signing in..." : "Login"}
+            {loading ? "Signing in..." : "LOGIN"}
           </button>
         </form>
       </div>

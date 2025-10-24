@@ -630,7 +630,7 @@ export default function InventoryLedgerPage() {
 
             {/* Print Footer */}
             <div className="hidden print:block mt-6 text-xs text-gray-500 text-center">
-              Generated on {new Date().toLocaleString()} | Igoro Tech(IT) Inventory Management System
+              Generated on {new Date().toLocaleString()} | PciNet Computer Trading and Services
             </div>
           </div>
         )}

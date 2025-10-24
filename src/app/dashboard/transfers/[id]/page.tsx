@@ -50,6 +50,16 @@ interface Transfer {
   arrivalMarker?: { id: number; username: string } | null
   verifier?: { id: number; username: string } | null
   completer?: { id: number; username: string } | null
+  sodSettings?: {
+    enforceTransferSOD: boolean
+    allowCreatorToCheck: boolean
+    allowCreatorToSend: boolean
+    allowCheckerToSend: boolean
+    allowCreatorToReceive: boolean
+    allowSenderToComplete: boolean
+    allowCreatorToComplete: boolean
+    allowReceiverToComplete: boolean
+  }
 }
 
 interface TransferItem {
@@ -80,6 +90,8 @@ export default function TransferDetailPage() {
 
   const [transfer, setTransfer] = useState<Transfer | null>(null)
   const [locations, setLocations] = useState<any[]>([])
+  const [userLocations, setUserLocations] = useState<any[]>([]) // User's assigned locations
+  const [primaryLocationId, setPrimaryLocationId] = useState<number | null>(null) // User's primary/home location
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
 
@@ -99,16 +111,17 @@ export default function TransferDetailPage() {
 
   useEffect(() => {
     fetchLocations()
+    fetchUserLocations()
     fetchTransfer()
   }, [transferId])
 
   // Update page title dynamically
   useEffect(() => {
     if (transfer) {
-      document.title = `Transfer ${transfer.transferNumber} - Igoro Tech(IT)`
+      document.title = `Transfer ${transfer.transferNumber} - PciNet Computer Trading and Services`
     }
     return () => {
-      document.title = 'Igoro Tech(IT) Inventory Management System'
+      document.title = 'PciNet Computer Trading and Services'
     }
   }, [transfer])
 
@@ -121,6 +134,22 @@ export default function TransferDetailPage() {
       }
     } catch (error) {
       console.error('Error fetching locations:', error)
+    }
+  }
+
+  const fetchUserLocations = async () => {
+    try {
+      const response = await fetch('/api/user-locations')
+      const data = await response.json()
+      if (response.ok) {
+        setUserLocations(data.locations || [])
+        // CRITICAL: Set primary location for workflow operations
+        if (data.primaryLocationId) {
+          setPrimaryLocationId(data.primaryLocationId)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user locations:', error)
     }
   }
 
@@ -448,27 +477,136 @@ export default function TransferDetailPage() {
     )
   }
 
+  // Helper: Check if user is at FROM location (sender)
+  const isUserAtFromLocation = () => {
+    return primaryLocationId === transfer?.fromLocationId
+  }
+
+  // Helper: Check if user is at TO location (receiver)
+  const isUserAtToLocation = () => {
+    return primaryLocationId === transfer?.toLocationId
+  }
+
+  // Helper: Get location-aware status display text
+  const getLocationAwareStatusText = () => {
+    if (!transfer) return transfer?.status || ''
+
+    const status = transfer.status
+
+    // "In Transit" status - show different text based on location
+    if (status === 'in_transit') {
+      if (isUserAtFromLocation()) {
+        return 'In Transit (Stock Deducted)'
+      } else if (isUserAtToLocation()) {
+        return 'In Transit'
+      }
+      return 'In Transit'
+    }
+
+    // "Completed" status - show different text based on location
+    if (status === 'completed') {
+      if (isUserAtFromLocation()) {
+        return 'Completed (Stock Deducted)'
+      } else if (isUserAtToLocation()) {
+        return 'Completed (Stock Added)'
+      }
+      return 'Completed'
+    }
+
+    // All other statuses - return standard text
+    return status === 'draft' ? 'Draft' :
+           status === 'pending_check' ? 'Pending Check' :
+           status === 'checked' ? 'Checked' :
+           status === 'arrived' ? 'Arrived' :
+           status === 'verifying' ? 'Verifying' :
+           status === 'verified' ? 'Verified' :
+           status === 'cancelled' ? 'Cancelled' :
+           status.toUpperCase()
+  }
+
+  // Helper: Get location-aware stock status message
+  const getLocationAwareStockMessage = () => {
+    if (!transfer) return ''
+
+    if (transfer.stockDeducted) {
+      if (isUserAtFromLocation()) {
+        return 'Stock has been deducted from your location'
+      } else if (isUserAtToLocation()) {
+        return 'Stock has been deducted from origin (awaiting receipt)'
+      }
+      return 'Stock has been deducted from origin'
+    } else {
+      return 'Stock not yet deducted'
+    }
+  }
+
+  // Helper: Get location-aware badge text for completed transfers
+  const getLocationAwareStockBadge = () => {
+    if (!transfer) return { show: false, text: '', variant: 'default' as const }
+
+    if (transfer.stockDeducted) {
+      if (transfer.status === 'completed') {
+        if (isUserAtFromLocation()) {
+          return { show: true, text: 'Stock Deducted', variant: 'default' as const }
+        } else if (isUserAtToLocation()) {
+          return { show: true, text: 'Stock Added', variant: 'default' as const }
+        }
+        return { show: true, text: 'Stock Deducted', variant: 'default' as const }
+      } else {
+        return { show: true, text: 'Stock Deducted', variant: 'default' as const }
+      }
+    } else {
+      return { show: true, text: 'Stock not yet deducted', variant: 'secondary' as const }
+    }
+  }
+
   const getAvailableActions = () => {
     if (!transfer) return []
+
+    // CRITICAL: Wait for userLocations to load before showing action buttons
+    // This prevents showing incorrect buttons before location data is fetched
+    if (userLocations.length === 0) return []
 
     const actions = []
     const status = transfer.status
 
     // Draft → Submit for Check
+    // CRITICAL SECURITY: Only show to users ASSIGNED to ORIGIN location (FROM location)
+    // Users at destination should NOT see this button
     if (status === 'draft' && can(PERMISSIONS.STOCK_TRANSFER_CREATE)) {
-      actions.push({
-        label: 'Submit for Checking',
-        icon: ClipboardDocumentCheckIcon,
-        onClick: handleSubmitForCheck,
-        variant: 'default' as const
-      })
+      // Check if user's PRIMARY location matches the FROM location (origin/source)
+      const isAssignedToOrigin = primaryLocationId === transfer.fromLocationId
+
+      if (isAssignedToOrigin) {
+        actions.push({
+          label: 'Submit for Checking',
+          icon: ClipboardDocumentCheckIcon,
+          onClick: handleSubmitForCheck,
+          variant: 'default' as const
+        })
+      }
     }
 
     // Pending Check → Approve or Reject
-    // CRITICAL: Don't show approve button if current user is the creator (separation of duties)
+    // CRITICAL SECURITY: Only show to users ASSIGNED to ORIGIN location (FROM location)
+    // Users at destination should NOT see this button
+    // Check approval with SOD settings
     if (status === 'pending_check' && can(PERMISSIONS.STOCK_TRANSFER_CHECK)) {
+      // Check if user's PRIMARY location matches the FROM location (origin/source)
+      const isAssignedToOrigin = primaryLocationId === transfer.fromLocationId
       const isCreator = transfer.createdBy === currentUserId
-      if (!isCreator) {
+
+      // Determine if SOD allows creator to approve
+      const sodSettings = transfer.sodSettings
+      const enforceSOD = sodSettings?.enforceTransferSOD ?? true
+      const allowCreatorToCheck = sodSettings?.allowCreatorToCheck ?? false
+
+      // Show approve button if:
+      // 1. User is at origin location AND
+      // 2. Either not the creator OR (is creator AND allowed by SOD settings)
+      const canApprove = isAssignedToOrigin && (!isCreator || (!enforceSOD || allowCreatorToCheck))
+
+      if (canApprove) {
         actions.push({
           label: 'Approve',
           icon: CheckIcon,
@@ -485,13 +623,14 @@ export default function TransferDetailPage() {
     }
 
     // Checked → Send
-    // CRITICAL: Only show to users at ORIGIN location (not destination)
+    // CRITICAL SECURITY: Only show to users ASSIGNED to ORIGIN location (FROM location)
+    // Users at destination should NOT see this button
+    // Uses primaryLocationId to check user's actual home location, not all accessible locations
     if (status === 'checked' && can(PERMISSIONS.STOCK_TRANSFER_SEND)) {
-      // Check if user has access to the FROM location
-      const hasAccessToOrigin = user?.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS) ||
-        locations.some(loc => loc.id === transfer.fromLocationId)
+      // Check if user's PRIMARY location matches the FROM location (origin/source)
+      const isAssignedToOrigin = primaryLocationId === transfer.fromLocationId
 
-      if (hasAccessToOrigin) {
+      if (isAssignedToOrigin) {
         actions.push({
           label: 'Send Transfer',
           icon: TruckIcon,
@@ -502,18 +641,30 @@ export default function TransferDetailPage() {
     }
 
     // In Transit → Mark Arrived
+    // CRITICAL SECURITY: Only show to users ASSIGNED to DESTINATION location (TO location)
+    // Users at origin should NOT see this button
+    // Uses primaryLocationId to check user's actual home location, not all accessible locations
     if (status === 'in_transit' && can(PERMISSIONS.STOCK_TRANSFER_RECEIVE)) {
-      actions.push({
-        label: 'Mark as Arrived',
-        icon: CheckCircleIcon,
-        onClick: handleMarkArrived,
-        variant: 'default' as const
-      })
+      // Check if user's PRIMARY location matches the TO location (destination)
+      const isAssignedToDestination = primaryLocationId === transfer.toLocationId
+
+      if (isAssignedToDestination) {
+        actions.push({
+          label: 'Mark as Arrived',
+          icon: CheckCircleIcon,
+          onClick: handleMarkArrived,
+          variant: 'default' as const
+        })
+      }
     }
 
     // Arrived → Start Verification ONLY (enforce verification)
+    // CRITICAL SECURITY: Only show to users ASSIGNED to DESTINATION location
+    // Uses primaryLocationId to check user's actual home location, not all accessible locations
     if (status === 'arrived') {
-      if (can(PERMISSIONS.STOCK_TRANSFER_VERIFY)) {
+      const isAssignedToDestination = primaryLocationId === transfer.toLocationId
+
+      if (can(PERMISSIONS.STOCK_TRANSFER_VERIFY) && isAssignedToDestination) {
         actions.push({
           label: 'Start Verification',
           icon: ClipboardDocumentCheckIcon,
@@ -526,13 +677,19 @@ export default function TransferDetailPage() {
     }
 
     // Verified → Receive Transfer (Complete)
+    // CRITICAL SECURITY: Only show to users ASSIGNED to DESTINATION location
+    // Uses primaryLocationId to check user's actual home location, not all accessible locations
     if (status === 'verified' && can(PERMISSIONS.STOCK_TRANSFER_COMPLETE)) {
-      actions.push({
-        label: 'Receive Transfer',
-        icon: CheckCircleIcon,
-        onClick: handleCompleteClick,
-        variant: 'default' as const
-      })
+      const isAssignedToDestination = primaryLocationId === transfer.toLocationId
+
+      if (isAssignedToDestination) {
+        actions.push({
+          label: 'Receive Transfer',
+          icon: CheckCircleIcon,
+          onClick: handleCompleteClick,
+          variant: 'default' as const
+        })
+      }
     }
 
     // Cancel - available for draft, pending_check, checked, in_transit
@@ -660,29 +817,21 @@ export default function TransferDetailPage() {
             transfer.status === 'cancelled' ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200' :
             'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
           }`}>
-            {transfer.status === 'draft' ? 'Draft' :
-             transfer.status === 'pending_check' ? 'Pending Check' :
-             transfer.status === 'checked' ? 'Checked' :
-             transfer.status === 'in_transit' ? 'In Transit' :
-             transfer.status === 'arrived' ? 'Arrived' :
-             transfer.status === 'verifying' ? 'Verifying' :
-             transfer.status === 'verified' ? 'Verified' :
-             transfer.status === 'completed' ? 'Completed' :
-             transfer.status === 'cancelled' ? 'Cancelled' :
-             transfer.status.toUpperCase()}
+            {getLocationAwareStatusText()}
           </div>
-          {transfer.stockDeducted ? (
-            <Badge variant="default" className="text-sm">Stock Deducted</Badge>
-          ) : (
-            <Badge variant="secondary" className="text-sm">Stock not yet deducted</Badge>
-          )}
+          {(() => {
+            const badge = getLocationAwareStockBadge()
+            return badge.show ? (
+              <Badge variant={badge.variant} className="text-sm">{badge.text}</Badge>
+            ) : null
+          })()}
         </div>
       </div>
 
       {/* Action Buttons */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
         {/* Workflow Actions */}
-        {availableActions.length > 0 && (
+        {availableActions.length > 0 ? (
           <div className="bg-white p-4 rounded-lg shadow">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Workflow Actions</h3>
             <div className="flex flex-wrap gap-2">
@@ -703,6 +852,68 @@ export default function TransferDetailPage() {
               })}
             </div>
           </div>
+        ) : (
+          // Show helpful message when no actions are available
+          transfer && ['pending_check', 'checked', 'in_transit', 'arrived', 'verifying', 'verified'].includes(transfer.status) && (
+            <div className="bg-blue-50 border-2 border-blue-300 p-4 rounded-lg shadow">
+              <h3 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                No Actions Available
+              </h3>
+              <div className="text-sm text-blue-800 space-y-2">
+                {transfer.status === 'pending_check' && transfer.createdBy === currentUserId && (() => {
+                  const sodSettings = transfer.sodSettings
+                  const enforceSOD = sodSettings?.enforceTransferSOD ?? true
+                  const allowCreatorToCheck = sodSettings?.allowCreatorToCheck ?? false
+                  const isBlocked = enforceSOD && !allowCreatorToCheck
+
+                  return isBlocked ? (
+                    <>
+                      <p className="font-semibold">⚠️ You cannot approve your own transfer</p>
+                      <p>This transfer needs to be approved by a <strong>different user at {getLocationName(transfer.fromLocationId)}</strong> with checker/approver permissions.</p>
+                      <p className="text-xs mt-2 bg-blue-100 p-2 rounded">
+                        <strong>Separation of Duties:</strong> The creator cannot approve their own transfer to prevent fraud and ensure proper control.
+                      </p>
+                    </>
+                  ) : null
+                })()}
+                {transfer.status === 'pending_check' && transfer.createdBy !== currentUserId && (
+                  <>
+                    <p>This transfer is awaiting approval from an authorized checker at <strong>{getLocationName(transfer.fromLocationId)}</strong>.</p>
+                  </>
+                )}
+                {transfer.status === 'checked' && !isUserAtFromLocation() && (
+                  <>
+                    <p>This transfer is ready to be sent from <strong>{getLocationName(transfer.fromLocationId)}</strong>.</p>
+                    <p className="text-xs mt-2">Only users at the origin location can send the transfer.</p>
+                  </>
+                )}
+                {transfer.status === 'in_transit' && !isUserAtToLocation() && (
+                  <>
+                    <p>This transfer is in transit to <strong>{getLocationName(transfer.toLocationId)}</strong>.</p>
+                    <p className="text-xs mt-2">Only users at the destination location can mark it as arrived.</p>
+                  </>
+                )}
+                {transfer.status === 'arrived' && !isUserAtToLocation() && (
+                  <>
+                    <p>This transfer has arrived at <strong>{getLocationName(transfer.toLocationId)}</strong> and is awaiting verification.</p>
+                  </>
+                )}
+                {transfer.status === 'verifying' && (
+                  <>
+                    <p>Items are being verified at <strong>{getLocationName(transfer.toLocationId)}</strong>.</p>
+                  </>
+                )}
+                {transfer.status === 'verified' && !isUserAtToLocation() && (
+                  <>
+                    <p>This transfer has been verified and is ready to be completed at <strong>{getLocationName(transfer.toLocationId)}</strong>.</p>
+                  </>
+                )}
+              </div>
+            </div>
+          )
         )}
 
         {/* Export Actions */}
@@ -1051,9 +1262,7 @@ export default function TransferDetailPage() {
             <div className="space-y-2">
               {getStatusBadge(transfer.status)}
               <div className="text-sm text-gray-500">
-                {transfer.stockDeducted
-                  ? 'Stock has been deducted from origin'
-                  : 'Stock not yet deducted'}
+                {getLocationAwareStockMessage()}
               </div>
             </div>
           </div>
@@ -1071,7 +1280,7 @@ export default function TransferDetailPage() {
                 3. Checked
               </div>
               <div className={transfer.status === 'in_transit' ? 'font-bold' : ''}>
-                4. In Transit (Stock Deducted)
+                4. {isUserAtFromLocation() ? 'In Transit (Stock Deducted)' : 'In Transit'}
               </div>
               <div className={transfer.status === 'arrived' ? 'font-bold' : ''}>
                 5. Arrived
@@ -1083,7 +1292,7 @@ export default function TransferDetailPage() {
                 7. Verified
               </div>
               <div className={transfer.status === 'completed' ? 'font-bold' : ''}>
-                8. Completed (Stock Added)
+                8. {isUserAtFromLocation() ? 'Completed (Stock Deducted)' : isUserAtToLocation() ? 'Completed (Stock Added)' : 'Completed'}
               </div>
             </div>
           </div>
@@ -1122,7 +1331,9 @@ export default function TransferDetailPage() {
                   {transfer.sentAt && (
                     <div className="text-gray-500 text-xs">{new Date(transfer.sentAt).toLocaleString()}</div>
                   )}
-                  <div className="text-xs text-blue-600 mt-1">✓ Stock deducted from source</div>
+                  <div className="text-xs text-blue-600 mt-1">
+                    ✓ {isUserAtFromLocation() ? 'Stock deducted from your location' : 'Stock deducted from origin'}
+                  </div>
                 </div>
               )}
 
@@ -1135,7 +1346,9 @@ export default function TransferDetailPage() {
                   {transfer.arrivedAt && (
                     <div className="text-gray-500 text-xs">{new Date(transfer.arrivedAt).toLocaleString()}</div>
                   )}
-                  <div className="text-xs text-blue-600 mt-1">✓ Destination confirmed receipt</div>
+                  <div className="text-xs text-blue-600 mt-1">
+                    ✓ {isUserAtToLocation() ? 'Package arrived at your location' : 'Destination confirmed receipt'}
+                  </div>
                 </div>
               )}
 
@@ -1161,7 +1374,9 @@ export default function TransferDetailPage() {
                   {transfer.completedAt && (
                     <div className="text-gray-500 text-xs">{new Date(transfer.completedAt).toLocaleString()}</div>
                   )}
-                  <div className="text-xs text-green-600 mt-1">✓ Transfer complete - stock added to destination</div>
+                  <div className="text-xs text-green-600 mt-1">
+                    ✓ {isUserAtFromLocation() ? 'Transfer complete - stock deducted from your location' : isUserAtToLocation() ? 'Transfer complete - stock added to your location' : 'Transfer complete'}
+                  </div>
                 </div>
               )}
             </div>

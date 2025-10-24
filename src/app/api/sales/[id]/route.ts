@@ -59,6 +59,14 @@ export async function GET(
         },
         items: true,
         payments: true,
+        creator: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
       },
     })
 

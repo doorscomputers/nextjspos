@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
 import { usePermissions } from "@/hooks/usePermissions"
 import { PERMISSIONS } from "@/lib/rbac"
 import { formatCurrency } from "@/lib/currencyUtils"
@@ -94,6 +95,7 @@ interface SalesTodayData {
 
 export default function SalesTodayPage() {
   const { can } = usePermissions()
+  const { data: session } = useSession()
 
   if (!can(PERMISSIONS.REPORT_SALES_TODAY)) {
     return (
@@ -107,26 +109,38 @@ export default function SalesTodayPage() {
   const [loading, setLoading] = useState(true)
   const [locationId, setLocationId] = useState("all")
   const [locations, setLocations] = useState<Array<{ id: number; name: string }>>([])
+  const [hasAccessToAll, setHasAccessToAll] = useState(false)
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
 
   useEffect(() => {
-    fetchLocations()
+    fetchUserLocations()
   }, [])
 
   useEffect(() => {
     fetchReport()
   }, [locationId])
 
-  const fetchLocations = async () => {
+  const fetchUserLocations = async () => {
     try {
-      const response = await fetch("/api/locations")
+      const response = await fetch("/api/user-locations")
       if (response.ok) {
         const data = await response.json()
-        setLocations(data.locations || data)
+        setLocations(data.locations || [])
+        setHasAccessToAll(data.hasAccessToAll || false)
+
+        // For cashiers (users without ACCESS_ALL_LOCATIONS permission)
+        // Auto-set to their primary location
+        if (!data.hasAccessToAll && data.primaryLocationId) {
+          setLocationId(data.primaryLocationId.toString())
+        } else if (data.hasAccessToAll) {
+          // Admins default to "all" locations
+          setLocationId("all")
+        }
       }
     } catch (error) {
-      console.error("Failed to fetch locations:", error)
+      console.error("Failed to fetch user locations:", error)
       setLocations([])
+      setHasAccessToAll(false)
     }
   }
 
@@ -189,20 +203,33 @@ export default function SalesTodayPage() {
         <div className="flex items-center gap-3">
           {locations.length > 0 && (
             <>
-              <label className="text-sm font-medium text-gray-700">Location:</label>
-              <Select value={locationId} onValueChange={setLocationId}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Select location" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Locations</SelectItem>
-                  {locations.map((location) => (
-                    <SelectItem key={location.id} value={location.id.toString()}>
-                      {location.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* Show location selector only if user has multiple locations or can access all */}
+              {(hasAccessToAll || locations.length > 1) && (
+                <>
+                  <label className="text-sm font-medium text-gray-700">Location:</label>
+                  <Select value={locationId} onValueChange={setLocationId}>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Select location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {/* Only show "All Locations" if user has access to all */}
+                      {hasAccessToAll && <SelectItem value="all">All Locations</SelectItem>}
+                      {locations.map((location) => (
+                        <SelectItem key={location.id} value={location.id.toString()}>
+                          {location.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </>
+              )}
+              {/* For cashiers with only one location, show the location name as static text */}
+              {!hasAccessToAll && locations.length === 1 && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-md border border-blue-200">
+                  <span className="text-sm font-medium text-gray-700">Location:</span>
+                  <span className="text-sm font-semibold text-blue-900">{locations[0].name}</span>
+                </div>
+              )}
             </>
           )}
           <Button onClick={handlePrint}>
@@ -233,7 +260,7 @@ export default function SalesTodayPage() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-sm text-gray-600">Total Revenue</div>
+                  <div className="text-sm text-gray-600">Gross Sales</div>
                   <div className="text-3xl font-bold text-gray-900">
                     {formatCurrency(reportData.summary.totalAmount)}
                   </div>
@@ -243,16 +270,30 @@ export default function SalesTodayPage() {
             </CardContent>
           </Card>
 
+          <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-gray-600">Total Cash</div>
+                  <div className="text-3xl font-bold text-gray-900">
+                    {formatCurrency(reportData.paymentMethods.cash.amount)}
+                  </div>
+                </div>
+                <BanknotesIcon className="h-10 w-10 text-yellow-600" />
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="bg-gradient-to-br from-purple-50 to-purple-100">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-sm text-gray-600">Gross Profit</div>
+                  <div className="text-sm text-gray-600">Total Digital</div>
                   <div className="text-3xl font-bold text-gray-900">
-                    {formatCurrency(reportData.summary.grossProfit)}
+                    {formatCurrency(reportData.paymentMethods.digital.amount)}
                   </div>
                 </div>
-                <ArrowTrendingUpIcon className="h-10 w-10 text-purple-600" />
+                <CreditCardIcon className="h-10 w-10 text-purple-600" />
               </div>
             </CardContent>
           </Card>
@@ -261,15 +302,62 @@ export default function SalesTodayPage() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-sm text-gray-600">Gross Margin</div>
+                  <div className="text-sm text-gray-600">Charged Invoice</div>
                   <div className="text-3xl font-bold text-gray-900">
-                    {reportData.summary.grossMargin.toFixed(2)}%
+                    {formatCurrency(reportData.paymentMethods.credit.amount)}
                   </div>
                 </div>
-                <ArrowTrendingUpIcon className="h-10 w-10 text-orange-600" />
+                <DocumentTextIcon className="h-10 w-10 text-orange-600" />
               </div>
             </CardContent>
           </Card>
+
+          <Card className="bg-gradient-to-br from-red-50 to-red-100">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-gray-600">Total Discounts</div>
+                  <div className="text-3xl font-bold text-gray-900">
+                    {formatCurrency(reportData.summary.totalDiscount)}
+                  </div>
+                </div>
+                <ArrowTrendingUpIcon className="h-10 w-10 text-red-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Show profit metrics only to admins */}
+          {can(PERMISSIONS.ACCESS_ALL_LOCATIONS) && (
+            <>
+              <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm text-gray-600">Gross Profit</div>
+                      <div className="text-3xl font-bold text-gray-900">
+                        {formatCurrency(reportData.summary.grossProfit)}
+                      </div>
+                    </div>
+                    <ArrowTrendingUpIcon className="h-10 w-10 text-indigo-600" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-gradient-to-br from-pink-50 to-pink-100">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm text-gray-600">Gross Margin</div>
+                      <div className="text-3xl font-bold text-gray-900">
+                        {reportData.summary.grossMargin.toFixed(2)}%
+                      </div>
+                    </div>
+                    <ArrowTrendingUpIcon className="h-10 w-10 text-pink-600" />
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
       )}
 

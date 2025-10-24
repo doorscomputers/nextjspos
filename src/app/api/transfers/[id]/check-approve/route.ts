@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
+import { validateSOD, getUserRoles } from '@/lib/sodValidation'
 
 /**
  * POST /api/transfers/[id]/check-approve
@@ -25,6 +26,8 @@ export async function POST(
     const user = session.user as any
     const businessId = user.businessId
     const userId = user.id
+    const businessIdNumber = Number(businessId)
+    const userIdNumber = Number(userId)
 
     const { id } = await params
     const transferId = parseInt(id)
@@ -85,12 +88,32 @@ export async function POST(
       }
     }
 
-    // ENFORCE: Checker must be different from creator (separation of duties)
-    if (transfer.createdBy === parseInt(userId)) {
+    // CONFIGURABLE SOD VALIDATION
+    // Check business rules for separation of duties
+    const userRoles = await getUserRoles(userIdNumber)
+    const sodValidation = await validateSOD({
+      businessId: businessIdNumber,
+      userId: userIdNumber,
+      action: 'check',
+      entity: {
+        id: transfer.id,
+        createdBy: transfer.createdBy,
+        checkedBy: transfer.checkedBy,
+        sentBy: transfer.sentBy,
+        receivedBy: transfer.receivedBy
+      },
+      entityType: 'transfer',
+      userRoles
+    })
+
+    if (!sodValidation.allowed) {
       return NextResponse.json(
         {
-          error: 'Cannot approve your own transfer. A different user must check and approve this transfer for proper control and audit compliance.',
-          code: 'SAME_USER_VIOLATION'
+          error: sodValidation.reason,
+          code: sodValidation.code,
+          configurable: sodValidation.configurable,
+          suggestion: sodValidation.suggestion,
+          ruleField: sodValidation.ruleField
         },
         { status: 403 }
       )

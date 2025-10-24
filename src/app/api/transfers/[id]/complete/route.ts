@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
+import { validateSOD, getUserRoles } from '@/lib/sodValidation'
 
 /**
  * POST /api/transfers/[id]/complete
@@ -26,6 +27,8 @@ export async function POST(
     const user = session.user as any
     const businessId = user.businessId
     const userId = user.id
+    const businessIdNumber = Number(businessId)
+    const userIdNumber = Number(userId)
 
     const { id } = await params
     const transferId = parseInt(id)
@@ -94,22 +97,32 @@ export async function POST(
       }
     }
 
-    // ENFORCE: Completer must be at destination location and different from previous workflow participants
-    if (transfer.createdBy === parseInt(userId)) {
-      return NextResponse.json(
-        {
-          error: 'Cannot complete your own transfer. A supervisor or manager at the destination location must complete this transfer.',
-          code: 'SAME_USER_VIOLATION'
-        },
-        { status: 403 }
-      )
-    }
+    // CONFIGURABLE SOD VALIDATION
+    // Check business rules for separation of duties
+    const userRoles = await getUserRoles(userIdNumber)
+    const sodValidation = await validateSOD({
+      businessId: businessIdNumber,
+      userId: userIdNumber,
+      action: 'complete',
+      entity: {
+        id: transfer.id,
+        createdBy: transfer.createdBy,
+        checkedBy: transfer.checkedBy,
+        sentBy: transfer.sentBy,
+        receivedBy: transfer.receivedBy
+      },
+      entityType: 'transfer',
+      userRoles
+    })
 
-    if (transfer.sentBy === parseInt(userId)) {
+    if (!sodValidation.allowed) {
       return NextResponse.json(
         {
-          error: 'Cannot complete a transfer you sent. A user at the destination location must complete this transfer.',
-          code: 'SAME_USER_VIOLATION'
+          error: sodValidation.reason,
+          code: sodValidation.code,
+          configurable: sodValidation.configurable,
+          suggestion: sodValidation.suggestion,
+          ruleField: sodValidation.ruleField
         },
         { status: 403 }
       )

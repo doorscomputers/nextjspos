@@ -9,6 +9,7 @@ import { PERMISSIONS } from '@/lib/rbac'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -17,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, Save, Search } from 'lucide-react'
+import { ArrowLeft, Save, Search, X } from 'lucide-react'
 
 interface Location {
   id: number
@@ -29,6 +30,7 @@ interface Product {
   name: string
   sku: string
   barcode?: string
+  variations?: ProductVariation[]
 }
 
 interface ProductVariation {
@@ -57,6 +59,9 @@ export default function NewInventoryCorrectionPage() {
   const [productSearchTerm, setProductSearchTerm] = useState('')
   const [userLocation, setUserLocation] = useState<Location | null>(null)
   const [isScanning, setIsScanning] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage] = useState(12)
 
   const [formData, setFormData] = useState({
     locationId: '',
@@ -86,50 +91,93 @@ export default function NewInventoryCorrectionPage() {
 
   // Auto-select location based on user's assigned location
   useEffect(() => {
-    console.log('🔍 Location auto-lock effect triggered')
-    console.log('  - locations.length:', locations.length)
-    console.log('  - session?.user:', session?.user)
-
     if (locations.length > 0 && session?.user) {
       const userLocationIds = (session.user as any).locationIds || []
-      console.log('  - userLocationIds:', userLocationIds)
 
-      // If user has exactly one location, auto-select it and lock the field
       if (userLocationIds.length === 1) {
-        console.log('  ✓ User has exactly 1 location - auto-locking')
         const userLoc = locations.find(loc => userLocationIds.includes(loc.id))
-        console.log('  - Found location:', userLoc)
         if (userLoc) {
           setUserLocation(userLoc)
           setFormData(prev => ({ ...prev, locationId: userLoc.id.toString() }))
-          console.log('  ✓ Location set to:', userLoc.name)
         }
-      }
-      // If user has multiple locations, they can choose from their assigned locations
-      else if (userLocationIds.length > 1) {
-        console.log('  - User has multiple locations')
+      } else if (userLocationIds.length > 1) {
         const accessibleLocs = locations.filter(loc => userLocationIds.includes(loc.id))
         setLocations(accessibleLocs)
-      } else {
-        console.log('  ⚠️ No locationIds found in session')
       }
     }
   }, [locations.length, session?.user])
 
-  // Filter products based on search term (partial match on name, SKU, or barcode)
+  // Filter products - SKU first, then phrase search
   useEffect(() => {
+    console.log('🔍 Search term changed:', productSearchTerm)
+    console.log('🔍 Total products available:', products.length)
+
     if (!productSearchTerm.trim()) {
       setFilteredProducts(products)
+      console.log('🔍 No search term, showing all products:', products.length)
       return
     }
 
     const searchLower = productSearchTerm.toLowerCase().trim()
-    const filtered = products.filter(product =>
-      product.name.toLowerCase().includes(searchLower) ||
-      product.sku.toLowerCase().includes(searchLower) ||
-      (product.barcode && product.barcode.toLowerCase().includes(searchLower))
-    )
-    setFilteredProducts(filtered)
+    console.log('🔍 Searching for:', searchLower)
+
+    // STEP 1: Check for exact SKU match first (priority)
+    const exactSkuMatches = products.filter(product => {
+      const productSku = product.sku.toLowerCase()
+      const isExactMatch = productSku === searchLower
+
+      if (isExactMatch) {
+        console.log('🎯 EXACT SKU MATCH:', product.name, 'SKU:', product.sku)
+      }
+
+      return isExactMatch
+    })
+
+    // If we found exact SKU match, return only that
+    if (exactSkuMatches.length > 0) {
+      console.log('✅ Found', exactSkuMatches.length, 'exact SKU match(es)')
+      setFilteredProducts(exactSkuMatches)
+      setCurrentPage(1)
+      return
+    }
+
+    // STEP 2: If no exact SKU match, search by phrase (contains)
+    console.log('🔍 No exact SKU match, searching by phrase...')
+
+    const phraseMatches = products.filter(product => {
+      const productName = product.name.toLowerCase()
+      const productSku = product.sku.toLowerCase()
+      const productBarcode = product.barcode?.toLowerCase() || ''
+
+      // Check if the FULL search phrase is contained in name, SKU, or barcode
+      const nameContains = productName.includes(searchLower)
+      const skuContains = productSku.includes(searchLower)
+      const barcodeContains = productBarcode.includes(searchLower)
+
+      const hasMatch = nameContains || skuContains || barcodeContains
+
+      if (hasMatch) {
+        console.log('✅ Phrase match:', product.name, 'SKU:', product.sku, {
+          nameMatch: nameContains,
+          skuMatch: skuContains,
+          barcodeMatch: barcodeContains
+        })
+      }
+
+      return hasMatch
+    })
+
+    console.log('🔍 Found', phraseMatches.length, 'phrase match(es)')
+
+    if (phraseMatches.length === 0) {
+      console.log('⚠️ No products found. Sample of available products:')
+      products.slice(0, 5).forEach(p => {
+        console.log(`   - ${p.name} (SKU: ${p.sku})`)
+      })
+    }
+
+    setFilteredProducts(phraseMatches)
+    setCurrentPage(1)
   }, [productSearchTerm, products])
 
   useEffect(() => {
@@ -171,10 +219,41 @@ export default function NewInventoryCorrectionPage() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/products?limit=1000')
+      const res = await fetch('/api/products?limit=10000')
       if (res.ok) {
         const data = await res.json()
-        setProducts(data.products || [])
+        const productsWithVariations = data.products || []
+        console.log('📦 Products loaded:', productsWithVariations.length)
+        console.log('📦 Sample products:')
+        productsWithVariations.slice(0, 10).forEach((p: any, i: number) => {
+          console.log(`   ${i + 1}. ${p.name} | SKU: ${p.sku} | Barcode: ${p.barcode || 'N/A'}`)
+        })
+
+        // Check for products with "512" in name or SKU
+        const with512 = productsWithVariations.filter((p: any) =>
+          p.name.toLowerCase().includes('512') ||
+          p.sku.toLowerCase().includes('512')
+        )
+        console.log('📦 Products containing "512":', with512.length)
+        if (with512.length > 0) {
+          with512.forEach((p: any) => {
+            console.log(`   - ${p.name} | SKU: ${p.sku}`)
+          })
+        }
+
+        // Check for products with "adata" in name
+        const withAdata = productsWithVariations.filter((p: any) =>
+          p.name.toLowerCase().includes('adata')
+        )
+        console.log('📦 Products containing "adata":', withAdata.length)
+        if (withAdata.length > 0 && withAdata.length <= 10) {
+          withAdata.forEach((p: any) => {
+            console.log(`   - ${p.name} | SKU: ${p.sku}`)
+          })
+        }
+
+        setProducts(productsWithVariations)
+        setFilteredProducts(productsWithVariations)
       }
     } catch (error) {
       console.error('Error fetching products:', error)
@@ -201,7 +280,6 @@ export default function NewInventoryCorrectionPage() {
         if (data.inventory) {
           setSystemCount(parseFloat(data.inventory.qtyAvailable))
         } else {
-          // Product exists but not at this location - show 0
           setSystemCount(0)
           toast.info('Product not yet added to this location. System count is 0.')
         }
@@ -212,75 +290,38 @@ export default function NewInventoryCorrectionPage() {
     }
   }
 
-  // Handle barcode scanning - auto-select product and variation by SKU
-  const handleBarcodeSearch = async (searchValue: string) => {
-    console.log('🔍 handleBarcodeSearch called with:', searchValue)
+  const handleProductSelect = async (product: Product) => {
+    setSelectedProduct(product)
+    setFormData((prev) => ({
+      ...prev,
+      productId: product.id.toString(),
+      productVariationId: ''
+    }))
 
-    if (!searchValue.trim()) {
-      console.log('  ⚠️ Empty search value')
-      toast.error('Please enter a SKU or barcode')
-      return
+    // Fetch variations for this product
+    await fetchVariations(product.id)
+
+    // If single variation, auto-select it
+    if (product.variations && product.variations.length === 1) {
+      setFormData((prev) => ({
+        ...prev,
+        productVariationId: product.variations![0].id.toString()
+      }))
     }
 
-    console.log('  ✓ Setting isScanning to true')
-    setIsScanning(true)
-    const searchTerm = searchValue.trim()
+    // Clear search
+    setProductSearchTerm('')
+  }
 
-    try {
-      console.log('  🌐 Fetching from API:', `/api/products/variations/search?sku=${searchTerm}`)
-
-      // Search for product variation by SKU (most specific match)
-      const variationRes = await fetch(`/api/products/variations/search?sku=${encodeURIComponent(searchTerm)}`)
-
-      console.log('Response status:', variationRes.status)
-
-      if (variationRes.ok) {
-        const variationData = await variationRes.json()
-        console.log('Variation data:', variationData)
-
-        if (variationData.variation) {
-          // Found exact SKU match - auto-select product and variation
-          const variation = variationData.variation
-
-          // Set product first
-          setFormData((prev) => ({
-            ...prev,
-            productId: variation.productId.toString(),
-            productVariationId: variation.id.toString()
-          }))
-
-          // Fetch variations for this product
-          await fetchVariations(variation.productId)
-
-          // Fetch system count if location is already selected
-          if (formData.locationId) {
-            await fetchSystemCount(parseInt(formData.locationId), variation.id)
-          }
-
-          // Clear search
-          setProductSearchTerm('')
-
-          toast.success(`Product found: ${variation.productName} (${variation.name})`)
-          setIsScanning(false)
-          return
-        } else {
-          // No product found with this SKU
-          toast.error(`No product found with SKU: ${searchTerm}`)
-          setIsScanning(false)
-          return
-        }
-      } else {
-        const errorData = await variationRes.json()
-        console.error('API error:', errorData)
-        toast.error(errorData.error || 'Failed to search for product')
-      }
-
-      setIsScanning(false)
-    } catch (error) {
-      console.error('Error searching by barcode:', error)
-      toast.error('Failed to search for product. Check console for details.')
-      setIsScanning(false)
-    }
+  const clearProductSelection = () => {
+    setSelectedProduct(null)
+    setFormData((prev) => ({
+      ...prev,
+      productId: '',
+      productVariationId: ''
+    }))
+    setVariations([])
+    setSystemCount(null)
   }
 
   const calculateDifference = () => {
@@ -294,17 +335,22 @@ export default function NewInventoryCorrectionPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Prevent double submission - disable button immediately
+    if (loading) return
+    setLoading(true)
+
+    // Validate required fields
     if (!formData.locationId || !formData.productId || !formData.productVariationId || !formData.physicalCount || !formData.reason) {
       toast.error('Please fill in all required fields')
+      setLoading(false)
       return
     }
 
     if (systemCount === null) {
       toast.error('Unable to determine system count. Please ensure the product exists at this location.')
+      setLoading(false)
       return
     }
-
-    setLoading(true)
 
     try {
       const res = await fetch('/api/inventory-corrections', {
@@ -322,7 +368,10 @@ export default function NewInventoryCorrectionPage() {
 
       if (res.ok) {
         const data = await res.json()
-        toast.success(data.message || 'Inventory correction created successfully')
+        toast.success(data.message || 'Inventory correction created successfully', {
+          duration: 2000 // Show for only 2 seconds
+        })
+        // Redirect immediately without waiting for toast
         router.push('/dashboard/inventory-corrections')
       } else {
         const error = await res.json()
@@ -337,6 +386,12 @@ export default function NewInventoryCorrectionPage() {
   }
 
   const difference = calculateDifference()
+
+  // Pagination calculations
+  const indexOfLastProduct = currentPage * itemsPerPage
+  const indexOfFirstProduct = indexOfLastProduct - itemsPerPage
+  const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct)
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage)
 
   return (
     <div className="p-8">
@@ -354,265 +409,299 @@ export default function NewInventoryCorrectionPage() {
         <p className="text-gray-600 mt-2">Create a new stock adjustment for expired, damaged, or missing items</p>
       </div>
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 max-w-3xl">
-        <div className="space-y-6">
-          {/* Location - Locked to user's assigned location */}
-          <div>
-            <Label htmlFor="locationId" className="required">Location</Label>
-            {userLocation ? (
-              <div className="mt-1">
-                <Input
-                  id="locationId"
-                  type="text"
-                  value={userLocation.name}
-                  readOnly
-                  className="bg-gray-100 cursor-not-allowed"
-                />
-                <p className="text-xs text-gray-500 mt-1">Location is locked to your assigned branch</p>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Side - Product Selection (takes 2/3 of space) */}
+        <div className="lg:col-span-2">
+          <Card className="border-gray-200 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Select Product</h2>
+                <span className="text-sm text-gray-500">
+                  {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
+                  {productSearchTerm && ` found`}
+                </span>
               </div>
-            ) : (
-              <Select
-                value={formData.locationId}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, locationId: value }))}
-              >
-                <SelectTrigger id="locationId" className="mt-1">
-                  <SelectValue placeholder="Select location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((loc) => (
-                    <SelectItem key={loc.id} value={loc.id.toString()}>
-                      {loc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
 
-          {/* Product - With barcode scanning and search */}
-          <div>
-            <Label htmlFor="productSearch" className="required">
-              Product {formData.productId && formData.productVariationId && (
-                <span className="text-green-600 font-normal ml-2">✓ Selected</span>
+              {/* Search Bar */}
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Search by product name, SKU, or barcode..."
+                  value={productSearchTerm}
+                  onChange={(e) => setProductSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+                {productSearchTerm && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                    onClick={() => setProductSearchTerm('')}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              {productSearchTerm && filteredProducts.length > 0 && (
+                <p className="text-xs text-green-600 mb-2">
+                  ✓ Found {filteredProducts.length} matching product{filteredProducts.length !== 1 ? 's' : ''}
+                </p>
               )}
-            </Label>
-            <div className="relative mt-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                id="productSearch"
-                type="text"
-                placeholder="Scan barcode or type SKU/product name..."
-                value={productSearchTerm}
-                onChange={(e) => setProductSearchTerm(e.target.value)}
-                onKeyDown={(e) => {
-                  console.log('⌨️ Key pressed:', e.key, 'Value:', productSearchTerm)
-                  if (e.key === 'Enter') {
-                    console.log('  ✓ Enter key detected, calling handleBarcodeSearch')
-                    e.preventDefault()
-                    handleBarcodeSearch(productSearchTerm)
-                  }
-                }}
-                className="pl-10"
-                disabled={isScanning}
-              />
-              {isScanning && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+
+              {/* Product Grid */}
+              {!selectedProduct ? (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+                    {currentProducts.map((product) => (
+                      <Card
+                        key={product.id}
+                        className="cursor-pointer hover:shadow-lg transition-shadow border-gray-200"
+                        onClick={() => handleProductSelect(product)}
+                      >
+                        <CardContent className="p-3">
+                          <h3 className="font-bold text-xs mb-1 line-clamp-2 h-8">
+                            {product.name}
+                          </h3>
+                          <p className="text-[10px] text-gray-500 mb-1">
+                            SKU: {product.sku}
+                          </p>
+                          <Button
+                            size="sm"
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white text-[10px] h-7 mt-2"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleProductSelect(product)
+                            }}
+                          >
+                            Select
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-center space-x-2 mt-4">
+                      <Button
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        variant="outline"
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm text-gray-600">
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      <Button
+                        size="sm"
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        variant="outline"
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
+
+                  {filteredProducts.length === 0 && (
+                    <div className="text-center py-12 text-gray-500">
+                      <p>No products found</p>
+                      <p className="text-sm mt-1">Try adjusting your search</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Selected Product Display */
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className="text-sm font-medium text-blue-900">{selectedProduct.name}</p>
+                      <p className="text-xs text-blue-700">SKU: {selectedProduct.sku}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={clearProductSelection}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  {/* Variation Selection if multiple */}
+                  {variations.length > 1 && (
+                    <div className="mt-3">
+                      <Label htmlFor="productVariationId" className="text-sm">Select Variation</Label>
+                      <Select
+                        value={formData.productVariationId}
+                        onValueChange={(value) => setFormData((prev) => ({ ...prev, productVariationId: value }))}
+                      >
+                        <SelectTrigger id="productVariationId" className="mt-1">
+                          <SelectValue placeholder="Select variation" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {variations.map((variation) => (
+                            <SelectItem key={variation.id} value={variation.id.toString()}>
+                              {variation.name} ({variation.sku})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Scan barcode or search manually. Press Enter after scanning.
-            </p>
-
-            {/* Only show manual selection if not auto-selected by barcode */}
-            {!formData.productVariationId && (
-              <Select
-                value={formData.productId}
-                onValueChange={(value) => {
-                  setFormData((prev) => ({ ...prev, productId: value, productVariationId: '' }))
-                  setProductSearchTerm('')
-                }}
-              >
-                <SelectTrigger id="productId" className="mt-2">
-                  <SelectValue placeholder="Or select product manually" />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredProducts.length > 0 ? (
-                    filteredProducts.map((prod) => (
-                      <SelectItem key={prod.id} value={prod.id.toString()}>
-                        {prod.name} ({prod.sku})
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="_no_results" disabled>
-                      {productSearchTerm ? 'No products found' : 'Start typing to search'}
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            )}
-
-            {/* Show selected product info */}
-            {formData.productId && formData.productVariationId && variations.length > 0 && (
-              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <p className="text-sm font-medium text-blue-900">
-                  {products.find(p => p.id.toString() === formData.productId)?.name}
-                </p>
-                <p className="text-xs text-blue-700">
-                  SKU: {variations.find(v => v.id.toString() === formData.productVariationId)?.sku}
-                  {variations.find(v => v.id.toString() === formData.productVariationId)?.name !== 'Default' &&
-                    ` | Variation: ${variations.find(v => v.id.toString() === formData.productVariationId)?.name}`
-                  }
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Product Variation - Only show if multiple variations exist */}
-          {variations.length > 1 && (
-            <div>
-              <Label htmlFor="productVariationId" className="required">Product Variation</Label>
-              <Select
-                value={formData.productVariationId}
-                onValueChange={(value) => setFormData((prev) => ({ ...prev, productVariationId: value }))}
-                disabled={!formData.productId}
-              >
-                <SelectTrigger id="productVariationId" className="mt-1">
-                  <SelectValue placeholder={formData.productId ? "Select variation" : "Select product first"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {variations.map((variation) => (
-                    <SelectItem key={variation.id} value={variation.id.toString()}>
-                      {variation.name} ({variation.sku})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* System Count (Read-only) */}
-          <div>
-            <Label htmlFor="systemCount">Current System Count</Label>
-            <Input
-              id="systemCount"
-              type="text"
-              value={systemCount !== null ? systemCount.toFixed(2) : '—'}
-              readOnly
-              className="mt-1 bg-gray-50 font-medium"
-            />
-            {systemCount !== null && (
-              <p className="text-xs text-gray-500 mt-1">
-                System inventory at selected location
-              </p>
-            )}
-          </div>
-
-          {/* Physical Count */}
-          <div>
-            <Label htmlFor="physicalCount" className="required">Physical Count</Label>
-            <Input
-              id="physicalCount"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.physicalCount}
-              onChange={(e) => {
-                const value = e.target.value
-                // Only allow numbers and decimal point
-                if (value === '' || /^\d*\.?\d*$/.test(value)) {
-                  setFormData((prev) => ({ ...prev, physicalCount: value }))
-                }
-              }}
-              onKeyPress={(e) => {
-                // Prevent non-numeric characters (except decimal point)
-                if (!/[\d.]/.test(e.key)) {
-                  e.preventDefault()
-                }
-              }}
-              placeholder="Enter actual physical count"
-              className="mt-1"
-              required
-            />
-          </div>
-
-          {/* Difference (Calculated) */}
-          <div>
-            <Label htmlFor="difference">Difference</Label>
-            <Input
-              id="difference"
-              type="text"
-              value={difference !== 0 ? (difference > 0 ? `+${difference}` : difference.toString()) : '0'}
-              readOnly
-              className={`mt-1 font-medium ${
-                difference > 0 ? 'bg-green-50 text-green-700' :
-                difference < 0 ? 'bg-red-50 text-red-700' :
-                'bg-gray-50'
-              }`}
-            />
-            {difference !== 0 && (
-              <p className="text-sm text-gray-600 mt-1">
-                {difference > 0 ? 'Stock will increase' : 'Stock will decrease'}
-              </p>
-            )}
-          </div>
-
-          {/* Reason */}
-          <div>
-            <Label htmlFor="reason" className="required">Reason</Label>
-            <Select
-              value={formData.reason}
-              onValueChange={(value) => setFormData((prev) => ({ ...prev, reason: value }))}
-            >
-              <SelectTrigger id="reason" className="mt-1">
-                <SelectValue placeholder="Select reason" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="expired">Expired</SelectItem>
-                <SelectItem value="damaged">Damaged</SelectItem>
-                <SelectItem value="missing">Missing</SelectItem>
-                <SelectItem value="found">Found</SelectItem>
-                <SelectItem value="count_error">Count Error</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Remarks */}
-          <div>
-            <Label htmlFor="remarks">Remarks (Optional)</Label>
-            <Textarea
-              id="remarks"
-              value={formData.remarks}
-              onChange={(e) => setFormData((prev) => ({ ...prev, remarks: e.target.value }))}
-              placeholder="Add any additional notes or comments"
-              className="mt-1"
-              rows={4}
-            />
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-4 pt-4 border-t">
-            <Button
-              type="submit"
-              disabled={loading || systemCount === null}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {loading ? 'Creating...' : 'Create Correction'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => router.back()}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-          </div>
+            </CardContent>
+          </Card>
         </div>
-      </form>
+
+        {/* Right Side - Correction Form */}
+        <div className="lg:col-span-1">
+          <form onSubmit={handleSubmit}>
+            <Card className="border-gray-200 shadow-sm sticky top-4">
+              <CardContent className="p-6 space-y-4">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Correction Details</h2>
+
+                {/* Location */}
+                <div>
+                  <Label htmlFor="locationId" className="required text-sm">Location</Label>
+                  {userLocation ? (
+                    <div className="mt-1">
+                      <Input
+                        id="locationId"
+                        type="text"
+                        value={userLocation.name}
+                        readOnly
+                        className="bg-gray-100 cursor-not-allowed text-sm"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Locked to your branch</p>
+                    </div>
+                  ) : (
+                    <Select
+                      value={formData.locationId}
+                      onValueChange={(value) => setFormData((prev) => ({ ...prev, locationId: value }))}
+                    >
+                      <SelectTrigger id="locationId" className="mt-1">
+                        <SelectValue placeholder="Select location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locations.map((loc) => (
+                          <SelectItem key={loc.id} value={loc.id.toString()}>
+                            {loc.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+
+                {/* System Count */}
+                <div>
+                  <Label htmlFor="systemCount" className="text-sm">System Count</Label>
+                  <Input
+                    id="systemCount"
+                    type="text"
+                    value={systemCount !== null ? systemCount.toFixed(2) : '—'}
+                    readOnly
+                    className="mt-1 bg-gray-50 font-medium text-sm"
+                  />
+                </div>
+
+                {/* Physical Count */}
+                <div>
+                  <Label htmlFor="physicalCount" className="required text-sm">Physical Count</Label>
+                  <Input
+                    id="physicalCount"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.physicalCount}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, physicalCount: e.target.value }))}
+                    placeholder="Enter actual count"
+                    className="mt-1"
+                    required
+                  />
+                </div>
+
+                {/* Difference */}
+                <div>
+                  <Label htmlFor="difference" className="text-sm">Difference</Label>
+                  <Input
+                    id="difference"
+                    type="text"
+                    value={difference !== 0 ? (difference > 0 ? `+${difference}` : difference.toString()) : '0'}
+                    readOnly
+                    className={`mt-1 font-medium text-sm ${
+                      difference > 0 ? 'bg-green-50 text-green-700' :
+                      difference < 0 ? 'bg-red-50 text-red-700' :
+                      'bg-gray-50'
+                    }`}
+                  />
+                </div>
+
+                {/* Reason */}
+                <div>
+                  <Label htmlFor="reason" className="required text-sm">Reason</Label>
+                  <Select
+                    value={formData.reason}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, reason: value }))}
+                  >
+                    <SelectTrigger id="reason" className="mt-1">
+                      <SelectValue placeholder="Select reason" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="expired">Expired</SelectItem>
+                      <SelectItem value="damaged">Damaged</SelectItem>
+                      <SelectItem value="missing">Missing</SelectItem>
+                      <SelectItem value="found">Found</SelectItem>
+                      <SelectItem value="count_error">Count Error</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Remarks */}
+                <div>
+                  <Label htmlFor="remarks" className="text-sm">Remarks</Label>
+                  <Textarea
+                    id="remarks"
+                    value={formData.remarks}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, remarks: e.target.value }))}
+                    placeholder="Additional notes..."
+                    className="mt-1"
+                    rows={3}
+                  />
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-col gap-2 pt-4 border-t">
+                  <Button
+                    type="submit"
+                    disabled={loading || systemCount === null || !formData.productId}
+                    className="bg-blue-600 hover:bg-blue-700 text-white w-full"
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    {loading ? 'Creating...' : 'Create Correction'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => router.back()}
+                    disabled={loading}
+                    className="w-full"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </form>
+        </div>
+      </div>
     </div>
   )
 }

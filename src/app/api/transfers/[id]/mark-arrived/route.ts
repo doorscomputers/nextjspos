@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
+import { validateSOD, getUserRoles } from '@/lib/sodValidation'
 
 /**
  * POST /api/transfers/[id]/mark-arrived
@@ -25,6 +26,8 @@ export async function POST(
     const user = session.user as any
     const businessId = user.businessId
     const userId = user.id
+    const businessIdNumber = Number(businessId)
+    const userIdNumber = Number(userId)
 
     const { id } = await params
     const transferId = parseInt(id)
@@ -81,12 +84,33 @@ export async function POST(
       }
     }
 
-    // ENFORCE: Arrival marker must be different from sender (separation of duties)
-    if (transfer.sentBy === parseInt(userId)) {
+    // CONFIGURABLE SOD VALIDATION
+    // Check business rules for separation of duties
+    // Note: Mark-arrived uses 'receive' validation as it's part of the receiving workflow
+    const userRoles = await getUserRoles(userIdNumber)
+    const sodValidation = await validateSOD({
+      businessId: businessIdNumber,
+      userId: userIdNumber,
+      action: 'receive',  // Mark-arrived is the first step of receiving
+      entity: {
+        id: transfer.id,
+        createdBy: transfer.createdBy,
+        checkedBy: transfer.checkedBy,
+        sentBy: transfer.sentBy,
+        receivedBy: transfer.receivedBy
+      },
+      entityType: 'transfer',
+      userRoles
+    })
+
+    if (!sodValidation.allowed) {
       return NextResponse.json(
         {
-          error: 'Cannot mark as arrived a transfer you sent. A different user at the destination must confirm arrival.',
-          code: 'SAME_USER_VIOLATION'
+          error: sodValidation.reason,
+          code: sodValidation.code,
+          configurable: sodValidation.configurable,
+          suggestion: sodValidation.suggestion,
+          ruleField: sodValidation.ruleField
         },
         { status: 403 }
       )

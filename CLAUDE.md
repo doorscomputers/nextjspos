@@ -201,3 +201,4 @@ On this Project, Only the Main Warehouse will process Purchase orders
 
 1. Consistent report creation with Print , Export to Pdf and Excel
 2. For list Reports use the
+- SOD settings should be dynamic

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { validateSOD, getUserRoles } from '@/lib/sodValidation'
 
 /**
  * POST /api/purchases/amendments/[id]/approve
@@ -22,6 +23,8 @@ export async function POST(
     const user = session.user as any
     const businessId = user.businessId
     const userId = user.id
+    const businessIdNumber = Number(businessId)
+    const userIdNumber = Number(userId)
 
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.PURCHASE_AMENDMENT_APPROVE)) {
@@ -60,10 +63,31 @@ export async function POST(
       return NextResponse.json({ error: 'Cannot approve a rejected amendment' }, { status: 400 })
     }
 
-    // Prevent self-approval
-    if (amendment.requestedBy === parseInt(userId)) {
+    // CONFIGURABLE SOD VALIDATION
+    // Check business rules for separation of duties
+    const userRoles = await getUserRoles(userIdNumber)
+    const sodValidation = await validateSOD({
+      businessId: businessIdNumber,
+      userId: userIdNumber,
+      action: 'approve',
+      entity: {
+        id: amendment.id,
+        requestedBy: amendment.requestedBy,
+        approvedBy: amendment.approvedBy
+      },
+      entityType: 'amendment',
+      userRoles
+    })
+
+    if (!sodValidation.allowed) {
       return NextResponse.json(
-        { error: 'Cannot approve your own amendment request' },
+        {
+          error: sodValidation.reason,
+          code: sodValidation.code,
+          configurable: sodValidation.configurable,
+          suggestion: sodValidation.suggestion,
+          ruleField: sodValidation.ruleField
+        },
         { status: 403 }
       )
     }

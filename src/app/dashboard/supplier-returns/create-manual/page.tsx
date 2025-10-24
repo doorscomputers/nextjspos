@@ -9,8 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { ArrowLeftIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import SelectBox from 'devextreme-react/select-box'
+import NumberBox from 'devextreme-react/number-box'
 
 interface Supplier {
   id: number
@@ -60,7 +62,7 @@ export default function CreateManualSupplierReturnPage() {
   const [supplierId, setSupplierId] = useState('')
   const [productId, setProductId] = useState('')
   const [variationId, setVariationId] = useState('')
-  const [locationId, setLocationId] = useState('')
+  const [locationId, setLocationId] = useState('2') // Main Warehouse (only authorized location)
   const [quantity, setQuantity] = useState(1)
   const [unitCost, setUnitCost] = useState(0)
   const [condition, setCondition] = useState('defective')
@@ -74,20 +76,35 @@ export default function CreateManualSupplierReturnPage() {
 
   useEffect(() => {
     fetchSuppliers()
-    fetchProducts()
     fetchLocations()
   }, [])
 
   useEffect(() => {
-    if (productId) {
+    // When supplier changes, fetch products for that supplier
+    if (supplierId) {
+      fetchProductsBySupplier(supplierId)
+      // Clear product and variation selection
+      setProductId('')
+      setVariationId('')
+      setUnitCost(0)
+    } else {
+      setProducts([])
+      setProductId('')
+      setVariationId('')
+      setUnitCost(0)
+    }
+  }, [supplierId])
+
+  useEffect(() => {
+    if (productId && supplierId) {
       fetchVariations(productId)
-      fetchLastPurchaseCost(productId)
+      fetchLastPurchaseCostFromSupplier(productId, supplierId)
     } else {
       setVariations([])
       setVariationId('')
       setUnitCost(0)
     }
-  }, [productId])
+  }, [productId, supplierId])
 
   const fetchSuppliers = async () => {
     try {
@@ -107,19 +124,25 @@ export default function CreateManualSupplierReturnPage() {
     }
   }
 
-  const fetchProducts = async () => {
+  const fetchProductsBySupplier = async (suppId: string) => {
     try {
       setLoadingProducts(true)
-      const response = await fetch('/api/products?limit=1000')
+      // Fetch products that have been purchased from this supplier
+      const response = await fetch(`/api/suppliers/${suppId}/products`)
       const data = await response.json()
       if (response.ok) {
         setProducts(data.products || [])
+        if (data.products?.length === 0) {
+          toast.info('No products purchased from this supplier yet')
+        }
       } else {
-        toast.error('Failed to fetch products')
+        toast.error('Failed to fetch products for this supplier')
+        setProducts([])
       }
     } catch (error) {
-      console.error('Error fetching products:', error)
-      toast.error('Failed to fetch products')
+      console.error('Error fetching products for supplier:', error)
+      toast.error('Failed to fetch products for this supplier')
+      setProducts([])
     } finally {
       setLoadingProducts(false)
     }
@@ -128,17 +151,11 @@ export default function CreateManualSupplierReturnPage() {
   const fetchLocations = async () => {
     try {
       setLoadingLocations(true)
-      const response = await fetch('/api/business-locations')
+      const response = await fetch('/api/locations')
       const data = await response.json()
       if (response.ok) {
         setLocations(data.locations || [])
-        // Auto-select Main Warehouse if found
-        const mainWarehouse = data.locations?.find((loc: Location) =>
-          loc.name.toLowerCase().includes('warehouse') || loc.name.toLowerCase().includes('main warehouse')
-        )
-        if (mainWarehouse) {
-          setLocationId(mainWarehouse.id.toString())
-        }
+        // Location is locked to Main Warehouse (id=2) - no auto-select needed
       } else {
         toast.error('Failed to fetch locations')
       }
@@ -169,21 +186,36 @@ export default function CreateManualSupplierReturnPage() {
     }
   }
 
-  const fetchLastPurchaseCost = async (prodId: string) => {
+  const fetchLastPurchaseCostFromSupplier = async (prodId: string, suppId: string) => {
     try {
-      const response = await fetch(`/api/products/${prodId}/last-purchase-cost`)
+      const response = await fetch(`/api/suppliers/${suppId}/products/${prodId}/last-cost`)
       const data = await response.json()
       if (response.ok && data.lastCost) {
         setUnitCost(parseFloat(data.lastCost))
+        toast.success(`Unit cost auto-filled: ${formatCurrency(parseFloat(data.lastCost))}`, {
+          duration: 2000,
+        })
+      } else {
+        // No previous purchase from this supplier
+        setUnitCost(0)
+        toast.info('No previous purchase from this supplier. Please enter unit cost manually.', {
+          duration: 3000,
+        })
       }
     } catch (error) {
-      console.error('Error fetching last purchase cost:', error)
-      // Don't show error toast, just leave unit cost at 0
+      console.error('Error fetching last purchase cost from supplier:', error)
+      setUnitCost(0)
+      toast.warning('Could not fetch cost. Please enter unit cost manually.')
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Prevent double submission
+    if (loading) {
+      return
+    }
 
     if (!supplierId || !productId || !variationId || !locationId) {
       toast.error('Please fill in all required fields')
@@ -291,36 +323,41 @@ export default function CreateManualSupplierReturnPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Supplier <span className="text-red-500">*</span>
                 </label>
-                <Select value={supplierId} onValueChange={setSupplierId} disabled={loadingSuppliers}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={loadingSuppliers ? "Loading..." : "Select supplier"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {suppliers.map((supplier) => (
-                      <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                        {supplier.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SelectBox
+                  dataSource={suppliers}
+                  displayExpr="name"
+                  valueExpr="id"
+                  value={supplierId ? parseInt(supplierId) : null}
+                  onValueChanged={(e) => setSupplierId(e.value ? e.value.toString() : '')}
+                  searchEnabled={true}
+                  searchMode="contains"
+                  searchExpr="name"
+                  placeholder={loadingSuppliers ? "Loading..." : "Select supplier"}
+                  disabled={loadingSuppliers}
+                  showClearButton={true}
+                  stylingMode="outlined"
+                />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Location <span className="text-red-500">*</span>
                 </label>
-                <Select value={locationId} onValueChange={setLocationId} disabled={loadingLocations}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={loadingLocations ? "Loading..." : "Select location"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {locations.map((location) => (
-                      <SelectItem key={location.id} value={location.id.toString()}>
-                        {location.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SelectBox
+                  dataSource={locations}
+                  displayExpr="name"
+                  valueExpr="id"
+                  value={2}
+                  searchEnabled={false}
+                  placeholder="Main Warehouse"
+                  disabled={true}
+                  showClearButton={false}
+                  stylingMode="outlined"
+                  readOnly={true}
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Only Main Warehouse is authorized to process supplier returns
+                </p>
               </div>
 
               <div>
@@ -366,53 +403,65 @@ export default function CreateManualSupplierReturnPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Product <span className="text-red-500">*</span>
                 </label>
-                <Select value={productId} onValueChange={setProductId} disabled={loadingProducts}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={loadingProducts ? "Loading..." : "Select product"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products.map((product) => (
-                      <SelectItem key={product.id} value={product.id.toString()}>
-                        {product.name} ({product.sku})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SelectBox
+                  dataSource={products}
+                  displayExpr={(item) => item ? `${item.name} (${item.sku})` : ''}
+                  valueExpr="id"
+                  value={productId ? parseInt(productId) : null}
+                  onValueChanged={(e) => setProductId(e.value ? e.value.toString() : '')}
+                  searchEnabled={true}
+                  searchMode="contains"
+                  searchExpr={['name', 'sku']}
+                  placeholder={
+                    !supplierId
+                      ? "Select supplier first"
+                      : loadingProducts
+                      ? "Loading products..."
+                      : "Select product"
+                  }
+                  disabled={!supplierId || loadingProducts}
+                  showClearButton={true}
+                  stylingMode="outlined"
+                />
+                {supplierId && products.length === 0 && !loadingProducts && (
+                  <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                    No products have been purchased from this supplier yet
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Variation <span className="text-red-500">*</span>
                 </label>
-                <Select
-                  value={variationId}
-                  onValueChange={setVariationId}
+                <SelectBox
+                  dataSource={variations}
+                  displayExpr="name"
+                  valueExpr="id"
+                  value={variationId ? parseInt(variationId) : null}
+                  onValueChanged={(e) => setVariationId(e.value ? e.value.toString() : '')}
+                  searchEnabled={true}
+                  searchMode="contains"
+                  searchExpr="name"
+                  placeholder={!productId ? "Select product first" : "Select variation"}
                   disabled={!productId || variations.length === 0}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={!productId ? "Select product first" : "Select variation"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {variations.map((variation) => (
-                      <SelectItem key={variation.id} value={variation.id.toString()}>
-                        {variation.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  showClearButton={true}
+                  stylingMode="outlined"
+                />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Quantity <span className="text-red-500">*</span>
                 </label>
-                <Input
-                  type="number"
-                  min="1"
-                  step="1"
+                <NumberBox
                   value={quantity}
-                  onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-                  required
+                  onValueChanged={(e) => setQuantity(e.value || 1)}
+                  min={1}
+                  showSpinButtons={true}
+                  showClearButton={false}
+                  format="#,##0"
+                  stylingMode="outlined"
                 />
               </div>
 
@@ -420,18 +469,23 @@ export default function CreateManualSupplierReturnPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Unit Cost <span className="text-red-500">*</span>
                 </label>
-                <Input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
+                <NumberBox
                   value={unitCost}
-                  onChange={(e) => setUnitCost(parseFloat(e.target.value) || 0)}
-                  required
-                  placeholder="0.00"
+                  onValueChanged={(e) => setUnitCost(e.value || 0)}
+                  min={0.01}
+                  format="#,##0.00"
+                  showSpinButtons={true}
+                  showClearButton={false}
+                  stylingMode="outlined"
                 />
-                {productId && unitCost > 0 && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Auto-filled from last purchase
+                {productId && supplierId && unitCost > 0 && (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                    ✓ Auto-filled from last purchase from this supplier
+                  </p>
+                )}
+                {productId && supplierId && unitCost === 0 && (
+                  <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                    ⚠ No previous purchase. Please enter cost manually
                   </p>
                 )}
               </div>
@@ -501,9 +555,12 @@ export default function CreateManualSupplierReturnPage() {
           <Button
             type="submit"
             disabled={loading || !supplierId || !productId || !variationId || !locationId}
-            className="bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white"
+            className="bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {loading ? 'Creating...' : 'Create Return'}
+            {loading && (
+              <ArrowPathIcon className="w-5 h-5 mr-2 animate-spin" />
+            )}
+            {loading ? 'Creating Return...' : 'Create Return'}
           </Button>
         </div>
       </form>

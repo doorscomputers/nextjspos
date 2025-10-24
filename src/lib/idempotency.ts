@@ -46,13 +46,11 @@ export async function withIdempotency(
         response_body: any
         created_at: Date
       }>
-    >(
-      `SELECT id, response_status, response_body, created_at
-       FROM idempotency_keys
-       WHERE key = ${idempotencyKey}
-         AND business_id = ${businessId}
-       LIMIT 1`
-    )
+    >`SELECT id, response_status, response_body, created_at
+      FROM idempotency_keys
+      WHERE key = ${idempotencyKey}
+        AND business_id = ${businessId}
+      LIMIT 1`
 
     if (existing && existing.length > 0) {
       const cached = existing[0]

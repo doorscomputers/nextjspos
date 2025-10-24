@@ -8,6 +8,8 @@ import { PERMISSIONS } from "./rbac"
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
+    maxAge: 8 * 60 * 60, // 8 hours - sessions expire after 8 hours regardless of activity
+    updateAge: 60 * 60, // Update session every 1 hour
   },
   pages: {
     signIn: "/login",
@@ -71,6 +73,91 @@ export const authOptions: NextAuthOptions = {
 
         if (!isPasswordValid) {
           throw new Error("Invalid credentials")
+        }
+
+        // Check schedule-based login restrictions
+        if (user.businessId) {
+          // Get schedule login configuration for business
+          let config = await prisma.scheduleLoginConfiguration.findUnique({
+            where: { businessId: user.businessId }
+          })
+
+          // Create default configuration if not exists
+          if (!config) {
+            config = await prisma.scheduleLoginConfiguration.create({
+              data: {
+                businessId: user.businessId,
+                enforceScheduleLogin: true,
+                earlyClockInGraceMinutes: 30,
+                lateClockOutGraceMinutes: 60,
+                exemptRoles: "Super Admin,System Administrator,Super Admin (Legacy),Admin (Legacy)",
+              }
+            })
+          }
+
+          // Check if feature is enabled
+          if (config.enforceScheduleLogin) {
+            const roleNames = user.roles.map(ur => ur.role.name)
+
+            // Check if user has exempt role
+            const exemptRolesList = config.exemptRoles?.split(',').map(r => r.trim()) || []
+            const isExemptRole = roleNames.some(role => exemptRolesList.includes(role))
+
+            // Non-exempt users must login within their scheduled hours
+            if (!isExemptRole) {
+              const now = new Date()
+              // Get day of week as number (0=Sunday, 1=Monday, ..., 6=Saturday)
+              const dayOfWeek = now.getDay()
+
+              // Get today's schedule for the user
+              const todaySchedule = await prisma.employeeSchedule.findFirst({
+                where: {
+                  userId: user.id,
+                  businessId: user.businessId,
+                  dayOfWeek: dayOfWeek,
+                  isActive: true,
+                  deletedAt: null,
+                }
+              })
+
+              // Block login if no schedule exists for today
+              if (!todaySchedule) {
+                const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+                throw new Error(`Login denied: You are not scheduled to work on ${dayNames[dayOfWeek]}. Please contact your manager if you need access.`)
+              }
+
+              if (todaySchedule && todaySchedule.endTime) {
+                // Parse schedule end time
+                const [endHours, endMinutes, endSeconds] = todaySchedule.endTime.split(':').map(Number)
+                const scheduleEndTime = new Date(now)
+                scheduleEndTime.setHours(endHours, endMinutes, endSeconds || 0, 0)
+
+                // Add grace period for clock-out purposes
+                const endTimeWithGrace = new Date(scheduleEndTime.getTime() + config.lateClockOutGraceMinutes * 60000)
+
+                // Check if current time is past schedule end + grace period
+                if (now > endTimeWithGrace) {
+                  const errorMessage = config.tooLateMessage ||
+                    `Login denied: You cannot login after your scheduled working hours (${todaySchedule.endTime}). Please contact your manager if you need access.`
+                  throw new Error(errorMessage)
+                }
+
+                // Check if current time is before schedule start
+                const [startHours, startMinutes, startSeconds] = todaySchedule.startTime.split(':').map(Number)
+                const scheduleStartTime = new Date(now)
+                scheduleStartTime.setHours(startHours, startMinutes, startSeconds || 0, 0)
+
+                // Allow early clock-in based on configuration
+                const startTimeWithEarly = new Date(scheduleStartTime.getTime() - config.earlyClockInGraceMinutes * 60000)
+
+                if (now < startTimeWithEarly) {
+                  const errorMessage = config.tooEarlyMessage ||
+                    `Login denied: You cannot login before your scheduled working hours (${todaySchedule.startTime}). Please wait until ${startTimeWithEarly.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}.`
+                  throw new Error(errorMessage)
+                }
+              }
+            }
+          }
         }
 
         // Log successful login

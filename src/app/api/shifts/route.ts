@@ -43,7 +43,21 @@ export async function GET(request: NextRequest) {
       take: 50,
     })
 
-    return NextResponse.json({ shifts })
+    // Manually fetch location names for each shift
+    const shiftsWithLocation = await Promise.all(
+      shifts.map(async (shift) => {
+        const location = await prisma.businessLocation.findUnique({
+          where: { id: shift.locationId },
+          select: { id: true, name: true },
+        })
+        return {
+          ...shift,
+          location,
+        }
+      })
+    )
+
+    return NextResponse.json({ shifts: shiftsWithLocation })
   } catch (error: any) {
     console.error('Error fetching shifts:', error)
     return NextResponse.json(

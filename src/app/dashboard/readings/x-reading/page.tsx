@@ -5,6 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
+// Format number with comma separators
+const formatCurrency = (amount: number): string => {
+  return amount.toLocaleString('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+}
+
 export default function XReadingPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -55,25 +63,42 @@ export default function XReadingPage() {
   if (!xReading) return null
 
   return (
-    <div className="container max-w-3xl mx-auto py-8 px-4">
-      <div className="flex justify-between mb-4 print:hidden">
-        <h1 className="text-2xl font-bold">X Reading</h1>
-        <div className="flex gap-2">
-          <Button onClick={generateReading}>Refresh</Button>
-          <Button onClick={printReading} variant="outline">Print</Button>
-        </div>
-      </div>
+    <>
+      <style jsx global>{`
+        @media print {
+          @page {
+            margin: 0;
+          }
+          body {
+            margin: 1cm;
+          }
+        }
+      `}</style>
 
-      <Card className="print:shadow-none print:border-0">
-        <CardHeader className="text-center border-b">
-          <CardTitle>X READING (MID-SHIFT REPORT)</CardTitle>
-          <div className="text-sm text-muted-foreground">
-            <p>Shift: {xReading.shiftNumber}</p>
-            <p>Cashier: {xReading.cashierName}</p>
-            <p>Report Time: {new Date(xReading.readingTime).toLocaleString()}</p>
-            <p>X Reading #{xReading.xReadingNumber}</p>
+      <div className="container max-w-3xl mx-auto py-8 px-4">
+        <div className="flex justify-between mb-4 print:hidden">
+          <h1 className="text-2xl font-bold">X Reading</h1>
+          <div className="flex gap-2">
+            <Button onClick={generateReading}>Refresh</Button>
+            <Button onClick={printReading} variant="outline">Print</Button>
           </div>
-        </CardHeader>
+        </div>
+
+        <Card className="print:shadow-none print:border-0">
+          <CardHeader className="text-center border-b">
+            <CardTitle>X READING (MID-SHIFT REPORT)</CardTitle>
+            <div className="text-sm text-muted-foreground space-y-1">
+              <p className="font-semibold text-base">{xReading.businessName}</p>
+              <p className="font-medium">{xReading.locationName}</p>
+              {xReading.locationAddress && <p className="text-xs">{xReading.locationAddress}</p>}
+              <div className="pt-2 border-t mt-2">
+                <p>Shift: {xReading.shiftNumber}</p>
+                <p>Cashier: {xReading.cashierName}</p>
+                <p>Report Time: {new Date(xReading.readingTime).toLocaleString()}</p>
+                <p>X Reading #{xReading.xReadingNumber}</p>
+              </div>
+            </div>
+          </CardHeader>
 
         <CardContent className="py-6 space-y-6">
           {/* Sales Summary */}
@@ -82,19 +107,19 @@ export default function XReadingPage() {
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
                 <span>Gross Sales:</span>
-                <span className="font-mono">₱{xReading.grossSales.toFixed(2)}</span>
+                <span className="font-mono">₱{formatCurrency(xReading.grossSales)}</span>
               </div>
               <div className="flex justify-between text-red-600">
                 <span>Less: Discounts</span>
-                <span className="font-mono">-₱{xReading.totalDiscounts.toFixed(2)}</span>
+                <span className="font-mono">-₱{formatCurrency(xReading.totalDiscounts)}</span>
               </div>
               <div className="flex justify-between font-bold border-t pt-1">
                 <span>NET SALES:</span>
-                <span className="font-mono">₱{xReading.netSales.toFixed(2)}</span>
+                <span className="font-mono">₱{formatCurrency(xReading.netSales)}</span>
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Void Amount:</span>
-                <span className="font-mono">₱{xReading.voidAmount.toFixed(2)}</span>
+                <span className="font-mono">₱{formatCurrency(xReading.voidAmount)}</span>
               </div>
             </div>
           </div>
@@ -121,7 +146,7 @@ export default function XReadingPage() {
               {Object.entries(xReading.paymentBreakdown).map(([method, amount]: [string, any]) => (
                 <div key={method} className="flex justify-between">
                   <span className="capitalize">{method}:</span>
-                  <span className="font-mono">₱{amount.toFixed(2)}</span>
+                  <span className="font-mono">₱{formatCurrency(amount)}</span>
                 </div>
               ))}
             </div>
@@ -133,23 +158,23 @@ export default function XReadingPage() {
             <div className="space-y-1 text-sm">
               <div className="flex justify-between">
                 <span>Beginning Cash:</span>
-                <span className="font-mono">₱{xReading.beginningCash.toFixed(2)}</span>
+                <span className="font-mono">₱{formatCurrency(xReading.beginningCash)}</span>
               </div>
               <div className="flex justify-between">
                 <span>Cash Sales:</span>
-                <span className="font-mono">₱{(xReading.paymentBreakdown.cash || 0).toFixed(2)}</span>
+                <span className="font-mono">₱{formatCurrency(xReading.paymentBreakdown.cash || 0)}</span>
               </div>
               <div className="flex justify-between text-green-600">
                 <span>Cash In:</span>
-                <span className="font-mono">+₱{xReading.cashIn.toFixed(2)}</span>
+                <span className="font-mono">+₱{formatCurrency(xReading.cashIn)}</span>
               </div>
               <div className="flex justify-between text-red-600">
                 <span>Cash Out:</span>
-                <span className="font-mono">-₱{xReading.cashOut.toFixed(2)}</span>
+                <span className="font-mono">-₱{formatCurrency(xReading.cashOut)}</span>
               </div>
               <div className="flex justify-between font-bold border-t pt-1">
                 <span>Expected Cash in Drawer:</span>
-                <span className="font-mono">₱{xReading.expectedCash.toFixed(2)}</span>
+                <span className="font-mono">₱{formatCurrency(xReading.expectedCash)}</span>
               </div>
             </div>
           </div>
@@ -162,19 +187,19 @@ export default function XReadingPage() {
                 {xReading.discountBreakdown.senior > 0 && (
                   <div className="flex justify-between">
                     <span>Senior Citizen:</span>
-                    <span className="font-mono">₱{xReading.discountBreakdown.senior.toFixed(2)}</span>
+                    <span className="font-mono">₱{formatCurrency(xReading.discountBreakdown.senior)}</span>
                   </div>
                 )}
                 {xReading.discountBreakdown.pwd > 0 && (
                   <div className="flex justify-between">
                     <span>PWD:</span>
-                    <span className="font-mono">₱{xReading.discountBreakdown.pwd.toFixed(2)}</span>
+                    <span className="font-mono">₱{formatCurrency(xReading.discountBreakdown.pwd)}</span>
                   </div>
                 )}
                 {xReading.discountBreakdown.regular > 0 && (
                   <div className="flex justify-between">
                     <span>Regular:</span>
-                    <span className="font-mono">₱{xReading.discountBreakdown.regular.toFixed(2)}</span>
+                    <span className="font-mono">₱{formatCurrency(xReading.discountBreakdown.regular)}</span>
                   </div>
                 )}
               </div>
@@ -188,5 +213,6 @@ export default function XReadingPage() {
         </CardContent>
       </Card>
     </div>
+  </>
   )
 }

@@ -55,29 +55,39 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
-        items: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-            productVariation: {
-              select: {
-                id: true,
-                name: true,
-                sku: true,
-              },
-            },
-          },
-        },
+        items: true,
         payments: true,
       },
       orderBy: {
         createdAt: 'desc',
       },
     })
+
+    // Get unique product and variation IDs from sale items
+    const productIds = new Set<number>()
+    const variationIds = new Set<number>()
+
+    sales.forEach((sale) => {
+      sale.items.forEach((item) => {
+        productIds.add(item.productId)
+        variationIds.add(item.productVariationId)
+      })
+    })
+
+    // Fetch product and variation data
+    const products = await prisma.product.findMany({
+      where: { id: { in: Array.from(productIds) } },
+      select: { id: true, name: true },
+    })
+
+    const variations = await prisma.productVariation.findMany({
+      where: { id: { in: Array.from(variationIds) } },
+      select: { id: true, name: true, sku: true },
+    })
+
+    // Create lookup maps
+    const productMap = new Map(products.map((p) => [p.id, p]))
+    const variationMap = new Map(variations.map((v) => [v.id, v]))
 
     // Calculate payment method totals
     let cashTotal = 0
@@ -246,14 +256,18 @@ export async function GET(request: NextRequest) {
           amount: parseFloat(p.amount.toString()),
         })),
         itemCount: sale.items.length,
-        items: sale.items.map((item) => ({
-          productName: item.product.name,
-          variationName: item.productVariation.name,
-          sku: item.productVariation.sku,
-          quantity: parseFloat(item.quantity.toString()),
-          unitPrice: parseFloat(item.unitPrice.toString()),
-          total: parseFloat(item.quantity.toString()) * parseFloat(item.unitPrice.toString()),
-        })),
+        items: sale.items.map((item) => {
+          const product = productMap.get(item.productId)
+          const variation = variationMap.get(item.productVariationId)
+          return {
+            productName: product?.name || 'Unknown Product',
+            variationName: variation?.name || 'Unknown Variation',
+            sku: variation?.sku || 'N/A',
+            quantity: parseFloat(item.quantity.toString()),
+            unitPrice: parseFloat(item.unitPrice.toString()),
+            total: parseFloat(item.quantity.toString()) * parseFloat(item.unitPrice.toString()),
+          }
+        }),
       })),
     })
   } catch (error) {

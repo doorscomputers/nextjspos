@@ -22,10 +22,29 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const shiftIdParam = searchParams.get('shiftId')
 
+    // CRITICAL SECURITY: Get user's assigned locations first
+    const userLocations = await prisma.userLocation.findMany({
+      where: { userId: parseInt(session.user.id) },
+      select: { locationId: true },
+    })
+    const userLocationIds = userLocations.map(ul => ul.locationId)
+
+    if (userLocationIds.length === 0) {
+      return NextResponse.json(
+        { error: 'No location assigned. Please contact your administrator.' },
+        { status: 403 }
+      )
+    }
+
     let shift
     if (shiftIdParam) {
-      shift = await prisma.cashierShift.findUnique({
-        where: { id: parseInt(shiftIdParam) },
+      // CRITICAL: Validate that the requested shift belongs to user's assigned location
+      shift = await prisma.cashierShift.findFirst({
+        where: {
+          id: parseInt(shiftIdParam),
+          businessId: parseInt(session.user.businessId),
+          locationId: { in: userLocationIds }, // SECURITY: Only shifts from user's locations
+        },
         include: {
           sales: {
             include: {
@@ -36,13 +55,28 @@ export async function GET(request: NextRequest) {
           cashInOutRecords: true,
         },
       })
+
+      // Fetch location and business details separately
+      if (shift) {
+        const location = await prisma.businessLocation.findUnique({
+          where: { id: shift.locationId },
+          select: { name: true, address: true },
+        })
+        const business = await prisma.business.findUnique({
+          where: { id: shift.businessId },
+          select: { name: true },
+        })
+        ;(shift as any).location = location
+        ;(shift as any).business = business
+      }
     } else {
-      // Get current open shift
+      // Get current open shift for this user at their assigned location(s)
       shift = await prisma.cashierShift.findFirst({
         where: {
           userId: parseInt(session.user.id),
           status: 'open',
           businessId: parseInt(session.user.businessId),
+          locationId: { in: userLocationIds }, // SECURITY: Only user's locations
         },
         include: {
           sales: {
@@ -54,11 +88,25 @@ export async function GET(request: NextRequest) {
           cashInOutRecords: true,
         },
       })
+
+      // Fetch location and business details separately
+      if (shift) {
+        const location = await prisma.businessLocation.findUnique({
+          where: { id: shift.locationId },
+          select: { name: true, address: true },
+        })
+        const business = await prisma.business.findUnique({
+          where: { id: shift.businessId },
+          select: { name: true },
+        })
+        ;(shift as any).location = location
+        ;(shift as any).business = business
+      }
     }
 
     if (!shift) {
       return NextResponse.json(
-        { error: 'No shift found for X Reading' },
+        { error: 'No shift found for X Reading at your assigned location' },
         { status: 404 }
       )
     }
@@ -84,12 +132,21 @@ export async function GET(request: NextRequest) {
     }, 0)
 
     // Payment method breakdown
+    // IMPORTANT: Handle overpayment (change) correctly
+    // If total payments > sale total, allocate proportionally to avoid counting change as sales
     const paymentBreakdown: any = {}
     completedSales.forEach(sale => {
+      const saleTotal = parseFloat(sale.totalAmount.toString())
+      const paymentsTotal = sale.payments.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0)
+
+      // If overpaid (change given), allocate proportionally
+      const allocationRatio = paymentsTotal > saleTotal ? saleTotal / paymentsTotal : 1
+
       sale.payments.forEach(payment => {
         const method = payment.paymentMethod
         const amount = parseFloat(payment.amount.toString())
-        paymentBreakdown[method] = (paymentBreakdown[method] || 0) + amount
+        const allocatedAmount = amount * allocationRatio // Adjust for change
+        paymentBreakdown[method] = (paymentBreakdown[method] || 0) + allocatedAmount
       })
     })
 
@@ -122,6 +179,9 @@ export async function GET(request: NextRequest) {
     const xReading = {
       shiftNumber: shift.shiftNumber,
       cashierName: session.user.username,
+      locationName: (shift as any).location?.name || 'Unknown Location',
+      locationAddress: (shift as any).location?.address || '',
+      businessName: (shift as any).business?.name || 'Unknown Business',
       openedAt: shift.openedAt,
       readingTime: new Date(),
       xReadingNumber: shift.xReadingCount + 1,

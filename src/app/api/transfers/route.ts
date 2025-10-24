@@ -62,20 +62,24 @@ export async function GET(request: NextRequest) {
       if (endDate) where.transferDate.lte = new Date(endDate)
     }
 
-    // Filter by user's accessible locations if not ACCESS_ALL_LOCATIONS
-    const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
-    if (!hasAccessAllLocations) {
-      const userLocations = await prisma.userLocation.findMany({
-        where: { userId: parseInt(userId) },
-        select: { locationId: true },
-      })
-      const locationIds = userLocations.map(ul => ul.locationId)
+    // CRITICAL SECURITY: ALWAYS filter by user's assigned locations for stock transfers
+    // Even users with ACCESS_ALL_LOCATIONS should only see transfers involving their physical locations
+    // This prevents unauthorized viewing of transfers between locations they're not assigned to
+    const userLocations = await prisma.userLocation.findMany({
+      where: { userId: parseInt(userId) },
+      select: { locationId: true },
+    })
+    const locationIds = userLocations.map(ul => ul.locationId)
 
-      // Show transfers where user has access to either source OR destination
+    // Only show transfers where user has access to EITHER the source OR destination location
+    if (locationIds.length > 0) {
       where.OR = [
         { fromLocationId: { in: locationIds } },
         { toLocationId: { in: locationIds } },
       ]
+    } else {
+      // User has no location assignments - return empty result
+      where.id = -1 // Impossible ID to match nothing
     }
 
     // Build include object dynamically
@@ -229,21 +233,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check location access for source
+    // CRITICAL: Enforce that fromLocationId must be one of user's assigned locations
+    // This prevents users from transferring from locations they don't have access to
     const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
+
     if (!hasAccessAllLocations) {
-      const userLocation = await prisma.userLocation.findUnique({
+      // Fetch user's assigned locations
+      const userLocations = await prisma.userLocation.findMany({
         where: {
-          userId_locationId: {
-            userId: parseInt(userId),
-            locationId: parseInt(fromLocationId),
-          },
+          userId: parseInt(userId),
+        },
+        select: {
+          locationId: true,
         },
       })
 
-      if (!userLocation) {
+      const userLocationIds = userLocations.map(ul => ul.locationId)
+
+      // Verify that fromLocationId is in user's assigned locations
+      if (!userLocationIds.includes(parseInt(fromLocationId))) {
         return NextResponse.json(
-          { error: 'You do not have access to the source location' },
+          {
+            error: 'Invalid source location. You can only create transfers from your assigned business location(s).',
+            userLocationIds,
+            requestedFromLocationId: parseInt(fromLocationId),
+          },
           { status: 403 }
         )
       }

@@ -6,6 +6,7 @@ import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 import { transferStockIn, transferStockOut } from '@/lib/stockOperations'
 import { withIdempotency } from '@/lib/idempotency'
+import { validateSOD, getUserRoles } from '@/lib/sodValidation'
 
 /**
  * POST - Receive and Approve Stock Transfer (Steps 3 & 4 of 4)
@@ -106,32 +107,32 @@ export async function POST(
       }
     }
 
-    // ENFORCE: Receiver must be different from creator, checker, and sender (separation of duties)
-    if (transfer.createdBy === userIdNumber) {
-      return NextResponse.json(
-        {
-          error: 'Cannot receive your own transfer. Only users at the destination location who did not create this transfer can receive it.',
-          code: 'SAME_USER_VIOLATION'
-        },
-        { status: 403 }
-      )
-    }
+    // CONFIGURABLE SOD VALIDATION
+    // Check business rules for separation of duties
+    const userRoles = await getUserRoles(userIdNumber)
+    const sodValidation = await validateSOD({
+      businessId: businessIdNumber,
+      userId: userIdNumber,
+      action: 'receive',
+      entity: {
+        id: transfer.id,
+        createdBy: transfer.createdBy,
+        checkedBy: transfer.checkedBy,
+        sentBy: transfer.sentBy,
+        receivedBy: transfer.receivedBy
+      },
+      entityType: 'transfer',
+      userRoles
+    })
 
-    if (transfer.checkedBy === userIdNumber) {
+    if (!sodValidation.allowed) {
       return NextResponse.json(
         {
-          error: 'Cannot receive a transfer you checked. A different user at the destination must receive this transfer.',
-          code: 'SAME_USER_VIOLATION'
-        },
-        { status: 403 }
-      )
-    }
-
-    if (transfer.sentBy === userIdNumber) {
-      return NextResponse.json(
-        {
-          error: 'Cannot receive a transfer you sent. A different user at the destination must receive this transfer.',
-          code: 'SAME_USER_VIOLATION'
+          error: sodValidation.reason,
+          code: sodValidation.code,
+          configurable: sodValidation.configurable,
+          suggestion: sodValidation.suggestion,
+          ruleField: sodValidation.ruleField
         },
         { status: 403 }
       )

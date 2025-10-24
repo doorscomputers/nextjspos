@@ -142,191 +142,100 @@ async function main() {
   )
   console.log(`✅ ${permissionRecords.length} permissions created`)
 
-  // Create Roles
-  const superAdminRole = await prisma.role.upsert({
-    where: { id: 1 },
-    update: {},
-    create: {
-      name: 'Super Admin',
-      businessId: business.id,
-      guardName: 'web',
-      isDefault: true, // Super Admin is protected (cannot be edited/deleted)
-    },
-  })
+  // Create All Roles from DEFAULT_ROLES dynamically
+  console.log('Creating roles...')
+  const roleMap = new Map<string, any>()
 
-  const branchAdminRole = await prisma.role.upsert({
-    where: { id: 2 },
-    update: {},
-    create: {
-      name: 'Branch Admin',
-      businessId: business.id,
-      guardName: 'web',
-      isDefault: false,
-    },
+  // Create System Administrator (Super Admin) - PROTECTED
+  let systemAdminRole = await prisma.role.findFirst({
+    where: { name: 'System Administrator', businessId: business.id }
   })
-
-  const branchManagerRole = await prisma.role.upsert({
-    where: { id: 3 },
-    update: {},
-    create: {
-      name: 'Branch Manager',
-      businessId: business.id,
-      guardName: 'web',
-      isDefault: false,
-    },
-  })
-
-  const accountingStaffRole = await prisma.role.upsert({
-    where: { id: 4 },
-    update: {},
-    create: {
-      name: 'Accounting Staff',
-      businessId: business.id,
-      guardName: 'web',
-      isDefault: false,
-    },
-  })
-
-  const regularStaffRole = await prisma.role.upsert({
-    where: { id: 5 },
-    update: {},
-    create: {
-      name: 'Regular Staff',
-      businessId: business.id,
-      guardName: 'web',
-      isDefault: false,
-    },
-  })
-
-  const cashierRole = await prisma.role.upsert({
-    where: { id: 6 },
-    update: {},
-    create: {
-      name: 'Regular Cashier',
-      businessId: business.id,
-      guardName: 'web',
-      isDefault: false, // Can be edited (not protected)
-    },
-  })
-  console.log('✅ Roles created')
-
-  // Assign permissions to Super Admin Role (all permissions)
-  for (const permission of permissionRecords) {
-    await prisma.rolePermission.upsert({
-      where: {
-        roleId_permissionId: {
-          roleId: superAdminRole.id,
-          permissionId: permission.id,
-        },
-      },
-      update: {},
-      create: {
-        roleId: superAdminRole.id,
-        permissionId: permission.id,
+  if (!systemAdminRole) {
+    systemAdminRole = await prisma.role.create({
+      data: {
+        name: 'System Administrator',
+        businessId: business.id,
+        guardName: 'web',
+        isDefault: true, // Protected - cannot be edited/deleted
       },
     })
   }
+  roleMap.set('System Administrator', systemAdminRole)
 
-  // Assign permissions to Branch Admin Role
-  const branchAdminPermissions = permissionRecords.filter((p) =>
-    (DEFAULT_ROLES.BRANCH_ADMIN.permissions as any).includes(p.name)
-  )
-  for (const permission of branchAdminPermissions) {
-    await prisma.rolePermission.upsert({
-      where: {
-        roleId_permissionId: {
-          roleId: branchAdminRole.id,
-          permissionId: permission.id,
-        },
-      },
-      update: {},
-      create: {
-        roleId: branchAdminRole.id,
-        permissionId: permission.id,
+  // Create "Super Admin" for backward compatibility
+  let superAdminRole = await prisma.role.findFirst({
+    where: { name: 'Super Admin', businessId: business.id }
+  })
+  if (!superAdminRole) {
+    superAdminRole = await prisma.role.create({
+      data: {
+        name: 'Super Admin',
+        businessId: business.id,
+        guardName: 'web',
+        isDefault: true, // Protected - cannot be edited/deleted
       },
     })
   }
+  roleMap.set('Super Admin', superAdminRole)
 
-  // Assign permissions to Branch Manager Role
-  const branchManagerPermissions = permissionRecords.filter((p) =>
-    (DEFAULT_ROLES.BRANCH_MANAGER.permissions as any).includes(p.name)
-  )
-  for (const permission of branchManagerPermissions) {
-    await prisma.rolePermission.upsert({
-      where: {
-        roleId_permissionId: {
-          roleId: branchManagerRole.id,
-          permissionId: permission.id,
-        },
-      },
-      update: {},
-      create: {
-        roleId: branchManagerRole.id,
-        permissionId: permission.id,
-      },
+  // Create all other roles from DEFAULT_ROLES
+  for (const [key, roleData] of Object.entries(DEFAULT_ROLES)) {
+    const roleName = roleData.name
+
+    // Skip if already created above
+    if (roleName === 'System Administrator' || roleName === 'Super Admin') continue
+
+    let role = await prisma.role.findFirst({
+      where: { name: roleName, businessId: business.id }
     })
+    if (!role) {
+      role = await prisma.role.create({
+        data: {
+          name: roleName,
+          businessId: business.id,
+          guardName: 'web',
+          isDefault: false,
+        },
+      })
+    }
+    roleMap.set(roleName, role)
   }
 
-  // Assign permissions to Accounting Staff Role
-  const accountingStaffPermissions = permissionRecords.filter((p) =>
-    (DEFAULT_ROLES.ACCOUNTING_STAFF.permissions as any).includes(p.name)
-  )
-  for (const permission of accountingStaffPermissions) {
-    await prisma.rolePermission.upsert({
-      where: {
-        roleId_permissionId: {
-          roleId: accountingStaffRole.id,
+  console.log(`✅ ${roleMap.size} roles created`)
+
+  // Assign permissions to all roles dynamically
+  console.log('Assigning permissions to roles...')
+  let assignmentCount = 0
+
+  for (const [key, roleData] of Object.entries(DEFAULT_ROLES)) {
+    const roleName = roleData.name
+    const role = roleMap.get(roleName)
+
+    if (!role) continue
+
+    const rolePermissions = permissionRecords.filter((p) =>
+      (roleData.permissions as any).includes(p.name)
+    )
+
+    for (const permission of rolePermissions) {
+      await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: role.id,
+            permissionId: permission.id,
+          },
+        },
+        update: {},
+        create: {
+          roleId: role.id,
           permissionId: permission.id,
         },
-      },
-      update: {},
-      create: {
-        roleId: accountingStaffRole.id,
-        permissionId: permission.id,
-      },
-    })
+      })
+      assignmentCount++
+    }
   }
 
-  // Assign permissions to Regular Staff Role
-  const regularStaffPermissions = permissionRecords.filter((p) =>
-    (DEFAULT_ROLES.REGULAR_STAFF.permissions as any).includes(p.name)
-  )
-  for (const permission of regularStaffPermissions) {
-    await prisma.rolePermission.upsert({
-      where: {
-        roleId_permissionId: {
-          roleId: regularStaffRole.id,
-          permissionId: permission.id,
-        },
-      },
-      update: {},
-      create: {
-        roleId: regularStaffRole.id,
-        permissionId: permission.id,
-      },
-    })
-  }
-
-  // Assign permissions to Cashier Role
-  const cashierPermissions = permissionRecords.filter((p) =>
-    (DEFAULT_ROLES.CASHIER.permissions as any).includes(p.name)
-  )
-  for (const permission of cashierPermissions) {
-    await prisma.rolePermission.upsert({
-      where: {
-        roleId_permissionId: {
-          roleId: cashierRole.id,
-          permissionId: permission.id,
-        },
-      },
-      update: {},
-      create: {
-        roleId: cashierRole.id,
-        permissionId: permission.id,
-      },
-    })
-  }
-  console.log('✅ Permissions assigned to roles')
+  console.log(`✅ ${assignmentCount} permissions assigned to ${roleMap.size} roles`)
 
   // Create Demo Users
   // First, clear any existing user location assignments to avoid conflicts
@@ -339,27 +248,7 @@ async function main() {
     }
   })
 
-  const branchAdminUser = await prisma.user.upsert({
-    where: { username: 'branchadmin' },
-    update: {
-      email: 'branchadmin@ultimatepos.com',
-      surname: 'John',
-      firstName: 'Williams',
-      lastName: 'Branch Admin',
-    },
-    create: {
-      surname: 'John',
-      firstName: 'Williams',
-      lastName: 'Branch Admin',
-      username: 'branchadmin',
-      email: 'branchadmin@ultimatepos.com',
-      password: hashedPassword,
-      businessId: business.id,
-      allowLogin: true,
-      userType: 'user',
-    },
-  })
-
+  // Create Branch Manager demo user
   const branchManagerUser = await prisma.user.upsert({
     where: { username: 'branchmanager' },
     update: {
@@ -381,12 +270,8 @@ async function main() {
     },
   })
 
-  // Delete old accountant user if exists (migration from old username)
-  await prisma.user.deleteMany({
-    where: { username: 'accountant' }
-  })
-
-  const accountingStaffUser = await prisma.user.upsert({
+  // Create Warehouse Manager demo user
+  const warehouseManagerUser = await prisma.user.upsert({
     where: { username: 'warehousemanager' },
     update: {
       email: 'warehouse@ultimatepos.com',
@@ -407,27 +292,7 @@ async function main() {
     },
   })
 
-  const regularStaffUser = await prisma.user.upsert({
-    where: { username: 'staff' },
-    update: {
-      email: 'staff@ultimatepos.com',
-      surname: 'Sarah',
-      firstName: 'Miller',
-      lastName: 'Staff',
-    },
-    create: {
-      surname: 'Sarah',
-      firstName: 'Miller',
-      lastName: 'Staff',
-      username: 'staff',
-      email: 'staff@ultimatepos.com',
-      password: hashedPassword,
-      businessId: business.id,
-      allowLogin: true,
-      userType: 'user',
-    },
-  })
-
+  // Create Sales Cashier demo user
   const cashierUser = await prisma.user.upsert({
     where: { username: 'cashier' },
     update: {
@@ -448,96 +313,123 @@ async function main() {
       userType: 'user',
     },
   })
+
+  // Create Transfer Creator demo user
+  const transferCreatorUser = await prisma.user.upsert({
+    where: { username: 'transfercreator' },
+    update: {
+      email: 'transfercreator@ultimatepos.com',
+      surname: 'Sarah',
+      firstName: 'Miller',
+      lastName: 'Transfer Creator',
+    },
+    create: {
+      surname: 'Sarah',
+      firstName: 'Miller',
+      lastName: 'Transfer Creator',
+      username: 'transfercreator',
+      email: 'transfercreator@ultimatepos.com',
+      password: hashedPassword,
+      businessId: business.id,
+      allowLogin: true,
+      userType: 'user',
+    },
+  })
+
   console.log('✅ Demo users created')
 
   // Assign Roles to Users
+  // Super Admin -> System Administrator
   await prisma.userRole.upsert({
     where: {
       userId_roleId: {
         userId: superAdmin.id,
-        roleId: superAdminRole.id,
+        roleId: roleMap.get('System Administrator').id,
       },
     },
     update: {},
     create: {
       userId: superAdmin.id,
-      roleId: superAdminRole.id,
+      roleId: roleMap.get('System Administrator').id,
     },
   })
 
-  await prisma.userRole.upsert({
-    where: {
-      userId_roleId: {
-        userId: branchAdminUser.id,
-        roleId: branchAdminRole.id,
+  // Branch Manager -> Branch Manager role
+  const branchManagerRole = roleMap.get('Branch Manager')
+  if (branchManagerRole) {
+    await prisma.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: branchManagerUser.id,
+          roleId: branchManagerRole.id,
+        },
       },
-    },
-    update: {},
-    create: {
-      userId: branchAdminUser.id,
-      roleId: branchAdminRole.id,
-    },
-  })
-
-  await prisma.userRole.upsert({
-    where: {
-      userId_roleId: {
+      update: {},
+      create: {
         userId: branchManagerUser.id,
         roleId: branchManagerRole.id,
       },
-    },
-    update: {},
-    create: {
-      userId: branchManagerUser.id,
-      roleId: branchManagerRole.id,
-    },
-  })
+    })
+  }
 
-  await prisma.userRole.upsert({
-    where: {
-      userId_roleId: {
-        userId: accountingStaffUser.id,
-        roleId: accountingStaffRole.id,
+  // Warehouse Manager -> Warehouse Manager role
+  const warehouseManagerRole = roleMap.get('Warehouse Manager')
+  if (warehouseManagerRole) {
+    await prisma.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: warehouseManagerUser.id,
+          roleId: warehouseManagerRole.id,
+        },
       },
-    },
-    update: {},
-    create: {
-      userId: accountingStaffUser.id,
-      roleId: accountingStaffRole.id,
-    },
-  })
-
-  await prisma.userRole.upsert({
-    where: {
-      userId_roleId: {
-        userId: regularStaffUser.id,
-        roleId: regularStaffRole.id,
+      update: {},
+      create: {
+        userId: warehouseManagerUser.id,
+        roleId: warehouseManagerRole.id,
       },
-    },
-    update: {},
-    create: {
-      userId: regularStaffUser.id,
-      roleId: regularStaffRole.id,
-    },
-  })
+    })
+  }
 
-  await prisma.userRole.upsert({
-    where: {
-      userId_roleId: {
+  // Cashier -> Sales Cashier role
+  const salesCashierRole = roleMap.get('Sales Cashier')
+  if (salesCashierRole) {
+    await prisma.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: cashierUser.id,
+          roleId: salesCashierRole.id,
+        },
+      },
+      update: {},
+      create: {
         userId: cashierUser.id,
-        roleId: cashierRole.id,
+        roleId: salesCashierRole.id,
       },
-    },
-    update: {},
-    create: {
-      userId: cashierUser.id,
-      roleId: cashierRole.id,
-    },
-  })
+    })
+  }
+
+  // Transfer Creator -> Transfer Creator role
+  const transferCreatorRole = roleMap.get('Transfer Creator')
+  if (transferCreatorRole) {
+    await prisma.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: transferCreatorUser.id,
+          roleId: transferCreatorRole.id,
+        },
+      },
+      update: {},
+      create: {
+        userId: transferCreatorUser.id,
+        roleId: transferCreatorRole.id,
+      },
+    })
+  }
+
   console.log('✅ Roles assigned to users')
 
   // Assign Locations to Users
-  // Branch Admin and Super Admin have ACCESS_ALL_LOCATIONS permission, so they see all branches
+  // System Admin has ACCESS_ALL_LOCATIONS permission, so they see all branches
   // Other users are assigned to specific branches
 
   // Branch Manager -> Assigned to Main Store only
@@ -555,61 +447,33 @@ async function main() {
     },
   })
 
-  // Warehouse Manager -> Assigned to Warehouse and Tuguegarao
+  // Warehouse Manager -> Assigned to Warehouse location
   await prisma.userLocation.upsert({
     where: {
       userId_locationId: {
-        userId: accountingStaffUser.id,
+        userId: warehouseManagerUser.id,
         locationId: warehouseLocation.id,
       },
     },
     update: {},
     create: {
-      userId: accountingStaffUser.id,
+      userId: warehouseManagerUser.id,
       locationId: warehouseLocation.id,
     },
   })
 
+  // Transfer Creator -> Assigned to Main Store
   await prisma.userLocation.upsert({
     where: {
       userId_locationId: {
-        userId: accountingStaffUser.id,
-        locationId: downtownLocation.id,
-      },
-    },
-    update: {},
-    create: {
-      userId: accountingStaffUser.id,
-      locationId: downtownLocation.id,
-    },
-  })
-
-  // Regular Staff -> Assigned to both Main Store and Bambang
-  await prisma.userLocation.upsert({
-    where: {
-      userId_locationId: {
-        userId: regularStaffUser.id,
+        userId: transferCreatorUser.id,
         locationId: mainLocation.id,
       },
     },
     update: {},
     create: {
-      userId: regularStaffUser.id,
+      userId: transferCreatorUser.id,
       locationId: mainLocation.id,
-    },
-  })
-
-  await prisma.userLocation.upsert({
-    where: {
-      userId_locationId: {
-        userId: regularStaffUser.id,
-        locationId: bambangLocation.id,
-      },
-    },
-    update: {},
-    create: {
-      userId: regularStaffUser.id,
-      locationId: bambangLocation.id,
     },
   })
 
@@ -630,8 +494,8 @@ async function main() {
 
   console.log('✅ User locations assigned:')
   console.log('  - Branch Manager -> Main Store')
-  console.log('  - Accounting Staff (Warehouse Manager) -> Warehouse')
-  console.log('  - Regular Staff -> Main Store + Bambang')
+  console.log('  - Warehouse Manager -> Warehouse')
+  console.log('  - Transfer Creator -> Main Store')
   console.log('  - Cashier -> Tuguegarao Downtown')
 
   // Create Subscription Packages
@@ -1155,12 +1019,15 @@ async function main() {
   console.log('\n🎉 Database seeded successfully!')
   console.log('\n📝 Demo Accounts:')
   console.log('─'.repeat(80))
-  console.log('Super Admin:       superadmin       / password  (All Locations)')
-  console.log('Branch Admin:      branchadmin      / password  (All Locations)')
-  console.log('Branch Manager:    branchmanager    / password  (Main Store only)')
-  console.log('Warehouse Manager: warehousemanager / password  (Warehouse + Tuguegarao)')
-  console.log('Regular Staff:     staff            / password  (Main Store + Bambang)')
-  console.log('Regular Cashier:   cashier          / password  (Tuguegarao Downtown only)')
+  console.log('Super Admin:         superadmin       / password  (All Locations)')
+  console.log('Branch Manager:      branchmanager    / password  (Main Store only)')
+  console.log('Warehouse Manager:   warehousemanager / password  (Warehouse only)')
+  console.log('Transfer Creator:    transfercreator  / password  (Main Store only)')
+  console.log('Sales Cashier:       cashier          / password  (Tuguegarao Downtown only)')
+  console.log('─'.repeat(80))
+  console.log(`\n✅ ${roleMap.size} task-specific roles created with granular permissions`)
+  console.log('   Roles include: Transfer Creator, Transfer Sender, Transfer Receiver,')
+  console.log('   Purchase Order Creator, Goods Receipt Clerk, Sales Cashier, and more!')
   console.log('─'.repeat(80))
   console.log('\n📦 Subscription Packages:')
   console.log('─'.repeat(50))

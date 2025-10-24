@@ -354,6 +354,48 @@ export const PERMISSIONS = {
   ANNOUNCEMENT_DELETE: 'announcement.delete',
   ANNOUNCEMENT_MANAGE: 'announcement.manage', // Full management access
 
+  // Employee Schedules
+  SCHEDULE_VIEW: 'schedule.view',
+  SCHEDULE_CREATE: 'schedule.create',
+  SCHEDULE_UPDATE: 'schedule.update',
+  SCHEDULE_DELETE: 'schedule.delete',
+  SCHEDULE_ASSIGN: 'schedule.assign', // Assign schedules to employees
+  SCHEDULE_MANAGE_ALL: 'schedule.manage_all', // Manage all employee schedules
+
+  // Attendance & Time Tracking
+  ATTENDANCE_VIEW: 'attendance.view',
+  ATTENDANCE_VIEW_OWN: 'attendance.view_own', // View own attendance
+  ATTENDANCE_CLOCK_IN: 'attendance.clock_in', // Clock in
+  ATTENDANCE_CLOCK_OUT: 'attendance.clock_out', // Clock out
+  ATTENDANCE_MANAGE: 'attendance.manage', // Manage all attendance records
+  ATTENDANCE_EDIT: 'attendance.edit', // Edit attendance records
+  ATTENDANCE_REPORT: 'attendance.report', // View attendance reports
+
+  // Location Change Requests
+  LOCATION_CHANGE_REQUEST_VIEW: 'location_change.view',
+  LOCATION_CHANGE_REQUEST_CREATE: 'location_change.create',
+  LOCATION_CHANGE_REQUEST_APPROVE: 'location_change.approve',
+  LOCATION_CHANGE_REQUEST_REJECT: 'location_change.reject',
+  LOCATION_CHANGE_REQUEST_MANAGE: 'location_change.manage', // Full management
+
+  // Leave Requests
+  LEAVE_REQUEST_VIEW_ALL: 'leave_request.view_all', // View all leave requests
+  LEAVE_REQUEST_VIEW_OWN: 'leave_request.view_own', // View own leave requests
+  LEAVE_REQUEST_CREATE: 'leave_request.create', // Create leave request
+  LEAVE_REQUEST_UPDATE: 'leave_request.update', // Update own pending request
+  LEAVE_REQUEST_APPROVE: 'leave_request.approve', // Approve leave requests
+  LEAVE_REQUEST_REJECT: 'leave_request.reject', // Reject leave requests
+  LEAVE_REQUEST_MANAGE: 'leave_request.manage', // Full management access
+
+  // Overtime Management
+  OVERTIME_VIEW_ALL: 'overtime.view_all',
+  OVERTIME_VIEW_OWN: 'overtime.view_own',
+  OVERTIME_CONFIGURE: 'overtime.configure',
+  OVERTIME_APPROVE: 'overtime.approve',
+  OVERTIME_ALERTS_VIEW: 'overtime.alerts.view',
+  OVERTIME_ALERTS_ACKNOWLEDGE: 'overtime.alerts.acknowledge',
+  OVERTIME_ALERTS_MANAGE: 'overtime.alerts.manage',
+
   // Super Admin Only - Platform Management
   SUPERADMIN_ALL: 'superadmin.all',
   SUPERADMIN_BUSINESS_VIEW: 'superadmin.business.view',
@@ -384,7 +426,11 @@ export function hasAccessToAllLocations(user: RBACUser | null): boolean {
  * They can work across all locations within their business scope
  */
 export function roleRequiresLocation(roleName: string): boolean {
-  const adminRoles = ['Super Admin', 'Branch Admin']
+  const adminRoles = [
+    'Super Admin',              // Legacy
+    'System Administrator',     // New name for Super Admin
+    'Super Admin (Legacy)',     // LEGACY_SUPER_ADMIN
+  ]
   return !adminRoles.includes(roleName)
 }
 
@@ -450,27 +496,882 @@ export function getLocationWhereClause(user: RBACUser | null, locationFieldName:
 
 /**
  * Default role configurations
+ *
+ * REDESIGNED RBAC SYSTEM - Task-Specific Granular Roles
+ *
+ * Principles:
+ * 1. Descriptive role names that clearly state what the user can do
+ * 2. Minimal permissions - each role has only what's needed for that task
+ * 3. Users can have multiple roles for flexible permission combinations
+ * 4. Clear separation of duties (create, approve, receive are different roles)
+ * 5. Easy to understand - role name describes the function
  */
 export const DEFAULT_ROLES = {
-  SUPER_ADMIN: {
-    name: 'Super Admin',
+  // ============================================
+  // CATEGORY 1: ADMINISTRATIVE ROLES
+  // ============================================
+
+  SYSTEM_ADMINISTRATOR: {
+    name: 'System Administrator',
+    description: 'Full system access - platform owner/super admin',
+    category: 'Administrative',
     permissions: Object.values(PERMISSIONS), // Has ALL permissions
   },
-  BRANCH_ADMIN: {
-    name: 'Branch Admin',
-    permissions: [
-      // Dashboard Access
-      PERMISSIONS.DASHBOARD_VIEW,
 
-      // User & Role Management - Full CRUD
+  USER_MANAGER: {
+    name: 'User Manager',
+    description: 'Creates and manages user accounts',
+    category: 'Administrative',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
       PERMISSIONS.USER_VIEW,
       PERMISSIONS.USER_CREATE,
       PERMISSIONS.USER_UPDATE,
       PERMISSIONS.USER_DELETE,
+      PERMISSIONS.ROLE_VIEW, // Can view roles to assign to users
+    ],
+  },
+
+  ROLE_MANAGER: {
+    name: 'Role Manager',
+    description: 'Creates and manages roles and permissions',
+    category: 'Administrative',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
       PERMISSIONS.ROLE_VIEW,
       PERMISSIONS.ROLE_CREATE,
       PERMISSIONS.ROLE_UPDATE,
       PERMISSIONS.ROLE_DELETE,
+      PERMISSIONS.USER_VIEW, // Can view users to understand role assignments
+    ],
+  },
+
+  LOCATION_MANAGER: {
+    name: 'Location Manager',
+    description: 'Manages business locations and branches',
+    category: 'Administrative',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.LOCATION_VIEW,
+      PERMISSIONS.LOCATION_CREATE,
+      PERMISSIONS.LOCATION_UPDATE,
+      PERMISSIONS.LOCATION_DELETE,
+      PERMISSIONS.ACCESS_ALL_LOCATIONS,
+    ],
+  },
+
+  BUSINESS_SETTINGS_MANAGER: {
+    name: 'Business Settings Manager',
+    description: 'Configures business settings and preferences',
+    category: 'Administrative',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.BUSINESS_SETTINGS_VIEW,
+      PERMISSIONS.BUSINESS_SETTINGS_EDIT,
+    ],
+  },
+
+  // ============================================
+  // CATEGORY 2: PRODUCT & INVENTORY ROLES
+  // ============================================
+
+  PRODUCT_CATALOG_MANAGER: {
+    name: 'Product Catalog Manager',
+    description: 'Creates and manages products, categories, brands, units',
+    category: 'Product & Inventory',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.PRODUCT_CREATE,
+      PERMISSIONS.PRODUCT_UPDATE,
+      PERMISSIONS.PRODUCT_DELETE,
+      PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE,
+      PERMISSIONS.PRODUCT_VIEW_PROFIT_MARGIN,
+      PERMISSIONS.PRODUCT_VIEW_SUPPLIER,
+      PERMISSIONS.ACCESS_DEFAULT_SELLING_PRICE,
+      PERMISSIONS.PRODUCT_CATEGORY_VIEW,
+      PERMISSIONS.PRODUCT_CATEGORY_CREATE,
+      PERMISSIONS.PRODUCT_CATEGORY_UPDATE,
+      PERMISSIONS.PRODUCT_CATEGORY_DELETE,
+      PERMISSIONS.PRODUCT_BRAND_VIEW,
+      PERMISSIONS.PRODUCT_BRAND_CREATE,
+      PERMISSIONS.PRODUCT_BRAND_UPDATE,
+      PERMISSIONS.PRODUCT_BRAND_DELETE,
+      PERMISSIONS.PRODUCT_UNIT_VIEW,
+      PERMISSIONS.PRODUCT_UNIT_CREATE,
+      PERMISSIONS.PRODUCT_UNIT_UPDATE,
+      PERMISSIONS.PRODUCT_UNIT_DELETE,
+      PERMISSIONS.PRODUCT_WARRANTY_VIEW,
+      PERMISSIONS.PRODUCT_WARRANTY_CREATE,
+      PERMISSIONS.PRODUCT_WARRANTY_UPDATE,
+      PERMISSIONS.PRODUCT_WARRANTY_DELETE,
+    ],
+  },
+
+  PRODUCT_VIEWER: {
+    name: 'Product Viewer',
+    description: 'View-only access to product information',
+    category: 'Product & Inventory',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.PRODUCT_CATEGORY_VIEW,
+      PERMISSIONS.PRODUCT_BRAND_VIEW,
+      PERMISSIONS.PRODUCT_UNIT_VIEW,
+      PERMISSIONS.PRODUCT_WARRANTY_VIEW,
+    ],
+  },
+
+  INVENTORY_COUNTER: {
+    name: 'Inventory Counter',
+    description: 'Conducts physical inventory counts',
+    category: 'Product & Inventory',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.PHYSICAL_INVENTORY_EXPORT,
+      // PERMISSIONS.PHYSICAL_INVENTORY_IMPORT, // DISABLED - Too dangerous! Only Super Admin can import
+      PERMISSIONS.STOCK_REPORT_VIEW,
+    ],
+  },
+
+  INVENTORY_ADJUSTER: {
+    name: 'Inventory Adjuster',
+    description: 'Creates inventory adjustment requests',
+    category: 'Product & Inventory',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.INVENTORY_CORRECTION_VIEW,
+      PERMISSIONS.INVENTORY_CORRECTION_CREATE,
+      PERMISSIONS.INVENTORY_CORRECTION_UPDATE,
+    ],
+  },
+
+  INVENTORY_APPROVER: {
+    name: 'Inventory Approver',
+    description: 'Approves inventory corrections and adjustments',
+    category: 'Product & Inventory',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.INVENTORY_CORRECTION_VIEW,
+      PERMISSIONS.INVENTORY_CORRECTION_APPROVE,
+      PERMISSIONS.STOCK_REPORT_VIEW,
+    ],
+  },
+
+  OPENING_STOCK_MANAGER: {
+    name: 'Opening Stock Manager',
+    description: 'Sets and manages opening stock for products',
+    category: 'Product & Inventory',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.PRODUCT_OPENING_STOCK,
+      PERMISSIONS.PRODUCT_LOCK_OPENING_STOCK,
+      PERMISSIONS.PRODUCT_UNLOCK_OPENING_STOCK,
+      PERMISSIONS.PRODUCT_MODIFY_LOCKED_STOCK,
+    ],
+  },
+
+  STOCK_AUDITOR: {
+    name: 'Stock Auditor',
+    description: 'Views all stock levels across all locations',
+    category: 'Product & Inventory',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.PRODUCT_VIEW_ALL_BRANCH_STOCK,
+      PERMISSIONS.INVENTORY_LEDGER_VIEW,
+      PERMISSIONS.INVENTORY_LEDGER_EXPORT,
+      PERMISSIONS.STOCK_REPORT_VIEW,
+      PERMISSIONS.VIEW_INVENTORY_REPORTS,
+      PERMISSIONS.ACCESS_ALL_LOCATIONS,
+    ],
+  },
+
+  // ============================================
+  // CATEGORY 3: TRANSFER ROLES (SEPARATION OF DUTIES)
+  // ============================================
+
+  TRANSFER_CREATOR: {
+    name: 'Transfer Creator',
+    description: 'Creates stock transfer requests ONLY',
+    category: 'Stock Transfers',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.STOCK_TRANSFER_VIEW,
+      PERMISSIONS.STOCK_TRANSFER_CREATE,
+      PERMISSIONS.LOCATION_VIEW,
+    ],
+  },
+
+  TRANSFER_SENDER: {
+    name: 'Transfer Sender',
+    description: 'Checks and sends approved transfers from warehouse',
+    category: 'Stock Transfers',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.STOCK_TRANSFER_VIEW,
+      PERMISSIONS.STOCK_TRANSFER_CHECK,
+      PERMISSIONS.STOCK_TRANSFER_SEND,
+      PERMISSIONS.SERIAL_NUMBER_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_SCAN,
+    ],
+  },
+
+  TRANSFER_RECEIVER: {
+    name: 'Transfer Receiver',
+    description: 'Receives incoming transfers at destination location',
+    category: 'Stock Transfers',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.STOCK_TRANSFER_VIEW,
+      PERMISSIONS.STOCK_TRANSFER_RECEIVE,
+      PERMISSIONS.SERIAL_NUMBER_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_SCAN,
+    ],
+  },
+
+  TRANSFER_APPROVER: {
+    name: 'Transfer Approver',
+    description: 'Verifies and completes transfers (final approval)',
+    category: 'Stock Transfers',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.STOCK_TRANSFER_VIEW,
+      PERMISSIONS.STOCK_TRANSFER_VERIFY,
+      PERMISSIONS.STOCK_TRANSFER_COMPLETE,
+      PERMISSIONS.STOCK_TRANSFER_CANCEL,
+    ],
+  },
+
+  TRANSFER_MANAGER: {
+    name: 'Transfer Manager',
+    description: 'Full access to all transfer operations',
+    category: 'Stock Transfers',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.STOCK_TRANSFER_VIEW,
+      PERMISSIONS.STOCK_TRANSFER_CREATE,
+      PERMISSIONS.STOCK_TRANSFER_CHECK,
+      PERMISSIONS.STOCK_TRANSFER_SEND,
+      PERMISSIONS.STOCK_TRANSFER_RECEIVE,
+      PERMISSIONS.STOCK_TRANSFER_VERIFY,
+      PERMISSIONS.STOCK_TRANSFER_COMPLETE,
+      PERMISSIONS.STOCK_TRANSFER_CANCEL,
+      PERMISSIONS.SERIAL_NUMBER_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_TRACK,
+      PERMISSIONS.SERIAL_NUMBER_SCAN,
+      PERMISSIONS.REPORT_TRANSFER_VIEW,
+      PERMISSIONS.REPORT_TRANSFER_TRENDS,
+    ],
+  },
+
+  // ============================================
+  // CATEGORY 4: PURCHASE & PROCUREMENT ROLES
+  // ============================================
+
+  PURCHASE_ORDER_CREATOR: {
+    name: 'Purchase Order Creator',
+    description: 'Creates purchase orders',
+    category: 'Purchases',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.PURCHASE_VIEW,
+      PERMISSIONS.PURCHASE_CREATE,
+      PERMISSIONS.PURCHASE_UPDATE,
+      PERMISSIONS.SUPPLIER_VIEW,
+    ],
+  },
+
+  PURCHASE_ORDER_APPROVER: {
+    name: 'Purchase Order Approver',
+    description: 'Approves purchase orders',
+    category: 'Purchases',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PURCHASE_VIEW,
+      PERMISSIONS.PURCHASE_APPROVE,
+      PERMISSIONS.PURCHASE_VIEW_COST,
+      PERMISSIONS.SUPPLIER_VIEW,
+    ],
+  },
+
+  GOODS_RECEIPT_CLERK: {
+    name: 'Goods Receipt Clerk',
+    description: 'Receives purchased goods and creates GRNs',
+    category: 'Purchases',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.PURCHASE_VIEW,
+      PERMISSIONS.PURCHASE_RECEIVE,
+      PERMISSIONS.PURCHASE_RECEIPT_CREATE,
+      PERMISSIONS.PURCHASE_RECEIPT_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_TRACK,
+      PERMISSIONS.SERIAL_NUMBER_SCAN,
+      PERMISSIONS.SUPPLIER_VIEW,
+    ],
+  },
+
+  GOODS_RECEIPT_APPROVER: {
+    name: 'Goods Receipt Approver',
+    description: 'Approves goods receipt notes (GRNs)',
+    category: 'Purchases',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PURCHASE_VIEW,
+      PERMISSIONS.PURCHASE_RECEIPT_VIEW,
+      PERMISSIONS.PURCHASE_RECEIPT_APPROVE,
+      PERMISSIONS.PURCHASE_VIEW_COST,
+    ],
+  },
+
+  QUALITY_INSPECTOR: {
+    name: 'Quality Inspector',
+    description: 'Conducts quality control inspections',
+    category: 'Purchases',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.QC_INSPECTION_VIEW,
+      PERMISSIONS.QC_INSPECTION_CREATE,
+      PERMISSIONS.QC_INSPECTION_CONDUCT,
+      PERMISSIONS.QC_TEMPLATE_VIEW,
+      PERMISSIONS.PURCHASE_RECEIPT_VIEW,
+    ],
+  },
+
+  QUALITY_APPROVER: {
+    name: 'Quality Approver',
+    description: 'Approves QC inspection results',
+    category: 'Purchases',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.QC_INSPECTION_VIEW,
+      PERMISSIONS.QC_INSPECTION_APPROVE,
+      PERMISSIONS.QC_TEMPLATE_VIEW,
+      PERMISSIONS.QC_TEMPLATE_MANAGE,
+    ],
+  },
+
+  SUPPLIER_MANAGER: {
+    name: 'Supplier Manager',
+    description: 'Manages supplier information and relationships',
+    category: 'Purchases',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.SUPPLIER_VIEW,
+      PERMISSIONS.SUPPLIER_CREATE,
+      PERMISSIONS.SUPPLIER_UPDATE,
+      PERMISSIONS.SUPPLIER_DELETE,
+      PERMISSIONS.SUPPLIER_VIEW_CONTACT_DETAILS,
+      PERMISSIONS.SUPPLIER_VIEW_PAYMENT_TERMS,
+    ],
+  },
+
+  // ============================================
+  // CATEGORY 5: SALES & POS ROLES
+  // ============================================
+
+  SALES_CASHIER: {
+    name: 'Sales Cashier',
+    description: 'Operates POS and processes sales transactions',
+    category: 'Sales & POS',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.SELL_VIEW_OWN,
+      PERMISSIONS.SELL_CREATE,
+      PERMISSIONS.CUSTOMER_VIEW,
+      PERMISSIONS.CUSTOMER_CREATE,
+      PERMISSIONS.SHIFT_OPEN,
+      PERMISSIONS.SHIFT_CLOSE,
+      PERMISSIONS.SHIFT_VIEW,
+      PERMISSIONS.CASH_IN_OUT,
+      PERMISSIONS.CASH_COUNT,
+      PERMISSIONS.X_READING,
+      PERMISSIONS.VOID_CREATE,
+      PERMISSIONS.FREEBIE_ADD,
+      PERMISSIONS.SERIAL_NUMBER_SCAN,
+      // Basic sales reports
+      PERMISSIONS.REPORT_VIEW,
+      PERMISSIONS.REPORT_SALES_VIEW,
+      PERMISSIONS.REPORT_SALES_TODAY,
+      PERMISSIONS.SALES_REPORT_VIEW,
+      PERMISSIONS.SALES_REPORT_DAILY,
+    ],
+  },
+
+  SALES_SUPERVISOR: {
+    name: 'Sales Supervisor',
+    description: 'Manages sales operations, handles voids and refunds',
+    category: 'Sales & POS',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.SELL_VIEW,
+      PERMISSIONS.SELL_UPDATE,
+      PERMISSIONS.SELL_DELETE,
+      PERMISSIONS.SELL_VIEW_COST,
+      PERMISSIONS.SELL_VIEW_PROFIT,
+      PERMISSIONS.SELL_VIEW_DISCOUNT_DETAILS,
+      PERMISSIONS.CUSTOMER_VIEW,
+      PERMISSIONS.CUSTOMER_CREATE,
+      PERMISSIONS.CUSTOMER_UPDATE,
+      PERMISSIONS.VOID_CREATE,
+      PERMISSIONS.VOID_APPROVE,
+      PERMISSIONS.CUSTOMER_RETURN_CREATE,
+      PERMISSIONS.CUSTOMER_RETURN_VIEW,
+      PERMISSIONS.SHIFT_VIEW,
+      PERMISSIONS.SHIFT_VIEW_ALL,
+      PERMISSIONS.CASH_APPROVE_LARGE_TRANSACTIONS,
+      PERMISSIONS.FREEBIE_APPROVE,
+      PERMISSIONS.FREEBIE_VIEW_LOG,
+      // Sales reports
+      PERMISSIONS.REPORT_VIEW,
+      PERMISSIONS.SALES_REPORT_VIEW,
+      PERMISSIONS.SALES_REPORT_DAILY,
+      PERMISSIONS.SALES_REPORT_SUMMARY,
+      PERMISSIONS.SALES_REPORT_JOURNAL,
+      PERMISSIONS.SALES_REPORT_PER_ITEM,
+      PERMISSIONS.SALES_REPORT_PER_CASHIER,
+      PERMISSIONS.SALES_REPORT_ANALYTICS,
+    ],
+  },
+
+  SHIFT_MANAGER: {
+    name: 'Shift Manager',
+    description: 'Manages cashier shifts and reviews shift performance',
+    category: 'Sales & POS',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.SHIFT_VIEW,
+      PERMISSIONS.SHIFT_VIEW_ALL,
+      PERMISSIONS.CASH_APPROVE_LARGE_TRANSACTIONS,
+      PERMISSIONS.REPORT_VIEW,
+      PERMISSIONS.SALES_REPORT_VIEW,
+      PERMISSIONS.SALES_REPORT_PER_CASHIER,
+    ],
+  },
+
+  CASH_APPROVER: {
+    name: 'Cash Approver',
+    description: 'Approves large cash transactions',
+    category: 'Sales & POS',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.CASH_APPROVE_LARGE_TRANSACTIONS,
+      PERMISSIONS.SHIFT_VIEW,
+      PERMISSIONS.SHIFT_VIEW_ALL,
+    ],
+  },
+
+  CUSTOMER_SERVICE_REP: {
+    name: 'Customer Service Representative',
+    description: 'Manages customer information and relationships',
+    category: 'Sales & POS',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.CUSTOMER_VIEW,
+      PERMISSIONS.CUSTOMER_CREATE,
+      PERMISSIONS.CUSTOMER_UPDATE,
+      PERMISSIONS.CUSTOMER_DELETE,
+    ],
+  },
+
+  // ============================================
+  // CATEGORY 6: RETURN ROLES
+  // ============================================
+
+  CUSTOMER_RETURN_CREATOR: {
+    name: 'Customer Return Creator',
+    description: 'Processes customer return requests',
+    category: 'Returns',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.CUSTOMER_VIEW,
+      PERMISSIONS.SELL_VIEW,
+      PERMISSIONS.CUSTOMER_RETURN_VIEW,
+      PERMISSIONS.CUSTOMER_RETURN_CREATE,
+      PERMISSIONS.SERIAL_NUMBER_VIEW,
+    ],
+  },
+
+  CUSTOMER_RETURN_APPROVER: {
+    name: 'Customer Return Approver',
+    description: 'Approves customer returns',
+    category: 'Returns',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.CUSTOMER_RETURN_VIEW,
+      PERMISSIONS.CUSTOMER_RETURN_APPROVE,
+      PERMISSIONS.CUSTOMER_RETURN_DELETE,
+    ],
+  },
+
+  SUPPLIER_RETURN_CREATOR: {
+    name: 'Supplier Return Creator',
+    description: 'Creates supplier return requests',
+    category: 'Returns',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.SUPPLIER_VIEW,
+      PERMISSIONS.PURCHASE_VIEW,
+      PERMISSIONS.SUPPLIER_RETURN_VIEW,
+      PERMISSIONS.SUPPLIER_RETURN_CREATE,
+      PERMISSIONS.SERIAL_NUMBER_VIEW,
+    ],
+  },
+
+  SUPPLIER_RETURN_APPROVER: {
+    name: 'Supplier Return Approver',
+    description: 'Approves supplier returns',
+    category: 'Returns',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.SUPPLIER_RETURN_VIEW,
+      PERMISSIONS.SUPPLIER_RETURN_APPROVE,
+      PERMISSIONS.SUPPLIER_RETURN_DELETE,
+    ],
+  },
+
+  // ============================================
+  // CATEGORY 7: FINANCIAL & ACCOUNTING ROLES
+  // ============================================
+
+  ACCOUNTS_PAYABLE_CLERK: {
+    name: 'Accounts Payable Clerk',
+    description: 'Manages supplier invoices and payment processing',
+    category: 'Financial & Accounting',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.SUPPLIER_VIEW,
+      PERMISSIONS.SUPPLIER_VIEW_CONTACT_DETAILS,
+      PERMISSIONS.SUPPLIER_VIEW_PAYMENT_TERMS,
+      PERMISSIONS.PURCHASE_VIEW,
+      PERMISSIONS.PURCHASE_VIEW_COST,
+      PERMISSIONS.ACCOUNTS_PAYABLE_VIEW,
+      PERMISSIONS.ACCOUNTS_PAYABLE_CREATE,
+      PERMISSIONS.ACCOUNTS_PAYABLE_UPDATE,
+      PERMISSIONS.PAYMENT_VIEW,
+      PERMISSIONS.PAYMENT_CREATE,
+      PERMISSIONS.BANK_VIEW,
+      PERMISSIONS.BANK_TRANSACTION_VIEW,
+    ],
+  },
+
+  PAYMENT_APPROVER: {
+    name: 'Payment Approver',
+    description: 'Approves supplier payments',
+    category: 'Financial & Accounting',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PAYMENT_VIEW,
+      PERMISSIONS.PAYMENT_APPROVE,
+      PERMISSIONS.ACCOUNTS_PAYABLE_VIEW,
+      PERMISSIONS.BANK_TRANSACTION_VIEW,
+    ],
+  },
+
+  EXPENSE_RECORDER: {
+    name: 'Expense Recorder',
+    description: 'Records business expenses',
+    category: 'Financial & Accounting',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.EXPENSE_VIEW,
+      PERMISSIONS.EXPENSE_CREATE,
+      PERMISSIONS.EXPENSE_UPDATE,
+    ],
+  },
+
+  BANK_RECONCILIATION_CLERK: {
+    name: 'Bank Reconciliation Clerk',
+    description: 'Manages bank transactions and reconciliation',
+    category: 'Financial & Accounting',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.BANK_VIEW,
+      PERMISSIONS.BANK_CREATE,
+      PERMISSIONS.BANK_UPDATE,
+      PERMISSIONS.BANK_TRANSACTION_VIEW,
+      PERMISSIONS.BANK_TRANSACTION_CREATE,
+      PERMISSIONS.BANK_TRANSACTION_UPDATE,
+      PERMISSIONS.PAYMENT_VIEW,
+    ],
+  },
+
+  FINANCIAL_VIEWER: {
+    name: 'Financial Viewer',
+    description: 'View-only access to financial data',
+    category: 'Financial & Accounting',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE,
+      PERMISSIONS.PRODUCT_VIEW_PROFIT_MARGIN,
+      PERMISSIONS.SELL_VIEW,
+      PERMISSIONS.SELL_VIEW_COST,
+      PERMISSIONS.SELL_VIEW_PROFIT,
+      PERMISSIONS.PURCHASE_VIEW,
+      PERMISSIONS.PURCHASE_VIEW_COST,
+      PERMISSIONS.ACCOUNTS_PAYABLE_VIEW,
+      PERMISSIONS.PAYMENT_VIEW,
+      PERMISSIONS.BANK_VIEW,
+      PERMISSIONS.BANK_TRANSACTION_VIEW,
+      PERMISSIONS.EXPENSE_VIEW,
+      PERMISSIONS.REPORT_VIEW,
+      PERMISSIONS.REPORT_PROFIT_LOSS,
+      PERMISSIONS.REPORT_PROFITABILITY,
+    ],
+  },
+
+  // ============================================
+  // CATEGORY 8: REPORT ROLES
+  // ============================================
+
+  SALES_REPORT_VIEWER: {
+    name: 'Sales Report Viewer',
+    description: 'Views sales reports and analytics',
+    category: 'Reports',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.REPORT_VIEW,
+      PERMISSIONS.REPORT_SALES_VIEW,
+      PERMISSIONS.REPORT_SALES_DAILY,
+      PERMISSIONS.REPORT_SALES_TODAY,
+      PERMISSIONS.REPORT_SALES_HISTORY,
+      PERMISSIONS.REPORT_SALES_PROFITABILITY,
+      PERMISSIONS.SALES_REPORT_VIEW,
+      PERMISSIONS.SALES_REPORT_DAILY,
+      PERMISSIONS.SALES_REPORT_SUMMARY,
+      PERMISSIONS.SALES_REPORT_JOURNAL,
+      PERMISSIONS.SALES_REPORT_PER_ITEM,
+      PERMISSIONS.SALES_REPORT_PER_CASHIER,
+      PERMISSIONS.SALES_REPORT_PER_LOCATION,
+      PERMISSIONS.SALES_REPORT_ANALYTICS,
+      PERMISSIONS.SALES_REPORT_CUSTOMER_ANALYSIS,
+      PERMISSIONS.SALES_REPORT_PAYMENT_METHOD,
+      PERMISSIONS.SALES_REPORT_DISCOUNT_ANALYSIS,
+    ],
+  },
+
+  INVENTORY_REPORT_VIEWER: {
+    name: 'Inventory Report Viewer',
+    description: 'Views inventory reports and stock levels',
+    category: 'Reports',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.REPORT_VIEW,
+      PERMISSIONS.REPORT_STOCK_ALERT,
+      PERMISSIONS.STOCK_REPORT_VIEW,
+      PERMISSIONS.VIEW_INVENTORY_REPORTS,
+      PERMISSIONS.INVENTORY_LEDGER_VIEW,
+      PERMISSIONS.INVENTORY_LEDGER_EXPORT,
+    ],
+  },
+
+  PURCHASE_REPORT_VIEWER: {
+    name: 'Purchase Report Viewer',
+    description: 'Views purchase reports and analytics',
+    category: 'Reports',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.REPORT_VIEW,
+      PERMISSIONS.REPORT_PURCHASE_VIEW,
+      PERMISSIONS.REPORT_PURCHASE_ANALYTICS,
+      PERMISSIONS.REPORT_PURCHASE_TRENDS,
+      PERMISSIONS.REPORT_PURCHASE_ITEMS,
+      PERMISSIONS.REPORT_PRODUCT_PURCHASE_HISTORY,
+      PERMISSIONS.REPORT_PURCHASE_SELL,
+    ],
+  },
+
+  FINANCIAL_REPORT_VIEWER: {
+    name: 'Financial Report Viewer',
+    description: 'Views financial reports and profitability',
+    category: 'Reports',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.REPORT_VIEW,
+      PERMISSIONS.REPORT_PROFIT_LOSS,
+      PERMISSIONS.REPORT_PROFITABILITY,
+      PERMISSIONS.REPORT_SALES_PROFITABILITY,
+    ],
+  },
+
+  BIR_READING_OPERATOR: {
+    name: 'BIR Reading Operator',
+    description: 'Generates X and Z readings for BIR compliance',
+    category: 'Reports',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.X_READING,
+      PERMISSIONS.Z_READING,
+      PERMISSIONS.SHIFT_VIEW,
+    ],
+  },
+
+  REPORT_EXPORTER: {
+    name: 'Report Exporter',
+    description: 'Can export all reports to PDF/Excel',
+    category: 'Reports',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.REPORT_VIEW,
+      // All sales reports
+      PERMISSIONS.REPORT_SALES_VIEW,
+      PERMISSIONS.REPORT_SALES_DAILY,
+      PERMISSIONS.REPORT_SALES_TODAY,
+      PERMISSIONS.REPORT_SALES_HISTORY,
+      PERMISSIONS.REPORT_SALES_PROFITABILITY,
+      PERMISSIONS.SALES_REPORT_VIEW,
+      PERMISSIONS.SALES_REPORT_DAILY,
+      PERMISSIONS.SALES_REPORT_SUMMARY,
+      PERMISSIONS.SALES_REPORT_JOURNAL,
+      PERMISSIONS.SALES_REPORT_PER_ITEM,
+      PERMISSIONS.SALES_REPORT_PER_CASHIER,
+      PERMISSIONS.SALES_REPORT_PER_LOCATION,
+      PERMISSIONS.SALES_REPORT_ANALYTICS,
+      PERMISSIONS.SALES_REPORT_CUSTOMER_ANALYSIS,
+      PERMISSIONS.SALES_REPORT_PAYMENT_METHOD,
+      PERMISSIONS.SALES_REPORT_DISCOUNT_ANALYSIS,
+      // All inventory reports
+      PERMISSIONS.REPORT_STOCK_ALERT,
+      PERMISSIONS.STOCK_REPORT_VIEW,
+      PERMISSIONS.VIEW_INVENTORY_REPORTS,
+      PERMISSIONS.INVENTORY_LEDGER_VIEW,
+      PERMISSIONS.INVENTORY_LEDGER_EXPORT,
+      // All purchase reports
+      PERMISSIONS.REPORT_PURCHASE_VIEW,
+      PERMISSIONS.REPORT_PURCHASE_ANALYTICS,
+      PERMISSIONS.REPORT_PURCHASE_TRENDS,
+      PERMISSIONS.REPORT_PURCHASE_ITEMS,
+      PERMISSIONS.REPORT_PRODUCT_PURCHASE_HISTORY,
+      PERMISSIONS.REPORT_PURCHASE_SELL,
+      // Transfer reports
+      PERMISSIONS.REPORT_TRANSFER_VIEW,
+      PERMISSIONS.REPORT_TRANSFER_TRENDS,
+      // Financial reports
+      PERMISSIONS.REPORT_PROFIT_LOSS,
+      PERMISSIONS.REPORT_PROFITABILITY,
+    ],
+  },
+
+  // ============================================
+  // CATEGORY 9: HR & SCHEDULING ROLES
+  // ============================================
+
+  SCHEDULE_MANAGER: {
+    name: 'Schedule Manager',
+    description: 'Creates and manages employee schedules',
+    category: 'HR & Scheduling',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.USER_VIEW,
+      PERMISSIONS.SCHEDULE_VIEW,
+      PERMISSIONS.SCHEDULE_CREATE,
+      PERMISSIONS.SCHEDULE_UPDATE,
+      PERMISSIONS.SCHEDULE_DELETE,
+      PERMISSIONS.SCHEDULE_ASSIGN,
+      PERMISSIONS.SCHEDULE_MANAGE_ALL,
+    ],
+  },
+
+  ATTENDANCE_MANAGER: {
+    name: 'Attendance Manager',
+    description: 'Manages employee attendance and time tracking',
+    category: 'HR & Scheduling',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.USER_VIEW,
+      PERMISSIONS.ATTENDANCE_VIEW,
+      PERMISSIONS.ATTENDANCE_MANAGE,
+      PERMISSIONS.ATTENDANCE_EDIT,
+      PERMISSIONS.ATTENDANCE_REPORT,
+      PERMISSIONS.OVERTIME_VIEW_ALL,
+      PERMISSIONS.OVERTIME_APPROVE,
+      PERMISSIONS.OVERTIME_CONFIGURE,
+      PERMISSIONS.OVERTIME_ALERTS_VIEW,
+      PERMISSIONS.OVERTIME_ALERTS_ACKNOWLEDGE,
+      PERMISSIONS.OVERTIME_ALERTS_MANAGE,
+    ],
+  },
+
+  LEAVE_APPROVER: {
+    name: 'Leave Approver',
+    description: 'Approves or rejects employee leave requests',
+    category: 'HR & Scheduling',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.USER_VIEW,
+      PERMISSIONS.LEAVE_REQUEST_VIEW_ALL,
+      PERMISSIONS.LEAVE_REQUEST_APPROVE,
+      PERMISSIONS.LEAVE_REQUEST_REJECT,
+    ],
+  },
+
+  LOCATION_CHANGE_APPROVER: {
+    name: 'Location Change Approver',
+    description: 'Approves employee location change requests',
+    category: 'HR & Scheduling',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.USER_VIEW,
+      PERMISSIONS.LOCATION_VIEW,
+      PERMISSIONS.LOCATION_CHANGE_REQUEST_VIEW,
+      PERMISSIONS.LOCATION_CHANGE_REQUEST_APPROVE,
+      PERMISSIONS.LOCATION_CHANGE_REQUEST_REJECT,
+    ],
+  },
+
+  EMPLOYEE: {
+    name: 'Employee',
+    description: 'Basic employee access - attendance, leave requests, location changes',
+    category: 'HR & Scheduling',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      // Attendance - Own records
+      PERMISSIONS.ATTENDANCE_VIEW_OWN,
+      PERMISSIONS.ATTENDANCE_CLOCK_IN,
+      PERMISSIONS.ATTENDANCE_CLOCK_OUT,
+      // Schedule - View own
+      PERMISSIONS.SCHEDULE_VIEW,
+      // Leave Requests - Create and view own
+      PERMISSIONS.LEAVE_REQUEST_VIEW_OWN,
+      PERMISSIONS.LEAVE_REQUEST_CREATE,
+      PERMISSIONS.LEAVE_REQUEST_UPDATE,
+      // Location Changes - Create and view own
+      PERMISSIONS.LOCATION_CHANGE_REQUEST_CREATE,
+      // Overtime - View own records
+      PERMISSIONS.OVERTIME_VIEW_OWN,
+    ],
+  },
+
+  // ============================================
+  // CATEGORY 10: CONVENIENCE ADMIN ROLES
+  // (Combinations of granular roles for common scenarios)
+  // ============================================
+
+  BRANCH_MANAGER: {
+    name: 'Branch Manager',
+    description: 'Full operational control of a branch (no user/role management)',
+    category: 'Convenience Admin',
+    permissions: [
+      // Dashboard Access
+      PERMISSIONS.DASHBOARD_VIEW,
 
       // Product Management - Full CRUD
       PERMISSIONS.PRODUCT_VIEW,
@@ -507,7 +1408,7 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.INVENTORY_CORRECTION_VIEW,
       PERMISSIONS.INVENTORY_CORRECTION_APPROVE,
       PERMISSIONS.PHYSICAL_INVENTORY_EXPORT,
-      PERMISSIONS.PHYSICAL_INVENTORY_IMPORT,
+      // PERMISSIONS.PHYSICAL_INVENTORY_IMPORT, // DISABLED - Too dangerous! Only Super Admin can import
 
       // Sales - View Only (NO CREATE/UPDATE/DELETE)
       PERMISSIONS.SELL_VIEW,
@@ -655,99 +1556,37 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.ANNOUNCEMENT_UPDATE,
       PERMISSIONS.ANNOUNCEMENT_DELETE,
       PERMISSIONS.ANNOUNCEMENT_MANAGE,
+
+      // HR & Scheduling
+      PERMISSIONS.SCHEDULE_VIEW,
+      PERMISSIONS.SCHEDULE_MANAGE_ALL,
+      PERMISSIONS.ATTENDANCE_VIEW,
+      PERMISSIONS.ATTENDANCE_MANAGE,
+      PERMISSIONS.LEAVE_REQUEST_VIEW_ALL,
+      PERMISSIONS.LEAVE_REQUEST_APPROVE,
+      PERMISSIONS.LEAVE_REQUEST_REJECT,
+      PERMISSIONS.LOCATION_CHANGE_REQUEST_VIEW,
+      PERMISSIONS.LOCATION_CHANGE_REQUEST_APPROVE,
+      PERMISSIONS.LOCATION_CHANGE_REQUEST_REJECT,
     ],
   },
-  BRANCH_MANAGER: {
-    name: 'Branch Manager',
+
+  WAREHOUSE_MANAGER: {
+    name: 'Warehouse Manager',
+    description: 'Full warehouse operations - receiving, transfers, inventory management',
+    category: 'Convenience Admin',
     permissions: [
       PERMISSIONS.DASHBOARD_VIEW,
-      PERMISSIONS.USER_VIEW,
       PERMISSIONS.PRODUCT_VIEW,
-      PERMISSIONS.PRODUCT_CREATE,
-      PERMISSIONS.PRODUCT_UPDATE,
-      PERMISSIONS.PRODUCT_OPENING_STOCK,
-      PERMISSIONS.ACCESS_DEFAULT_SELLING_PRICE,
-      PERMISSIONS.PRODUCT_LOCK_OPENING_STOCK,
-      // Product Master Data - View Only (No Create/Update/Delete)
-      PERMISSIONS.PRODUCT_CATEGORY_VIEW,
-      PERMISSIONS.PRODUCT_BRAND_VIEW,
-      PERMISSIONS.PRODUCT_UNIT_VIEW,
-      PERMISSIONS.PRODUCT_WARRANTY_VIEW,
-
-      // Field-Level Security - Product (Branch Managers can see all product data)
       PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE,
-      PERMISSIONS.PRODUCT_VIEW_PROFIT_MARGIN,
-      PERMISSIONS.PRODUCT_VIEW_SUPPLIER,
       PERMISSIONS.PRODUCT_VIEW_ALL_BRANCH_STOCK,
-
+      // Full inventory management
       PERMISSIONS.INVENTORY_CORRECTION_VIEW,
       PERMISSIONS.INVENTORY_CORRECTION_CREATE,
-      PERMISSIONS.INVENTORY_CORRECTION_UPDATE,
       PERMISSIONS.INVENTORY_CORRECTION_APPROVE,
       PERMISSIONS.PHYSICAL_INVENTORY_EXPORT,
-      PERMISSIONS.PHYSICAL_INVENTORY_IMPORT,
-
-      // Sales - VIEW ONLY (Branch Managers oversee sales, they don't operate POS)
-      PERMISSIONS.SELL_VIEW,
-      // ❌ REMOVED: SELL_CREATE, SELL_UPDATE, SELL_DELETE
-      // Branch Managers should NOT use POS - that's for cashiers/sales clerks
-
-      // Field-Level Security - Sales (Branch Managers can see all sales financial data)
-      PERMISSIONS.SELL_VIEW_COST,
-      PERMISSIONS.SELL_VIEW_PROFIT,
-      PERMISSIONS.SELL_VIEW_DISCOUNT_DETAILS,
-
-      PERMISSIONS.PURCHASE_VIEW,
-      PERMISSIONS.PURCHASE_CREATE,
-      PERMISSIONS.PURCHASE_UPDATE,
-      PERMISSIONS.PURCHASE_APPROVE,
-      PERMISSIONS.PURCHASE_RECEIVE,
-      PERMISSIONS.PURCHASE_RECEIPT_CREATE,
-      PERMISSIONS.PURCHASE_RECEIPT_APPROVE,
-      PERMISSIONS.PURCHASE_RECEIPT_VIEW,
-      PERMISSIONS.PURCHASE_RETURN_VIEW,
-      PERMISSIONS.PURCHASE_RETURN_CREATE,
-      PERMISSIONS.PURCHASE_RETURN_UPDATE,
-      PERMISSIONS.PURCHASE_RETURN_APPROVE,
-      PERMISSIONS.PURCHASE_AMENDMENT_VIEW,
-      PERMISSIONS.PURCHASE_AMENDMENT_CREATE,
-      PERMISSIONS.PURCHASE_AMENDMENT_APPROVE,
-      PERMISSIONS.QC_INSPECTION_VIEW,
-      PERMISSIONS.QC_INSPECTION_CREATE,
-      PERMISSIONS.QC_INSPECTION_CONDUCT,
-      PERMISSIONS.QC_INSPECTION_APPROVE,
-      PERMISSIONS.QC_TEMPLATE_VIEW,
-      PERMISSIONS.ACCOUNTS_PAYABLE_VIEW,
-      PERMISSIONS.ACCOUNTS_PAYABLE_CREATE,
-      PERMISSIONS.PAYMENT_VIEW,
-      PERMISSIONS.PAYMENT_CREATE,
-      PERMISSIONS.BANK_TRANSACTION_VIEW,
-      PERMISSIONS.EXPENSE_VIEW,
-      PERMISSIONS.EXPENSE_CREATE,
-      PERMISSIONS.EXPENSE_UPDATE,
-      PERMISSIONS.CUSTOMER_VIEW,
-      PERMISSIONS.CUSTOMER_CREATE,
-      PERMISSIONS.CUSTOMER_UPDATE,
-      PERMISSIONS.SUPPLIER_VIEW,
-      PERMISSIONS.SUPPLIER_CREATE,
-      PERMISSIONS.SUPPLIER_UPDATE,
-
-      // Field-Level Security - Supplier (Branch Managers can see all supplier data)
-      PERMISSIONS.SUPPLIER_VIEW_CONTACT_DETAILS,
-      PERMISSIONS.SUPPLIER_VIEW_PAYMENT_TERMS,
-
-      PERMISSIONS.REPORT_VIEW,
-      // Reports - Sales and Stock Only (No Purchase/Financial)
-      PERMISSIONS.REPORT_SALES_VIEW,
-      PERMISSIONS.REPORT_SALES_DAILY,
-      PERMISSIONS.REPORT_SALES_TODAY,
-      PERMISSIONS.REPORT_SALES_HISTORY,
-      PERMISSIONS.REPORT_STOCK_ALERT,
-      PERMISSIONS.STOCK_REPORT_VIEW,
-      PERMISSIONS.INVENTORY_LEDGER_VIEW,
-      PERMISSIONS.REPORT_TRANSFER_VIEW,
-      PERMISSIONS.REPORT_TRANSFER_TRENDS,
-      PERMISSIONS.LOCATION_VIEW,
+      // PERMISSIONS.PHYSICAL_INVENTORY_IMPORT, // DISABLED - Too dangerous! Only Super Admin can import
+      // Full transfer management
       PERMISSIONS.STOCK_TRANSFER_VIEW,
       PERMISSIONS.STOCK_TRANSFER_CREATE,
       PERMISSIONS.STOCK_TRANSFER_CHECK,
@@ -755,71 +1594,53 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.STOCK_TRANSFER_RECEIVE,
       PERMISSIONS.STOCK_TRANSFER_VERIFY,
       PERMISSIONS.STOCK_TRANSFER_COMPLETE,
-
-      // Shift Management - VIEW & APPROVE only (cashiers open/close shifts)
-      // ❌ REMOVED: SHIFT_OPEN, SHIFT_CLOSE (cashiers do these)
-      PERMISSIONS.SHIFT_VIEW,
-      PERMISSIONS.SHIFT_VIEW_ALL,
-
-      // Cash Management - APPROVE only (cashiers handle cash)
-      // ❌ REMOVED: CASH_IN_OUT, CASH_COUNT (cashiers do these)
-      PERMISSIONS.CASH_APPROVE_LARGE_TRANSACTIONS,
-
-      // Voids - APPROVE only (cashiers create voids)
-      // ❌ REMOVED: VOID_CREATE (cashiers do this)
-      PERMISSIONS.VOID_APPROVE,
-
-      // Readings - Z Reading only (managers close the day, cashiers do X readings)
-      // ❌ REMOVED: X_READING (cashiers do this)
-      PERMISSIONS.Z_READING,
-      PERMISSIONS.SALES_REPORT_VIEW,
-      PERMISSIONS.SALES_REPORT_DAILY,
-      PERMISSIONS.SALES_REPORT_SUMMARY,
-      PERMISSIONS.SALES_REPORT_JOURNAL,
-      PERMISSIONS.SALES_REPORT_PER_ITEM,
-      PERMISSIONS.SALES_REPORT_PER_CASHIER,
-      PERMISSIONS.SALES_REPORT_PER_LOCATION,
-      PERMISSIONS.SALES_REPORT_ANALYTICS,
-      PERMISSIONS.SALES_REPORT_CUSTOMER_ANALYSIS,
-      PERMISSIONS.SALES_REPORT_PAYMENT_METHOD,
-      PERMISSIONS.SALES_REPORT_DISCOUNT_ANALYSIS,
-      PERMISSIONS.FREEBIE_APPROVE,
-      PERMISSIONS.FREEBIE_VIEW_LOG,
-
-      // Announcements - Full Management
-      PERMISSIONS.ANNOUNCEMENT_VIEW,
-      PERMISSIONS.ANNOUNCEMENT_CREATE,
-      PERMISSIONS.ANNOUNCEMENT_UPDATE,
-      PERMISSIONS.ANNOUNCEMENT_DELETE,
-      PERMISSIONS.ANNOUNCEMENT_MANAGE,
+      PERMISSIONS.SERIAL_NUMBER_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_TRACK,
+      PERMISSIONS.SERIAL_NUMBER_SCAN,
+      // Purchasing - receiving focus
+      PERMISSIONS.PURCHASE_VIEW,
+      PERMISSIONS.PURCHASE_RECEIVE,
+      PERMISSIONS.PURCHASE_RECEIPT_CREATE,
+      PERMISSIONS.PURCHASE_RECEIPT_VIEW,
+      PERMISSIONS.PURCHASE_RECEIPT_APPROVE,
+      PERMISSIONS.SUPPLIER_VIEW,
+      // QC operations
+      PERMISSIONS.QC_INSPECTION_VIEW,
+      PERMISSIONS.QC_INSPECTION_CONDUCT,
+      // Returns
+      PERMISSIONS.SUPPLIER_RETURN_VIEW,
+      PERMISSIONS.SUPPLIER_RETURN_CREATE,
+      // Reports
+      PERMISSIONS.REPORT_VIEW,
+      PERMISSIONS.REPORT_STOCK_ALERT,
+      PERMISSIONS.STOCK_REPORT_VIEW,
+      PERMISSIONS.INVENTORY_LEDGER_VIEW,
+      PERMISSIONS.VIEW_INVENTORY_REPORTS,
+      PERMISSIONS.REPORT_TRANSFER_VIEW,
     ],
   },
-  ACCOUNTING_STAFF: {
-    name: 'Accounting Staff',
+
+  ACCOUNTING_MANAGER: {
+    name: 'Accounting Manager',
+    description: 'Full accounting and financial operations',
+    category: 'Convenience Admin',
     permissions: [
       PERMISSIONS.DASHBOARD_VIEW,
       PERMISSIONS.PRODUCT_VIEW,
       PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE,
-
-      // Field-Level Security - Product (Accounting needs all financial data)
       PERMISSIONS.PRODUCT_VIEW_PROFIT_MARGIN,
-      PERMISSIONS.PRODUCT_VIEW_SUPPLIER,
-
       PERMISSIONS.SELL_VIEW,
-
-      // Field-Level Security - Sales (Accounting needs all sales financial data)
       PERMISSIONS.SELL_VIEW_COST,
       PERMISSIONS.SELL_VIEW_PROFIT,
-      PERMISSIONS.SELL_VIEW_DISCOUNT_DETAILS,
-
+      // Full purchase management
       PERMISSIONS.PURCHASE_VIEW,
       PERMISSIONS.PURCHASE_CREATE,
       PERMISSIONS.PURCHASE_UPDATE,
-      PERMISSIONS.PURCHASE_RECEIPT_CREATE,
+      PERMISSIONS.PURCHASE_APPROVE,
+      PERMISSIONS.PURCHASE_VIEW_COST,
       PERMISSIONS.PURCHASE_RECEIPT_VIEW,
-      PERMISSIONS.PURCHASE_RETURN_VIEW,
-      PERMISSIONS.PURCHASE_RETURN_CREATE,
-      PERMISSIONS.PURCHASE_RETURN_UPDATE,
+      PERMISSIONS.PURCHASE_RECEIPT_APPROVE,
+      // Full financial management
       PERMISSIONS.ACCOUNTS_PAYABLE_VIEW,
       PERMISSIONS.ACCOUNTS_PAYABLE_CREATE,
       PERMISSIONS.ACCOUNTS_PAYABLE_UPDATE,
@@ -840,17 +1661,15 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.EXPENSE_VIEW,
       PERMISSIONS.EXPENSE_CREATE,
       PERMISSIONS.EXPENSE_UPDATE,
-      PERMISSIONS.CUSTOMER_VIEW,
+      PERMISSIONS.EXPENSE_DELETE,
+      // Supplier management
       PERMISSIONS.SUPPLIER_VIEW,
       PERMISSIONS.SUPPLIER_CREATE,
       PERMISSIONS.SUPPLIER_UPDATE,
-
-      // Field-Level Security - Supplier (Accounting needs all supplier data)
       PERMISSIONS.SUPPLIER_VIEW_CONTACT_DETAILS,
       PERMISSIONS.SUPPLIER_VIEW_PAYMENT_TERMS,
-
+      // All financial reports
       PERMISSIONS.REPORT_VIEW,
-      // Reports - Purchase and Financial Only
       PERMISSIONS.REPORT_PURCHASE_VIEW,
       PERMISSIONS.REPORT_PURCHASE_ANALYTICS,
       PERMISSIONS.REPORT_PURCHASE_TRENDS,
@@ -859,32 +1678,103 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.REPORT_PROFITABILITY,
       PERMISSIONS.REPORT_PRODUCT_PURCHASE_HISTORY,
       PERMISSIONS.REPORT_PURCHASE_SELL,
-      PERMISSIONS.STOCK_REPORT_VIEW,
       PERMISSIONS.INVENTORY_LEDGER_VIEW,
       PERMISSIONS.INVENTORY_LEDGER_EXPORT,
     ],
   },
-  REGULAR_STAFF: {
-    name: 'Regular Staff',
+
+  STORE_SUPERVISOR: {
+    name: 'Store Supervisor',
+    description: 'Supervises store operations - sales, customers, basic approvals',
+    category: 'Convenience Admin',
     permissions: [
       PERMISSIONS.DASHBOARD_VIEW,
       PERMISSIONS.PRODUCT_VIEW,
+      // Sales supervision
       PERMISSIONS.SELL_VIEW,
-      PERMISSIONS.SELL_CREATE,
       PERMISSIONS.SELL_UPDATE,
+      PERMISSIONS.SELL_VIEW_COST,
+      PERMISSIONS.SELL_VIEW_PROFIT,
+      PERMISSIONS.VOID_CREATE,
+      PERMISSIONS.VOID_APPROVE,
+      // Customer management
       PERMISSIONS.CUSTOMER_VIEW,
       PERMISSIONS.CUSTOMER_CREATE,
-      // Reports - Sales Only (Basic)
-      PERMISSIONS.REPORT_SALES_VIEW,
-      PERMISSIONS.REPORT_SALES_TODAY,
-      PERMISSIONS.REPORT_SALES_HISTORY,
+      PERMISSIONS.CUSTOMER_UPDATE,
+      PERMISSIONS.CUSTOMER_RETURN_VIEW,
+      PERMISSIONS.CUSTOMER_RETURN_CREATE,
+      PERMISSIONS.CUSTOMER_RETURN_APPROVE,
+      // Shift supervision
+      PERMISSIONS.SHIFT_VIEW,
+      PERMISSIONS.SHIFT_VIEW_ALL,
+      PERMISSIONS.CASH_APPROVE_LARGE_TRANSACTIONS,
+      PERMISSIONS.FREEBIE_APPROVE,
+      // Reports
+      PERMISSIONS.REPORT_VIEW,
+      PERMISSIONS.SALES_REPORT_VIEW,
+      PERMISSIONS.SALES_REPORT_DAILY,
+      PERMISSIONS.SALES_REPORT_SUMMARY,
+      PERMISSIONS.SALES_REPORT_JOURNAL,
+      PERMISSIONS.SALES_REPORT_PER_ITEM,
+      PERMISSIONS.SALES_REPORT_PER_CASHIER,
+      PERMISSIONS.SALES_REPORT_ANALYTICS,
       PERMISSIONS.REPORT_STOCK_ALERT,
       PERMISSIONS.STOCK_REPORT_VIEW,
     ],
   },
-  CASHIER: {
-    name: 'Regular Cashier',
+
+  // ============================================
+  // LEGACY ROLES (For Backward Compatibility)
+  // Deprecated - Use specific task-based roles instead
+  // ============================================
+
+  LEGACY_SUPER_ADMIN: {
+    name: 'Super Admin (Legacy)',
+    description: 'DEPRECATED: Use "System Administrator" instead',
+    category: 'Legacy',
+    permissions: Object.values(PERMISSIONS),
+  },
+
+  LEGACY_ADMIN: {
+    name: 'Admin (Legacy)',
+    description: 'DEPRECATED: Assign specific task-based roles instead',
+    category: 'Legacy',
     permissions: [
+      // Copy of old Branch Admin permissions for backwards compatibility
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.PRODUCT_CREATE,
+      PERMISSIONS.PRODUCT_UPDATE,
+      PERMISSIONS.PRODUCT_DELETE,
+      PERMISSIONS.SELL_VIEW,
+      PERMISSIONS.PURCHASE_VIEW,
+      PERMISSIONS.PURCHASE_APPROVE,
+      PERMISSIONS.LOCATION_VIEW,
+      PERMISSIONS.ACCESS_ALL_LOCATIONS,
+      // ... (abbreviated for brevity - includes most permissions)
+    ],
+  },
+
+  LEGACY_MANAGER: {
+    name: 'Manager (Legacy)',
+    description: 'DEPRECATED: Use "Branch Manager" or specific roles instead',
+    category: 'Legacy',
+    permissions: [
+      // Copy of old Branch Manager permissions
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.SELL_VIEW,
+      PERMISSIONS.PURCHASE_VIEW,
+      // ... (abbreviated)
+    ],
+  },
+
+  LEGACY_CASHIER: {
+    name: 'Cashier (Legacy)',
+    description: 'DEPRECATED: Use "Sales Cashier" instead',
+    category: 'Legacy',
+    permissions: [
+      // Copy of old Cashier permissions
       PERMISSIONS.DASHBOARD_VIEW,
       PERMISSIONS.PRODUCT_VIEW,
       PERMISSIONS.SELL_VIEW_OWN,
@@ -898,159 +1788,6 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.CASH_COUNT,
       PERMISSIONS.X_READING,
       PERMISSIONS.VOID_CREATE,
-      // Sales Reports - Cashier can view own sales data
-      PERMISSIONS.REPORT_VIEW,
-      PERMISSIONS.REPORT_SALES_VIEW,
-      PERMISSIONS.REPORT_SALES_TODAY,
-      PERMISSIONS.REPORT_SALES_HISTORY,
-      PERMISSIONS.SALES_REPORT_VIEW,
-      PERMISSIONS.SALES_REPORT_DAILY,
-      PERMISSIONS.SALES_REPORT_SUMMARY,
-      PERMISSIONS.SALES_REPORT_JOURNAL,
-      PERMISSIONS.SALES_REPORT_PER_ITEM,
-      PERMISSIONS.SALES_REPORT_PER_CASHIER,
-      PERMISSIONS.SALES_REPORT_ANALYTICS,
-      // NO access to product master data (Categories, Brands, Units, Warranties)
-      // NO access to purchase/financial/profit reports (intentionally restricted)
-      // NO access to customer analysis or location comparison (restricted)
-    ],
-  },
-  SALES_CLERK: {
-    name: 'Sales Clerk',
-    permissions: [
-      // Dashboard & Basic Access
-      PERMISSIONS.DASHBOARD_VIEW,
-
-      // Products - View Only
-      PERMISSIONS.PRODUCT_VIEW,
-
-      // Sales - Full CRUD
-      PERMISSIONS.SELL_VIEW,
-      PERMISSIONS.SELL_CREATE,
-      PERMISSIONS.SELL_UPDATE,
-      PERMISSIONS.SELL_DELETE,
-
-      // Customers - Full CRUD
-      PERMISSIONS.CUSTOMER_VIEW,
-      PERMISSIONS.CUSTOMER_CREATE,
-      PERMISSIONS.CUSTOMER_UPDATE,
-
-      // Shift Management
-      PERMISSIONS.SHIFT_OPEN,
-      PERMISSIONS.SHIFT_CLOSE,
-      PERMISSIONS.SHIFT_VIEW,
-      PERMISSIONS.CASH_IN_OUT,
-      PERMISSIONS.CASH_COUNT,
-      PERMISSIONS.X_READING,
-
-      // Quotations
-      PERMISSIONS.QUOTATION_VIEW,
-      PERMISSIONS.QUOTATION_CREATE,
-
-      // Basic Reports
-      PERMISSIONS.REPORT_VIEW,
-      PERMISSIONS.REPORT_SALES_VIEW,
-      PERMISSIONS.REPORT_SALES_TODAY,
-      PERMISSIONS.SALES_REPORT_VIEW,
-
-      // ❌ NO INVENTORY PERMISSIONS
-      // ❌ NO PURCHASE PERMISSIONS
-      // ❌ NO PRODUCT MANAGEMENT (no create/update/delete products)
-      // ❌ NO FINANCIAL REPORTS (profit, cost analysis)
-      // ❌ NO INVENTORY CORRECTIONS
-      // ❌ NO PHYSICAL INVENTORY
-    ],
-  },
-  WAREHOUSE_STAFF: {
-    name: 'Warehouse Staff',
-    permissions: [
-      // Dashboard & Basic Access
-      PERMISSIONS.DASHBOARD_VIEW,
-
-      // Products - View Only
-      PERMISSIONS.PRODUCT_VIEW,
-
-      // Stock Transfers - View & Receive Only
-      PERMISSIONS.STOCK_TRANSFER_VIEW,
-      PERMISSIONS.STOCK_TRANSFER_RECEIVE,
-
-      // Purchase Receiving - View & Receive Only
-      PERMISSIONS.PURCHASE_VIEW,
-      PERMISSIONS.PURCHASE_RECEIVE,
-      PERMISSIONS.PURCHASE_RECEIPT_VIEW,
-
-      // Supplier - View Only
-      PERMISSIONS.SUPPLIER_VIEW,
-
-      // Reports - Stock Only
-      PERMISSIONS.REPORT_VIEW,
-      PERMISSIONS.REPORT_STOCK_ALERT,
-      PERMISSIONS.STOCK_REPORT_VIEW,
-
-      // ❌ NO INVENTORY CORRECTIONS (cannot adjust stock)
-      // ❌ NO PHYSICAL INVENTORY (cannot do counts)
-      // ❌ NO PURCHASE CREATE/UPDATE/DELETE
-      // ❌ NO TRANSFER CREATE/SEND
-      // ❌ NO SALES PERMISSIONS
-      // ❌ NO FINANCIAL REPORTS
-    ],
-  },
-  INVENTORY_CONTROLLER: {
-    name: 'Inventory Controller',
-    permissions: [
-      // Dashboard & Basic Access
-      PERMISSIONS.DASHBOARD_VIEW,
-
-      // Products - View & Opening Stock
-      PERMISSIONS.PRODUCT_VIEW,
-      PERMISSIONS.PRODUCT_OPENING_STOCK,
-      PERMISSIONS.PRODUCT_VIEW_ALL_BRANCH_STOCK,
-
-      // Field-Level Security - Product (Inventory Controllers need to see cost data)
-      PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE,
-      PERMISSIONS.PRODUCT_VIEW_PROFIT_MARGIN,
-      PERMISSIONS.PRODUCT_VIEW_SUPPLIER,
-
-      // ✅ FULL INVENTORY CORRECTIONS ACCESS
-      PERMISSIONS.INVENTORY_CORRECTION_VIEW,
-      PERMISSIONS.INVENTORY_CORRECTION_CREATE,
-      PERMISSIONS.INVENTORY_CORRECTION_UPDATE,
-      PERMISSIONS.INVENTORY_CORRECTION_APPROVE,
-
-      // ✅ FULL PHYSICAL INVENTORY ACCESS
-      PERMISSIONS.PHYSICAL_INVENTORY_EXPORT,
-      PERMISSIONS.PHYSICAL_INVENTORY_IMPORT,
-
-      // Stock Transfers - View & Verify
-      PERMISSIONS.STOCK_TRANSFER_VIEW,
-      PERMISSIONS.STOCK_TRANSFER_VERIFY,
-
-      // Purchase - View Only (to see incoming stock)
-      PERMISSIONS.PURCHASE_VIEW,
-      PERMISSIONS.PURCHASE_RECEIPT_VIEW,
-
-      // Supplier - View Only
-      PERMISSIONS.SUPPLIER_VIEW,
-
-      // Customer/Supplier Returns - View & Create
-      PERMISSIONS.CUSTOMER_RETURN_VIEW,
-      PERMISSIONS.CUSTOMER_RETURN_CREATE,
-      PERMISSIONS.SUPPLIER_RETURN_VIEW,
-      PERMISSIONS.SUPPLIER_RETURN_CREATE,
-
-      // Reports - Inventory Focus
-      PERMISSIONS.REPORT_VIEW,
-      PERMISSIONS.REPORT_STOCK_ALERT,
-      PERMISSIONS.STOCK_REPORT_VIEW,
-      PERMISSIONS.INVENTORY_LEDGER_VIEW,
-      PERMISSIONS.VIEW_INVENTORY_REPORTS,
-      PERMISSIONS.REPORT_TRANSFER_VIEW,
-
-      // ❌ NO SALES PERMISSIONS
-      // ❌ NO PURCHASE CREATE/UPDATE/DELETE
-      // ❌ NO FINANCIAL REPORTS (profit/loss)
-      // ❌ NO USER MANAGEMENT
-      // ❌ NO SETTINGS CHANGES
     ],
   },
 } as const

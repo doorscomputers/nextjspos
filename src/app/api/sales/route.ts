@@ -61,7 +61,22 @@ export async function GET(request: NextRequest) {
       deletedAt: null,
     }
 
-    // If user has SELL_VIEW_OWN, only show their own sales
+    // CRITICAL SECURITY: ALWAYS filter sales by user's assigned locations
+    // Users should only see sales from their physical location(s)
+    const userLocations = await prisma.userLocation.findMany({
+      where: { userId: parseInt(userId) },
+      select: { locationId: true },
+    })
+    const userLocationIds = userLocations.map(ul => ul.locationId)
+
+    if (userLocationIds.length > 0) {
+      where.locationId = { in: userLocationIds }
+    } else {
+      // User has no location assignments - return empty result
+      where.id = -1 // Impossible ID to match nothing
+    }
+
+    // If user has SELL_VIEW_OWN, only show their own sales (within their locations)
     if (user.permissions?.includes(PERMISSIONS.SELL_VIEW_OWN) &&
         !user.permissions?.includes(PERMISSIONS.SELL_VIEW)) {
       where.createdBy = parseInt(userId)
@@ -75,8 +90,15 @@ export async function GET(request: NextRequest) {
       where.customerId = parseInt(customerId)
     }
 
+    // Allow further filtering by specific location (must be within user's assigned locations)
     if (locationId) {
-      where.locationId = parseInt(locationId)
+      const requestedLocationId = parseInt(locationId)
+      if (userLocationIds.includes(requestedLocationId)) {
+        where.locationId = requestedLocationId
+      } else {
+        // Requested location not in user's assignments - return empty
+        where.id = -1
+      }
     }
 
     if (startDate || endDate) {
@@ -140,6 +162,13 @@ export async function POST(request: NextRequest) {
       const user = session.user as any
       const businessId = user.businessId
       const userId = user.id
+      const businessIdNumber = Number(businessId)
+      const userIdNumber = Number(userId)
+      if (Number.isNaN(businessIdNumber) || Number.isNaN(userIdNumber)) {
+        return NextResponse.json({ error: 'Invalid user context' }, { status: 400 })
+      }
+      const userDisplayName =
+        [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || `User#${userIdNumber}`
 
       // Check permission
       if (!user.permissions?.includes(PERMISSIONS.SELL_CREATE)) {

@@ -7,6 +7,7 @@ import Header from "@/components/Header"
 import { redirect } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Toaster } from "@/components/ui/sonner"
+import { InactivityTimeoutProvider } from "@/components/InactivityTimeoutProvider"
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -56,7 +57,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider>
-      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+      <InactivityTimeoutProvider>
+        <DashboardLayoutContent>{children}</DashboardLayoutContent>
+      </InactivityTimeoutProvider>
     </SessionProvider>
   )
 }

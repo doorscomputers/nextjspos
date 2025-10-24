@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
     const variationMap = new Map(variations.map(v => [v.id, v]))
 
     // Calculate summary statistics
-    let totalReturns = returns.length
+    const totalReturns = returns.length
     let totalQuantityReturned = 0
     let totalReturnAmount = 0
 
