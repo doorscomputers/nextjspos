@@ -301,18 +301,38 @@ export async function GET(request: NextRequest) {
       take: 10,
     })
 
-    // Sales Payment Due
-    const salesPaymentDue = await prisma.sale.findMany({
+    // Sales Payment Due - only include invoices with an outstanding balance
+    const salesPaymentDueRaw = await prisma.sale.findMany({
       where: {
         ...whereClause,
         status: 'completed',
       },
       include: {
         customer: { select: { name: true } },
+        payments: { select: { amount: true } },
       },
       orderBy: { saleDate: 'desc' },
-      take: 10,
+      take: 50, // fetch more to account for filtering below
     })
+
+    const salesPaymentDue = salesPaymentDueRaw
+      .map((sale) => {
+        const totalAmount = parseFloat(sale.totalAmount.toString())
+        const paidAmount = sale.payments.reduce((sum, payment) => {
+          return sum + parseFloat(payment.amount.toString())
+        }, 0)
+        const balance = Math.max(0, parseFloat((totalAmount - paidAmount).toFixed(2)))
+
+        return {
+          id: sale.id,
+          invoiceNumber: sale.invoiceNumber,
+          customer: sale.customer?.name || 'Walk-in Customer',
+          date: sale.saleDate.toISOString().split('T')[0],
+          amount: balance,
+        }
+      })
+      .filter((sale) => sale.amount > 0)
+      .slice(0, 10)
 
     // Purchase Payment Due - Get unpaid/partially paid accounts payable
     const purchasePaymentDue = await prisma.accountsPayable.findMany({
@@ -371,13 +391,7 @@ export async function GET(request: NextRequest) {
           status: item.status,
           date: item.createdAt.toISOString().split('T')[0],
         })),
-        salesPaymentDue: salesPaymentDue.map((item) => ({
-          id: item.id,
-          invoiceNumber: item.invoiceNumber,
-          customer: item.customer?.name || 'Walk-in Customer',
-          date: item.saleDate.toISOString().split('T')[0],
-          amount: parseFloat(item.totalAmount.toString()),
-        })),
+        salesPaymentDue,
         purchasePaymentDue: purchasePaymentDue.map((item) => ({
           id: item.id,
           purchaseOrderNumber: item.purchase.purchaseOrderNumber,

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { hasPermission, PERMISSIONS, hasAnyRole } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
+import { generateXReadingData, generateZReadingData } from '@/lib/readings'
 import bcrypt from 'bcryptjs'
 
 /**
@@ -177,7 +178,43 @@ export async function POST(
 
     const transactionCount = shift.sales.filter(sale => sale.status === 'completed').length
 
-    // Update shift
+    // STEP 1: Generate X Reading (Before Closing Shift)
+    let xReadingData
+    try {
+      xReadingData = await generateXReadingData(
+        shift.id,
+        parseInt(session.user.businessId),
+        session.user.username,
+        session.user.id,
+        true // Increment X counter
+      )
+    } catch (error: any) {
+      console.error('Error generating X Reading:', error)
+      return NextResponse.json(
+        { error: 'Failed to generate X Reading', details: error.message },
+        { status: 500 }
+      )
+    }
+
+    // STEP 2: Generate Z Reading (Before Closing Shift)
+    let zReadingData
+    try {
+      zReadingData = await generateZReadingData(
+        shift.id,
+        parseInt(session.user.businessId),
+        session.user.username,
+        session.user.id,
+        true // Increment Z counter
+      )
+    } catch (error: any) {
+      console.error('Error generating Z Reading:', error)
+      return NextResponse.json(
+        { error: 'Failed to generate Z Reading', details: error.message },
+        { status: 500 }
+      )
+    }
+
+    // STEP 3: Update shift with cash denomination and close
     const updatedShift = await prisma.$transaction(async (tx) => {
       // Save cash denomination if provided
       if (cashDenomination) {
@@ -267,6 +304,8 @@ export async function POST(
         cashShort,
         isBalanced: cashOver === 0 && cashShort === 0,
       },
+      xReading: xReadingData, // Include X Reading data
+      zReading: zReadingData, // Include Z Reading data
     })
   } catch (error: any) {
     console.error('Error closing shift:', error)

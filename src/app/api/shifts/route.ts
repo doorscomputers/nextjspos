@@ -10,6 +10,7 @@ import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
  * Query params:
  * - status: 'open' | 'closed' | 'all'
  * - userId: Filter by specific user (defaults to current user)
+ * - shiftId: Get a specific shift by ID
  */
 export async function GET(request: NextRequest) {
   try {
@@ -21,6 +22,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') || 'open'
     const userId = searchParams.get('userId')
+    const shiftId = searchParams.get('shiftId')
     const limit = parseInt(searchParams.get('limit') || '50')
 
     const user = session.user as any
@@ -55,8 +57,13 @@ export async function GET(request: NextRequest) {
       businessId: parseInt(session.user.businessId),
     }
 
-    // Filter by status if not 'all'
-    if (status !== 'all') {
+    // Filter by specific shift ID if provided
+    if (shiftId) {
+      whereClause.id = parseInt(shiftId)
+    }
+
+    // Filter by status if not 'all' (and no specific shiftId)
+    if (status !== 'all' && !shiftId) {
       whereClause.status = status
     }
 
@@ -76,26 +83,56 @@ export async function GET(request: NextRequest) {
 
     const shifts = await prisma.cashierShift.findMany({
       where: whereClause,
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            name: true,
-          },
-        },
-        location: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
       orderBy: { openedAt: 'desc' },
       take: Math.min(limit, 200), // Max 200 to prevent abuse
     })
 
-    return NextResponse.json({ shifts })
+    // Fetch user and location data separately since relations don't exist in schema
+    const shiftsWithDetails = await Promise.all(
+      shifts.map(async (shift) => {
+        const [user, location] = await Promise.all([
+          prisma.user.findUnique({
+            where: { id: shift.userId },
+            select: {
+              id: true,
+              username: true,
+              firstName: true,
+              lastName: true,
+              surname: true,
+            },
+          }),
+          prisma.businessLocation.findUnique({
+            where: { id: shift.locationId },
+            select: {
+              id: true,
+              name: true,
+            },
+          }),
+        ])
+
+        return {
+          ...shift,
+          user: user ? {
+            id: user.id,
+            username: user.username,
+            name: `${user.firstName} ${user.lastName || ''}`.trim() || user.username,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            surname: user.surname,
+          } : {
+            id: shift.userId,
+            username: 'Unknown',
+            name: 'Unknown User',
+            firstName: 'Unknown',
+            lastName: null,
+            surname: 'Unknown',
+          },
+          location: location || { id: shift.locationId, name: 'Unknown Location' },
+        }
+      })
+    )
+
+    return NextResponse.json({ shifts: shiftsWithDetails })
   } catch (error: any) {
     console.error('Error fetching shifts:', error)
     return NextResponse.json(
@@ -120,6 +157,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden - Missing shift.open permission' }, { status: 403 })
     }
 
+    const user = session.user as any
+
     const body = await request.json()
     const { beginningCash, locationId, openingNotes } = body
 
@@ -135,15 +174,35 @@ export async function POST(request: NextRequest) {
     // Check if user already has an open shift
     const existingOpenShift = await prisma.cashierShift.findFirst({
       where: {
-        userId: parseInt(session.user.id),
+        userId: parseInt(user.id),
         status: 'open',
-        businessId: parseInt(session.user.businessId),
+        businessId: parseInt(user.businessId),
       },
     })
 
     if (existingOpenShift) {
+      // Fetch location separately since relation doesn't exist in schema
+      const location = await prisma.businessLocation.findUnique({
+        where: { id: existingOpenShift.locationId },
+        select: { name: true },
+      })
+
+      const shiftStart = new Date(existingOpenShift.openedAt)
+      const hoursSinceOpen = Math.floor((new Date().getTime() - shiftStart.getTime()) / (1000 * 60 * 60))
+      const daysSinceOpen = Math.floor(hoursSinceOpen / 24)
+
       return NextResponse.json(
-        { error: 'You already have an open shift. Please close it before opening a new one.' },
+        {
+          error: 'You already have an open shift. Please close it before opening a new one.',
+          unclosedShift: {
+            shiftNumber: existingOpenShift.shiftNumber,
+            openedAt: existingOpenShift.openedAt,
+            locationName: location?.name || 'Unknown Location',
+            hoursSinceOpen,
+            daysSinceOpen,
+            isOverdue: daysSinceOpen >= 1,
+          },
+        },
         { status: 400 }
       )
     }
@@ -153,7 +212,7 @@ export async function POST(request: NextRequest) {
     const dateStr = today.toISOString().split('T')[0].replace(/-/g, '')
     const shiftCount = await prisma.cashierShift.count({
       where: {
-        businessId: parseInt(session.user.businessId),
+        businessId: parseInt(user.businessId),
         openedAt: {
           gte: new Date(today.setHours(0, 0, 0, 0)),
         },
@@ -164,9 +223,9 @@ export async function POST(request: NextRequest) {
     // Create new shift
     const shift = await prisma.cashierShift.create({
       data: {
-        businessId: parseInt(session.user.businessId),
+        businessId: parseInt(user.businessId),
         locationId: parseInt(locationId),
-        userId: parseInt(session.user.id),
+        userId: parseInt(user.id),
         shiftNumber,
         openedAt: new Date(),
         beginningCash: parseFloat(beginningCash),
@@ -177,9 +236,9 @@ export async function POST(request: NextRequest) {
 
     // Log audit trail
     await createAuditLog({
-      businessId: parseInt(session.user.businessId),
-      userId: parseInt(session.user.id),
-      username: session.user.username || session.user.name || 'Unknown',
+      businessId: parseInt(user.businessId),
+      userId: parseInt(user.id),
+      username: user.username || user.name || 'Unknown',
       action: AuditAction.SHIFT_OPEN,
       entityType: EntityType.CASHIER_SHIFT,
       entityIds: [shift.id],

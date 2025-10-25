@@ -16,6 +16,8 @@ import {
   ArrowPathIcon,
 } from "@heroicons/react/24/outline"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import UnclosedShiftWarning from "@/components/UnclosedShiftWarning"
+import CurrentShiftWidget from "@/components/CurrentShiftWidget"
 import {
   Select,
   SelectContent,
@@ -44,6 +46,8 @@ import PieChart, {
   Tooltip as PieTooltip,
 } from 'devextreme-react/pie-chart'
 import { toast } from 'sonner'
+
+const CASHIER_ROLES = ['Sales Cashier', 'Cashier (Legacy)'] as const
 
 interface DashboardStats {
   metrics: {
@@ -104,7 +108,7 @@ interface SalesByLocationData {
 }
 
 export default function DashboardPageV2() {
-  const { can, user } = usePermissions()
+  const { can, hasAnyRole, user } = usePermissions()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [locationFilter, setLocationFilter] = useState("all")
@@ -300,6 +304,9 @@ export default function DashboardPageV2() {
 
   return (
     <div className="space-y-6">
+      {/* Unclosed Shift Warning Modal */}
+      <UnclosedShiftWarning />
+
       {/* Header with Location Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -338,6 +345,11 @@ export default function DashboardPageV2() {
           </Button>
         </div>
       </div>
+
+      {/* Current Shift Widget - only show to cashier roles who open shifts */}
+      {can(PERMISSIONS.SHIFT_OPEN) && hasAnyRole([...CASHIER_ROLES]) && (
+        <CurrentShiftWidget />
+      )}
 
       {/* Metric Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

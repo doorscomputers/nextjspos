@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ReadingDisplay } from '@/components/ReadingDisplay'
+import { CheckCircle, Loader2, FileText, Calculator } from 'lucide-react'
 
 const DENOMINATIONS = [
   { value: 1000, label: '₱1000 Bills', field: 'count1000' },
@@ -25,39 +27,120 @@ const DENOMINATIONS = [
 export default function CloseShiftPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [loadingReadings, setLoadingReadings] = useState(true)
   const [error, setError] = useState('')
   const [currentShift, setCurrentShift] = useState<any>(null)
   const [closingNotes, setClosingNotes] = useState('')
   const [managerPassword, setManagerPassword] = useState('')
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
+  // Use empty strings as default for better UX (allows deletion without "0" reappearing)
   const [denominations, setDenominations] = useState<any>({
-    count1000: 0,
-    count500: 0,
-    count200: 0,
-    count100: 0,
-    count50: 0,
-    count20: 0,
-    count10: 0,
-    count5: 0,
-    count1: 0,
-    count025: 0,
+    count1000: '',
+    count500: '',
+    count200: '',
+    count100: '',
+    count50: '',
+    count20: '',
+    count10: '',
+    count5: '',
+    count1: '',
+    count025: '',
   })
 
+  // State for readings (generated BEFORE cash count)
+  const [xReading, setXReading] = useState<any>(null)
+  const [zReading, setZReading] = useState<any>(null)
+  const [systemExpectedCash, setSystemExpectedCash] = useState<number>(0)
+
+  // State for final success
+  const [shiftClosed, setShiftClosed] = useState(false)
+  const [variance, setVariance] = useState<any>(null)
+
   useEffect(() => {
-    fetchCurrentShift()
+    fetchShiftAndGenerateReadings()
   }, [])
 
-  const fetchCurrentShift = async () => {
+  const fetchShiftAndGenerateReadings = async () => {
     try {
-      const res = await fetch('/api/shifts?status=open')
-      const data = await res.json()
-      if (data.shifts && data.shifts.length > 0) {
-        setCurrentShift(data.shifts[0])
+      setLoadingReadings(true)
+
+      // Step 1: Fetch the shift
+      const urlParams = new URLSearchParams(window.location.search)
+      const shiftId = urlParams.get('shiftId')
+
+      let shift = null
+      if (shiftId) {
+        const res = await fetch(`/api/shifts?shiftId=${shiftId}`)
+        const data = await res.json()
+        if (data.shifts && data.shifts.length > 0) {
+          shift = data.shifts[0]
+        } else {
+          setError('Shift not found')
+          setLoadingReadings(false)
+          return
+        }
       } else {
-        setError('No open shift found')
+        const res = await fetch('/api/shifts?status=open')
+        const data = await res.json()
+        if (data.shifts && data.shifts.length > 0) {
+          shift = data.shifts[0]
+        } else {
+          setError('No open shift found')
+          setLoadingReadings(false)
+          return
+        }
       }
-    } catch (err) {
-      setError('Failed to fetch shift')
+
+      setCurrentShift(shift)
+
+      // Step 2: Generate X Reading (CRITICAL for cash calculation fallback)
+      const xRes = await fetch(`/api/readings/x-reading?shiftId=${shift.id}`)
+      const xData = await xRes.json()
+      console.log('X Reading Response:', xData)
+      if (!xRes.ok) {
+        throw new Error(xData.error || 'Failed to generate X Reading')
+      }
+      // Extract xReading from response (API returns { xReading: <data> })
+      const xReadingData = xData.xReading
+      setXReading(xReadingData)
+
+      // Step 3: Generate Z Reading (attempt, but don't fail if user lacks permission)
+      let zReadingData = null
+      let systemCash = 0
+
+      const zRes = await fetch(`/api/readings/z-reading?shiftId=${shift.id}`)
+      const zData = await zRes.json()
+      console.log('Z Reading Response:', zData)
+
+      if (zRes.ok && zData.cash) {
+        // Z Reading succeeded - use Z Reading's system cash
+        zReadingData = zData
+        systemCash = zData.cash.systemCash
+        setZReading(zReadingData)
+        console.log('✅ Using Z Reading system cash:', systemCash)
+      } else {
+        // Z Reading failed (likely permission error) - CRITICAL FALLBACK
+        console.warn('⚠️ Z Reading failed, using X Reading expected cash as fallback')
+        console.warn('Error:', zData.error)
+
+        // Use X Reading's expected cash (Beginning Cash + Cash Sales + Cash In - Cash Out)
+        if (xReadingData && xReadingData.expectedCash !== undefined) {
+          systemCash = xReadingData.expectedCash
+          console.log('✅ Using X Reading expected cash:', systemCash)
+        } else {
+          // Last resort: calculate from shift beginning cash
+          systemCash = parseFloat(shift.beginningCash) || 0
+          console.warn('⚠️ Using beginning cash as last resort:', systemCash)
+        }
+      }
+
+      // Step 4: Set system expected cash for variance calculation
+      setSystemExpectedCash(systemCash)
+
+      setLoadingReadings(false)
+    } catch (err: any) {
+      setError(err.message || 'Failed to load shift and readings')
+      setLoadingReadings(false)
     }
   }
 
@@ -89,14 +172,20 @@ export default function CloseShiftPage() {
     try {
       const totalCash = calculateTotal()
 
+      // Convert denomination strings to numbers for API
+      const cashDenominationNumbers = Object.keys(denominations).reduce((acc, key) => {
+        acc[key] = parseInt(denominations[key]) || 0
+        return acc
+      }, {} as any)
+
       const res = await fetch(`/api/shifts/${currentShift.id}/close`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           endingCash: totalCash,
           closingNotes,
-          cashDenomination: denominations,
-          managerPassword, // Send password for verification
+          cashDenomination: cashDenominationNumbers,
+          managerPassword,
         }),
       })
 
@@ -106,16 +195,13 @@ export default function CloseShiftPage() {
         throw new Error(data.error || 'Failed to close shift')
       }
 
-      // Show results
-      alert(`Shift Closed Successfully!
+      // Store variance data (X/Z readings already displayed)
+      setVariance(data.variance)
+      setShiftClosed(true)
+      setLoading(false)
 
-System Cash: ₱${data.variance.systemCash.toFixed(2)}
-Actual Cash: ₱${data.variance.endingCash.toFixed(2)}
-${data.variance.cashOver > 0 ? `Over: ₱${data.variance.cashOver.toFixed(2)}` : ''}
-${data.variance.cashShort > 0 ? `Short: ₱${data.variance.cashShort.toFixed(2)}` : ''}
-${data.variance.isBalanced ? 'Cash is balanced!' : 'Cash variance detected'}`)
-
-      router.push('/dashboard')
+      // Scroll to top to show success message
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err: any) {
       setError(err.message)
       setLoading(false)
@@ -130,25 +216,153 @@ ${data.variance.isBalanced ? 'Cash is balanced!' : 'Cash variance detected'}`)
     setError('')
   }
 
-  if (!currentShift) {
+  // Loading state while generating readings
+  if (loadingReadings) {
+    return (
+      <div className="container max-w-3xl mx-auto py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Loader2 className="w-6 h-6 animate-spin" />
+              Preparing Shift Close...
+            </CardTitle>
+            <CardDescription>
+              Generating BIR-compliant X and Z readings for your review
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                <span>Fetching shift details...</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                <span>Generating X Reading (Mid-Shift Summary)...</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Calculator className="w-4 h-4" />
+                <span>Generating Z Reading (End-of-Day Report)...</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Calculator className="w-4 h-4" />
+                <span>Calculating system expected cash...</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (error && !currentShift) {
     return (
       <div className="container max-w-2xl mx-auto py-8">
-        <Alert>
-          <AlertDescription>No open shift found. Please start a shift first.</AlertDescription>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
+        <Button onClick={() => router.push('/dashboard')} className="mt-4">
+          Return to Dashboard
+        </Button>
       </div>
     )
   }
 
   const totalCash = calculateTotal()
+  const cashVariance = totalCash - systemExpectedCash
+
+  // Show success screen after shift is closed
+  if (shiftClosed) {
+    return (
+      <div className="container max-w-5xl mx-auto py-8 px-4">
+        <Card className="mb-6 bg-green-50 border-green-500">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-green-700">
+              <CheckCircle className="w-6 h-6" />
+              Shift Closed Successfully!
+            </CardTitle>
+            <CardDescription>
+              Your shift has been closed. All BIR-compliant readings are displayed below.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {variance && (
+              <div className="mb-4 p-4 bg-white rounded-lg border">
+                <h4 className="font-medium mb-2">Cash Reconciliation:</h4>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <div className="text-muted-foreground">System Expected:</div>
+                    <div className="text-lg font-bold">₱{variance.systemCash.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Physical Count:</div>
+                    <div className="text-lg font-bold">₱{variance.endingCash.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-muted-foreground">Variance:</div>
+                    <div className={`text-lg font-bold ${
+                      variance.isBalanced ? 'text-green-600' :
+                      variance.cashOver > 0 ? 'text-yellow-600' : 'text-red-600'
+                    }`}>
+                      {variance.isBalanced ? '✓ Balanced' :
+                       variance.cashOver > 0 ? `+₱${variance.cashOver.toFixed(2)} Over` :
+                       `-₱${variance.cashShort.toFixed(2)} Short`}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="flex gap-4">
+              <Button onClick={() => router.push('/dashboard')} size="lg">
+                Return to Dashboard
+              </Button>
+              <Button onClick={() => window.print()} variant="outline" size="lg">
+                🖨️ Print Readings
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <ReadingDisplay
+          xReading={xReading}
+          zReading={zReading}
+          variance={variance}
+        />
+      </div>
+    )
+  }
 
   return (
-    <div className="container max-w-3xl mx-auto py-8 px-4">
+    <div className="container max-w-5xl mx-auto py-8 px-4 space-y-6">
+      {/* Step 1 & 2: Display X and Z Readings FIRST */}
+      <Card className="border-blue-300 bg-blue-50">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-blue-900">
+            <FileText className="w-6 h-6" />
+            Step 1 & 2: Review Your Shift Readings
+          </CardTitle>
+          <CardDescription>
+            Please review your X Reading and Z Reading before counting cash
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ReadingDisplay
+            xReading={xReading}
+            zReading={zReading}
+            variance={null}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Step 3: Cash Count Form */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Close Shift</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Calculator className="w-6 h-6" />
+            Step 3: Count Your Cash
+          </CardTitle>
           <CardDescription>
-            Count your cash and close shift: {currentShift.shiftNumber}
+            Based on the Z Reading above, count your physical cash
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -158,14 +372,8 @@ ${data.variance.isBalanced ? 'Cash is balanced!' : 'Cash variance detected'}`)
             </Alert>
           )}
 
-          <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-            <h3 className="font-medium mb-2">Shift Information</h3>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>Shift Number: <span className="font-bold">{currentShift.shiftNumber}</span></div>
-              <div>Beginning Cash: <span className="font-bold">₱{parseFloat(currentShift.beginningCash).toFixed(2)}</span></div>
-              <div>Opened At: <span className="font-bold">{new Date(currentShift.openedAt).toLocaleString()}</span></div>
-            </div>
-          </div>
+          {/* SECURITY: System Expected Cash is HIDDEN during counting to prevent fraud */}
+          {/* Cashiers should count blind - variance shown only AFTER shift closes */}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
@@ -176,17 +384,26 @@ ${data.variance.isBalanced ? 'Cash is balanced!' : 'Cash variance detected'}`)
                     <Label>{denom.label}</Label>
                     <div className="flex items-center gap-2">
                       <Input
-                        type="number"
-                        min="0"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        placeholder="0"
                         value={denominations[denom.field]}
-                        onChange={(e) => setDenominations({
-                          ...denominations,
-                          [denom.field]: parseInt(e.target.value) || 0
-                        })}
-                        className="w-20"
+                        onChange={(e) => {
+                          const value = e.target.value
+                          // Allow empty string or numbers only
+                          if (value === '' || /^\d+$/.test(value)) {
+                            setDenominations({
+                              ...denominations,
+                              [denom.field]: value
+                            })
+                          }
+                        }}
+                        onFocus={(e) => e.target.select()}
+                        className="w-20 text-center"
                       />
                       <span className="text-sm text-muted-foreground">
-                        = ₱{(denominations[denom.field] * denom.value).toFixed(2)}
+                        = ₱{((parseInt(denominations[denom.field]) || 0) * denom.value).toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -194,11 +411,18 @@ ${data.variance.isBalanced ? 'Cash is balanced!' : 'Cash variance detected'}`)
               </div>
             </div>
 
-            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex justify-between items-center">
-                <span className="text-lg font-medium">Total Counted Cash:</span>
-                <span className="text-2xl font-bold text-green-600">₱{totalCash.toFixed(2)}</span>
+            {/* Total Counted vs Expected */}
+            <div className="space-y-3">
+              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-medium">Total Counted Cash:</span>
+                  <span className="text-2xl font-bold text-green-600">₱{totalCash.toFixed(2)}</span>
+                </div>
               </div>
+
+              {/* SECURITY: Variance is HIDDEN during counting to prevent fraud */}
+              {/* Cashiers should not see if they're over/short until AFTER shift closes */}
+              {/* This prevents adjusting count to match expected amount and hiding theft */}
             </div>
 
             <div className="space-y-2">
@@ -236,9 +460,6 @@ ${data.variance.isBalanced ? 'Cash is balanced!' : 'Cash variance detected'}`)
                     className="border-red-300 focus:border-red-500"
                     autoFocus
                   />
-                  <p className="text-xs text-red-600">
-                    Only Branch Managers or Admins can authorize shift closure
-                  </p>
                 </div>
 
                 <div className="flex gap-3">
@@ -274,7 +495,7 @@ ${data.variance.isBalanced ? 'Cash is balanced!' : 'Cash variance detected'}`)
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => router.push('/dashboard/pos')}
+                  onClick={() => router.push('/dashboard')}
                   className="border-2 hover:bg-gray-100 font-medium"
                 >
                   Cancel
@@ -282,16 +503,6 @@ ${data.variance.isBalanced ? 'Cash is balanced!' : 'Cash variance detected'}`)
               </div>
             )}
           </form>
-
-          <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <h4 className="font-medium text-yellow-800 mb-2">Important:</h4>
-            <ul className="text-sm text-yellow-700 space-y-1">
-              <li>• Count your cash carefully before submitting</li>
-              <li>• The system will calculate any overage or shortage</li>
-              <li>• Once closed, the shift cannot be reopened</li>
-              <li>• A Z Reading will be available after closing</li>
-            </ul>
-          </div>
         </CardContent>
       </Card>
     </div>

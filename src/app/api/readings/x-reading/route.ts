@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
+import { generateXReadingData } from '@/lib/readings'
 
 /**
  * GET /api/readings/x-reading - Generate X Reading (mid-shift, non-resetting)
@@ -56,204 +57,55 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    let shift
+    let shiftId: number | null = null
+
     if (shiftIdParam) {
       // CRITICAL: Validate that the requested shift belongs to user's assigned location
-      shift = await prisma.cashierShift.findFirst({
+      const shift = await prisma.cashierShift.findFirst({
         where: {
           id: parseInt(shiftIdParam),
           businessId: parseInt(session.user.businessId),
           locationId: { in: userLocationIds }, // SECURITY: Only shifts from user's locations
         },
-        include: {
-          sales: {
-            include: {
-              payments: true,
-              items: true,
-            },
-          },
-          cashInOutRecords: true,
-        },
+        select: { id: true },
       })
 
-      // Fetch location and business details separately
-      if (shift) {
-        const location = await prisma.businessLocation.findUnique({
-          where: { id: shift.locationId },
-          select: {
-            name: true,
-            landmark: true,
-            city: true,
-            state: true,
-            country: true,
-            zipCode: true
-          },
-        })
-        const business = await prisma.business.findUnique({
-          where: { id: shift.businessId },
-          select: { name: true },
-        })
-        // Construct address from location fields
-        const address = location
-          ? [location.landmark, location.city, location.state, location.country, location.zipCode]
-              .filter(Boolean)
-              .join(', ')
-          : ''
-        ;(shift as any).location = { ...location, address }
-        ;(shift as any).business = business
+      if (!shift) {
+        return NextResponse.json(
+          { error: 'No shift found for X Reading at your assigned location' },
+          { status: 404 }
+        )
       }
+      shiftId = shift.id
     } else {
       // Get current open shift for this user at their assigned location(s)
-      shift = await prisma.cashierShift.findFirst({
+      const shift = await prisma.cashierShift.findFirst({
         where: {
           userId: parseInt(session.user.id),
           status: 'open',
           businessId: parseInt(session.user.businessId),
           locationId: { in: userLocationIds }, // SECURITY: Only user's locations
         },
-        include: {
-          sales: {
-            include: {
-              payments: true,
-              items: true,
-            },
-          },
-          cashInOutRecords: true,
-        },
+        select: { id: true },
       })
 
-      // Fetch location and business details separately
-      if (shift) {
-        const location = await prisma.businessLocation.findUnique({
-          where: { id: shift.locationId },
-          select: {
-            name: true,
-            landmark: true,
-            city: true,
-            state: true,
-            country: true,
-            zipCode: true
-          },
-        })
-        const business = await prisma.business.findUnique({
-          where: { id: shift.businessId },
-          select: { name: true },
-        })
-        // Construct address from location fields
-        const address = location
-          ? [location.landmark, location.city, location.state, location.country, location.zipCode]
-              .filter(Boolean)
-              .join(', ')
-          : ''
-        ;(shift as any).location = { ...location, address }
-        ;(shift as any).business = business
+      if (!shift) {
+        return NextResponse.json(
+          { error: 'No open shift found for X Reading at your assigned location' },
+          { status: 404 }
+        )
       }
+      shiftId = shift.id
     }
 
-    if (!shift) {
-      return NextResponse.json(
-        { error: 'No shift found for X Reading at your assigned location' },
-        { status: 404 }
-      )
-    }
-
-    // Calculate totals
-    const completedSales = shift.sales.filter(sale => sale.status === 'completed')
-    const voidedSales = shift.sales.filter(sale => sale.status === 'voided')
-
-    const grossSales = completedSales.reduce((sum, sale) => {
-      return sum + parseFloat(sale.subtotal.toString())
-    }, 0)
-
-    const totalDiscounts = completedSales.reduce((sum, sale) => {
-      return sum + parseFloat(sale.discountAmount.toString())
-    }, 0)
-
-    const netSales = completedSales.reduce((sum, sale) => {
-      return sum + parseFloat(sale.totalAmount.toString())
-    }, 0)
-
-    const voidAmount = voidedSales.reduce((sum, sale) => {
-      return sum + parseFloat(sale.totalAmount.toString())
-    }, 0)
-
-    // Payment method breakdown
-    // IMPORTANT: Handle overpayment (change) correctly
-    // If total payments > sale total, allocate proportionally to avoid counting change as sales
-    const paymentBreakdown: any = {}
-    completedSales.forEach(sale => {
-      const saleTotal = parseFloat(sale.totalAmount.toString())
-      const paymentsTotal = sale.payments.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0)
-
-      // If overpaid (change given), allocate proportionally
-      const allocationRatio = paymentsTotal > saleTotal ? saleTotal / paymentsTotal : 1
-
-      sale.payments.forEach(payment => {
-        const method = payment.paymentMethod
-        const amount = parseFloat(payment.amount.toString())
-        const allocatedAmount = amount * allocationRatio // Adjust for change
-        paymentBreakdown[method] = (paymentBreakdown[method] || 0) + allocatedAmount
-      })
-    })
-
-    // Cash movements
-    const cashIn = shift.cashInOutRecords
-      .filter(r => r.type === 'cash_in')
-      .reduce((sum, r) => sum + parseFloat(r.amount.toString()), 0)
-
-    const cashOut = shift.cashInOutRecords
-      .filter(r => r.type === 'cash_out')
-      .reduce((sum, r) => sum + parseFloat(r.amount.toString()), 0)
-
-    // Expected cash in drawer
-    const expectedCash =
-      parseFloat(shift.beginningCash.toString()) +
-      (paymentBreakdown['cash'] || 0) +
-      cashIn -
-      cashOut
-
-    // Increment X Reading count
-    await prisma.cashierShift.update({
-      where: { id: shift.id },
-      data: {
-        xReadingCount: {
-          increment: 1,
-        },
-      },
-    })
-
-    const xReading = {
-      shiftNumber: shift.shiftNumber,
-      cashierName: session.user.username,
-      locationName: (shift as any).location?.name || 'Unknown Location',
-      locationAddress: (shift as any).location?.address || '',
-      businessName: (shift as any).business?.name || 'Unknown Business',
-      openedAt: shift.openedAt,
-      readingTime: new Date(),
-      xReadingNumber: shift.xReadingCount + 1,
-      beginningCash: parseFloat(shift.beginningCash.toString()),
-      grossSales,
-      totalDiscounts,
-      netSales,
-      voidAmount,
-      transactionCount: completedSales.length,
-      voidCount: voidedSales.length,
-      paymentBreakdown,
-      cashIn,
-      cashOut,
-      expectedCash,
-      discountBreakdown: {
-        senior: completedSales
-          .filter(s => s.discountType === 'senior')
-          .reduce((sum, s) => sum + parseFloat(s.discountAmount.toString()), 0),
-        pwd: completedSales
-          .filter(s => s.discountType === 'pwd')
-          .reduce((sum, s) => sum + parseFloat(s.discountAmount.toString()), 0),
-        regular: completedSales
-          .filter(s => !s.discountType || s.discountType === 'regular')
-          .reduce((sum, s) => sum + parseFloat(s.discountAmount.toString()), 0),
-      },
-    }
+    // Use shared library function to generate X Reading
+    const xReading = await generateXReadingData(
+      shiftId,
+      parseInt(session.user.businessId),
+      session.user.username,
+      session.user.id,
+      true // Increment counter
+    )
 
     return NextResponse.json({ xReading })
   } catch (error: any) {

@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       where: {
         businessId,
         deletedAt: null,
-        active: true, // Only show active locations
+        isActive: true, // Only show active locations
       },
       select: {
         id: true,

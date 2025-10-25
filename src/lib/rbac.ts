@@ -183,6 +183,8 @@ export const PERMISSIONS = {
   SALES_REPORT_CUSTOMER_ANALYSIS: 'sales_report.customer_analysis',
   SALES_REPORT_PAYMENT_METHOD: 'sales_report.payment_method',
   SALES_REPORT_DISCOUNT_ANALYSIS: 'sales_report.discount_analysis',
+  REPORT_UNPAID_INVOICES: 'report.unpaid_invoices', // Accounts Receivable / Credit customers
+  REPORT_CUSTOMER_PAYMENTS: 'report.customer_payments', // Customer payment history
 
   // Purchases
   PURCHASE_VIEW: 'purchase.view',
@@ -917,6 +919,7 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.CASH_IN_OUT,
       PERMISSIONS.CASH_COUNT,
       PERMISSIONS.X_READING,
+      PERMISSIONS.Z_READING, // CRITICAL: Cashiers MUST generate Z Reading when closing shifts (BIR compliance)
       PERMISSIONS.VOID_CREATE,
       PERMISSIONS.FREEBIE_ADD,
       PERMISSIONS.SERIAL_NUMBER_SCAN,
@@ -926,6 +929,9 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.REPORT_SALES_TODAY,
       PERMISSIONS.SALES_REPORT_VIEW,
       PERMISSIONS.SALES_REPORT_DAILY,
+      // Customer credit reports (critical for cash handling)
+      PERMISSIONS.REPORT_UNPAID_INVOICES,
+      PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
     ],
   },
 
@@ -1811,6 +1817,7 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.CASH_IN_OUT,
       PERMISSIONS.CASH_COUNT,
       PERMISSIONS.X_READING,
+      PERMISSIONS.Z_READING, // CRITICAL: Cashiers MUST generate Z Reading when closing shifts (BIR compliance)
       PERMISSIONS.VOID_CREATE,
     ],
   },
