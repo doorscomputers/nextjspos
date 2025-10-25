@@ -74,8 +74,10 @@ export function ReportFilterPanel({
             variant={isOpen ? "default" : "secondary"}
             onClick={onToggle}
             className={cn(
-              "shadow-sm hover:shadow-md transition-all",
-              isOpen ? "bg-blue-600 hover:bg-blue-700" : "bg-white border border-slate-200 text-slate-700"
+              "shadow-sm hover:shadow-md transition-all font-semibold tracking-tight",
+              isOpen
+                ? "bg-blue-600 hover:bg-blue-700 text-white"
+                : "bg-white border border-slate-200 text-slate-700 hover:text-slate-900"
             )}
           >
             {isOpen ? "Hide Filters" : "Show Filters"}

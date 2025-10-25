@@ -1,0 +1,524 @@
+
+> igoro-tech-inventory-management@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.4
+   - Environments: .env.production, .env
+
+   Creating an optimized production build ...
+ ⚠ Compiled with warnings in 35.6s
+
+./src/app/api/qc-templates/[id]/route.ts
+Attempted import error: 'getIpAddress' is not exported from '@/lib/utils' (imported as 'getIpAddress').
+
+Import trace for requested module:
+./src/app/api/qc-templates/[id]/route.ts
+
+./src/app/api/qc-templates/[id]/route.ts
+Attempted import error: 'getUserAgent' is not exported from '@/lib/utils' (imported as 'getUserAgent').
+
+Import trace for requested module:
+./src/app/api/qc-templates/[id]/route.ts
+
+./src/app/api/qc-templates/[id]/route.ts
+Attempted import error: 'getIpAddress' is not exported from '@/lib/utils' (imported as 'getIpAddress').
+
+Import trace for requested module:
+./src/app/api/qc-templates/[id]/route.ts
+
+./src/app/api/qc-templates/[id]/route.ts
+Attempted import error: 'getUserAgent' is not exported from '@/lib/utils' (imported as 'getUserAgent').
+
+Import trace for requested module:
+./src/app/api/qc-templates/[id]/route.ts
+
+./src/app/api/qc-templates/route.ts
+Attempted import error: 'getIpAddress' is not exported from '@/lib/utils' (imported as 'getIpAddress').
+
+Import trace for requested module:
+./src/app/api/qc-templates/route.ts
+
+./src/app/api/qc-templates/route.ts
+Attempted import error: 'getUserAgent' is not exported from '@/lib/utils' (imported as 'getUserAgent').
+
+Import trace for requested module:
+./src/app/api/qc-templates/route.ts
+
+./src/app/api/reports/customer-sales/route.ts
+Attempted import error: '@/lib/prisma' does not contain a default export (imported as 'prisma').
+
+Import trace for requested module:
+./src/app/api/reports/customer-sales/route.ts
+
+./src/app/api/reports/discount-analysis/route.ts
+Attempted import error: '@/lib/prisma' does not contain a default export (imported as 'prisma').
+
+Import trace for requested module:
+./src/app/api/reports/discount-analysis/route.ts
+
+./src/app/api/reports/discount-analysis/route.ts
+Attempted import error: '@/lib/prisma' does not contain a default export (imported as 'prisma').
+
+Import trace for requested module:
+./src/app/api/reports/discount-analysis/route.ts
+
+./src/app/api/reports/payment-method/route.ts
+Attempted import error: '@/lib/prisma' does not contain a default export (imported as 'prisma').
+
+Import trace for requested module:
+./src/app/api/reports/payment-method/route.ts
+
+./src/app/api/reports/sales-analytics/route.ts
+Attempted import error: '@/lib/prisma' does not contain a default export (imported as 'prisma').
+
+Import trace for requested module:
+./src/app/api/reports/sales-analytics/route.ts
+
+./src/app/api/reports/sales-analytics/route.ts
+Attempted import error: '@/lib/prisma' does not contain a default export (imported as 'prisma').
+
+Import trace for requested module:
+./src/app/api/reports/sales-analytics/route.ts
+
+./src/app/api/reports/sales-per-location/route.ts
+Attempted import error: '@/lib/prisma' does not contain a default export (imported as 'prisma').
+
+Import trace for requested module:
+./src/app/api/reports/sales-per-location/route.ts
+
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+   Generating static pages (0/306) ...
+   Generating static pages (76/306) 
+   Generating static pages (152/306) 
+   Generating static pages (229/306) 
+ ✓ Generating static pages (306/306)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                                Size  First Load JS
+┌ ○ /                                                     816 B         103 kB
+├ ○ /_not-found                                            1 kB         104 kB
+├ ƒ /api/accounts-payable                                 816 B         103 kB
+├ ƒ /api/accounts-payable/[id]                            816 B         103 kB
+├ ƒ /api/announcements                                    816 B         103 kB
+├ ƒ /api/announcements/[id]                               816 B         103 kB
+├ ƒ /api/attendance                                       816 B         103 kB
+├ ƒ /api/attendance/[id]                                  816 B         103 kB
+├ ƒ /api/attendance/clock-in                              816 B         103 kB
+├ ƒ /api/attendance/clock-out                             816 B         103 kB
+├ ƒ /api/audit-logs                                       816 B         103 kB
+├ ƒ /api/auth/[...nextauth]                               816 B         103 kB
+├ ƒ /api/auth/logout                                      816 B         103 kB
+├ ƒ /api/auth/verify-password                             816 B         103 kB
+├ ƒ /api/bank-options                                     816 B         103 kB
+├ ƒ /api/bank-transactions                                816 B         103 kB
+├ ƒ /api/bank-transactions/manual                         816 B         103 kB
+├ ƒ /api/banks                                            816 B         103 kB
+├ ƒ /api/banks/[id]                                       816 B         103 kB
+├ ƒ /api/brands                                           816 B         103 kB
+├ ƒ /api/brands/[id]                                      816 B         103 kB
+├ ƒ /api/brands/import                                    816 B         103 kB
+├ ƒ /api/business                                         816 B         103 kB
+├ ƒ /api/business/settings                                816 B         103 kB
+├ ƒ /api/cash/in                                          816 B         103 kB
+├ ƒ /api/cash/in-out                                      816 B         103 kB
+├ ƒ /api/cash/out                                         816 B         103 kB
+├ ƒ /api/categories                                       816 B         103 kB
+├ ƒ /api/categories/[id]                                  816 B         103 kB
+├ ƒ /api/categories/import                                816 B         103 kB
+├ ƒ /api/categories/import-from-errors                    816 B         103 kB
+├ ƒ /api/chat                                             816 B         103 kB
+├ ƒ /api/currencies                                       816 B         103 kB
+├ ƒ /api/customer-returns                                 816 B         103 kB
+├ ƒ /api/customer-returns/[id]                            816 B         103 kB
+├ ƒ /api/customer-returns/[id]/approve                    816 B         103 kB
+├ ƒ /api/customers                                        816 B         103 kB
+├ ƒ /api/customers/[id]                                   816 B         103 kB
+├ ƒ /api/dashboard/analytics                              816 B         103 kB
+├ ƒ /api/dashboard/sales-by-location                      816 B         103 kB
+├ ƒ /api/dashboard/stats                                  816 B         103 kB
+├ ƒ /api/email/test                                       816 B         103 kB
+├ ƒ /api/inventory-corrections                            816 B         103 kB
+├ ƒ /api/inventory-corrections/[id]                       816 B         103 kB
+├ ƒ /api/inventory-corrections/[id]/approve               816 B         103 kB
+├ ƒ /api/inventory-corrections/bulk-approve               816 B         103 kB
+├ ƒ /api/inventory-corrections/bulk-delete                816 B         103 kB
+├ ƒ /api/kendo-license                                    816 B         103 kB
+├ ƒ /api/labels/generate                                  816 B         103 kB
+├ ƒ /api/leave-requests                                   816 B         103 kB
+├ ƒ /api/leave-requests/[id]                              816 B         103 kB
+├ ƒ /api/leave-requests/[id]/approve                      816 B         103 kB
+├ ƒ /api/leave-requests/[id]/reject                       816 B         103 kB
+├ ƒ /api/location-changes                                 816 B         103 kB
+├ ƒ /api/location-changes/[id]                            816 B         103 kB
+├ ƒ /api/location-changes/[id]/approve                    816 B         103 kB
+├ ƒ /api/location-changes/[id]/reject                     816 B         103 kB
+├ ƒ /api/location-changes/[id]/submit-xreading            816 B         103 kB
+├ ƒ /api/locations                                        816 B         103 kB
+├ ƒ /api/locations/[id]                                   816 B         103 kB
+├ ƒ /api/locations/[id]/toggle-status                     816 B         103 kB
+├ ƒ /api/locations/all                                    816 B         103 kB
+├ ƒ /api/my-schedule                                      816 B         103 kB
+├ ƒ /api/notifications                                    816 B         103 kB
+├ ƒ /api/notifications/[id]/mark-read                     816 B         103 kB
+├ ƒ /api/notifications/mark-all-read                      816 B         103 kB
+├ ƒ /api/notifications/pending-approvals                  816 B         103 kB
+├ ƒ /api/overtime/alerts                                  816 B         103 kB
+├ ƒ /api/overtime/alerts/[id]/acknowledge                 816 B         103 kB
+├ ƒ /api/overtime/configuration                           816 B         103 kB
+├ ƒ /api/payments                                         816 B         103 kB
+├ ƒ /api/payments/batch                                   816 B         103 kB
+├ ƒ /api/permissions                                      816 B         103 kB
+├ ƒ /api/physical-inventory/export                        816 B         103 kB
+├ ƒ /api/physical-inventory/import                        816 B         103 kB
+├ ƒ /api/physical-inventory/import-safe                   816 B         103 kB
+├ ƒ /api/post-dated-cheques                               816 B         103 kB
+├ ƒ /api/printers                                         816 B         103 kB
+├ ƒ /api/printers/[id]                                    816 B         103 kB
+├ ƒ /api/products                                         816 B         103 kB
+├ ƒ /api/products/[id]                                    816 B         103 kB
+├ ƒ /api/products/[id]/calculate-reorder                  816 B         103 kB
+├ ƒ /api/products/[id]/duplicate                          816 B         103 kB
+├ ƒ /api/products/[id]/grns                               816 B         103 kB
+├ ƒ /api/products/[id]/last-purchase-cost                 816 B         103 kB
+├ ƒ /api/products/[id]/opening-stock                      816 B         103 kB
+├ ƒ /api/products/[id]/stock                              816 B         103 kB
+├ ƒ /api/products/[id]/stock-history                      816 B         103 kB
+├ ƒ /api/products/[id]/toggle-active                      816 B         103 kB
+├ ƒ /api/products/[id]/variations                         816 B         103 kB
+├ ƒ /api/products/branch-stock-pivot                      816 B         103 kB
+├ ƒ /api/products/bulk-add-to-location                    816 B         103 kB
+├ ƒ /api/products/bulk-delete                             816 B         103 kB
+├ ƒ /api/products/bulk-remove-from-location               816 B         103 kB
+├ ƒ /api/products/bulk-toggle-active                      816 B         103 kB
+├ ƒ /api/products/bulk-update-reorder                     816 B         103 kB
+├ ƒ /api/products/check-location                          816 B         103 kB
+├ ƒ /api/products/csv-id-mapper                           816 B         103 kB
+├ ƒ /api/products/import                                  816 B         103 kB
+├ ƒ /api/products/import-branch-stock                     816 B         103 kB
+├ ƒ /api/products/import/template                         816 B         103 kB
+├ ƒ /api/products/labels/generate                         816 B         103 kB
+├ ƒ /api/products/search                                  816 B         103 kB
+├ ƒ /api/products/stock                                   816 B         103 kB
+├ ƒ /api/products/unlock-opening-stock                    816 B         103 kB
+├ ƒ /api/products/variations                              816 B         103 kB
+├ ƒ /api/products/variations/[id]/assign-supplier         816 B         103 kB
+├ ƒ /api/products/variations/[id]/inventory               816 B         103 kB
+├ ƒ /api/products/variations/search                       816 B         103 kB
+├ ƒ /api/purchases                                        816 B         103 kB
+├ ƒ /api/purchases/[id]                                   816 B         103 kB
+├ ƒ /api/purchases/[id]/amendments                        816 B         103 kB
+├ ƒ /api/purchases/[id]/close                             816 B         103 kB
+├ ƒ /api/purchases/[id]/export                            816 B         103 kB
+├ ƒ /api/purchases/[id]/receive                           816 B         103 kB
+├ ƒ /api/purchases/amendments/[id]                        816 B         103 kB
+├ ƒ /api/purchases/amendments/[id]/approve                816 B         103 kB
+├ ƒ /api/purchases/amendments/[id]/reject                 816 B         103 kB
+├ ƒ /api/purchases/generate-from-suggestions              816 B         103 kB
+├ ƒ /api/purchases/receipts                               816 B         103 kB
+├ ƒ /api/purchases/receipts/[id]                          816 B         103 kB
+├ ƒ /api/purchases/receipts/[id]/approve                  816 B         103 kB
+├ ƒ /api/purchases/receipts/[id]/reject                   816 B         103 kB
+├ ƒ /api/purchases/receipts/[id]/serial-numbers           816 B         103 kB
+├ ƒ /api/purchases/returns                                816 B         103 kB
+├ ƒ /api/purchases/returns/[id]                           816 B         103 kB
+├ ƒ /api/purchases/returns/[id]/approve                   816 B         103 kB
+├ ƒ /api/purchases/suggestions                            816 B         103 kB
+├ ƒ /api/purchases/suggestions/generate-po                816 B         103 kB
+├ ƒ /api/qc-inspections                                   816 B         103 kB
+├ ƒ /api/qc-inspections/[id]                              816 B         103 kB
+├ ƒ /api/qc-inspections/[id]/approve                      816 B         103 kB
+├ ƒ /api/qc-inspections/[id]/conduct                      816 B         103 kB
+├ ƒ /api/qc-templates                                     816 B         103 kB
+├ ƒ /api/qc-templates/[id]                                816 B         103 kB
+├ ƒ /api/quotations                                       816 B         103 kB
+├ ƒ /api/quotations/[id]                                  816 B         103 kB
+├ ƒ /api/readings/x-reading                               816 B         103 kB
+├ ƒ /api/readings/z-reading                               816 B         103 kB
+├ ƒ /api/reports/audit-trail                              816 B         103 kB
+├ ƒ /api/reports/audit-trail/security                     816 B         103 kB
+├ ƒ /api/reports/audit-trail/summary                      816 B         103 kB
+├ ƒ /api/reports/bir/daily-sales-summary                  816 B         103 kB
+├ ƒ /api/reports/customer-sales                           816 B         103 kB
+├ ƒ /api/reports/discount-analysis                        816 B         103 kB
+├ ƒ /api/reports/historical-inventory                     816 B         103 kB
+├ ƒ /api/reports/inventory-ledger                         816 B         103 kB
+├ ƒ /api/reports/inventory-ledger-new                     816 B         103 kB
+├ ƒ /api/reports/inventory-reconciliation                 816 B         103 kB
+├ ƒ /api/reports/payment-method                           816 B         103 kB
+├ ƒ /api/reports/product-purchase-history                 816 B         103 kB
+├ ƒ /api/reports/products-suppliers                       816 B         103 kB
+├ ƒ /api/reports/profit                                   816 B         103 kB
+├ ƒ /api/reports/profit-loss                              816 B         103 kB
+├ ƒ /api/reports/profitability                            816 B         103 kB
+├ ƒ /api/reports/purchase-returns                         816 B         103 kB
+├ ƒ /api/reports/purchase-sale                            816 B         103 kB
+├ ƒ /api/reports/purchases                                816 B         103 kB
+├ ƒ /api/reports/purchases/budget-vs-actual               816 B         103 kB
+├ ƒ /api/reports/purchases/category-summary               816 B         103 kB
+├ ƒ /api/reports/purchases/cost-trend                     816 B         103 kB
+├ ƒ /api/reports/purchases/daily-summary                  816 B         103 kB
+├ ƒ /api/reports/purchases/item-detail                    816 B         103 kB
+├ ƒ /api/reports/purchases/item-summary                   816 B         103 kB
+├ ƒ /api/reports/purchases/items                          816 B         103 kB
+├ ƒ /api/reports/purchases/payment-status                 816 B         103 kB
+├ ƒ /api/reports/purchases/return-analysis                816 B         103 kB
+├ ƒ /api/reports/purchases/supplier-performance           816 B         103 kB
+├ ƒ /api/reports/purchases/supplier-summary               816 B         103 kB
+├ ƒ /api/reports/purchases/trend-analysis                 816 B         103 kB
+├ ƒ /api/reports/purchases/trends                         816 B         103 kB
+├ ƒ /api/reports/purchases/variance                       816 B         103 kB
+├ ƒ /api/reports/returns                                  816 B         103 kB
+├ ƒ /api/reports/sales                                    816 B         103 kB
+├ ƒ /api/reports/sales-analytics                          816 B         103 kB
+├ ƒ /api/reports/sales-history                            816 B         103 kB
+├ ƒ /api/reports/sales-journal                            816 B         103 kB
+├ ƒ /api/reports/sales-per-cashier                        816 B         103 kB
+├ ƒ /api/reports/sales-per-item                           816 B         103 kB
+├ ƒ /api/reports/sales-per-location                       816 B         103 kB
+├ ƒ /api/reports/sales-today                              816 B         103 kB
+├ ƒ /api/reports/stock-alert                              816 B         103 kB
+├ ƒ /api/reports/tax                                      816 B         103 kB
+├ ƒ /api/reports/transfers                                816 B         103 kB
+├ ƒ /api/reports/transfers-per-item                       816 B         103 kB
+├ ƒ /api/reports/transfers/discrepancies                  816 B         103 kB
+├ ƒ /api/reports/transfers/inventory-movement             816 B         103 kB
+├ ƒ /api/reports/transfers/location-analysis              816 B         103 kB
+├ ƒ /api/reports/transfers/performance                    816 B         103 kB
+├ ƒ /api/reports/transfers/summary                        816 B         103 kB
+├ ƒ /api/reports/transfers/trends                         816 B         103 kB
+├ ƒ /api/reports/trending-products                        816 B         103 kB
+├ ƒ /api/roles                                            816 B         103 kB
+├ ƒ /api/roles/[id]                                       816 B         103 kB
+├ ƒ /api/roles/[id]/duplicate                             816 B         103 kB
+├ ƒ /api/sales                                            816 B         103 kB
+├ ƒ /api/sales/[id]                                       816 B         103 kB
+├ ƒ /api/sales/[id]/refund                                816 B         103 kB
+├ ƒ /api/sales/[id]/reprint                               816 B         103 kB
+├ ƒ /api/sales/[id]/void                                  816 B         103 kB
+├ ƒ /api/schedule-login-config                            816 B         103 kB
+├ ƒ /api/schedules                                        816 B         103 kB
+├ ƒ /api/schedules/[id]                                   816 B         103 kB
+├ ƒ /api/serial-numbers/[serialNumber]/supplier           816 B         103 kB
+├ ƒ /api/serial-numbers/check                             816 B         103 kB
+├ ƒ /api/serial-numbers/lookup                            816 B         103 kB
+├ ƒ /api/settings/inactivity                              816 B         103 kB
+├ ƒ /api/settings/sod-rules                               816 B         103 kB
+├ ƒ /api/shifts                                           816 B         103 kB
+├ ƒ /api/shifts/[id]/close                                816 B         103 kB
+├ ƒ /api/shifts/[id]/force-close                          816 B         103 kB
+├ ƒ /api/shifts/check-unclosed                            816 B         103 kB
+├ ƒ /api/stock-transactions                               816 B         103 kB
+├ ƒ /api/stock/query                                      816 B         103 kB
+├ ƒ /api/superadmin/businesses                            816 B         103 kB
+├ ƒ /api/superadmin/businesses/[id]                       816 B         103 kB
+├ ƒ /api/superadmin/stats                                 816 B         103 kB
+├ ƒ /api/supplier-returns                                 816 B         103 kB
+├ ƒ /api/supplier-returns/[id]                            816 B         103 kB
+├ ƒ /api/supplier-returns/[id]/approve                    816 B         103 kB
+├ ƒ /api/suppliers                                        816 B         103 kB
+├ ƒ /api/suppliers/[id]                                   816 B         103 kB
+├ ƒ /api/suppliers/[id]/products                          816 B         103 kB
+├ ƒ /api/suppliers/[id]/products/[productId]/last-cost    816 B         103 kB
+├ ƒ /api/suppliers/import                                 816 B         103 kB
+├ ƒ /api/tax-rates                                        816 B         103 kB
+├ ƒ /api/tax-rates/[id]                                   816 B         103 kB
+├ ƒ /api/telegram/test                                    816 B         103 kB
+├ ƒ /api/test-inventory                                   816 B         103 kB
+├ ƒ /api/test-query                                       816 B         103 kB
+├ ƒ /api/transfers                                        816 B         103 kB
+├ ƒ /api/transfers/[id]                                   816 B         103 kB
+├ ƒ /api/transfers/[id]/cancel                            816 B         103 kB
+├ ƒ /api/transfers/[id]/check-approve                     816 B         103 kB
+├ ƒ /api/transfers/[id]/check-reject                      816 B         103 kB
+├ ƒ /api/transfers/[id]/complete                          816 B         103 kB
+├ ƒ /api/transfers/[id]/mark-arrived                      816 B         103 kB
+├ ƒ /api/transfers/[id]/receive                           816 B         103 kB
+├ ƒ /api/transfers/[id]/send                              816 B         103 kB
+├ ƒ /api/transfers/[id]/start-verification                816 B         103 kB
+├ ƒ /api/transfers/[id]/submit-for-check                  816 B         103 kB
+├ ƒ /api/transfers/[id]/unverify-item                     816 B         103 kB
+├ ƒ /api/transfers/[id]/verify-item                       816 B         103 kB
+├ ƒ /api/units                                            816 B         103 kB
+├ ƒ /api/units/[id]                                       816 B         103 kB
+├ ƒ /api/user-locations                                   816 B         103 kB
+├ ƒ /api/user-locations/my-location                       816 B         103 kB
+├ ƒ /api/user/change-password                             816 B         103 kB
+├ ƒ /api/user/preferences                                 816 B         103 kB
+├ ƒ /api/user/update-profile                              816 B         103 kB
+├ ƒ /api/users                                            816 B         103 kB
+├ ƒ /api/users/[id]                                       816 B         103 kB
+├ ƒ /api/users/[id]/reset-password                        816 B         103 kB
+├ ƒ /api/warranties                                       816 B         103 kB
+├ ƒ /api/warranties/[id]                                  816 B         103 kB
+├ ƒ /api/warranty-claims/[id]/create-supplier-return      816 B         103 kB
+├ ○ /dashboard                                            11 kB         891 kB
+├ ○ /dashboard/accounts-payable                         8.16 kB         410 kB
+├ ○ /dashboard/ai-assistant                             82.7 kB         194 kB
+├ ○ /dashboard/analytics-devextreme                     2.68 kB         392 kB
+├ ○ /dashboard/announcements                            4.34 kB         130 kB
+├ ○ /dashboard/attendance                               6.92 kB         941 kB
+├ ƒ /dashboard/attendance/[id]                          4.72 kB         142 kB
+├ ○ /dashboard/audit-logs                               3.68 kB         120 kB
+├ ○ /dashboard/bank-transactions                        5.91 kB         174 kB
+├ ○ /dashboard/bank-transactions/manual                 9.71 kB         163 kB
+├ ○ /dashboard/banks                                    7.52 kB         163 kB
+├ ○ /dashboard/business-settings                        2.99 kB         119 kB
+├ ○ /dashboard/clock                                    3.87 kB         138 kB
+├ ○ /dashboard/customer-returns                         3.69 kB         405 kB
+├ ƒ /dashboard/customer-returns/[id]                    5.01 kB         143 kB
+├ ○ /dashboard/customers                                6.41 kB         152 kB
+├ ○ /dashboard/dashboard-v2                                5 kB         715 kB
+├ ○ /dashboard/inventory-corrections                    10.5 kB         182 kB
+├ ƒ /dashboard/inventory-corrections/[id]               5.21 kB         139 kB
+├ ƒ /dashboard/inventory-corrections/[id]/edit          5.23 kB         168 kB
+├ ○ /dashboard/inventory-corrections/new                7.25 kB         170 kB
+├ ○ /dashboard/kendo-demo                                2.3 kB         285 kB
+├ ○ /dashboard/kendo-examples                            182 kB         474 kB
+├ ○ /dashboard/labels/generate                          17.3 kB         120 kB
+├ ○ /dashboard/leave-requests                           4.28 kB         682 kB
+├ ƒ /dashboard/leave-requests/[id]                      3.99 kB         138 kB
+├ ○ /dashboard/leave-requests/create                    3.46 kB         138 kB
+├ ○ /dashboard/location-changes                         3.98 kB         682 kB
+├ ○ /dashboard/locations                                6.73 kB         408 kB
+├ ○ /dashboard/notifications                            4.28 kB         129 kB
+├ ○ /dashboard/payments                                 6.64 kB         408 kB
+├ ○ /dashboard/payments/batch                           7.79 kB         176 kB
+├ ○ /dashboard/payments/new                             7.09 kB         176 kB
+├ ○ /dashboard/physical-inventory                       3.24 kB         119 kB
+├ ○ /dashboard/pos                                      18.6 kB         181 kB
+├ ○ /dashboard/post-dated-cheques                       7.42 kB         406 kB
+├ ○ /dashboard/printers                                 6.36 kB        1.08 MB
+├ ○ /dashboard/products                                 17.9 kB         429 kB
+├ ƒ /dashboard/products/[id]                              10 kB         194 kB
+├ ƒ /dashboard/products/[id]/edit                       7.67 kB         114 kB
+├ ƒ /dashboard/products/[id]/opening-stock              5.09 kB         129 kB
+├ ƒ /dashboard/products/[id]/stock-history               6.5 kB         160 kB
+├ ○ /dashboard/products/add                             6.43 kB         112 kB
+├ ○ /dashboard/products/add-v2                          16.2 kB         689 kB
+├ ○ /dashboard/products/branch-stock-pivot              9.97 kB         361 kB
+├ ○ /dashboard/products/branch-stock-pivot-v2           5.54 kB        1.07 MB
+├ ○ /dashboard/products/brands                          6.11 kB         394 kB
+├ ○ /dashboard/products/brands/import                   4.37 kB         124 kB
+├ ○ /dashboard/products/bulk-reorder-update             9.99 kB         163 kB
+├ ○ /dashboard/products/categories                      6.34 kB         395 kB
+├ ○ /dashboard/products/categories/import               4.41 kB         124 kB
+├ ○ /dashboard/products/csv-id-mapper                   5.16 kB         133 kB
+├ ○ /dashboard/products/import                          5.54 kB         125 kB
+├ ○ /dashboard/products/import-branch-stock             4.93 kB         124 kB
+├ ○ /dashboard/products/list-v2                         9.48 kB        1.11 MB
+├ ○ /dashboard/products/print-labels                    9.71 kB         149 kB
+├ ○ /dashboard/products/stock                           11.5 kB         363 kB
+├ ○ /dashboard/products/stock-history                   2.64 kB         115 kB
+├ ○ /dashboard/products/units                           6.11 kB         394 kB
+├ ○ /dashboard/products/warranties                       2.6 kB         105 kB
+├ ○ /dashboard/profile                                  5.01 kB         135 kB
+├ ○ /dashboard/purchases                                4.46 kB         686 kB
+├ ƒ /dashboard/purchases/[id]                           15.8 kB         188 kB
+├ ƒ /dashboard/purchases/[id]/receive                    6.3 kB         130 kB
+├ ○ /dashboard/purchases/create                         6.59 kB         182 kB
+├ ○ /dashboard/purchases/receipts                       7.43 kB         173 kB
+├ ƒ /dashboard/purchases/receipts/[id]                  8.84 kB         188 kB
+├ ○ /dashboard/purchases/receipts/new                   14.5 kB         183 kB
+├ ○ /dashboard/purchases/returns                        5.26 kB         161 kB
+├ ƒ /dashboard/purchases/returns/[id]                   6.61 kB         145 kB
+├ ○ /dashboard/purchases/suggestions                    10.6 kB         167 kB
+├ ○ /dashboard/qc-inspections                           5.29 kB         162 kB
+├ ƒ /dashboard/qc-inspections/[id]                      7.19 kB         164 kB
+├ ○ /dashboard/readings/history                         4.91 kB         685 kB
+├ ○ /dashboard/readings/x-reading                       5.64 kB         117 kB
+├ ○ /dashboard/readings/z-reading                       4.35 kB         116 kB
+├ ○ /dashboard/reports                                  4.04 kB         123 kB
+├ ○ /dashboard/reports/attendance                       4.51 kB         795 kB
+├ ○ /dashboard/reports/audit-trail                      13.9 kB         179 kB
+├ ○ /dashboard/reports/bir/daily-sales-summary          11.3 kB        1.08 MB
+├ ○ /dashboard/reports/historical-inventory             7.04 kB         166 kB
+├ ○ /dashboard/reports/inventory-corrections            25.5 kB         287 kB
+├ ○ /dashboard/reports/inventory-ledger                 4.47 kB         120 kB
+├ ○ /dashboard/reports/product-purchase-history         5.42 kB         168 kB
+├ ○ /dashboard/reports/products-suppliers               6.64 kB        1.08 MB
+├ ○ /dashboard/reports/profit                           7.53 kB         170 kB
+├ ○ /dashboard/reports/profit-loss                      10.6 kB         173 kB
+├ ○ /dashboard/reports/profitability                    7.09 kB         169 kB
+├ ○ /dashboard/reports/purchase-returns                 9.01 kB         179 kB
+├ ○ /dashboard/reports/purchase-sale                    11.4 kB         174 kB
+├ ○ /dashboard/reports/purchase-trends                  6.58 kB         497 kB
+├ ○ /dashboard/reports/purchases                        3.68 kB         106 kB
+├ ○ /dashboard/reports/purchases-devextreme             1.44 kB         657 kB
+├ ○ /dashboard/reports/purchases-items                  8.14 kB        1.11 MB
+├ ○ /dashboard/reports/purchases-report                 8.17 kB         382 kB
+├ ○ /dashboard/reports/purchases/analytics              9.76 kB         166 kB
+├ ○ /dashboard/reports/purchases/budget-vs-actual       2.23 kB         245 kB
+├ ○ /dashboard/reports/purchases/category-summary       2.05 kB         245 kB
+├ ○ /dashboard/reports/purchases/cost-trend             2.44 kB         245 kB
+├ ○ /dashboard/reports/purchases/daily-summary          1.99 kB         245 kB
+├ ○ /dashboard/reports/purchases/item-detail            2.12 kB         245 kB
+├ ○ /dashboard/reports/purchases/item-summary           2.35 kB         245 kB
+├ ○ /dashboard/reports/purchases/payment-status         2.53 kB         246 kB
+├ ○ /dashboard/reports/purchases/supplier-performance   2.31 kB         245 kB
+├ ○ /dashboard/reports/purchases/supplier-summary       2.35 kB         245 kB
+├ ○ /dashboard/reports/purchases/trend-analysis         2.31 kB         245 kB
+├ ○ /dashboard/reports/returns-analysis                 7.48 kB         947 kB
+├ ○ /dashboard/reports/sales-history                    8.26 kB         165 kB
+├ ○ /dashboard/reports/sales-journal                    9.04 kB         218 kB
+├ ○ /dashboard/reports/sales-per-cashier                4.27 kB         110 kB
+├ ○ /dashboard/reports/sales-per-item                   3.81 kB         247 kB
+├ ○ /dashboard/reports/sales-report                     3.96 kB         164 kB
+├ ○ /dashboard/reports/sales-today                      9.69 kB         163 kB
+├ ○ /dashboard/reports/stock-alert                      5.64 kB         159 kB
+├ ○ /dashboard/reports/stock-history-v2                 9.69 kB        1.07 MB
+├ ○ /dashboard/reports/tax                              15.2 kB        1.12 MB
+├ ○ /dashboard/reports/transfer-trends                  6.41 kB         496 kB
+├ ○ /dashboard/reports/transfers-per-item               5.82 kB         945 kB
+├ ○ /dashboard/reports/transfers-per-item-pivot         4.04 kB         714 kB
+├ ○ /dashboard/reports/transfers-report                 8.46 kB         388 kB
+├ ○ /dashboard/reports/trending-products                11.9 kB        1.25 MB
+├ ○ /dashboard/roles                                    8.52 kB         111 kB
+├ ○ /dashboard/sales                                    6.62 kB        1.12 MB
+├ ƒ /dashboard/sales/[id]                               6.73 kB         182 kB
+├ ○ /dashboard/sales/create                             6.71 kB         172 kB
+├ ○ /dashboard/schedules                                3.66 kB         685 kB
+├ ƒ /dashboard/schedules/[id]                           3.61 kB         416 kB
+├ ○ /dashboard/schedules/create                         4.42 kB         417 kB
+├ ○ /dashboard/serial-lookup                            4.58 kB         125 kB
+├ ○ /dashboard/settings/barcode-settings                1.46 kB         104 kB
+├ ○ /dashboard/settings/inactivity                      3.75 kB         116 kB
+├ ○ /dashboard/settings/invoice-settings                1.35 kB         104 kB
+├ ○ /dashboard/settings/product-settings                2.04 kB         108 kB
+├ ○ /dashboard/settings/schedule-login                  3.08 kB         119 kB
+├ ○ /dashboard/settings/sod-rules                       4.13 kB         107 kB
+├ ○ /dashboard/settings/tax-rates                       2.59 kB         105 kB
+├ ○ /dashboard/settings/warranties                      5.89 kB         168 kB
+├ ○ /dashboard/shifts/begin                             6.34 kB         127 kB
+├ ○ /dashboard/shifts/close                             9.42 kB         121 kB
+├ ○ /dashboard/supplier-returns                         4.76 kB        1.07 MB
+├ ƒ /dashboard/supplier-returns/[id]                    6.47 kB         272 kB
+├ ○ /dashboard/supplier-returns/create-manual           7.35 kB         419 kB
+├ ○ /dashboard/supplier-returns/new                     5.82 kB         172 kB
+├ ○ /dashboard/suppliers                                 8.1 kB         396 kB
+├ ○ /dashboard/suppliers/import                         4.75 kB         124 kB
+├ ○ /dashboard/test-email                               3.57 kB         115 kB
+├ ○ /dashboard/test-telegram                            4.07 kB         115 kB
+├ ○ /dashboard/theme-demo                               1.84 kB         112 kB
+├ ○ /dashboard/theme-demo-simple                        1.74 kB         112 kB
+├ ○ /dashboard/transfers                                4.54 kB         686 kB
+├ ƒ /dashboard/transfers/[id]                           12.7 kB         162 kB
+├ ƒ /dashboard/transfers/[id]/ExportTransfers           5.95 kB        1.08 MB
+├ ○ /dashboard/transfers/create                          4.2 kB         179 kB
+├ ○ /dashboard/users                                    5.74 kB        1.07 MB
+├ ƒ /dashboard/users/[id]/edit                          2.48 kB         108 kB
+├ ○ /dashboard/users/new                                2.19 kB         108 kB
+├ ○ /login                                              5.99 kB         118 kB
+├ ○ /superadmin                                         2.32 kB         105 kB
+└ ○ /superadmin/businesses                              2.96 kB         105 kB
++ First Load JS shared by all                            103 kB
+  ├ chunks/31255-d1a2b49835a16599.js                    45.5 kB
+  ├ chunks/4bd1b696-bad92808725a934a.js                 54.2 kB
+  └ other shared chunks (total)                         2.74 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

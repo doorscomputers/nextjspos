@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { CreditCardIcon } from '@heroicons/react/24/outline'
 
 export default function UnpaidInvoicesReport() {
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [invoices, setInvoices] = useState<any[]>([])
   const [summary, setSummary] = useState<any>(null)
@@ -378,13 +381,14 @@ export default function UnpaidInvoicesReport() {
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Days Out</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Aging</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Status</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {loading ? (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Loading...</td></tr>
               ) : invoices.length === 0 ? (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">No unpaid invoices found.</td></tr>
+                <tr><td colSpan={10} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">No unpaid invoices found.</td></tr>
               ) : (
                 invoices.map((inv, idx) => (
                   <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700">
@@ -406,6 +410,16 @@ export default function UnpaidInvoicesReport() {
                     </td>
                     <td className="px-4 py-3 text-sm text-center">{getAgingBadge(inv.agingPeriod)}</td>
                     <td className="px-4 py-3 text-sm text-center">{getStatusBadge(inv.status)}</td>
+                    <td className="px-4 py-3 text-sm text-center">
+                      <button
+                        onClick={() => router.push(`/dashboard/sales/${inv.id}/payment`)}
+                        className="inline-flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                        title="Record Payment"
+                      >
+                        <CreditCardIcon className="h-4 w-4 mr-1" />
+                        Pay
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}

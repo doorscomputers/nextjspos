@@ -168,7 +168,7 @@ export default function InventoryLedgerPage() {
       if (startDate) params.append('startDate', startDate)
       if (endDate) params.append('endDate', endDate)
 
-      const response = await fetch(`/api/reports/inventory-ledger?${params}`)
+      const response = await fetch(`/api/reports/inventory-ledger-new?${params}`)
       const result = await response.json()
 
       if (!response.ok) {

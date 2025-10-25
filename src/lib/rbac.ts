@@ -185,6 +185,9 @@ export const PERMISSIONS = {
   SALES_REPORT_DISCOUNT_ANALYSIS: 'sales_report.discount_analysis',
   REPORT_UNPAID_INVOICES: 'report.unpaid_invoices', // Accounts Receivable / Credit customers
   REPORT_CUSTOMER_PAYMENTS: 'report.customer_payments', // Customer payment history
+  REPORT_CASH_IN_OUT: 'report.cash_in_out', // Cash in/out movements report
+  REPORT_SALES_BY_HOUR: 'report.sales_by_hour', // Hourly sales breakdown for peak hours analysis
+  REPORT_VOID_REFUND_ANALYSIS: 'report.void_refund_analysis', // Voided and refunded transactions tracking
 
   // Purchases
   PURCHASE_VIEW: 'purchase.view',
@@ -932,6 +935,12 @@ export const DEFAULT_ROLES = {
       // Customer credit reports (critical for cash handling)
       PERMISSIONS.REPORT_UNPAID_INVOICES,
       PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
+      // Cash movements tracking
+      PERMISSIONS.REPORT_CASH_IN_OUT,
+      PERMISSIONS.SALES_REPORT_DISCOUNT_ANALYSIS,
+      // Operational analysis reports
+      PERMISSIONS.REPORT_SALES_BY_HOUR,
+      PERMISSIONS.REPORT_VOID_REFUND_ANALYSIS,
     ],
   },
 

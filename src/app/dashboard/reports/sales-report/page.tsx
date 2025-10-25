@@ -9,6 +9,7 @@ import {
   ArrowDownTrayIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -260,8 +261,8 @@ export default function SalesReportPage() {
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount)
   }
 
@@ -406,11 +407,19 @@ export default function SalesReportPage() {
         </div>
 
         <div className="flex gap-2 mt-4 flex-wrap">
-          <Button onClick={handleSearch}>
+          <Button
+            onClick={handleSearch}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold tracking-tight shadow-md px-6 py-2 transition-transform hover:scale-[1.01]"
+          >
             <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
             Search
           </Button>
-          <Button variant="outline" onClick={handleReset}>
+          <Button
+            variant="outline"
+            onClick={handleReset}
+            className="font-semibold tracking-tight border-2 border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-100 px-6 py-2"
+          >
+            <ArrowPathIcon className="h-4 w-4 mr-2" />
             Reset
           </Button>
         </div>
