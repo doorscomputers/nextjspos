@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 import JsBarcode from 'jsbarcode'
+import QRCode from 'qrcode'
+import { usePermissions } from '@/hooks/usePermissions'
+import { PERMISSIONS } from '@/lib/rbac'
 
 interface Product {
   id: number
@@ -39,9 +42,13 @@ const BARCODE_FORMATS = [
   { value: 'EAN8', label: 'EAN-8 (8 digits)', description: 'Compact version of EAN-13' },
   { value: 'UPC', label: 'UPC (12 digits)', description: 'Universal Product Code, USA/Canada standard' },
   { value: 'ITF14', label: 'ITF-14 (14 digits)', description: 'Shipping containers' },
+  { value: 'QR', label: 'QR Code', description: 'Versatile 2D barcode, holds more data, works with smartphones' },
 ]
 
 export default function GenerateLabelsPage() {
+  // RBAC Permission Check (from pos-barcode-label-printer skill)
+  const { can, isLoading: permissionsLoading } = usePermissions()
+
   const [products, setProducts] = useState<Product[]>([])
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set())
   const [barcodeFormat, setBarcodeFormat] = useState('CODE128')
@@ -59,23 +66,33 @@ export default function GenerateLabelsPage() {
   }, [showWithoutSKU])
 
   useEffect(() => {
-    // Generate barcodes after labels are created
+    // Generate barcodes/QR codes after labels are created (from skill guidance)
     if (generatedLabels.length > 0) {
       setTimeout(() => {
-        generatedLabels.forEach((label, index) => {
+        generatedLabels.forEach(async (label, index) => {
           const canvas = document.getElementById(`barcode-${index}`)
           if (canvas) {
             try {
-              JsBarcode(canvas, label.barcodeValue, {
-                format: label.barcodeFormat,
-                width: 2,
-                height: 50,
-                displayValue: true,
-                fontSize: 12,
-                margin: 5,
-              })
+              if (label.barcodeFormat === 'QR') {
+                // Generate QR Code (from pos-barcode-label-printer skill)
+                await QRCode.toCanvas(canvas, label.barcodeValue, {
+                  width: 150,
+                  margin: 2,
+                  errorCorrectionLevel: 'M',
+                })
+              } else {
+                // Generate standard barcode
+                JsBarcode(canvas, label.barcodeValue, {
+                  format: label.barcodeFormat,
+                  width: 2,
+                  height: 50,
+                  displayValue: true,
+                  fontSize: 12,
+                  margin: 5,
+                })
+              }
             } catch (error) {
-              console.error('Error generating barcode:', error)
+              console.error('Error generating barcode/QR code:', error)
             }
           }
         })
@@ -167,30 +184,58 @@ export default function GenerateLabelsPage() {
     window.print()
   }
 
+  // Permission Guard (from pos-barcode-label-printer skill: verify RBAC)
+  if (permissionsLoading) {
+    return (
+      <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading permissions...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!can(PERMISSIONS.PRODUCT_VIEW) && !can(PERMISSIONS.PRODUCT_UPDATE)) {
+    return (
+      <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+        <div className="max-w-2xl mx-auto mt-12 bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
+          <div className="text-red-600 dark:text-red-400 text-6xl mb-4">🔒</div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            Access Denied
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            You don't have permission to generate barcode labels. Please contact your administrator.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">Generate Barcode Labels</h1>
-          <p className="text-gray-600 mt-2">
-            Create barcode labels for products. Automatically generate SKUs for products that don't have them.
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Generate Barcode Labels</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">
+            Create barcode/QR code labels for products. Automatically generate SKUs for products that don't have them.
           </p>
         </div>
 
         {/* Configuration Section */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Label Configuration</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">Label Configuration</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Barcode Format Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Barcode Format *
               </label>
               <select
                 value={barcodeFormat}
                 onChange={(e) => setBarcodeFormat(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {BARCODE_FORMATS.map((format) => (
                   <option key={format.value} value={format.value}>
@@ -198,14 +243,14 @@ export default function GenerateLabelsPage() {
                   </option>
                 ))}
               </select>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 {BARCODE_FORMATS.find(f => f.value === barcodeFormat)?.description}
               </p>
             </div>
 
             {/* Copies */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Copies per Label
               </label>
               <input
@@ -214,7 +259,7 @@ export default function GenerateLabelsPage() {
                 max="100"
                 value={copies}
                 onChange={(e) => setCopies(parseInt(e.target.value) || 1)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -228,7 +273,7 @@ export default function GenerateLabelsPage() {
                 onChange={(e) => setAutoGenerateSKU(e.target.checked)}
                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
               />
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-gray-700 dark:text-gray-300">
                 Auto-generate SKUs for products without them
               </span>
             </label>
@@ -238,9 +283,9 @@ export default function GenerateLabelsPage() {
                 type="checkbox"
                 checked={includeProductName}
                 onChange={(e) => setIncludeProductName(e.target.checked)}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                className="w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500"
               />
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-gray-700 dark:text-gray-300">
                 Include product name on label
               </span>
             </label>
@@ -250,9 +295,9 @@ export default function GenerateLabelsPage() {
                 type="checkbox"
                 checked={includePrice}
                 onChange={(e) => setIncludePrice(e.target.checked)}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                className="w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500"
               />
-              <span className="text-sm text-gray-700">
+              <span className="text-sm text-gray-700 dark:text-gray-300">
                 Include price on label
               </span>
             </label>
@@ -260,9 +305,9 @@ export default function GenerateLabelsPage() {
         </div>
 
         {/* Product Selection Section */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
               Select Products ({selectedProducts.size} selected)
             </h2>
 

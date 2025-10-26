@@ -58,12 +58,13 @@ export async function POST(request: NextRequest) {
 
     if (!barcodeFormat) {
       return NextResponse.json(
-        { error: 'barcodeFormat is required (CODE128, CODE39, EAN13, EAN8, UPC, ITF14)' },
+        { error: 'barcodeFormat is required (CODE128, CODE39, EAN13, EAN8, UPC, ITF14, QR)' },
         { status: 400 }
       )
     }
 
-    const validFormats = ['CODE128', 'CODE39', 'EAN13', 'EAN8', 'UPC', 'ITF14']
+    // Enhanced with QR code support (from pos-barcode-label-printer skill)
+    const validFormats = ['CODE128', 'CODE39', 'EAN13', 'EAN8', 'UPC', 'ITF14', 'QR']
     if (!validFormats.includes(barcodeFormat)) {
       return NextResponse.json(
         { error: `Invalid barcode format. Must be one of: ${validFormats.join(', ')}` },
@@ -136,16 +137,18 @@ export async function POST(request: NextRequest) {
             continue
           }
 
-          // Validate barcode value for specific formats
-          if (barcodeFormat === 'EAN13' && barcodeValue.length !== 13) {
-            // Pad or truncate to 13 digits
-            barcodeValue = barcodeValue.padStart(13, '0').slice(-13)
-          } else if (barcodeFormat === 'EAN8' && barcodeValue.length !== 8) {
-            barcodeValue = barcodeValue.padStart(8, '0').slice(-8)
-          } else if (barcodeFormat === 'UPC' && barcodeValue.length !== 12) {
-            barcodeValue = barcodeValue.padStart(12, '0').slice(-12)
-          } else if (barcodeFormat === 'ITF14' && barcodeValue.length !== 14) {
-            barcodeValue = barcodeValue.padStart(14, '0').slice(-14)
+          // Validate barcode value for specific formats (QR codes accept any string)
+          if (barcodeFormat !== 'QR') {
+            if (barcodeFormat === 'EAN13' && barcodeValue.length !== 13) {
+              // Pad or truncate to 13 digits
+              barcodeValue = barcodeValue.padStart(13, '0').slice(-13)
+            } else if (barcodeFormat === 'EAN8' && barcodeValue.length !== 8) {
+              barcodeValue = barcodeValue.padStart(8, '0').slice(-8)
+            } else if (barcodeFormat === 'UPC' && barcodeValue.length !== 12) {
+              barcodeValue = barcodeValue.padStart(12, '0').slice(-12)
+            } else if (barcodeFormat === 'ITF14' && barcodeValue.length !== 14) {
+              barcodeValue = barcodeValue.padStart(14, '0').slice(-14)
+            }
           }
 
           // Create label data
@@ -174,15 +177,17 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Validate barcode value for specific formats
-        if (barcodeFormat === 'EAN13' && barcodeValue.length !== 13) {
-          barcodeValue = barcodeValue.padStart(13, '0').slice(-13)
-        } else if (barcodeFormat === 'EAN8' && barcodeValue.length !== 8) {
-          barcodeValue = barcodeValue.padStart(8, '0').slice(-8)
-        } else if (barcodeFormat === 'UPC' && barcodeValue.length !== 12) {
-          barcodeValue = barcodeValue.padStart(12, '0').slice(-12)
-        } else if (barcodeFormat === 'ITF14' && barcodeValue.length !== 14) {
-          barcodeValue = barcodeValue.padStart(14, '0').slice(-14)
+        // Validate barcode value for specific formats (QR codes accept any string)
+        if (barcodeFormat !== 'QR') {
+          if (barcodeFormat === 'EAN13' && barcodeValue.length !== 13) {
+            barcodeValue = barcodeValue.padStart(13, '0').slice(-13)
+          } else if (barcodeFormat === 'EAN8' && barcodeValue.length !== 8) {
+            barcodeValue = barcodeValue.padStart(8, '0').slice(-8)
+          } else if (barcodeFormat === 'UPC' && barcodeValue.length !== 12) {
+            barcodeValue = barcodeValue.padStart(12, '0').slice(-12)
+          } else if (barcodeFormat === 'ITF14' && barcodeValue.length !== 14) {
+            barcodeValue = barcodeValue.padStart(14, '0').slice(-14)
+          }
         }
 
         const label = {

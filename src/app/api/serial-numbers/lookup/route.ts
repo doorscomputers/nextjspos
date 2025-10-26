@@ -79,6 +79,55 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
+        sale: {
+          select: {
+            id: true,
+            invoiceNumber: true,
+            saleDate: true,
+            totalAmount: true,
+            customer: {
+              select: {
+                id: true,
+                name: true,
+                mobile: true,
+                email: true,
+              },
+            },
+          },
+        },
+        warrantyClaims: {
+          where: { deletedAt: null },
+          orderBy: { claimDate: 'desc' },
+          include: {
+            location: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            assignedTechnician: {
+              select: {
+                id: true,
+                employee: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    employeeCode: true,
+                  },
+                },
+              },
+            },
+            jobOrders: {
+              select: {
+                id: true,
+                jobOrderNumber: true,
+                status: true,
+                totalCost: true,
+                completedAt: true,
+              },
+            },
+          },
+        },
       },
     })
 
@@ -100,6 +149,12 @@ export async function GET(request: NextRequest) {
     const warrantyExpired = serialRecord.warrantyEndDate
       ? serialRecord.warrantyEndDate < new Date()
       : false
+
+    // Count warranty claims
+    const totalClaims = serialRecord.warrantyClaims.length
+    const activeClaims = serialRecord.warrantyClaims.filter(c =>
+      ['pending', 'accepted', 'under_inspection', 'diagnosed', 'approved', 'job_order_created'].includes(c.status)
+    ).length
 
     // Return simplified response
     return NextResponse.json({
@@ -153,7 +208,12 @@ export async function GET(request: NextRequest) {
         } : null,
 
         // Sale info (if sold)
-        saleInfo: serialRecord.status === 'sold' ? {
+        saleInfo: serialRecord.sale ? {
+          invoiceNumber: serialRecord.sale.invoiceNumber,
+          saleDate: serialRecord.sale.saleDate,
+          totalAmount: Number(serialRecord.sale.totalAmount),
+          customer: serialRecord.sale.customer,
+        } : serialRecord.status === 'sold' ? {
           soldAt: serialRecord.soldAt,
           soldTo: serialRecord.soldTo,
           salePrice: serialRecord.salePrice,
@@ -161,6 +221,35 @@ export async function GET(request: NextRequest) {
 
         // Purchase cost
         purchaseCost: serialRecord.purchaseCost,
+
+        // Warranty claim history
+        warrantyClaims: serialRecord.warrantyClaims.map(claim => ({
+          id: claim.id,
+          claimNumber: claim.claimNumber,
+          claimDate: claim.claimDate,
+          status: claim.status,
+          issueDescription: claim.issueDescription,
+          claimType: claim.claimType,
+          priority: claim.priority,
+          location: claim.location,
+          technician: claim.assignedTechnician ? {
+            id: claim.assignedTechnician.id,
+            name: `${claim.assignedTechnician.employee.firstName} ${claim.assignedTechnician.employee.lastName}`,
+            code: claim.assignedTechnician.employee.employeeCode,
+          } : null,
+          laborCost: claim.laborCost ? Number(claim.laborCost) : null,
+          partsCost: claim.partsCost ? Number(claim.partsCost) : null,
+          totalCost: claim.totalCost ? Number(claim.totalCost) : null,
+          jobOrders: claim.jobOrders.map(job => ({
+            id: job.id,
+            jobOrderNumber: job.jobOrderNumber,
+            status: job.status,
+            totalCost: Number(job.totalCost),
+            completedAt: job.completedAt,
+          })),
+        })),
+        totalWarrantyClaims: totalClaims,
+        activeWarrantyClaims: activeClaims,
       },
     })
 
