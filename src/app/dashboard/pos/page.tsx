@@ -14,6 +14,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { hasPermission, PERMISSIONS, type RBACUser } from '@/lib/rbac'
 import SalesInvoicePrint from '@/components/SalesInvoicePrint'
 import { apiPost, isConnectionOnline, getOfflineQueueLength } from '@/lib/client/apiClient'
+import SerialNumberSelector from '@/components/SerialNumberSelector'
+import ARPaymentCollectionModal from '@/components/ARPaymentCollectionModal'
 
 export default function POSEnhancedPage() {
   const { data: session } = useSession()
@@ -61,6 +63,7 @@ export default function POSEnhancedPage() {
   // Dialog States
   const [showCashInDialog, setShowCashInDialog] = useState(false)
   const [showCashOutDialog, setShowCashOutDialog] = useState(false)
+  const [showARPaymentDialog, setShowARPaymentDialog] = useState(false)
   const [showQuotationDialog, setShowQuotationDialog] = useState(false)
   const [showSavedQuotations, setShowSavedQuotations] = useState(false)
   const [showHoldDialog, setShowHoldDialog] = useState(false)
@@ -69,6 +72,10 @@ export default function POSEnhancedPage() {
   const [showDigitalPaymentDialog, setShowDigitalPaymentDialog] = useState(false)
   const [showNewCustomerDialog, setShowNewCustomerDialog] = useState(false)
   const [showCameraDialog, setShowCameraDialog] = useState(false)
+
+  // Serial Number State
+  const [showSerialNumberDialog, setShowSerialNumberDialog] = useState(false)
+  const [serialNumberCartIndex, setSerialNumberCartIndex] = useState<number | null>(null)
 
   // Cash In/Out State
   const [cashIOAmount, setCashIOAmount] = useState('')
@@ -565,7 +572,21 @@ export default function POSEnhancedPage() {
     }
   }
 
-  const addToCart = (product: any, isFreebie: boolean = false) => {
+  // Check if product has serial numbers in stock
+  const checkHasSerialNumbers = async (productId: number, variationId: number, locationId: number): Promise<boolean> => {
+    try {
+      const response = await fetch(
+        `/api/serial-numbers/available?productId=${productId}&variationId=${variationId}&locationId=${locationId}`
+      )
+      const data = await response.json()
+      return data.success && data.data && data.data.length > 0
+    } catch (error) {
+      console.error('Error checking serial numbers:', error)
+      return false
+    }
+  }
+
+  const addToCart = async (product: any, isFreebie: boolean = false) => {
     const variation = product.variations?.[0]
     if (!variation) return
 
@@ -596,6 +617,9 @@ export default function POSEnhancedPage() {
       setQuantityMultiplier(null)
     }
 
+    // Check if product has serial numbers
+    const hasSerials = await checkHasSerialNumbers(product.id, variation.id, currentShift?.locationId)
+
     if (existingIndex >= 0) {
       const newCart = [...cart]
       const newQuantity = newCart[existingIndex].quantity + qtyToAdd
@@ -608,6 +632,11 @@ export default function POSEnhancedPage() {
       }
 
       newCart[existingIndex].quantity = newQuantity
+      // Reset serial numbers if quantity changes
+      if (hasSerials) {
+        newCart[existingIndex].serialNumberIds = []
+        newCart[existingIndex].serialNumbers = []
+      }
       setCart(newCart)
     } else {
       // Check if initial quantity exceeds available stock
@@ -629,8 +658,9 @@ export default function POSEnhancedPage() {
           quantity: qtyToAdd,
           availableStock: availableStock, // Store available stock
           isFreebie,
-          requiresSerial: false,
+          requiresSerial: hasSerials,
           serialNumberIds: [],
+          serialNumbers: [], // Store full serial number objects
         },
       ])
     }
@@ -638,6 +668,22 @@ export default function POSEnhancedPage() {
 
   const addFreebieToCart = (product: any) => {
     addToCart(product, true)
+  }
+
+  // Handle serial number selection
+  const handleOpenSerialDialog = (cartIndex: number) => {
+    setSerialNumberCartIndex(cartIndex)
+    setShowSerialNumberDialog(true)
+  }
+
+  const handleSerialNumberConfirm = (selectedIds: number[], selectedSerials: any[]) => {
+    if (serialNumberCartIndex === null) return
+
+    const newCart = [...cart]
+    newCart[serialNumberCartIndex].serialNumberIds = selectedIds
+    newCart[serialNumberCartIndex].serialNumbers = selectedSerials
+    setCart(newCart)
+    setSerialNumberCartIndex(null)
   }
 
   const removeFromCart = (index: number) => {
@@ -662,6 +708,13 @@ export default function POSEnhancedPage() {
 
     const newCart = [...cart]
     newCart[index].quantity = quantity
+
+    // Reset serial numbers if quantity changes and product requires serials
+    if (item.requiresSerial && item.serialNumberIds.length !== quantity) {
+      newCart[index].serialNumberIds = []
+      newCart[index].serialNumbers = []
+    }
+
     setCart(newCart)
   }
 
@@ -1276,6 +1329,15 @@ export default function POSEnhancedPage() {
       }
     }
 
+    // Validate serial numbers for items that require them
+    const itemsNeedingSerials = cart.filter(item => item.requiresSerial)
+    for (const item of itemsNeedingSerials) {
+      if (!item.serialNumberIds || item.serialNumberIds.length !== item.quantity) {
+        setError(`Please select ${item.quantity} serial number(s) for "${item.name}"`)
+        return
+      }
+    }
+
     setLoading(true)
     setIsSubmitting(true) // Lock to prevent double submission
     setError('')
@@ -1323,6 +1385,8 @@ export default function POSEnhancedPage() {
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           isFreebie: item.isFreebie,
+          requiresSerial: item.requiresSerial || false,
+          serialNumberIds: item.serialNumberIds || [],
         })),
         payments,
         discountAmount: discountAmt,
@@ -1586,6 +1650,16 @@ export default function POSEnhancedPage() {
               <span className="text-sm font-bold leading-tight">Cash <u>O</u>ut</span>
             </Button>
 
+            {/* AR Payment Collection Button */}
+            <Button
+              onClick={() => setShowARPaymentDialog(true)}
+              className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded-lg font-bold flex flex-row items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg h-[50px]"
+              title="Collect Accounts Receivable Payment"
+            >
+              <span className="text-2xl leading-none">💳</span>
+              <span className="text-sm font-bold leading-tight">AR Pay</span>
+            </Button>
+
             {/* Save Button */}
             <Button
               onClick={() => {
@@ -1789,58 +1863,94 @@ export default function POSEnhancedPage() {
                 {cart.map((item, index) => (
                   <div
                     key={index}
-                    className="flex items-center gap-1 p-1 bg-gray-50 rounded border text-xs"
+                    className="flex flex-col gap-1 p-2 bg-gray-50 rounded border text-xs"
                   >
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-xs truncate">
-                        {item.name}
-                        {item.isFreebie && (
-                          <span className="ml-1 text-[10px] bg-green-500 text-white px-1 py-0.5 rounded">
-                            FREE
-                          </span>
+                    <div className="flex items-center gap-1">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-xs truncate">
+                          {item.name}
+                          {item.isFreebie && (
+                            <span className="ml-1 text-[10px] bg-green-500 text-white px-1 py-0.5 rounded">
+                              FREE
+                            </span>
+                          )}
+                          {item.requiresSerial && (
+                            <span className="ml-1 text-[10px] bg-blue-500 text-white px-1 py-0.5 rounded">
+                              SERIAL
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-xs font-semibold text-gray-700">
+                          ₱{item.unitPrice.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × {item.quantity}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-0.5">
+                        <Button
+                          size="sm"
+                          className="h-7 w-7 p-0 text-xs bg-red-500 hover:bg-red-600 text-white font-bold rounded shadow"
+                          onClick={() => updateQuantity(index, item.quantity - 1)}
+                        >
+                          −
+                        </Button>
+                        <Input
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            updateQuantity(index, parseInt(e.target.value) || 1)
+                          }
+                          className="w-20 text-center h-7 text-base font-black border-2 border-blue-400 rounded bg-white text-gray-900 px-1"
+                        />
+                        <Button
+                          size="sm"
+                          className="h-7 w-7 p-0 text-xs bg-green-500 hover:bg-green-600 text-white font-bold rounded shadow"
+                          onClick={() => updateQuantity(index, item.quantity + 1)}
+                        >
+                          +
+                        </Button>
+                      </div>
+                      <div className="text-right w-20">
+                        <p className="font-bold text-xs">
+                          ₱{(item.unitPrice * item.quantity).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-500 h-6 w-6 p-0"
+                        onClick={() => removeFromCart(index)}
+                      >
+                        ×
+                      </Button>
+                    </div>
+
+                    {/* Serial Number Selection */}
+                    {item.requiresSerial && (
+                      <div className="mt-1 pt-1 border-t">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={`w-full text-xs h-7 ${
+                            item.serialNumberIds.length === item.quantity
+                              ? 'bg-green-50 border-green-500 text-green-700'
+                              : 'bg-yellow-50 border-yellow-500 text-yellow-700'
+                          }`}
+                          onClick={() => handleOpenSerialDialog(index)}
+                        >
+                          {item.serialNumberIds.length === item.quantity ? (
+                            <>✓ {item.serialNumberIds.length} Serial(s) Selected</>
+                          ) : (
+                            <>⚠ Select {item.quantity} Serial Number(s)</>
+                          )}
+                        </Button>
+                        {item.serialNumbers && item.serialNumbers.length > 0 && (
+                          <div className="mt-1 text-[10px] text-gray-600">
+                            {item.serialNumbers.map((sn: any, idx: number) => (
+                              <div key={idx} className="truncate">• {sn.serialNumber}</div>
+                            ))}
+                          </div>
                         )}
-                      </p>
-                      <p className="text-xs font-semibold text-gray-700">
-                        ₱{item.unitPrice.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × {item.quantity}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-0.5">
-                      <Button
-                        size="sm"
-                        className="h-7 w-7 p-0 text-xs bg-red-500 hover:bg-red-600 text-white font-bold rounded shadow"
-                        onClick={() => updateQuantity(index, item.quantity - 1)}
-                      >
-                        −
-                      </Button>
-                      <Input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          updateQuantity(index, parseInt(e.target.value) || 1)
-                        }
-                        className="w-20 text-center h-7 text-base font-black border-2 border-blue-400 rounded bg-white text-gray-900 px-1"
-                      />
-                      <Button
-                        size="sm"
-                        className="h-7 w-7 p-0 text-xs bg-green-500 hover:bg-green-600 text-white font-bold rounded shadow"
-                        onClick={() => updateQuantity(index, item.quantity + 1)}
-                      >
-                        +
-                      </Button>
-                    </div>
-                    <div className="text-right w-20">
-                      <p className="font-bold text-xs">
-                        ₱{(item.unitPrice * item.quantity).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-red-500 h-6 w-6 p-0"
-                      onClick={() => removeFromCart(index)}
-                    >
-                      ×
-                    </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -2440,6 +2550,19 @@ export default function POSEnhancedPage() {
         </DialogContent>
       </Dialog>
 
+      {/* AR Payment Collection Modal */}
+      {currentShift && (
+        <ARPaymentCollectionModal
+          isOpen={showARPaymentDialog}
+          onClose={() => setShowARPaymentDialog(false)}
+          shiftId={currentShift.id}
+          onPaymentSuccess={() => {
+            // Refresh today's sales or any other data if needed
+            fetchTodaysSales()
+          }}
+        />
+      )}
+
       {/* Save Quotation Dialog */}
       <Dialog open={showQuotationDialog} onOpenChange={setShowQuotationDialog}>
         <DialogContent>
@@ -2624,6 +2747,24 @@ export default function POSEnhancedPage() {
             setShowInvoice(false)
             setCompletedSale(null)
           }}
+        />
+      )}
+
+      {/* Serial Number Selector Dialog */}
+      {showSerialNumberDialog && serialNumberCartIndex !== null && (
+        <SerialNumberSelector
+          open={showSerialNumberDialog}
+          onClose={() => {
+            setShowSerialNumberDialog(false)
+            setSerialNumberCartIndex(null)
+          }}
+          productId={cart[serialNumberCartIndex]?.productId}
+          variationId={cart[serialNumberCartIndex]?.productVariationId}
+          locationId={currentShift?.locationId}
+          productName={cart[serialNumberCartIndex]?.name}
+          quantityRequired={cart[serialNumberCartIndex]?.quantity}
+          onConfirm={handleSerialNumberConfirm}
+          preselectedIds={cart[serialNumberCartIndex]?.serialNumberIds || []}
         />
       )}
     </div>

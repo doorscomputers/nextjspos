@@ -43,7 +43,7 @@ export async function POST(
 
     // 3. Parse request body
     const body = await request.json()
-    const { amount, paymentMethod, referenceNumber, paymentDate } = body
+    const { amount, paymentMethod, referenceNumber, paymentDate, shiftId } = body
 
     // 4. Validation
     if (!amount || amount <= 0) {
@@ -133,6 +133,9 @@ export async function POST(
         amount,
         referenceNumber: referenceNumber || null,
         paidAt,
+        // Link to shift if payment collected at POS (AR Payment Collection)
+        shiftId: shiftId ? parseInt(shiftId) : null,
+        collectedBy: shiftId ? user.id : null, // Only set collectedBy if collected during a shift
       },
     })
 

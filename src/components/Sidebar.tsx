@@ -36,6 +36,8 @@ import {
   CalendarIcon,
   BellAlertIcon,
   PrinterIcon,
+  WrenchScrewdriverIcon,
+  DocumentMagnifyingGlassIcon,
 } from "@heroicons/react/24/outline"
 
 interface MenuItem {
@@ -67,6 +69,7 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
     "Security & Audit": false,
     "HR & Attendance": false,
     "Returns Management": false,
+    "Technical Services": false,
     "Accounting": false,
     "Administration": false,
     "Expenses": false,
@@ -979,6 +982,84 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           href: "/dashboard/location-changes",
           icon: TruckIcon,
           permission: PERMISSIONS.LOCATION_CHANGE_REQUEST_VIEW,
+        },
+      ],
+    },
+
+    // ========== TECHNICAL SERVICES ==========
+    {
+      name: "Technical Services",
+      href: "/dashboard/technical",
+      icon: WrenchScrewdriverIcon,
+      permission: PERMISSIONS.WARRANTY_CLAIM_VIEW,
+      children: [
+        {
+          name: "Dashboard",
+          href: "/dashboard/technical",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.WARRANTY_CLAIM_VIEW,
+        },
+        {
+          name: "Warranty Claims",
+          href: "/dashboard/technical/warranty-claims",
+          icon: ShieldCheckIcon,
+          permission: PERMISSIONS.WARRANTY_CLAIM_VIEW,
+        },
+        {
+          name: "Job Orders",
+          href: "/dashboard/technical/job-orders",
+          icon: ClipboardDocumentListIcon,
+          permission: PERMISSIONS.JOB_ORDER_VIEW,
+        },
+        {
+          name: "Serial Number Lookup",
+          href: "/dashboard/technical/serial-lookup",
+          icon: DocumentMagnifyingGlassIcon,
+          permission: PERMISSIONS.SERIAL_NUMBER_VIEW,
+        },
+        {
+          name: "Technicians",
+          href: "/dashboard/technical/technicians",
+          icon: UserGroupIcon,
+          permission: PERMISSIONS.TECHNICIAN_VIEW,
+        },
+        {
+          name: "Service Types",
+          href: "/dashboard/technical/service-types",
+          icon: CogIcon,
+          permission: PERMISSIONS.WARRANTY_CLAIM_VIEW,
+        },
+        {
+          name: "Service Payments",
+          href: "/dashboard/technical/payments",
+          icon: CurrencyDollarIcon,
+          permission: PERMISSIONS.WARRANTY_CLAIM_VIEW,
+        },
+        {
+          name: "Reports",
+          href: "#",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.WARRANTY_CLAIM_VIEW,
+          children: [
+            {
+              name: "Technician Performance",
+              href: "/dashboard/technical/reports/technician-performance",
+              icon: ChartBarIcon,
+              permission: PERMISSIONS.TECHNICIAN_PERFORMANCE_VIEW,
+            },
+            {
+              name: "Service Analytics",
+              href: "/dashboard/technical/reports/analytics",
+              icon: ChartBarIcon,
+              permission: PERMISSIONS.WARRANTY_CLAIM_VIEW,
+            },
+            {
+              name: "Warranty Claims Report",
+              href: "/dashboard/technical/reports/warranty-claims",
+              icon: DocumentTextIcon,
+              permission: PERMISSIONS.WARRANTY_CLAIM_VIEW,
+            },
+          ],
         },
       ],
     },

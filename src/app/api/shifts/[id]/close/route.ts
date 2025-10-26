@@ -156,6 +156,21 @@ export async function POST(
       }
     }
 
+    // Add AR payments collected during this shift (cash only)
+    const arPayments = await prisma.salePayment.findMany({
+      where: {
+        shiftId: shift.id,
+        paymentMethod: 'cash'
+      }
+    })
+
+    const arPaymentsCash = arPayments.reduce(
+      (sum, payment) => sum + parseFloat(payment.amount.toString()),
+      0
+    )
+
+    systemCash = systemCash.plus(arPaymentsCash)
+
     // Calculate over/short
     const endingCashDecimal = parseFloat(endingCash)
     const variance = endingCashDecimal - parseFloat(systemCash.toString())

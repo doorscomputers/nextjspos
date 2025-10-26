@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { isAccountingEnabled, recordSupplierPayment } from '@/lib/accountingIntegration'
 
 // GET - List all payments
 export async function GET(request: NextRequest) {
@@ -397,6 +398,26 @@ export async function POST(request: NextRequest) {
       ipAddress: getIpAddress(request),
       userAgent: getUserAgent(request),
     })
+
+    // ACCOUNTING INTEGRATION: Create journal entries if accounting is enabled
+    if (await isAccountingEnabled(parseInt(businessId))) {
+      try {
+        await recordSupplierPayment({
+          businessId: parseInt(businessId),
+          userId: parseInt(userId),
+          paymentId: payment.id,
+          paymentDate: new Date(paymentDate),
+          amount: parseFloat(amount),
+          referenceNumber: paymentNumber,
+          supplierId: parseInt(supplierId)
+        })
+        console.log(`[Accounting] Supplier payment journal entry created for payment ${paymentNumber}`)
+      } catch (accountingError) {
+        // Log accounting errors but don't fail the payment
+        console.error('[Accounting] Failed to create journal entry for supplier payment:', accountingError)
+        // Payment still succeeds even if accounting integration fails
+      }
+    }
 
     // Fetch complete payment with relations
     const completePayment = await prisma.payment.findUnique({

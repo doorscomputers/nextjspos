@@ -31,6 +31,7 @@ export interface XReadingData {
   paymentBreakdown: Record<string, number>
   cashIn: number
   cashOut: number
+  arPaymentsCash: number // AR payments collected (cash only)
   expectedCash: number
   discountBreakdown: {
     senior: number
@@ -82,6 +83,7 @@ export interface ZReadingData {
     cashShort: number
     cashIn: number
     cashOut: number
+    arPaymentsCash: number // AR payments collected (cash only)
     cashInCount: number
     cashOutCount: number
   }
@@ -215,12 +217,26 @@ export async function generateXReadingData(
     .filter(r => r.type === 'cash_out')
     .reduce((sum, r) => sum + parseFloat(r.amount.toString()), 0)
 
+  // AR Payments collected during this shift (cash only)
+  const arPayments = await prisma.salePayment.findMany({
+    where: {
+      shiftId: shift.id,
+      paymentMethod: 'cash'
+    }
+  })
+
+  const arPaymentsCash = arPayments.reduce(
+    (sum, payment) => sum + parseFloat(payment.amount.toString()),
+    0
+  )
+
   // Expected cash in drawer
   const expectedCash =
     parseFloat(shift.beginningCash.toString()) +
     (paymentBreakdown['cash'] || 0) +
     cashIn -
-    cashOut
+    cashOut +
+    arPaymentsCash
 
   // Increment X Reading count if requested
   const currentXReadingCount = shift.xReadingCount
@@ -255,6 +271,7 @@ export async function generateXReadingData(
     paymentBreakdown,
     cashIn,
     cashOut,
+    arPaymentsCash,
     expectedCash,
     discountBreakdown: {
       senior: completedSales
@@ -437,6 +454,19 @@ export async function generateZReadingData(
     .filter(r => r.type === 'cash_out')
     .reduce((sum, r) => sum + parseFloat(r.amount.toString()), 0)
 
+  // AR Payments collected during this shift (cash only)
+  const arPaymentsZ = await prisma.salePayment.findMany({
+    where: {
+      shiftId: shift.id,
+      paymentMethod: 'cash'
+    }
+  })
+
+  const arPaymentsCashZ = arPaymentsZ.reduce(
+    (sum, payment) => sum + parseFloat(payment.amount.toString()),
+    0
+  )
+
   // Get cash denomination if available
   const cashDenomination = shift.cashDenominations[0] || null
 
@@ -480,6 +510,7 @@ export async function generateZReadingData(
       cashShort: shift.cashShort ? parseFloat(shift.cashShort.toString()) : 0,
       cashIn,
       cashOut,
+      arPaymentsCash: arPaymentsCashZ,
       cashInCount: shift.cashInOutRecords.filter(r => r.type === 'cash_in').length,
       cashOutCount: shift.cashInOutRecords.filter(r => r.type === 'cash_out').length,
     },
