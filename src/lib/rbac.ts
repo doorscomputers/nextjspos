@@ -492,6 +492,77 @@ export const PERMISSIONS = {
   SUPERADMIN_SUBSCRIPTION_CREATE: 'superadmin.subscription.create',
   SUPERADMIN_SUBSCRIPTION_UPDATE: 'superadmin.subscription.update',
   SUPERADMIN_SUBSCRIPTION_DELETE: 'superadmin.subscription.delete',
+
+  // ========== TECHNICAL SERVICE & WARRANTY MANAGEMENT ==========
+
+  // Serial Number Management (Product-Level Serial Tracking)
+  SERIAL_NUMBER_CREATE: 'serial_number.create', // Register new serial numbers
+  SERIAL_NUMBER_EDIT: 'serial_number.edit', // Edit serial number details
+  SERIAL_NUMBER_DELETE: 'serial_number.delete', // Delete serial numbers (pre-sale only)
+  SERIAL_NUMBER_LOOKUP: 'serial_number.lookup', // Search and lookup serial numbers
+  SERIAL_NUMBER_ASSIGN: 'serial_number.assign', // Assign serial to customer via sale
+  SERIAL_NUMBER_TRANSFER: 'serial_number.transfer', // Transfer serial between locations
+
+  // Technical Service Employees (Technicians)
+  TECHNICIAN_VIEW: 'technician.view', // View technician list
+  TECHNICIAN_CREATE: 'technician.create', // Add new technicians
+  TECHNICIAN_EDIT: 'technician.edit', // Edit technician info
+  TECHNICIAN_DELETE: 'technician.delete', // Remove technicians
+  TECHNICIAN_ASSIGN: 'technician.assign', // Assign technicians to jobs
+  TECHNICIAN_PERFORMANCE_VIEW: 'technician.performance.view', // View performance metrics
+
+  // Service Types (Repair Categories & Pricing)
+  SERVICE_TYPE_VIEW: 'service_type.view', // View service type list
+  SERVICE_TYPE_CREATE: 'service_type.create', // Create service types
+  SERVICE_TYPE_EDIT: 'service_type.edit', // Edit service types
+  SERVICE_TYPE_DELETE: 'service_type.delete', // Delete service types
+  SERVICE_TYPE_PRICING_MANAGE: 'service_type.pricing.manage', // Manage service pricing
+
+  // Service Warranty Claims (Customer Warranty Requests)
+  WARRANTY_CLAIM_VIEW: 'warranty_claim.view', // View all warranty claims
+  WARRANTY_CLAIM_VIEW_OWN: 'warranty_claim.view_own', // View own submitted claims
+  WARRANTY_CLAIM_CREATE: 'warranty_claim.create', // Create new warranty claim
+  WARRANTY_CLAIM_ACCEPT: 'warranty_claim.accept', // Accept claim for processing (reception)
+  WARRANTY_CLAIM_INSPECT: 'warranty_claim.inspect', // Conduct inspection/diagnosis
+  WARRANTY_CLAIM_ASSIGN: 'warranty_claim.assign', // Assign technician to claim
+  WARRANTY_CLAIM_APPROVE: 'warranty_claim.approve', // Approve warranty claim (honor warranty)
+  WARRANTY_CLAIM_REJECT: 'warranty_claim.reject', // Reject warranty claim (decline warranty)
+  WARRANTY_CLAIM_UPDATE: 'warranty_claim.update', // Update claim details
+  WARRANTY_CLAIM_DELETE: 'warranty_claim.delete', // Delete warranty claim
+  WARRANTY_CLAIM_VOID: 'warranty_claim.void', // Void processed claim
+
+  // Repair Job Orders (Work Orders for Repairs)
+  JOB_ORDER_VIEW: 'job_order.view', // View all job orders
+  JOB_ORDER_VIEW_OWN: 'job_order.view_own', // View own assigned jobs (technicians)
+  JOB_ORDER_CREATE: 'job_order.create', // Create new job order
+  JOB_ORDER_EDIT: 'job_order.edit', // Edit job order details
+  JOB_ORDER_DELETE: 'job_order.delete', // Delete job order
+  JOB_ORDER_DIAGNOSE: 'job_order.diagnose', // Update diagnosis/findings
+  JOB_ORDER_ADD_PARTS: 'job_order.add_parts', // Add parts to job order
+  JOB_ORDER_ESTIMATE: 'job_order.estimate', // Provide cost estimate
+  JOB_ORDER_APPROVE_ESTIMATE: 'job_order.approve_estimate', // Customer approves estimate
+  JOB_ORDER_START_REPAIR: 'job_order.start_repair', // Begin repair work
+  JOB_ORDER_COMPLETE: 'job_order.complete', // Mark repair complete
+  JOB_ORDER_QUALITY_CHECK: 'job_order.quality_check', // Conduct quality inspection
+  JOB_ORDER_CLOSE: 'job_order.close', // Close job order (final)
+  JOB_ORDER_REOPEN: 'job_order.reopen', // Reopen closed job order
+
+  // Service Payments (Payment for Repairs)
+  SERVICE_PAYMENT_VIEW: 'service_payment.view', // View service payments
+  SERVICE_PAYMENT_CREATE: 'service_payment.create', // Process service payment
+  SERVICE_PAYMENT_VOID: 'service_payment.void', // Void service payment
+  SERVICE_PAYMENT_REFUND: 'service_payment.refund', // Refund service payment
+  SERVICE_RECEIPT_PRINT: 'service_receipt.print', // Print service receipt
+
+  // Service Reports & Analytics
+  SERVICE_REPORT_VIEW: 'service_report.view', // View service reports
+  SERVICE_REPORT_EXPORT: 'service_report.export', // Export service reports
+  SERVICE_WARRANTY_SLIP_VIEW: 'service_warranty_slip.view', // View warranty slip
+  SERVICE_WARRANTY_SLIP_PRINT: 'service_warranty_slip.print', // Print warranty slip
+  TECHNICIAN_PERFORMANCE_REPORT: 'technician.performance.report', // Technician performance report
+  REPAIR_ANALYTICS_VIEW: 'repair_analytics.view', // Repair analytics dashboard
+  SERVICE_REVENUE_REPORT: 'service_revenue.report', // Service revenue reporting
+  WARRANTY_ANALYTICS_VIEW: 'warranty_analytics.view', // Warranty claim analytics
 } as const
 
 /**
@@ -595,9 +666,9 @@ export const DEFAULT_ROLES = {
 
   SYSTEM_ADMINISTRATOR: {
     name: 'System Administrator',
-    description: 'Full system access - platform owner/super admin',
+    description: 'Full system access - platform owner/super admin with all technical service permissions',
     category: 'Administrative',
-    permissions: Object.values(PERMISSIONS), // Has ALL permissions
+    permissions: Object.values(PERMISSIONS), // Has ALL permissions including technical service
   },
 
   USER_MANAGER: {
@@ -1863,6 +1934,68 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.LOCATION_CHANGE_REQUEST_VIEW,
       PERMISSIONS.LOCATION_CHANGE_REQUEST_APPROVE,
       PERMISSIONS.LOCATION_CHANGE_REQUEST_REJECT,
+
+      // Technical Service & Warranty Management - Full Access
+      PERMISSIONS.SERIAL_NUMBER_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_CREATE,
+      PERMISSIONS.SERIAL_NUMBER_EDIT,
+      PERMISSIONS.SERIAL_NUMBER_LOOKUP,
+      PERMISSIONS.SERIAL_NUMBER_ASSIGN,
+      PERMISSIONS.SERIAL_NUMBER_TRACK,
+      PERMISSIONS.SERIAL_NUMBER_SCAN,
+      PERMISSIONS.SERIAL_NUMBER_TRANSFER,
+
+      // Technician Management
+      PERMISSIONS.TECHNICIAN_VIEW,
+      PERMISSIONS.TECHNICIAN_CREATE,
+      PERMISSIONS.TECHNICIAN_EDIT,
+      PERMISSIONS.TECHNICIAN_ASSIGN,
+      PERMISSIONS.TECHNICIAN_PERFORMANCE_VIEW,
+
+      // Service Types
+      PERMISSIONS.SERVICE_TYPE_VIEW,
+      PERMISSIONS.SERVICE_TYPE_CREATE,
+      PERMISSIONS.SERVICE_TYPE_EDIT,
+      PERMISSIONS.SERVICE_TYPE_PRICING_MANAGE,
+
+      // Warranty Claims - View & Approve/Reject
+      PERMISSIONS.WARRANTY_CLAIM_VIEW,
+      PERMISSIONS.WARRANTY_CLAIM_CREATE,
+      PERMISSIONS.WARRANTY_CLAIM_ACCEPT,
+      PERMISSIONS.WARRANTY_CLAIM_INSPECT,
+      PERMISSIONS.WARRANTY_CLAIM_ASSIGN,
+      PERMISSIONS.WARRANTY_CLAIM_APPROVE,
+      PERMISSIONS.WARRANTY_CLAIM_REJECT,
+      PERMISSIONS.WARRANTY_CLAIM_UPDATE,
+
+      // Job Orders - View & Approve
+      PERMISSIONS.JOB_ORDER_VIEW,
+      PERMISSIONS.JOB_ORDER_CREATE,
+      PERMISSIONS.JOB_ORDER_EDIT,
+      PERMISSIONS.JOB_ORDER_DIAGNOSE,
+      PERMISSIONS.JOB_ORDER_ADD_PARTS,
+      PERMISSIONS.JOB_ORDER_ESTIMATE,
+      PERMISSIONS.JOB_ORDER_APPROVE_ESTIMATE,
+      PERMISSIONS.JOB_ORDER_START_REPAIR,
+      PERMISSIONS.JOB_ORDER_COMPLETE,
+      PERMISSIONS.JOB_ORDER_QUALITY_CHECK,
+      PERMISSIONS.JOB_ORDER_CLOSE,
+      PERMISSIONS.JOB_ORDER_REOPEN,
+
+      // Service Payments
+      PERMISSIONS.SERVICE_PAYMENT_VIEW,
+      PERMISSIONS.SERVICE_PAYMENT_CREATE,
+      PERMISSIONS.SERVICE_RECEIPT_PRINT,
+
+      // Service Reports
+      PERMISSIONS.SERVICE_REPORT_VIEW,
+      PERMISSIONS.SERVICE_REPORT_EXPORT,
+      PERMISSIONS.SERVICE_WARRANTY_SLIP_VIEW,
+      PERMISSIONS.SERVICE_WARRANTY_SLIP_PRINT,
+      PERMISSIONS.TECHNICIAN_PERFORMANCE_REPORT,
+      PERMISSIONS.REPAIR_ANALYTICS_VIEW,
+      PERMISSIONS.SERVICE_REVENUE_REPORT,
+      PERMISSIONS.WARRANTY_ANALYTICS_VIEW,
     ],
   },
 
@@ -2090,6 +2223,378 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.X_READING,
       PERMISSIONS.Z_READING, // CRITICAL: Cashiers MUST generate Z Reading when closing shifts (BIR compliance)
       PERMISSIONS.VOID_CREATE,
+    ],
+  },
+
+  // ============================================
+  // CATEGORY 11: TECHNICAL SERVICE & WARRANTY ROLES
+  // ============================================
+
+  TECHNICAL_SERVICE_MANAGER: {
+    name: 'Technical Service Manager',
+    description: 'Full access to all technical service and warranty operations',
+    category: 'Technical Service',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+
+      // Product & Serial Number Access
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_CREATE,
+      PERMISSIONS.SERIAL_NUMBER_EDIT,
+      PERMISSIONS.SERIAL_NUMBER_DELETE,
+      PERMISSIONS.SERIAL_NUMBER_LOOKUP,
+      PERMISSIONS.SERIAL_NUMBER_ASSIGN,
+      PERMISSIONS.SERIAL_NUMBER_TRACK,
+      PERMISSIONS.SERIAL_NUMBER_SCAN,
+      PERMISSIONS.SERIAL_NUMBER_TRANSFER,
+
+      // Technician Management - Full CRUD
+      PERMISSIONS.TECHNICIAN_VIEW,
+      PERMISSIONS.TECHNICIAN_CREATE,
+      PERMISSIONS.TECHNICIAN_EDIT,
+      PERMISSIONS.TECHNICIAN_DELETE,
+      PERMISSIONS.TECHNICIAN_ASSIGN,
+      PERMISSIONS.TECHNICIAN_PERFORMANCE_VIEW,
+
+      // Service Type Management - Full CRUD
+      PERMISSIONS.SERVICE_TYPE_VIEW,
+      PERMISSIONS.SERVICE_TYPE_CREATE,
+      PERMISSIONS.SERVICE_TYPE_EDIT,
+      PERMISSIONS.SERVICE_TYPE_DELETE,
+      PERMISSIONS.SERVICE_TYPE_PRICING_MANAGE,
+
+      // Warranty Claims - Full Access
+      PERMISSIONS.WARRANTY_CLAIM_VIEW,
+      PERMISSIONS.WARRANTY_CLAIM_CREATE,
+      PERMISSIONS.WARRANTY_CLAIM_ACCEPT,
+      PERMISSIONS.WARRANTY_CLAIM_INSPECT,
+      PERMISSIONS.WARRANTY_CLAIM_ASSIGN,
+      PERMISSIONS.WARRANTY_CLAIM_APPROVE,
+      PERMISSIONS.WARRANTY_CLAIM_REJECT,
+      PERMISSIONS.WARRANTY_CLAIM_UPDATE,
+      PERMISSIONS.WARRANTY_CLAIM_DELETE,
+      PERMISSIONS.WARRANTY_CLAIM_VOID,
+
+      // Job Orders - Full Access
+      PERMISSIONS.JOB_ORDER_VIEW,
+      PERMISSIONS.JOB_ORDER_CREATE,
+      PERMISSIONS.JOB_ORDER_EDIT,
+      PERMISSIONS.JOB_ORDER_DELETE,
+      PERMISSIONS.JOB_ORDER_DIAGNOSE,
+      PERMISSIONS.JOB_ORDER_ADD_PARTS,
+      PERMISSIONS.JOB_ORDER_ESTIMATE,
+      PERMISSIONS.JOB_ORDER_APPROVE_ESTIMATE,
+      PERMISSIONS.JOB_ORDER_START_REPAIR,
+      PERMISSIONS.JOB_ORDER_COMPLETE,
+      PERMISSIONS.JOB_ORDER_QUALITY_CHECK,
+      PERMISSIONS.JOB_ORDER_CLOSE,
+      PERMISSIONS.JOB_ORDER_REOPEN,
+
+      // Service Payments - Full Access
+      PERMISSIONS.SERVICE_PAYMENT_VIEW,
+      PERMISSIONS.SERVICE_PAYMENT_CREATE,
+      PERMISSIONS.SERVICE_PAYMENT_VOID,
+      PERMISSIONS.SERVICE_PAYMENT_REFUND,
+      PERMISSIONS.SERVICE_RECEIPT_PRINT,
+
+      // Service Reports - Full Access
+      PERMISSIONS.SERVICE_REPORT_VIEW,
+      PERMISSIONS.SERVICE_REPORT_EXPORT,
+      PERMISSIONS.SERVICE_WARRANTY_SLIP_VIEW,
+      PERMISSIONS.SERVICE_WARRANTY_SLIP_PRINT,
+      PERMISSIONS.TECHNICIAN_PERFORMANCE_REPORT,
+      PERMISSIONS.REPAIR_ANALYTICS_VIEW,
+      PERMISSIONS.SERVICE_REVENUE_REPORT,
+      PERMISSIONS.WARRANTY_ANALYTICS_VIEW,
+
+      // Customer Access (for warranty claims)
+      PERMISSIONS.CUSTOMER_VIEW,
+      PERMISSIONS.CUSTOMER_CREATE,
+      PERMISSIONS.CUSTOMER_UPDATE,
+
+      // Sales Access (to view original sale for warranty validation)
+      PERMISSIONS.SELL_VIEW,
+    ],
+  },
+
+  TECHNICIAN: {
+    name: 'Technician',
+    description: 'Performs repairs, diagnoses issues, and updates job orders',
+    category: 'Technical Service',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+
+      // Product & Serial Number - View & Scan
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_LOOKUP,
+      PERMISSIONS.SERIAL_NUMBER_SCAN,
+
+      // Warranty Claims - View & Inspect
+      PERMISSIONS.WARRANTY_CLAIM_VIEW_OWN,
+      PERMISSIONS.WARRANTY_CLAIM_VIEW,
+      PERMISSIONS.WARRANTY_CLAIM_INSPECT,
+
+      // Job Orders - View Own & Update Progress
+      PERMISSIONS.JOB_ORDER_VIEW_OWN,
+      PERMISSIONS.JOB_ORDER_VIEW,
+      PERMISSIONS.JOB_ORDER_DIAGNOSE,
+      PERMISSIONS.JOB_ORDER_ADD_PARTS,
+      PERMISSIONS.JOB_ORDER_ESTIMATE,
+      PERMISSIONS.JOB_ORDER_START_REPAIR,
+      PERMISSIONS.JOB_ORDER_COMPLETE,
+
+      // Service Types - View Only (reference for repairs)
+      PERMISSIONS.SERVICE_TYPE_VIEW,
+
+      // Customer - View Only
+      PERMISSIONS.CUSTOMER_VIEW,
+
+      // Own Performance Reports
+      PERMISSIONS.TECHNICIAN_PERFORMANCE_VIEW,
+    ],
+  },
+
+  SERVICE_CASHIER: {
+    name: 'Service Cashier',
+    description: 'Processes service payments, prints receipts and warranty slips',
+    category: 'Technical Service',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+
+      // Product & Serial Number - View & Lookup
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_LOOKUP,
+
+      // Warranty Claims - View Only
+      PERMISSIONS.WARRANTY_CLAIM_VIEW,
+      PERMISSIONS.WARRANTY_CLAIM_CREATE, // Can create claim on customer's behalf
+
+      // Job Orders - View Only
+      PERMISSIONS.JOB_ORDER_VIEW,
+
+      // Service Payments - Create & Print
+      PERMISSIONS.SERVICE_PAYMENT_VIEW,
+      PERMISSIONS.SERVICE_PAYMENT_CREATE,
+      PERMISSIONS.SERVICE_RECEIPT_PRINT,
+
+      // Warranty Slips - View & Print
+      PERMISSIONS.SERVICE_WARRANTY_SLIP_VIEW,
+      PERMISSIONS.SERVICE_WARRANTY_SLIP_PRINT,
+
+      // Service Types - View Only (for pricing reference)
+      PERMISSIONS.SERVICE_TYPE_VIEW,
+
+      // Customer Management
+      PERMISSIONS.CUSTOMER_VIEW,
+      PERMISSIONS.CUSTOMER_CREATE,
+      PERMISSIONS.CUSTOMER_UPDATE,
+
+      // Sales - View Only (for warranty validation)
+      PERMISSIONS.SELL_VIEW,
+
+      // Basic Service Reports
+      PERMISSIONS.SERVICE_REPORT_VIEW,
+    ],
+  },
+
+  WARRANTY_INSPECTOR: {
+    name: 'Warranty Inspector',
+    description: 'Inspects warranty claims and approves/rejects coverage',
+    category: 'Technical Service',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+
+      // Product & Serial Number Access
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_LOOKUP,
+      PERMISSIONS.SERIAL_NUMBER_TRACK,
+
+      // Warranty Claims - Inspect & Approve/Reject
+      PERMISSIONS.WARRANTY_CLAIM_VIEW,
+      PERMISSIONS.WARRANTY_CLAIM_ACCEPT,
+      PERMISSIONS.WARRANTY_CLAIM_INSPECT,
+      PERMISSIONS.WARRANTY_CLAIM_APPROVE,
+      PERMISSIONS.WARRANTY_CLAIM_REJECT,
+      PERMISSIONS.WARRANTY_CLAIM_UPDATE,
+
+      // Job Orders - View Only
+      PERMISSIONS.JOB_ORDER_VIEW,
+
+      // Service Types - View Only
+      PERMISSIONS.SERVICE_TYPE_VIEW,
+
+      // Customer - View Only
+      PERMISSIONS.CUSTOMER_VIEW,
+
+      // Sales - View Only (for warranty validation)
+      PERMISSIONS.SELL_VIEW,
+
+      // Product Warranty Info
+      PERMISSIONS.PRODUCT_WARRANTY_VIEW,
+
+      // Warranty Analytics
+      PERMISSIONS.WARRANTY_ANALYTICS_VIEW,
+      PERMISSIONS.SERVICE_REPORT_VIEW,
+    ],
+  },
+
+  SERVICE_RECEPTIONIST: {
+    name: 'Service Receptionist',
+    description: 'Receives warranty claims, creates job orders, and assigns technicians',
+    category: 'Technical Service',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+
+      // Product & Serial Number - View & Lookup
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_LOOKUP,
+
+      // Warranty Claims - Create & Accept
+      PERMISSIONS.WARRANTY_CLAIM_VIEW,
+      PERMISSIONS.WARRANTY_CLAIM_CREATE,
+      PERMISSIONS.WARRANTY_CLAIM_ACCEPT,
+      PERMISSIONS.WARRANTY_CLAIM_UPDATE,
+
+      // Job Orders - Create & Assign
+      PERMISSIONS.JOB_ORDER_VIEW,
+      PERMISSIONS.JOB_ORDER_CREATE,
+      PERMISSIONS.JOB_ORDER_EDIT,
+      PERMISSIONS.WARRANTY_CLAIM_ASSIGN, // Assign technicians
+
+      // Technician Management - View & Assign
+      PERMISSIONS.TECHNICIAN_VIEW,
+      PERMISSIONS.TECHNICIAN_ASSIGN,
+
+      // Service Types - View Only
+      PERMISSIONS.SERVICE_TYPE_VIEW,
+
+      // Customer Management
+      PERMISSIONS.CUSTOMER_VIEW,
+      PERMISSIONS.CUSTOMER_CREATE,
+      PERMISSIONS.CUSTOMER_UPDATE,
+
+      // Sales - View Only (for warranty validation)
+      PERMISSIONS.SELL_VIEW,
+
+      // Warranty Slips
+      PERMISSIONS.SERVICE_WARRANTY_SLIP_VIEW,
+      PERMISSIONS.SERVICE_WARRANTY_SLIP_PRINT,
+    ],
+  },
+
+  REPAIR_QUALITY_INSPECTOR: {
+    name: 'Repair Quality Inspector',
+    description: 'Conducts quality checks on completed repairs before delivery',
+    category: 'Technical Service',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+
+      // Product & Serial Number Access
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_LOOKUP,
+
+      // Warranty Claims - View Only
+      PERMISSIONS.WARRANTY_CLAIM_VIEW,
+
+      // Job Orders - View & Quality Check
+      PERMISSIONS.JOB_ORDER_VIEW,
+      PERMISSIONS.JOB_ORDER_QUALITY_CHECK,
+      PERMISSIONS.JOB_ORDER_CLOSE,
+      PERMISSIONS.JOB_ORDER_REOPEN, // Can reopen if quality fails
+
+      // Service Types - View Only
+      PERMISSIONS.SERVICE_TYPE_VIEW,
+
+      // Technician Performance - View (for quality trends)
+      PERMISSIONS.TECHNICIAN_PERFORMANCE_VIEW,
+      PERMISSIONS.TECHNICIAN_VIEW,
+
+      // Reports
+      PERMISSIONS.SERVICE_REPORT_VIEW,
+      PERMISSIONS.REPAIR_ANALYTICS_VIEW,
+    ],
+  },
+
+  SERVICE_PARTS_COORDINATOR: {
+    name: 'Service Parts Coordinator',
+    description: 'Manages parts inventory for repairs and adds parts to job orders',
+    category: 'Technical Service',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+
+      // Product Management - Full Access (for parts)
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.PRODUCT_CREATE, // Can add new parts
+      PERMISSIONS.PRODUCT_UPDATE,
+      PERMISSIONS.STOCK_REPORT_VIEW,
+
+      // Serial Number - View & Track
+      PERMISSIONS.SERIAL_NUMBER_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_LOOKUP,
+
+      // Job Orders - View & Add Parts
+      PERMISSIONS.JOB_ORDER_VIEW,
+      PERMISSIONS.JOB_ORDER_ADD_PARTS,
+
+      // Warranty Claims - View Only
+      PERMISSIONS.WARRANTY_CLAIM_VIEW,
+
+      // Service Types - View Only
+      PERMISSIONS.SERVICE_TYPE_VIEW,
+
+      // Inventory Management
+      PERMISSIONS.INVENTORY_CORRECTION_VIEW,
+      PERMISSIONS.INVENTORY_CORRECTION_CREATE,
+      PERMISSIONS.STOCK_TRANSFER_VIEW,
+
+      // Supplier Access (for ordering parts)
+      PERMISSIONS.SUPPLIER_VIEW,
+      PERMISSIONS.PURCHASE_VIEW,
+      PERMISSIONS.PURCHASE_CREATE, // Can create PO for parts
+    ],
+  },
+
+  SERVICE_REPORT_VIEWER: {
+    name: 'Service Report Viewer',
+    description: 'View-only access to all service and warranty reports',
+    category: 'Technical Service',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+
+      // Warranty Claims - View Only
+      PERMISSIONS.WARRANTY_CLAIM_VIEW,
+
+      // Job Orders - View Only
+      PERMISSIONS.JOB_ORDER_VIEW,
+
+      // Service Payments - View Only
+      PERMISSIONS.SERVICE_PAYMENT_VIEW,
+
+      // All Service Reports - View & Export
+      PERMISSIONS.SERVICE_REPORT_VIEW,
+      PERMISSIONS.SERVICE_REPORT_EXPORT,
+      PERMISSIONS.SERVICE_WARRANTY_SLIP_VIEW,
+      PERMISSIONS.TECHNICIAN_PERFORMANCE_REPORT,
+      PERMISSIONS.TECHNICIAN_PERFORMANCE_VIEW,
+      PERMISSIONS.REPAIR_ANALYTICS_VIEW,
+      PERMISSIONS.SERVICE_REVENUE_REPORT,
+      PERMISSIONS.WARRANTY_ANALYTICS_VIEW,
+
+      // Technician Info - View Only
+      PERMISSIONS.TECHNICIAN_VIEW,
+
+      // Service Types - View Only
+      PERMISSIONS.SERVICE_TYPE_VIEW,
+
+      // Product & Serial - View Only
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.SERIAL_NUMBER_VIEW,
     ],
   },
 } as const

@@ -1,0 +1,443 @@
+// ============================================
+// TECHNICAL SERVICE & WARRANTY MANAGEMENT SYSTEM
+// ============================================
+// This comprehensive module manages:
+// - Technical service employees and technicians
+// - Service and repair type definitions
+// - Warranty claims with full workflow (acceptance → inspection → diagnosis → job order)
+// - Repair job orders with cost tracking and payment
+// - Parts used in repairs
+// - Service payment processing
+
+// ============================================
+// TECHNICAL SERVICE EMPLOYEES
+// ============================================
+
+model TechnicalServiceEmployee {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  business   Business @relation("BusinessTechnicalEmployees", fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Employee identification
+  employeeCode String  @unique @map("employee_code") @db.VarChar(50) // e.g., "TECH-001"
+  userId       Int?    @map("user_id") // Optional link to User account
+  user         User?   @relation("TechnicalEmployeeUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  // Personal details
+  firstName  String  @map("first_name") @db.VarChar(100)
+  lastName   String  @map("last_name") @db.VarChar(100)
+  email      String? @db.VarChar(191)
+  mobile     String? @db.VarChar(50)
+  address    String? @db.Text
+  city       String? @db.VarChar(100)
+  state      String? @db.VarChar(100)
+  country    String? @db.VarChar(100)
+  zipCode    String? @map("zip_code") @db.VarChar(10)
+
+  // Employment details
+  position       String    @db.VarChar(100) // e.g., "Senior Technician", "Service Manager"
+  department     String    @default("Technical Service") @db.VarChar(100)
+  specialization String?   @db.VarChar(255) // e.g., "Mobile Phones, Laptops"
+  certifications String?   @db.Text // e.g., "Apple Certified, Samsung Certified"
+  hireDate       DateTime? @map("hire_date") @db.Date
+  terminationDate DateTime? @map("termination_date") @db.Date
+
+  // Status
+  isActive       Boolean @default(true) @map("is_active")
+  employmentStatus String @default("active") @map("employment_status") @db.VarChar(50) // active, on_leave, suspended, terminated
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  technicianProfile     ServiceTechnician?
+  warrantyClaimsAccepted ServiceWarrantyClaim[] @relation("ClaimAcceptedBy")
+  warrantyClaimsChecked  ServiceWarrantyClaim[] @relation("ClaimCheckedBy")
+  repairJobOrders        RepairJobOrder[]      @relation("JobOrderTechnician")
+
+  @@unique([businessId, employeeCode])
+  @@index([businessId])
+  @@index([userId])
+  @@index([isActive])
+  @@index([employmentStatus])
+  @@map("technical_service_employees")
+}
+
+// ============================================
+// SERVICE TECHNICIAN (Extends Employee)
+// ============================================
+
+model ServiceTechnician {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+
+  // Link to Technical Service Employee
+  employeeId Int                      @unique @map("employee_id")
+  employee   TechnicalServiceEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // Technical specialization
+  primarySpecialization String @map("primary_specialization") @db.VarChar(255) // e.g., "Mobile Repair", "Laptop Repair"
+  secondarySpecializations String? @map("secondary_specializations") @db.Text // JSON array or comma-separated
+
+  // Workload management
+  maxConcurrentJobs Int     @default(5) @map("max_concurrent_jobs") @db.SmallInt
+  currentJobCount   Int     @default(0) @map("current_job_count") @db.SmallInt
+  isAvailable       Boolean @default(true) @map("is_available")
+
+  // Performance metrics
+  totalJobsCompleted   Int     @default(0) @map("total_jobs_completed")
+  averageRepairTime    Decimal? @map("average_repair_time") @db.Decimal(10, 2) // in hours
+  customerSatisfaction Decimal? @map("customer_satisfaction") @db.Decimal(3, 2) // 0.00 - 5.00 rating
+
+  // Efficiency tracking
+  onTimeCompletionRate Decimal? @default(0) @map("on_time_completion_rate") @db.Decimal(5, 2) // percentage
+  firstTimeFixRate     Decimal? @default(0) @map("first_time_fix_rate") @db.Decimal(5, 2) // percentage
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([businessId])
+  @@index([employeeId])
+  @@index([isAvailable])
+  @@index([primarySpecialization])
+  @@map("service_technicians")
+}
+
+// ============================================
+// REPAIR SERVICE TYPES
+// ============================================
+
+model RepairServiceType {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  business   Business @relation("BusinessRepairServiceTypes", fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Service identification
+  code        String  @map("code") @db.VarChar(50) // e.g., "SCREEN-REPAIR", "DATA-RECOVERY"
+  name        String  @db.VarChar(255) // e.g., "Screen Replacement", "Data Recovery"
+  description String? @db.Text
+
+  // Categorization
+  category String @db.VarChar(100) // e.g., "Hardware Repair", "Software Service", "Diagnostic"
+
+  // Pricing
+  standardPrice     Decimal @default(0) @map("standard_price") @db.Decimal(22, 4)
+  laborCostPerHour  Decimal @default(0) @map("labor_cost_per_hour") @db.Decimal(22, 4)
+  estimatedHours    Decimal @default(1) @map("estimated_hours") @db.Decimal(5, 2)
+
+  // Warranty coverage
+  warrantyPeriodDays Int     @default(30) @map("warranty_period_days") @db.SmallInt // Service warranty
+  isCoveredByWarranty Boolean @default(false) @map("is_covered_by_warranty") // If covered by product warranty
+
+  // Status
+  isActive Boolean @default(true) @map("is_active")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  repairJobOrders RepairJobOrder[]
+
+  @@unique([businessId, code])
+  @@index([businessId])
+  @@index([category])
+  @@index([isActive])
+  @@map("repair_service_types")
+}
+
+// ============================================
+// SERVICE WARRANTY CLAIMS (Comprehensive)
+// ============================================
+
+model ServiceWarrantyClaim {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  business   Business @relation("BusinessServiceWarrantyClaims", fields: [businessId], references: [id], onDelete: Cascade)
+
+  locationId Int              @map("location_id")
+  location   BusinessLocation @relation("LocationServiceWarrantyClaims", fields: [locationId], references: [id], onDelete: Restrict)
+
+  // Claim identification
+  claimNumber String   @unique @map("claim_number") @db.VarChar(100) // e.g., "WC-2025-0001"
+  claimDate   DateTime @map("claim_date") @db.Date
+
+  // Link to existing ProductSerialNumber model
+  serialNumberId Int?                 @map("serial_number_id")
+  serialNumber   ProductSerialNumber? @relation("SerialNumberWarrantyClaims", fields: [serialNumberId], references: [id], onDelete: SetNull)
+
+  // Product details (if no serial number)
+  productId          Int?             @map("product_id")
+  product            Product?         @relation("ProductServiceWarrantyClaims", fields: [productId], references: [id], onDelete: SetNull)
+  productVariationId Int?             @map("product_variation_id")
+  productVariation   ProductVariation? @relation("VariationServiceWarrantyClaims", fields: [productVariationId], references: [id], onDelete: SetNull)
+
+  // Customer information
+  customerId   Int?      @map("customer_id")
+  customer     Customer? @relation("CustomerServiceWarrantyClaims", fields: [customerId], references: [id], onDelete: SetNull)
+  customerName String?   @map("customer_name") @db.VarChar(255)
+  customerPhone String?  @map("customer_phone") @db.VarChar(50)
+  customerEmail String?  @map("customer_email") @db.VarChar(191)
+
+  // Sale reference (if applicable)
+  saleId Int?  @map("sale_id")
+  sale   Sale? @relation("SaleServiceWarrantyClaims", fields: [saleId], references: [id], onDelete: SetNull)
+
+  // Problem description
+  problemDescription String  @map("problem_description") @db.Text
+  reportedIssues     String? @map("reported_issues") @db.Text // Additional details
+  accessoriesIncluded String? @map("accessories_included") @db.Text // e.g., "Charger, Case, Box"
+
+  // Warranty validation
+  warrantyType        String   @map("warranty_type") @db.VarChar(50) // manufacturer, extended, store
+  warrantyStartDate   DateTime? @map("warranty_start_date") @db.Date
+  warrantyEndDate     DateTime? @map("warranty_end_date") @db.Date
+  isUnderWarranty     Boolean  @default(false) @map("is_under_warranty")
+
+  // Claim acceptance workflow
+  acceptedBy   Int?                         @map("accepted_by")
+  acceptedByEmployee TechnicalServiceEmployee? @relation("ClaimAcceptedBy", fields: [acceptedBy], references: [id], onDelete: SetNull)
+  dateAccepted DateTime?                    @map("date_accepted")
+  acceptanceNotes String?                   @map("acceptance_notes") @db.Text
+
+  // Technical inspection workflow
+  checkedBy   Int?                         @map("checked_by")
+  checkedByEmployee TechnicalServiceEmployee? @relation("ClaimCheckedBy", fields: [checkedBy], references: [id], onDelete: SetNull)
+  dateChecked DateTime?                    @map("date_checked")
+  diagnosisNotes String?                   @map("diagnosis_notes") @db.Text
+  estimatedCost  Decimal?                  @map("estimated_cost") @db.Decimal(22, 4)
+
+  // Decision
+  isUserNegligence Boolean @default(false) @map("is_user_negligence")
+  isApproved       Boolean @default(false) @map("is_approved")
+  rejectionReason  String? @map("rejection_reason") @db.Text
+
+  // Status tracking
+  status String @default("pending") @db.VarChar(50)
+  // Status values: pending, accepted, under_inspection, diagnosed, approved, rejected, job_order_created, completed, cancelled
+
+  // Resolution tracking
+  resolvedAt DateTime? @map("resolved_at")
+  resolutionNotes String? @map("resolution_notes") @db.Text
+
+  // Created by
+  createdBy Int  @map("created_by")
+  createdByUser User @relation("ServiceClaimCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  repairJobOrders RepairJobOrder[]
+
+  @@unique([businessId, claimNumber])
+  @@index([businessId])
+  @@index([locationId])
+  @@index([serialNumberId])
+  @@index([customerId])
+  @@index([saleId])
+  @@index([status])
+  @@index([claimDate])
+  @@index([isUnderWarranty])
+  @@index([createdBy])
+  @@map("service_warranty_claims")
+}
+
+// ============================================
+// REPAIR JOB ORDERS
+// ============================================
+
+model RepairJobOrder {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  business   Business @relation("BusinessRepairJobOrders", fields: [businessId], references: [id], onDelete: Cascade)
+
+  locationId Int              @map("location_id")
+  location   BusinessLocation @relation("LocationRepairJobOrders", fields: [locationId], references: [id], onDelete: Restrict)
+
+  // Job order identification
+  jobOrderNumber String   @unique @map("job_order_number") @db.VarChar(100) // e.g., "JO-2025-0001"
+  jobOrderDate   DateTime @map("job_order_date") @db.Date
+
+  // Link to warranty claim (if applicable)
+  warrantyClaimId Int?                  @map("warranty_claim_id")
+  warrantyClaim   ServiceWarrantyClaim? @relation(fields: [warrantyClaimId], references: [id], onDelete: SetNull)
+
+  // Service type
+  serviceTypeId Int                @map("service_type_id")
+  serviceType   RepairServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
+
+  // Product being repaired
+  productId          Int              @map("product_id")
+  product            Product          @relation("ProductRepairJobOrders", fields: [productId], references: [id], onDelete: Restrict)
+  productVariationId Int              @map("product_variation_id")
+  productVariation   ProductVariation @relation("VariationRepairJobOrders", fields: [productVariationId], references: [id], onDelete: Restrict)
+  serialNumber       String?          @map("serial_number") @db.VarChar(191)
+
+  // Customer information
+  customerId    Int?      @map("customer_id")
+  customer      Customer? @relation("CustomerRepairJobOrders", fields: [customerId], references: [id], onDelete: SetNull)
+  customerName  String    @map("customer_name") @db.VarChar(255)
+  customerPhone String?   @map("customer_phone") @db.VarChar(50)
+  customerEmail String?   @map("customer_email") @db.VarChar(191)
+
+  // Problem and diagnosis
+  problemDescription String  @map("problem_description") @db.Text
+  diagnosisNotes     String? @map("diagnosis_notes") @db.Text
+  repairNotes        String? @map("repair_notes") @db.Text
+
+  // Technician assignment
+  technicianId Int?                         @map("technician_id")
+  technician   TechnicalServiceEmployee?    @relation("JobOrderTechnician", fields: [technicianId], references: [id], onDelete: SetNull)
+
+  // Work tracking dates
+  scheduledStartDate DateTime? @map("scheduled_start_date") @db.Date
+  actualStartDate    DateTime? @map("actual_start_date")
+  estimatedEndDate   DateTime? @map("estimated_end_date") @db.Date
+  actualEndDate      DateTime? @map("actual_end_date")
+
+  // Priority
+  priority String @default("normal") @db.VarChar(50) // urgent, high, normal, low
+
+  // Cost breakdown
+  laborCost         Decimal @default(0) @map("labor_cost") @db.Decimal(22, 4)
+  partsCost         Decimal @default(0) @map("parts_cost") @db.Decimal(22, 4)
+  additionalCharges Decimal @default(0) @map("additional_charges") @db.Decimal(22, 4)
+  discount          Decimal @default(0) @map("discount") @db.Decimal(22, 4)
+  tax               Decimal @default(0) @map("tax") @db.Decimal(22, 4)
+  totalCost         Decimal @default(0) @map("total_cost") @db.Decimal(22, 4)
+
+  // Payment tracking
+  isPaid      Boolean  @default(false) @map("is_paid")
+  paidAmount  Decimal  @default(0) @map("paid_amount") @db.Decimal(22, 4)
+  balanceDue  Decimal  @default(0) @map("balance_due") @db.Decimal(22, 4)
+  paymentDueDate DateTime? @map("payment_due_date") @db.Date
+
+  // Status tracking
+  status String @default("pending") @db.VarChar(50)
+  // Status values: pending, in_progress, parts_ordered, awaiting_parts, completed, cancelled, on_hold, customer_approved, ready_for_pickup
+
+  // Quality assurance
+  qualityCheckStatus String?  @default("pending") @map("quality_check_status") @db.VarChar(50) // pending, passed, failed
+  qualityCheckNotes  String?  @map("quality_check_notes") @db.Text
+  qualityCheckedAt   DateTime? @map("quality_checked_at")
+
+  // Customer notification
+  customerNotified   Boolean   @default(false) @map("customer_notified")
+  customerNotifiedAt DateTime? @map("customer_notified_at")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  jobOrderParts    RepairJobOrderPart[]
+  repairPayments   ServiceRepairPayment[]
+
+  @@unique([businessId, jobOrderNumber])
+  @@index([businessId])
+  @@index([locationId])
+  @@index([warrantyClaimId])
+  @@index([serviceTypeId])
+  @@index([productId])
+  @@index([customerId])
+  @@index([technicianId])
+  @@index([status])
+  @@index([priority])
+  @@index([jobOrderDate])
+  @@index([isPaid])
+  @@map("repair_job_orders")
+}
+
+// ============================================
+// REPAIR JOB ORDER PARTS
+// ============================================
+
+model RepairJobOrderPart {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+
+  // Link to job order
+  jobOrderId   Int            @map("job_order_id")
+  jobOrder     RepairJobOrder @relation(fields: [jobOrderId], references: [id], onDelete: Cascade)
+
+  // Part details
+  productId          Int              @map("product_id")
+  product            Product          @relation("ProductJobOrderParts", fields: [productId], references: [id], onDelete: Restrict)
+  productVariationId Int              @map("product_variation_id")
+  productVariation   ProductVariation @relation("VariationJobOrderParts", fields: [productVariationId], references: [id], onDelete: Restrict)
+
+  // Quantity and pricing
+  quantity   Decimal @map("quantity") @db.Decimal(22, 4)
+  unitPrice  Decimal @map("unit_price") @db.Decimal(22, 4)
+  subtotal   Decimal @map("subtotal") @db.Decimal(22, 4)
+
+  // Additional info
+  serialNumber String? @map("serial_number") @db.VarChar(191)
+  notes        String? @db.Text
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([businessId])
+  @@index([jobOrderId])
+  @@index([productId])
+  @@index([productVariationId])
+  @@map("repair_job_order_parts")
+}
+
+// ============================================
+// SERVICE REPAIR PAYMENTS
+// ============================================
+
+model ServiceRepairPayment {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  business   Business @relation("BusinessServiceRepairPayments", fields: [businessId], references: [id], onDelete: Cascade)
+
+  locationId Int              @map("location_id")
+  location   BusinessLocation @relation("LocationServiceRepairPayments", fields: [locationId], references: [id], onDelete: Restrict)
+
+  // Link to job order
+  jobOrderId   Int            @map("job_order_id")
+  jobOrder     RepairJobOrder @relation(fields: [jobOrderId], references: [id], onDelete: Cascade)
+
+  // Link to customer (optional)
+  customerId Int?      @map("customer_id")
+  customer   Customer? @relation("CustomerServiceRepairPayments", fields: [customerId], references: [id], onDelete: SetNull)
+
+  // Payment details
+  paymentNumber String   @unique @map("payment_number") @db.VarChar(100) // e.g., "PAY-2025-0001"
+  paymentDate   DateTime @map("payment_date")
+  amount        Decimal  @map("amount") @db.Decimal(22, 4)
+
+  // Payment method
+  paymentMethod String  @map("payment_method") @db.VarChar(50) // cash, card, bank_transfer, cheque, other
+  referenceNumber String? @map("reference_number") @db.VarChar(100) // For card/bank transfers
+  chequeNumber    String? @map("cheque_number") @db.VarChar(100)
+  bankName        String? @map("bank_name") @db.VarChar(255)
+
+  // Received by
+  receivedBy     Int  @map("received_by")
+  receivedByUser User @relation("ServicePaymentReceivedBy", fields: [receivedBy], references: [id], onDelete: Restrict)
+
+  // Notes
+  notes String? @db.Text
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([businessId, paymentNumber])
+  @@index([businessId])
+  @@index([locationId])
+  @@index([jobOrderId])
+  @@index([customerId])
+  @@index([paymentDate])
+  @@index([receivedBy])
+  @@map("service_repair_payments")
+}
