@@ -57,6 +57,7 @@ model User {
   createdInventoryCorrections  InventoryCorrection[]      @relation("InventoryCorrectionCreatedBy")
   approvedInventoryCorrections InventoryCorrection[]      @relation("InventoryCorrectionApprovedBy")
   openingStockSets             VariationLocationDetails[] @relation("OpeningStockSetBy")
+  priceUpdates                 VariationLocationDetails[] @relation("LastPriceUpdatedBy")
   requestedFreebies            FreebieLog[]               @relation("FreebieRequestedBy")
   approvedFreebies             FreebieLog[]               @relation("FreebieApprovedBy")
   notifications                Notification[]             @relation("NotificationRecipient")
@@ -79,6 +80,23 @@ model User {
   overtimeAlerts               OvertimeAlert[]            @relation("OvertimeAlertUser")
   overtimeAlertsAcknowledged   OvertimeAlert[]            @relation("OvertimeAlertAcknowledger")
   salesCreated                 Sale[]                     @relation("SaleCreator")
+  menuPermissions              UserMenuPermission[]
+  pricingAlerts                PricingAlert[]             @relation("PricingAlertUser")
+
+  // Accounting Module Relations
+  closedPeriods                FiscalPeriod[]             @relation("PeriodClosedBy")
+  lockedPeriods                FiscalPeriod[]             @relation("PeriodLockedBy")
+  generatedSnapshots           FinancialSnapshot[]        @relation("SnapshotGeneratedBy")
+  approvedBudgets              BudgetAllocation[]         @relation("BudgetApprovedBy")
+  postedJournalEntries         JournalEntry[]             @relation("EntryPostedBy")
+  reversedJournalEntries       JournalEntry[]             @relation("EntryReversedBy")
+  createdJournalEntries        JournalEntry[]             @relation("EntryCreatedBy")
+  accountingAuditLogs          AccountingAuditLog[]       @relation("AccountingAuditUser")
+
+  // Expense Management Relations
+  createdExpenses              Expense[]                  @relation("ExpenseCreatedBy")
+  approvedExpenses             Expense[]                  @relation("ExpenseApprovedBy")
+  voidedExpenses               Expense[]                  @relation("ExpenseVoidedBy")
 
   @@map("users")
 }
@@ -144,6 +162,16 @@ model Business {
   accumulatedSales Decimal   @default(0) @map("accumulated_sales") @db.Decimal(22, 4) // Total accumulated sales
   lastZReadingDate DateTime? @map("last_z_reading_date") // Last Z-Reading timestamp
 
+  // Multi-Location Pricing Settings
+  pricingStrategy      String  @default("fallback") @map("pricing_strategy") @db.VarChar(20) // "fallback", "required", "percentage"
+  bulkPriceSync        Boolean @default(false) @map("bulk_price_sync") // Apply bulk price changes to all locations
+  priceRoundingRule    String  @default("none") @map("price_rounding_rule") @db.VarChar(20) // "none", "round_up", "round_down", "nearest"
+  telegramBotToken     String? @map("telegram_bot_token") @db.VarChar(255)
+  telegramChatId       String? @map("telegram_chat_id") @db.VarChar(100)
+  enablePricingAlerts  Boolean @default(true) @map("enable_pricing_alerts")
+  belowCostThreshold   Decimal @default(0) @map("below_cost_threshold") @db.Decimal(5, 2) // Alert when selling below cost + this %
+  belowRetailThreshold Decimal @default(0.20) @map("below_retail_threshold") @db.Decimal(5, 2) // Alert when selling below retail price - this %
+
   // Relations
   locations              BusinessLocation[]
   users                  User[]
@@ -162,6 +190,20 @@ model Business {
   scheduleLoginConfig    ScheduleLoginConfiguration?
   sodSettings            BusinessSODSettings?
   inactivitySettings     InactivitySettings?
+  pricingAlerts          PricingAlert[]
+
+  // Accounting Module Relations
+  chartOfAccounts        ChartOfAccounts[]
+  fiscalPeriods          FiscalPeriod[]
+  accountBalances        AccountBalance[]
+  financialSnapshots     FinancialSnapshot[]
+  budgetAllocations      BudgetAllocation[]
+  journalEntries         JournalEntry[]
+  accountingAuditLogs    AccountingAuditLog[]
+
+  // Expense Management Relations
+  expenseCategories      ExpenseCategory[]
+  expenses               Expense[]
 
   @@map("business")
 }
@@ -206,6 +248,8 @@ model BusinessLocation {
   locationChangesFrom  LocationChangeRequest[] @relation("LocationChangeFrom")
   locationChangesTo    LocationChangeRequest[] @relation("LocationChangeTo")
   overtimeAlerts       OvertimeAlert[]
+  sales                Sale[]
+  expenses             Expense[]
 
   @@index([businessId])
   @@index([printerId])
@@ -289,9 +333,10 @@ model Role {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  users       UserRole[]
-  permissions RolePermission[]
-  locations   RoleLocation[]
+  users            UserRole[]
+  permissions      RolePermission[]
+  locations        RoleLocation[]
+  menuPermissions  RoleMenuPermission[]
 
   @@map("roles")
 }
@@ -339,6 +384,67 @@ model RoleLocation {
   @@index([roleId])
   @@index([locationId])
   @@map("role_locations")
+}
+
+// ============================================
+// MENU PERMISSIONS (Granular Menu-Level Access Control)
+// ============================================
+
+// Menu structure definition with hierarchy support
+model MenuPermission {
+  id       Int     @id @default(autoincrement())
+  key      String  @unique // Unique identifier (e.g., "inventory_management", "inventory_corrections")
+  name     String  // Display name (e.g., "Inventory Management", "Inventory Corrections")
+  href     String? // Menu link (null for parent menus)
+  icon     String? // Icon name
+  parentId Int?    @map("parent_id") // Self-referencing for hierarchy
+  order    Int     @default(0) // Display order within parent
+
+  // Self-referencing relation for hierarchy
+  parent   MenuPermission?  @relation("MenuHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children MenuPermission[] @relation("MenuHierarchy")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations to role and user menu permissions
+  roleMenuPermissions RoleMenuPermission[]
+  userMenuPermissions UserMenuPermission[]
+
+  @@index([parentId])
+  @@index([key])
+  @@map("menu_permissions")
+}
+
+// Junction table for role-to-menu access (defines which menus a role can see)
+model RoleMenuPermission {
+  roleId           Int            @map("role_id")
+  menuPermissionId Int            @map("menu_permission_id")
+  role             Role           @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  menuPermission   MenuPermission @relation(fields: [menuPermissionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([roleId, menuPermissionId])
+  @@index([roleId])
+  @@index([menuPermissionId])
+  @@map("role_menu_permissions")
+}
+
+// Junction table for user-to-menu access (overrides role menu permissions)
+model UserMenuPermission {
+  userId           Int            @map("user_id")
+  menuPermissionId Int            @map("menu_permission_id")
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  menuPermission   MenuPermission @relation(fields: [menuPermissionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([userId, menuPermissionId])
+  @@index([userId])
+  @@index([menuPermissionId])
+  @@map("user_menu_permissions")
 }
 
 // ============================================
@@ -661,6 +767,7 @@ model Product {
   purchaseReturnItems      PurchaseReturnItem[]       @relation("PurchaseReturnItemProduct")
   stockTransferItems       StockTransferItem[]
   purchaseReceiptItems     PurchaseReceiptItem[]
+  saleItems                SaleItem[]
 
   @@unique([businessId, sku]) // SKU must be unique within each business
   @@index([businessId])
@@ -747,11 +854,19 @@ model VariationLocationDetails {
   // Per-branch pricing (allows each branch to set their own selling price)
   sellingPrice Decimal? @map("selling_price") @db.Decimal(22, 4)
 
+  // Pricing Strategy Fields
+  pricePercentage Decimal? @map("price_percentage") @db.Decimal(5, 2) // Percentage markup/markdown from base price (e.g., 10.00 = +10%, -5.00 = -5%)
+
   // Opening Stock Lock (Security Feature)
   openingStockLocked    Boolean   @default(false) @map("opening_stock_locked")
   openingStockSetAt     DateTime? @map("opening_stock_set_at")
   openingStockSetBy     Int?      @map("opening_stock_set_by")
   openingStockSetByUser User?     @relation("OpeningStockSetBy", fields: [openingStockSetBy], references: [id])
+
+  // Price Audit Trail
+  lastPriceUpdate       DateTime? @map("last_price_update")
+  lastPriceUpdatedBy    Int?      @map("last_price_updated_by")
+  lastPriceUpdatedByUser User?    @relation("LastPriceUpdatedBy", fields: [lastPriceUpdatedBy], references: [id])
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -760,6 +875,7 @@ model VariationLocationDetails {
   @@index([productId])
   @@index([productVariationId])
   @@index([locationId])
+  @@index([lastPriceUpdatedBy])
   @@map("variation_location_details")
 }
 
@@ -1548,6 +1664,7 @@ model Sale {
   id         Int       @id @default(autoincrement())
   businessId Int       @map("business_id")
   locationId Int       @map("location_id")
+  location   BusinessLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
   customerId Int?      @map("customer_id")
   customer   Customer? @relation(fields: [customerId], references: [id])
 
@@ -1613,8 +1730,9 @@ model SaleItem {
   saleId Int  @map("sale_id")
   sale   Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
-  productId          Int @map("product_id")
-  productVariationId Int @map("product_variation_id")
+  productId          Int     @map("product_id")
+  product            Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productVariationId Int     @map("product_variation_id")
 
   quantity  Decimal @db.Decimal(22, 4)
   unitPrice Decimal @map("unit_price") @db.Decimal(22, 4)
@@ -3120,4 +3238,517 @@ model InactivitySettings {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("inactivity_settings")
+}
+
+// ============================================
+// PRICING ALERTS
+// ============================================
+
+model PricingAlert {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Alert Type: "below_cost", "below_retail"
+  alertType String @map("alert_type") @db.VarChar(50)
+
+  // Location information
+  locationId   Int    @map("location_id")
+  locationName String @map("location_name") @db.VarChar(256)
+
+  // User (Cashier/Staff) who triggered the alert
+  userId       Int     @map("user_id")
+  user         User    @relation("PricingAlertUser", fields: [userId], references: [id])
+  userFullName String  @map("user_full_name") @db.VarChar(256)
+  userRole     String? @map("user_role") @db.VarChar(100)
+
+  // Product information
+  productId      Int     @map("product_id")
+  productName    String  @map("product_name") @db.VarChar(255)
+  productSku     String? @map("product_sku") @db.VarChar(100)
+  variationId    Int?    @map("variation_id")
+  variationName  String? @map("variation_name") @db.VarChar(255)
+  variationSku   String? @map("variation_sku") @db.VarChar(100)
+
+  // Pricing details
+  costPrice       Decimal @map("cost_price") @db.Decimal(22, 4)
+  retailPrice     Decimal @map("retail_price") @db.Decimal(22, 4)
+  actualPrice     Decimal @map("actual_price") @db.Decimal(22, 4)
+  discrepancyAmount Decimal @map("discrepancy_amount") @db.Decimal(22, 4) // How much below cost/retail
+  discrepancyPercent Decimal @map("discrepancy_percent") @db.Decimal(5, 2) // Percentage below
+
+  // Sale reference
+  saleId            Int?    @map("sale_id")
+  saleInvoiceNumber String? @map("sale_invoice_number") @db.VarChar(100)
+  quantitySold      Decimal @default(1) @map("quantity_sold") @db.Decimal(22, 4)
+
+  // Telegram notification status
+  telegramSent   Boolean   @default(false) @map("telegram_sent")
+  telegramSentAt DateTime? @map("telegram_sent_at")
+  telegramError  String?   @map("telegram_error") @db.Text
+
+  // Acknowledgment (for management review)
+  acknowledged     Boolean   @default(false)
+  acknowledgedBy   Int?      @map("acknowledged_by")
+  acknowledgedAt   DateTime? @map("acknowledged_at")
+  acknowledgedNote String?   @map("acknowledged_note") @db.Text
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Indexes for performance
+  @@index([businessId])
+  @@index([userId])
+  @@index([locationId])
+  @@index([productId])
+  @@index([alertType])
+  @@index([acknowledged])
+  @@index([telegramSent])
+  @@index([createdAt])
+  @@map("pricing_alerts")
+}
+
+// ============================================
+// ACCOUNTING MODULE
+// Complete double-entry accounting system integrated with inventory
+// ============================================
+
+// Chart of Accounts - GL account structure
+model ChartOfAccounts {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Account identification
+  accountCode   String  @map("account_code") @db.VarChar(20) // e.g., "1000", "1100", "4000"
+  accountName   String  @map("account_name") @db.VarChar(255)
+  description   String? @db.Text
+  parentId      Int?    @map("parent_id") // For sub-accounts
+  parent        ChartOfAccounts? @relation("AccountHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  subAccounts   ChartOfAccounts[] @relation("AccountHierarchy")
+
+  // Account classification
+  accountType   String @map("account_type") @db.VarChar(50) // asset, liability, equity, revenue, expense
+  accountSubType String @map("account_sub_type") @db.VarChar(50) // current_asset, fixed_asset, current_liability, etc.
+
+  // Account nature & behavior
+  normalBalance String @default("debit") @map("normal_balance") @db.VarChar(10) // debit or credit
+  isActive      Boolean @default(true) @map("is_active")
+  isSystemAccount Boolean @default(false) @map("is_system_account") // Can't be deleted
+  allowManualEntry Boolean @default(true) @map("allow_manual_entry") // Allow manual journal entries
+
+  // Financial Statement Mapping
+  balanceSheetSection String? @map("balance_sheet_section") @db.VarChar(50) // current_assets, fixed_assets, current_liabilities, etc.
+  incomeStatementSection String? @map("income_statement_section") @db.VarChar(50) // revenue, cogs, operating_expenses, etc.
+  cashFlowSection String? @map("cash_flow_section") @db.VarChar(50) // operating, investing, financing
+
+  // Balances (cached for performance)
+  currentBalance Decimal @default(0) @map("current_balance") @db.Decimal(22, 4)
+  ytdDebit       Decimal @default(0) @map("ytd_debit") @db.Decimal(22, 4) // Year-to-date debits
+  ytdCredit      Decimal @default(0) @map("ytd_credit") @db.Decimal(22, 4) // Year-to-date credits
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  balances      AccountBalance[]
+  journalEntryLines JournalEntryLine[]
+  budgets       BudgetAllocation[]
+  expenseCategories ExpenseCategory[] @relation("ExpenseCategoryGLAccount")
+  expenses      Expense[] @relation("ExpenseGLAccount")
+
+  @@unique([businessId, accountCode])
+  @@index([businessId])
+  @@index([accountType])
+  @@index([isActive])
+  @@map("chart_of_accounts")
+}
+
+// Fiscal Periods - Track accounting periods (monthly, quarterly, yearly)
+model FiscalPeriod {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Period identification
+  periodType  String @map("period_type") @db.VarChar(20) // month, quarter, year
+  fiscalYear  Int    @map("fiscal_year") // e.g., 2025
+  periodNumber Int   @map("period_number") // 1-12 for months, 1-4 for quarters, 1 for year
+
+  // Period dates
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+
+  // Period status
+  status String @default("open") @map("status") @db.VarChar(20) // open, closed, locked
+  closedAt DateTime? @map("closed_at")
+  closedBy Int? @map("closed_by")
+  closedByUser User? @relation("PeriodClosedBy", fields: [closedBy], references: [id])
+
+  lockedAt DateTime? @map("locked_at")
+  lockedBy Int? @map("locked_by")
+  lockedByUser User? @relation("PeriodLockedBy", fields: [lockedBy], references: [id])
+
+  // Closing entries
+  closingNotes String? @map("closing_notes") @db.Text
+  retainedEarnings Decimal? @map("retained_earnings") @db.Decimal(22, 4) // Net income for the period
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  snapshots FinancialSnapshot[]
+  balances  AccountBalance[]
+  budgets   BudgetAllocation[]
+  auditLogs AccountingAuditLog[]
+
+  @@unique([businessId, periodType, fiscalYear, periodNumber])
+  @@index([businessId])
+  @@index([status])
+  @@index([fiscalYear])
+  @@index([startDate, endDate])
+  @@map("fiscal_periods")
+}
+
+// Account Balances - Period-end balances for each account
+model AccountBalance {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Account & Period references
+  accountId Int @map("account_id")
+  account   ChartOfAccounts @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  periodId Int @map("period_id")
+  period   FiscalPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  // Balances
+  openingBalance Decimal @default(0) @map("opening_balance") @db.Decimal(22, 4)
+  debitTotal     Decimal @default(0) @map("debit_total") @db.Decimal(22, 4)
+  creditTotal    Decimal @default(0) @map("credit_total") @db.Decimal(22, 4)
+  closingBalance Decimal @default(0) @map("closing_balance") @db.Decimal(22, 4)
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([accountId, periodId])
+  @@index([businessId])
+  @@index([periodId])
+  @@map("account_balances")
+}
+
+// Financial Snapshots - Cached financial statement data for performance
+model FinancialSnapshot {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Period reference
+  periodId Int @map("period_id")
+  period   FiscalPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  // Snapshot type
+  snapshotType String @map("snapshot_type") @db.VarChar(50) // balance_sheet, income_statement, cash_flow, trial_balance
+
+  // Snapshot data (JSON for flexibility)
+  snapshotData Json @map("snapshot_data") // Complete financial statement in JSON format
+
+  // Summary metrics (for quick access)
+  totalAssets      Decimal? @map("total_assets") @db.Decimal(22, 4)
+  totalLiabilities Decimal? @map("total_liabilities") @db.Decimal(22, 4)
+  totalEquity      Decimal? @map("total_equity") @db.Decimal(22, 4)
+  totalRevenue     Decimal? @map("total_revenue") @db.Decimal(22, 4)
+  totalExpenses    Decimal? @map("total_expenses") @db.Decimal(22, 4)
+  netIncome        Decimal? @map("net_income") @db.Decimal(22, 4)
+
+  // Generation metadata
+  generatedAt DateTime @default(now()) @map("generated_at")
+  generatedBy Int @map("generated_by")
+  generatedByUser User @relation("SnapshotGeneratedBy", fields: [generatedBy], references: [id])
+
+  isValid Boolean @default(true) @map("is_valid") // Invalidate when data changes
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([periodId, snapshotType])
+  @@index([businessId])
+  @@index([snapshotType])
+  @@index([isValid])
+  @@map("financial_snapshots")
+}
+
+// Budget Allocations - Budget tracking by account and period
+model BudgetAllocation {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Account & Period references
+  accountId Int @map("account_id")
+  account   ChartOfAccounts @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  periodId Int @map("period_id")
+  period   FiscalPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  // Budget amounts
+  budgetAmount Decimal @map("budget_amount") @db.Decimal(22, 4)
+  actualAmount Decimal @default(0) @map("actual_amount") @db.Decimal(22, 4)
+  variance     Decimal @default(0) @map("variance") @db.Decimal(22, 4) // actual - budget
+
+  // Budget metadata
+  notes String? @db.Text
+  status String @default("draft") @map("status") @db.VarChar(20) // draft, approved, active
+
+  // Approval tracking
+  approvedBy Int? @map("approved_by")
+  approvedByUser User? @relation("BudgetApprovedBy", fields: [approvedBy], references: [id])
+  approvedAt DateTime? @map("approved_at")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([accountId, periodId])
+  @@index([businessId])
+  @@index([periodId])
+  @@index([status])
+  @@map("budget_allocations")
+}
+
+// Journal Entries - Manual GL entries (automated entries via financialImpact.ts)
+model JournalEntry {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Entry identification
+  entryNumber String @map("entry_number") @db.VarChar(50) // e.g., "JE-2025-001"
+  entryDate   DateTime @map("entry_date")
+  entryType   String @map("entry_type") @db.VarChar(50) // manual, automated, closing, adjusting, reversing
+
+  // Reference to source transaction (for automated entries)
+  referenceType String? @map("reference_type") @db.VarChar(50) // Sale, Purchase, Adjustment, Transfer
+  referenceId   String? @map("reference_id") @db.VarChar(100)
+  referenceNumber String? @map("reference_number") @db.VarChar(100)
+
+  // Entry details
+  description String @db.Text
+  notes       String? @db.Text
+
+  // Entry status
+  status String @default("draft") @map("status") @db.VarChar(20) // draft, posted, reversed
+  postedAt DateTime? @map("posted_at")
+  postedBy Int? @map("posted_by")
+  postedByUser User? @relation("EntryPostedBy", fields: [postedBy], references: [id])
+
+  // Reversal tracking
+  reversedAt DateTime? @map("reversed_at")
+  reversedBy Int? @map("reversed_by")
+  reversedByUser User? @relation("EntryReversedBy", fields: [reversedBy], references: [id])
+  reversalOfId Int? @map("reversal_of_id") // If this entry reverses another
+  reversalEntry JournalEntry? @relation("ReversalRelation", fields: [reversalOfId], references: [id])
+  reversals JournalEntry[] @relation("ReversalRelation")
+
+  // Totals (must balance)
+  totalDebit  Decimal @map("total_debit") @db.Decimal(22, 4)
+  totalCredit Decimal @map("total_credit") @db.Decimal(22, 4)
+  balanced    Boolean @default(true) @map("balanced") // totalDebit === totalCredit
+
+  // Created by
+  createdBy Int @map("created_by")
+  createdByUser User @relation("EntryCreatedBy", fields: [createdBy], references: [id])
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  lines JournalEntryLine[]
+  auditLogs AccountingAuditLog[]
+  expenses Expense[]
+
+  @@unique([businessId, entryNumber])
+  @@index([businessId])
+  @@index([status])
+  @@index([entryDate])
+  @@index([entryType])
+  @@index([referenceType, referenceId])
+  @@map("journal_entries")
+}
+
+// Journal Entry Lines - Individual debit/credit lines
+model JournalEntryLine {
+  id         Int      @id @default(autoincrement())
+
+  // Journal Entry reference
+  journalEntryId Int @map("journal_entry_id")
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+
+  // Account reference
+  accountId Int @map("account_id")
+  account   ChartOfAccounts @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  // Line details
+  description String @db.Text
+  debit       Decimal @default(0) @map("debit") @db.Decimal(22, 4)
+  credit      Decimal @default(0) @map("credit") @db.Decimal(22, 4)
+
+  // Line metadata
+  lineNumber Int @default(1) @map("line_number") // Order within entry
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([journalEntryId])
+  @@index([accountId])
+  @@map("journal_entry_lines")
+}
+
+// Accounting Audit Log - Track ALL accounting changes for compliance
+model AccountingAuditLog {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Entity tracking
+  entityType String @map("entity_type") @db.VarChar(100) // JournalEntry, FiscalPeriod, ChartOfAccounts, etc.
+  entityId   Int @map("entity_id")
+
+  // Optional references
+  periodId       Int? @map("period_id")
+  period         FiscalPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
+  journalEntryId Int? @map("journal_entry_id")
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
+
+  // Action tracking
+  action String @map("action") @db.VarChar(50) // create, update, delete, post, reverse, close_period, etc.
+  description String @db.Text
+
+  // Change tracking (JSON for flexibility)
+  oldValues Json? @map("old_values")
+  newValues Json? @map("new_values")
+
+  // User tracking
+  userId Int @map("user_id")
+  user   User @relation("AccountingAuditUser", fields: [userId], references: [id])
+  ipAddress String? @map("ip_address") @db.VarChar(50)
+  userAgent String? @map("user_agent") @db.Text
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([businessId])
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("accounting_audit_logs")
+}
+
+// ============================================
+// EXPENSE MANAGEMENT MODULE
+// Track business expenses with accounting integration
+// ============================================
+
+// Expense Categories - Categorize expenses with GL account mapping
+model ExpenseCategory {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Category details
+  name        String  @db.VarChar(255)
+  description String? @db.Text
+
+  // Accounting integration
+  glAccountId Int? @map("gl_account_id")
+  glAccount   ChartOfAccounts? @relation("ExpenseCategoryGLAccount", fields: [glAccountId], references: [id], onDelete: Restrict)
+
+  // Status
+  isActive Boolean @default(true) @map("is_active")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  expenses Expense[]
+
+  @@index([businessId])
+  @@index([isActive])
+  @@map("expense_categories")
+}
+
+// Expenses - Track business expenditures
+model Expense {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Location reference
+  locationId Int @map("location_id")
+  location   BusinessLocation @relation(fields: [locationId], references: [id], onDelete: Restrict)
+
+  // Category reference
+  categoryId Int @map("category_id")
+  category   ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  // Expense identification
+  referenceNumber String   @unique @map("reference_number") @db.VarChar(50) // e.g., "EXP-2025-0001"
+  expenseDate     DateTime @map("expense_date")
+
+  // Expense details
+  amount      Decimal @map("amount") @db.Decimal(22, 4)
+  paymentMethod String @map("payment_method") @db.VarChar(50) // cash, cheque, bank_transfer, credit_card, other
+  payeeName   String  @map("payee_name") @db.VarChar(255) // Who was paid
+  description String  @db.Text
+  attachmentUrl String? @map("attachment_url") @db.VarChar(500) // Optional receipt/file path
+
+  // Accounting integration
+  glAccountId    Int? @map("gl_account_id")
+  glAccount      ChartOfAccounts? @relation("ExpenseGLAccount", fields: [glAccountId], references: [id], onDelete: Restrict)
+  journalEntryId Int? @map("journal_entry_id")
+  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+
+  // Status tracking
+  status String @default("draft") @map("status") @db.VarChar(20) // draft, approved, posted, void
+
+  // Approval tracking
+  approvedBy   Int? @map("approved_by")
+  approvedByUser User? @relation("ExpenseApprovedBy", fields: [approvedBy], references: [id])
+  approvedAt   DateTime? @map("approved_at")
+
+  // Void tracking
+  voidedBy   Int? @map("voided_by")
+  voidedByUser User? @relation("ExpenseVoidedBy", fields: [voidedBy], references: [id])
+  voidedAt   DateTime? @map("voided_at")
+  voidReason String? @map("void_reason") @db.Text
+
+  // Created by
+  createdBy     Int @map("created_by")
+  createdByUser User @relation("ExpenseCreatedBy", fields: [createdBy], references: [id])
+
+  // Status
+  isActive Boolean @default(true) @map("is_active")
+
+  // Timestamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([businessId, referenceNumber])
+  @@index([businessId])
+  @@index([locationId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([expenseDate])
+  @@index([createdBy])
+  @@map("expenses")
 }

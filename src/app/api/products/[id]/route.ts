@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { generateProductSKU, generateVariationSKU, isSkuEmpty } from '@/lib/sku-generator'
+import { sendTelegramProductEditAlert } from '@/lib/telegram'
 
 export async function GET(
   request: NextRequest,
@@ -34,7 +35,18 @@ export async function GET(
         variations: {
           where: { deletedAt: null },
           include: {
-            variationLocationDetails: true
+            variationLocationDetails: {
+              include: {
+                lastPriceUpdatedByUser: {
+                  select: {
+                    id: true,
+                    username: true,
+                    firstName: true,
+                    lastName: true
+                  }
+                }
+              }
+            }
           }
         },
         comboProducts: {
@@ -439,6 +451,94 @@ export async function PUT(
 
       return updatedProduct
     })
+
+    // Track changes and send Telegram notification
+    const changes: Array<{ field: string; oldValue: string; newValue: string }> = []
+
+    // Track name changes
+    if (existingProduct.name !== name) {
+      changes.push({
+        field: 'Name',
+        oldValue: existingProduct.name,
+        newValue: name,
+      })
+    }
+
+    // Track SKU changes
+    const finalSku = result.sku
+    if (existingProduct.sku !== finalSku) {
+      changes.push({
+        field: 'SKU',
+        oldValue: existingProduct.sku || 'N/A',
+        newValue: finalSku,
+      })
+    }
+
+    // Track purchase price changes
+    if (purchasePrice && existingProduct.purchasePrice) {
+      const oldPrice = parseFloat(existingProduct.purchasePrice.toString())
+      const newPrice = parseFloat(purchasePrice)
+      if (oldPrice !== newPrice) {
+        changes.push({
+          field: 'Purchase Price',
+          oldValue: `₱${oldPrice.toFixed(2)}`,
+          newValue: `₱${newPrice.toFixed(2)}`,
+        })
+      }
+    }
+
+    // Track selling price changes
+    if (sellingPrice && existingProduct.sellingPrice) {
+      const oldPrice = parseFloat(existingProduct.sellingPrice.toString())
+      const newPrice = parseFloat(sellingPrice)
+      if (oldPrice !== newPrice) {
+        changes.push({
+          field: 'Selling Price',
+          oldValue: `₱${oldPrice.toFixed(2)}`,
+          newValue: `₱${newPrice.toFixed(2)}`,
+        })
+      }
+    }
+
+    // Track category changes
+    if (categoryId || subCategoryId) {
+      const newCategoryId = subCategoryId ? parseInt(subCategoryId) : (categoryId ? parseInt(categoryId) : null)
+      if (existingProduct.categoryId !== newCategoryId) {
+        changes.push({
+          field: 'Category',
+          oldValue: existingProduct.categoryId ? `ID: ${existingProduct.categoryId}` : 'None',
+          newValue: newCategoryId ? `ID: ${newCategoryId}` : 'None',
+        })
+      }
+    }
+
+    // Track brand changes
+    if (brandId !== undefined) {
+      const newBrandId = brandId ? parseInt(brandId) : null
+      if (existingProduct.brandId !== newBrandId) {
+        changes.push({
+          field: 'Brand',
+          oldValue: existingProduct.brandId ? `ID: ${existingProduct.brandId}` : 'None',
+          newValue: newBrandId ? `ID: ${newBrandId}` : 'None',
+        })
+      }
+    }
+
+    // Send Telegram notification if any changes were made
+    if (changes.length > 0) {
+      try {
+        await sendTelegramProductEditAlert({
+          productName: name,
+          sku: finalSku,
+          changedBy: `${user.firstName} ${user.lastName || ''}`.trim() || user.username,
+          timestamp: new Date(),
+          changes,
+        })
+      } catch (error) {
+        console.error('Failed to send Telegram product edit alert:', error)
+        // Don't fail the request if Telegram notification fails
+      }
+    }
 
     return NextResponse.json({ product: result, message: 'Product updated successfully' }, { status: 200 })
   } catch (error) {

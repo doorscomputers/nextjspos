@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
+import { sendTelegramCustomerEditAlert } from '@/lib/telegram'
 
 // PUT - Update customer
 export async function PUT(
@@ -111,6 +112,26 @@ export async function PUT(
         isActive,
       },
     })
+
+    // Send Telegram notification if name changed
+    if (existingCustomer.name !== name) {
+      try {
+        await sendTelegramCustomerEditAlert({
+          previousName: existingCustomer.name,
+          currentName: name,
+          changedBy: `${user.firstName} ${user.lastName || ''}`.trim() || user.username,
+          timestamp: new Date(),
+          customerDetails: {
+            mobile: mobile || undefined,
+            email: email || undefined,
+            address: address || undefined,
+          }
+        })
+      } catch (error) {
+        console.error('Failed to send Telegram customer edit alert:', error)
+        // Don't fail the request if Telegram notification fails
+      }
+    }
 
     return NextResponse.json(customer)
   } catch (error) {

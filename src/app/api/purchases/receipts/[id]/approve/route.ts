@@ -7,6 +7,8 @@ import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } f
 import { processPurchaseReceipt } from '@/lib/stockOperations'
 import { SerialNumberCondition } from '@/lib/serialNumber'
 import { withIdempotency } from '@/lib/idempotency'
+import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker'
+import { isAccountingEnabled, recordPurchase } from '@/lib/accountingIntegration'
 
 /**
  * POST /api/purchases/receipts/[id]/approve
@@ -128,6 +130,12 @@ export async function POST(
         }
       }
     }
+
+    // TRANSACTION IMPACT TRACKING: Step 1 - Capture inventory BEFORE transaction
+    const impactTracker = new InventoryImpactTracker()
+    const productVariationIds = receipt.items.map(item => item.productVariationId)
+    const locationIds = [receipt.locationId]
+    await impactTracker.captureBefore(productVariationIds, locationIds)
 
     // Approve receipt and add inventory in transaction
     const updatedReceipt = await prisma.$transaction(async (tx) => {
@@ -406,6 +414,41 @@ export async function POST(
       timeout: 60000, // 60 seconds timeout for network resilience
     })
 
+    // TRANSACTION IMPACT TRACKING: Step 2 - Capture inventory AFTER and generate report
+    const inventoryImpact = await impactTracker.captureAfterAndReport(
+      productVariationIds,
+      locationIds,
+      'purchase',
+      updatedReceipt.id,
+      receipt.receiptNumber,
+      undefined, // No location types needed for single-location purchases
+      userDisplayName
+    )
+
+    // ACCOUNTING INTEGRATION: Create journal entries if accounting is enabled
+    if (await isAccountingEnabled(businessIdNumber)) {
+      try {
+        // Calculate total cost from purchase items
+        const totalCost = receipt.purchase.items.reduce(
+          (sum, item) => sum + (parseFloat(item.unitCost.toString()) * parseFloat(item.quantity.toString())),
+          0
+        )
+
+        await recordPurchase({
+          businessId: businessIdNumber,
+          userId: userIdNumber,
+          purchaseId: receipt.purchaseId,
+          purchaseDate: receipt.receiptDate,
+          totalCost,
+          referenceNumber: receipt.purchase.purchaseOrderNumber,
+          supplierId: receipt.purchase.supplierId
+        })
+      } catch (accountingError) {
+        // Log accounting errors but don't fail the purchase receipt approval
+        console.error('Accounting integration error:', accountingError)
+      }
+    }
+
     // Create audit log
     await createAuditLog({
       businessId: businessIdNumber,
@@ -435,7 +478,11 @@ export async function POST(
       userAgent: getUserAgent(request),
     })
 
-    return NextResponse.json(updatedReceipt)
+    // Return with inventory impact report
+    return NextResponse.json({
+      ...updatedReceipt,
+      inventoryImpact
+    })
   } catch (error: any) {
     console.error('Error approving purchase receipt:', error)
     return NextResponse.json(

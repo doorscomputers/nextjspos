@@ -41,19 +41,24 @@ export async function getVariationStockHistory(
   endDate?: Date
 ): Promise<StockHistoryEntry[]> {
   // Set default date range if not provided
-  const finalStartDate = startDate || new Date('1970-01-01')
+  // For start date, use beginning of day (00:00:00.000)
+  let finalStartDate = startDate || new Date('1970-01-01')
+  if (startDate) {
+    finalStartDate = new Date(startDate)
+    finalStartDate.setHours(0, 0, 0, 0) // Start of day
+  }
 
-  // Adjust end date to include the entire day (add 1 day to include all transactions on that date)
+  // For end date, use END of day (23:59:59.999) to include all transactions on that date
   let finalEndDate = endDate || new Date('2099-12-31')
   if (endDate) {
     finalEndDate = new Date(endDate)
-    finalEndDate.setDate(finalEndDate.getDate() + 1) // Add 1 day to include entire end date
+    finalEndDate.setHours(23, 59, 59, 999) // End of day
   }
 
   // Query ALL transaction sources in parallel (same as Inventory Ledger)
   const [
     purchaseReceipts,
-    sales,
+    saleItems,
     transfersOut,
     transfersIn,
     inventoryCorrections,
@@ -62,95 +67,111 @@ export async function getVariationStockHistory(
     productHistoryRecords
   ] = await Promise.all([
     // 1. Purchase Receipts (GRN) - Stock Received
-    prisma.purchaseReceipt.findMany({
-      where: {
-        businessId,
-        locationId,
-        status: 'approved',
-        approvedAt: {
-          gte: finalStartDate,
-          lte: finalEndDate
-        }
-      },
-      include: {
-        items: {
-          where: {
-            productId,
-            productVariationId: variationId
-          }
-        },
-        supplier: { select: { name: true } }
-      },
-      orderBy: { approvedAt: 'asc' }
-    }),
+    // DISABLED: Now pulling from productHistory as SOURCE OF TRUTH
+    // This prevents showing "phantom" purchases that never actually updated inventory
+    // prisma.purchaseReceipt.findMany({
+    //   where: {
+    //     businessId,
+    //     locationId,
+    //     status: 'approved',
+    //     approvedAt: {
+    //       gte: finalStartDate,
+    //       lte: finalEndDate
+    //     }
+    //   },
+    //   include: {
+    //     items: {
+    //       where: {
+    //         productId,
+    //         productVariationId: variationId
+    //       }
+    //     },
+    //     supplier: { select: { name: true } }
+    //   },
+    //   orderBy: { approvedAt: 'asc' }
+    // }),
+    Promise.resolve([]), // Placeholder - purchases now from productHistory only
 
     // 2. Sales - Stock Sold
-    prisma.sale.findMany({
+    // OPTIMIZED: Query SaleItem directly instead of loading all sales
+    // This prevents loading thousands of sales when we only need items for one product
+    prisma.saleItem.findMany({
       where: {
-        businessId,
-        locationId,
-        saleDate: {
-          gte: finalStartDate,
-          lte: finalEndDate
+        productId,
+        productVariationId: variationId,
+        sale: {
+          businessId,
+          locationId,
+          saleDate: {
+            gte: finalStartDate,
+            lte: finalEndDate
+          }
         }
       },
       include: {
-        items: {
-          where: {
-            productId,
-            productVariationId: variationId
+        sale: {
+          include: {
+            customer: { select: { name: true } }
           }
-        },
-        customer: { select: { name: true } }
+        }
       },
-      orderBy: { saleDate: 'asc' }
+      orderBy: {
+        sale: {
+          saleDate: 'asc'
+        }
+      }
     }),
 
     // 3. Transfers Out (from this location)
-    prisma.stockTransfer.findMany({
-      where: {
-        businessId,
-        fromLocationId: locationId,
-        stockDeducted: true,
-        sentAt: {
-          gte: finalStartDate,
-          lte: finalEndDate
-        }
-      },
-      include: {
-        items: {
-          where: {
-            productId,
-            productVariationId: variationId
-          }
-        },
-        toLocation: { select: { name: true } }
-      },
-      orderBy: { sentAt: 'asc' }
-    }),
+    // DISABLED: Now pulling from productHistory as SOURCE OF TRUTH
+    // prisma.stockTransfer.findMany({
+    //   where: {
+    //     businessId,
+    //     fromLocationId: locationId,
+    //     stockDeducted: true,
+    //     sentAt: {
+    //       gte: finalStartDate,
+    //       lte: finalEndDate
+    //     }
+    //   },
+    //   include: {
+    //     items: {
+    //       where: {
+    //         productId,
+    //         productVariationId: variationId
+    //       }
+    //     },
+    //     toLocation: { select: { name: true } }
+    //   },
+    //   orderBy: { sentAt: 'asc' }
+    // }),
+    Promise.resolve([]), // Placeholder - transfers now from productHistory only
 
     // 4. Transfers In (to this location)
-    prisma.stockTransfer.findMany({
-      where: {
-        businessId,
-        toLocationId: locationId,
-        status: 'completed',
-        completedAt: {
-          gte: finalStartDate,
-          lte: finalEndDate
-        }
-      },
-      include: {
-        items: {
-          where: {
-            productId,
-            productVariationId: variationId
-          }
-        },
-        fromLocation: { select: { name: true } }
-      },
-      orderBy: { completedAt: 'asc' }
-    }),
+    // DISABLED: Now pulling from productHistory as SOURCE OF TRUTH
+    // This prevents showing "phantom" transfers that never actually updated inventory
+    // prisma.stockTransfer.findMany({
+    //   where: {
+    //     businessId,
+    //     toLocationId: locationId,
+    //     status: 'completed',
+    //     completedAt: {
+    //       gte: finalStartDate,
+    //       lte: finalEndDate
+    //     }
+    //   },
+    //   include: {
+    //     items: {
+    //       where: {
+    //         productId,
+    //         productVariationId: variationId
+    //       }
+    //     },
+    //     fromLocation: { select: { name: true } }
+    //   },
+    //   orderBy: { completedAt: 'asc' }
+    // }),
+    Promise.resolve([]), // Placeholder - transfers now from productHistory only
 
     // 5. Inventory Corrections
     prisma.inventoryCorrection.findMany({
@@ -172,53 +193,61 @@ export async function getVariationStockHistory(
     }),
 
     // 6. Purchase Returns (returned to supplier)
-    prisma.supplierReturn.findMany({
-      where: {
-        businessId,
-        locationId: locationId,
-        status: 'approved',
-        approvedAt: {
-          gte: finalStartDate,
-          lte: finalEndDate
-        }
-      },
-      include: {
-        items: {
-          where: {
-            productId,
-            productVariationId: variationId
-          }
-        },
-        supplier: { select: { name: true } }
-      },
-      orderBy: { approvedAt: 'asc' }
-    }),
+    // DISABLED: Now pulling from productHistory as SOURCE OF TRUTH
+    // This prevents showing "phantom" returns that never actually updated inventory
+    // prisma.supplierReturn.findMany({
+    //   where: {
+    //     businessId,
+    //     locationId: locationId,
+    //     status: 'approved',
+    //     approvedAt: {
+    //       gte: finalStartDate,
+    //       lte: finalEndDate
+    //     }
+    //   },
+    //   include: {
+    //     items: {
+    //       where: {
+    //         productId,
+    //         productVariationId: variationId
+    //       }
+    //     },
+    //     supplier: { select: { name: true } }
+    //   },
+    //   orderBy: { approvedAt: 'asc' }
+    // }),
+    Promise.resolve([]), // Placeholder - purchase returns now from productHistory only
 
     // 7. Customer Returns (returned by customers)
-    prisma.customerReturn.findMany({
-      where: {
-        businessId,
-        locationId,
-        status: 'approved',
-        approvedAt: {
-          gte: finalStartDate,
-          lte: finalEndDate
-        }
-      },
-      include: {
-        items: {
-          where: {
-            productId,
-            productVariationId: variationId
-          }
-        },
-        customer: { select: { name: true } }
-      },
-      orderBy: { approvedAt: 'asc' }
-    }),
+    // DISABLED: Now pulling from productHistory as SOURCE OF TRUTH
+    // This prevents showing "phantom" returns that never actually updated inventory
+    // prisma.customerReturn.findMany({
+    //   where: {
+    //     businessId,
+    //     locationId,
+    //     status: 'approved',
+    //     approvedAt: {
+    //       gte: finalStartDate,
+    //       lte: finalEndDate
+    //     }
+    //   },
+    //   include: {
+    //     items: {
+    //       where: {
+    //         productId,
+    //         productVariationId: variationId
+    //       }
+    //     },
+    //     customer: { select: { name: true } }
+    //   },
+    //   orderBy: { approvedAt: 'asc' }
+    // }),
+    Promise.resolve([]), // Placeholder - customer returns now from productHistory only
 
-    // 8. Product History - ONLY for unique transaction types
-    // (opening_stock, manual adjustments that aren't in dedicated tables)
+    // 8. Product History - SOURCE OF TRUTH for all transactions
+    // Using productHistory as the ONLY reliable source for actual inventory changes
+    // This prevents "phantom transactions" - transactions marked approved/completed but never updated inventory
+    // NOTE: Including ALL transaction types from productHistory now except 'sale'
     prisma.productHistory.findMany({
       where: {
         businessId,
@@ -229,10 +258,11 @@ export async function getVariationStockHistory(
           gte: finalStartDate,
           lte: finalEndDate
         },
-        // Exclude transaction types that are already covered by dedicated tables above
-        // INCLUDING 'adjustment' since inventory corrections are now handled separately
+        // ONLY exclude 'sale' - sales are still pulled from dedicated table
+        // ALL OTHER TYPES (purchase, purchase_return, supplier_return, customer_return, transfer_in, transfer_out, adjustment, opening_stock)
+        // now come from productHistory to ensure accuracy
         transactionType: {
-          notIn: ['purchase', 'sale', 'transfer_in', 'transfer_out', 'purchase_return', 'supplier_return', 'customer_return', 'adjustment']
+          notIn: ['sale']
         }
       },
       orderBy: { transactionDate: 'asc' }
@@ -260,25 +290,22 @@ export async function getVariationStockHistory(
     }
   }
 
-  // Process Sales
-  for (const sale of sales) {
-    if (sale.items.length > 0) {
-      for (const item of sale.items) {
-        transactions.push({
-          date: sale.saleDate,
-          type: 'sale',
-          typeLabel: 'Sale',
-          referenceNumber: sale.invoiceNumber,
-          quantityAdded: 0,
-          quantityRemoved: parseFloat(item.quantity.toString()),
-          notes: `Sale to ${sale.customer?.name || 'Walk-in Customer'}`,
-          createdBy: sale.customer?.name || 'Walk-in Customer'
-        })
-      }
-    }
+  // Process Sales - Now using optimized saleItems query
+  for (const item of saleItems) {
+    transactions.push({
+      date: item.sale.saleDate,
+      type: 'sale',
+      typeLabel: 'Sale',
+      referenceNumber: item.sale.invoiceNumber,
+      quantityAdded: 0,
+      quantityRemoved: parseFloat(item.quantity.toString()),
+      notes: `Sale to ${item.sale.customer?.name || 'Walk-in Customer'}`,
+      createdBy: item.sale.customer?.name || 'Walk-in Customer'
+    })
   }
 
   // Process Transfers Out
+  // NOTE: Now disabled - transfers pulled from productHistory instead
   for (const transfer of transfersOut) {
     if (transfer.items.length > 0) {
       for (const item of transfer.items) {
@@ -297,6 +324,7 @@ export async function getVariationStockHistory(
   }
 
   // Process Transfers In
+  // NOTE: Now disabled - transfers pulled from productHistory instead
   for (const transfer of transfersIn) {
     if (transfer.items.length > 0) {
       for (const item of transfer.items) {
@@ -315,6 +343,9 @@ export async function getVariationStockHistory(
   }
 
   // Process Inventory Corrections
+  // Track correction IDs to avoid duplicates with productHistory
+  const processedCorrectionIds = new Set<number>()
+
   for (const correction of inventoryCorrections) {
     // Get the actual adjustment from the linked stock transaction
     // The stock transaction quantity is positive for additions, negative for subtractions
@@ -330,6 +361,7 @@ export async function getVariationStockHistory(
         notes: `Inventory correction: ${correction.reason}${correction.remarks ? ' - ' + correction.remarks : ''}`,
         createdBy: 'Inventory Correction'
       })
+      processedCorrectionIds.add(correction.id)
     }
   }
 
@@ -369,8 +401,17 @@ export async function getVariationStockHistory(
     }
   }
 
-  // Process Product History records (opening stock, etc.)
+  // Process Product History records (opening stock, adjustments without stockTransaction, etc.)
   for (const historyRecord of productHistoryRecords) {
+    // Skip adjustments that were already processed from inventoryCorrection table
+    if (historyRecord.transactionType === 'adjustment' && historyRecord.referenceType === 'inventory_correction') {
+      const correctionId = historyRecord.referenceId
+      if (correctionId && processedCorrectionIds.has(correctionId)) {
+        // Already processed this correction from inventoryCorrection table, skip to avoid duplicate
+        continue
+      }
+    }
+
     const quantityChange = parseFloat(historyRecord.quantityChange.toString())
     transactions.push({
       date: historyRecord.transactionDate,

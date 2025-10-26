@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        name: 'asc',
       },
     })
 
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       createdAt: r.createdAt,
     }))
 
-    return NextResponse.json(formattedRoles)
+    return NextResponse.json({ success: true, data: formattedRoles })
   } catch (error) {
     console.error('Error fetching roles:', error)
     return NextResponse.json(

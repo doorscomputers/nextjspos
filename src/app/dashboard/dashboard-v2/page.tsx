@@ -351,7 +351,7 @@ export default function DashboardV2Page() {
       <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">
-            Dashboard Analytics V2
+            Dashboard Analytics V1
           </h1>
           <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 mt-1">
             Multi-dimensional sales & inventory analysis with interactive pivot grid

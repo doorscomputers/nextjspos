@@ -194,7 +194,10 @@ export const authOptions: NextAuthOptions = {
         const roleNames = user.roles.map(ur => ur.role.name)
 
         // If user has "Super Admin" role, grant ALL permissions automatically
-        if (roleNames.includes('Super Admin')) {
+        // Support all Super Admin role name variations for backward compatibility
+        if (roleNames.includes('Super Admin') ||
+            roleNames.includes('System Administrator') ||
+            roleNames.includes('Super Admin (Legacy)')) {
           allPermissions = Object.values(PERMISSIONS)
         }
 

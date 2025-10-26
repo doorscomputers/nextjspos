@@ -271,8 +271,24 @@ export async function POST(request: NextRequest) {
               }
             })
 
-            // Create ProductHistory entry for beginning inventory
+            // Create StockTransaction entry for beginning inventory (CRITICAL for inventory tracking)
             if (stockValue > 0) {
+              await tx.stockTransaction.create({
+                data: {
+                  businessId,
+                  locationId,
+                  productId: newProduct.id,
+                  productVariationId: variation.id,
+                  type: 'opening_stock',
+                  quantity: stockValue,
+                  unitCost: purchasePrice || 0,
+                  refNo: `CSV-IMPORT-${newProduct.id}`,
+                  notes: `Opening stock from Branch Stock Pivot CSV import`,
+                  createdBy: parseInt(String(user.id))
+                }
+              })
+
+              // Create ProductHistory entry for beginning inventory
               await tx.productHistory.create({
                 data: {
                   businessId,

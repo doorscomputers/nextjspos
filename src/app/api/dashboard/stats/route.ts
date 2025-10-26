@@ -302,17 +302,50 @@ export async function GET(request: NextRequest) {
     })
 
     // Sales Payment Due - only include invoices with an outstanding balance
+    // This includes:
+    // 1. Credit sales (charge invoices) with no payments
+    // 2. Partially paid sales
+    // 3. Any sale where total amount > sum of payments
+    //
+    // IMPORTANT: Show unpaid invoices from ALL accessible locations, not just the selected location
+    // This is critical for managers to see all outstanding receivables
+    const salesPaymentDueWhereClause: any = {
+      businessId,
+      status: {
+        notIn: ['voided', 'cancelled']
+      }
+    }
+
+    // Apply location filtering based on user's access
+    if (accessibleLocationIds !== null) {
+      const normalizedLocationIds = accessibleLocationIds
+        .map((id) => Number(id))
+        .filter((id): id is number => Number.isFinite(id) && Number.isInteger(id))
+        .filter((id) => businessLocationIds.includes(id))
+
+      if (normalizedLocationIds.length > 0) {
+        // Show unpaid sales from all accessible locations
+        salesPaymentDueWhereClause.locationId = { in: normalizedLocationIds }
+      } else if (businessLocationIds.length > 0) {
+        // User has no specific access - use first business location
+        salesPaymentDueWhereClause.locationId = businessLocationIds[0]
+      }
+    }
+    // If accessibleLocationIds is null (full access), show from all locations (no location filter)
+
     const salesPaymentDueRaw = await prisma.sale.findMany({
-      where: {
-        ...whereClause,
-        status: 'completed',
-      },
+      where: salesPaymentDueWhereClause,
       include: {
         customer: { select: { name: true } },
-        payments: { select: { amount: true } },
+        payments: {
+          select: { amount: true }
+        },
+        location: {
+          select: { name: true }
+        },
       },
       orderBy: { saleDate: 'desc' },
-      take: 50, // fetch more to account for filtering below
+      take: 100, // fetch more to account for filtering below
     })
 
     const salesPaymentDue = salesPaymentDueRaw
@@ -327,11 +360,14 @@ export async function GET(request: NextRequest) {
           id: sale.id,
           invoiceNumber: sale.invoiceNumber,
           customer: sale.customer?.name || 'Walk-in Customer',
+          location: sale.location?.name || 'Unknown',
           date: sale.saleDate.toISOString().split('T')[0],
           amount: balance,
+          totalAmount: totalAmount,
+          paidAmount: paidAmount,
         }
       })
-      .filter((sale) => sale.amount > 0)
+      .filter((sale) => sale.amount > 0) // Only show sales with outstanding balance
       .slice(0, 10)
 
     // Purchase Payment Due - Get unpaid/partially paid accounts payable

@@ -57,7 +57,17 @@ export async function GET(
             email: true,
           },
         },
-        items: true,
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+              },
+            },
+          },
+        },
         payments: true,
         creator: {
           select: {

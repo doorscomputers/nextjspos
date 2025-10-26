@@ -18,6 +18,8 @@ interface LocationPrice {
   locationName: string
   sellingPrice: number | null
   stock: number
+  lastPriceUpdate?: Date | string | null
+  lastPriceUpdatedBy?: string | null
 }
 
 interface LocationPriceManagerProps {
@@ -28,6 +30,13 @@ interface LocationPriceManagerProps {
     locationId: number
     qtyAvailable: number
     sellingPrice: number | null
+    lastPriceUpdate?: Date | string | null
+    lastPriceUpdatedBy?: number | null
+    lastPriceUpdatedByUser?: {
+      username: string
+      firstName?: string
+      lastName?: string
+    } | null
   }[]
   canEdit?: boolean
   onPriceUpdate?: () => void
@@ -45,14 +54,26 @@ export default function LocationPriceManager({
   const [editPrice, setEditPrice] = useState<string>('')
   const [saving, setSaving] = useState(false)
 
-  // Combine locations with their prices
+  // Combine locations with their prices and audit info
   const locationPrices: LocationPrice[] = locations.map(location => {
     const detail = locationDetails.find(d => d.locationId === location.id)
+
+    // Format user name for display
+    let updatedByName = null
+    if (detail?.lastPriceUpdatedByUser) {
+      const user = detail.lastPriceUpdatedByUser
+      updatedByName = user.firstName && user.lastName
+        ? `${user.firstName} ${user.lastName}`
+        : user.username
+    }
+
     return {
       locationId: location.id,
       locationName: location.name,
       sellingPrice: detail?.sellingPrice || null,
-      stock: detail?.qtyAvailable || 0
+      stock: detail?.qtyAvailable || 0,
+      lastPriceUpdate: detail?.lastPriceUpdate || null,
+      lastPriceUpdatedBy: updatedByName
     }
   })
 
@@ -116,6 +137,18 @@ export default function LocationPriceManager({
     return locationPrice !== null
   }
 
+  const formatDate = (date: Date | string | null | undefined): string => {
+    if (!date) return ''
+    const d = new Date(date)
+    return d.toLocaleString('en-PH', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -132,6 +165,7 @@ export default function LocationPriceManager({
               <TableHead className="text-right">Stock</TableHead>
               <TableHead className="text-right">Selling Price</TableHead>
               <TableHead className="text-right">Status</TableHead>
+              <TableHead className="text-left">Last Updated</TableHead>
               {canEdit && <TableHead className="text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
@@ -176,6 +210,20 @@ export default function LocationPriceManager({
                       <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">
                         Default
                       </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-left">
+                    {locPrice.lastPriceUpdate && locPrice.lastPriceUpdatedBy ? (
+                      <div className="text-xs">
+                        <div className="font-medium text-gray-700 dark:text-gray-300">
+                          {locPrice.lastPriceUpdatedBy}
+                        </div>
+                        <div className="text-gray-500 dark:text-gray-500">
+                          {formatDate(locPrice.lastPriceUpdate)}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400 dark:text-gray-600">—</span>
                     )}
                   </TableCell>
                   {canEdit && (

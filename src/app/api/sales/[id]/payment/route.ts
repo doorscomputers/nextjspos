@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { PERMISSIONS } from "@/lib/rbac"
+import { isAccountingEnabled, recordCustomerPayment } from "@/lib/accountingIntegration"
 
 /**
  * POST /api/sales/[id]/payment
@@ -138,6 +139,24 @@ export async function POST(
     // 9. Calculate new balance after payment
     const newBalance = currentBalance - amount
     const isFullyPaid = newBalance <= 0.01
+
+    // ACCOUNTING INTEGRATION: Create journal entries if accounting is enabled
+    if (await isAccountingEnabled(user.businessId)) {
+      try {
+        await recordCustomerPayment({
+          businessId: user.businessId,
+          userId: user.id,
+          paymentId: payment.id,
+          paymentDate: paidAt,
+          amount,
+          referenceNumber: referenceNumber || undefined,
+          customerId: sale.customerId || undefined
+        })
+      } catch (accountingError) {
+        // Log accounting errors but don't fail the payment
+        console.error('Accounting integration error:', accountingError)
+      }
+    }
 
     // 10. Return success response with updated invoice status
     return NextResponse.json({

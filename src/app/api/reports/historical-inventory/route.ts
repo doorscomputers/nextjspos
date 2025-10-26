@@ -131,16 +131,16 @@ export async function GET(request: NextRequest) {
     console.log('QUERY DEBUG: totalCount:', totalCount);
 
     // Calculate historical quantities for each inventory item
-    // Use end-of-day cutoff so quantities reflect the selected date at 23:59:59.999
-    const endOfDay = new Date(targetDateTime);
-    endOfDay.setHours(23, 59, 59, 999);
+    // Use EXACT datetime specified by user (no longer forcing end-of-day)
+    // This allows precise inventory snapshots at specific times (e.g., 10:30 AM vs 5:00 PM)
+    const exactDateTime = new Date(targetDateTime);
     const nowLocal = new Date();
-    const isToday = nowLocal.getFullYear() === endOfDay.getFullYear() &&
-      nowLocal.getMonth() === endOfDay.getMonth() &&
-      nowLocal.getDate() === endOfDay.getDate();
+    const isToday = nowLocal.getFullYear() === exactDateTime.getFullYear() &&
+      nowLocal.getMonth() === exactDateTime.getMonth() &&
+      nowLocal.getDate() === exactDateTime.getDate();
     const inventoryWithHistoricalQty = await Promise.all(
       inventoryData.map(async (item) => {
-        // Determine historical quantity as of endOfDay by taking the running balance
+        // Determine historical quantity as of exactDateTime by taking the running balance
         // of the latest stock transaction on or before the cutoff.
         const lastTx = await prisma.stockTransaction.findFirst({
           where: {
@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
             productId: item.productId,
             productVariationId: item.productVariationId,
             locationId: item.locationId,
-            createdAt: { lte: endOfDay }
+            createdAt: { lte: exactDateTime }
           },
           orderBy: [
             { createdAt: 'desc' },
@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
             productId: item.productId,
             productVariationId: item.productVariationId,
             locationId: item.locationId,
-            createdAt: { gt: endOfDay }
+            createdAt: { gt: exactDateTime }
           },
           _sum: { quantity: true }
         });
@@ -200,12 +200,12 @@ export async function GET(request: NextRequest) {
 
           if (firstTx) {
             // If first transaction happens AFTER the cutoff date, inventory didn't exist yet → 0
-            historicalQuantity = firstTx.createdAt > endOfDay ? 0 : qtyFromCurrent;
+            historicalQuantity = firstTx.createdAt > exactDateTime ? 0 : qtyFromCurrent;
           } else {
             // No transactions recorded at all. Use the record's creation time as a proxy.
             // If the variation-location record itself was created AFTER the cutoff date, show 0.
             // Otherwise use current-minus-after (which equals current for present-day reports).
-            historicalQuantity = item.createdAt && item.createdAt > endOfDay ? 0 : qtyFromCurrent;
+            historicalQuantity = item.createdAt && item.createdAt > exactDateTime ? 0 : qtyFromCurrent;
           }
         }
 

@@ -204,6 +204,7 @@ export async function POST(request: NextRequest) {
       where: {
         businessId,
         deletedAt: null,
+        isActive: true,
       },
       select: {
         id: true,

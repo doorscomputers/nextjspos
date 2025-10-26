@@ -243,7 +243,7 @@ export default function PurchaseTrendsPage() {
     doc.setFontSize(11)
     doc.text(`Total Products: ${trendData.summary.totalProducts}`, 14, 30)
     doc.text(`Total Quantity Purchased: ${trendData.summary.totalQuantityPurchased.toLocaleString()}`, 14, 36)
-    doc.text(`Total Cost: $${trendData.summary.totalCostPurchased.toLocaleString()}`, 14, 42)
+    doc.text(`Total Cost: ₱${trendData.summary.totalCostPurchased.toLocaleString()}`, 14, 42)
 
     // Top 20 table
     autoTable(doc, {

@@ -37,7 +37,10 @@ export default function UnclosedShiftWarning() {
       const response = await fetch('/api/shifts/check-unclosed')
       const data = await response.json()
 
-      if (data.hasUnclosedShift) {
+      // Only show warning if:
+      // 1. There is an unclosed shift AND
+      // 2. The API says we should show a warning (different day OR 9+ hours)
+      if (data.hasUnclosedShift && data.shouldShowWarning) {
         setShift(data.shift)
         setOpen(true)
       }
@@ -91,10 +94,12 @@ export default function UnclosedShiftWarning() {
             </div>
             <div>
               <DialogTitle className="text-2xl font-bold">
-                {shift.isOverdue ? 'CRITICAL: Unclosed Shift Detected!' : 'Unclosed Shift Warning'}
+                {shift.isOverdue ? 'CRITICAL: Unclosed Shift from Previous Day!' : 'Unclosed Shift Warning'}
               </DialogTitle>
               <DialogDescription className="text-base mt-1">
-                You have an open shift that needs attention
+                {shift.isOverdue
+                  ? 'This shift was opened yesterday or earlier and must be closed immediately'
+                  : `This shift has been open for ${shift.hoursSinceOpen} hours`}
               </DialogDescription>
             </div>
           </div>
@@ -104,7 +109,16 @@ export default function UnclosedShiftWarning() {
           <Alert variant="destructive" className="mb-4">
             <ExclamationTriangleIcon className="h-5 w-5" />
             <AlertDescription className="font-semibold">
-              This shift has been open for {shift.daysSinceOpen} day(s). BIR compliance requires daily Z readings!
+              This shift was opened yesterday or earlier. BIR compliance requires daily Z readings!
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {!shift.isOverdue && shift.hoursSinceOpen >= 9 && (
+          <Alert className="mb-4 bg-orange-50 dark:bg-orange-900/20 border-orange-300 dark:border-orange-700">
+            <ClockIcon className="h-5 w-5 text-orange-600" />
+            <AlertDescription className="font-semibold text-orange-800 dark:text-orange-200">
+              This shift has been open for {shift.hoursSinceOpen} hours. Consider closing it soon.
             </AlertDescription>
           </Alert>
         )}

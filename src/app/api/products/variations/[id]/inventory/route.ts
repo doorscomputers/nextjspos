@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getUserAccessibleLocationIds, PERMISSIONS, hasPermission } from '@/lib/rbac'
+import { sendTelegramPriceChangeAlert } from '@/lib/telegram'
 
 /**
  * GET /api/products/variations/[id]/inventory?locationId=X
@@ -72,7 +73,7 @@ export async function GET(
       return NextResponse.json({ error: 'Product variation not found' }, { status: 404 })
     }
 
-    // Get inventory details
+    // Get inventory details with audit trail
     const inventory = await prisma.variationLocationDetails.findFirst({
       where: {
         productVariationId: variationId,
@@ -84,7 +85,17 @@ export async function GET(
         productVariationId: true,
         locationId: true,
         qtyAvailable: true,
-        sellingPrice: true
+        sellingPrice: true,
+        lastPriceUpdate: true,
+        lastPriceUpdatedBy: true,
+        lastPriceUpdatedByUser: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true
+          }
+        }
       }
     })
 
@@ -176,7 +187,15 @@ export async function PUT(
         id: variationId,
         businessId: parseInt(businessId),
         deletedAt: null
-      }
+      },
+      include: {
+        product: {
+          select: {
+            name: true,
+            sku: true,
+          },
+        },
+      },
     })
 
     if (!variation) {
@@ -196,7 +215,26 @@ export async function PUT(
       return NextResponse.json({ error: 'Location not found' }, { status: 404 })
     }
 
-    // Update or create the variation location details
+    // Get old price for Telegram notification
+    const existingPrice = await prisma.variationLocationDetails.findUnique({
+      where: {
+        productVariationId_locationId: {
+          productVariationId: variationId,
+          locationId: locId,
+        },
+      },
+      select: {
+        sellingPrice: true,
+      },
+    })
+
+    const oldPrice = Number(existingPrice?.sellingPrice || 0)
+    const newPrice = price
+
+    // Update or create the variation location details with audit trail
+    const now = new Date()
+    const userId = user.id
+
     const inventory = await prisma.variationLocationDetails.upsert({
       where: {
         productVariationId_locationId: {
@@ -205,14 +243,18 @@ export async function PUT(
         }
       },
       update: {
-        sellingPrice: price
+        sellingPrice: price,
+        lastPriceUpdate: now,
+        lastPriceUpdatedBy: userId
       },
       create: {
         productId: variation.productId,
         productVariationId: variationId,
         locationId: locId,
         qtyAvailable: 0,
-        sellingPrice: price
+        sellingPrice: price,
+        lastPriceUpdate: now,
+        lastPriceUpdatedBy: userId
       },
       select: {
         id: true,
@@ -220,9 +262,40 @@ export async function PUT(
         productVariationId: true,
         locationId: true,
         qtyAvailable: true,
-        sellingPrice: true
+        sellingPrice: true,
+        lastPriceUpdate: true,
+        lastPriceUpdatedBy: true,
+        lastPriceUpdatedByUser: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true
+          }
+        }
       }
     })
+
+    // Send Telegram notification for price change (only if price actually changed)
+    if (oldPrice !== newPrice) {
+      try {
+        const changedBy = user.name || user.username || 'Unknown User'
+
+        await sendTelegramPriceChangeAlert({
+          locationName: location.name,
+          productName: variation.product.name || 'Unknown Product',
+          productSku: variation.product.sku || variation.sku || 'N/A',
+          oldPrice,
+          newPrice,
+          changedBy,
+          changeType: 'Individual Price Edit',
+          timestamp: now,
+        })
+      } catch (telegramError) {
+        // Log but don't fail the request if Telegram fails
+        console.error('Failed to send Telegram notification:', telegramError)
+      }
+    }
 
     return NextResponse.json({
       success: true,

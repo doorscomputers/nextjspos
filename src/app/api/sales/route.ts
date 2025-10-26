@@ -15,6 +15,8 @@ import {
 } from '@/lib/telegram'
 import { withIdempotency } from '@/lib/idempotency'
 import { getNextInvoiceNumber } from '@/lib/atomicNumbers'
+import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker'
+import { isAccountingEnabled, recordCashSale, recordCreditSale } from '@/lib/accountingIntegration'
 
 // GET - List all sales
 export async function GET(request: NextRequest) {
@@ -128,7 +130,17 @@ export async function GET(request: NextRequest) {
               surname: true,
             },
           },
-          items: true,
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  sku: true,
+                },
+              },
+            },
+          },
           payments: true,
         },
         orderBy: {
@@ -427,6 +439,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // TRANSACTION IMPACT TRACKING: Step 1 - Capture inventory BEFORE transaction
+    const impactTracker = new InventoryImpactTracker()
+    const productVariationIds = items.map((item: any) => Number(item.productVariationId))
+    const locationIds = [locationIdNumber]
+    await impactTracker.captureBefore(productVariationIds, locationIds)
+
     // Create sale and deduct stock in transaction
     const sale = await prisma.$transaction(async (tx) => {
       // Generate location-specific invoice number atomically inside transaction
@@ -581,6 +599,61 @@ export async function POST(request: NextRequest) {
       timeout: 60000, // 60 seconds timeout for network resilience
     })
 
+    // TRANSACTION IMPACT TRACKING: Step 2 - Capture inventory AFTER and generate report
+    const inventoryImpact = await impactTracker.captureAfterAndReport(
+      productVariationIds,
+      locationIds,
+      'sale',
+      sale.id,
+      sale.invoiceNumber,
+      undefined, // No location types needed for single-location sales
+      userDisplayName
+    )
+
+    // ACCOUNTING INTEGRATION: Create journal entries if accounting is enabled
+    if (await isAccountingEnabled(businessIdNumber)) {
+      try {
+        // Calculate COGS (Cost of Goods Sold) from sale items
+        const saleWithItems = await prisma.sale.findUnique({
+          where: { id: sale.id },
+          include: { items: true }
+        })
+
+        const costOfGoodsSold = saleWithItems?.items.reduce(
+          (sum, item) => sum + (parseFloat(item.unitCost.toString()) * parseFloat(item.quantity.toString())),
+          0
+        ) || 0
+
+        if (isCreditSale) {
+          // Credit Sale (Charge Invoice) - record as Accounts Receivable
+          await recordCreditSale({
+            businessId: businessIdNumber,
+            userId: userIdNumber,
+            saleId: sale.id,
+            saleDate: new Date(saleDate),
+            totalAmount,
+            costOfGoodsSold,
+            invoiceNumber: sale.invoiceNumber,
+            customerId: customerIdNumber || undefined
+          })
+        } else {
+          // Cash Sale - record as Cash received
+          await recordCashSale({
+            businessId: businessIdNumber,
+            userId: userIdNumber,
+            saleId: sale.id,
+            saleDate: new Date(saleDate),
+            totalAmount,
+            costOfGoodsSold,
+            invoiceNumber: sale.invoiceNumber
+          })
+        }
+      } catch (accountingError) {
+        // Log accounting errors but don't fail the sale
+        console.error('Accounting integration error:', accountingError)
+      }
+    }
+
     // Create audit log
     await createAuditLog({
       businessId: businessIdNumber,
@@ -608,7 +681,26 @@ export async function POST(request: NextRequest) {
       where: { id: sale.id },
       include: {
         customer: true,
-        items: true,
+        creator: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            surname: true,
+          },
+        },
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                sku: true,
+              },
+            },
+          },
+        },
         payments: true,
       },
     })
@@ -669,7 +761,11 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    return NextResponse.json(completeSale, { status: 201 })
+    // Return with inventory impact report
+    return NextResponse.json({
+      ...completeSale,
+      inventoryImpact
+    }, { status: 201 })
   } catch (error) {
     console.error('Error creating sale:', error)
     return NextResponse.json(

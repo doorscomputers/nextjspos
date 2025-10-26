@@ -20,11 +20,13 @@ Cebu Branch Manager:      cebu_mgr / password123
 ## 🎯 5-MINUTE TEST FLOW
 
 ### Step 1: Login as Warehouse Manager
+
 - URL: `http://localhost:3000/login`
 - Username: `warehouse_mgr`
 - Password: `password123`
 
 ### Step 2: Create Your First Transfer
+
 1. Click **Transfers** in sidebar
 2. Click **Create Transfer** button
 3. Notice:
@@ -39,6 +41,7 @@ Cebu Branch Manager:      cebu_mgr / password123
 6. Click **Create Transfer**
 
 ### Step 3: Complete the Workflow
+
 1. View the transfer you just created
 2. Click **Submit for Check** button
 3. Click **Approve** button
@@ -47,6 +50,7 @@ Cebu Branch Manager:      cebu_mgr / password123
 5. Logout
 
 ### Step 4: Receive at Destination
+
 1. Login as: `makati_mgr / password123`
 2. Go to **Transfers** page
 3. Find your incoming transfer
@@ -57,6 +61,7 @@ Cebu Branch Manager:      cebu_mgr / password123
    - ✅ Stock is NOW added to Branch Makati
 
 ### Step 5: Verify Stock Levels
+
 1. Go to **Products** page
 2. Search for "Laptop"
 3. Check stock:
@@ -70,27 +75,32 @@ Cebu Branch Manager:      cebu_mgr / password123
 ## 🧪 WHAT TO TEST
 
 ### ✅ Auto-Location Assignment
+
 - Login as any branch manager
 - Go to Create Transfer
 - Verify "From Location" is pre-selected to their branch
 - Verify they only see their assigned location(s)
 
 ### ✅ Filtered Dropdowns
+
 - Try selecting different "From Locations"
 - Verify "To Location" always excludes the selected source
 - Try selecting same location (impossible!)
 
 ### ✅ Stock Validation
+
 - Try transferring more than available stock
 - System should reject with clear error message
 
 ### ✅ Cancellation & Stock Restoration
+
 1. Create a transfer
 2. Send it (stock gets deducted)
 3. Cancel with reason
 4. Verify stock is restored to original location
 
 ### ✅ Rejection Flow
+
 1. Create a transfer
 2. Submit for check
 3. Reject it with a reason
@@ -101,11 +111,11 @@ Cebu Branch Manager:      cebu_mgr / password123
 
 ## 📦 AVAILABLE TEST PRODUCTS
 
-| Product | Initial Stock (Main Warehouse) |
-|---------|-------------------------------|
-| Dell Latitude 7490 Laptop | 50 units |
-| Logitech MX Master 3 Mouse | 200 units |
-| Keychron K8 Keyboard | 150 units |
+| Product                     | Initial Stock (Main Warehouse)     |
+| --------------------------- | ---------------------------------- |
+| Dell Latitude 7490 Laptop   | 50 units                           |
+| Logitech MX Master 3 Mouse  | 200 units                          |
+| Keychron K8 Keyboard        | 150 units                          |
 | Dell 27" UltraSharp Monitor | 30 units (Main), 15 units (Makati) |
 
 ---
@@ -123,20 +133,25 @@ Cebu Branch Manager:      cebu_mgr / password123
 ## 🐛 IF SOMETHING DOESN'T WORK
 
 ### Dev Server Not Running?
+
 ```bash
 npm run dev
 ```
 
 ### Database Connection Error?
+
 Check `.env` file has correct `DATABASE_URL`
 
 ### Users Don't Exist?
+
 Run seed script:
+
 ```bash
 node scripts/seed-transfer-test-data.js
 ```
 
 ### Permissions Error?
+
 Login as `superadmin / password` first, then test branch users
 
 ---
@@ -144,6 +159,7 @@ Login as `superadmin / password` first, then test branch users
 ## 📚 FULL DOCUMENTATION
 
 See **TRANSFER-SYSTEM-COMPLETE-REPORT.md** for:
+
 - Complete implementation details
 - All API endpoints
 - File structure
@@ -160,5 +176,18 @@ See **TRANSFER-SYSTEM-COMPLETE-REPORT.md** for:
 2. Open browser: `http://localhost:3000`
 3. Login with any test user above
 4. Create transfers and watch the magic happen!
+
+🔄 To Switch Back to Full Workflow Later:
+
+Run this command:
+node set-simple-workflow.js
+Then manually update the database or use Prisma Studio to change transfer_workflow_mode back to 'full'.
+
+📁 Files Created/Modified:
+
+1. ✅ src/app/api/business-settings/route.ts - API for getting/setting workflow mode
+2. ✅ src/app/dashboard/transfers/[id]/page.tsx - Added simplified workflow logic
+3. ✅ set-simple-workflow.js - Script to toggle workflow mode
+4. ✅ Database updated - transferWorkflowMode set to 'simple'
 
 **Good luck with testing!** 🚀

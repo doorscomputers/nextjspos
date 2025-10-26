@@ -20,7 +20,10 @@ export interface RBACUser {
 export function isSuperAdmin(user: RBACUser | null): boolean {
   if (!user) return false
   // Check by role name first (most reliable)
+  // Support both old and new role names for backward compatibility
   if (user.roles?.includes('Super Admin')) return true
+  if (user.roles?.includes('System Administrator')) return true
+  if (user.roles?.includes('Super Admin (Legacy)')) return true
   // Fallback: check for superadmin.all permission
   return user.permissions?.includes('superadmin.all') || false
 }
@@ -107,6 +110,22 @@ export const PERMISSIONS = {
   PRODUCT_LOCK_OPENING_STOCK: 'product.lock_opening_stock',
   PRODUCT_UNLOCK_OPENING_STOCK: 'product.unlock_opening_stock',
   PRODUCT_MODIFY_LOCKED_STOCK: 'product.modify_locked_stock',
+
+  // Products - Multi-Location Pricing
+  PRODUCT_PRICE_EDIT: 'product.price.edit', // Edit location prices for own location
+  PRODUCT_PRICE_EDIT_ALL: 'product.price.edit_all', // Edit location prices for all locations
+  PRODUCT_PRICE_GLOBAL: 'product.price.global', // Edit global/base prices
+  PRODUCT_PRICE_BULK_EDIT: 'product.price.bulk_edit', // Bulk price editing across multiple products
+  PRODUCT_PRICE_IMPORT: 'product.price.import', // Import prices from Excel
+  PRODUCT_PRICE_EXPORT: 'product.price.export', // Export price lists
+  PRODUCT_COST_AUDIT_VIEW: 'product.cost_audit.view', // View cost audit report
+  PRODUCT_PRICE_COMPARISON_VIEW: 'product.price_comparison.view', // View price comparison report
+
+  // Pricing Settings & Alerts
+  PRICING_SETTINGS_VIEW: 'pricing.settings.view', // View pricing settings
+  PRICING_SETTINGS_EDIT: 'pricing.settings.edit', // Edit pricing settings (strategy, rounding, alerts)
+  PRICING_ALERTS_VIEW: 'pricing.alerts.view', // View pricing alerts (below cost/retail sales)
+  PRICING_ALERTS_ACKNOWLEDGE: 'pricing.alerts.acknowledge', // Acknowledge/review pricing alerts
 
   // Product Master Data (Categories, Brands, Units, Warranties)
   PRODUCT_CATEGORY_VIEW: 'product.category.view',
@@ -246,6 +265,54 @@ export const PERMISSIONS = {
   BANK_TRANSACTION_CREATE: 'bank_transaction.create',
   BANK_TRANSACTION_UPDATE: 'bank_transaction.update',
   BANK_TRANSACTION_DELETE: 'bank_transaction.delete',
+
+  // ========== ACCOUNTING MODULE ==========
+  // Master Access Control (required for all accounting features)
+  ACCOUNTING_ACCESS: 'accounting.access', // Master switch - must have this to access any accounting features
+
+  // Chart of Accounts Management
+  ACCOUNTING_CHART_OF_ACCOUNTS_VIEW: 'accounting.chart_of_accounts.view',
+  ACCOUNTING_CHART_OF_ACCOUNTS_EDIT: 'accounting.chart_of_accounts.edit',
+
+  // Period Closing
+  ACCOUNTING_PERIOD_CLOSE: 'accounting.period.close', // Month/quarter/year-end closing
+  ACCOUNTING_PERIOD_REOPEN: 'accounting.period.reopen', // Reopen closed periods (very dangerous!)
+  ACCOUNTING_PERIOD_VIEW: 'accounting.period.view', // View fiscal period information
+
+  // Financial Statements
+  ACCOUNTING_BALANCE_SHEET_VIEW: 'accounting.balance_sheet.view',
+  ACCOUNTING_INCOME_STATEMENT_VIEW: 'accounting.income_statement.view',
+  ACCOUNTING_CASH_FLOW_VIEW: 'accounting.cash_flow.view',
+  ACCOUNTING_TRIAL_BALANCE_VIEW: 'accounting.trial_balance.view',
+  ACCOUNTING_GENERAL_LEDGER_VIEW: 'accounting.general_ledger.view',
+
+  // GL Entry Management
+  ACCOUNTING_GL_ENTRIES_VIEW: 'accounting.gl_entries.view',
+  ACCOUNTING_GL_ENTRIES_EXPORT: 'accounting.gl_entries.export', // Export to CSV, QuickBooks, Xero
+  ACCOUNTING_GL_ENTRIES_CREATE: 'accounting.gl_entries.create', // Manual journal entries (advanced)
+  ACCOUNTING_GL_ENTRIES_EDIT: 'accounting.gl_entries.edit', // Edit draft entries
+  ACCOUNTING_GL_ENTRIES_POST: 'accounting.gl_entries.post', // Post entries to ledger
+  ACCOUNTING_GL_ENTRIES_REVERSE: 'accounting.gl_entries.reverse', // Reverse posted entries
+
+  // Business Intelligence & Analytics
+  ACCOUNTING_BI_DASHBOARD_VIEW: 'accounting.bi_dashboard.view', // KPIs, ratios, trends
+  ACCOUNTING_FORECAST_VIEW: 'accounting.forecast.view', // Sales forecasting & projections
+  ACCOUNTING_TREND_ANALYSIS_VIEW: 'accounting.trend_analysis.view', // Historical trends
+
+  // Budget Management
+  ACCOUNTING_BUDGET_VIEW: 'accounting.budget.view',
+  ACCOUNTING_BUDGET_CREATE: 'accounting.budget.create',
+  ACCOUNTING_BUDGET_EDIT: 'accounting.budget.edit',
+  ACCOUNTING_BUDGET_APPROVE: 'accounting.budget.approve',
+
+  // Financial Snapshots & Caching
+  ACCOUNTING_SNAPSHOT_VIEW: 'accounting.snapshot.view', // View cached financial data
+  ACCOUNTING_SNAPSHOT_GENERATE: 'accounting.snapshot.generate', // Regenerate snapshots
+
+  // Audit & Compliance
+  ACCOUNTING_AUDIT_TRAIL_VIEW: 'accounting.audit_trail.view', // View all accounting changes
+  ACCOUNTING_RECONCILIATION_VIEW: 'accounting.reconciliation.view', // View reconciliation reports
+  ACCOUNTING_VALIDATION_RUN: 'accounting.validation.run', // Run accounting validation checks
 
   // Stock Transfers
   STOCK_TRANSFER_VIEW: 'stock_transfer.view',
@@ -599,7 +666,7 @@ export const DEFAULT_ROLES = {
 
   PRODUCT_CATALOG_MANAGER: {
     name: 'Product Catalog Manager',
-    description: 'Creates and manages products, categories, brands, units',
+    description: 'Creates and manages products, categories, brands, units, and pricing',
     category: 'Product & Inventory',
     permissions: [
       PERMISSIONS.DASHBOARD_VIEW,
@@ -611,6 +678,19 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.PRODUCT_VIEW_PROFIT_MARGIN,
       PERMISSIONS.PRODUCT_VIEW_SUPPLIER,
       PERMISSIONS.ACCESS_DEFAULT_SELLING_PRICE,
+      // Multi-Location Pricing
+      PERMISSIONS.PRODUCT_PRICE_EDIT_ALL,
+      PERMISSIONS.PRODUCT_PRICE_GLOBAL,
+      PERMISSIONS.PRODUCT_PRICE_BULK_EDIT,
+      PERMISSIONS.PRODUCT_PRICE_IMPORT,
+      PERMISSIONS.PRODUCT_PRICE_EXPORT,
+      PERMISSIONS.PRODUCT_COST_AUDIT_VIEW,
+      PERMISSIONS.PRODUCT_PRICE_COMPARISON_VIEW,
+      PERMISSIONS.PRICING_SETTINGS_VIEW,
+      PERMISSIONS.PRICING_SETTINGS_EDIT,
+      PERMISSIONS.PRICING_ALERTS_VIEW,
+      PERMISSIONS.PRICING_ALERTS_ACKNOWLEDGE,
+      // Categories, Brands, Units, Warranties
       PERMISSIONS.PRODUCT_CATEGORY_VIEW,
       PERMISSIONS.PRODUCT_CATEGORY_CREATE,
       PERMISSIONS.PRODUCT_CATEGORY_UPDATE,
@@ -1169,6 +1249,169 @@ export const DEFAULT_ROLES = {
     ],
   },
 
+  ACCOUNTANT: {
+    name: 'Accountant',
+    description: 'Full accounting module access - financial statements, period closing, and GL entries',
+    category: 'Financial & Accounting',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      // Master Access
+      PERMISSIONS.ACCOUNTING_ACCESS, // Required for all accounting features
+
+      // Chart of Accounts
+      PERMISSIONS.ACCOUNTING_CHART_OF_ACCOUNTS_VIEW,
+      PERMISSIONS.ACCOUNTING_CHART_OF_ACCOUNTS_EDIT,
+
+      // Period Management
+      PERMISSIONS.ACCOUNTING_PERIOD_VIEW,
+      PERMISSIONS.ACCOUNTING_PERIOD_CLOSE,
+      // NOTE: PERIOD_REOPEN not included - only Super Admin can reopen periods
+
+      // Financial Statements (Full Access)
+      PERMISSIONS.ACCOUNTING_BALANCE_SHEET_VIEW,
+      PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW,
+      PERMISSIONS.ACCOUNTING_CASH_FLOW_VIEW,
+      PERMISSIONS.ACCOUNTING_TRIAL_BALANCE_VIEW,
+      PERMISSIONS.ACCOUNTING_GENERAL_LEDGER_VIEW,
+
+      // GL Entries (Full Management)
+      PERMISSIONS.ACCOUNTING_GL_ENTRIES_VIEW,
+      PERMISSIONS.ACCOUNTING_GL_ENTRIES_EXPORT,
+      PERMISSIONS.ACCOUNTING_GL_ENTRIES_CREATE,
+      PERMISSIONS.ACCOUNTING_GL_ENTRIES_EDIT,
+      PERMISSIONS.ACCOUNTING_GL_ENTRIES_POST,
+      PERMISSIONS.ACCOUNTING_GL_ENTRIES_REVERSE,
+
+      // Business Intelligence
+      PERMISSIONS.ACCOUNTING_BI_DASHBOARD_VIEW,
+      PERMISSIONS.ACCOUNTING_FORECAST_VIEW,
+      PERMISSIONS.ACCOUNTING_TREND_ANALYSIS_VIEW,
+
+      // Budget Management
+      PERMISSIONS.ACCOUNTING_BUDGET_VIEW,
+      PERMISSIONS.ACCOUNTING_BUDGET_CREATE,
+      PERMISSIONS.ACCOUNTING_BUDGET_EDIT,
+      // NOTE: BUDGET_APPROVE not included - requires manager approval
+
+      // Snapshots & Validation
+      PERMISSIONS.ACCOUNTING_SNAPSHOT_VIEW,
+      PERMISSIONS.ACCOUNTING_SNAPSHOT_GENERATE,
+      PERMISSIONS.ACCOUNTING_AUDIT_TRAIL_VIEW,
+      PERMISSIONS.ACCOUNTING_RECONCILIATION_VIEW,
+      PERMISSIONS.ACCOUNTING_VALIDATION_RUN,
+
+      // Related Financial Data Access
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE,
+      PERMISSIONS.PRODUCT_VIEW_PROFIT_MARGIN,
+      PERMISSIONS.SELL_VIEW,
+      PERMISSIONS.SELL_VIEW_COST,
+      PERMISSIONS.SELL_VIEW_PROFIT,
+      PERMISSIONS.PURCHASE_VIEW,
+      PERMISSIONS.PURCHASE_VIEW_COST,
+      PERMISSIONS.ACCOUNTS_PAYABLE_VIEW,
+      PERMISSIONS.PAYMENT_VIEW,
+      PERMISSIONS.BANK_VIEW,
+      PERMISSIONS.BANK_TRANSACTION_VIEW,
+      PERMISSIONS.EXPENSE_VIEW,
+      PERMISSIONS.INVENTORY_CORRECTION_VIEW,
+
+      // Financial Reports
+      PERMISSIONS.REPORT_VIEW,
+      PERMISSIONS.REPORT_PROFIT_LOSS,
+      PERMISSIONS.REPORT_PROFITABILITY,
+    ],
+  },
+
+  ACCOUNTING_VIEWER: {
+    name: 'Accounting Viewer',
+    description: 'View-only access to accounting reports and financial statements',
+    category: 'Financial & Accounting',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.ACCOUNTING_ACCESS, // Required to see accounting menu
+
+      // View-Only Access to Financial Statements
+      PERMISSIONS.ACCOUNTING_BALANCE_SHEET_VIEW,
+      PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW,
+      PERMISSIONS.ACCOUNTING_CASH_FLOW_VIEW,
+      PERMISSIONS.ACCOUNTING_TRIAL_BALANCE_VIEW,
+      PERMISSIONS.ACCOUNTING_GENERAL_LEDGER_VIEW,
+
+      // View GL Entries & Export
+      PERMISSIONS.ACCOUNTING_GL_ENTRIES_VIEW,
+      PERMISSIONS.ACCOUNTING_GL_ENTRIES_EXPORT,
+
+      // View Business Intelligence
+      PERMISSIONS.ACCOUNTING_BI_DASHBOARD_VIEW,
+      PERMISSIONS.ACCOUNTING_FORECAST_VIEW,
+      PERMISSIONS.ACCOUNTING_TREND_ANALYSIS_VIEW,
+
+      // View Budgets
+      PERMISSIONS.ACCOUNTING_BUDGET_VIEW,
+
+      // View Periods & Snapshots
+      PERMISSIONS.ACCOUNTING_PERIOD_VIEW,
+      PERMISSIONS.ACCOUNTING_SNAPSHOT_VIEW,
+      PERMISSIONS.ACCOUNTING_RECONCILIATION_VIEW,
+
+      // View Related Data
+      PERMISSIONS.REPORT_VIEW,
+      PERMISSIONS.REPORT_PROFIT_LOSS,
+      PERMISSIONS.REPORT_PROFITABILITY,
+    ],
+  },
+
+  FINANCIAL_ANALYST: {
+    name: 'Financial Analyst',
+    description: 'Business intelligence and forecasting specialist',
+    category: 'Financial & Accounting',
+    permissions: [
+      PERMISSIONS.DASHBOARD_VIEW,
+      PERMISSIONS.ACCOUNTING_ACCESS,
+
+      // Full BI & Analytics Access
+      PERMISSIONS.ACCOUNTING_BI_DASHBOARD_VIEW,
+      PERMISSIONS.ACCOUNTING_FORECAST_VIEW,
+      PERMISSIONS.ACCOUNTING_TREND_ANALYSIS_VIEW,
+
+      // View Financial Statements for Analysis
+      PERMISSIONS.ACCOUNTING_BALANCE_SHEET_VIEW,
+      PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW,
+      PERMISSIONS.ACCOUNTING_CASH_FLOW_VIEW,
+      PERMISSIONS.ACCOUNTING_TRIAL_BALANCE_VIEW,
+
+      // Budget Analysis
+      PERMISSIONS.ACCOUNTING_BUDGET_VIEW,
+      PERMISSIONS.ACCOUNTING_BUDGET_CREATE,
+      PERMISSIONS.ACCOUNTING_BUDGET_EDIT,
+
+      // Export Capabilities
+      PERMISSIONS.ACCOUNTING_GL_ENTRIES_VIEW,
+      PERMISSIONS.ACCOUNTING_GL_ENTRIES_EXPORT,
+
+      // Related Data for Analysis
+      PERMISSIONS.PRODUCT_VIEW,
+      PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE,
+      PERMISSIONS.PRODUCT_VIEW_PROFIT_MARGIN,
+      PERMISSIONS.SELL_VIEW,
+      PERMISSIONS.SELL_VIEW_COST,
+      PERMISSIONS.SELL_VIEW_PROFIT,
+      PERMISSIONS.PURCHASE_VIEW,
+      PERMISSIONS.PURCHASE_VIEW_COST,
+
+      // Reports
+      PERMISSIONS.REPORT_VIEW,
+      PERMISSIONS.REPORT_PROFIT_LOSS,
+      PERMISSIONS.REPORT_PROFITABILITY,
+      PERMISSIONS.REPORT_SALES_PROFITABILITY,
+      PERMISSIONS.SALES_REPORT_VIEW,
+      PERMISSIONS.SALES_REPORT_ANALYTICS,
+      PERMISSIONS.REPORT_PURCHASE_ANALYTICS,
+      PERMISSIONS.REPORT_PURCHASE_TRENDS,
+    ],
+  },
+
   // ============================================
   // CATEGORY 8: REPORT ROLES
   // ============================================
@@ -1418,6 +1661,19 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.PRODUCT_UNLOCK_OPENING_STOCK,
       PERMISSIONS.PRODUCT_MODIFY_LOCKED_STOCK,
 
+      // Multi-Location Pricing - Full Access
+      PERMISSIONS.PRODUCT_PRICE_EDIT_ALL,
+      PERMISSIONS.PRODUCT_PRICE_GLOBAL,
+      PERMISSIONS.PRODUCT_PRICE_BULK_EDIT,
+      PERMISSIONS.PRODUCT_PRICE_IMPORT,
+      PERMISSIONS.PRODUCT_PRICE_EXPORT,
+      PERMISSIONS.PRODUCT_COST_AUDIT_VIEW,
+      PERMISSIONS.PRODUCT_PRICE_COMPARISON_VIEW,
+      PERMISSIONS.PRICING_SETTINGS_VIEW,
+      PERMISSIONS.PRICING_SETTINGS_EDIT,
+      PERMISSIONS.PRICING_ALERTS_VIEW,
+      PERMISSIONS.PRICING_ALERTS_ACKNOWLEDGE,
+
       // Product Master Data - Full CRUD
       PERMISSIONS.PRODUCT_CATEGORY_VIEW,
       PERMISSIONS.PRODUCT_CATEGORY_CREATE,
@@ -1619,6 +1875,12 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.PRODUCT_VIEW,
       PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE,
       PERMISSIONS.PRODUCT_VIEW_ALL_BRANCH_STOCK,
+      // Pricing - View & Edit for own location
+      PERMISSIONS.PRODUCT_PRICE_EDIT,
+      PERMISSIONS.PRODUCT_PRICE_EXPORT,
+      PERMISSIONS.PRODUCT_COST_AUDIT_VIEW,
+      PERMISSIONS.PRODUCT_PRICE_COMPARISON_VIEW,
+      PERMISSIONS.PRICING_SETTINGS_VIEW,
       // Full inventory management
       PERMISSIONS.INVENTORY_CORRECTION_VIEW,
       PERMISSIONS.INVENTORY_CORRECTION_CREATE,

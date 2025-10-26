@@ -115,22 +115,28 @@ export async function GET(
       )
     }
 
-    // Fetch SOD settings for the business
-    const sodSettings = await prisma.businessSODSettings.findUnique({
-      where: { businessId: parseInt(businessId) },
-      select: {
-        enforceTransferSOD: true,
-        allowCreatorToCheck: true,
-        allowCreatorToSend: true,
-        allowCheckerToSend: true,
-        allowCreatorToReceive: true,
-        allowSenderToComplete: true,
-        allowCreatorToComplete: true,
-        allowReceiverToComplete: true,
-      },
-    })
+    // Fetch SOD settings and workflow mode for the business
+    const [sodSettings, business] = await Promise.all([
+      prisma.businessSODSettings.findUnique({
+        where: { businessId: parseInt(businessId) },
+        select: {
+          enforceTransferSOD: true,
+          allowCreatorToCheck: true,
+          allowCreatorToSend: true,
+          allowCheckerToSend: true,
+          allowCreatorToReceive: true,
+          allowSenderToComplete: true,
+          allowCreatorToComplete: true,
+          allowReceiverToComplete: true,
+        },
+      }),
+      prisma.business.findUnique({
+        where: { id: parseInt(businessId) },
+        select: { transferWorkflowMode: true },
+      }),
+    ])
 
-    // Build response with user details, location names, and SOD settings
+    // Build response with user details, location names, SOD settings, and workflow mode
     const response = {
       ...transfer,
       items: itemsWithDetails,
@@ -142,6 +148,7 @@ export async function GET(
       arrivalMarker: transfer.arrivedBy ? userMap.get(transfer.arrivedBy) : null,
       verifier: transfer.verifiedBy ? userMap.get(transfer.verifiedBy) : null,
       completer: transfer.completedBy ? userMap.get(transfer.completedBy) : null,
+      workflowMode: business?.transferWorkflowMode || 'full',
       sodSettings: sodSettings || {
         enforceTransferSOD: true,
         allowCreatorToCheck: false,

@@ -435,7 +435,17 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
             <div className={`mb-3 ${paperSize === '80mm' ? 'text-center' : 'grid grid-cols-2 gap-4'}`}>
               <div>
                 <h2 className={`font-bold text-gray-900 mb-1 ${paperSize === '80mm' ? 'text-sm' : 'text-lg'}`}>
-                  SALES INVOICE
+                  {(() => {
+                    // Determine invoice type based on payment method
+                    const hasCredit = sale.payments?.some((p: any) => p.paymentMethod === 'credit')
+                    const totalPaid = sale.payments?.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0) || 0
+
+                    // If there's a credit payment or no payment (amount = 0), it's a charge invoice
+                    if (hasCredit || totalPaid === 0) {
+                      return 'CHARGE INVOICE'
+                    }
+                    return 'SALES INVOICE'
+                  })()}
                 </h2>
                 {isReprint && (
                   <div className={`${paperSize === '80mm' ? 'text-xs' : 'text-base'} font-bold text-red-600 mb-2 border-2 border-red-600 inline-block px-3 py-1 rounded`}>

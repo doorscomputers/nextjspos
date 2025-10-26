@@ -84,7 +84,7 @@ export default function ProductActionsDropdown({ product, onDelete }: ProductAct
   }
 
   const handleStockHistory = () => {
-    router.push(`/dashboard/products/${product.id}/stock-history`)
+    router.push(`/dashboard/reports/stock-history-v2?productId=${product.id}`)
   }
 
   const confirmDuplicateProduct = async () => {

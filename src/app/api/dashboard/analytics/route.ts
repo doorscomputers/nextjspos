@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { Prisma } from '@prisma/client'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
@@ -26,68 +27,71 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
 
-    const { startDate, endDate, locationIds, categoryIds, brandIds } = await request.json()
+    const requestBody = await request.json()
 
-    // Build date filter
-    const dateFilter: any = {}
-    if (startDate) {
-      dateFilter.gte = new Date(startDate)
-    }
-    if (endDate) {
-      dateFilter.lte = new Date(endDate)
+    const businessId = Number(session.user.businessId)
+    if (!Number.isInteger(businessId)) {
+      return NextResponse.json({ error: 'Invalid business context' }, { status: 400 })
     }
 
-    // Build location filter (if user specified specific locations)
-    const locationFilter: any = {}
-    if (locationIds && Array.isArray(locationIds) && locationIds.length > 0) {
-      locationFilter.in = locationIds
-    }
+    const startDate = requestBody.startDate
+    const endDate = requestBody.endDate
+    const locationIds = normalizeIdArray(requestBody.locationIds)
+    const categoryIds = normalizeIdArray(requestBody.categoryIds)
+    const brandIds = normalizeIdArray(requestBody.brandIds)
 
-    // Build category filter
-    const categoryFilter: any = {}
-    if (categoryIds && Array.isArray(categoryIds) && categoryIds.length > 0) {
-      categoryFilter.in = categoryIds
-    }
+    const dateFilter: Prisma.DateTimeFilter | undefined =
+      startDate || endDate
+        ? {
+            ...(startDate ? { gte: new Date(startDate) } : {}),
+            ...(endDate ? { lte: new Date(endDate) } : {}),
+          }
+        : undefined
 
-    // Build brand filter
-    const brandFilter: any = {}
-    if (brandIds && Array.isArray(brandIds) && brandIds.length > 0) {
-      brandFilter.in = brandIds
-    }
+    const locationFilter: Prisma.IntFilter | undefined =
+      locationIds.length > 0 ? { in: locationIds } : undefined
+
+    const categoryFilter: Prisma.IntFilter | undefined =
+      categoryIds.length > 0 ? { in: categoryIds } : undefined
+
+    const brandFilter: Prisma.IntFilter | undefined =
+      brandIds.length > 0 ? { in: brandIds } : undefined
 
     // Fetch sales data with all necessary joins
     const salesData = await prisma.sale.findMany({
       where: {
-        businessId: parseInt(session.user.businessId),
-        ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter }),
-        ...(Object.keys(locationFilter).length > 0 && { locationId: locationFilter }),
+        businessId,
+        ...(dateFilter ? { createdAt: dateFilter } : {}),
+        ...(locationFilter ? { locationId: locationFilter } : {}),
         status: {
-          notIn: ['VOIDED', 'CANCELLED']
+          notIn: ['voided', 'cancelled']
         }
       },
       include: {
         items: {
           include: {
-            variation: {
+            product: {
               include: {
-                product: {
-                  include: {
-                    category: true,
-                    brand: true,
-                    unit: true,
-                  }
-                }
+                category: true,
+                brand: true,
+                unit: true,
               }
             }
           }
         },
         location: true,
-        user: {
+        creator: {
           select: {
             id: true,
             username: true,
             firstName: true,
             lastName: true,
+          }
+        },
+        payments: {
+          select: {
+            paymentMethod: true,
+            amount: true,
           }
         },
       },
@@ -97,19 +101,30 @@ export async function POST(request: Request) {
     })
 
     // Transform data for PivotGrid
-    const analyticsData = salesData.flatMap(sale =>
-      sale.items.map(item => {
-        const product = item.variation?.product
+    const analyticsData = salesData.flatMap(sale => {
+      // Get primary payment method (most common or largest amount)
+      const primaryPayment = sale.payments.length > 0
+        ? sale.payments.reduce((max, p) => Number(p.amount) > Number(max.amount) ? p : max, sale.payments[0])
+        : null
+
+      return sale.items.map(item => {
+        const product = item.product
         const category = product?.category
         const brand = product?.brand
         const unit = product?.unit
 
         // Calculate metrics
-        const quantity = item.quantity
-        const revenue = item.subtotal
-        const cost = (item.variation?.cost || 0) * quantity
+        const quantity = Number(item.quantity)
+        const revenue = Number(item.unitPrice) * quantity
+        const cost = Number(item.unitCost) * quantity
         const profit = revenue - cost
-        const discount = item.discount || 0
+
+        // Calculate item's share of sale discount (proportional to item subtotal)
+        const itemSubtotal = revenue
+        const saleSubtotal = Number(sale.subtotal)
+        const itemDiscountShare = saleSubtotal > 0
+          ? (itemSubtotal / saleSubtotal) * Number(sale.discountAmount)
+          : 0
 
         // Extract date dimensions
         const saleDate = new Date(sale.createdAt)
@@ -143,16 +158,18 @@ export async function POST(request: Request) {
           locationName: sale.location?.name || 'Unknown',
 
           // Cashier dimension
-          cashierId: sale.userId,
-          cashierName: sale.user ? `${sale.user.firstName || ''} ${sale.user.lastName || ''}`.trim() || sale.user.username : 'Unknown',
+          cashierId: sale.createdBy,
+          cashierName: sale.creator
+            ? `${sale.creator.firstName || ''} ${sale.creator.lastName || ''}`.trim() || sale.creator.username
+            : 'Unknown',
 
           // Product dimensions
           productId: product?.id || 0,
           productName: product?.name || 'Unknown Product',
           productSku: product?.sku || '',
-          variationId: item.variationId,
-          variationName: item.variation?.name || 'Default',
-          variationSku: item.variation?.sku || '',
+          variationId: item.productVariationId,
+          variationName: 'Default', // Variation name not available in SaleItem
+          variationSku: '', // Variation SKU not available in SaleItem
 
           // Category dimension
           categoryId: category?.id || 0,
@@ -171,35 +188,34 @@ export async function POST(request: Request) {
           cost,
           profit,
           profitMargin: revenue > 0 ? (profit / revenue) * 100 : 0,
-          discount,
-          unitPrice: item.unitPrice,
+          discount: itemDiscountShare,
+          unitPrice: Number(item.unitPrice),
           avgSellingPrice: revenue / quantity,
 
           // Payment information
-          paymentMethod: sale.paymentMethod,
-          paymentStatus: sale.paymentStatus,
+          paymentMethod: primaryPayment?.paymentMethod || 'cash',
+          paymentStatus: Number(sale.totalAmount) > 0 ? 'paid' : 'pending',
 
           // Customer information (if available)
           customerId: sale.customerId,
         }
       })
-    )
+    })
 
     // Fetch inventory data for stock metrics
-    const inventoryData = await prisma.inventory.findMany({
+    const inventoryData = await prisma.variationLocationDetails.findMany({
       where: {
-        variation: {
+        productVariation: {
           product: {
-            businessId: session.user.businessId,
-            ...(Object.keys(categoryFilter).length > 0 && { categoryId: categoryFilter }),
-            ...(Object.keys(brandFilter).length > 0 && { brandId: brandFilter }),
+            businessId: businessId, // Explicitly use the converted integer
+            ...(categoryFilter ? { categoryId: categoryFilter } : {}),
+            ...(brandFilter ? { brandId: brandFilter } : {}),
           }
         },
-        ...(Object.keys(locationFilter).length > 0 && { locationId: locationFilter }),
+        ...(locationFilter ? { locationId: locationFilter } : {}),
       },
       include: {
-        location: true,
-        variation: {
+        productVariation: {
           include: {
             product: {
               include: {
@@ -213,9 +229,28 @@ export async function POST(request: Request) {
       }
     })
 
+    // Fetch locations for filter options (will reuse for name mapping)
+    const allLocations = await prisma.businessLocation.findMany({
+      where: {
+        businessId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: {
+        name: 'asc'
+      }
+    })
+
+    // Create location map for quick lookups
+    const locationMap = new Map()
+    allLocations.forEach(loc => locationMap.set(loc.id, loc.name))
+
     // Transform inventory data
     const inventoryMetrics = inventoryData.map(inv => {
-      const product = inv.variation?.product
+      const product = inv.productVariation?.product
       const category = product?.category
       const brand = product?.brand
       const unit = product?.unit
@@ -223,15 +258,15 @@ export async function POST(request: Request) {
       return {
         // Location dimension
         locationId: inv.locationId,
-        locationName: inv.location?.name || 'Unknown',
+        locationName: locationMap.get(inv.locationId) || 'Unknown',
 
         // Product dimensions
         productId: product?.id || 0,
         productName: product?.name || 'Unknown Product',
         productSku: product?.sku || '',
-        variationId: inv.variationId,
-        variationName: inv.variation?.name || 'Default',
-        variationSku: inv.variation?.sku || '',
+        variationId: inv.productVariationId,
+        variationName: inv.productVariation?.name || 'Default',
+        variationSku: inv.productVariation?.sku || '',
 
         // Category dimension
         categoryId: category?.id || 0,
@@ -245,31 +280,18 @@ export async function POST(request: Request) {
         unitName: unit?.name || 'pcs',
 
         // Inventory metrics
-        currentStock: inv.quantity,
-        stockValue: inv.quantity * (inv.variation?.price || 0),
-        stockCostValue: inv.quantity * (inv.variation?.cost || 0),
+        currentStock: Number(inv.qtyAvailable),
+        stockValue: Number(inv.qtyAvailable) * Number(inv.sellingPrice || inv.productVariation?.price || 0),
+        stockCostValue: Number(inv.qtyAvailable) * Number(inv.productVariation?.cost || 0),
       }
     })
 
-    // Fetch locations for filter options
-    const locations = await prisma.businessLocation.findMany({
-      where: {
-        businessId: session.user.businessId,
-        isActive: true,
-      },
-      select: {
-        id: true,
-        name: true,
-      },
-      orderBy: {
-        name: 'asc'
-      }
-    })
+    // Use allLocations fetched earlier
 
     // Fetch categories for filter options
-    const categories = await prisma.productCategory.findMany({
+    const categories = await prisma.category.findMany({
       where: {
-        businessId: session.user.businessId,
+        businessId,
       },
       select: {
         id: true,
@@ -283,7 +305,7 @@ export async function POST(request: Request) {
     // Fetch brands for filter options
     const brands = await prisma.brand.findMany({
       where: {
-        businessId: session.user.businessId,
+        businessId,
       },
       select: {
         id: true,
@@ -294,20 +316,100 @@ export async function POST(request: Request) {
       }
     })
 
+    // Calculate comprehensive metrics
+    const totalRevenue = analyticsData.reduce((sum, item) => sum + item.revenue, 0)
+    const totalProfit = analyticsData.reduce((sum, item) => sum + item.profit, 0)
+    const totalCost = analyticsData.reduce((sum, item) => sum + item.cost, 0)
+    const totalQuantity = analyticsData.reduce((sum, item) => sum + item.quantity, 0)
+    const uniqueTransactions = new Set(analyticsData.map(item => item.saleId)).size
+    const uniqueProducts = new Set(analyticsData.map(item => item.productId)).size
+    const uniqueCustomers = new Set(analyticsData.filter(item => item.customerId).map(item => item.customerId)).size
+
+    // Calculate previous period for comparisons
+    let previousPeriodMetrics = {
+      revenue: 0,
+      profit: 0,
+      sales: 0,
+      quantity: 0,
+    }
+
+    if (startDate && endDate) {
+      const start = new Date(startDate)
+      const end = new Date(endDate)
+      const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+
+      const previousStart = new Date(start)
+      previousStart.setDate(previousStart.getDate() - daysDiff)
+
+      const previousEnd = new Date(start)
+      previousEnd.setDate(previousEnd.getDate() - 1)
+
+      const previousSales = await prisma.sale.findMany({
+        where: {
+          businessId,
+          createdAt: {
+            gte: previousStart,
+            lte: previousEnd,
+          },
+          ...(locationFilter ? { locationId: locationFilter } : {}),
+          status: {
+            notIn: ['voided', 'cancelled']
+          }
+        },
+        include: {
+          items: {
+            include: {
+              product: true
+            }
+          }
+        }
+      })
+
+      previousPeriodMetrics = {
+        revenue: previousSales.reduce((sum, sale) => sum + sale.items.reduce((s, item) => s + (Number(item.unitPrice) * Number(item.quantity)), 0), 0),
+        profit: previousSales.reduce((sum, sale) => sum + sale.items.reduce((s, item) => s + ((Number(item.unitPrice) - Number(item.unitCost)) * Number(item.quantity)), 0), 0),
+        sales: previousSales.length,
+        quantity: previousSales.reduce((sum, sale) => sum + sale.items.reduce((s, item) => s + Number(item.quantity), 0), 0),
+      }
+    }
+
+    // Calculate growth rates
+    const revenueGrowth = previousPeriodMetrics.revenue > 0
+      ? ((totalRevenue - previousPeriodMetrics.revenue) / previousPeriodMetrics.revenue) * 100
+      : 0
+    const profitGrowth = previousPeriodMetrics.profit > 0
+      ? ((totalProfit - previousPeriodMetrics.profit) / previousPeriodMetrics.profit) * 100
+      : 0
+    const salesGrowth = previousPeriodMetrics.sales > 0
+      ? ((uniqueTransactions - previousPeriodMetrics.sales) / previousPeriodMetrics.sales) * 100
+      : 0
+
     return NextResponse.json({
       success: true,
       salesData: analyticsData,
       inventoryData: inventoryMetrics,
       metadata: {
-        locations,
+        locations: allLocations,
         categories,
         brands,
-        totalSales: analyticsData.length,
-        totalRevenue: analyticsData.reduce((sum, item) => sum + item.revenue, 0),
-        totalProfit: analyticsData.reduce((sum, item) => sum + item.profit, 0),
-        totalQuantity: analyticsData.reduce((sum, item) => sum + item.quantity, 0),
+        totalSales: uniqueTransactions,
+        totalRevenue,
+        totalProfit,
+        totalCost,
+        totalQuantity,
         totalStockValue: inventoryMetrics.reduce((sum, item) => sum + item.stockValue, 0),
         totalStockItems: inventoryMetrics.reduce((sum, item) => sum + item.currentStock, 0),
+        // Advanced metrics
+        averageOrderValue: uniqueTransactions > 0 ? totalRevenue / uniqueTransactions : 0,
+        averageItemsPerSale: uniqueTransactions > 0 ? totalQuantity / uniqueTransactions : 0,
+        profitMargin: totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0,
+        uniqueProductsSold: uniqueProducts,
+        uniqueCustomers,
+        // Growth metrics
+        revenueGrowth,
+        profitGrowth,
+        salesGrowth,
+        previousPeriod: previousPeriodMetrics,
       }
     })
 
@@ -332,4 +434,25 @@ function getWeekNumber(date: Date): number {
   d.setUTCDate(d.getUTCDate() + 4 - dayNum)
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
   return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+}
+
+function normalizeIdArray(value: unknown): number[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value
+    .map(item => {
+      if (typeof item === 'number') {
+        return Number.isInteger(item) ? item : null
+      }
+
+      if (typeof item === 'string' && item.trim() !== '') {
+        const parsed = Number(item)
+        return Number.isInteger(parsed) ? parsed : null
+      }
+
+      return null
+    })
+    .filter((item): item is number => typeof item === 'number')
 }

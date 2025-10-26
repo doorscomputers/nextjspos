@@ -344,6 +344,172 @@ Your Telegram bot is configured correctly and ready to send notifications!
 }
 
 /**
+ * Send price change alert
+ */
+export async function sendTelegramPriceChangeAlert(data: {
+  locationName: string
+  productName: string
+  productSku: string
+  oldPrice: number
+  newPrice: number
+  changedBy: string
+  changeType?: string
+  timestamp: Date
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const priceChange = data.newPrice - data.oldPrice
+  const percentChange = data.oldPrice > 0
+    ? ((priceChange / data.oldPrice) * 100).toFixed(2)
+    : 'N/A'
+
+  const emoji = priceChange > 0 ? '📈' : priceChange < 0 ? '📉' : '➡️'
+  const changeTypeLabel = data.changeType || 'Individual Update'
+
+  const message = `
+${emoji} <b>PRICE CHANGE ALERT</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Location:</b> ${data.locationName}
+<b>Product:</b> ${data.productName}
+<b>SKU:</b> ${data.productSku}
+
+<b>Old Price:</b> ${formatCurrency(data.oldPrice)}
+<b>New Price:</b> ${formatCurrency(data.newPrice)}
+<b>Change:</b> ${priceChange >= 0 ? '+' : ''}${formatCurrency(Math.abs(priceChange))} (${percentChange}%)
+
+<b>Changed By:</b> ${data.changedBy}
+<b>Change Type:</b> ${changeTypeLabel}
+<b>Time:</b> ${formatDateTime(data.timestamp)}
+
+${Math.abs(priceChange) > 1000 ? '⚠️ <i>Significant price change detected</i>' : ''}
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
+ * Send bulk price change summary alert
+ */
+export async function sendTelegramBulkPriceChangeAlert(data: {
+  changedBy: string
+  totalProducts: number
+  locationName?: string
+  changeType: string
+  timestamp: Date
+  sampleChanges: Array<{
+    productName: string
+    productSku: string
+    oldPrice: number
+    newPrice: number
+  }>
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const preview = data.sampleChanges.slice(0, 5).map((change, index) => {
+    const priceChange = change.newPrice - change.oldPrice
+    const emoji = priceChange > 0 ? '📈' : priceChange < 0 ? '📉' : '➡️'
+    return `${index + 1}. ${emoji} ${change.productName} (${change.productSku}): ${formatCurrency(change.oldPrice)} → ${formatCurrency(change.newPrice)}`
+  }).join('\n')
+
+  const message = `
+📊 <b>BULK PRICE UPDATE ALERT</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Total Products Changed:</b> ${data.totalProducts}
+<b>Changed By:</b> ${data.changedBy}
+${data.locationName ? `<b>Location:</b> ${data.locationName}` : ''}
+<b>Change Type:</b> ${data.changeType}
+<b>Time:</b> ${formatDateTime(data.timestamp)}
+
+<b>Sample Changes:</b>
+${preview}${data.totalProducts > 5 ? `\n\n... and ${data.totalProducts - 5} more products` : ''}
+
+⚠️ <i>Bulk price update completed</i>
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
+ * Send customer edit alert
+ */
+export async function sendTelegramCustomerEditAlert(data: {
+  previousName: string
+  currentName: string
+  changedBy: string
+  timestamp: Date
+  customerDetails?: {
+    mobile?: string
+    email?: string
+    address?: string
+  }
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const message = `
+📝 <b>CUSTOMER EDIT ALERT</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Previous Name:</b> ${data.previousName}
+<b>Current Name:</b> ${data.currentName}
+${data.customerDetails?.mobile ? `<b>Mobile:</b> ${data.customerDetails.mobile}` : ''}
+${data.customerDetails?.email ? `<b>Email:</b> ${data.customerDetails.email}` : ''}
+${data.customerDetails?.address ? `<b>Address:</b> ${data.customerDetails.address}` : ''}
+
+<b>Changed By:</b> ${data.changedBy}
+<b>Time:</b> ${formatDateTime(data.timestamp)}
+
+ℹ️ <i>Customer information was updated</i>
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
+ * Send product edit alert
+ */
+export async function sendTelegramProductEditAlert(data: {
+  productName: string
+  sku: string
+  changedBy: string
+  timestamp: Date
+  changes: {
+    field: string
+    oldValue: string
+    newValue: string
+  }[]
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const changesText = data.changes.map(change =>
+    `• <b>${change.field}:</b> ${change.oldValue} → ${change.newValue}`
+  ).join('\n')
+
+  const message = `
+🛠️ <b>PRODUCT EDIT ALERT</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Product:</b> ${data.productName}
+<b>SKU:</b> ${data.sku}
+
+<b>Changes Made:</b>
+${changesText}
+
+<b>Changed By:</b> ${data.changedBy}
+<b>Time:</b> ${formatDateTime(data.timestamp)}
+
+ℹ️ <i>Product information was updated</i>
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
  * Get bot information (for testing)
  */
 export async function getTelegramBotInfo(): Promise<any> {

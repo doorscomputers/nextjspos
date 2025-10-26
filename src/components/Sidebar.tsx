@@ -42,6 +42,7 @@ interface MenuItem {
   name: string
   href: string
   icon: any
+  key?: string
   permission?: string
   children?: MenuItem[]
 }
@@ -56,19 +57,25 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
     Reports: false,
     "POS & Sales": false,
     "Inventory Management": false,
+    "Pricing Management": false,
     "Sales Reports": false,
     "Purchase Reports": false,
     "Transfer Reports": false,
     "Financial Reports": false,
-    "Product & Inventory Reports": false,
+    "Inventory Reports": false,
     "Compliance Reports": false,
     "Security & Audit": false,
     "HR & Attendance": false,
     "Returns Management": false,
+    "Accounting": false,
     "Administration": false,
+    "Expenses": false,
+    "Expense Reports": false,
   })
   const [searchQuery, setSearchQuery] = useState('')
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [accessibleMenuKeys, setAccessibleMenuKeys] = useState<Set<string>>(new Set())
+  const [menuPermissionsLoaded, setMenuPermissionsLoaded] = useState(false)
 
   // Load collapse state from localStorage on mount
   useEffect(() => {
@@ -77,6 +84,29 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       setIsCollapsed(savedState === 'true')
     }
   }, [])
+
+  // Fetch accessible menu keys for the current user (only once)
+  useEffect(() => {
+    const fetchAccessibleMenus = async () => {
+      if (!user?.id || menuPermissionsLoaded) return
+
+      try {
+        const res = await fetch(`/api/settings/menu-permissions/user/${user.id}?type=all`)
+        const data = await res.json()
+        if (data.success) {
+          setAccessibleMenuKeys(new Set(data.data.menuKeys))
+        }
+      } catch (error) {
+        console.error('Error fetching accessible menus:', error)
+        // On error, allow all menus (fail-open for better UX)
+        setAccessibleMenuKeys(new Set())
+      } finally {
+        setMenuPermissionsLoaded(true)
+      }
+    }
+
+    fetchAccessibleMenus()
+  }, [user?.id, menuPermissionsLoaded])
 
   // Dynamic sidebar style based on collapse state
   const isIconOnly = isCollapsed
@@ -98,6 +128,16 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
 
   const clearSearch = () => {
     setSearchQuery('')
+  }
+
+  // Check if user has access to a menu based on menu permissions
+  const hasMenuPermissionAccess = (menuKey: string | undefined): boolean => {
+    // If no menu key defined, allow access (legacy menu items without keys)
+    if (!menuKey) return true
+    // If no menu permissions loaded yet, allow access (fail-open)
+    if (accessibleMenuKeys.size === 0) return true
+    // Check if user has access to this menu key
+    return accessibleMenuKeys.has(menuKey)
   }
 
   const highlightText = (text: string, query: string, isBlueBackground: boolean = false) => {
@@ -156,12 +196,13 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
     return items.reduce<MenuItem[]>((acc, item) => {
       const matchesItem = item.name.toLowerCase().includes(lowercaseQuery)
 
-      // Filter children first and check their permissions
+      // Filter children first and check their permissions AND menu permissions
       let filteredChildren: MenuItem[] | undefined = undefined
       if (item.children) {
         filteredChildren = item.children
           .filter(child => child.name.toLowerCase().includes(lowercaseQuery))
           .filter(child => !child.permission || can(child.permission))
+          .filter(child => hasMenuPermissionAccess(child.key))
       }
 
       if (matchesItem || (filteredChildren && filteredChildren.length > 0)) {
@@ -184,8 +225,20 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       permission: PERMISSIONS.DASHBOARD_VIEW,
     },
     {
-      name: "Analytics Dashboard",
+      name: "Analytics Dashboard V1",
       href: "/dashboard/dashboard-v2",
+      icon: ChartBarIcon,
+      permission: PERMISSIONS.DASHBOARD_VIEW,
+    },
+    {
+      name: "Analytics Dashboard V2",
+      href: "/dashboard/analytics-devextreme",
+      icon: SparklesIcon,
+      permission: PERMISSIONS.DASHBOARD_VIEW,
+    },
+    {
+      name: "Analytics Dashboard V3",
+      href: "/dashboard/dashboard-v3",
       icon: ChartBarIcon,
       permission: PERMISSIONS.DASHBOARD_VIEW,
     },
@@ -370,6 +423,40 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       ],
     },
 
+    // ========== PRICING MANAGEMENT ==========
+    {
+      name: "Pricing Management",
+      href: "/dashboard/products/bulk-price-editor",
+      icon: CurrencyDollarIcon,
+      permission: PERMISSIONS.PRODUCT_PRICE_EDIT,
+      children: [
+        {
+          name: "Bulk Price Editor",
+          href: "/dashboard/products/bulk-price-editor",
+          icon: CurrencyDollarIcon,
+          permission: PERMISSIONS.PRODUCT_PRICE_BULK_EDIT,
+        },
+        {
+          name: "Pricing Settings",
+          href: "/dashboard/settings/pricing",
+          icon: CogIcon,
+          permission: PERMISSIONS.PRICING_SETTINGS_VIEW,
+        },
+        {
+          name: "Price Comparison",
+          href: "/dashboard/reports/price-comparison",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.PRODUCT_PRICE_COMPARISON_VIEW,
+        },
+        {
+          name: "Cost Audit",
+          href: "/dashboard/reports/cost-audit",
+          icon: ShieldCheckIcon,
+          permission: PERMISSIONS.PRODUCT_COST_AUDIT_VIEW,
+        },
+      ],
+    },
+
     // ========== PROCUREMENT ==========
     {
       name: "Purchases",
@@ -488,6 +575,20 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       href: "/dashboard/customers",
       icon: UserGroupIcon,
       permission: PERMISSIONS.CUSTOMER_VIEW,
+      children: [
+        {
+          name: "All Customers",
+          href: "/dashboard/customers",
+          icon: UserGroupIcon,
+          permission: PERMISSIONS.CUSTOMER_VIEW,
+        },
+        {
+          name: "Import Customers",
+          href: "/dashboard/customers/import",
+          icon: UserGroupIcon,
+          permission: PERMISSIONS.SUPERADMIN_ALL,
+        },
+      ],
     },
     {
       name: "Suppliers",
@@ -516,6 +617,20 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       href: "/dashboard/expenses",
       icon: CreditCardIcon,
       permission: PERMISSIONS.EXPENSE_VIEW,
+      children: [
+        {
+          name: "All Expenses",
+          href: "/dashboard/expenses",
+          icon: CreditCardIcon,
+          permission: PERMISSIONS.EXPENSE_VIEW,
+        },
+        {
+          name: "Expense Categories",
+          href: "/dashboard/expenses/categories",
+          icon: CreditCardIcon,
+          permission: PERMISSIONS.EXPENSE_VIEW,
+        },
+      ],
     },
 
     // ========== REPORTS ==========
@@ -595,22 +710,10 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
         },
         {
           name: "Purchase Reports",
-          href: "#",
+          href: "/dashboard/reports/purchases",
           icon: TruckIcon,
           permission: PERMISSIONS.REPORT_PURCHASE_VIEW,
           children: [
-            {
-              name: "Purchase Reports",
-              href: "/dashboard/reports/purchases",
-              icon: ChartBarIcon,
-              permission: PERMISSIONS.REPORT_PURCHASE_VIEW,
-            },
-            {
-              name: "Purchases Report",
-              href: "/dashboard/reports/purchases-report",
-              icon: ChartBarIcon,
-              permission: PERMISSIONS.REPORT_PURCHASE_VIEW,
-            },
             {
               name: "Purchase Analytics",
               href: "/dashboard/reports/purchases/analytics",
@@ -654,12 +757,6 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
               href: "/dashboard/reports/historical-inventory",
               icon: ClipboardDocumentListIcon,
               permission: PERMISSIONS.VIEW_INVENTORY_REPORTS,
-            },
-            {
-              name: "Inventory Ledger",
-              href: "/dashboard/reports/inventory-ledger",
-              icon: ClipboardDocumentListIcon,
-              permission: PERMISSIONS.INVENTORY_LEDGER_VIEW,
             },
             {
               name: "Inventory Valuation",
@@ -774,6 +871,20 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
               permission: PERMISSIONS.PURCHASE_RETURN_VIEW,
             },
             {
+              name: "Expense Reports",
+              href: "#",
+              icon: CreditCardIcon,
+              permission: PERMISSIONS.EXPENSE_VIEW,
+              children: [
+                {
+                  name: "All Expenses Report",
+                  href: "/dashboard/reports/expenses",
+                  icon: ChartBarIcon,
+                  permission: PERMISSIONS.EXPENSE_VIEW,
+                },
+              ],
+            },
+            {
               name: "GL Journal Entries",
               href: "/dashboard/reports/gl-entries",
               icon: DocumentTextIcon,
@@ -872,6 +983,40 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
       ],
     },
 
+    // ========== ACCOUNTING ==========
+    {
+      name: "Accounting",
+      href: "/dashboard/accounting/balance-sheet",
+      icon: CurrencyDollarIcon,
+      permission: PERMISSIONS.ACCOUNTING_ACCESS,
+      children: [
+        {
+          name: "Balance Sheet",
+          href: "/dashboard/accounting/balance-sheet",
+          icon: DocumentTextIcon,
+          permission: PERMISSIONS.ACCOUNTING_BALANCE_SHEET_VIEW,
+        },
+        {
+          name: "Income Statement",
+          href: "/dashboard/accounting/income-statement",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.ACCOUNTING_INCOME_STATEMENT_VIEW,
+        },
+        {
+          name: "Trial Balance",
+          href: "/dashboard/accounting/trial-balance",
+          icon: ShieldCheckIcon,
+          permission: PERMISSIONS.ACCOUNTING_TRIAL_BALANCE_VIEW,
+        },
+        {
+          name: "General Ledger",
+          href: "/dashboard/accounting/general-ledger",
+          icon: ClipboardDocumentListIcon,
+          permission: PERMISSIONS.ACCOUNTING_GENERAL_LEDGER_VIEW,
+        },
+      ],
+    },
+
     // ========== ADMINISTRATION ==========
     {
       name: "Administration",
@@ -961,6 +1106,13 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           icon: CogIcon,
           permission: PERMISSIONS.BUSINESS_SETTINGS_VIEW,
         },
+        {
+          name: "Menu Permissions",
+          href: "/dashboard/settings/menu-permissions",
+          icon: ShieldCheckIcon,
+          key: "settings_menu_permissions",
+          permission: PERMISSIONS.ROLE_VIEW,
+        },
       ],
     },
 
@@ -979,8 +1131,10 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
     },
     ]
 
-  // Filter by search query first, then by parent permissions
-  const filteredMenuItems = filterMenuItems(menuItems, searchQuery).filter(item => !item.permission || can(item.permission))
+  // Filter by search query first, then by parent permissions AND menu permissions
+  const filteredMenuItems = filterMenuItems(menuItems, searchQuery)
+    .filter(item => !item.permission || can(item.permission))
+    .filter(item => hasMenuPermissionAccess(item.key))
 
   return (
     <aside
@@ -1113,7 +1267,8 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
                     if (item.children) {
                       itemCount += item.children.filter(child =>
                         child.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-                        (!child.permission || can(child.permission))
+                        (!child.permission || can(child.permission)) &&
+                        hasMenuPermissionAccess(child.key)
                       ).length
                     }
                     return count + itemCount
@@ -1123,7 +1278,8 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
                   if (item.children) {
                     itemCount += item.children.filter(child =>
                       child.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-                      (!child.permission || can(child.permission))
+                      (!child.permission || can(child.permission)) &&
+                      hasMenuPermissionAccess(child.key)
                     ).length
                   }
                   return count + itemCount
@@ -1154,20 +1310,18 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
                         w-full flex items-center ${isIconOnly ? 'justify-center' : 'justify-between'} ${isIconOnly ? 'px-2' : 'px-4'} ${isCompact ? 'py-2.5' : 'py-3'} text-sm font-semibold rounded-lg transition-all duration-300 relative group shadow-sm
                         ${
                           hasActiveChild
-                            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-2 before:h-8 before:bg-white before:rounded-r-md transform hover:scale-[1.02] hover:shadow-xl after:absolute after:top-1 after:right-12 after:w-2 after:h-2 after:bg-yellow-400 after:rounded-full'
-                            : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-indigo-600 shadow-md hover:shadow-lg transform hover:scale-[1.01] after:absolute after:top-1 after:right-12 after:w-2 after:h-2 after:bg-yellow-400 after:rounded-full animate-pulse'
+                            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-2 before:h-8 before:bg-white before:rounded-r-md'
+                            : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-indigo-600 shadow-md hover:shadow-lg'
                         }
                       `}
                     >
                       <div className="flex items-center">
-                        <Icon className={`${isIconOnly ? 'w-6 h-6' : 'w-5 h-5'} ${isIconOnly ? '' : 'mr-3'} transition-transform group-hover:scale-110`} />
+                        <Icon className={`${isIconOnly ? 'w-6 h-6' : 'w-5 h-5'} ${isIconOnly ? '' : 'mr-3'}`} />
                         {!isIconOnly && <span className="font-medium">{highlightText(item.name, searchQuery, true)}</span>}
                       </div>
                       {!isIconOnly && (
-                        <div className={`transform transition-all duration-300 ${isExpanded ? 'rotate-90' : 'rotate-0'} group-hover:scale-110 animate-pulse`}>
-                          <div className="bg-white/20 rounded-full p-1 group-hover:bg-white/30 transition-all duration-200 ring-2 ring-white/40 group-hover:ring-white/60 shadow-lg">
-                            <ChevronRightIcon className="w-4 h-4 text-white drop-shadow-sm" />
-                          </div>
+                        <div className={`transform transition-all duration-300 ${isExpanded ? 'rotate-90' : 'rotate-0'}`}>
+                          <ChevronRightIcon className="w-5 h-5 text-white" />
                         </div>
                       )}
                     </button>
@@ -1175,8 +1329,70 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
                       <div className="ml-6 mt-1 space-y-0.5">
                         {item.children
                           .filter(child => !child.permission || can(child.permission))
+                          .filter(child => hasMenuPermissionAccess(child.key))
                           .map((child) => {
                             const isChildActive = pathname === child.href
+                            const isChildExpanded = expandedMenus[child.name]
+                            const hasGrandchildren = child.children && child.children.length > 0
+
+                            // If child has its own children (grandchildren), render as nested submenu
+                            if (hasGrandchildren) {
+                              const hasActiveGrandchild = child.children?.some(gc => pathname === gc.href)
+
+                              return (
+                                <div key={child.name}>
+                                  <button
+                                    onClick={() => toggleMenu(child.name)}
+                                    className={`
+                                      w-full flex items-center justify-between px-4 ${isCompact ? 'py-2' : 'py-2.5'} text-sm font-normal rounded-lg transition-all duration-200 relative pl-8
+                                      ${
+                                        hasActiveGrandchild
+                                          ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 font-medium'
+                                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
+                                      }
+                                    `}
+                                  >
+                                    <span className="relative">
+                                      {highlightText(child.name, searchQuery)}
+                                    </span>
+                                    <ChevronRightIcon
+                                      className={`w-4 h-4 transition-transform duration-200 ${isChildExpanded ? 'rotate-90' : ''}`}
+                                    />
+                                  </button>
+
+                                  {/* Grandchildren (nested submenu items) */}
+                                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isChildExpanded ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                                    <div className="ml-4 mt-1 space-y-0.5">
+                                      {child.children
+                                        .filter(gc => !gc.permission || can(gc.permission))
+                                        .map((grandchild) => {
+                                          const isGrandchildActive = pathname === grandchild.href
+                                          return (
+                                            <Link
+                                              key={grandchild.name}
+                                              href={grandchild.href}
+                                              className={`
+                                                group flex items-center px-4 ${isCompact ? 'py-1.5' : 'py-2'} text-sm font-normal rounded-lg transition-all duration-200 relative pl-12
+                                                ${
+                                                  isGrandchildActive
+                                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-medium before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-5 before:bg-blue-600 before:rounded-r-md'
+                                                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white'
+                                                }
+                                              `}
+                                            >
+                                              <span className="relative text-xs">
+                                                {highlightText(grandchild.name, searchQuery)}
+                                              </span>
+                                            </Link>
+                                          )
+                                        })}
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            }
+
+                            // Regular child without grandchildren - render as link
                             return (
                               <Link
                                 key={child.name}
@@ -1204,15 +1420,15 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
                     href={item.href}
                     title={isIconOnly ? item.name : undefined}
                     className={`
-                      flex items-center ${isIconOnly ? 'justify-center px-2' : 'px-4'} ${isCompact ? 'py-2.5' : 'py-3'} text-sm font-semibold rounded-lg transition-all duration-300 relative group shadow-sm hover:scale-[1.01]
+                      flex items-center ${isIconOnly ? 'justify-center px-2' : 'px-4'} ${isCompact ? 'py-2.5' : 'py-3'} text-sm font-semibold rounded-lg transition-all duration-300 relative shadow-sm
                       ${
                         isActive
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-2 before:h-8 before:bg-white before:rounded-r-md transform hover:shadow-xl'
-                          : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-indigo-600 shadow-md hover:shadow-lg transform'
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-2 before:h-8 before:bg-white before:rounded-r-md'
+                          : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-indigo-600 shadow-md hover:shadow-lg'
                       }
                     `}
                   >
-                    <Icon className={`${isIconOnly ? 'w-6 h-6' : 'w-5 h-5'} ${isIconOnly ? '' : 'mr-3'} transition-transform group-hover:scale-110`} />
+                    <Icon className={`${isIconOnly ? 'w-6 h-6' : 'w-5 h-5'} ${isIconOnly ? '' : 'mr-3'}`} />
                     {!isIconOnly && <span className="font-medium">{highlightText(item.name, searchQuery, true)}</span>}
                   </Link>
                 )}

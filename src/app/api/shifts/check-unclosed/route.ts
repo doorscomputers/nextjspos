@@ -58,6 +58,25 @@ export async function GET(request: NextRequest) {
     const hoursSinceOpen = Math.floor((now.getTime() - shiftStart.getTime()) / (1000 * 60 * 60))
     const daysSinceOpen = Math.floor(hoursSinceOpen / 24)
 
+    // Check if shift was opened on a different calendar day (not just 24 hours ago)
+    // Use setHours to normalize times to midnight for accurate date comparison
+    const nowDate = new Date(now)
+    nowDate.setHours(0, 0, 0, 0)
+
+    const shiftDate = new Date(shiftStart)
+    shiftDate.setHours(0, 0, 0, 0)
+
+    const isFromDifferentDay = nowDate.getTime() > shiftDate.getTime()
+
+    // Trigger warning only if:
+    // 1. Shift was opened yesterday or earlier (different calendar day), OR
+    // 2. Shift has been open for more than 9 hours
+    const shouldShowWarning = isFromDifferentDay || hoursSinceOpen >= 9
+
+    // IMPORTANT: Always return the unclosed shift if it exists
+    // Each component can decide whether to show warnings based on shouldShowWarning flag
+    // Don't filter out shifts here - let the UI components make that decision
+
     // Calculate current cash (system expected)
     let systemCash = unclosedShift.beginningCash
 
@@ -84,6 +103,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       hasUnclosedShift: true,
+      shouldShowWarning, // Flag indicating if warning should be shown (different day OR 9+ hours)
       shift: {
         id: unclosedShift.id,
         shiftNumber: unclosedShift.shiftNumber,
@@ -95,7 +115,7 @@ export async function GET(request: NextRequest) {
         transactionCount: unclosedShift.sales.length,
         hoursSinceOpen,
         daysSinceOpen,
-        isOverdue: daysSinceOpen >= 1, // Flag if shift is >24 hours old
+        isOverdue: isFromDifferentDay, // Flag if shift is from a different calendar day (yesterday or earlier)
         openingNotes: unclosedShift.openingNotes,
       },
     })
