@@ -387,6 +387,27 @@ export async function GET(request: NextRequest) {
       take: 10,
     })
 
+    // Supplier Payments (Recent payments made to suppliers)
+    const supplierPaymentsWhere: any = {
+      businessId,
+      status: 'completed',
+      ...(Object.keys(dateFilter).length > 0 ? { paymentDate: dateFilter } : {}),
+    }
+
+    const supplierPayments = await prisma.payment.findMany({
+      where: supplierPaymentsWhere,
+      include: {
+        supplier: { select: { name: true } },
+        accountsPayable: {
+          select: {
+            purchase: { select: { purchaseOrderNumber: true } }
+          }
+        }
+      },
+      orderBy: { paymentDate: 'desc' },
+      take: 20,
+    })
+
     return NextResponse.json({
       metrics: {
         totalSales: parseFloat(salesData._sum.totalAmount?.toString() || '0'),
@@ -434,6 +455,15 @@ export async function GET(request: NextRequest) {
           supplier: item.supplier.name,
           date: item.dueDate.toISOString().split('T')[0],
           amount: parseFloat(item.balanceAmount.toString()),
+        })),
+        supplierPayments: supplierPayments.map((item) => ({
+          id: item.id,
+          paymentNumber: item.paymentNumber,
+          supplier: item.supplier.name,
+          date: item.paymentDate.toISOString().split('T')[0],
+          amount: parseFloat(item.amount.toString()),
+          paymentMethod: item.paymentMethod,
+          purchaseOrderNumber: item.accountsPayable?.purchase?.purchaseOrderNumber || 'N/A',
         })),
       },
     })

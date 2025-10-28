@@ -22,18 +22,11 @@ export async function GET(request: NextRequest) {
       status: { not: 'VOID' },
     }
 
-    const start = startDate ? new Date(startDate) : new Date()
-    const end = endDate ? new Date(endDate) : new Date()
+    const start = startDate ? new Date(startDate + 'T00:00:00') : new Date()
+    const end = endDate ? new Date(endDate + 'T23:59:59.999') : new Date()
 
     if (!startDate) {
-      start.setHours(0, 0, 0, 0)
       start.setDate(start.getDate() - 30) // Last 30 days by default
-    }
-
-    if (!endDate) {
-      end.setHours(23, 59, 59, 999)
-    } else {
-      end.setHours(23, 59, 59, 999)
     }
 
     where.createdAt = {

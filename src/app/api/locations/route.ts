@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       console.log('Returned user-specific locations:', locations.length)
     }
 
-    return NextResponse.json({ locations })
+    return NextResponse.json({ success: true, data: locations })
   } catch (error) {
     console.error('Error fetching locations:', error)
     return NextResponse.json({ error: 'Failed to fetch locations' }, { status: 500 })

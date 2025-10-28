@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 
@@ -269,12 +269,13 @@ const reportSections: ReportSection[] = [
         permission: PERMISSIONS.VIEW_INVENTORY_REPORTS,
       },
       {
-        title: 'Inventory Ledger',
-        description: 'Granular ledger of stock movements for audit purposes.',
-        href: '/dashboard/reports/inventory-ledger',
+        title: 'Stock History V2',
+        description: 'Accurate product-level stock movement history with transaction details.',
+        href: '/dashboard/reports/stock-history-v2',
         color: 'from-neutral-500 to-neutral-600',
         icon: '📒',
-        permission: PERMISSIONS.INVENTORY_LEDGER_VIEW,
+        permission: PERMISSIONS.PRODUCT_VIEW,
+        features: ['Transaction tracking', 'Location filtering', 'Date range analysis'],
       },
     ],
   },
@@ -322,21 +323,68 @@ const reportSections: ReportSection[] = [
 
 export default function ReportsPage() {
   const { can } = usePermissions()
+  const [freshPermissions, setFreshPermissions] = useState<string[] | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  // Fetch fresh permissions from server to bypass JWT cache
+  useEffect(() => {
+    const fetchFreshPermissions = async () => {
+      try {
+        const response = await fetch('/api/users/me/permissions')
+        const data = await response.json()
+        if (data.success) {
+          setFreshPermissions(data.permissions)
+        }
+      } catch (error) {
+        console.error('Error fetching fresh permissions:', error)
+        // Fall back to session permissions if fetch fails
+        setFreshPermissions(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchFreshPermissions()
+  }, [])
+
+  // Use fresh permissions if available, otherwise fall back to session permissions
+  const canView = (permission: string) => {
+    if (freshPermissions !== null) {
+      return freshPermissions.includes(permission)
+    }
+    return can(permission)
+  }
 
   const accessibleSections = useMemo(() => {
+    if (loading) return []
+
     return reportSections
       .map((section) => {
-        if (section.permission && !can(section.permission)) {
+        if (section.permission && !canView(section.permission)) {
           return { ...section, cards: [] }
         }
-        const cards = section.cards.filter((card) => !card.permission || can(card.permission))
+        const cards = section.cards.filter((card) => !card.permission || canView(card.permission))
         return { ...section, cards }
       })
       .filter((section) => section.cards.length > 0)
-  }, [can])
+  }, [freshPermissions, loading, can])
 
   const salesSection = accessibleSections.find((section) => section.key === 'sales')
   const totalAccessibleSales = salesSection?.cards.length ?? 0
+
+  // Show loading state while fetching fresh permissions
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6 md:p-10">
+        <div className="max-w-xl mx-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-6 sm:p-8 text-center shadow-sm">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">
+            Loading reports...
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   if (accessibleSections.length === 0) {
     return (

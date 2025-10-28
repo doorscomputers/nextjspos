@@ -134,10 +134,10 @@ export default function ProductViewPage() {
 
   const fetchLocations = async () => {
     try {
-      const response = await fetch('/api/locations')
+      const response = await fetch('/api/locations?includeInactive=false')
       const data = await response.json()
       if (response.ok) {
-        setLocations(data.locations || [])
+        setLocations(data.data || [])
       }
     } catch (error) {
       console.error('Error fetching locations:', error)

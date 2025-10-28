@@ -110,8 +110,7 @@ export function ExportButtons({
       <Button
         onClick={exportToCSV}
         disabled={disabled}
-        variant="outline"
-        className="border-gray-300 hover:bg-gray-50 shadow-sm"
+        className="bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-700 hover:border-blue-800 shadow-sm font-medium"
         size="default"
       >
         <ArrowDownTrayIcon className="w-5 h-5 mr-2" />

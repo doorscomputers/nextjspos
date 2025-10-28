@@ -5,8 +5,9 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import Link from 'next/link'
 import { PlusIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
-import { Button } from '@/components/ui/button'
+import { Button as UiButton } from '@/components/ui/button'
 import { toast } from 'sonner'
+import Button from 'devextreme-react/button'
 import DataGrid, {
   Column,
   MasterDetail,
@@ -339,10 +340,12 @@ export default function TransfersDevExtremePage() {
           </Button>
           {can(PERMISSIONS.STOCK_TRANSFER_CREATE) && (
             <Link href="/dashboard/transfers/create">
-              <Button className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-700 dark:to-indigo-700 text-white hover:from-blue-700 hover:to-indigo-700 dark:hover:from-blue-800 dark:hover:to-indigo-800 font-medium shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
-                <PlusIcon className="w-4 h-4 mr-2" />
-                New Transfer
-              </Button>
+              <Button
+                text="New Transfer"
+                type="default"
+                icon="add"
+                stylingMode="contained"
+              />
             </Link>
           )}
         </div>

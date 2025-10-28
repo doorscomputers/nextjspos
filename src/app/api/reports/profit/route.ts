@@ -40,8 +40,8 @@ export async function GET(request: NextRequest) {
     const groupBy = searchParams.get('groupBy') // 'location' | 'date' | 'expense_category'
 
     // Default to last 30 days if no dates provided
-    const end = endDate ? new Date(endDate) : new Date()
-    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    const end = endDate ? new Date(endDate + 'T23:59:59.999') : new Date()
+    const start = startDate ? new Date(startDate + 'T00:00:00') : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
     // Build where clause for sales
     const salesWhere: any = {

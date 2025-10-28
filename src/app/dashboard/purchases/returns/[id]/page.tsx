@@ -254,7 +254,7 @@ export default function ReturnDetailPage() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             <Link href="/dashboard/purchases/returns">
-              <Button variant="outline" size="sm">
+              <Button size="sm" className="bg-gray-600 hover:bg-gray-700 text-white font-medium border-2 border-gray-700 hover:border-gray-800 shadow-sm">
                 <ArrowLeftIcon className="w-4 h-4 mr-2" />
                 Back
               </Button>
@@ -620,9 +620,9 @@ export default function ReturnDetailPage() {
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
               onClick={() => setShowApproveModal(false)}
               disabled={approving}
+              className="bg-gray-600 hover:bg-gray-700 text-white font-medium border-2 border-gray-700 hover:border-gray-800 shadow-md disabled:opacity-50"
             >
               Cancel
             </Button>

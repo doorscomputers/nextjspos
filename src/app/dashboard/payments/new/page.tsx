@@ -4,14 +4,19 @@ import { useState, useEffect } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Button } from '@/components/ui/button'
+import { Button as UiButton } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { toast } from 'sonner'
-import { ArrowLeftIcon, PlusIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, PlusIcon, CheckIcon } from '@heroicons/react/24/outline'
+import { ChevronsUpDown } from 'lucide-react'
 import Link from 'next/link'
 import { formatCurrency } from '@/lib/currencyUtils'
+import { cn } from '@/lib/utils'
+import Button from 'devextreme-react/button'
 
 interface Supplier {
   id: number
@@ -50,6 +55,7 @@ export default function NewPaymentPage() {
   const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split('T')[0])
   const [referenceNumber, setReferenceNumber] = useState<string>('')
   const [notes, setNotes] = useState<string>('')
+  const [supplierSearchOpen, setSupplierSearchOpen] = useState<boolean>(false)
 
   // Cheque specific fields
   const [chequeNumber, setChequeNumber] = useState<string>('')
@@ -64,6 +70,7 @@ export default function NewPaymentPage() {
   // Quick add bank dialog
   const [showAddBankDialog, setShowAddBankDialog] = useState<boolean>(false)
   const [newBankName, setNewBankName] = useState<string>('')
+  const [newBankAccountNumber, setNewBankAccountNumber] = useState<string>('')
 
   // Card payment specific fields
   const [cardType, setCardType] = useState<string>('credit')
@@ -157,13 +164,36 @@ export default function NewPaymentPage() {
     }
   }
 
-  const handleAddNewBank = () => {
+  const handleAddNewBank = async () => {
     if (newBankName.trim()) {
+      try {
+        // Save bank to backend if API exists, otherwise just add to local state
+        const response = await fetch('/api/bank-options', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bankName: newBankName.trim(),
+            accountNumber: newBankAccountNumber.trim() || null
+          }),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          toast.success('Bank added successfully')
+        }
+      } catch (error) {
+        console.log('Bank options API not available, adding to local state only')
+      }
+
       if (!bankOptions.includes(newBankName.trim())) {
         setBankOptions([...bankOptions, newBankName.trim()])
       }
       setBankName(newBankName.trim())
+      if (newBankAccountNumber.trim()) {
+        setBankAccountNumber(newBankAccountNumber.trim())
+      }
       setNewBankName('')
+      setNewBankAccountNumber('')
       setShowAddBankDialog(false)
     }
   }
@@ -304,21 +334,51 @@ export default function NewPaymentPage() {
                     </p>
                   </div>
                 ) : (
-                  <Select
-                    value={selectedSupplierId}
-                    onValueChange={setSelectedSupplierId}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select supplier" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {suppliers.map(supplier => (
-                        <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                          {supplier.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Popover open={supplierSearchOpen} onOpenChange={setSupplierSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={supplierSearchOpen}
+                        className="w-full justify-between bg-background hover:bg-background"
+                      >
+                        {selectedSupplierId
+                          ? suppliers.find((supplier) => supplier.id.toString() === selectedSupplierId)?.name
+                          : "Select supplier"}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0 bg-popover border border-border shadow-lg" align="start">
+                      <Command className="bg-popover">
+                        <CommandInput placeholder="Search supplier..." className="bg-background" />
+                        <CommandList className="bg-popover">
+                          <CommandEmpty>No supplier found.</CommandEmpty>
+                          <CommandGroup>
+                            {suppliers.map((supplier) => (
+                              <CommandItem
+                                key={supplier.id}
+                                value={supplier.name}
+                                onSelect={() => {
+                                  setSelectedSupplierId(supplier.id.toString())
+                                  setSelectedAPId('') // Reset invoice selection when supplier changes
+                                  setSupplierSearchOpen(false)
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <CheckIcon
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    selectedSupplierId === supplier.id.toString() ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                {supplier.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 )}
               </div>
 
@@ -482,15 +542,13 @@ export default function NewPaymentPage() {
                         </SelectContent>
                       </Select>
                       <Button
-                        type="button"
-                        variant="default"
-                        size="icon"
+                        text=""
+                        type="success"
+                        icon="add"
                         onClick={() => setShowAddBankDialog(true)}
-                        title="Add new bank"
-                        className="bg-green-600 hover:bg-green-700 text-white font-bold border-2 border-green-700 shadow-md"
-                      >
-                        <PlusIcon className="w-5 h-5" />
-                      </Button>
+                        hint="Add new bank"
+                        stylingMode="contained"
+                      />
                     </div>
                   </div>
                   <div className="flex items-center pt-8">
@@ -544,15 +602,13 @@ export default function NewPaymentPage() {
                         </SelectContent>
                       </Select>
                       <Button
-                        type="button"
-                        variant="default"
-                        size="icon"
+                        text=""
+                        type="success"
+                        icon="add"
                         onClick={() => setShowAddBankDialog(true)}
-                        title="Add new bank"
-                        className="bg-green-600 hover:bg-green-700 text-white font-bold border-2 border-green-700 shadow-md"
-                      >
-                        <PlusIcon className="w-5 h-5" />
-                      </Button>
+                        hint="Add new bank"
+                        stylingMode="contained"
+                      />
                     </div>
                   </div>
                   <div>
@@ -650,20 +706,20 @@ export default function NewPaymentPage() {
         <div className="flex flex-col sm:flex-row gap-4 justify-end">
           <Link href="/dashboard/accounts-payable">
             <Button
-              type="button"
-              variant="outline"
-              className="bg-gray-200 hover:bg-gray-300 text-gray-900 font-bold border-2 border-gray-400 shadow-md dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white dark:border-gray-500"
-            >
-              Cancel
-            </Button>
+              text="Cancel"
+              type="normal"
+              icon="close"
+              stylingMode="outlined"
+            />
           </Link>
           <Button
-            type="submit"
+            text={loading ? 'Recording Payment...' : 'Record Payment'}
+            type="default"
+            icon="save"
             disabled={loading}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold border-2 border-blue-700 shadow-lg disabled:bg-gray-400 disabled:border-gray-500"
-          >
-            {loading ? 'Recording Payment...' : 'Record Payment'}
-          </Button>
+            onClick={handleSubmit}
+            stylingMode="contained"
+          />
         </div>
       </form>
 
@@ -673,44 +729,68 @@ export default function NewPaymentPage() {
           <DialogHeader>
             <DialogTitle>Add New Bank</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Bank Name <span className="text-destructive">*</span>
-            </label>
-            <input
-              type="text"
-              value={newBankName}
-              onChange={(e) => setNewBankName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  handleAddNewBank()
-                }
-              }}
-              className="w-full px-4 py-2 border border-input bg-background text-foreground rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
-              placeholder="Enter bank name"
-              autoFocus
-            />
+          <div className="py-4 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Bank Name <span className="text-destructive">*</span>
+              </label>
+              <input
+                type="text"
+                value={newBankName}
+                onChange={(e) => setNewBankName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    document.getElementById('newBankAccountNumber')?.focus()
+                  }
+                }}
+                className="w-full px-4 py-2 border border-input bg-background text-foreground rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
+                placeholder="Enter bank name"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Account Number
+              </label>
+              <input
+                id="newBankAccountNumber"
+                type="text"
+                value={newBankAccountNumber}
+                onChange={(e) => setNewBankAccountNumber(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleAddNewBank()
+                  }
+                }}
+                className="w-full px-4 py-2 border border-input bg-background text-foreground rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
+                placeholder="Enter account number (optional)"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Optional: This will be used for bank transfers and tracking
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button
-              type="button"
-              variant="outline"
+              text="Cancel"
+              type="normal"
+              icon="close"
               onClick={() => {
                 setShowAddBankDialog(false)
                 setNewBankName('')
+                setNewBankAccountNumber('')
               }}
-              className="bg-gray-200 hover:bg-gray-300 text-gray-900 font-bold border-2 border-gray-400 shadow-md dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white dark:border-gray-500"
-            >
-              Cancel
-            </Button>
+              stylingMode="outlined"
+            />
             <Button
-              type="button"
+              text="Add Bank"
+              type="success"
+              icon="plus"
               onClick={handleAddNewBank}
-              className="bg-green-600 hover:bg-green-700 text-white font-bold border-2 border-green-700 shadow-md"
-            >
-              Add Bank
-            </Button>
+              stylingMode="contained"
+            />
           </DialogFooter>
         </DialogContent>
       </Dialog>

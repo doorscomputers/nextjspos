@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 import { getManilaDate } from '@/lib/timezone'
+import { sendTelegramStockTransferAlert } from '@/lib/telegram'
 
 // GET - List all stock transfers
 export async function GET(request: NextRequest) {
@@ -422,9 +423,38 @@ export async function POST(request: NextRequest) {
     const completeTransfer = await prisma.stockTransfer.findUnique({
       where: { id: transfer.id },
       include: {
-        items: true,
+        items: {
+          include: {
+            product: { select: { name: true } },
+            productVariation: { select: { name: true } }
+          }
+        },
       },
     })
+
+    // Send Telegram notification for transfer creation
+    try {
+      const userDisplayName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || `User#${userId}`
+      const totalQuantity = completeTransfer?.items.reduce((sum, item) => sum + parseFloat(item.quantity.toString()), 0) || 0
+
+      await sendTelegramStockTransferAlert({
+        transferNumber,
+        fromLocation: fromLocation.name,
+        toLocation: toLocation.name,
+        itemCount: items.length,
+        totalQuantity,
+        status: 'draft',
+        createdBy: userDisplayName,
+        timestamp: new Date(),
+        items: completeTransfer?.items.slice(0, 3).map(item => ({
+          productName: item.product.name,
+          variationName: item.productVariation.name,
+          quantity: parseFloat(item.quantity.toString())
+        }))
+      })
+    } catch (telegramError) {
+      console.error('Telegram notification failed:', telegramError)
+    }
 
     return NextResponse.json({ transfer: completeTransfer }, { status: 201 })
   } catch (error) {

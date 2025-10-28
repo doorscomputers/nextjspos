@@ -26,7 +26,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Button as UiButton } from "@/components/ui/button"
+import Button from 'devextreme-react/button'
 import DataGrid, { Column, Export, Summary, TotalItem } from 'devextreme-react/data-grid'
 import Chart, {
   CommonSeriesSettings,
@@ -97,6 +98,15 @@ interface DashboardStats {
       date: string
       amount: number
     }>
+    supplierPayments: Array<{
+      id: number
+      paymentNumber: string
+      supplier: string
+      date: string
+      amount: number
+      paymentMethod: string
+      purchaseOrderNumber: string
+    }>
   }
 }
 
@@ -120,13 +130,16 @@ export default function DashboardPageV2() {
   const [salesByLocation, setSalesByLocation] = useState<SalesByLocationData | null>(null)
   const [loadingSales, setLoadingSales] = useState(false)
 
+  // Supplier payments date range filter
+  const [supplierPaymentsDateRange, setSupplierPaymentsDateRange] = useState<'today' | 'week' | 'month' | 'all'>('month')
+
   useEffect(() => {
     fetchLocations()
   }, [])
 
   useEffect(() => {
     fetchDashboardStats()
-  }, [locationFilter])
+  }, [locationFilter, supplierPaymentsDateRange])
 
   useEffect(() => {
     // Fetch sales by location - API will return empty data if user lacks permission
@@ -167,6 +180,24 @@ export default function DashboardPageV2() {
       if (locationFilter !== "all") {
         params.append("locationId", locationFilter)
       }
+
+      // Add date range filter for supplier payments
+      const today = new Date()
+      if (supplierPaymentsDateRange === 'today') {
+        params.append("startDate", today.toISOString().split('T')[0])
+        params.append("endDate", today.toISOString().split('T')[0])
+      } else if (supplierPaymentsDateRange === 'week') {
+        const weekAgo = new Date(today)
+        weekAgo.setDate(weekAgo.getDate() - 7)
+        params.append("startDate", weekAgo.toISOString().split('T')[0])
+        params.append("endDate", today.toISOString().split('T')[0])
+      } else if (supplierPaymentsDateRange === 'month') {
+        const monthAgo = new Date(today)
+        monthAgo.setDate(monthAgo.getDate() - 30)
+        params.append("startDate", monthAgo.toISOString().split('T')[0])
+        params.append("endDate", today.toISOString().split('T')[0])
+      }
+      // 'all' doesn't add date filters
 
       const response = await fetch(`/api/dashboard/stats?${params.toString()}`)
       if (response.ok) {
@@ -615,6 +646,69 @@ export default function DashboardPageV2() {
           </Card>
         )}
 
+        {/* Payments to Suppliers */}
+        {can(PERMISSIONS.PURCHASE_VIEW) && (
+          <Card className="shadow-lg">
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <CardTitle className="flex items-center gap-2">
+                  <BanknotesIcon className="h-5 w-5 text-purple-600" />
+                  Payments to Suppliers
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Period:</label>
+                  <Select value={supplierPaymentsDateRange} onValueChange={(value) => setSupplierPaymentsDateRange(value as any)}>
+                    <SelectTrigger className="w-[130px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="week">This Week</SelectItem>
+                      <SelectItem value="month">This Month</SelectItem>
+                      <SelectItem value="all">All Time</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <DataGrid
+                dataSource={stats?.tables.supplierPayments || []}
+                showBorders={true}
+                columnAutoWidth={true}
+                height={300}
+                keyExpr="id"
+              >
+                <Column dataField="paymentNumber" caption="Payment #" width={120} />
+                <Column dataField="supplier" caption="Supplier" />
+                <Column dataField="purchaseOrderNumber" caption="PO Number" width={120} />
+                <Column dataField="date" caption="Date" width={100} />
+                <Column
+                  dataField="paymentMethod"
+                  caption="Method"
+                  width={100}
+                  cellRender={(data: any) => (
+                    <Badge variant="outline" className="capitalize">
+                      {data.value.replace('_', ' ')}
+                    </Badge>
+                  )}
+                />
+                <Column
+                  dataField="amount"
+                  caption="Amount"
+                  dataType="number"
+                  format="₱#,##0.00"
+                  alignment="right"
+                />
+                <Summary>
+                  <TotalItem column="amount" summaryType="sum" valueFormat="₱#,##0.00" />
+                </Summary>
+                <Export enabled={true} />
+              </DataGrid>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Product Stock Alert Summary */}
         {can(PERMISSIONS.PRODUCT_VIEW) && (
           <Card className="hover:shadow-lg transition-shadow cursor-pointer shadow-lg" onClick={() => window.location.href = '/dashboard/reports/stock-alert'}>
@@ -636,16 +730,18 @@ export default function DashboardPageV2() {
                     ? "All products are well stocked"
                     : `${stats?.tables.stockAlerts.length} product(s) below alert level`}
                 </p>
-                <button
-                  className="w-full mt-4 px-6 py-2.5 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white rounded-lg transition-all duration-200 flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl hover:scale-105"
+                <Button
+                  text="View Detailed Report"
+                  type="default"
+                  icon="warning"
                   onClick={(e) => {
                     e.stopPropagation()
                     window.location.href = '/dashboard/reports/stock-alert'
                   }}
-                >
-                  <ExclamationTriangleIcon className="h-5 w-5" />
-                  View Detailed Report
-                </button>
+                  stylingMode="contained"
+                  width="100%"
+                  className="mt-4"
+                />
               </div>
             </CardContent>
           </Card>

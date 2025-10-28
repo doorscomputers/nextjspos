@@ -331,13 +331,33 @@ export async function sendTelegramTestMessage(): Promise<boolean> {
 
 Your Telegram bot is configured correctly and ready to send notifications!
 
-<i>You will now receive instant alerts for:</i>
+<b>🔥 CRITICAL ALERTS (Security & Finance):</b>
 • 🚨 Large discounts (>${formatCurrency(telegramConfig.discountThreshold)})
 • ⚠️ Void transactions
 • 🔄 Refund transactions
 • 💳 Credit sales
 • 💰 Large cash outs (>${formatCurrency(telegramConfig.cashOutThreshold)})
+• 🔐 User role/permission changes
+• 💼 Shift closings (with discrepancy tracking)
+
+<b>📊 INVENTORY & OPERATIONS:</b>
 • 📦 Low stock alerts
+• 📊 Inventory corrections
+• 📤 Stock transfers between locations
+• 📈 Price changes (individual and bulk)
+• 🛠️ Product edits
+
+<b>💵 FINANCIAL TRANSACTIONS:</b>
+• 💰 Supplier payments (>${formatCurrency(50000)})
+• 📋 Expense approvals (>${formatCurrency(5000)})
+• 📦 Purchase orders (>${formatCurrency(100000)})
+• 💸 Bank transactions (>${formatCurrency(50000)})
+
+<b>⚙️ SYSTEM CHANGES:</b>
+• ⚙️ Business settings modifications
+• 📝 Customer edits
+
+<i>🎉 Total: 19 types of real-time business alerts!</i>
   `.trim()
 
   return sendTelegramMessage(message)
@@ -504,6 +524,389 @@ ${changesText}
 <b>Time:</b> ${formatDateTime(data.timestamp)}
 
 ℹ️ <i>Product information was updated</i>
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
+ * Send inventory correction alert
+ */
+export async function sendTelegramInventoryCorrectionAlert(data: {
+  productName: string
+  variationName?: string
+  sku: string
+  previousInventory: number
+  currentInventory: number
+  difference: number
+  reason: string
+  remarks?: string
+  locationName: string
+  correctedBy: string
+  timestamp: Date
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const emoji = data.difference > 0 ? '📈' : data.difference < 0 ? '📉' : '➡️'
+  const changeType = data.difference > 0 ? 'ADDED' : data.difference < 0 ? 'REDUCED' : 'NO CHANGE'
+  const fullProductName = data.variationName
+    ? `${data.productName} - ${data.variationName}`
+    : data.productName
+
+  const message = `
+${emoji} <b>INVENTORY CORRECTION ALERT</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Product:</b> ${fullProductName}
+<b>SKU:</b> ${data.sku}
+<b>Location:</b> ${data.locationName}
+
+<b>Previous Inventory:</b> ${data.previousInventory} units
+<b>Current Inventory:</b> ${data.currentInventory} units
+<b>Change:</b> ${data.difference > 0 ? '+' : ''}${data.difference} units (${changeType})
+
+<b>Reason:</b> ${data.reason}
+${data.remarks ? `<b>Remarks:</b> ${data.remarks}` : ''}
+
+<b>Corrected By:</b> ${data.correctedBy}
+<b>Date:</b> ${formatDateTime(data.timestamp)}
+
+${Math.abs(data.difference) > 100 ? '⚠️ <i>Significant inventory adjustment detected</i>' : 'ℹ️ <i>Inventory correction applied</i>'}
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
+ * Send stock transfer alert
+ */
+export async function sendTelegramStockTransferAlert(data: {
+  transferNumber: string
+  fromLocation: string
+  toLocation: string
+  itemCount: number
+  totalQuantity: number
+  status: string
+  createdBy: string
+  timestamp: Date
+  items?: Array<{
+    productName: string
+    variationName?: string
+    quantity: number
+  }>
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const statusEmoji = data.status === 'completed' ? '✅' : data.status === 'sent' ? '📤' : '📋'
+  const itemPreview = data.items && data.items.length > 0
+    ? data.items.slice(0, 3).map(item =>
+        `  • ${item.productName}${item.variationName ? ` (${item.variationName})` : ''}: ${item.quantity} units`
+      ).join('\n')
+    : ''
+
+  const message = `
+${statusEmoji} <b>STOCK TRANSFER ALERT</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Transfer #:</b> ${data.transferNumber}
+<b>From:</b> ${data.fromLocation}
+<b>To:</b> ${data.toLocation}
+<b>Status:</b> ${data.status.toUpperCase()}
+
+<b>Items:</b> ${data.itemCount} products
+<b>Total Quantity:</b> ${data.totalQuantity} units
+
+${itemPreview ? `<b>Sample Items:</b>\n${itemPreview}${data.itemCount > 3 ? `\n  ... and ${data.itemCount - 3} more items` : ''}` : ''}
+
+<b>Created By:</b> ${data.createdBy}
+<b>Time:</b> ${formatDateTime(data.timestamp)}
+
+${data.totalQuantity > 50 ? '⚠️ <i>Large transfer detected - verify authorization</i>' : 'ℹ️ <i>Stock transfer recorded</i>'}
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
+ * Send user role/permission change alert
+ */
+export async function sendTelegramUserRoleChangeAlert(data: {
+  userName: string
+  userEmail?: string
+  previousRole?: string
+  newRole?: string
+  permissionChanges?: Array<{
+    permission: string
+    action: 'added' | 'removed'
+  }>
+  changedBy: string
+  timestamp: Date
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const roleChange = data.previousRole && data.newRole
+    ? `<b>Role Change:</b> ${data.previousRole} → ${data.newRole}\n`
+    : ''
+
+  const permissionList = data.permissionChanges && data.permissionChanges.length > 0
+    ? `<b>Permissions Modified:</b>\n${data.permissionChanges.slice(0, 5).map(p =>
+        `  ${p.action === 'added' ? '✅' : '❌'} ${p.permission}`
+      ).join('\n')}${data.permissionChanges.length > 5 ? `\n  ... and ${data.permissionChanges.length - 5} more` : ''}\n`
+    : ''
+
+  const message = `
+🔐 <b>USER ACCESS CHANGE ALERT</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>User:</b> ${data.userName}
+${data.userEmail ? `<b>Email:</b> ${data.userEmail}\n` : ''}
+${roleChange}${permissionList}
+<b>Changed By:</b> ${data.changedBy}
+<b>Time:</b> ${formatDateTime(data.timestamp)}
+
+⚠️ <b>SECURITY ALERT</b> - User access level modified
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
+ * Send supplier payment alert
+ */
+export async function sendTelegramSupplierPaymentAlert(data: {
+  paymentNumber: string
+  supplierName: string
+  amount: number
+  paymentMethod: string
+  referenceNumber?: string
+  paidBy: string
+  locationName: string
+  timestamp: Date
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const isLarge = data.amount >= 50000
+
+  const message = `
+💰 <b>SUPPLIER PAYMENT ALERT</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Payment #:</b> ${data.paymentNumber}
+<b>Supplier:</b> ${data.supplierName}
+<b>Amount:</b> ${formatCurrency(data.amount)}
+<b>Method:</b> ${data.paymentMethod}
+${data.referenceNumber ? `<b>Reference:</b> ${data.referenceNumber}\n` : ''}
+<b>Paid By:</b> ${data.paidBy}
+<b>Location:</b> ${data.locationName}
+<b>Time:</b> ${formatDateTime(data.timestamp)}
+
+${isLarge ? '⚠️ <i>Large payment detected - verify authorization</i>' : 'ℹ️ <i>Payment processed successfully</i>'}
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
+ * Send shift closing alert
+ */
+export async function sendTelegramShiftClosingAlert(data: {
+  shiftNumber: string
+  cashierName: string
+  locationName: string
+  openingCash: number
+  expectedCash: number
+  actualCash: number
+  discrepancy: number
+  totalSales: number
+  totalTransactions: number
+  closedBy: string
+  timestamp: Date
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const hasDiscrepancy = Math.abs(data.discrepancy) > 0
+  const isLargeDiscrepancy = Math.abs(data.discrepancy) > 1000 || Math.abs(data.discrepancy) > data.expectedCash * 0.05
+
+  const message = `
+💼 <b>SHIFT CLOSING ALERT</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Shift #:</b> ${data.shiftNumber}
+<b>Cashier:</b> ${data.cashierName}
+<b>Location:</b> ${data.locationName}
+
+<b>Opening Cash:</b> ${formatCurrency(data.openingCash)}
+<b>Expected Cash:</b> ${formatCurrency(data.expectedCash)}
+<b>Actual Cash:</b> ${formatCurrency(data.actualCash)}
+${hasDiscrepancy ? `<b>Discrepancy:</b> ${data.discrepancy > 0 ? '+' : ''}${formatCurrency(data.discrepancy)}\n` : ''}
+<b>Total Sales:</b> ${formatCurrency(data.totalSales)}
+<b>Transactions:</b> ${data.totalTransactions}
+
+<b>Closed By:</b> ${data.closedBy}
+<b>Time:</b> ${formatDateTime(data.timestamp)}
+
+${isLargeDiscrepancy ? '🚨 <b>LARGE DISCREPANCY DETECTED</b> - Immediate review required!' : hasDiscrepancy ? '⚠️ <i>Cash discrepancy detected</i>' : '✅ <i>Shift closed successfully - no discrepancy</i>'}
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
+ * Send business settings change alert
+ */
+export async function sendTelegramBusinessSettingsChangeAlert(data: {
+  businessName: string
+  changes: Array<{
+    setting: string
+    oldValue: string
+    newValue: string
+  }>
+  changedBy: string
+  timestamp: Date
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const changesList = data.changes.slice(0, 5).map(change =>
+    `  • <b>${change.setting}:</b>\n    ${change.oldValue} → ${change.newValue}`
+  ).join('\n')
+
+  const message = `
+⚙️ <b>BUSINESS SETTINGS CHANGE ALERT</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Business:</b> ${data.businessName}
+
+<b>Settings Modified:</b>
+${changesList}${data.changes.length > 5 ? `\n  ... and ${data.changes.length - 5} more changes` : ''}
+
+<b>Changed By:</b> ${data.changedBy}
+<b>Time:</b> ${formatDateTime(data.timestamp)}
+
+⚠️ <b>CONFIGURATION CHANGE</b> - May affect system behavior
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
+ * Send expense approval alert
+ */
+export async function sendTelegramExpenseApprovalAlert(data: {
+  expenseNumber: string
+  amount: number
+  category: string
+  description: string
+  expenseDate: Date
+  submittedBy: string
+  approvedBy: string
+  locationName: string
+  timestamp: Date
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const isLarge = data.amount >= 5000
+
+  const message = `
+📋 <b>EXPENSE APPROVAL ALERT</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Expense #:</b> ${data.expenseNumber}
+<b>Amount:</b> ${formatCurrency(data.amount)}
+<b>Category:</b> ${data.category}
+<b>Description:</b> ${data.description}
+<b>Expense Date:</b> ${formatDateTime(data.expenseDate)}
+
+<b>Submitted By:</b> ${data.submittedBy}
+<b>Approved By:</b> ${data.approvedBy}
+<b>Location:</b> ${data.locationName}
+<b>Approval Time:</b> ${formatDateTime(data.timestamp)}
+
+${isLarge ? '⚠️ <i>Large expense approved - verify justification</i>' : 'ℹ️ <i>Expense approved successfully</i>'}
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
+ * Send purchase order alert
+ */
+export async function sendTelegramPurchaseOrderAlert(data: {
+  poNumber: string
+  supplierName: string
+  totalAmount: number
+  itemCount: number
+  status: string
+  deliveryDate?: Date
+  createdBy: string
+  locationName: string
+  timestamp: Date
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const isLarge = data.totalAmount >= 100000
+
+  const message = `
+📦 <b>PURCHASE ORDER ALERT</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>PO #:</b> ${data.poNumber}
+<b>Supplier:</b> ${data.supplierName}
+<b>Amount:</b> ${formatCurrency(data.totalAmount)}
+<b>Items:</b> ${data.itemCount} products
+<b>Status:</b> ${data.status.toUpperCase()}
+${data.deliveryDate ? `<b>Delivery Date:</b> ${formatDateTime(data.deliveryDate)}\n` : ''}
+<b>Created By:</b> ${data.createdBy}
+<b>Location:</b> ${data.locationName}
+<b>Time:</b> ${formatDateTime(data.timestamp)}
+
+${isLarge ? '⚠️ <i>Large purchase order - significant inventory investment</i>' : 'ℹ️ <i>Purchase order created</i>'}
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
+ * Send bank transaction alert
+ */
+export async function sendTelegramBankTransactionAlert(data: {
+  transactionNumber: string
+  bankName: string
+  transactionType: 'deposit' | 'withdrawal' | 'transfer'
+  amount: number
+  referenceNumber?: string
+  description: string
+  recordedBy: string
+  timestamp: Date
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const isLarge = data.amount >= 50000
+  const emoji = data.transactionType === 'deposit' ? '💵' : data.transactionType === 'withdrawal' ? '💸' : '🔄'
+
+  const message = `
+${emoji} <b>BANK TRANSACTION ALERT</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Transaction #:</b> ${data.transactionNumber}
+<b>Bank:</b> ${data.bankName}
+<b>Type:</b> ${data.transactionType.toUpperCase()}
+<b>Amount:</b> ${formatCurrency(data.amount)}
+${data.referenceNumber ? `<b>Reference:</b> ${data.referenceNumber}\n` : ''}
+<b>Description:</b> ${data.description}
+
+<b>Recorded By:</b> ${data.recordedBy}
+<b>Time:</b> ${formatDateTime(data.timestamp)}
+
+${isLarge ? '⚠️ <i>Large bank transaction - verify against bank statement</i>' : 'ℹ️ <i>Bank transaction recorded</i>'}
   `.trim()
 
   return sendTelegramMessage(message)

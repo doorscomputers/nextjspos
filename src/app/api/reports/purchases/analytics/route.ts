@@ -37,8 +37,8 @@ export async function GET(request: NextRequest) {
       where: {
         businessId,
         purchaseDate: {
-          gte: new Date(startDate),
-          lte: new Date(endDate)
+          gte: new Date(startDate + 'T00:00:00'),
+          lte: new Date(endDate + 'T23:59:59.999')
         },
         status: {
           in: ['pending', 'ordered', 'received', 'completed']
@@ -78,10 +78,11 @@ export async function GET(request: NextRequest) {
     const avgItemsPerOrder = totalPurchases > 0 ? totalQuantity / totalPurchases : 0
 
     // Calculate period growth (compare with previous period of same length)
-    const periodDays = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24))
-    const prevStartDate = new Date(startDate)
+    const periodDays = Math.ceil((new Date(endDate + 'T23:59:59.999').getTime() - new Date(startDate + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24))
+    const prevStartDate = new Date(startDate + 'T00:00:00')
     prevStartDate.setDate(prevStartDate.getDate() - periodDays)
-    const prevEndDate = new Date(startDate)
+    const prevEndDate = new Date(startDate + 'T00:00:00')
+    prevEndDate.setHours(23, 59, 59, 999)
 
     const prevPurchases = await prisma.purchase.findMany({
       where: {

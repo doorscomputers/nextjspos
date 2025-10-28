@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import bcrypt from 'bcryptjs'
+import { sendTelegramUserRoleChangeAlert } from '@/lib/telegram'
 
 // GET single user
 export async function GET(
@@ -120,11 +121,21 @@ export async function PUT(
         businessId: parseInt(sessionUser.businessId),
         deletedAt: null,
       },
+      include: {
+        roles: {
+          include: {
+            role: { select: { name: true } }
+          }
+        }
+      }
     })
 
     if (!existingUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
+
+    // Store previous roles for notification
+    const previousRoleNames = existingUser.roles.map(ur => ur.role.name)
 
     // Validate location requirement based on assigned roles
     if (roleIds && Array.isArray(roleIds) && roleIds.length > 0) {
@@ -222,6 +233,39 @@ export async function PUT(
             locationId: parseInt(locationId),
           },
         })
+      }
+    }
+
+    // Send Telegram notification for role changes
+    if (roleIds && Array.isArray(roleIds)) {
+      try {
+        const newRoles = await prisma.role.findMany({
+          where: { id: { in: roleIds } },
+          select: { name: true }
+        })
+        const newRoleNames = newRoles.map(r => r.name)
+
+        // Only send notification if roles actually changed
+        const rolesChanged =
+          previousRoleNames.length !== newRoleNames.length ||
+          previousRoleNames.some(r => !newRoleNames.includes(r)) ||
+          newRoleNames.some(r => !previousRoleNames.includes(r))
+
+        if (rolesChanged) {
+          const changedByName = [sessionUser.firstName, sessionUser.lastName].filter(Boolean).join(' ') || sessionUser.username || `User#${sessionUser.id}`
+          const userName = [updatedUser.firstName, updatedUser.lastName].filter(Boolean).join(' ') || updatedUser.username
+
+          await sendTelegramUserRoleChangeAlert({
+            userName,
+            userEmail: updatedUser.email || undefined,
+            previousRole: previousRoleNames.join(', ') || 'None',
+            newRole: newRoleNames.join(', ') || 'None',
+            changedBy: changedByName,
+            timestamp: new Date()
+          })
+        }
+      } catch (telegramError) {
+        console.error('Telegram notification failed:', telegramError)
       }
     }
 

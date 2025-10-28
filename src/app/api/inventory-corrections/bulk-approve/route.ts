@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { PERMISSIONS, getUserAccessibleLocationIds } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 import { getCurrentStock, StockTransactionType, updateStock } from '@/lib/stockOperations'
+import { sendTelegramInventoryCorrectionAlert } from '@/lib/telegram'
 
 /**
  * POST /api/inventory-corrections/bulk-approve
@@ -161,6 +162,23 @@ export async function POST(request: NextRequest) {
         )
 
         approvalResults.push({ success: true, id: correction.id })
+
+        // Send Telegram notification for each approved correction
+        sendTelegramInventoryCorrectionAlert({
+          productName: correction.product.name,
+          variationName: correction.productVariation.name,
+          sku: correction.productVariation.sku || correction.product.sku,
+          previousInventory: result.previousQty,
+          currentInventory: result.newQty,
+          difference: result.newQty - result.previousQty,
+          reason: correction.reason,
+          remarks: correction.remarks || undefined,
+          locationName: correction.location.name,
+          correctedBy: userDisplayName,
+          timestamp: new Date()
+        }).catch((telegramError) => {
+          console.error(`[BULK APPROVE] Telegram notification failed for correction ${correction.id}:`, telegramError)
+        })
 
         createAuditLog({
           businessId: businessIdNumber,

@@ -24,8 +24,8 @@ export async function GET(request: NextRequest) {
 
     if (startDate || endDate) {
       whereClause.createdAt = {}
-      if (startDate) whereClause.createdAt.gte = new Date(startDate)
-      if (endDate) whereClause.createdAt.lte = new Date(endDate)
+      if (startDate) whereClause.createdAt.gte = new Date(startDate + 'T00:00:00')
+      if (endDate) whereClause.createdAt.lte = new Date(endDate + 'T23:59:59.999')
     }
 
     // Get summary by status

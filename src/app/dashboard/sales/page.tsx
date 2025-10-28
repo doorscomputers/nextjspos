@@ -315,10 +315,9 @@ export default function SalesPage() {
       <div className="flex items-center gap-2">
         <Link href={`/dashboard/sales/${sale.id}`}>
           <Button
-            variant="outline"
             size="sm"
             title="View Details"
-            className="gap-1 px-2 has-[>svg]:px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:text-blue-200 dark:hover:bg-blue-900/30 border-blue-300 dark:border-blue-700"
+            className="gap-1 px-2 has-[>svg]:px-2 bg-blue-600 hover:bg-blue-700 text-white font-medium border-2 border-blue-700 hover:border-blue-800 shadow-sm hover:shadow-md transition-all"
           >
             <EyeIcon className="w-4 h-4" />
             View
@@ -326,10 +325,9 @@ export default function SalesPage() {
         </Link>
         {can(PERMISSIONS.SELL_VIEW) && (
           <Button
-            variant="outline"
             size="sm"
             onClick={() => handleReprintReceipt(sale.id)}
-            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30 border-blue-300 dark:border-blue-700 gap-1"
+            className="bg-purple-600 hover:bg-purple-700 text-white font-medium border-2 border-purple-700 hover:border-purple-800 shadow-sm hover:shadow-md transition-all gap-1"
             title="Reprint Receipt"
           >
             <PrinterIcon className="w-4 h-4" />

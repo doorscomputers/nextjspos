@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import Link from 'next/link'
-import { PlusIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon, PencilIcon } from '@heroicons/react/24/outline'
 import DataGrid, {
   Column,
   Export,
@@ -29,6 +29,7 @@ import DataGrid, {
   Selection,
   MasterDetail,
 } from 'devextreme-react/data-grid'
+import Button from 'devextreme-react/button'
 import { Workbook } from 'exceljs'
 import { saveAs } from 'file-saver'
 import { exportDataGrid as exportToExcel } from 'devextreme/excel_exporter'
@@ -464,6 +465,26 @@ export default function ProductsListV2Page() {
     )
   }
 
+  const editCellRender = (data: any) => {
+    const handleEditClick = () => {
+      window.location.href = `/dashboard/products/${data.data.id}/edit`
+    }
+
+    return (
+      <div className="flex justify-center gap-1">
+        <Button
+          icon="edit"
+          text=""
+          type="default"
+          stylingMode="outlined"
+          onClick={handleEditClick}
+          hint="Edit Product"
+          className="dx-button-edit"
+        />
+      </div>
+    )
+  }
+
   const cellRender = (data: any) => {
     // Status badge
     if (data.column.dataField === 'isActive') {
@@ -857,6 +878,19 @@ export default function ProductsListV2Page() {
             format="MMM dd, yyyy"
             width={120}
             visible={columnVisibility.createdAt}
+          />
+          {/* Edit Actions Column */}
+          <Column
+            dataField="actions"
+            caption="Actions"
+            width={100}
+            alignment="center"
+            fixed={true}
+            fixedPosition="right"
+            cellRender={editCellRender}
+            allowExporting={false}
+            allowFiltering={false}
+            allowSorting={false}
           />
           <Column
             dataField="isActive"

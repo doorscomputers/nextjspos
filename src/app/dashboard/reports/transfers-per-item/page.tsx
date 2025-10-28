@@ -23,9 +23,17 @@ import DataGrid, {
   ColumnFixing,
   StateStoring,
 } from 'devextreme-react/data-grid'
+import PivotGrid, {
+  FieldChooser,
+  Export as PivotExport,
+  FieldPanel,
+  StateStoring as PivotStateStoring,
+} from 'devextreme-react/pivot-grid'
+import PivotGridDataSource from 'devextreme/ui/pivot_grid/data_source'
 import { Workbook } from 'exceljs'
 import { saveAs } from 'file-saver'
 import { exportDataGrid } from 'devextreme/excel_exporter'
+import { exportPivotGrid } from 'devextreme/excel_exporter'
 
 export default function TransfersPerItemReport() {
   const { can } = usePermissions()
@@ -35,6 +43,7 @@ export default function TransfersPerItemReport() {
   const [locations, setLocations] = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
   const [productSearch, setProductSearch] = useState('')
+  const [showPivotView, setShowPivotView] = useState(true) // Toggle between Pivot and Detail view
 
   // Filter state
   const [dateRangePreset, setDateRangePreset] = useState('custom')
@@ -94,6 +103,15 @@ export default function TransfersPerItemReport() {
     (product.sku && product.sku.toLowerCase().includes(productSearch.toLowerCase()))
   )
 
+  // Filter locations to prevent selecting the same location for From and To
+  const availableFromLocations = filters.toLocationId
+    ? locations.filter(loc => loc.id.toString() !== filters.toLocationId)
+    : locations
+
+  const availableToLocations = filters.fromLocationId
+    ? locations.filter(loc => loc.id.toString() !== filters.fromLocationId)
+    : locations
+
   useEffect(() => {
     fetchLocations()
     fetchProducts()
@@ -103,9 +121,11 @@ export default function TransfersPerItemReport() {
   const fetchLocations = async () => {
     try {
       const response = await fetch('/api/locations')
-      const data = await response.json()
-      if (response.ok) {
-        setLocations(data.locations || [])
+      const result = await response.json()
+      if (response.ok && result.success) {
+        setLocations(result.data || [])
+      } else {
+        console.error('Failed to fetch locations:', result.error)
       }
     } catch (error) {
       console.error('Error fetching locations:', error)
@@ -184,6 +204,98 @@ export default function TransfersPerItemReport() {
         saveAs(
           new Blob([buffer], { type: 'application/octet-stream' }),
           `Transfers_per_Item_${new Date().toISOString().split('T')[0]}.xlsx`
+        )
+      })
+    })
+  }, [])
+
+  // PivotGrid data source configuration
+  const pivotGridDataSource = new PivotGridDataSource({
+    fields: [
+      {
+        caption: 'Product',
+        dataField: 'productName',
+        area: 'row',
+        sortBySummaryField: 'Total Quantity',
+        sortOrder: 'desc',
+      },
+      {
+        caption: 'Variation',
+        dataField: 'variationName',
+        area: 'row',
+      },
+      {
+        caption: 'Product SKU',
+        dataField: 'productSku',
+        area: 'row',
+        visible: false,
+      },
+      {
+        caption: 'From Location',
+        dataField: 'fromLocationName',
+        area: 'column',
+      },
+      {
+        caption: 'To Location',
+        dataField: 'toLocationName',
+        area: 'column',
+      },
+      {
+        caption: 'Transfer Route',
+        dataField: 'transferRoute',
+        area: 'filter',
+        selector: (data: any) => `${data.fromLocationName} → ${data.toLocationName}`,
+      },
+      {
+        caption: 'Status',
+        dataField: 'statusLabel',
+        area: 'filter',
+      },
+      {
+        caption: 'Transfer Date',
+        dataField: 'transferDateFormatted',
+        dataType: 'date',
+        area: 'filter',
+      },
+      {
+        caption: 'Total Quantity',
+        dataField: 'quantitySent',
+        dataType: 'number',
+        summaryType: 'sum',
+        area: 'data',
+        format: '#,##0.##',
+      },
+      {
+        caption: 'Quantity Received',
+        dataField: 'quantityReceived',
+        dataType: 'number',
+        summaryType: 'sum',
+        area: 'data',
+        format: '#,##0.##',
+      },
+      {
+        caption: 'Transfer Count',
+        dataField: 'transferNumber',
+        dataType: 'number',
+        summaryType: 'count',
+        area: 'data',
+      },
+    ],
+    store: reportData,
+  })
+
+  const onPivotExporting = useCallback((e: any) => {
+    const workbook = new Workbook()
+    const worksheet = workbook.addWorksheet('Transfers Pivot')
+
+    exportPivotGrid({
+      component: e.component,
+      worksheet,
+    }).then(() => {
+      workbook.xlsx.writeBuffer().then((buffer) => {
+        saveAs(
+          new Blob([buffer], { type: 'application/octet-stream' }),
+          `Transfers_Pivot_${new Date().toISOString().split('T')[0]}.xlsx`
         )
       })
     })
@@ -298,16 +410,29 @@ export default function TransfersPerItemReport() {
             </label>
             <select
               value={filters.fromLocationId}
-              onChange={(e) => setFilters({ ...filters, fromLocationId: e.target.value })}
+              onChange={(e) => {
+                const newFromLocationId = e.target.value
+                // If the new From location is the same as To location, clear To location
+                const updatedFilters = { ...filters, fromLocationId: newFromLocationId }
+                if (newFromLocationId && newFromLocationId === filters.toLocationId) {
+                  updatedFilters.toLocationId = ''
+                }
+                setFilters(updatedFilters)
+              }}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               <option value="">All Locations</option>
-              {locations.map((location) => (
+              {availableFromLocations.map((location) => (
                 <option key={location.id} value={location.id}>
                   {location.name}
                 </option>
               ))}
             </select>
+            {filters.fromLocationId && filters.toLocationId && filters.fromLocationId === filters.toLocationId && (
+              <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                From and To locations cannot be the same
+              </p>
+            )}
           </div>
 
           {/* To Location */}
@@ -317,16 +442,29 @@ export default function TransfersPerItemReport() {
             </label>
             <select
               value={filters.toLocationId}
-              onChange={(e) => setFilters({ ...filters, toLocationId: e.target.value })}
+              onChange={(e) => {
+                const newToLocationId = e.target.value
+                // If the new To location is the same as From location, clear From location
+                const updatedFilters = { ...filters, toLocationId: newToLocationId }
+                if (newToLocationId && newToLocationId === filters.fromLocationId) {
+                  updatedFilters.fromLocationId = ''
+                }
+                setFilters(updatedFilters)
+              }}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               <option value="">All Locations</option>
-              {locations.map((location) => (
+              {availableToLocations.map((location) => (
                 <option key={location.id} value={location.id}>
                   {location.name}
                 </option>
               ))}
             </select>
+            {filters.toLocationId && filters.fromLocationId && filters.toLocationId === filters.fromLocationId && (
+              <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                To and From locations cannot be the same
+              </p>
+            )}
           </div>
 
           {/* Status */}
@@ -443,9 +581,92 @@ export default function TransfersPerItemReport() {
         </>
       )}
 
-      {/* DataGrid */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
-        <DataGrid
+      {/* View Toggle */}
+      <div className="flex items-center justify-between bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+        <div className="flex items-center gap-4">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">View:</span>
+          <div className="inline-flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
+            <button
+              onClick={() => setShowPivotView(true)}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                showPivotView
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              📊 Pivot Summary
+            </button>
+            <button
+              onClick={() => setShowPivotView(false)}
+              className={`px-4 py-2 text-sm font-medium transition-colors border-l border-gray-300 dark:border-gray-600 ${
+                !showPivotView
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              📋 Detailed View
+            </button>
+          </div>
+        </div>
+        <div className="text-sm text-gray-600 dark:text-gray-400">
+          {showPivotView ? 'Aggregated transfer totals by product and location' : 'Line-by-line transfer details'}
+        </div>
+      </div>
+
+      {/* PivotGrid View */}
+      {showPivotView && (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+              Transfer Summary by Product & Location
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Drag fields between areas to reorganize the data. Use the Field Chooser to show/hide fields.
+            </p>
+          </div>
+          <PivotGrid
+            id="transfersPivotGrid"
+            dataSource={pivotGridDataSource}
+            allowSortingBySummary={true}
+            allowFiltering={true}
+            allowSorting={true}
+            allowExpandAll={true}
+            showBorders={true}
+            showColumnTotals={true}
+            showColumnGrandTotals={true}
+            showRowTotals={true}
+            showRowGrandTotals={true}
+            height={600}
+            onExporting={onPivotExporting}
+          >
+            <PivotStateStoring
+              enabled={true}
+              type="localStorage"
+              storageKey="transfersPivotGridState"
+            />
+            <FieldPanel
+              showColumnFields={true}
+              showDataFields={true}
+              showFilterFields={true}
+              showRowFields={true}
+              allowFieldDragging={true}
+              visible={true}
+            />
+            <FieldChooser enabled={true} height={600} />
+            <PivotExport enabled={true} />
+          </PivotGrid>
+        </div>
+      )}
+
+      {/* DataGrid - Detailed View */}
+      {!showPivotView && (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Detailed Transfer Records
+            </h3>
+          </div>
+          <DataGrid
           dataSource={reportData}
           showBorders={true}
           showRowLines={true}
@@ -670,7 +891,8 @@ export default function TransfersPerItemReport() {
             />
           </Summary>
         </DataGrid>
-      </div>
+        </div>
+      )}
     </div>
   )
 }

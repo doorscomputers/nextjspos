@@ -299,19 +299,19 @@ export default function CategoriesPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => handleExport("csv")} className="gap-2">
+              <Button size="sm" onClick={() => handleExport("csv")} className="gap-2 bg-green-600 hover:bg-green-700 text-white font-medium border-2 border-green-700 hover:border-green-800 shadow-md">
                 <DocumentArrowDownIcon className="h-4 w-4" />
                 CSV
               </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExport("excel")} className="gap-2">
+              <Button size="sm" onClick={() => handleExport("excel")} className="gap-2 bg-green-600 hover:bg-green-700 text-white font-medium border-2 border-green-700 hover:border-green-800 shadow-md">
                 <DocumentArrowDownIcon className="h-4 w-4" />
                 Excel
               </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExport("pdf")} className="gap-2">
+              <Button size="sm" onClick={() => handleExport("pdf")} className="gap-2 bg-red-600 hover:bg-red-700 text-white font-medium border-2 border-red-700 hover:border-red-800 shadow-md">
                 <DocumentTextIcon className="h-4 w-4" />
                 PDF
               </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExport("print")} className="gap-2">
+              <Button size="sm" onClick={() => handleExport("print")} className="gap-2 bg-purple-600 hover:bg-purple-700 text-white font-medium border-2 border-purple-700 hover:border-purple-800 shadow-md">
                 <PrinterIcon className="h-4 w-4" />
                 Print
               </Button>

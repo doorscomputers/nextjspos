@@ -55,13 +55,14 @@ export default function EditUserPage() {
       if (rolesRes.ok) {
         const rolesData = await rolesRes.json()
         // Sort roles alphabetically by name for easier finding
-        const sortedRoles = rolesData.sort((a: any, b: any) => a.name.localeCompare(b.name))
+        const rolesArray = rolesData.data || rolesData
+        const sortedRoles = rolesArray.sort((a: any, b: any) => a.name.localeCompare(b.name))
         setRoles(sortedRoles)
       }
 
       if (locationsRes.ok) {
         const locData = await locationsRes.json()
-        setLocations(locData.locations || locData || [])
+        setLocations(locData.data || locData.locations || [])
       }
 
       if (userRes.ok) {

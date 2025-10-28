@@ -93,7 +93,7 @@ export default function CreateSchedulePage() {
       const usersResponse = await fetch('/api/users')
       if (usersResponse.ok) {
         const usersData = await usersResponse.json()
-        setUsers(usersData || [])
+        setUsers(usersData.data || [])
       } else {
         toast.error('Failed to fetch users')
       }

@@ -16,7 +16,13 @@
       "Bash(cmd /c:*)",
       "Bash(rm:*)",
       "Bash(npx tsc:*)",
-      "mcp__zai-mcp-server__analyze_image"
+      "mcp__zai-mcp-server__analyze_image",
+      "Bash(npx prisma db push:*)",
+      "Bash(npx tsx:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(powershell -Command \"Stop-Process -Id 20928 -Force\")",
+      "Bash(npx prisma:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

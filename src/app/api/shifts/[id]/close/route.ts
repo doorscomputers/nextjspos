@@ -6,6 +6,7 @@ import { hasPermission, PERMISSIONS, hasAnyRole } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 import { generateXReadingData, generateZReadingData } from '@/lib/readings'
 import bcrypt from 'bcryptjs'
+import { sendTelegramShiftClosingAlert } from '@/lib/telegram'
 
 /**
  * POST /api/shifts/[id]/close - Close a cashier shift
@@ -36,13 +37,22 @@ export async function POST(
     const body = await request.json()
     const { endingCash, closingNotes, cashDenomination, managerPassword } = body
 
+    // Debug logging
+    console.log('=== SHIFT CLOSE DEBUG ===')
+    console.log('Shift ID:', shiftId)
+    console.log('Request Body:', JSON.stringify(body, null, 2))
+    console.log('Ending Cash:', endingCash, 'Type:', typeof endingCash)
+    console.log('Manager Password Present:', !!managerPassword)
+
     // Validate required fields
     if (endingCash === undefined || endingCash === null || endingCash < 0) {
+      console.log('❌ ERROR: Invalid ending cash')
       return NextResponse.json({ error: 'Ending cash must be a valid number' }, { status: 400 })
     }
 
     // Validate manager password is provided
     if (!managerPassword) {
+      console.log('❌ ERROR: Manager password missing')
       return NextResponse.json({ error: 'Manager password is required to close shift' }, { status: 400 })
     }
 
@@ -114,6 +124,7 @@ export async function POST(
     }
 
     if (shift.status === 'closed') {
+      console.log('❌ ERROR: Shift already closed')
       return NextResponse.json({ error: 'Shift is already closed' }, { status: 400 })
     }
 
@@ -309,6 +320,43 @@ export async function POST(
       requiresPassword: true,
       passwordVerified: true,
     })
+
+    // Send Telegram notification for shift closing
+    try {
+      const cashierUser = await prisma.user.findUnique({
+        where: { id: shift.userId },
+        select: { username: true, firstName: true, lastName: true }
+      })
+
+      const location = await prisma.businessLocation.findUnique({
+        where: { id: shift.locationId },
+        select: { name: true }
+      })
+
+      const cashierName = cashierUser
+        ? [cashierUser.firstName, cashierUser.lastName].filter(Boolean).join(' ') || cashierUser.username
+        : `User#${shift.userId}`
+
+      const closedByName = authorizingUser
+        ? [authorizingUser.firstName, authorizingUser.lastName].filter(Boolean).join(' ') || authorizingUser.username
+        : session.user.username
+
+      await sendTelegramShiftClosingAlert({
+        shiftNumber: shift.shiftNumber,
+        cashierName,
+        locationName: location?.name || `Location#${shift.locationId}`,
+        openingCash: parseFloat(shift.openingCash.toString()),
+        expectedCash: parseFloat(systemCash.toString()),
+        actualCash: endingCashDecimal,
+        discrepancy: variance,
+        totalSales,
+        totalTransactions: transactionCount,
+        closedBy: closedByName,
+        timestamp: new Date()
+      })
+    } catch (telegramError) {
+      console.error('Telegram notification failed:', telegramError)
+    }
 
     return NextResponse.json({
       shift: updatedShift,

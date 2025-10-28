@@ -503,7 +503,7 @@ export default function PurchaseReceiptDetailPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/purchases/receipts">
-            <Button variant="outline" size="sm">
+            <Button size="sm" className="bg-gray-600 hover:bg-gray-700 text-white font-medium border-2 border-gray-700 hover:border-gray-800 shadow-sm">
               <ArrowLeftIcon className="w-4 h-4 mr-1" />
               Back to Receipts
             </Button>
@@ -634,8 +634,7 @@ export default function PurchaseReceiptDetailPage() {
                 <Button
                   onClick={() => setShowRejectModal(true)}
                   disabled={approving}
-                  variant="outline"
-                  className="w-full border-red-300 text-red-700 hover:bg-red-50 font-semibold py-3"
+                  className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold border-2 border-red-700 hover:border-red-800 shadow-md py-3 disabled:opacity-50"
                   size="lg"
                 >
                   <XCircleIcon className="w-5 h-5 mr-2" />
@@ -964,8 +963,8 @@ export default function PurchaseReceiptDetailPage() {
                         <Button
                           type="button"
                           size="sm"
-                          variant="outline"
                           onClick={() => openSerialEditor(item)}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium border-2 border-indigo-700 hover:border-indigo-800 shadow-sm"
                         >
                           {serialNumbers.length > 0 ? 'Edit Serial Numbers' : 'Add Serial Numbers'}
                         </Button>
@@ -1069,12 +1068,12 @@ export default function PurchaseReceiptDetailPage() {
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
               onClick={() => {
                 setShowRejectModal(false)
                 setRejectionReason('')
               }}
               disabled={rejecting}
+              className="bg-gray-600 hover:bg-gray-700 text-white font-medium border-2 border-gray-700 hover:border-gray-800 shadow-md disabled:opacity-50"
             >
               Cancel
             </Button>
@@ -1260,9 +1259,9 @@ export default function PurchaseReceiptDetailPage() {
           <DialogFooter>
             <Button
               type="button"
-              variant="outline"
               onClick={() => setShowEditSerialsModal(false)}
               disabled={savingSerials}
+              className="bg-gray-600 hover:bg-gray-700 text-white font-medium border-2 border-gray-700 hover:border-gray-800 shadow-md disabled:opacity-50"
             >
               Cancel
             </Button>

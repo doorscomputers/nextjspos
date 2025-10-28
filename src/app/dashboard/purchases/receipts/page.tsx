@@ -424,7 +424,7 @@ export default function PurchaseReceiptsPage() {
               Filters
             </CardTitle>
             {(statusFilter !== 'all' || dateFilter !== 'all' || searchTerm !== '') && (
-              <Button variant="outline" size="sm" onClick={clearFilters}>
+              <Button size="sm" onClick={clearFilters} className="bg-gray-600 hover:bg-gray-700 text-white font-medium border-2 border-gray-700 hover:border-gray-800 shadow-sm">
                 <XMarkIcon className="w-4 h-4 mr-1" />
                 Clear Filters
               </Button>
@@ -614,7 +614,7 @@ export default function PurchaseReceiptsPage() {
                         </td>
                         <td className="py-3 px-4">
                           <Link href={`/dashboard/purchases/receipts/${receipt.id}`}>
-                            <Button variant="outline" size="sm">
+                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white font-medium border-2 border-blue-700 hover:border-blue-800 shadow-sm">
                               <ClipboardDocumentCheckIcon className="w-4 h-4 mr-1" />
                               View
                             </Button>
@@ -634,21 +634,21 @@ export default function PurchaseReceiptsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
-                      variant="outline"
                       size="sm"
                       disabled={page === 1}
                       onClick={() => setPage(page - 1)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium border-2 border-blue-700 hover:border-blue-800 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Previous
                     </Button>
-                    <span className="text-sm text-gray-600 px-3">
+                    <span className="text-sm text-gray-600 dark:text-gray-300 px-3 font-medium">
                       Page {page} of {totalPages}
                     </span>
                     <Button
-                      variant="outline"
                       size="sm"
                       disabled={page === totalPages}
                       onClick={() => setPage(page + 1)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium border-2 border-blue-700 hover:border-blue-800 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Next
                     </Button>

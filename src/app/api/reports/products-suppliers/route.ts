@@ -114,9 +114,10 @@ export async function GET(request: NextRequest) {
               in: variationIds,
             },
             purchaseReceipt: {
-              businessId,
-              status: 'approved', // Only consider approved receipts
-              deletedAt: null,
+              is: {
+                businessId,
+                status: 'approved', // Only consider approved receipts
+              },
             },
           },
           include: {
@@ -130,6 +131,12 @@ export async function GET(request: NextRequest) {
                     mobile: true,
                   },
                 },
+              },
+            },
+            purchaseItem: {
+              select: {
+                id: true,
+                unitCost: true,
               },
             },
             productVariation: {
@@ -157,10 +164,12 @@ export async function GET(request: NextRequest) {
                 in: variationIds,
               },
               purchase: {
-                businessId,
-                deletedAt: null,
-                status: {
-                  in: ['ordered', 'partially_received', 'received'],
+                is: {
+                  businessId,
+                  deletedAt: null,
+                  status: {
+                    in: ['ordered', 'partially_received', 'received'],
+                  },
                 },
               },
             },
@@ -228,7 +237,10 @@ export async function GET(request: NextRequest) {
           // From approved receipt
           lastDeliveryDate = latestPurchaseItem.purchaseReceipt.receiptDate
           lastQty = parseFloat(latestPurchaseItem.quantityReceived.toString())
-          unitCost = parseFloat(latestPurchaseItem.unitCost.toString())
+          // unitCost comes from the related purchaseItem (may be null for direct GRN)
+          unitCost = latestPurchaseItem.purchaseItem
+            ? parseFloat(latestPurchaseItem.purchaseItem.unitCost.toString())
+            : 0
         } else {
           // From purchase order
           lastDeliveryDate = fallbackPurchaseItem!.purchase.purchaseDate

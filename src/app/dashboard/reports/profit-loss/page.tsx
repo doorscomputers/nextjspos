@@ -267,9 +267,8 @@ export default function ProfitLossReportPage() {
               <CardTitle className="text-gray-900 dark:text-white">Financial Statement</CardTitle>
               <Button
                 onClick={handlePrint}
-                variant="outline"
                 size="sm"
-                className="border-gray-300 dark:border-gray-600"
+                className="bg-purple-600 hover:bg-purple-700 text-white font-medium border-2 border-purple-700 hover:border-purple-800 shadow-md hover:shadow-lg transition-all"
               >
                 <PrinterIcon className="w-4 h-4 mr-2" />
                 Print Report

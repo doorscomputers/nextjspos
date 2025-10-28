@@ -126,7 +126,7 @@ export default function PurchaseReturnsPage() {
       <div className="mb-6">
         <div className="flex items-center gap-4 mb-4">
           <Link href="/dashboard/purchases/receipts">
-            <Button variant="outline" size="sm">
+            <Button size="sm" className="bg-gray-600 hover:bg-gray-700 text-white font-medium border-2 border-gray-700 hover:border-gray-800 shadow-sm">
               <ArrowLeftIcon className="w-4 h-4 mr-2" />
               Back to GRN
             </Button>
@@ -280,7 +280,7 @@ export default function PurchaseReturnsPage() {
                       <TableCell>
                         <div className="flex gap-2">
                           <Link href={`/dashboard/purchases/returns/${ret.id}`}>
-                            <Button variant="outline" size="sm">
+                            <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white font-medium border-2 border-blue-700 hover:border-blue-800 shadow-sm">
                               <EyeIcon className="w-4 h-4 mr-2" />
                               View
                             </Button>

@@ -611,7 +611,7 @@ export default function NewPurchaseReceiptPage() {
       {/* Header */}
       <div className="mb-6">
         <Link href="/dashboard/purchases/receipts">
-          <Button variant="outline" size="sm" className="mb-4">
+          <Button size="sm" className="mb-4 bg-gray-600 hover:bg-gray-700 text-white font-medium border-2 border-gray-700 hover:border-gray-800 shadow-sm">
             <ArrowLeftIcon className="w-4 h-4 mr-2" />
             Back to Receipts
           </Button>
@@ -1003,9 +1003,9 @@ export default function NewPurchaseReceiptPage() {
         <div className="flex items-center justify-end gap-4">
           <Button
             type="button"
-            variant="outline"
             onClick={() => router.back()}
             disabled={saving}
+            className="bg-gray-600 hover:bg-gray-700 text-white font-medium border-2 border-gray-700 hover:border-gray-800 shadow-md disabled:opacity-50"
           >
             Cancel
           </Button>

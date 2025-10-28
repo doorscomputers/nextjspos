@@ -292,7 +292,11 @@ export default function SalesReportPage() {
         </div>
 
         <div className="flex gap-2">
-          <Button onClick={exportToCSV} disabled={!reportData}>
+          <Button
+            onClick={exportToCSV}
+            disabled={!reportData}
+            className="bg-green-600 hover:bg-green-700 text-white font-medium shadow-md hover:shadow-lg transition-all"
+          >
             <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
             Export CSV
           </Button>
@@ -524,9 +528,9 @@ export default function SalesReportPage() {
                           </TableCell>
                           <TableCell>
                             <Button
-                              variant="ghost"
                               size="sm"
                               onClick={() => toggleRowExpansion(sale.id)}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 shadow-sm"
                             >
                               {expandedRows.has(sale.id) ? "Hide" : "Show"}
                             </Button>
@@ -593,18 +597,18 @@ export default function SalesReportPage() {
                   </div>
                   <div className="flex gap-2">
                     <Button
-                      variant="outline"
                       size="sm"
                       onClick={() => setPage(page - 1)}
                       disabled={page === 1}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium border-2 border-blue-700 hover:border-blue-800 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <ChevronLeftIcon className="h-4 w-4" />
                     </Button>
                     <Button
-                      variant="outline"
                       size="sm"
                       onClick={() => setPage(page + 1)}
                       disabled={page === reportData.pagination.totalPages}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium border-2 border-blue-700 hover:border-blue-800 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <ChevronRightIcon className="h-4 w-4" />
                     </Button>

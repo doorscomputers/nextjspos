@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { ArrowPathIcon } from '@heroicons/react/24/outline'
-import { Button } from '@/components/ui/button'
+import { Button as UiButton } from '@/components/ui/button'
 import DataGrid, {
   Column,
   Export,
@@ -22,6 +22,7 @@ import DataGrid, {
   Toolbar,
   Item
 } from 'devextreme-react/data-grid'
+import Button from 'devextreme-react/button'
 import { exportDataGrid as exportToExcel } from 'devextreme/excel_exporter'
 import { exportDataGrid as exportToPDF } from 'devextreme/pdf_exporter'
 import { Workbook } from 'exceljs'
@@ -74,7 +75,7 @@ export default function UsersPage() {
       const data = await res.json()
 
       // Transform data for DataGrid display
-      const transformedData = data.map((user: User) => ({
+      const transformedData = (data.data || data).map((user: User) => ({
         ...user,
         fullName: `${user.surname} ${user.firstName} ${user.lastName || ''}`.trim(),
         rolesDisplay: user.roles.join(', '),
@@ -252,40 +253,50 @@ export default function UsersPage() {
     const user = cellData.data
     return (
       <div className="flex justify-end gap-2">
-        <button
+        <Button
+          text="Edit"
+          type="default"
+          icon="edit"
           onClick={() => router.push(`/dashboard/users/${user.id}/edit`)}
-          className="px-4 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md shadow-sm hover:shadow-md transition-all"
-        >
-          Edit
-        </button>
-        <button
+          stylingMode="contained"
+          className="dx-button-small"
+        />
+        <Button
+          text="Reset"
+          type="normal"
+          icon="key"
           onClick={() => setResetPasswordUser({id: user.id, username: user.username})}
-          className="px-4 py-2 text-xs font-medium text-white bg-orange-600 hover:bg-orange-700 rounded-md shadow-sm hover:shadow-md transition-all"
-        >
-          Reset Password
-        </button>
+          stylingMode="contained"
+          className="dx-button-small"
+        />
         {deleteConfirm === user.id ? (
           <div className="inline-flex gap-1">
-            <button
+            <Button
+              text="Confirm"
+              type="danger"
+              icon="check"
               onClick={() => handleDelete(user.id)}
-              className="px-4 py-2 text-xs font-medium bg-red-600 text-white rounded-md hover:bg-red-700 shadow-sm hover:shadow-md transition-all"
-            >
-              Confirm
-            </button>
-            <button
+              stylingMode="contained"
+              className="dx-button-small"
+            />
+            <Button
+              text="Cancel"
+              type="normal"
+              icon="close"
               onClick={() => setDeleteConfirm(null)}
-              className="px-4 py-2 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 shadow-sm transition-all"
-            >
-              Cancel
-            </button>
+              stylingMode="outlined"
+              className="dx-button-small"
+            />
           </div>
         ) : (
-          <button
+          <Button
+            text="Delete"
+            type="danger"
+            icon="trash"
             onClick={() => setDeleteConfirm(user.id)}
-            className="px-4 py-2 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md shadow-sm hover:shadow-md transition-all"
-          >
-            Delete
-          </button>
+            stylingMode="contained"
+            className="dx-button-small"
+          />
         )}
       </div>
     )
@@ -304,20 +315,22 @@ export default function UsersPage() {
           <p className="text-gray-600 dark:text-gray-400 mt-1">Manage system users and their access</p>
         </div>
         <div className="flex gap-3">
-          <button
+          <Button
+            text="Refresh"
+            type="normal"
+            icon={loading ? "spin" : "refresh"}
             onClick={fetchUsers}
             disabled={loading}
-            className="px-4 py-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            <ArrowPathIcon className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-          <button
+            stylingMode="contained"
+            className="flex items-center gap-2"
+          />
+          <Button
+            text="Add User"
+            type="default"
+            icon="add"
             onClick={() => router.push('/dashboard/users/new')}
-            className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
-          >
-            Add User
-          </button>
+            stylingMode="contained"
+          />
         </div>
       </div>
 
@@ -447,18 +460,19 @@ export default function UsersPage() {
               A new temporary password will be generated and displayed to you.
             </p>
             <div className="flex gap-3 justify-end">
-              <button
+              <Button
+                text="Cancel"
+                type="normal"
                 onClick={() => setResetPasswordUser(null)}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm hover:shadow-md transition-all"
-              >
-                Cancel
-              </button>
-              <button
+                stylingMode="outlined"
+              />
+              <Button
+                text="Reset Password"
+                type="default"
+                icon="key"
                 onClick={() => handleResetPassword(resetPasswordUser.id)}
-                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 shadow-md hover:shadow-lg transition-all hover:scale-105"
-              >
-                Reset Password
-              </button>
+                stylingMode="contained"
+              />
             </div>
           </div>
         </div>
@@ -492,21 +506,23 @@ export default function UsersPage() {
               </div>
             </div>
             <div className="flex gap-3 justify-end">
-              <button
+              <Button
+                text="Copy to Clipboard"
+                type="normal"
+                icon="copy"
                 onClick={() => {
                   navigator.clipboard.writeText(`Username: ${resetResult.username}\nPassword: ${resetResult.password}`)
                   toast.success('Copied to clipboard!')
                 }}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 shadow-md hover:shadow-lg transition-all"
-              >
-                Copy to Clipboard
-              </button>
-              <button
+                stylingMode="contained"
+              />
+              <Button
+                text="Close"
+                type="default"
+                icon="close"
                 onClick={() => setResetResult(null)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition-all hover:scale-105"
-              >
-                Close
-              </button>
+                stylingMode="contained"
+              />
             </div>
           </div>
         </div>

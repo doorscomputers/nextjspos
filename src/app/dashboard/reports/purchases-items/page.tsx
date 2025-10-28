@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,7 +9,9 @@ import { Badge } from "@/components/ui/badge"
 import {
   FunnelIcon,
   MagnifyingGlassIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  TableCellsIcon,
+  ChartBarSquareIcon
 } from "@heroicons/react/24/outline"
 import { toast } from "sonner"
 import DataGrid, {
@@ -30,8 +32,18 @@ import DataGrid, {
   Scrolling,
   Selection,
 } from 'devextreme-react/data-grid'
+import PivotGrid, {
+  FieldChooser,
+  Export as PivotExport,
+  FieldPanel,
+  StateStoring as PivotStateStoring,
+  Scrolling as PivotScrolling,
+} from 'devextreme-react/pivot-grid'
+import PivotGridDataSource from 'devextreme/ui/pivot_grid/data_source'
 import { exportDataGrid as exportToExcel } from 'devextreme/excel_exporter'
 import { exportDataGrid as exportToPDF } from 'devextreme/pdf_exporter'
+import { exportPivotGrid } from 'devextreme/excel_exporter'
+import DxButton from 'devextreme-react/button'
 import { Workbook } from 'exceljs'
 // @ts-ignore - file-saver types not available
 import { saveAs } from 'file-saver'
@@ -59,10 +71,15 @@ interface PurchaseItemsReportData {
 interface PurchaseItem {
   id: number
   productName: string
+  productId: number
   variationName: string
+  variationId: number
   sku: string
+  category: string
+  categoryId: number | null
   purchaseOrderNumber: string
   purchaseDate: string
+  purchaseDateObj: Date
   expectedDeliveryDate: string | null
   supplier: string
   supplierId: number
@@ -82,6 +99,9 @@ export default function PurchaseItemsReportPage() {
   const [loading, setLoading] = useState(false)
   const [showFilters, setShowFilters] = useState(true)
   const [dataSource, setDataSource] = useState<PurchaseItem[]>([])
+  const [activeTab, setActiveTab] = useState<"datagrid" | "pivot">("datagrid")
+  const dataGridRef = useRef<any>(null)
+  const pivotGridRef = useRef<any>(null)
 
   // Filter states
   const [locationId, setLocationId] = useState("all")
@@ -99,17 +119,168 @@ export default function PurchaseItemsReportPage() {
   const [locations, setLocations] = useState<any[]>([])
   const [suppliers, setSuppliers] = useState<any[]>([])
 
+  // PivotGrid data source configuration
+  const [pivotDataSource, setPivotDataSource] = useState<PivotGridDataSource | null>(null)
+
   useEffect(() => {
     fetchLocations()
     fetchSuppliers()
     fetchReport()
   }, [])
 
+  useEffect(() => {
+    if (dataSource.length > 0) {
+      const pivotDS = new PivotGridDataSource({
+        fields: [
+          // Row fields - Product hierarchy
+          {
+            caption: 'Category',
+            dataField: 'category',
+            area: 'row',
+            expanded: true,
+            sortOrder: 'asc',
+          },
+          {
+            caption: 'Product Name',
+            dataField: 'productName',
+            area: 'row',
+            expanded: false,
+            sortBySummaryField: 'Total Purchased Amount',
+            sortOrder: 'desc',
+          },
+          {
+            caption: 'Variation',
+            dataField: 'variationName',
+            area: 'row',
+            visible: false,
+          },
+          {
+            caption: 'SKU',
+            dataField: 'sku',
+            area: 'row',
+            visible: false,
+          },
+
+          // Column fields - Analysis dimensions
+          {
+            caption: 'Supplier',
+            dataField: 'supplier',
+            area: 'column',
+            expanded: true,
+          },
+          {
+            caption: 'Location',
+            dataField: 'location',
+            area: 'column',
+            visible: false,
+          },
+          {
+            caption: 'Status',
+            dataField: 'status',
+            area: 'column',
+            visible: false,
+          },
+          {
+            caption: 'Purchase Year',
+            dataField: 'purchaseDate',
+            area: 'column',
+            dataType: 'date',
+            groupInterval: 'year',
+            visible: false,
+          },
+          {
+            caption: 'Purchase Month',
+            dataField: 'purchaseDate',
+            area: 'column',
+            dataType: 'date',
+            groupInterval: 'month',
+            visible: false,
+          },
+          {
+            caption: 'Purchase Quarter',
+            dataField: 'purchaseDate',
+            area: 'column',
+            dataType: 'date',
+            groupInterval: 'quarter',
+            visible: false,
+          },
+
+          // Data fields - Measures
+          {
+            caption: 'Total Quantity Ordered',
+            dataField: 'quantityOrdered',
+            dataType: 'number',
+            summaryType: 'sum',
+            area: 'data',
+            format: '#,##0.##',
+          },
+          {
+            caption: 'Total Quantity Received',
+            dataField: 'quantityReceived',
+            dataType: 'number',
+            summaryType: 'sum',
+            area: 'data',
+            format: '#,##0.##',
+          },
+          {
+            caption: 'Total Purchased Amount',
+            dataField: 'itemTotal',
+            dataType: 'number',
+            summaryType: 'sum',
+            area: 'data',
+            format: '#,##0.00',
+          },
+          {
+            caption: 'Total Received Amount',
+            dataField: 'receivedTotal',
+            dataType: 'number',
+            summaryType: 'sum',
+            area: 'data',
+            format: '#,##0.00',
+          },
+          {
+            caption: 'Average Unit Cost',
+            dataField: 'unitCost',
+            dataType: 'number',
+            summaryType: 'avg',
+            area: 'data',
+            format: '#,##0.00',
+            visible: false,
+          },
+          {
+            caption: 'Purchase Order Count',
+            dataField: 'purchaseOrderNumber',
+            dataType: 'string',
+            summaryType: 'count',
+            area: 'data',
+            visible: false,
+          },
+
+          // Filter fields
+          {
+            caption: 'Requires Serial',
+            dataField: 'requiresSerial',
+            dataType: 'string',
+            area: 'filter',
+          },
+        ],
+        store: dataSource,
+      })
+
+      setPivotDataSource(pivotDS)
+    }
+  }, [dataSource])
+
   const fetchLocations = async () => {
     try {
       const response = await fetch("/api/locations")
-      const data = await response.json()
-      setLocations(data.locations || data)
+      const result = await response.json()
+      if (response.ok && result.success) {
+        setLocations(result.data || [])
+      } else {
+        console.error("Failed to fetch locations:", result.error)
+        setLocations([])
+      }
     } catch (error) {
       console.error("Failed to fetch locations:", error)
       setLocations([])
@@ -151,6 +322,7 @@ export default function PurchaseItemsReportPage() {
       if (response.ok && data.items) {
         setReportData(data)
         setDataSource(data.items)
+        toast.success(`Report generated: ${data.items.length} items found`)
       } else {
         console.error("API Error:", data.error || data.details || "Unknown error")
         setReportData(null)
@@ -204,7 +376,7 @@ export default function PurchaseItemsReportPage() {
     return colors[status] || "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
   }
 
-  const onExporting = (e: any) => {
+  const onExportingDataGrid = (e: any) => {
     const timestamp = new Date().toISOString().split("T")[0]
 
     if (e.format === 'xlsx') {
@@ -263,6 +435,23 @@ export default function PurchaseItemsReportPage() {
     }
   }
 
+  const onExportingPivot = useCallback(() => {
+    const workbook = new Workbook()
+    const worksheet = workbook.addWorksheet('Purchase Items Pivot Analysis')
+
+    exportPivotGrid({
+      component: pivotGridRef.current?.instance,
+      worksheet,
+    }).then(() => {
+      workbook.xlsx.writeBuffer().then((buffer) => {
+        saveAs(
+          new Blob([buffer], { type: 'application/octet-stream' }),
+          `purchase-items-pivot-${new Date().toISOString().split('T')[0]}.xlsx`
+        )
+      })
+    })
+  }, [])
+
   const statusCellRender = (data: any) => {
     return (
       <Badge className={getStatusColor(data.value)}>
@@ -292,15 +481,14 @@ export default function PurchaseItemsReportPage() {
             Purchase Items Report
           </h1>
           <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
-            Detailed view of all purchased items across purchase orders
+            Detailed view and pivot analysis of all purchased items across purchase orders
           </p>
         </div>
         <Button
           onClick={fetchReport}
-          variant="outline"
           size="sm"
           disabled={loading}
-          className="shadow-sm hover:shadow-md transition-all"
+          className="bg-teal-600 hover:bg-teal-700 text-white font-medium border-2 border-teal-700 hover:border-teal-800 shadow-md hover:shadow-lg transition-all disabled:opacity-50"
         >
           <ArrowPathIcon className="w-4 h-4 mr-2" />
           Refresh
@@ -313,10 +501,9 @@ export default function PurchaseItemsReportPage() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Filters</CardTitle>
             <Button
-              variant="ghost"
               size="sm"
               onClick={() => setShowFilters(!showFilters)}
-              className="hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="bg-slate-600 hover:bg-slate-700 text-white font-medium px-4 shadow-sm hover:shadow-md transition-all"
             >
               <FunnelIcon className="w-5 h-5 mr-2" />
               {showFilters ? "Hide" : "Show"} Filters
@@ -571,168 +758,291 @@ export default function PurchaseItemsReportPage() {
             </CardContent>
           </Card>
         </div>
-      )}
+  )}
 
-      {/* DevExtreme DataGrid */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
-        <DataGrid
-          dataSource={dataSource}
-          showBorders={true}
-          columnAutoWidth={true}
-          rowAlternationEnabled={true}
-          height={700}
-          keyExpr="id"
-          onExporting={onExporting}
-          wordWrapEnabled={false}
-          allowColumnReordering={true}
-          allowColumnResizing={true}
-          noDataText="No purchase items found. Try adjusting your filters."
-        >
-          <StateStoring enabled={true} type="localStorage" storageKey="purchaseItemsReportState" />
-          <LoadPanel enabled={true} />
-          <Scrolling mode="virtual" />
-          <Selection mode="multiple" showCheckBoxesMode="always" />
-          <Export enabled={true} formats={['xlsx', 'pdf']} allowExportSelectedData={true} />
-          <ColumnChooser enabled={true} mode="select" />
-          <ColumnFixing enabled={true} />
-          <SearchPanel visible={true} width={300} placeholder="Search purchase items..." />
-          <FilterRow visible={true} />
-          <HeaderFilter visible={true} />
-          <Paging defaultPageSize={50} />
-          <Grouping autoExpandAll={false} />
-          <GroupPanel visible={true} emptyPanelText="Drag column headers here to group by status, supplier, or location" />
-
-          {/* Product Information */}
-          <Column
-            dataField="productName"
-            caption="Product"
-            minWidth={200}
-            fixed={true}
-            fixedPosition="left"
-            cellRender={(data) => <span className="font-medium text-gray-900 dark:text-gray-100">{data.text}</span>}
-          />
-          <Column
-            dataField="variationName"
-            caption="Variation"
-            width={150}
-          />
-          <Column
-            dataField="sku"
-            caption="SKU"
-            width={130}
-            cellRender={(data) => <span className="font-mono text-sm">{data.text}</span>}
-          />
-
-          {/* Purchase Order Information */}
-          <Column
-            dataField="purchaseOrderNumber"
-            caption="PO Number"
-            width={150}
-            cellRender={(data) => <span className="font-medium text-blue-600 dark:text-blue-400">{data.text}</span>}
-          />
-          <Column
-            dataField="purchaseDate"
-            caption="PO Date"
-            dataType="date"
-            width={120}
-            format="MMM dd, yyyy"
-          />
-          <Column
-            dataField="expectedDeliveryDate"
-            caption="Expected Delivery"
-            dataType="date"
-            width={140}
-            format="MMM dd, yyyy"
-            cellRender={(data) => data.value ? data.text : <span className="text-gray-400">N/A</span>}
-          />
-
-          {/* Supplier and Location */}
-          <Column
-            dataField="supplier"
-            caption="Supplier"
-            width={150}
-          />
-          <Column
-            dataField="location"
-            caption="Location"
-            width={150}
-          />
-
-          {/* Status */}
-          <Column
-            dataField="status"
-            caption="Status"
-            width={140}
-            alignment="center"
-            cellRender={statusCellRender}
-          />
-
-          {/* Quantities */}
-          <Column
-            dataField="quantityOrdered"
-            caption="Qty Ordered"
-            dataType="number"
-            width={120}
-            alignment="right"
-            format="#,##0.00"
-          />
-          <Column
-            dataField="quantityReceived"
-            caption="Qty Received"
-            dataType="number"
-            width={130}
-            alignment="right"
-            format="#,##0.00"
-          />
-
-          {/* Costs and Totals */}
-          <Column
-            dataField="unitCost"
-            caption="Unit Cost"
-            dataType="number"
-            width={120}
-            alignment="right"
-            format="#,##0.00"
-          />
-          <Column
-            dataField="itemTotal"
-            caption="Item Total"
-            dataType="number"
-            width={130}
-            alignment="right"
-            format="#,##0.00"
-            cssClass="bg-yellow-50 dark:bg-yellow-900/20"
-          />
-          <Column
-            dataField="receivedTotal"
-            caption="Received Total"
-            dataType="number"
-            width={140}
-            alignment="right"
-            format="#,##0.00"
-            cssClass="bg-green-50 dark:bg-green-900/20"
-          />
-
-          {/* Serial */}
-          <Column
-            dataField="requiresSerial"
-            caption="Serial?"
-            width={100}
-            alignment="center"
-            cellRender={serialCellRender}
-          />
-
-          {/* Summary Totals */}
-          <Summary>
-            <TotalItem column="productName" summaryType="count" displayFormat="Total: {0} items" />
-            <TotalItem column="quantityOrdered" summaryType="sum" valueFormat="#,##0.00" displayFormat="{0}" />
-            <TotalItem column="quantityReceived" summaryType="sum" valueFormat="#,##0.00" displayFormat="{0}" />
-            <TotalItem column="itemTotal" summaryType="sum" valueFormat="#,##0.00" displayFormat="{0}" />
-            <TotalItem column="receivedTotal" summaryType="sum" valueFormat="#,##0.00" displayFormat="{0}" />
-            <TotalItem column="unitCost" summaryType="avg" valueFormat="#,##0.00" displayFormat="Avg: {0}" />
-          </Summary>
-        </DataGrid>
+      {/* View toggle buttons */}
+      <div className="flex flex-wrap justify-center gap-4 mt-6">
+        <DxButton
+          height={44}
+          width={200}
+          stylingMode={activeTab === "datagrid" ? "contained" : "outlined"}
+          type={activeTab === "datagrid" ? "default" : "normal"}
+          focusStateEnabled={false}
+          hoverStateEnabled={true}
+          onClick={() => setActiveTab("datagrid")}
+          elementAttr={{
+            class: [
+              "rounded-xl font-semibold text-sm shadow-sm transition-all duration-200",
+              activeTab === "datagrid"
+                ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white border border-blue-600"
+                : "border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800",
+            ].join(" "),
+          }}
+          render={() => (
+            <span className="flex items-center justify-center gap-2 tracking-wide">
+              <TableCellsIcon className="h-5 w-5" />
+              Detailed View
+            </span>
+          )}
+        />
+        <DxButton
+          height={44}
+          width={200}
+          stylingMode={activeTab === "pivot" ? "contained" : "outlined"}
+          type={activeTab === "pivot" ? "default" : "normal"}
+          focusStateEnabled={false}
+          hoverStateEnabled={true}
+          onClick={() => setActiveTab("pivot")}
+          elementAttr={{
+            class: [
+              "rounded-xl font-semibold text-sm shadow-sm transition-all duration-200",
+              activeTab === "pivot"
+                ? "bg-gradient-to-r from-purple-500 to-indigo-600 text-white border border-purple-600"
+                : "border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800",
+            ].join(" "),
+          }}
+          render={() => (
+            <span className="flex items-center justify-center gap-2 tracking-wide">
+              <ChartBarSquareIcon className="h-5 w-5" />
+              Pivot Analysis
+            </span>
+          )}
+        />
       </div>
+
+      {activeTab === "datagrid" && (
+        <div className="mt-4">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+            <DataGrid
+              ref={dataGridRef}
+              dataSource={dataSource}
+              showBorders={true}
+              columnAutoWidth={true}
+              rowAlternationEnabled={true}
+              height={700}
+              keyExpr="id"
+              onExporting={onExportingDataGrid}
+              wordWrapEnabled={false}
+              allowColumnReordering={true}
+              allowColumnResizing={true}
+              noDataText="No purchase items found. Try adjusting your filters."
+            >
+              <StateStoring enabled={true} type="localStorage" storageKey="purchaseItemsReportDataGridState" />
+              <LoadPanel enabled={true} />
+              <Scrolling mode="virtual" />
+              <Selection mode="multiple" showCheckBoxesMode="always" />
+              <Export enabled={true} formats={['xlsx', 'pdf']} allowExportSelectedData={true} />
+              <ColumnChooser enabled={true} mode="select" />
+              <ColumnFixing enabled={true} />
+              <SearchPanel visible={true} width={300} placeholder="Search purchase items..." />
+              <FilterRow visible={true} />
+              <HeaderFilter visible={true} />
+              <Paging defaultPageSize={50} />
+              <Grouping autoExpandAll={false} />
+              <GroupPanel visible={true} emptyPanelText="Drag column headers here to group by status, supplier, or location" />
+
+              {/* Product Information */}
+              <Column
+                dataField="productName"
+                caption="Product"
+                minWidth={200}
+                fixed={true}
+                fixedPosition="left"
+                cellRender={(data) => <span className="font-medium text-gray-900 dark:text-gray-100">{data.text}</span>}
+              />
+              <Column dataField="category" caption="Category" width={150} />
+              <Column dataField="variationName" caption="Variation" width={150} />
+              <Column
+                dataField="sku"
+                caption="SKU"
+                width={130}
+                cellRender={(data) => <span className="font-mono text-sm">{data.text}</span>}
+              />
+
+              {/* Purchase Order Information */}
+              <Column
+                dataField="purchaseOrderNumber"
+                caption="PO Number"
+                width={150}
+                cellRender={(data) => <span className="font-medium text-blue-600 dark:text-blue-400">{data.text}</span>}
+              />
+              <Column dataField="purchaseDate" caption="PO Date" dataType="date" width={120} format="MMM dd, yyyy" />
+              <Column
+                dataField="expectedDeliveryDate"
+                caption="Expected Delivery"
+                dataType="date"
+                width={140}
+                format="MMM dd, yyyy"
+                cellRender={(data) => (data.value ? data.text : <span className="text-gray-400">N/A</span>)}
+              />
+
+              {/* Supplier and Location */}
+              <Column dataField="supplier" caption="Supplier" width={150} />
+              <Column dataField="location" caption="Location" width={150} />
+
+              {/* Status */}
+              <Column
+                dataField="status"
+                caption="Status"
+                width={140}
+                alignment="center"
+                cellRender={statusCellRender}
+              />
+
+              {/* Quantities */}
+              <Column
+                dataField="quantityOrdered"
+                caption="Qty Ordered"
+                dataType="number"
+                width={120}
+                alignment="right"
+                format="#,##0.00"
+              />
+              <Column
+                dataField="quantityReceived"
+                caption="Qty Received"
+                dataType="number"
+                width={130}
+                alignment="right"
+                format="#,##0.00"
+              />
+
+              {/* Costs and Totals */}
+              <Column
+                dataField="unitCost"
+                caption="Unit Cost"
+                dataType="number"
+                width={120}
+                alignment="right"
+                format="#,##0.00"
+              />
+              <Column
+                dataField="itemTotal"
+                caption="Item Total"
+                dataType="number"
+                width={130}
+                alignment="right"
+                format="#,##0.00"
+                cssClass="bg-yellow-50 dark:bg-yellow-900/20"
+              />
+              <Column
+                dataField="receivedTotal"
+                caption="Received Total"
+                dataType="number"
+                width={140}
+                alignment="right"
+                format="#,##0.00"
+                cssClass="bg-green-50 dark:bg-green-900/20"
+              />
+
+              {/* Serial */}
+              <Column
+                dataField="requiresSerial"
+                caption="Serial?"
+                width={100}
+                alignment="center"
+                cellRender={serialCellRender}
+              />
+
+              {/* Summary Totals */}
+              <Summary>
+                <TotalItem column="productName" summaryType="count" displayFormat="Total: {0} items" />
+                <TotalItem column="quantityOrdered" summaryType="sum" valueFormat="#,##0.00" displayFormat="{0}" />
+                <TotalItem column="quantityReceived" summaryType="sum" valueFormat="#,##0.00" displayFormat="{0}" />
+                <TotalItem column="itemTotal" summaryType="sum" valueFormat="#,##0.00" displayFormat="{0}" />
+                <TotalItem column="receivedTotal" summaryType="sum" valueFormat="#,##0.00" displayFormat="{0}" />
+                <TotalItem column="unitCost" summaryType="avg" valueFormat="#,##0.00" displayFormat="Avg: {0}" />
+              </Summary>
+            </DataGrid>
+          </div>
+        </div>
+  )}
+
+      {activeTab === "pivot" && (
+        <div className="mt-4 space-y-4">
+          {/* Instructions */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 p-4 rounded-lg">
+            <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">How to use the Pivot Grid:</h3>
+            <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-1">
+              <li>- <strong>Drag fields</strong> from the Field Panel to Row, Column, or Data areas</li>
+              <li>- <strong>Rearrange fields</strong> to change the analysis perspective</li>
+              <li>- <strong>Expand/collapse</strong> row and column groups by clicking on them</li>
+              <li>- <strong>Filter data</strong> using the filter fields or field chooser</li>
+              <li>- <strong>Sort data</strong> by summary values for insights</li>
+              <li>- <strong>Export to Excel</strong> to save your customized view</li>
+            </ul>
+          </div>
+
+          {/* Export Button */}
+          <div className="flex justify-end">
+            <Button
+              onClick={onExportingPivot}
+              disabled={!pivotDataSource}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              Export Pivot to Excel
+            </Button>
+          </div>
+
+          {/* PivotGrid */}
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+            {pivotDataSource && (
+              <PivotGrid
+                ref={pivotGridRef}
+                dataSource={pivotDataSource}
+                allowSortingBySummary={true}
+                allowFiltering={true}
+                allowSorting={true}
+                allowExpandAll={true}
+                showBorders={true}
+                showColumnGrandTotals={true}
+                showRowGrandTotals={true}
+                showRowTotals={true}
+                showColumnTotals={true}
+                showTotalsPrior="both"
+                height={700}
+                wordWrapEnabled={true}
+              >
+                <FieldChooser enabled={true} height={500} />
+                <FieldPanel
+                  showColumnFields={true}
+                  showDataFields={true}
+                  showFilterFields={true}
+                  showRowFields={true}
+                  allowFieldDragging={true}
+                  visible={true}
+                />
+                <PivotStateStoring enabled={true} type="localStorage" storageKey="purchaseItemsPivotState" />
+                <PivotExport enabled={true} />
+                <PivotScrolling mode="virtual" />
+              </PivotGrid>
+            )}
+
+            {!pivotDataSource && (
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                Generate a report to view the pivot analysis
+              </div>
+  )}
+    </div>
+
+          {/* Analysis Tips */}
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 p-4 rounded-lg">
+            <h3 className="font-semibold text-amber-900 dark:text-amber-200 mb-2">Analysis Tips:</h3>
+            <ul className="text-sm text-amber-800 dark:text-amber-300 space-y-1">
+              <li>- <strong>By Category</strong>: Keep "Category" in Rows to analyze purchases by product category</li>
+              <li>- <strong>By Supplier</strong>: Keep "Supplier" in Columns to compare supplier performance</li>
+              <li>- <strong>By Time Period</strong>: Add "Purchase Year" or "Purchase Month" to Columns for trend analysis</li>
+              <li>- <strong>By Location</strong>: Add "Location" to Columns to analyze purchasing patterns by branch</li>
+              <li>- <strong>By Status</strong>: Add "Status" to Columns to see order progression</li>
+              <li>- <strong>Product Details</strong>: Enable "Variation" or "SKU" fields for detailed product analysis</li>
+            </ul>
+          </div>
+        </div>
+  )
+}
+        </div>
+      )}
     </div>
   )
 }
+

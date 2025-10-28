@@ -246,7 +246,7 @@ export default function PurchasesDevExtremePage() {
                     )}
                     <div className="mt-3">
                       <Link href={`/dashboard/purchases/receipts/${receipt.id}`}>
-                        <Button size="sm" variant="outline" className="text-xs">
+                        <Button size="sm" className="text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium border-2 border-blue-700 hover:border-blue-800 shadow-sm hover:shadow-md transition-all">
                           View GRN Details
                         </Button>
                       </Link>
@@ -331,9 +331,8 @@ export default function PurchasesDevExtremePage() {
         <div className="flex gap-3">
           <Button
             onClick={fetchPurchases}
-            variant="outline"
             size="default"
-            className="border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 shadow-sm"
+            className="bg-teal-600 hover:bg-teal-700 text-white font-medium border-2 border-teal-700 hover:border-teal-800 shadow-md hover:shadow-lg transition-all"
           >
             <ArrowPathIcon className="w-4 h-4 mr-2" />
             Refresh

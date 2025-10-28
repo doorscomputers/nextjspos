@@ -5,13 +5,14 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { MagnifyingGlassIcon, EyeIcon, CurrencyDollarIcon, FunnelIcon, XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
+import { MagnifyingGlassIcon, EyeIcon, CurrencyDollarIcon, FunnelIcon, XMarkIcon, CheckCircleIcon, PrinterIcon } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import ColumnVisibilityToggle, { Column } from '@/components/ColumnVisibilityToggle'
 import Pagination, { ItemsPerPage, ResultsInfo } from '@/components/Pagination'
@@ -88,6 +89,12 @@ export default function AccountsPayablePage() {
   const [batchMode, setBatchMode] = useState(false)
   const [selectedPayables, setSelectedPayables] = useState<number[]>([])
   const router = useRouter()
+
+  // Payment details dialog state
+  const [showPaymentDetails, setShowPaymentDetails] = useState(false)
+  const [selectedPayableForDetails, setSelectedPayableForDetails] = useState<AccountsPayable | null>(null)
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([])
+  const [loadingPayments, setLoadingPayments] = useState(false)
 
   useEffect(() => {
     fetchPayables()
@@ -362,6 +369,227 @@ export default function AccountsPayablePage() {
     return sortedData
       .filter(p => selectedPayables.includes(p.id))
       .reduce((sum, p) => sum + p.balanceAmount, 0)
+  }
+
+  const viewPaymentDetails = async (payable: AccountsPayable) => {
+    setSelectedPayableForDetails(payable)
+    setShowPaymentDetails(true)
+    setLoadingPayments(true)
+
+    try {
+      // Fetch payments for this accounts payable
+      const response = await fetch(`/api/payments?accountsPayableId=${payable.id}`)
+      const data = await response.json()
+
+      if (response.ok) {
+        setPaymentHistory(data.payments || [])
+      } else {
+        toast.error('Failed to fetch payment details')
+        setPaymentHistory([])
+      }
+    } catch (error) {
+      console.error('Error fetching payment details:', error)
+      toast.error('Failed to fetch payment details')
+      setPaymentHistory([])
+    } finally {
+      setLoadingPayments(false)
+    }
+  }
+
+  const handlePrintPaymentHistory = () => {
+    if (!selectedPayableForDetails) return
+
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+      toast.error('Please allow popups to print')
+      return
+    }
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Payment History - ${selectedPayableForDetails.invoiceNumber}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 20px;
+              color: #000;
+            }
+            h1 {
+              text-align: center;
+              color: #333;
+              margin-bottom: 30px;
+            }
+            .section {
+              margin-bottom: 30px;
+            }
+            .section-title {
+              font-size: 18px;
+              font-weight: bold;
+              margin-bottom: 15px;
+              color: #333;
+              border-bottom: 2px solid #333;
+              padding-bottom: 5px;
+            }
+            .invoice-details {
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 15px;
+              margin-bottom: 20px;
+            }
+            .detail-item {
+              margin-bottom: 10px;
+            }
+            .detail-label {
+              font-size: 12px;
+              color: #666;
+              margin-bottom: 2px;
+            }
+            .detail-value {
+              font-size: 14px;
+              font-weight: bold;
+              color: #000;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 15px;
+            }
+            th, td {
+              border: 1px solid #ddd;
+              padding: 10px;
+              text-align: left;
+            }
+            th {
+              background-color: #f5f5f5;
+              font-weight: bold;
+              font-size: 12px;
+              text-transform: uppercase;
+            }
+            td {
+              font-size: 13px;
+            }
+            .amount {
+              color: #16a34a;
+              font-weight: bold;
+            }
+            .no-payments {
+              text-align: center;
+              padding: 20px;
+              color: #666;
+              font-style: italic;
+            }
+            @media print {
+              body {
+                margin: 0;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Payment History</h1>
+
+          <div class="section">
+            <div class="section-title">Invoice Details</div>
+            <div class="invoice-details">
+              <div class="detail-item">
+                <div class="detail-label">Invoice Number</div>
+                <div class="detail-value">${selectedPayableForDetails.invoiceNumber}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Supplier</div>
+                <div class="detail-value">${selectedPayableForDetails.supplier.name}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Total Amount</div>
+                <div class="detail-value">${formatCurrency(selectedPayableForDetails.amount)}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Status</div>
+                <div class="detail-value">${selectedPayableForDetails.status.replace('_', ' ').toUpperCase()}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Paid Amount</div>
+                <div class="detail-value" style="color: #16a34a;">${formatCurrency(selectedPayableForDetails.paidAmount)}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Balance Due</div>
+                <div class="detail-value" style="color: #dc2626;">${formatCurrency(selectedPayableForDetails.balanceAmount)}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Invoice Date</div>
+                <div class="detail-value">${formatDate(selectedPayableForDetails.invoiceDate)}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Due Date</div>
+                <div class="detail-value">${formatDate(selectedPayableForDetails.dueDate)}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Payment Transactions</div>
+            ${paymentHistory.length === 0 ? `
+              <div class="no-payments">No payments recorded yet</div>
+            ` : `
+              <table>
+                <thead>
+                  <tr>
+                    <th>Payment #</th>
+                    <th>Date</th>
+                    <th>Method</th>
+                    <th>Amount</th>
+                    <th>Reference</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${paymentHistory.map((payment: any) => `
+                    <tr>
+                      <td>${payment.paymentNumber}</td>
+                      <td>${formatDate(payment.paymentDate)}</td>
+                      <td style="text-transform: capitalize;">${payment.paymentMethod.replace('_', ' ')}</td>
+                      <td class="amount">${formatCurrency(payment.amount)}</td>
+                      <td>${payment.transactionReference || payment.chequeNumber || '-'}</td>
+                      <td>${payment.notes || '-'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            `}
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+            }
+          </script>
+        </body>
+      </html>
+    `
+
+    printWindow.document.write(printContent)
+    printWindow.document.close()
+  }
+
+  const handleExportPaymentHistoryToPDF = () => {
+    if (!selectedPayableForDetails) return
+
+    const columns: ExportColumn[] = [
+      { header: 'Payment #', key: 'paymentNumber' },
+      { header: 'Date', key: 'paymentDate', formatter: (val: string) => formatDate(val) },
+      { header: 'Method', key: 'paymentMethod', formatter: (val: string) => val.replace('_', ' ').toUpperCase() },
+      { header: 'Amount', key: 'amount', formatter: (val: number) => formatCurrency(val) },
+      { header: 'Reference', key: 'reference', formatter: (val: any, row: any) => row.transactionReference || row.chequeNumber || '-' },
+      { header: 'Notes', key: 'notes', formatter: (val: string) => val || '-' },
+    ]
+
+    const filename = `payment_history_${selectedPayableForDetails.invoiceNumber}_${new Date().toISOString().split('T')[0]}`
+    const title = `Payment History - ${selectedPayableForDetails.invoiceNumber}`
+    const subtitle = `Supplier: ${selectedPayableForDetails.supplier.name} | Total: ${formatCurrency(selectedPayableForDetails.amount)} | Paid: ${formatCurrency(selectedPayableForDetails.paidAmount)} | Balance: ${formatCurrency(selectedPayableForDetails.balanceAmount)}`
+
+    exportToPDF(paymentHistory, columns, filename, title, subtitle)
   }
 
   if (!can(PERMISSIONS.ACCOUNTS_PAYABLE_VIEW)) {
@@ -844,16 +1072,28 @@ export default function AccountsPayablePage() {
                     )}
                     {visibleColumns.includes('actions') && !batchMode && (
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                        <Link href={`/dashboard/payments/new?apId=${payable.id}`}>
+                        {payable.status === 'paid' || payable.balanceAmount <= 0 ? (
                           <Button
                             variant="outline"
                             size="sm"
-                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold border-2 border-blue-700 shadow-sm"
+                            onClick={() => viewPaymentDetails(payable)}
+                            className="bg-green-600 hover:bg-green-700 text-white font-bold border-2 border-green-700 shadow-sm"
                           >
-                            <CurrencyDollarIcon className="w-4 h-4 mr-1" />
-                            Pay
+                            <EyeIcon className="w-4 h-4 mr-1" />
+                            View Payments
                           </Button>
-                        </Link>
+                        ) : (
+                          <Link href={`/dashboard/payments/new?apId=${payable.id}`}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="bg-blue-600 hover:bg-blue-700 text-white font-bold border-2 border-blue-700 shadow-sm"
+                            >
+                              <CurrencyDollarIcon className="w-4 h-4 mr-1" />
+                              Pay
+                            </Button>
+                          </Link>
+                        )}
                       </td>
                     )}
                     {visibleColumns.includes('actions') && batchMode && (
@@ -887,6 +1127,139 @@ export default function AccountsPayablePage() {
           </div>
         </div>
       )}
+
+      {/* Payment Details Dialog */}
+      <Dialog open={showPaymentDetails} onOpenChange={setShowPaymentDetails}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Payment History</DialogTitle>
+          </DialogHeader>
+          {selectedPayableForDetails && (
+            <div className="space-y-6">
+              {/* Invoice Summary */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Invoice Details</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Invoice Number</p>
+                      <p className="font-semibold text-foreground">{selectedPayableForDetails.invoiceNumber}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Supplier</p>
+                      <p className="font-semibold text-foreground">{selectedPayableForDetails.supplier.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Amount</p>
+                      <p className="font-semibold text-foreground">{formatCurrency(selectedPayableForDetails.amount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Status</p>
+                      <div>{getStatusBadge(selectedPayableForDetails.status)}</div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t border-border">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Paid Amount</p>
+                      <p className="font-semibold text-green-600 dark:text-green-500">{formatCurrency(selectedPayableForDetails.paidAmount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Balance Due</p>
+                      <p className="font-semibold text-red-600 dark:text-red-400">{formatCurrency(selectedPayableForDetails.balanceAmount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Invoice Date</p>
+                      <p className="font-medium text-foreground">{formatDate(selectedPayableForDetails.invoiceDate)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Due Date</p>
+                      <p className="font-medium text-foreground">{formatDate(selectedPayableForDetails.dueDate)}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Payment History Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Payment Transactions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {loadingPayments ? (
+                    <p className="text-center text-muted-foreground py-8">Loading payment history...</p>
+                  ) : paymentHistory.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">No payments recorded yet</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-border">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Payment #</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Date</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Method</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Amount</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Reference</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Notes</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {paymentHistory.map((payment: any) => (
+                            <tr key={payment.id} className="hover:bg-muted/30">
+                              <td className="px-4 py-3 text-sm font-medium text-foreground">{payment.paymentNumber}</td>
+                              <td className="px-4 py-3 text-sm text-muted-foreground">{formatDate(payment.paymentDate)}</td>
+                              <td className="px-4 py-3 text-sm text-muted-foreground capitalize">
+                                {payment.paymentMethod.replace('_', ' ')}
+                              </td>
+                              <td className="px-4 py-3 text-sm font-semibold text-green-600 dark:text-green-500">
+                                {formatCurrency(payment.amount)}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-muted-foreground">
+                                {payment.transactionReference || payment.chequeNumber || '-'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-muted-foreground">
+                                {payment.notes || '-'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handlePrintPaymentHistory}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold border-2 border-blue-700 shadow-md"
+                >
+                  <PrinterIcon className="w-4 h-4 mr-2" />
+                  Print
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleExportPaymentHistoryToPDF}
+                  className="bg-green-600 hover:bg-green-700 text-white font-bold border-2 border-green-700 shadow-md"
+                >
+                  <DocumentTextIcon className="w-4 h-4 mr-2" />
+                  Export PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowPaymentDetails(false)}
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-900 font-bold border-2 border-gray-400 shadow-md dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white dark:border-gray-500"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

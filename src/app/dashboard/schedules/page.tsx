@@ -226,6 +226,9 @@ export default function SchedulesPage() {
           <Column
             caption="Employee"
             calculateCellValue={(data: Schedule) => getEmployeeName(data)}
+            allowFiltering={true}
+            allowSearch={true}
+            allowSorting={true}
             cellRender={(data) => (
               <div>
                 <div className="font-medium text-gray-900 dark:text-gray-100">

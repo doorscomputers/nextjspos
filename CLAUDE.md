@@ -202,3 +202,4 @@ On this Project, Only the Main Warehouse will process Purchase orders
 1. Consistent report creation with Print , Export to Pdf and Excel
 2. For list Reports use the
 - SOD settings should be dynamic
+- Please take note of the RBAC , menus permission and Suers and Roles so that there will be no errors in the future

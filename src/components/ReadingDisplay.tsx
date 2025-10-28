@@ -4,6 +4,7 @@ import React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Printer, Download, FileText } from 'lucide-react'
+import { formatCurrency } from '@/lib/utils'
 
 interface XReadingData {
   shiftNumber: string
@@ -254,19 +255,19 @@ export function ReadingDisplay({ xReading, zReading, variance, onClose }: Readin
                 </div>
                 <div className="row">
                   <span className="label">Gross Sales:</span>
-                  <span className="value">₱{xReading.grossSales.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(xReading.grossSales)}</span>
                 </div>
                 <div className="row">
                   <span className="label">Total Discounts:</span>
-                  <span className="value">(₱{xReading.totalDiscounts.toFixed(2)})</span>
+                  <span className="value">(₱{formatCurrency(xReading.totalDiscounts)})</span>
                 </div>
                 <div className="row">
                   <span className="label">Void Amount:</span>
-                  <span className="value">(₱{xReading.voidAmount.toFixed(2)})</span>
+                  <span className="value">(₱{formatCurrency(xReading.voidAmount)})</span>
                 </div>
                 <div className="row total">
                   <span className="label">NET SALES:</span>
-                  <span className="value">₱{xReading.netSales.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(xReading.netSales)}</span>
                 </div>
               </div>
 
@@ -275,7 +276,7 @@ export function ReadingDisplay({ xReading, zReading, variance, onClose }: Readin
                 {Object.entries(xReading.paymentBreakdown).map(([method, amount]) => (
                   <div key={method} className="row">
                     <span className="label">{method.toUpperCase()}:</span>
-                    <span className="value">₱{amount.toFixed(2)}</span>
+                    <span className="value">₱{formatCurrency(amount)}</span>
                   </div>
                 ))}
               </div>
@@ -284,23 +285,23 @@ export function ReadingDisplay({ xReading, zReading, variance, onClose }: Readin
                 <h3>CASH RECONCILIATION</h3>
                 <div className="row">
                   <span className="label">Beginning Cash:</span>
-                  <span className="value">₱{xReading.beginningCash.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(xReading.beginningCash)}</span>
                 </div>
                 <div className="row">
                   <span className="label">Cash Sales:</span>
-                  <span className="value">₱{(xReading.paymentBreakdown['cash'] || 0).toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(xReading.paymentBreakdown['cash'] || 0)}</span>
                 </div>
                 <div className="row">
                   <span className="label">Cash In:</span>
-                  <span className="value">₱{xReading.cashIn.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(xReading.cashIn)}</span>
                 </div>
                 <div className="row">
                   <span className="label">Cash Out:</span>
-                  <span className="value">(₱{xReading.cashOut.toFixed(2)})</span>
+                  <span className="value">(₱{formatCurrency(xReading.cashOut)})</span>
                 </div>
                 <div className="row total">
                   <span className="label">EXPECTED CASH:</span>
-                  <span className="value">₱{xReading.expectedCash.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(xReading.expectedCash)}</span>
                 </div>
               </div>
 
@@ -308,15 +309,15 @@ export function ReadingDisplay({ xReading, zReading, variance, onClose }: Readin
                 <h3>DISCOUNT BREAKDOWN</h3>
                 <div className="row">
                   <span className="label">Senior Citizen:</span>
-                  <span className="value">₱{xReading.discountBreakdown.senior.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(xReading.discountBreakdown.senior)}</span>
                 </div>
                 <div className="row">
                   <span className="label">PWD:</span>
-                  <span className="value">₱{xReading.discountBreakdown.pwd.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(xReading.discountBreakdown.pwd)}</span>
                 </div>
                 <div className="row">
                   <span className="label">Regular:</span>
-                  <span className="value">₱{xReading.discountBreakdown.regular.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(xReading.discountBreakdown.regular)}</span>
                 </div>
               </div>
             </div>
@@ -356,15 +357,15 @@ export function ReadingDisplay({ xReading, zReading, variance, onClose }: Readin
                 </div>
                 <div className="row">
                   <span className="label">Previous Accumulated:</span>
-                  <span className="value">₱{zReading.previousAccumulatedSales.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(zReading.previousAccumulatedSales)}</span>
                 </div>
                 <div className="row">
                   <span className="label">Sales for the Day:</span>
-                  <span className="value">₱{zReading.salesForTheDay.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(zReading.salesForTheDay)}</span>
                 </div>
                 <div className="row total">
                   <span className="label">NEW ACCUMULATED:</span>
-                  <span className="value">₱{zReading.accumulatedSales.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(zReading.accumulatedSales)}</span>
                 </div>
               </div>
 
@@ -406,19 +407,19 @@ export function ReadingDisplay({ xReading, zReading, variance, onClose }: Readin
                 </div>
                 <div className="row">
                   <span className="label">Gross Sales:</span>
-                  <span className="value">₱{zReading.sales.grossSales.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(zReading.sales.grossSales)}</span>
                 </div>
                 <div className="row">
                   <span className="label">Total Discounts:</span>
-                  <span className="value">(₱{zReading.sales.totalDiscounts.toFixed(2)})</span>
+                  <span className="value">(₱{formatCurrency(zReading.sales.totalDiscounts)})</span>
                 </div>
                 <div className="row">
                   <span className="label">Void Amount:</span>
-                  <span className="value">(₱{zReading.sales.voidAmount.toFixed(2)})</span>
+                  <span className="value">(₱{formatCurrency(zReading.sales.voidAmount)})</span>
                 </div>
                 <div className="row total">
                   <span className="label">NET SALES:</span>
-                  <span className="value">₱{zReading.sales.netSales.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(zReading.sales.netSales)}</span>
                 </div>
               </div>
 
@@ -427,7 +428,7 @@ export function ReadingDisplay({ xReading, zReading, variance, onClose }: Readin
                 {Object.entries(zReading.payments).map(([method, amount]) => (
                   <div key={method} className="row">
                     <span className="label">{method.toUpperCase()}:</span>
-                    <span className="value">₱{amount.toFixed(2)}</span>
+                    <span className="value">₱{formatCurrency(amount)}</span>
                   </div>
                 ))}
               </div>
@@ -436,38 +437,38 @@ export function ReadingDisplay({ xReading, zReading, variance, onClose }: Readin
                 <h3>CASH RECONCILIATION</h3>
                 <div className="row">
                   <span className="label">Beginning Cash:</span>
-                  <span className="value">₱{zReading.cash.beginningCash.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(zReading.cash.beginningCash)}</span>
                 </div>
                 <div className="row">
                   <span className="label">Cash Sales:</span>
-                  <span className="value">₱{(zReading.payments['cash'] || 0).toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(zReading.payments['cash'] || 0)}</span>
                 </div>
                 <div className="row">
                   <span className="label">Cash In ({zReading.cash.cashInCount}):</span>
-                  <span className="value">₱{zReading.cash.cashIn.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(zReading.cash.cashIn)}</span>
                 </div>
                 <div className="row">
                   <span className="label">Cash Out ({zReading.cash.cashOutCount}):</span>
-                  <span className="value">(₱{zReading.cash.cashOut.toFixed(2)})</span>
+                  <span className="value">(₱{formatCurrency(zReading.cash.cashOut)})</span>
                 </div>
                 <div className="row">
                   <span className="label">System Cash:</span>
-                  <span className="value">₱{zReading.cash.systemCash.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(zReading.cash.systemCash)}</span>
                 </div>
                 <div className="row">
                   <span className="label">Actual Cash:</span>
-                  <span className="value">₱{zReading.cash.endingCash.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(zReading.cash.endingCash)}</span>
                 </div>
                 {zReading.cash.cashOver > 0 && (
                   <div className="row" style={{ color: 'green' }}>
                     <span className="label">Cash Over:</span>
-                    <span className="value">₱{zReading.cash.cashOver.toFixed(2)}</span>
+                    <span className="value">₱{formatCurrency(zReading.cash.cashOver)}</span>
                   </div>
                 )}
                 {zReading.cash.cashShort > 0 && (
                   <div className="row" style={{ color: 'red' }}>
                     <span className="label">Cash Short:</span>
-                    <span className="value">(₱{zReading.cash.cashShort.toFixed(2)})</span>
+                    <span className="value">(₱{formatCurrency(zReading.cash.cashShort)})</span>
                   </div>
                 )}
               </div>
@@ -476,15 +477,15 @@ export function ReadingDisplay({ xReading, zReading, variance, onClose }: Readin
                 <h3>BIR DISCOUNT BREAKDOWN</h3>
                 <div className="row">
                   <span className="label">Senior Citizen ({zReading.discounts.senior.count}):</span>
-                  <span className="value">₱{zReading.discounts.senior.amount.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(zReading.discounts.senior.amount)}</span>
                 </div>
                 <div className="row">
                   <span className="label">PWD ({zReading.discounts.pwd.count}):</span>
-                  <span className="value">₱{zReading.discounts.pwd.amount.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(zReading.discounts.pwd.amount)}</span>
                 </div>
                 <div className="row">
                   <span className="label">Regular ({zReading.discounts.regular.count}):</span>
-                  <span className="value">₱{zReading.discounts.regular.amount.toFixed(2)}</span>
+                  <span className="value">₱{formatCurrency(zReading.discounts.regular.amount)}</span>
                 </div>
               </div>
 
@@ -494,66 +495,66 @@ export function ReadingDisplay({ xReading, zReading, variance, onClose }: Readin
                   {zReading.cashDenomination.count1000 > 0 && (
                     <div className="row">
                       <span className="label">₱1000 x {zReading.cashDenomination.count1000}:</span>
-                      <span className="value">₱{(zReading.cashDenomination.count1000 * 1000).toFixed(2)}</span>
+                      <span className="value">₱{formatCurrency(zReading.cashDenomination.count1000 * 1000)}</span>
                     </div>
                   )}
                   {zReading.cashDenomination.count500 > 0 && (
                     <div className="row">
                       <span className="label">₱500 x {zReading.cashDenomination.count500}:</span>
-                      <span className="value">₱{(zReading.cashDenomination.count500 * 500).toFixed(2)}</span>
+                      <span className="value">₱{formatCurrency(zReading.cashDenomination.count500 * 500)}</span>
                     </div>
                   )}
                   {zReading.cashDenomination.count200 > 0 && (
                     <div className="row">
                       <span className="label">₱200 x {zReading.cashDenomination.count200}:</span>
-                      <span className="value">₱{(zReading.cashDenomination.count200 * 200).toFixed(2)}</span>
+                      <span className="value">₱{formatCurrency(zReading.cashDenomination.count200 * 200)}</span>
                     </div>
                   )}
                   {zReading.cashDenomination.count100 > 0 && (
                     <div className="row">
                       <span className="label">₱100 x {zReading.cashDenomination.count100}:</span>
-                      <span className="value">₱{(zReading.cashDenomination.count100 * 100).toFixed(2)}</span>
+                      <span className="value">₱{formatCurrency(zReading.cashDenomination.count100 * 100)}</span>
                     </div>
                   )}
                   {zReading.cashDenomination.count50 > 0 && (
                     <div className="row">
                       <span className="label">₱50 x {zReading.cashDenomination.count50}:</span>
-                      <span className="value">₱{(zReading.cashDenomination.count50 * 50).toFixed(2)}</span>
+                      <span className="value">₱{formatCurrency(zReading.cashDenomination.count50 * 50)}</span>
                     </div>
                   )}
                   {zReading.cashDenomination.count20 > 0 && (
                     <div className="row">
                       <span className="label">₱20 x {zReading.cashDenomination.count20}:</span>
-                      <span className="value">₱{(zReading.cashDenomination.count20 * 20).toFixed(2)}</span>
+                      <span className="value">₱{formatCurrency(zReading.cashDenomination.count20 * 20)}</span>
                     </div>
                   )}
                   {zReading.cashDenomination.count10 > 0 && (
                     <div className="row">
                       <span className="label">₱10 x {zReading.cashDenomination.count10}:</span>
-                      <span className="value">₱{(zReading.cashDenomination.count10 * 10).toFixed(2)}</span>
+                      <span className="value">₱{formatCurrency(zReading.cashDenomination.count10 * 10)}</span>
                     </div>
                   )}
                   {zReading.cashDenomination.count5 > 0 && (
                     <div className="row">
                       <span className="label">₱5 x {zReading.cashDenomination.count5}:</span>
-                      <span className="value">₱{(zReading.cashDenomination.count5 * 5).toFixed(2)}</span>
+                      <span className="value">₱{formatCurrency(zReading.cashDenomination.count5 * 5)}</span>
                     </div>
                   )}
                   {zReading.cashDenomination.count1 > 0 && (
                     <div className="row">
                       <span className="label">₱1 x {zReading.cashDenomination.count1}:</span>
-                      <span className="value">₱{(zReading.cashDenomination.count1 * 1).toFixed(2)}</span>
+                      <span className="value">₱{formatCurrency(zReading.cashDenomination.count1 * 1)}</span>
                     </div>
                   )}
                   {zReading.cashDenomination.count025 > 0 && (
                     <div className="row">
                       <span className="label">₱0.25 x {zReading.cashDenomination.count025}:</span>
-                      <span className="value">₱{(zReading.cashDenomination.count025 * 0.25).toFixed(2)}</span>
+                      <span className="value">₱{formatCurrency(zReading.cashDenomination.count025 * 0.25)}</span>
                     </div>
                   )}
                   <div className="row total">
                     <span className="label">TOTAL COUNTED:</span>
-                    <span className="value">₱{zReading.cashDenomination.totalAmount.toFixed(2)}</span>
+                    <span className="value">₱{formatCurrency(zReading.cashDenomination.totalAmount)}</span>
                   </div>
                 </div>
               )}
@@ -564,7 +565,7 @@ export function ReadingDisplay({ xReading, zReading, variance, onClose }: Readin
                   {Object.entries(zReading.categorySales).map(([category, amount]) => (
                     <div key={category} className="row">
                       <span className="label">{category}:</span>
-                      <span className="value">₱{amount.toFixed(2)}</span>
+                      <span className="value">₱{formatCurrency(amount)}</span>
                     </div>
                   ))}
                 </div>
@@ -621,22 +622,22 @@ export function ReadingDisplay({ xReading, zReading, variance, onClose }: Readin
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="text-sm text-muted-foreground">System Cash</div>
-                <div className="text-2xl font-bold">₱{variance.systemCash.toFixed(2)}</div>
+                <div className="text-2xl font-bold">₱{formatCurrency(variance.systemCash)}</div>
               </div>
               <div>
                 <div className="text-sm text-muted-foreground">Actual Cash</div>
-                <div className="text-2xl font-bold">₱{variance.endingCash.toFixed(2)}</div>
+                <div className="text-2xl font-bold">₱{formatCurrency(variance.endingCash)}</div>
               </div>
               {variance.cashOver > 0 && (
                 <div className="col-span-2 p-4 bg-green-50 border border-green-200 rounded">
                   <div className="text-sm text-green-700">Cash Over (Excess)</div>
-                  <div className="text-xl font-bold text-green-600">₱{variance.cashOver.toFixed(2)}</div>
+                  <div className="text-xl font-bold text-green-600">₱{formatCurrency(variance.cashOver)}</div>
                 </div>
               )}
               {variance.cashShort > 0 && (
                 <div className="col-span-2 p-4 bg-red-50 border border-red-200 rounded">
                   <div className="text-sm text-red-700">Cash Short (Shortage)</div>
-                  <div className="text-xl font-bold text-red-600">₱{variance.cashShort.toFixed(2)}</div>
+                  <div className="text-xl font-bold text-red-600">₱{formatCurrency(variance.cashShort)}</div>
                 </div>
               )}
               {variance.isBalanced && (

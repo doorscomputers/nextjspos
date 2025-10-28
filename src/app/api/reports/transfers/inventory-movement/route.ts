@@ -29,8 +29,8 @@ export async function GET(request: NextRequest) {
 
     if (startDate || endDate) {
       whereClause.stockTransfer.createdAt = {}
-      if (startDate) whereClause.stockTransfer.createdAt.gte = new Date(startDate)
-      if (endDate) whereClause.stockTransfer.createdAt.lte = new Date(endDate)
+      if (startDate) whereClause.stockTransfer.createdAt.gte = new Date(startDate + 'T00:00:00')
+      if (endDate) whereClause.stockTransfer.createdAt.lte = new Date(endDate + 'T23:59:59.999')
     }
 
     if (productId) {

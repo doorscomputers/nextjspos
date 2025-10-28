@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
     // Get query parameters for filtering
     const { searchParams } = new URL(request.url)
     const supplierId = searchParams.get('supplierId')
+    const accountsPayableId = searchParams.get('accountsPayableId')
     const paymentMethod = searchParams.get('paymentMethod')
     const status = searchParams.get('status')
     const page = parseInt(searchParams.get('page') || '1')
@@ -41,6 +42,10 @@ export async function GET(request: NextRequest) {
 
     if (supplierId) {
       where.supplierId = parseInt(supplierId)
+    }
+
+    if (accountsPayableId) {
+      where.accountsPayableId = parseInt(accountsPayableId)
     }
 
     if (paymentMethod) {

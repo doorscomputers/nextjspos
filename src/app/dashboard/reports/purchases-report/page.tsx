@@ -72,7 +72,8 @@ export default function PurchasesReportPage() {
     try {
       const response = await fetch("/api/locations")
       const data = await response.json()
-      setLocations(data.locations || data)
+      // API returns { success: true, data: locations }
+      setLocations(data.data || data.locations || [])
     } catch (error) {
       console.error("Failed to fetch locations:", error)
       setLocations([])
@@ -83,7 +84,8 @@ export default function PurchasesReportPage() {
     try {
       const response = await fetch("/api/suppliers")
       const data = await response.json()
-      setSuppliers(data.suppliers || data)
+      // API returns { suppliers }
+      setSuppliers(data.suppliers || [])
     } catch (error) {
       console.error("Failed to fetch suppliers:", error)
       setSuppliers([])
@@ -259,7 +261,7 @@ export default function PurchasesReportPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Locations</SelectItem>
-                    {locations.map((location) => (
+                    {Array.isArray(locations) && locations.map((location) => (
                       <SelectItem key={location.id} value={location.id.toString()}>
                         {location.name}
                       </SelectItem>
@@ -277,7 +279,7 @@ export default function PurchasesReportPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Suppliers</SelectItem>
-                    {suppliers.map((supplier) => (
+                    {Array.isArray(suppliers) && suppliers.map((supplier) => (
                       <SelectItem key={supplier.id} value={supplier.id.toString()}>
                         {supplier.name}
                       </SelectItem>
@@ -531,9 +533,9 @@ export default function PurchasesReportPage() {
                           <td className="p-3 text-right">{purchase.receiptCount}</td>
                           <td className="p-3 text-center">
                             <Button
-                              variant="ghost"
                               size="sm"
                               onClick={() => toggleRow(purchase.id)}
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-3 py-1.5 shadow-sm hover:shadow-md transition-all"
                             >
                               {expandedRows.has(purchase.id) ? (
                                 <ChevronUpIcon className="w-4 h-4" />
@@ -640,25 +642,23 @@ export default function PurchasesReportPage() {
                   </p>
                   <div className="flex gap-3">
                     <Button
-                      variant="outline"
                       size="default"
                       onClick={() => setPage(page - 1)}
                       disabled={page === 1 || loading}
-                      className="border-gray-300 hover:bg-gray-50 shadow-sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium border-2 border-blue-700 hover:border-blue-800 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Previous
                     </Button>
-                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 rounded-md border border-gray-200">
-                      <span className="text-sm font-medium text-gray-700">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-md border-2 border-blue-200 dark:border-blue-700 shadow-sm">
+                      <span className="text-sm font-bold text-blue-900 dark:text-blue-100">
                         Page {page} of {reportData.pagination.totalPages}
                       </span>
                     </div>
                     <Button
-                      variant="outline"
                       size="default"
                       onClick={() => setPage(page + 1)}
                       disabled={page === reportData.pagination.totalPages || loading}
-                      className="border-gray-300 hover:bg-gray-50 shadow-sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium border-2 border-blue-700 hover:border-blue-800 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Next
                     </Button>

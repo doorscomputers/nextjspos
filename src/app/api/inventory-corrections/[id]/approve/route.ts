@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { PERMISSIONS, getUserAccessibleLocationIds } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 import { getCurrentStock, StockTransactionType, updateStock } from '@/lib/stockOperations'
+import { sendTelegramInventoryCorrectionAlert } from '@/lib/telegram'
 
 /**
  * POST /api/inventory-corrections/[id]/approve
@@ -171,6 +172,26 @@ export async function POST(
       })
     } catch (auditError) {
       console.error('Audit logging failed:', auditError)
+    }
+
+    // Send Telegram notification to business owner
+    try {
+      await sendTelegramInventoryCorrectionAlert({
+        productName: correction.product.name,
+        variationName: correction.productVariation.name,
+        sku: correction.productVariation.sku || correction.product.sku,
+        previousInventory: result.previousQty,
+        currentInventory: result.stockResult.newBalance,
+        difference: actualDifference,
+        reason: correction.reason,
+        remarks: correction.remarks || undefined,
+        locationName: correction.location.name,
+        correctedBy: userDisplayName,
+        timestamp: new Date()
+      })
+    } catch (telegramError) {
+      console.error('Telegram notification failed:', telegramError)
+      // Don't fail the request if Telegram notification fails
     }
 
     return NextResponse.json({

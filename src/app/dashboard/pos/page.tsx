@@ -1928,11 +1928,10 @@ export default function POSEnhancedPage() {
                       <div className="mt-1 pt-1 border-t">
                         <Button
                           size="sm"
-                          variant="outline"
-                          className={`w-full text-xs h-7 ${
+                          className={`w-full text-xs h-7 font-medium shadow-sm hover:shadow-md transition-all ${
                             item.serialNumberIds.length === item.quantity
-                              ? 'bg-green-50 border-green-500 text-green-700'
-                              : 'bg-yellow-50 border-yellow-500 text-yellow-700'
+                              ? 'bg-green-600 hover:bg-green-700 text-white border-2 border-green-700'
+                              : 'bg-yellow-600 hover:bg-yellow-700 text-white border-2 border-yellow-700'
                           }`}
                           onClick={() => handleOpenSerialDialog(index)}
                         >
@@ -2113,13 +2112,12 @@ export default function POSEnhancedPage() {
                       />
                       <div className="flex gap-2">
                         <Button
-                          variant="outline"
                           size="sm"
                           onClick={() => {
                             setShowCameraDialog(true)
                             setTimeout(() => startCamera(), 100)
                           }}
-                          className="flex-1"
+                          className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium border-2 border-indigo-700 hover:border-indigo-800 shadow-md hover:shadow-lg transition-all"
                         >
                           📷 Capture Receipt
                         </Button>
@@ -2259,8 +2257,7 @@ export default function POSEnhancedPage() {
                 <Button
                   key={key}
                   onClick={() => handleKeypadClick(key)}
-                  className="h-16 text-2xl font-bold"
-                  variant="outline"
+                  className="h-16 text-2xl font-bold bg-slate-700 hover:bg-slate-600 text-white border-2 border-slate-800 hover:border-slate-700 shadow-md hover:shadow-lg transition-all active:scale-95"
                 >
                   {key}
                 </Button>
@@ -2268,9 +2265,8 @@ export default function POSEnhancedPage() {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Button
-                variant="outline"
                 onClick={() => handleKeypadClick('C')}
-                className="h-12"
+                className="h-12 bg-red-600 hover:bg-red-700 text-white font-bold border-2 border-red-700 hover:border-red-800 shadow-md hover:shadow-lg transition-all"
               >
                 Clear
               </Button>
@@ -2299,13 +2295,13 @@ export default function POSEnhancedPage() {
             <canvas ref={canvasRef} style={{ display: 'none' }} />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
+            <Button onClick={() => {
               stopCamera()
               setShowCameraDialog(false)
-            }}>
+            }} className="bg-gray-600 hover:bg-gray-700 text-white font-medium border-2 border-gray-700 hover:border-gray-800 shadow-md">
               Cancel
             </Button>
-            <Button onClick={capturePhoto} className="bg-blue-600">
+            <Button onClick={capturePhoto} className="bg-blue-600 hover:bg-blue-700 text-white font-medium border-2 border-blue-700 hover:border-blue-800 shadow-md">
               📸 Capture Photo
             </Button>
           </DialogFooter>
@@ -2336,10 +2332,10 @@ export default function POSEnhancedPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowHoldDialog(false)}>
+            <Button onClick={() => setShowHoldDialog(false)} className="bg-gray-600 hover:bg-gray-700 text-white font-medium border-2 border-gray-700 hover:border-gray-800 shadow-md">
               Cancel
             </Button>
-            <Button onClick={saveHeldTransaction} className="bg-yellow-600">
+            <Button onClick={saveHeldTransaction} className="bg-yellow-600 hover:bg-yellow-700 text-white font-medium border-2 border-yellow-700 hover:border-yellow-800 shadow-md">
               Hold Transaction
             </Button>
           </DialogFooter>
@@ -2460,10 +2456,10 @@ export default function POSEnhancedPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNewCustomerDialog(false)}>
+            <Button onClick={() => setShowNewCustomerDialog(false)} className="bg-gray-600 hover:bg-gray-700 text-white font-medium border-2 border-gray-700 hover:border-gray-800 shadow-md">
               Cancel
             </Button>
-            <Button onClick={handleCreateCustomer} className="bg-blue-600">
+            <Button onClick={handleCreateCustomer} className="bg-blue-600 hover:bg-blue-700 text-white font-medium border-2 border-blue-700 hover:border-blue-800 shadow-md">
               Create Customer
             </Button>
           </DialogFooter>
@@ -2500,10 +2496,10 @@ export default function POSEnhancedPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCashInDialog(false)}>
+            <Button onClick={() => setShowCashInDialog(false)} className="bg-gray-600 hover:bg-gray-700 text-white font-medium border-2 border-gray-700 hover:border-gray-800 shadow-md">
               Cancel
             </Button>
-            <Button onClick={handleCashIn} className="bg-green-600">
+            <Button onClick={handleCashIn} className="bg-green-600 hover:bg-green-700 text-white font-medium border-2 border-green-700 hover:border-green-800 shadow-md">
               Record Cash In
             </Button>
           </DialogFooter>
@@ -2540,10 +2536,10 @@ export default function POSEnhancedPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCashOutDialog(false)}>
+            <Button onClick={() => setShowCashOutDialog(false)} className="bg-gray-600 hover:bg-gray-700 text-white font-medium border-2 border-gray-700 hover:border-gray-800 shadow-md">
               Cancel
             </Button>
-            <Button onClick={handleCashOut} className="bg-red-600">
+            <Button onClick={handleCashOut} className="bg-red-600 hover:bg-red-700 text-white font-medium border-2 border-red-700 hover:border-red-800 shadow-md">
               Record Cash Out
             </Button>
           </DialogFooter>
@@ -2596,12 +2592,12 @@ export default function POSEnhancedPage() {
           </div>
           <DialogFooter>
             <Button
-              variant="outline"
               onClick={() => setShowQuotationDialog(false)}
+              className="bg-gray-600 hover:bg-gray-700 text-white font-medium border-2 border-gray-700 hover:border-gray-800 shadow-md"
             >
               Cancel
             </Button>
-            <Button onClick={handleSaveQuotation} className="bg-purple-600">
+            <Button onClick={handleSaveQuotation} className="bg-purple-600 hover:bg-purple-700 text-white font-medium border-2 border-purple-700 hover:border-purple-800 shadow-md">
               Save Quotation
             </Button>
           </DialogFooter>
@@ -2659,17 +2655,15 @@ export default function POSEnhancedPage() {
                         <div className="flex gap-2">
                           <Button
                             size="sm"
-                            variant="outline"
                             onClick={(e) => handlePrintQuotation(quot, e)}
-                            className="bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
+                            className="bg-green-600 hover:bg-green-700 text-white font-medium border-2 border-green-700 hover:border-green-800 shadow-sm"
                           >
                             🖨️ Print
                           </Button>
                           <Button
                             size="sm"
-                            variant="outline"
                             onClick={(e) => handleDeleteQuotation(quot.id, e)}
-                            className="bg-red-50 hover:bg-red-100 text-red-700 border-red-300"
+                            className="bg-red-600 hover:bg-red-700 text-white font-medium border-2 border-red-700 hover:border-red-800 shadow-sm"
                           >
                             🗑️ Delete
                           </Button>

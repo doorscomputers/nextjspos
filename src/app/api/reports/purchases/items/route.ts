@@ -100,7 +100,13 @@ export async function GET(request: NextRequest) {
             product: {
               select: {
                 id: true,
-                name: true
+                name: true,
+                category: {
+                  select: {
+                    id: true,
+                    name: true
+                  }
+                }
               }
             }
           }
@@ -183,10 +189,15 @@ export async function GET(request: NextRequest) {
       return {
         id: item.id,
         productName: item.productVariation.product.name,
+        productId: item.productVariation.product.id,
         variationName: item.productVariation.name || 'N/A',
+        variationId: item.productVariation.id,
         sku: item.productVariation.sku,
+        category: item.productVariation.product.category?.name || 'Uncategorized',
+        categoryId: item.productVariation.product.category?.id || null,
         purchaseOrderNumber: item.purchase.purchaseOrderNumber,
         purchaseDate: item.purchase.purchaseDate.toISOString().split('T')[0],
+        purchaseDateObj: item.purchase.purchaseDate,
         expectedDeliveryDate: item.purchase.expectedDeliveryDate
           ? item.purchase.expectedDeliveryDate.toISOString().split('T')[0]
           : null,

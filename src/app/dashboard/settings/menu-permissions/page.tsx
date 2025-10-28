@@ -1,432 +1,350 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
-import { usePermissions } from '@/hooks/usePermissions'
-import { PERMISSIONS } from '@/lib/rbac'
 import { useRouter } from 'next/navigation'
+import DataGrid, {
+  Column,
+  Selection,
+  Paging,
+  Scrolling,
+  SearchPanel,
+  HeaderFilter
+} from 'devextreme-react/data-grid'
+import CheckBox from 'devextreme-react/check-box'
+import Button from 'devextreme-react/button'
+import LoadPanel from 'devextreme-react/load-panel'
+import notify from 'devextreme/ui/notify'
+
+interface Role {
+  id: number
+  name: string
+  displayName: string
+  menuPermissionCount: number
+}
 
 interface MenuPermission {
   id: number
   key: string
   name: string
   href: string | null
-  icon: string | null
-  order: number
   parentId: number | null
-  children?: MenuPermission[]
-}
-
-interface Role {
-  id: number
-  name: string
-}
-
-interface User {
-  id: number
-  username: string
-  firstName: string
-  surname: string
+  order: number
 }
 
 export default function MenuPermissionsPage() {
-  const { data: session } = useSession()
-  const { can } = usePermissions()
   const router = useRouter()
-
-  const [activeTab, setActiveTab] = useState<'role' | 'user'>('role')
-  const [menuStructure, setMenuStructure] = useState<MenuPermission[]>([])
   const [roles, setRoles] = useState<Role[]>([])
-  const [users, setUsers] = useState<User[]>([])
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null)
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
-  const [selectedMenuKeys, setSelectedMenuKeys] = useState<Set<string>>(new Set())
+  const [allMenus, setAllMenus] = useState<MenuPermission[]>([])
+  const [enabledMenuKeys, setEnabledMenuKeys] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
-  // Check permissions
-  const canViewRoles = can(PERMISSIONS.ROLE_VIEW)
-  const canUpdateRoles = can(PERMISSIONS.ROLE_UPDATE)
-  const canViewUsers = can(PERMISSIONS.USER_VIEW)
-  const canUpdateUsers = can(PERMISSIONS.USER_UPDATE)
-
-  // Fetch menu structure on mount
+  // Fetch roles on mount
   useEffect(() => {
-    fetchMenuStructure()
-    if (canViewRoles) fetchRoles()
-    if (canViewUsers) fetchUsers()
+    fetchRoles()
   }, [])
 
-  // Load menu permissions when selection changes
+  // Fetch menu permissions when role is selected
   useEffect(() => {
-    if (activeTab === 'role' && selectedRoleId) {
-      loadRoleMenuPermissions(selectedRoleId)
+    if (selectedRoleId) {
+      fetchRoleMenuPermissions(selectedRoleId)
     }
-  }, [activeTab, selectedRoleId])
-
-  useEffect(() => {
-    if (activeTab === 'user' && selectedUserId) {
-      loadUserMenuPermissions(selectedUserId)
-    }
-  }, [activeTab, selectedUserId])
-
-  const fetchMenuStructure = async () => {
-    try {
-      const res = await fetch('/api/settings/menu-permissions?format=tree')
-      const data = await res.json()
-      if (data.success) {
-        setMenuStructure(data.data)
-      }
-    } catch (err) {
-      console.error('Error fetching menu structure:', err)
-    }
-  }
+  }, [selectedRoleId])
 
   const fetchRoles = async () => {
     try {
-      const res = await fetch('/api/roles')
-      const data = await res.json()
-      if (data.success) {
-        setRoles(data.data)
+      setLoading(true)
+      const res = await fetch('/api/settings/menu-permissions/roles')
+      if (res.ok) {
+        const data = await res.json()
+        setRoles(data.data || [])
+      } else {
+        notify('Failed to load roles', 'error', 3000)
       }
-    } catch (err) {
-      console.error('Error fetching roles:', err)
+    } catch (error) {
+      console.error('Error fetching roles:', error)
+      notify('Error loading roles', 'error', 3000)
+    } finally {
+      setLoading(false)
     }
   }
 
-  const fetchUsers = async () => {
+  const fetchRoleMenuPermissions = async (roleId: number) => {
     try {
-      const res = await fetch('/api/users')
-      const data = await res.json()
-      if (data.success) {
-        setUsers(data.data)
-      }
-    } catch (err) {
-      console.error('Error fetching users:', err)
-    }
-  }
-
-  const loadRoleMenuPermissions = async (roleId: number) => {
-    setLoading(true)
-    setError(null)
-    try {
+      setLoading(true)
       const res = await fetch(`/api/settings/menu-permissions/role/${roleId}`)
-      const data = await res.json()
-      if (data.success) {
-        setSelectedMenuKeys(new Set(data.data.menuKeys))
+      if (res.ok) {
+        const data = await res.json()
+        setAllMenus(data.data.allMenus || [])
+        setEnabledMenuKeys(data.data.enabledMenuKeys || [])
       } else {
-        setError(data.error || 'Failed to load role menu permissions')
+        notify('Failed to load menu permissions', 'error', 3000)
       }
-    } catch (err) {
-      setError('Error loading role menu permissions')
-      console.error(err)
+    } catch (error) {
+      console.error('Error fetching menu permissions:', error)
+      notify('Error loading menu permissions', 'error', 3000)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const loadUserMenuPermissions = async (userId: number) => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await fetch(`/api/settings/menu-permissions/user/${userId}?type=all`)
-      const data = await res.json()
-      if (data.success) {
-        setSelectedMenuKeys(new Set(data.data.menuKeys))
-      } else {
-        setError(data.error || 'Failed to load user menu permissions')
-      }
-    } catch (err) {
-      setError('Error loading user menu permissions')
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleMenuToggle = (menuKey: string, checked: boolean, menu: MenuPermission) => {
-    const newSelection = new Set(selectedMenuKeys)
-
-    if (checked) {
-      // Add this menu
-      newSelection.add(menuKey)
-      // Add all parent menus
-      addParentMenus(menuKey, newSelection)
-    } else {
-      // Remove this menu
-      newSelection.delete(menuKey)
-      // Remove all descendant menus
-      removeDescendantMenus(menu, newSelection)
-    }
-
-    setSelectedMenuKeys(newSelection)
-  }
-
-  const addParentMenus = (menuKey: string, selection: Set<string>) => {
-    // Find the menu and add all its parents
-    const findAndAddParents = (menus: MenuPermission[], targetKey: string): boolean => {
-      for (const menu of menus) {
-        if (menu.key === targetKey) {
-          return true
-        }
-        if (menu.children && menu.children.length > 0) {
-          if (findAndAddParents(menu.children, targetKey)) {
-            selection.add(menu.key) // Add this parent
-            return true
-          }
-        }
-      }
-      return false
-    }
-
-    findAndAddParents(menuStructure, menuKey)
-  }
-
-  const removeDescendantMenus = (menu: MenuPermission, selection: Set<string>) => {
-    if (menu.children && menu.children.length > 0) {
-      for (const child of menu.children) {
-        selection.delete(child.key)
-        removeDescendantMenus(child, selection)
-      }
     }
   }
 
   const handleSave = async () => {
-    if (activeTab === 'role' && !selectedRoleId) {
-      setError('Please select a role')
+    if (!selectedRoleId) {
+      notify('Please select a role first', 'warning', 3000)
       return
     }
-    if (activeTab === 'user' && !selectedUserId) {
-      setError('Please select a user')
-      return
-    }
-
-    setSaving(true)
-    setError(null)
-    setSuccessMessage(null)
 
     try {
-      const endpoint =
-        activeTab === 'role'
-          ? `/api/settings/menu-permissions/role/${selectedRoleId}`
-          : `/api/settings/menu-permissions/user/${selectedUserId}`
-
-      const res = await fetch(endpoint, {
-        method: 'PUT',
+      setSaving(true)
+      const res = await fetch(`/api/settings/menu-permissions/role/${selectedRoleId}`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          menuKeys: Array.from(selectedMenuKeys),
-        }),
+        body: JSON.stringify({ menuKeys: enabledMenuKeys })
       })
 
-      const data = await res.json()
-
-      if (data.success) {
-        setSuccessMessage('Menu permissions updated successfully!')
-        setTimeout(() => setSuccessMessage(null), 3000)
+      if (res.ok) {
+        notify('Menu permissions saved successfully!', 'success', 3000)
+        // Refresh role data to update counts
+        fetchRoles()
       } else {
-        setError(data.error || 'Failed to update menu permissions')
+        const data = await res.json()
+        notify(data.error || 'Failed to save menu permissions', 'error', 3000)
       }
-    } catch (err) {
-      setError('Error saving menu permissions')
-      console.error(err)
+    } catch (error) {
+      console.error('Error saving menu permissions:', error)
+      notify('Error saving menu permissions', 'error', 3000)
     } finally {
       setSaving(false)
     }
   }
 
-  const renderMenuTree = (menus: MenuPermission[], level: number = 0) => {
-    return menus.map((menu) => {
-      const isChecked = selectedMenuKeys.has(menu.key)
-      const hasChildren = menu.children && menu.children.length > 0
-
-      return (
-        <div key={menu.key} style={{ marginLeft: `${level * 24}px` }}>
-          <div className="flex items-center py-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded px-2">
-            <input
-              type="checkbox"
-              id={menu.key}
-              checked={isChecked}
-              onChange={(e) => handleMenuToggle(menu.key, e.target.checked, menu)}
-              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-            />
-            <label
-              htmlFor={menu.key}
-              className={`ml-2 text-sm ${
-                hasChildren ? 'font-semibold text-gray-900 dark:text-white' : 'font-normal text-gray-700 dark:text-gray-300'
-              } cursor-pointer select-none`}
-            >
-              {menu.name}
-              {menu.href && (
-                <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                  ({menu.href})
-                </span>
-              )}
-            </label>
-          </div>
-          {hasChildren && (
-            <div className="ml-2 border-l-2 border-gray-200 dark:border-gray-700">
-              {renderMenuTree(menu.children!, level + 1)}
-            </div>
-          )}
-        </div>
-      )
+  const toggleMenuKey = (menuKey: string, checked: boolean) => {
+    setEnabledMenuKeys(prev => {
+      if (checked) {
+        // Add if not already present
+        if (!prev.includes(menuKey)) {
+          return [...prev, menuKey]
+        }
+        return prev
+      } else {
+        // Remove if present
+        return prev.filter(k => k !== menuKey)
+      }
     })
   }
 
-  if (!canViewRoles && !canViewUsers) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 px-4 py-3 rounded">
-          You do not have permission to view menu permissions.
-        </div>
-      </div>
-    )
+  const toggleAll = (checked: boolean) => {
+    if (checked) {
+      setEnabledMenuKeys(allMenus.map(m => m.key))
+    } else {
+      setEnabledMenuKeys([])
+    }
+  }
+
+  const selectedRole = roles.find(r => r.id === selectedRoleId)
+
+  // Group menus by parent (support 3 levels: parent → child → grandchild)
+  const parentMenus = allMenus.filter(m => m.parentId === null)
+  const childMenusByParent = allMenus.reduce((acc, menu) => {
+    if (menu.parentId !== null) {
+      if (!acc[menu.parentId]) {
+        acc[menu.parentId] = []
+      }
+      acc[menu.parentId].push(menu)
+    }
+    return acc
+  }, {} as Record<number, MenuPermission[]>)
+
+  // Check if a menu has children
+  const hasChildren = (menuId: number) => {
+    return (childMenusByParent[menuId] || []).length > 0
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-8 max-w-7xl mx-auto">
+      <LoadPanel visible={loading} />
+
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Menu Permissions</h1>
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-          Configure which menu items are visible to roles and users. User permissions override role permissions.
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Menu Permissions</h1>
+        <p className="text-gray-600 dark:text-gray-400 mt-2">
+          Control which menu items are visible to each role
         </p>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200 dark:border-gray-700 mb-6">
-        <nav className="-mb-px flex space-x-8">
-          {canViewRoles && (
-            <button
-              onClick={() => setActiveTab('role')}
-              className={`${
-                activeTab === 'role'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
-            >
-              Role Permissions
-            </button>
-          )}
-          {canViewUsers && (
-            <button
-              onClick={() => setActiveTab('user')}
-              className={`${
-                activeTab === 'user'
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
-              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors`}
-            >
-              User Permissions
-            </button>
-          )}
-        </nav>
-      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Role Selection */}
+        <div className="lg:col-span-1">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Select Role</h2>
 
-      {/* Selection Dropdown */}
-      <div className="mb-6">
-        {activeTab === 'role' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Select Role
-            </label>
-            <select
-              value={selectedRoleId || ''}
-              onChange={(e) => setSelectedRoleId(parseInt(e.target.value))}
-              className="w-full max-w-md px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+            <DataGrid
+              dataSource={roles}
+              keyExpr="id"
+              selection={{ mode: 'single' }}
+              hoverStateEnabled={true}
+              onSelectionChanged={(e) => {
+                if (e.selectedRowsData.length > 0) {
+                  setSelectedRoleId(e.selectedRowsData[0].id)
+                }
+              }}
+              height={500}
+              showBorders={true}
             >
-              <option value="">-- Select a role --</option>
-              {roles.map((role) => (
-                <option key={role.id} value={role.id}>
-                  {role.name}
-                </option>
-              ))}
-            </select>
+              <SearchPanel visible={true} placeholder="Search roles..." />
+              <Scrolling mode="virtual" />
+              <Column dataField="displayName" caption="Role Name" />
+              <Column
+                dataField="menuPermissionCount"
+                caption="Menus"
+                width={80}
+                alignment="center"
+              />
+            </DataGrid>
           </div>
-        )}
-
-        {activeTab === 'user' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Select User
-            </label>
-            <select
-              value={selectedUserId || ''}
-              onChange={(e) => setSelectedUserId(parseInt(e.target.value))}
-              className="w-full max-w-md px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
-            >
-              <option value="">-- Select a user --</option>
-              {users.map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.username} - {user.firstName} {user.surname}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-      </div>
-
-      {/* Messages */}
-      {error && (
-        <div className="mb-6 bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-200 px-4 py-3 rounded">
-          {error}
         </div>
-      )}
 
-      {successMessage && (
-        <div className="mb-6 bg-green-100 dark:bg-green-900 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-200 px-4 py-3 rounded">
-          {successMessage}
-        </div>
-      )}
-
-      {/* Menu Tree */}
-      {((activeTab === 'role' && selectedRoleId) || (activeTab === 'user' && selectedUserId)) && (
-        <>
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <p className="mt-2 text-gray-600 dark:text-gray-400">Loading menu permissions...</p>
+        {/* Right: Menu Permissions */}
+        <div className="lg:col-span-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  {selectedRole ? `${selectedRole.displayName} - Menu Access` : 'Menu Access'}
+                </h2>
+                {selectedRole && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    {enabledMenuKeys.length} of {allMenus.length} menus enabled
+                  </p>
+                )}
+              </div>
+              {selectedRole && (
+                <div className="flex gap-2">
+                  <Button
+                    text="Select All"
+                    type="default"
+                    onClick={() => toggleAll(true)}
+                    disabled={saving}
+                  />
+                  <Button
+                    text="Deselect All"
+                    type="normal"
+                    onClick={() => toggleAll(false)}
+                    disabled={saving}
+                  />
+                  <Button
+                    text="Save Changes"
+                    type="success"
+                    icon="save"
+                    onClick={handleSave}
+                    disabled={saving || !selectedRole}
+                  />
+                </div>
+              )}
             </div>
-          ) : (
-            <>
-              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6 max-h-[600px] overflow-y-auto">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                  Available Menus ({selectedMenuKeys.size} selected)
-                </h3>
-                <div className="space-y-1">{renderMenuTree(menuStructure)}</div>
-              </div>
 
-              <div className="flex justify-end space-x-4">
-                <button
-                  onClick={() => router.back()}
-                  className="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={
-                    saving ||
-                    (activeTab === 'role' && !canUpdateRoles) ||
-                    (activeTab === 'user' && !canUpdateUsers)
-                  }
-                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                >
-                  {saving ? 'Saving...' : 'Save Menu Permissions'}
-                </button>
+            {!selectedRole && (
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                <p className="text-lg">Select a role to manage menu permissions</p>
               </div>
-            </>
-          )}
-        </>
-      )}
+            )}
 
-      {!selectedRoleId && !selectedUserId && (
-        <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-          <p>Please select a {activeTab} to configure menu permissions.</p>
+            {selectedRole && (
+              <div className="space-y-4 max-h-[600px] overflow-y-auto">
+                {parentMenus.map(parent => {
+                  const children = childMenusByParent[parent.id] || []
+                  const isParentChecked = enabledMenuKeys.includes(parent.key)
+
+                  return (
+                    <div key={parent.id} className="border dark:border-gray-700 rounded-lg p-4">
+                      <div className="flex items-start gap-3 mb-3">
+                        <CheckBox
+                          value={isParentChecked}
+                          onValueChanged={(e) => toggleMenuKey(parent.key, e.value)}
+                        />
+                        <div className="flex-1">
+                          <div className="font-semibold text-gray-900 dark:text-white">
+                            {parent.name}
+                            {children.length > 0 && (
+                              <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">#</span>
+                            )}
+                          </div>
+                          {parent.href && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              {parent.href}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {children.length > 0 && (
+                        <div className="ml-8 space-y-2 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
+                          {children.map(child => {
+                            const isChildChecked = enabledMenuKeys.includes(child.key)
+                            const grandchildren = childMenusByParent[child.id] || []
+                            const hasGrandchildren = grandchildren.length > 0
+
+                            return (
+                              <div key={child.id} className="space-y-2">
+                                <div className="flex items-start gap-3">
+                                  <CheckBox
+                                    value={isChildChecked}
+                                    onValueChanged={(e) => toggleMenuKey(child.key, e.value)}
+                                  />
+                                  <div className="flex-1">
+                                    <div className="text-sm text-gray-800 dark:text-gray-200">
+                                      {child.name}
+                                      {hasGrandchildren && (
+                                        <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">#</span>
+                                      )}
+                                    </div>
+                                    {child.href && (
+                                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                                        {child.href}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Grandchildren (3rd level) */}
+                                {hasGrandchildren && (
+                                  <div className="ml-8 space-y-2 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
+                                    {grandchildren.map(grandchild => {
+                                      const isGrandchildChecked = enabledMenuKeys.includes(grandchild.key)
+                                      return (
+                                        <div key={grandchild.id} className="flex items-start gap-3">
+                                          <CheckBox
+                                            value={isGrandchildChecked}
+                                            onValueChanged={(e) => toggleMenuKey(grandchild.key, e.value)}
+                                          />
+                                          <div className="flex-1">
+                                            <div className="text-xs text-gray-700 dark:text-gray-300">
+                                              {grandchild.name}
+                                            </div>
+                                            {grandchild.href && (
+                                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                {grandchild.href}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }

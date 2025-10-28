@@ -53,7 +53,7 @@ export default function RolesPage() {
       const res = await fetch('/api/roles')
       if (res.ok) {
         const data = await res.json()
-        setRoles(data)
+        setRoles(data.data || data)
       }
     } catch (err) {
       console.error(err)
@@ -79,7 +79,7 @@ export default function RolesPage() {
       const res = await fetch('/api/locations')
       if (res.ok) {
         const data = await res.json()
-        setLocations(data.locations || [])
+        setLocations(data.data || data.locations || [])
       }
     } catch (err) {
       console.error(err)

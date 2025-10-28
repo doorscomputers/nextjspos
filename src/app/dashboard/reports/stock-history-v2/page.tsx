@@ -138,15 +138,16 @@ export default function StockHistoryV2Page() {
     try {
       const response = await fetch('/api/locations')
       const data = await response.json()
-      if (response.ok && data.locations) {
-        setLocations(data.locations)
-        // Auto-select first location if available
-        if (data.locations.length > 0) {
-          setSelectedLocationId(data.locations[0].id)
-        }
+      // API returns { success: true, data: locations }
+      const locationsList = data.data || data.locations || []
+      setLocations(locationsList)
+      // Auto-select first location if available
+      if (locationsList.length > 0) {
+        setSelectedLocationId(locationsList[0].id)
       }
     } catch (error) {
       console.error('Error fetching locations:', error)
+      setLocations([])
     }
   }
 
@@ -361,7 +362,7 @@ export default function StockHistoryV2Page() {
               <Button
                 onClick={onExportingToPDF}
                 disabled={!history.length}
-                variant="outline"
+                className="bg-red-600 hover:bg-red-700 text-white font-medium border-2 border-red-700 hover:border-red-800 shadow-md hover:shadow-lg transition-all disabled:opacity-50"
               >
                 Export to PDF
               </Button>
@@ -371,8 +372,8 @@ export default function StockHistoryV2Page() {
                   setEndDate('')
                   setAutoCorrect(false)
                 }}
-                variant="ghost"
                 disabled={!startDate && !endDate && !autoCorrect}
+                className="bg-gray-600 hover:bg-gray-700 text-white font-medium border-2 border-gray-700 hover:border-gray-800 shadow-md hover:shadow-lg transition-all disabled:opacity-50"
               >
                 Clear Filters
               </Button>

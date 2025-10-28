@@ -109,6 +109,9 @@ model User {
   createdServiceClaims         ServiceWarrantyClaim[]     @relation("ServiceClaimCreatedBy")
   receivedServicePayments      ServiceRepairPayment[]     @relation("ServicePaymentReceivedBy")
 
+  // AI Assistant Relations
+  savedQuestions               SavedQuestion[]
+
   @@map("users")
 }
 
@@ -225,6 +228,9 @@ model Business {
   serviceWarrantyClaims  ServiceWarrantyClaim[]     @relation("BusinessServiceWarrantyClaims")
   repairJobOrders        RepairJobOrder[]           @relation("BusinessRepairJobOrders")
   serviceRepairPayments  ServiceRepairPayment[]     @relation("BusinessServiceRepairPayments")
+
+  // AI Assistant Relations
+  savedQuestions         SavedQuestion[]
 
   @@map("business")
 }
@@ -3471,6 +3477,34 @@ model FiscalPeriod {
   @@index([fiscalYear])
   @@index([startDate, endDate])
   @@map("fiscal_periods")
+}
+
+// ============================================
+// AI ASSISTANT - SAVED QUESTIONS
+// ============================================
+
+// SavedQuestion - Store frequently asked questions for AI assistant
+model SavedQuestion {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessId Int      @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Question details
+  question   String   @db.Text
+  category   String?  @db.VarChar(50) // Optional: sales, inventory, reports, etc.
+  usageCount Int      @default(0) @map("usage_count") // Track how often it's used
+
+  // Timestamps
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  lastUsedAt DateTime? @map("last_used_at")
+
+  @@index([userId])
+  @@index([businessId])
+  @@index([usageCount])
+  @@map("saved_questions")
 }
 
 // Account Balances - Period-end balances for each account

@@ -73,11 +73,12 @@ export async function GET(
       }
     })
 
-    // Get all locations for this business
+    // Get all active locations for this business
     const locations = await prisma.businessLocation.findMany({
       where: {
         businessId: parseInt(businessId),
-        deletedAt: null
+        deletedAt: null,
+        isActive: true
       },
       select: {
         id: true,
@@ -97,6 +98,11 @@ export async function GET(
     for (const variation of product.variations) {
       for (const locationDetail of variation.variationLocationDetails) {
         const location = locations.find(l => l.id === locationDetail.locationId)
+
+        // Only include stock details for active locations
+        if (!location) {
+          continue // Skip if location is not active (not found in active locations list)
+        }
 
         // Calculate aggregated values from stock transactions
         const transactionsForLocation = stockTransactions.filter(
@@ -124,7 +130,7 @@ export async function GET(
           sku: variation.sku,
           productName: variation.name,
           locationId: locationDetail.locationId,
-          locationName: location?.name || 'Unknown',
+          locationName: location.name,
           unitPrice,
           currentStock,
           stockValue,
