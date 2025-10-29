@@ -41,16 +41,19 @@ T9dmEqtofzClYPr/pXY/NdhXPBzrFuWiR9TVjYYpr8U=
 
 ```
 postgresql://postgres.[PROJECT-REF]:[YOUR-PASSWORD]@aws-0-[region].pooler.supabase.com:6543/postgres
+
 ```
 
 5. **Copy this string** and replace `[YOUR-PASSWORD]` with the password you created in Step 1
 
 **Example:**
+
 ```
 postgresql://postgres.abcdefghijklmnop:MyStr0ng!Pass@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres
 ```
 
 **Add the pgbouncer parameter:**
+
 ```
 postgresql://postgres.abcdefghijklmnop:MyStr0ng!Pass@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true
 ```
@@ -68,7 +71,7 @@ postgresql://postgres.abcdefghijklmnop:MyStr0ng!Pass@aws-0-ap-southeast-1.pooler
 
 ```bash
 # Set the DATABASE_URL (use the connection string from Step 2, but change port to 5432)
-$env:DATABASE_URL="postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres"
+$env:DATABASE_URL="postgresql://postgres.[YOUR-REF]:[YOUR-PASSWORD]@aws-0-[region].pooler.supabase.com:5432/postgres"
 
 # Push the schema
 npx prisma db push
@@ -81,6 +84,7 @@ npm run db:seed
 ```
 
 **Expected output:**
+
 ```
 ✔ Datasource "db": PostgreSQL database
 ✔ Your database is now in sync with your Prisma schema
@@ -156,13 +160,13 @@ NEXT_PUBLIC_APP_URL=https://________________.vercel.app
 
 **Add one by one:**
 
-| Name | Value |
-|------|-------|
-| `DATABASE_URL` | Your Supabase connection string (port 6543 + pgbouncer=true) |
-| `NEXTAUTH_SECRET` | `T9dmEqtofzClYPr/pXY/NdhXPBzrFuWiR9TVjYYpr8U=` |
-| `NEXTAUTH_URL` | `https://your-project-name.vercel.app` |
-| `NEXT_PUBLIC_APP_NAME` | `UltimatePOS Modern` |
-| `NEXT_PUBLIC_APP_URL` | `https://your-project-name.vercel.app` |
+| Name                   | Value                                                        |
+| ---------------------- | ------------------------------------------------------------ |
+| `DATABASE_URL`         | Your Supabase connection string (port 6543 + pgbouncer=true) |
+| `NEXTAUTH_SECRET`      | `T9dmEqtofzClYPr/pXY/NdhXPBzrFuWiR9TVjYYpr8U=`               |
+| `NEXTAUTH_URL`         | `https://your-project-name.vercel.app`                       |
+| `NEXT_PUBLIC_APP_NAME` | `UltimatePOS Modern`                                         |
+| `NEXT_PUBLIC_APP_URL`  | `https://your-project-name.vercel.app`                       |
 
 **IMPORTANT NOTES:**
 
@@ -214,16 +218,19 @@ DATABASE_URL=postgresql://...@host:6543/postgres?pgbouncer=true
 **Before deploying, you choose the project name:**
 
 When you import from GitHub, Vercel shows:
+
 ```
 Project Name: [your-project-name]
 ```
 
 Your URL will be:
+
 ```
 https://[your-project-name].vercel.app
 ```
 
 **Example:**
+
 - Project Name: `ultimatepos-test`
 - Your URL: `https://ultimatepos-test.vercel.app`
 
@@ -276,11 +283,13 @@ Value: https://your-project-name.vercel.app
 ### If Supabase Connection String Looks Different:
 
 **Your string should look like this:**
+
 ```
 postgresql://postgres.abcdefghijklmnop:YourPassword@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres
 ```
 
 **Parts:**
+
 - `postgres.abcdefghijklmnop` - Your project reference
 - `YourPassword` - The password you created
 - `aws-0-ap-southeast-1` - Your region
@@ -288,11 +297,13 @@ postgresql://postgres.abcdefghijklmnop:YourPassword@aws-0-ap-southeast-1.pooler.
 - `/postgres` - Database name
 
 **Then add:**
+
 ```
 ?pgbouncer=true
 ```
 
 **Final:**
+
 ```
 postgresql://postgres.abcdefghijklmnop:YourPassword@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true
 ```
@@ -302,6 +313,7 @@ postgresql://postgres.abcdefghijklmnop:YourPassword@aws-0-ap-southeast-1.pooler.
 ## ✅ You're Ready!
 
 Once you have:
+
 - ✅ Supabase database created
 - ✅ Connection string ready
 - ✅ Database schema pushed
@@ -315,16 +327,19 @@ Once you have:
 ## 📞 Troubleshooting
 
 ### "Cannot connect to database"
+
 - Check DATABASE_URL has correct password
 - Verify port is 6543 (not 5432)
 - Ensure `?pgbouncer=true` is at the end
 
 ### "Invalid credentials" when logging in
+
 - Check NEXTAUTH_URL matches your deployment URL exactly
 - Verify NEXTAUTH_SECRET is set
 - No trailing slash on NEXTAUTH_URL
 
 ### Build fails on Vercel
+
 - Check Vercel logs (Deployments → Your deployment → Logs)
 - Verify all required env vars are set
 - Check if Prisma generated correctly

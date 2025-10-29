@@ -202,7 +202,9 @@ export default function ProductsListV2Page() {
   const fetchProducts = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/products')
+      // Fetch all products for DevExtreme (it handles large datasets efficiently with virtual scrolling)
+      // Use a high limit to get all products in one go
+      const response = await fetch('/api/products?page=1&limit=10000&fullDetails=true')
       const data = await response.json()
 
       if (response.ok) {

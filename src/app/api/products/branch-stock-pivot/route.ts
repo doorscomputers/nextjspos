@@ -170,36 +170,55 @@ export async function POST(request: NextRequest) {
 
     console.log('[Branch Stock Pivot] Starting query for businessId:', businessId)
 
-    // Fetch stock records with pagination for better performance
+    // Fetch ALL stock records (needed for pivot table aggregation)
+    // Pagination happens AFTER pivoting, filtering, and sorting
     const stockData = await prisma.variationLocationDetails.findMany({
       where: {
         product: {
           businessId,
           deletedAt: null,
+          isActive: true, // Only fetch active products
+        },
+        productVariation: {
+          deletedAt: null,
         },
       },
-      include: {
+      select: {
+        productId: true,
+        productVariationId: true,
+        locationId: true,
+        qtyAvailable: true,
         product: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            sku: true,
+            image: true,
+            isActive: true,
             category: { select: { name: true } },
             brand: { select: { name: true } },
             unit: { select: { shortName: true } },
           },
         },
         productVariation: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            sku: true,
+            purchasePrice: true,
+            sellingPrice: true,
+            lastPurchaseDate: true,
+            lastPurchaseQuantity: true,
+            lastPurchaseCost: true,
             unit: { select: { shortName: true } },
             supplier: { select: { name: true } },
           },
         },
       },
-      // Allow access to all data but with proper pagination
-      take: baseLimit,
-      skip: (requestedPage - 1) * baseLimit,
       orderBy: [
         {
           product: {
-            name: isDescending ? 'desc' : 'asc',
+            name: 'asc',
           },
         },
         {

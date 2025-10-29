@@ -229,35 +229,49 @@ export async function POST(request: NextRequest) {
     const requestedPage = Math.max(1, Number(page) || 1)
     const isDescending = sortOrder === 'desc'
 
-    // Fetch stock records for the business with pagination
+    // Fetch ALL stock records for the business (needed for pivot table aggregation)
+    // Pagination happens AFTER pivoting, filtering, and sorting
     const stockData = await prisma.variationLocationDetails.findMany({
       where: {
         product: {
           businessId,
           deletedAt: null,
+          isActive: true, // Only fetch active products
+        },
+        productVariation: {
+          deletedAt: null,
         },
       },
-      include: {
+      select: {
+        productId: true,
+        productVariationId: true,
+        locationId: true,
+        qtyAvailable: true,
         product: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            sku: true,
+            image: true,
             category: { select: { name: true } },
             brand: { select: { name: true } },
             unit: { select: { shortName: true } },
           },
         },
         productVariation: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            sku: true,
+            sellingPrice: true,
             unit: { select: { shortName: true } },
           },
         },
       },
-      // Allow proper pagination without hard limits
-      take: baseLimit,
-      skip: (requestedPage - 1) * baseLimit,
       orderBy: [
         {
           product: {
-            name: isDescending ? 'desc' : 'asc',
+            name: 'asc',
           },
         },
         {

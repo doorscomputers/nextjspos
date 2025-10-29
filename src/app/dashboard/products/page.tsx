@@ -80,9 +80,11 @@ export default function ProductsPage() {
   })
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
 
-  // Pagination state
+  // Pagination state (server-side)
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [totalCount, setTotalCount] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
 
   // Column visibility state - Actions is now second (right after Product)
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
@@ -138,6 +140,10 @@ export default function ProductsPage() {
     try {
       const params = new URLSearchParams()
 
+      // Add pagination parameters
+      params.append('page', currentPage.toString())
+      params.append('limit', itemsPerPage.toString())
+
       // Add active filter
       if (activeFilter === 'active') {
         params.append('active', 'true')
@@ -157,13 +163,18 @@ export default function ProductsPage() {
       const data = await response.json()
       if (response.ok) {
         setProducts(data.products)
+        // Update pagination metadata from server
+        if (data.pagination) {
+          setTotalCount(data.pagination.totalCount)
+          setTotalPages(data.pagination.totalPages)
+        }
       }
     } catch (error) {
       console.error('Error fetching products:', error)
     } finally {
       setLoading(false)
     }
-  }, [activeFilter, filters])
+  }, [activeFilter, filters, currentPage, itemsPerPage])
 
   // Debounced fetch function to avoid excessive API calls
   const debouncedFetchProducts = useCallback(debounce(fetchProducts, 300), [fetchProducts])
@@ -457,15 +468,13 @@ export default function ProductsPage() {
     return '0.00'
   }
 
-  // Apply sorting to filtered products (server-side filtering is now done in API)
+  // Client-side sorting (only for current page)
   const { sortedData, sortConfig, requestSort } = useTableSort<Product>(products, { key: 'name', direction: 'asc' })
 
-  // Pagination logic
-  const totalItems = sortedData.length
-  const totalPages = Math.ceil(totalItems / itemsPerPage)
+  // Pagination is now server-side, so we use the products directly
+  const paginatedProducts = sortedData
   const startIndex = (currentPage - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const paginatedProducts = sortedData.slice(startIndex, endIndex)
+  const endIndex = startIndex + paginatedProducts.length
 
   // Define available columns for visibility toggle - Actions is second
   const availableColumns: Column[] = [
@@ -560,37 +569,37 @@ export default function ProductsPage() {
     exportToCSV({
       filename: 'products',
       columns: getExportColumns(),
-      data: sortedData,
+      data: paginatedProducts,
       title: 'Products'
     })
-    toast.success('Products exported to CSV')
+    toast.success(`Exported ${paginatedProducts.length} products from current page to CSV`)
   }
 
   const handleExportExcel = () => {
     exportToExcel({
       filename: 'products',
       columns: getExportColumns(),
-      data: sortedData,
+      data: paginatedProducts,
       title: 'Products'
     })
-    toast.success('Products exported to Excel')
+    toast.success(`Exported ${paginatedProducts.length} products from current page to Excel`)
   }
 
   const handleExportPDF = () => {
     exportToPDF({
       filename: 'products',
       columns: getExportColumns(),
-      data: sortedData,
+      data: paginatedProducts,
       title: 'Products Export'
     })
-    toast.success('Products exported to PDF')
+    toast.success(`Exported ${paginatedProducts.length} products from current page to PDF`)
   }
 
   const handlePrint = () => {
     printTable({
       filename: 'products',
       columns: getExportColumns(),
-      data: sortedData,
+      data: paginatedProducts,
       title: 'Products'
     })
   }
@@ -668,9 +677,9 @@ export default function ProductsPage() {
       <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
         <div className="bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-gray-700 shadow-sm">
           <ResultsInfo
-            startIndex={startIndex}
-            endIndex={endIndex}
-            totalItems={totalItems}
+            startIndex={startIndex + 1}
+            endIndex={Math.min(endIndex, totalCount)}
+            totalItems={totalCount}
             itemName="products"
           />
         </div>

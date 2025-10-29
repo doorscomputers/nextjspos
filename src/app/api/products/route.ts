@@ -27,8 +27,10 @@ export async function GET(request: NextRequest) {
     const forTransaction = searchParams.get('forTransaction') === 'true' // Only active products
     const stockEnabledOnly = searchParams.get('stockEnabled') === 'true' // Only products with stock tracking enabled
 
-    // Parse limit parameter
-    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined
+    // Parse pagination parameters
+    const page = searchParams.get('page') ? parseInt(searchParams.get('page')!) : 1
+    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 10
+    const fullDetails = searchParams.get('fullDetails') === 'true' // Whether to include full variation details
 
     // Multi-column filter parameters
     const search = searchParams.get('search')?.trim() || ''
@@ -130,42 +132,70 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    let products = await prisma.product.findMany({
-      where: whereClause,
-      include: {
-        category: true,
-        brand: true,
-        unit: true,
-        tax: true,
-        variations: {
-          where: { deletedAt: null },
-          include: {
-            variationLocationDetails: true,
-            supplier: {
-              select: {
-                id: true,
-                name: true
-              }
+    // Get total count for pagination
+    const totalCount = await prisma.product.count({
+      where: whereClause
+    })
+
+    // Calculate pagination
+    const skip = (page - 1) * limit
+    const totalPages = Math.ceil(totalCount / limit)
+
+    // Optimize query based on fullDetails flag
+    const includeConfig = fullDetails ? {
+      category: true,
+      brand: true,
+      unit: true,
+      tax: true,
+      variations: {
+        where: { deletedAt: null },
+        include: {
+          variationLocationDetails: true,
+          supplier: {
+            select: {
+              id: true,
+              name: true
             }
           }
         }
-      },
+      }
+    } : {
+      category: { select: { id: true, name: true } },
+      brand: { select: { id: true, name: true } },
+      unit: { select: { id: true, name: true, shortName: true } },
+      tax: { select: { id: true, name: true, amount: true } },
+      variations: {
+        where: { deletedAt: null },
+        select: {
+          id: true,
+          name: true,
+          sku: true,
+          variationLocationDetails: {
+            select: {
+              id: true,
+              qtyAvailable: true
+            }
+          }
+        }
+      }
+    }
+
+    let products = await prisma.product.findMany({
+      where: whereClause,
+      include: includeConfig,
       orderBy: { createdAt: 'desc' },
-      ...(limit && { take: limit })
+      skip: skip,
+      take: limit
     })
 
     // Apply stock filtering (client-side since it requires calculation)
+    // Note: This is only for the current page of products, not all products
     if (stockMin !== undefined || stockMax !== undefined) {
       products = products.filter(product => {
         if (!product.enableStock) return false // Only filter products that have stock enabled
 
         let totalStock = 0
-        if (product.type === 'variable') {
-          totalStock = product.variations.reduce((total, variation) => {
-            const varStock = variation.variationLocationDetails.reduce((sum, detail) => sum + Number(detail.qtyAvailable), 0)
-            return total + varStock
-          }, 0)
-        } else if (product.type === 'single') {
+        if (product.type === 'variable' || product.type === 'single') {
           totalStock = product.variations.reduce((total, variation) => {
             const varStock = variation.variationLocationDetails.reduce((sum, detail) => sum + Number(detail.qtyAvailable), 0)
             return total + varStock
@@ -178,8 +208,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    console.log(`[API /api/products] Found ${products.length} products for businessId ${businessId}`)
-    console.log('[API /api/products] First 3 products:', products.slice(0, 3).map(p => ({ id: p.id, sku: p.sku, name: p.name, variations: p.variations.length })))
+    console.log(`[API /api/products] Page ${page}/${totalPages}: Found ${products.length} products out of ${totalCount} total for businessId ${businessId}`)
 
     // Serialize Decimal fields to numbers for JSON
     const serializedProducts = products.map(product => ({
@@ -232,7 +261,15 @@ export async function GET(request: NextRequest) {
       return sanitized
     })
 
-    return NextResponse.json({ products: sanitizedProducts })
+    return NextResponse.json({
+      products: sanitizedProducts,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages
+      }
+    })
   } catch (error) {
     console.error('Error fetching products:', error)
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 })

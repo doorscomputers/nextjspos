@@ -50,14 +50,22 @@ export async function GET(request: Request) {
       },
     })
 
-    // Fetch product variations with location prices
+    // Fetch product variations with location prices (only active products)
     const productVariations = await prisma.productVariation.findMany({
       where: {
         product: {
           businessId,
+          isActive: true, // Only active products
+          deletedAt: null,
         },
+        deletedAt: null, // Only non-deleted variations
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        sellingPrice: true,
+        purchasePrice: true,
         product: {
           select: {
             id: true,

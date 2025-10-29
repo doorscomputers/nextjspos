@@ -1038,9 +1038,6 @@ export default function PurchaseItemsReportPage() {
             </ul>
           </div>
         </div>
-  )
-}
-        </div>
       )}
     </div>
   )
