@@ -921,6 +921,10 @@ model VariationLocationDetails {
   @@index([productVariationId])
   @@index([locationId])
   @@index([lastPriceUpdatedBy])
+  // Composite index for business queries (joins with Product table)
+  @@index([productId, locationId])
+  // Composite index for variation queries
+  @@index([productVariationId, locationId])
   @@map("variation_location_details")
 }
 

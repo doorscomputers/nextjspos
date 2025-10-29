@@ -71,7 +71,7 @@ export default function BranchStockPivotV2Page() {
         },
         body: JSON.stringify({
           page: 1,
-          limit: 10000, // Fetch all for DevExtreme to handle pagination
+          limit: 100, // Fetch reasonable amount for pagination
           sortKey: 'productName',
           sortOrder: 'asc',
           filters: {
@@ -309,7 +309,7 @@ export default function BranchStockPivotV2Page() {
           <SearchPanel visible={true} width={300} placeholder="Search products..." />
           <FilterRow visible={true} />
           <HeaderFilter visible={true} />
-          <Paging defaultPageSize={50} />
+          <Paging defaultPageSize={100} />
           <Grouping autoExpandAll={false} />
           <GroupPanel visible={true} emptyPanelText="Drag column headers here to group by category, supplier, or brand" />
 

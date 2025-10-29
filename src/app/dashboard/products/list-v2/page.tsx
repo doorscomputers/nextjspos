@@ -213,6 +213,19 @@ export default function ProductsListV2Page() {
           const totalStock = getTotalStock(product)
           const stockValue = totalStock !== 'N/A' ? parseFloat(totalStock) : 0
 
+          // Calculate total cost (sum of all variation costs)
+          let totalCost = 0
+          if (product.variations && product.variations.length > 0) {
+            totalCost = product.variations.reduce((sum, variation) => {
+              const cost = variation.purchasePrice ? parseFloat(variation.purchasePrice.toString()) : 0
+              const stock = variation.variationLocationDetails.reduce(
+                (stockSum, detail) => stockSum + parseFloat(detail.qtyAvailable.toString()),
+                0
+              )
+              return sum + (cost * stock)
+            }, 0)
+          }
+
           // Get last supplier and last purchase info from variations
           let lastSupplier = '-'
           let latestSupplier = '-'

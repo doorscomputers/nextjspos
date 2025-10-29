@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
 
     console.log('[Branch Stock Pivot] Starting query for businessId:', businessId)
 
-    // Fetch stock records with supplier and last purchase info
+    // Fetch stock records with pagination for better performance
     const stockData = await prisma.variationLocationDetails.findMany({
       where: {
         product: {
@@ -193,6 +193,21 @@ export async function POST(request: NextRequest) {
           },
         },
       },
+      // Allow access to all data but with proper pagination
+      take: baseLimit,
+      skip: (requestedPage - 1) * baseLimit,
+      orderBy: [
+        {
+          product: {
+            name: isDescending ? 'desc' : 'asc',
+          },
+        },
+        {
+          productVariation: {
+            name: 'asc',
+          },
+        },
+      ],
     })
 
     console.log('[Branch Stock Pivot] Found stock data records:', stockData.length)

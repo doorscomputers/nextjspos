@@ -229,7 +229,7 @@ export async function POST(request: NextRequest) {
     const requestedPage = Math.max(1, Number(page) || 1)
     const isDescending = sortOrder === 'desc'
 
-    // Fetch stock records for the business
+    // Fetch stock records for the business with pagination
     const stockData = await prisma.variationLocationDetails.findMany({
       where: {
         product: {
@@ -251,6 +251,21 @@ export async function POST(request: NextRequest) {
           },
         },
       },
+      // Allow proper pagination without hard limits
+      take: baseLimit,
+      skip: (requestedPage - 1) * baseLimit,
+      orderBy: [
+        {
+          product: {
+            name: isDescending ? 'desc' : 'asc',
+          },
+        },
+        {
+          productVariation: {
+            name: 'asc',
+          },
+        },
+      ],
     })
 
     const allLocations = await prisma.businessLocation.findMany({
