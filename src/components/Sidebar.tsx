@@ -199,42 +199,6 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
     }
   }, [searchQuery])
 
-  // Memoized menu filtering logic (major performance optimization)
-  const filteredMenuItems = useMemo(() => {
-    const filterMenuItems = (items: MenuItem[], query: string): MenuItem[] => {
-      if (!query) return items
-
-      const lowercaseQuery = query.toLowerCase()
-
-      return items.reduce<MenuItem[]>((acc, item) => {
-        const matchesItem = item.name.toLowerCase().includes(lowercaseQuery)
-
-        // Filter children first and check their permissions AND menu permissions
-        let filteredChildren: MenuItem[] | undefined = undefined
-        if (item.children) {
-          filteredChildren = item.children
-            .filter(child => child.name.toLowerCase().includes(lowercaseQuery))
-            .filter(child => !child.permission || can(child.permission))
-            .filter(child => hasMenuPermissionAccess(child.key))
-        }
-
-        if (matchesItem || (filteredChildren && filteredChildren.length > 0)) {
-          acc.push({
-            ...item,
-            children: matchesItem ? item.children : filteredChildren,
-          })
-        }
-
-        return acc
-      }, [])
-    }
-
-    // Filter by search query first, then by parent permissions AND menu permissions
-    return filterMenuItems(menuItems, searchQuery)
-      .filter(item => !item.permission || can(item.permission))
-      .filter(item => hasMenuPermissionAccess(item.key))
-  }, [menuItems, searchQuery, can, hasMenuPermissionAccess])
-
   const menuItems: MenuItem[] = [
     // ========== CORE OPERATIONS ==========
     {
@@ -1399,6 +1363,42 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
       // No permission check - all users can access their profile
     },
     ]
+
+  // Memoized menu filtering logic (major performance optimization)
+  const filteredMenuItems = useMemo(() => {
+    const filterMenuItems = (items: MenuItem[], query: string): MenuItem[] => {
+      if (!query) return items
+
+      const lowercaseQuery = query.toLowerCase()
+
+      return items.reduce<MenuItem[]>((acc, item) => {
+        const matchesItem = item.name.toLowerCase().includes(lowercaseQuery)
+
+        // Filter children first and check their permissions AND menu permissions
+        let filteredChildren: MenuItem[] | undefined = undefined
+        if (item.children) {
+          filteredChildren = item.children
+            .filter(child => child.name.toLowerCase().includes(lowercaseQuery))
+            .filter(child => !child.permission || can(child.permission))
+            .filter(child => hasMenuPermissionAccess(child.key))
+        }
+
+        if (matchesItem || (filteredChildren && filteredChildren.length > 0)) {
+          acc.push({
+            ...item,
+            children: matchesItem ? item.children : filteredChildren,
+          })
+        }
+
+        return acc
+      }, [])
+    }
+
+    // Filter by search query first, then by parent permissions AND menu permissions
+    return filterMenuItems(menuItems, searchQuery)
+      .filter(item => !item.permission || can(item.permission))
+      .filter(item => hasMenuPermissionAccess(item.key))
+  }, [menuItems, searchQuery, can, hasMenuPermissionAccess])
 
   return (
     <aside
