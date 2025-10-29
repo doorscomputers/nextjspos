@@ -21,28 +21,13 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 })
     }
 
-    // Get user with their roles
+    // Get user basic info first
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: {
-        roles: {
-          include: {
-            role: {
-              include: {
-                menuPermissions: {
-                  include: {
-                    menuPermission: true
-                  }
-                }
-              }
-            }
-          }
-        },
-        menuPermissions: {
-          include: {
-            menuPermission: true
-          }
-        }
+      select: {
+        id: true,
+        username: true,
+        businessId: true,
       }
     })
 
@@ -50,18 +35,53 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Collect all menu keys from roles
-    const roleMenuKeys = new Set<string>()
-    user.roles.forEach(userRole => {
-      userRole.role.menuPermissions.forEach(rmp => {
-        roleMenuKeys.add(rmp.menuPermission.key)
+    // Use parallel queries instead of nested includes for better performance
+    const [userRoles, userMenuPermissions] = await Promise.all([
+      // Get user's role IDs
+      prisma.userRole.findMany({
+        where: { userId },
+        select: { roleId: true }
+      }),
+      // Get user's direct menu permissions
+      prisma.userMenuPermission.findMany({
+        where: { userId },
+        include: {
+          menuPermission: {
+            select: { key: true }
+          }
+        }
       })
+    ])
+
+    // Extract role IDs
+    const roleIds = userRoles.map(ur => ur.roleId)
+
+    // Get menu permissions for all roles in one query
+    const roleMenuPermissions = roleIds.length > 0
+      ? await prisma.roleMenuPermission.findMany({
+          where: { roleId: { in: roleIds } },
+          include: {
+            menuPermission: {
+              select: { key: true }
+            }
+          }
+        })
+      : []
+
+    // Collect all menu keys from roles (simplified loop)
+    const roleMenuKeys = new Set<string>()
+    roleMenuPermissions.forEach(rmp => {
+      if (rmp.menuPermission?.key) {
+        roleMenuKeys.add(rmp.menuPermission.key)
+      }
     })
 
     // Collect user-specific menu keys (overrides)
     const userMenuKeys = new Set<string>()
-    user.menuPermissions.forEach(ump => {
-      userMenuKeys.add(ump.menuPermission.key)
+    userMenuPermissions.forEach(ump => {
+      if (ump.menuPermission?.key) {
+        userMenuKeys.add(ump.menuPermission.key)
+      }
     })
 
     // Combine: user overrides take precedence, then fall back to role permissions

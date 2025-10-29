@@ -2,7 +2,7 @@
 
 import { signOut, useSession } from "next-auth/react"
 import { Bars3Icon, BellIcon, UserCircleIcon, CheckIcon } from "@heroicons/react/24/outline"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -34,32 +34,29 @@ export default function Header({ toggleSidebar }: HeaderProps) {
   const { data: session } = useSession()
   const user = session?.user as any
 
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-      if (!target.closest('.user-menu-container') && !target.closest('.notifications-container')) {
-        setShowUserMenu(false)
-        setShowNotifications(false)
-      }
+  // Optimized click outside handler with useCallback
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    const target = event.target as HTMLElement
+    if (!target.closest('.user-menu-container') && !target.closest('.notifications-container')) {
+      setShowUserMenu(false)
+      setShowNotifications(false)
     }
+  }, [])
 
+  // Close dropdowns when clicking outside (optimized)
+  useEffect(() => {
     if (showUserMenu || showNotifications) {
       document.addEventListener('mousedown', handleClickOutside)
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [showUserMenu, showNotifications])
+  }, [showUserMenu, showNotifications, handleClickOutside])
 
-  // Fetch notifications
-  useEffect(() => {
-    fetchNotifications()
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000)
-    return () => clearInterval(interval)
-  }, [])
+  // Optimized notification fetching with useCallback
+  const fetchNotifications = useCallback(async () => {
+    if (loading) return // Prevent concurrent requests
 
-  async function fetchNotifications() {
     try {
+      setLoading(true)
       const response = await fetch('/api/notifications?limit=10')
       if (response.ok) {
         const data = await response.json()
@@ -68,10 +65,21 @@ export default function Header({ toggleSidebar }: HeaderProps) {
       }
     } catch (error) {
       console.error('Error fetching notifications:', error)
+    } finally {
+      setLoading(false)
     }
-  }
+  }, [loading])
 
-  async function markAsRead(notificationId: number) {
+  // Optimized notification polling with reduced frequency
+  useEffect(() => {
+    fetchNotifications()
+    // Poll for new notifications every 2 minutes instead of 30 seconds (better performance)
+    const interval = setInterval(fetchNotifications, 120000)
+    return () => clearInterval(interval)
+  }, [fetchNotifications])
+
+  // Optimized markAsRead with useCallback
+  const markAsRead = useCallback(async (notificationId: number) => {
     try {
       const response = await fetch(`/api/notifications/${notificationId}/mark-read`, {
         method: 'PUT'
@@ -82,9 +90,10 @@ export default function Header({ toggleSidebar }: HeaderProps) {
     } catch (error) {
       console.error('Error marking notification as read:', error)
     }
-  }
+  }, [fetchNotifications])
 
-  async function markAllAsRead() {
+  // Optimized markAllAsRead with useCallback
+  const markAllAsRead = useCallback(async () => {
     try {
       setLoading(true)
       const response = await fetch('/api/notifications/mark-all-read', {
@@ -98,7 +107,7 @@ export default function Header({ toggleSidebar }: HeaderProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [fetchNotifications])
 
   function handleNotificationClick(notification: Notification) {
     if (!notification.isRead) {

@@ -2475,6 +2475,10 @@ model CashierShift {
   @@index([userId])
   @@index([status])
   @@index([openedAt])
+  // Composite index for the common query pattern: businessId + status + locationId
+  @@index([businessId, status, locationId])
+  // Composite index for user shift queries: businessId + userId + status
+  @@index([businessId, userId, status])
   @@map("cashier_shifts")
 }
 

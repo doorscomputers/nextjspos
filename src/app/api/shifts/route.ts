@@ -81,56 +81,68 @@ export async function GET(request: NextRequest) {
       whereClause.userId = parseInt(userId)
     }
 
+    // Get all unique user IDs and location IDs from shifts
     const shifts = await prisma.cashierShift.findMany({
       where: whereClause,
       orderBy: { openedAt: 'desc' },
       take: Math.min(limit, 200), // Max 200 to prevent abuse
     })
 
-    // Fetch user and location data separately since relations don't exist in schema
-    const shiftsWithDetails = await Promise.all(
-      shifts.map(async (shift) => {
-        const [user, location] = await Promise.all([
-          prisma.user.findUnique({
-            where: { id: shift.userId },
-            select: {
-              id: true,
-              username: true,
-              firstName: true,
-              lastName: true,
-              surname: true,
-            },
-          }),
-          prisma.businessLocation.findUnique({
-            where: { id: shift.locationId },
-            select: {
-              id: true,
-              name: true,
-            },
-          }),
-        ])
+    // Batch fetch all users and locations to avoid N+1 queries
+    const userIds = [...new Set(shifts.map(shift => shift.userId))]
+    const locationIds = [...new Set(shifts.map(shift => shift.locationId))]
 
-        return {
-          ...shift,
-          user: user ? {
-            id: user.id,
-            username: user.username,
-            name: `${user.firstName} ${user.lastName || ''}`.trim() || user.username,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            surname: user.surname,
-          } : {
-            id: shift.userId,
-            username: 'Unknown',
-            name: 'Unknown User',
-            firstName: 'Unknown',
-            lastName: null,
-            surname: 'Unknown',
-          },
-          location: location || { id: shift.locationId, name: 'Unknown Location' },
-        }
-      })
-    )
+    const [users, locations] = await Promise.all([
+      // Fetch all users in one query
+      userIds.length > 0 ? prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: {
+          id: true,
+          username: true,
+          firstName: true,
+          lastName: true,
+          surname: true,
+        },
+      }) : [],
+      // Fetch all locations in one query
+      locationIds.length > 0 ? prisma.businessLocation.findMany({
+        where: { id: { in: locationIds } },
+        select: {
+          id: true,
+          name: true,
+        },
+      }) : [],
+    ])
+
+    // Create lookup maps for O(1) access
+    const userMap = new Map(users.map(user => [user.id, user]))
+    const locationMap = new Map(locations.map(location => [location.id, location]))
+
+    // Combine data without additional database queries
+    const shiftsWithDetails = shifts.map(shift => {
+      const user = userMap.get(shift.userId)
+      const location = locationMap.get(shift.locationId)
+
+      return {
+        ...shift,
+        user: user ? {
+          id: user.id,
+          username: user.username,
+          name: `${user.firstName} ${user.lastName || ''}`.trim() || user.username,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          surname: user.surname,
+        } : {
+          id: shift.userId,
+          username: 'Unknown',
+          name: 'Unknown User',
+          firstName: 'Unknown',
+          lastName: null,
+          surname: 'Unknown',
+        },
+        location: location || { id: shift.locationId, name: 'Unknown Location' },
+      }
+    })
 
     return NextResponse.json({ shifts: shiftsWithDetails })
   } catch (error: any) {

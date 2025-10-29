@@ -146,17 +146,18 @@ export function useIdleTimer({
   }, [reset])
 
   /**
-   * Handle user activity
+   * Handle user activity (optimized with better throttling)
    */
   const handleActivity = useCallback(() => {
     if (!enabled || isPaused) return
 
-    // Throttle activity handler to avoid excessive resets
+    // Better throttling to avoid excessive resets - increased to 2 seconds
     const now = Date.now()
     const timeSinceLastActivity = now - lastActivityRef.current
 
-    // Only reset if more than 1 second has passed since last activity
-    if (timeSinceLastActivity > 1000) {
+    // Only reset if more than 2 seconds have passed since last activity
+    // This reduces the number of timer resets significantly
+    if (timeSinceLastActivity > 2000) {
       reset()
     }
   }, [enabled, isPaused, reset])
@@ -181,19 +182,21 @@ export function useIdleTimer({
     // Initial setup
     reset()
 
-    // Events to track
+    // Optimized events to track (removed high-frequency 'mousemove' for better performance)
     const events = [
-      'mousedown',
-      'mousemove',
-      'keypress',
-      'scroll',
-      'touchstart',
-      'click'
+      'mousedown',   // Mouse down (less frequent than mousemove)
+      'keypress',    // Keyboard input
+      'scroll',      // Page scrolling
+      'touchstart',  // Touch devices
+      'click'        // Click events
     ]
 
-    // Add event listeners
+    // Add event listeners with passive flag for better performance
     events.forEach(event => {
-      document.addEventListener(event, handleActivity, { passive: true })
+      document.addEventListener(event, handleActivity, {
+        passive: true,
+        capture: false
+      })
     })
 
     // Cleanup

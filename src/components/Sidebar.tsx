@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { usePermissions } from "@/hooks/usePermissions"
 import { useBusiness } from "@/hooks/useBusiness"
 import { PERMISSIONS } from "@/lib/rbac"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback, memo } from "react"
 import {
   HomeIcon,
   UsersIcon,
@@ -50,7 +50,7 @@ interface MenuItem {
   children?: MenuItem[]
 }
 
-export default function Sidebar({ isOpen }: { isOpen: boolean }) {
+function SidebarComponent({ isOpen }: { isOpen: boolean }) {
   const pathname = usePathname()
   const { can, user } = usePermissions()
   const { companyName } = useBusiness()
@@ -159,8 +159,8 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
     }
   }
 
-  // Check if menu item has access based on menu permissions
-  const hasMenuPermissionAccess = (menuKey: string | undefined): boolean => {
+  // Check if menu item has access based on menu permissions (optimized with useCallback)
+  const hasMenuPermissionAccess = useCallback((menuKey: string | undefined): boolean => {
     // If no key, allow access (for backward compatibility)
     if (!menuKey) return true
 
@@ -172,7 +172,7 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
 
     // Check if the menu key is in the accessible list
     return accessibleMenuKeys.has(menuKey)
-  }
+  }, [accessibleMenuKeys, menuPermissionsLoaded])
 
   // Auto-expand menus when search changes
   useEffect(() => {
@@ -199,33 +199,41 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
     }
   }, [searchQuery])
 
-  const filterMenuItems = (items: MenuItem[], query: string): MenuItem[] => {
-    if (!query) return items
+  // Memoized menu filtering logic (major performance optimization)
+  const filteredMenuItems = useMemo(() => {
+    const filterMenuItems = (items: MenuItem[], query: string): MenuItem[] => {
+      if (!query) return items
 
-    const lowercaseQuery = query.toLowerCase()
+      const lowercaseQuery = query.toLowerCase()
 
-    return items.reduce<MenuItem[]>((acc, item) => {
-      const matchesItem = item.name.toLowerCase().includes(lowercaseQuery)
+      return items.reduce<MenuItem[]>((acc, item) => {
+        const matchesItem = item.name.toLowerCase().includes(lowercaseQuery)
 
-      // Filter children first and check their permissions AND menu permissions
-      let filteredChildren: MenuItem[] | undefined = undefined
-      if (item.children) {
-        filteredChildren = item.children
-          .filter(child => child.name.toLowerCase().includes(lowercaseQuery))
-          .filter(child => !child.permission || can(child.permission))
-          .filter(child => hasMenuPermissionAccess(child.key))
-      }
+        // Filter children first and check their permissions AND menu permissions
+        let filteredChildren: MenuItem[] | undefined = undefined
+        if (item.children) {
+          filteredChildren = item.children
+            .filter(child => child.name.toLowerCase().includes(lowercaseQuery))
+            .filter(child => !child.permission || can(child.permission))
+            .filter(child => hasMenuPermissionAccess(child.key))
+        }
 
-      if (matchesItem || (filteredChildren && filteredChildren.length > 0)) {
-        acc.push({
-          ...item,
-          children: matchesItem ? item.children : filteredChildren,
-        })
-      }
+        if (matchesItem || (filteredChildren && filteredChildren.length > 0)) {
+          acc.push({
+            ...item,
+            children: matchesItem ? item.children : filteredChildren,
+          })
+        }
 
-      return acc
-    }, [])
-  }
+        return acc
+      }, [])
+    }
+
+    // Filter by search query first, then by parent permissions AND menu permissions
+    return filterMenuItems(menuItems, searchQuery)
+      .filter(item => !item.permission || can(item.permission))
+      .filter(item => hasMenuPermissionAccess(item.key))
+  }, [menuItems, searchQuery, can, hasMenuPermissionAccess])
 
   const menuItems: MenuItem[] = [
     // ========== CORE OPERATIONS ==========
@@ -1392,11 +1400,6 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
     },
     ]
 
-  // Filter by search query first, then by parent permissions AND menu permissions
-  const filteredMenuItems = filterMenuItems(menuItems, searchQuery)
-    .filter(item => !item.permission || can(item.permission))
-    .filter(item => hasMenuPermissionAccess(item.key))
-
   return (
     <aside
       style={{ width: sidebarWidth }}
@@ -1711,3 +1714,7 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
     </aside>
   )
 }
+
+// Wrap with React.memo to prevent unnecessary re-renders
+const Sidebar = memo(SidebarComponent)
+export default Sidebar
