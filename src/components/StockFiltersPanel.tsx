@@ -21,8 +21,6 @@ export interface StockFilters {
   category: string
   brand: string
   unit: string
-  minSellingPrice: string
-  maxSellingPrice: string
   minTotalStock: string
   maxTotalStock: string
   locationFilters: Record<string, StockLocationRange>
@@ -76,8 +74,6 @@ const createEmptyFilters = (locations: { id: number; name: string }[]): StockFil
     category: "",
     brand: "",
     unit: "",
-    minSellingPrice: "",
-    maxSellingPrice: "",
     minTotalStock: "",
     maxTotalStock: "",
     locationFilters,
@@ -257,25 +253,7 @@ export default function StockFiltersPanel({
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Selling Price Range</label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    placeholder="Min"
-                    value={localFilters.minSellingPrice}
-                    onChange={(e) => handleFilterChange("minSellingPrice", e.target.value)}
-                  />
-                  <span className="text-slate-500">to</span>
-                  <Input
-                    type="number"
-                    placeholder="Max"
-                    value={localFilters.maxSellingPrice}
-                    onChange={(e) => handleFilterChange("maxSellingPrice", e.target.value)}
-                  />
-                </div>
-              </div>
-
+              
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700">Total Stock Range</label>
                 <div className="flex items-center gap-2">

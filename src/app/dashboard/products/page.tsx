@@ -30,8 +30,6 @@ interface Product {
   name: string
   type: string
   sku: string
-  purchasePrice: number | null
-  sellingPrice: number | null
   image: string | null
   enableStock: boolean
   alertQuantity: number | null
@@ -48,8 +46,6 @@ interface ProductVariation {
   id: number
   name: string
   sku: string
-  purchasePrice: number
-  sellingPrice: number
   variationLocationDetails: VariationLocationDetail[]
 }
 
@@ -80,10 +76,6 @@ export default function ProductsPage() {
     productType: '',
     stockMin: '',
     stockMax: '',
-    purchasePriceMin: '',
-    purchasePriceMax: '',
-    sellingPriceMin: '',
-    sellingPriceMax: '',
     taxName: ''
   })
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
@@ -94,7 +86,7 @@ export default function ProductsPage() {
 
   // Column visibility state - Actions is now second (right after Product)
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
-    'product', 'actions', 'sku', 'status', 'category', 'brand', 'unit', 'purchasePrice', 'sellingPrice', 'type', 'tax'
+    'product', 'actions', 'sku', 'status', 'category', 'brand', 'unit', 'type', 'tax'
   ])
 
   // Bulk action state
@@ -484,8 +476,6 @@ export default function ProductsPage() {
     { id: 'category', label: 'Category' },
     { id: 'brand', label: 'Brand' },
     { id: 'unit', label: 'Unit' },
-    ...(can(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE) ? [{ id: 'purchasePrice', label: 'Purchase Price' }] : []),
-    { id: 'sellingPrice', label: 'Selling Price' },
     { id: 'type', label: 'Type' },
     { id: 'tax', label: 'Tax' }
   ]
@@ -542,16 +532,6 @@ export default function ProductsPage() {
         id: 'unit',
         label: 'Unit',
         getValue: (p: Product) => p.unit?.shortName || '-'
-      },
-      purchasePrice: {
-        id: 'purchasePrice',
-        label: 'Purchase Price',
-        getValue: (p: Product) => p.purchasePrice ? Number(p.purchasePrice).toFixed(2) : '0.00'
-      },
-      sellingPrice: {
-        id: 'sellingPrice',
-        label: 'Selling Price',
-        getValue: (p: Product) => p.sellingPrice ? Number(p.sellingPrice).toFixed(2) : '0.00'
       },
       stock: {
         id: 'stock',
@@ -843,29 +823,7 @@ export default function ProductsPage() {
                     Unit
                   </SortableTableHead>
                 )}
-                {can(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE) && visibleColumns.includes('purchasePrice') && (
-                  <SortableTableHead
-                    sortKey="purchasePrice"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
-                    className="font-semibold text-slate-700 dark:text-gray-200"
-                  >
-                    Purchase Price
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('sellingPrice') && (
-                  <SortableTableHead
-                    sortKey="sellingPrice"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
-                    className="font-semibold text-slate-700 dark:text-gray-200"
-                  >
-                    Selling Price
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('stock') && (
+                                {visibleColumns.includes('stock') && (
                   <SortableTableHead className="font-semibold text-slate-700 dark:text-gray-200">Stock</SortableTableHead>
                 )}
                 {visibleColumns.includes('type') && (
@@ -1156,17 +1114,7 @@ export default function ProductsPage() {
                         {product.unit?.shortName || <span className="text-slate-400 dark:text-gray-600">-</span>}
                       </TableCell>
                     )}
-                    {can(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE) && visibleColumns.includes('purchasePrice') && (
-                      <TableCell className={`text-sm font-medium ${product.isActive ? 'text-slate-900 dark:text-gray-100' : 'text-slate-500 dark:text-gray-500'}`}>
-                        <span className="font-mono">{product.purchasePrice ? Number(product.purchasePrice).toFixed(2) : '0.00'}</span>
-                      </TableCell>
-                    )}
-                    {visibleColumns.includes('sellingPrice') && (
-                      <TableCell className={`text-sm font-medium ${product.isActive ? 'text-slate-900 dark:text-gray-100' : 'text-slate-500 dark:text-gray-500'}`}>
-                        <span className="font-mono">{product.sellingPrice ? Number(product.sellingPrice).toFixed(2) : '0.00'}</span>
-                      </TableCell>
-                    )}
-                    {visibleColumns.includes('stock') && (
+                                        {visibleColumns.includes('stock') && (
                       <TableCell className={`text-sm font-medium ${product.isActive ? 'text-slate-700' : 'text-slate-500'}`}>
                         <span className="font-mono">{getTotalStock(product)}</span>
                       </TableCell>

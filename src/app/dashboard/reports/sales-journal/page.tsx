@@ -63,13 +63,52 @@ export default function SalesJournalReport() {
 
   const fetchLocations = async () => {
     try {
-      const res = await fetch('/api/locations')
-      if (res.ok) {
-        const data = await res.json()
-        setLocations(data.locations || [])
+      let locationsList: any[] = []
+      let defaultLocationId: string | null = null
+
+      // Try to load the user's assigned locations first so we know their default branch
+      try {
+        const userLocationsRes = await fetch('/api/user-locations')
+        if (userLocationsRes.ok) {
+          const userLocationsData = await userLocationsRes.json()
+          locationsList = Array.isArray(userLocationsData.locations) ? userLocationsData.locations : []
+          if (userLocationsData.primaryLocationId) {
+            defaultLocationId = userLocationsData.primaryLocationId.toString()
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load user locations, falling back to business locations.', error)
+      }
+
+      // Fallback: fetch accessible business locations if user-specific call returned nothing
+      if (!locationsList.length) {
+        const res = await fetch('/api/locations')
+        if (res.ok) {
+          const data = await res.json()
+          locationsList =
+            Array.isArray(data)
+              ? data
+              : Array.isArray(data.locations)
+                ? data.locations
+                : Array.isArray(data.data)
+                  ? data.data
+                  : []
+        }
+      }
+
+      setLocations(locationsList)
+
+      // Preselect default location only if user hasn't chosen one yet
+      if (!locationId) {
+        const fallbackId = locationsList.length > 0 ? locationsList[0].id?.toString() : null
+        const resolvedId = defaultLocationId || fallbackId
+        if (resolvedId) {
+          setLocationId(resolvedId)
+        }
       }
     } catch (error) {
       console.error('Error fetching locations:', error)
+      setLocations([])
     }
   }
 

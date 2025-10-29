@@ -1,4 +1,4 @@
-'use client'
+"use client"
 
 import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
@@ -19,7 +19,7 @@ export default function NewUserPage() {
     firstName: '',
     lastName: '',
     roleIds: [] as number[],
-    locationId: null as number | null, // Changed to single location
+    locationId: null as number | null,
     allowLogin: true,
   })
 

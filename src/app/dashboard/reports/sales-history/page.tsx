@@ -132,6 +132,33 @@ export default function SalesHistoryPage() {
   const [locations, setLocations] = useState<Array<{ id: number; name: string }>>([])
   const [customers, setCustomers] = useState<Array<{ id: number; name: string }>>([])
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0
+    if (locationId !== "all") count += 1
+    if (customerId !== "all") count += 1
+    if (status !== "all") count += 1
+    if (paymentMethod !== "all") count += 1
+    if (invoiceNumber.trim() !== "") count += 1
+    if (productSearch.trim() !== "") count += 1
+    if (dateRange !== "custom") count += 1
+    if (!dateRange && startDate) count += 1
+    if (!dateRange && endDate) count += 1
+    if (sortBy !== "createdAt" || sortOrder !== "desc") count += 1
+    return count
+  }, [
+    locationId,
+    customerId,
+    status,
+    paymentMethod,
+    invoiceNumber,
+    productSearch,
+    dateRange,
+    startDate,
+    endDate,
+    sortBy,
+    sortOrder,
+  ])
+
   useEffect(() => {
     fetchLocations()
     fetchCustomers()
@@ -146,7 +173,14 @@ export default function SalesHistoryPage() {
       const response = await fetch("/api/locations")
       if (response.ok) {
         const data = await response.json()
-        const locationsList = data.locations || data
+        const locationsList =
+          Array.isArray(data)
+            ? data
+            : Array.isArray(data.locations)
+              ? data.locations
+              : Array.isArray(data.data)
+                ? data.data
+                : []
         setLocations(locationsList)
 
         // Automatically set the first accessible location as default if available
@@ -165,7 +199,15 @@ export default function SalesHistoryPage() {
       const response = await fetch("/api/customers")
       if (response.ok) {
         const data = await response.json()
-        setCustomers(data.customers || data)
+        const customersList =
+          Array.isArray(data)
+            ? data
+            : Array.isArray(data.customers)
+              ? data.customers
+              : Array.isArray(data.data)
+                ? data.data
+                : []
+        setCustomers(customersList)
       }
     } catch (error) {
       console.error("Failed to fetch customers:", error)
@@ -789,29 +831,3 @@ export default function SalesHistoryPage() {
     </div>
   )
 }
-  const activeFilterCount = useMemo(() => {
-    let count = 0
-    if (locationId !== "all") count += 1
-    if (customerId !== "all") count += 1
-    if (status !== "all") count += 1
-    if (paymentMethod !== "all") count += 1
-    if (invoiceNumber.trim() !== "") count += 1
-    if (productSearch.trim() !== "") count += 1
-    if (dateRange !== "custom") count += 1
-    if (!dateRange && startDate) count += 1
-    if (!dateRange && endDate) count += 1
-    if (sortBy !== "createdAt" || sortOrder !== "desc") count += 1
-    return count
-  }, [
-    locationId,
-    customerId,
-    status,
-    paymentMethod,
-    invoiceNumber,
-    productSearch,
-    dateRange,
-    startDate,
-    endDate,
-    sortBy,
-    sortOrder,
-  ])

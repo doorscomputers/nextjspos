@@ -20,7 +20,6 @@ interface PivotRow {
   category: string
   brand: string
   unit: string
-  sellingPrice: number
   stockByLocation: Record<number, number>
   totalStock: number
 }
@@ -47,8 +46,6 @@ export default function AllBranchStockPage() {
     category: '',
     brand: '',
     unit: '',
-    minSellingPrice: '',
-    maxSellingPrice: '',
     minTotalStock: '',
     maxTotalStock: '',
     locationFilters: {},
@@ -61,7 +58,7 @@ export default function AllBranchStockPage() {
 
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
-    'product', 'sku', 'variation', 'category', 'brand', 'sellingPrice'
+    'product', 'sku', 'variation', 'category', 'brand'
   ])
 
   const handleFiltersChange = (updatedFilters: StockFilters) => {
@@ -181,7 +178,7 @@ const fetchStockData = useCallback(
       if (Array.isArray(data.locations)) {
         setLocations(data.locations)
         setVisibleColumns((prev) => {
-          const baseColumns = ['product', 'sku', 'variation', 'category', 'brand', 'sellingPrice']
+          const baseColumns = ['product', 'sku', 'variation', 'category', 'brand']
           const locationColumns = data.locations.map((loc: { id: number }) => `location-${loc.id}`)
           const defaultColumns = [...baseColumns, ...locationColumns, 'total']
 
@@ -343,12 +340,7 @@ const getExportColumns = (locationList: { id: number; name: string }[] = locatio
         label: 'Brand',
         getValue: (row: PivotRow) => row.brand || '-'
       },
-      {
-        id: 'sellingPrice',
-        label: 'Selling Price',
-        getValue: (row: PivotRow) => row.sellingPrice.toFixed(2)
-      }
-    ]
+      ]
 
   // Add location columns
   locationList.forEach(loc => {
@@ -479,8 +471,7 @@ const handlePrint = async () => {
               { id: 'variation', label: 'Variation' },
               { id: 'category', label: 'Category' },
               { id: 'brand', label: 'Brand' },
-              { id: 'sellingPrice', label: 'Selling Price' },
-              ...locations.map(loc => ({
+                ...locations.map(loc => ({
                 id: `location-${loc.id}`,
                 label: loc.name
               })),
@@ -641,19 +632,7 @@ const handlePrint = async () => {
                       Brand
                     </SortableTableHead>
                   )}
-                  {visibleColumns.includes('sellingPrice') && (
-                    <SortableTableHead
-                      sortKey="sellingPrice"
-                      currentSortKey={sortKey}
-                      currentSortDirection={sortDirection}
-                      onSort={handleSort}
-                      className="px-2 py-3 text-xs uppercase tracking-wider min-w-[120px]"
-                      align="right"
-                    >
-                      Selling Price
-                    </SortableTableHead>
-                  )}
-                  {/* Dynamic location columns */}
+                    {/* Dynamic location columns */}
                   {locations
                     .filter(location => visibleColumns.includes(`location-${location.id}`))
                     .map(location => (
@@ -749,27 +728,7 @@ const handlePrint = async () => {
                       />
                     </th>
                   )}
-                  {visibleColumns.includes('sellingPrice') && (
-                    <th className="px-2 py-2">
-                      <div className="flex flex-col gap-1">
-                        <input
-                          type="number"
-                          value={filters.minSellingPrice}
-                          onChange={(e) => handleSimpleFilterChange('minSellingPrice', e.target.value)}
-                          placeholder="Min"
-                          className="w-full px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-xs focus:ring-1 focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                        />
-                        <input
-                          type="number"
-                          value={filters.maxSellingPrice}
-                          onChange={(e) => handleSimpleFilterChange('maxSellingPrice', e.target.value)}
-                          placeholder="Max"
-                          className="w-full px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-xs focus:ring-1 focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                        />
-                      </div>
-                    </th>
-                  )}
-                  {locations
+                    {locations
                     .filter((location) => visibleColumns.includes(`location-${location.id}`))
                     .map((location) => {
                       const locationFilter = filters.locationFilters[location.id.toString()] || { min: '', max: '' }
@@ -867,12 +826,7 @@ const handlePrint = async () => {
                             {row.brand || '-'}
                           </td>
                         )}
-                        {visibleColumns.includes('sellingPrice') && (
-                          <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900 dark:text-gray-100 text-right">
-                            {row.sellingPrice.toFixed(2)}
-                          </td>
-                        )}
-                        {/* Dynamic location stock cells */}
+                          {/* Dynamic location stock cells */}
                         {locations
                           .filter(location => visibleColumns.includes(`location-${location.id}`))
                           .map(location => (
@@ -906,8 +860,7 @@ const handlePrint = async () => {
                       {visibleColumns.includes('variation') && <td className="px-2 py-4"></td>}
                       {visibleColumns.includes('category') && <td className="px-2 py-4"></td>}
                       {visibleColumns.includes('brand') && <td className="px-2 py-4"></td>}
-                      {visibleColumns.includes('sellingPrice') && <td className="px-2 py-4"></td>}
-                      {locations
+                        {locations
                         .filter(location => visibleColumns.includes(`location-${location.id}`))
                         .map(location => (
                           <td key={location.id} className="px-3 py-4 text-center text-sm font-bold text-gray-900 dark:text-gray-100 bg-blue-100 dark:bg-blue-900/40">

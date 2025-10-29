@@ -32,17 +32,35 @@ export async function GET() {
     // Get accessible location IDs for this user
     const accessibleLocationIds = getUserAccessibleLocationIds(session.user)
 
+    console.log('🔍 User Access Debug:', {
+      userId: session.user.id,
+      username: session.user.username,
+      roles: session.user.roles,
+      locationIds: session.user.locationIds,
+      accessibleLocationIds,
+      businessId: session.user.businessId
+    })
+
     // Build location filter
     const locationFilter: any = {}
     if (accessibleLocationIds !== null) {
       locationFilter.id = { in: accessibleLocationIds }
+      console.log('📍 Location filter applied:', locationFilter)
+    } else {
+      console.log('📍 No location filter - user has access to all locations')
     }
 
-    // Fetch all active locations
+    // Fetch all active locations (exclude Main Warehouse - it's a supply location, not a selling location)
     const locations = await prisma.businessLocation.findMany({
       where: {
         businessId,
         isActive: true,
+        NOT: {
+          name: {
+            contains: 'Main Warehouse',
+            mode: 'insensitive',
+          },
+        },
         ...locationFilter,
       },
       select: {
@@ -53,6 +71,8 @@ export async function GET() {
         name: 'asc',
       },
     })
+
+    console.log('📍 Found locations:', locations.length, locations.map(l => ({ id: l.id, name: l.name })))
 
     // Fetch all product variations with their location details
     const productVariations = await prisma.productVariation.findMany({

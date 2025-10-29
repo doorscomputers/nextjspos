@@ -176,6 +176,9 @@ export default function PriceComparisonReportPage() {
             wordWrapEnabled={false}
             rowAlternationEnabled={true}
             hoverStateEnabled={true}
+            allowColumnFixing={true}
+            allowColumnReordering={true}
+            allowColumnResizing={true}
             onExporting={handleExport}
             className="dx-theme-material-typography"
           >
@@ -184,7 +187,7 @@ export default function PriceComparisonReportPage() {
             <SearchPanel visible={true} width={240} placeholder="Search products..." />
             <FilterRow visible={true} />
             <HeaderFilter visible={true} />
-            <Paging defaultPageSize={50} />
+            <Paging defaultPageSize={20} />
             <Pager
               visible={true}
               showPageSizeSelector={true}
@@ -194,11 +197,11 @@ export default function PriceComparisonReportPage() {
             />
             <Export enabled={true} allowExportSelectedData={false} />
 
-            <Column dataField="productName" caption="Product" width={250} />
-            <Column dataField="productSku" caption="SKU" width={120} />
-            <Column dataField="variationName" caption="Variation" width={150} />
-            <Column dataField="categoryName" caption="Category" width={150} />
-            <Column dataField="brandName" caption="Brand" width={150} />
+            <Column dataField="productName" caption="Product" width={250} fixed={true} fixedPosition="left" />
+            <Column dataField="productSku" caption="SKU" width={120} fixed={true} fixedPosition="left" />
+            <Column dataField="variationName" caption="Variation" width={150} fixed={true} fixedPosition="left" />
+            <Column dataField="categoryName" caption="Category" width={150} fixed={true} fixedPosition="left" />
+            <Column dataField="brandName" caption="Brand" width={150} fixed={true} fixedPosition="left" />
 
             <Column
               dataField="basePrice"

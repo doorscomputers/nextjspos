@@ -14,7 +14,7 @@ import { DateBox } from 'devextreme-react/date-box'
 import { CheckBox } from 'devextreme-react/check-box'
 import { Button as DxButton } from 'devextreme-react/button'
 import { LoadPanel } from 'devextreme-react/load-panel'
-import { Validator, RequiredRule, CompareRule, CustomRule } from 'devextreme-react/validator'
+import { Validator, RequiredRule, CustomRule } from 'devextreme-react/validator'
 
 // DevExtreme CSS
 import 'devextreme/dist/css/dx.light.css'
@@ -25,6 +25,8 @@ interface User {
   firstName: string | null
   lastName: string | null
   email: string
+  locationAssignments?: { id: number; name: string }[]
+  locations?: string[]
 }
 
 interface Location {
@@ -62,6 +64,7 @@ export default function CreateSchedulePage() {
   // Form fields
   const [userId, setUserId] = useState<number | null>(null)
   const [locationId, setLocationId] = useState<number | null>(null)
+  const [locationLocked, setLocationLocked] = useState(false)
   const [selectedDays, setSelectedDays] = useState<number[]>([]) // Changed from single dayOfWeek to array
   const [startTime, setStartTime] = useState<Date | null>(null)
   const [endTime, setEndTime] = useState<Date | null>(null)
@@ -85,6 +88,36 @@ export default function CreateSchedulePage() {
     fetchInitialData()
   }, [])
 
+  useEffect(() => {
+    if (!userId) {
+      setLocationLocked(false)
+      setLocationId(null)
+      return
+    }
+
+    const selectedUser = users.find((user) => user.id === userId)
+    const assignedLocation = selectedUser?.locationAssignments?.[0]
+
+    if (assignedLocation) {
+      // Verify the assigned location exists in the available locations
+      const locationExists = locations.some((loc) => loc.id === assignedLocation.id)
+
+      if (locationExists) {
+        setLocationId(assignedLocation.id)
+        setLocationLocked(true)
+      } else {
+        // Location assigned but not available - show warning and allow manual selection
+        console.warn(`Employee's assigned location (ID: ${assignedLocation.id}) not found in available locations`)
+        toast.warning(`Employee's assigned location "${assignedLocation.name}" is not available. Please select a location manually.`)
+        setLocationLocked(false)
+        setLocationId(null)
+      }
+    } else {
+      setLocationLocked(false)
+      setLocationId(null)
+    }
+  }, [userId, users, locations])
+
   const fetchInitialData = async () => {
     try {
       setLoading(true)
@@ -93,22 +126,34 @@ export default function CreateSchedulePage() {
       const usersResponse = await fetch('/api/users')
       if (usersResponse.ok) {
         const usersData = await usersResponse.json()
+        console.log('Users data:', usersData)
         setUsers(usersData.data || [])
       } else {
-        toast.error('Failed to fetch users')
+        const errorData = await usersResponse.json()
+        console.error('Failed to fetch users:', errorData)
+        toast.error(`Failed to fetch users: ${errorData.error || 'Unknown error'}`)
       }
 
       // Fetch locations
       const locationsResponse = await fetch('/api/locations')
       if (locationsResponse.ok) {
         const locationsData = await locationsResponse.json()
-        setLocations(locationsData.locations || [])
+        console.log('Locations data:', locationsData)
+        // API returns { success: true, data: [...] }
+        const locationsList = locationsData.data || locationsData.locations || []
+        setLocations(locationsList)
+
+        if (locationsList.length === 0) {
+          toast.warning('No locations found. Please create a location first.')
+        }
       } else {
-        toast.error('Failed to fetch locations')
+        const errorData = await locationsResponse.json()
+        console.error('Failed to fetch locations:', errorData)
+        toast.error(`Failed to fetch locations: ${errorData.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Failed to fetch initial data:', error)
-      toast.error('Failed to load data')
+      toast.error('Failed to load data. Please check your connection.')
     } finally {
       setLoading(false)
     }
@@ -349,22 +394,55 @@ export default function CreateSchedulePage() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Location <span className="text-red-500">*</span>
             </label>
-            <SelectBox
-              dataSource={locations}
-              displayExpr="name"
-              valueExpr="id"
-              value={locationId}
-              onValueChanged={(e) => setLocationId(e.value)}
-              searchEnabled={true}
-              placeholder="Select location"
-              showClearButton={true}
-              width="100%"
-              stylingMode="outlined"
-            >
-              <Validator>
-                <RequiredRule message="Location is required" />
-              </Validator>
-            </SelectBox>
+            {locations.length === 0 ? (
+              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  No locations available. Please{' '}
+                  <Link
+                    href="/dashboard/locations"
+                    className="font-semibold underline hover:text-yellow-900 dark:hover:text-yellow-100"
+                  >
+                    create a location
+                  </Link>{' '}
+                  first before creating schedules.
+                </p>
+              </div>
+            ) : (
+              <>
+                <SelectBox
+                  dataSource={locations}
+                  displayExpr="name"
+                  valueExpr="id"
+                  value={locationId}
+                  onValueChanged={(e) => setLocationId(e.value)}
+                  searchEnabled={!locationLocked}
+                  placeholder={locationLocked ? "Loading location..." : "Select location"}
+                  showClearButton={!locationLocked}
+                  width="100%"
+                  stylingMode="outlined"
+                  readOnly={locationLocked}
+                  hoverStateEnabled={!locationLocked}
+                  noDataText="No locations available"
+                >
+                  <Validator>
+                    <RequiredRule message="Location is required" />
+                  </Validator>
+                </SelectBox>
+                {locationLocked && locationId && (
+                  <p className="mt-2 text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Location automatically assigned based on employee&apos;s assignment
+                  </p>
+                )}
+                {!locationLocked && userId && (
+                  <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                    This employee has no location assignment. Please select a location manually.
+                  </p>
+                )}
+              </>
+            )}
           </div>
 
           {/* Days of Week - Multi-Select with Checkboxes */}

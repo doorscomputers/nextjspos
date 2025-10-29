@@ -11,14 +11,18 @@ import { sendTelegramPriceChangeAlert, sendTelegramBulkPriceChangeAlert } from '
  */
 export async function POST(request: Request) {
   try {
+    console.log('🚀 Bulk price update API called')
+
     const session = await getServerSession(authOptions)
     if (!session?.user) {
+      console.log('❌ Unauthorized - no session')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Permission check
     const canEditAll = hasPermission(session.user, PERMISSIONS.PRODUCT_PRICE_EDIT_ALL)
     const canEdit = hasPermission(session.user, PERMISSIONS.PRODUCT_PRICE_EDIT)
+    const canMultiLocation = hasPermission(session.user, PERMISSIONS.PRODUCT_PRICE_MULTI_LOCATION_UPDATE)
 
     if (!canEditAll && !canEdit) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
@@ -30,22 +34,56 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
+    console.log('📦 Request body:', body)
+
     const { updates, applyToAllLocations } = body
+    console.log('🔍 Extracted updates:', updates)
 
     if (!Array.isArray(updates) || updates.length === 0) {
+      console.log('❌ Invalid updates array')
       return NextResponse.json({ error: 'Updates array is required and must not be empty' }, { status: 400 })
     }
 
     // Get accessible location IDs for this user
     const accessibleLocationIds = getUserAccessibleLocationIds(session.user)
 
-    // Validate location access
-    const locationIds = body.locationIds || []
-    if (!canEditAll && accessibleLocationIds !== null) {
-      // User has limited access - check if all requested locations are accessible
-      const invalidLocations = locationIds.filter(
-        (id: number) => !accessibleLocationIds.includes(id)
+    const requestedLocationIds = new Set<number>()
+    let replicationRequested = false
+
+    for (const update of updates) {
+      if (update && update.locationId !== undefined && update.locationId !== null) {
+        const baseId = Number(update.locationId)
+        if (!Number.isNaN(baseId)) {
+          requestedLocationIds.add(baseId)
+        }
+      }
+
+      if (Array.isArray(update?.targetLocationIds) && update.targetLocationIds.length > 0) {
+        replicationRequested = true
+        for (const locId of update.targetLocationIds) {
+          const numericId = Number(locId)
+          if (!Number.isNaN(numericId)) {
+            requestedLocationIds.add(numericId)
+          }
+        }
+      }
+    }
+
+    if (replicationRequested && !canMultiLocation && !canEditAll) {
+      return NextResponse.json(
+        { error: 'Forbidden - Multi-location pricing permission required' },
+        { status: 403 }
       )
+    }
+
+    // Validate location access
+    if (!canEditAll && accessibleLocationIds !== null) {
+      const invalidLocations: number[] = []
+      for (const locId of requestedLocationIds) {
+        if (!accessibleLocationIds.includes(locId)) {
+          invalidLocations.push(locId)
+        }
+      }
       if (invalidLocations.length > 0) {
         return NextResponse.json(
           { error: `Access denied to locations: ${invalidLocations.join(', ')}` },
@@ -67,20 +105,47 @@ export async function POST(request: Request) {
     }> = []
 
     // Process each update
-    for (const update of updates) {
-      const { productVariationId, locationId, sellingPrice, pricePercentage } = update
+    console.log(`🔄 Processing ${updates.length} updates...`)
+
+    for (const [index, update] of updates.entries()) {
+      console.log(`📝 Processing update ${index + 1}:`, update)
+
+      const {
+        productVariationId,
+        locationId: rawLocationId,
+        sellingPrice,
+        pricePercentage,
+        targetLocationIds,
+      } = update
 
       if (!productVariationId) {
         errors.push({ productVariationId, error: 'Product variation ID is required' })
         continue
       }
 
-      // Check if user has access to this location
-      if (!canEditAll && accessibleLocationIds !== null) {
-        if (!accessibleLocationIds.includes(locationId)) {
-          errors.push({ productVariationId, locationId, error: 'Access denied to this location' })
-          continue
-        }
+      if (rawLocationId === undefined || rawLocationId === null) {
+        errors.push({ productVariationId, error: 'Location ID is required' })
+        continue
+      }
+
+      const baseLocationId = Number(rawLocationId)
+      const replicationTargets = Array.isArray(targetLocationIds) && targetLocationIds.length > 0
+        ? Array.from(
+            new Set(
+              targetLocationIds
+                .map((id: number) => Number(id))
+                .filter(id => !Number.isNaN(id) && id !== baseLocationId)
+            )
+          )
+        : []
+
+      if (replicationTargets.length > 0 && !canMultiLocation && !canEditAll) {
+        errors.push({
+          productVariationId,
+          locationId: baseLocationId,
+          error: 'Multi-location pricing permission required',
+        })
+        continue
       }
 
       try {
@@ -107,78 +172,85 @@ export async function POST(request: Request) {
           continue
         }
 
-        // Get location name
-        const location = await prisma.businessLocation.findUnique({
-          where: { id: locationId },
-          select: { name: true },
-        })
+        const locationsToUpdate = [baseLocationId, ...replicationTargets]
 
-        // Get old price for Telegram notification
-        const existingPrice = await prisma.variationLocationDetails.findUnique({
-          where: {
-            productVariationId_locationId: {
-              productVariationId,
-              locationId,
-            },
-          },
-          select: {
-            sellingPrice: true,
-          },
-        })
+        for (const locationId of locationsToUpdate) {
+          if (!canEditAll && accessibleLocationIds !== null) {
+            if (!accessibleLocationIds.includes(locationId)) {
+              errors.push({ productVariationId, locationId, error: 'Access denied to this location' })
+              continue
+            }
+          }
 
-        const oldPrice = Number(existingPrice?.sellingPrice || 0)
-        const newPrice = sellingPrice !== undefined ? Number(sellingPrice) : oldPrice
-
-        // Update or create variation location details
-        const locationDetails = await prisma.variationLocationDetails.upsert({
-          where: {
-            productVariationId_locationId: {
-              productVariationId,
-              locationId,
-            },
-          },
-          update: {
-            sellingPrice: sellingPrice !== undefined ? sellingPrice : undefined,
-            pricePercentage: pricePercentage !== undefined ? pricePercentage : undefined,
-            lastPriceUpdate: now,
-            lastPriceUpdatedBy: userId,
-          },
-          create: {
-            productId: variation.productId,
-            productVariationId,
-            locationId,
-            qtyAvailable: 0,
-            sellingPrice: sellingPrice || null,
-            pricePercentage: pricePercentage || null,
-            lastPriceUpdate: now,
-            lastPriceUpdatedBy: userId,
-          },
-          select: {
-            id: true,
-            productVariationId: true,
-            locationId: true,
-            sellingPrice: true,
-            pricePercentage: true,
-          },
-        })
-
-        results.push(locationDetails)
-
-        // Track price change for Telegram notification (only if price actually changed)
-        if (sellingPrice !== undefined && oldPrice !== newPrice) {
-          priceChanges.push({
-            productName: variation.product.name,
-            productSku: variation.product.sku || 'N/A',
-            locationName: location?.name || 'Unknown Location',
-            oldPrice,
-            newPrice,
+          const location = await prisma.businessLocation.findUnique({
+            where: { id: locationId },
+            select: { name: true },
           })
+
+          const existingPrice = await prisma.variationLocationDetails.findUnique({
+            where: {
+              productVariationId_locationId: {
+                productVariationId,
+                locationId,
+              },
+            },
+            select: {
+              sellingPrice: true,
+            },
+          })
+
+          const oldPrice = Number(existingPrice?.sellingPrice || 0)
+          const newPrice = sellingPrice !== undefined ? Number(sellingPrice) : oldPrice
+
+          const locationDetails = await prisma.variationLocationDetails.upsert({
+            where: {
+              productVariationId_locationId: {
+                productVariationId,
+                locationId,
+              },
+            },
+            update: {
+              sellingPrice: sellingPrice !== undefined ? sellingPrice : undefined,
+              pricePercentage: pricePercentage !== undefined ? pricePercentage : undefined,
+              lastPriceUpdate: now,
+              lastPriceUpdatedBy: userId,
+            },
+            create: {
+              productId: variation.productId,
+              productVariationId,
+              locationId,
+              qtyAvailable: 0,
+              sellingPrice: sellingPrice || null,
+              pricePercentage: pricePercentage || null,
+              lastPriceUpdate: now,
+              lastPriceUpdatedBy: userId,
+            },
+            select: {
+              id: true,
+              productVariationId: true,
+              locationId: true,
+              sellingPrice: true,
+              pricePercentage: true,
+            },
+          })
+
+          results.push(locationDetails)
+
+          if (sellingPrice !== undefined && oldPrice !== newPrice) {
+            priceChanges.push({
+              productName: variation.product.name,
+              productSku: variation.product.sku || 'N/A',
+              locationName: location?.name || 'Unknown Location',
+              oldPrice,
+              newPrice,
+            })
+          }
         }
       } catch (error) {
         console.error(`Error updating price for variation ${productVariationId}:`, error)
         errors.push({
           productVariationId,
-          locationId,
+          locationId: rawLocationId,
           error: error instanceof Error ? error.message : 'Unknown error',
         })
       }

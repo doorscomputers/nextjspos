@@ -2466,6 +2466,7 @@ model CashierShift {
   cashDenominations      CashDenomination[]
   freebieLogs            FreebieLog[]
   locationChangeRequests LocationChangeRequest[]
+  readings               CashierShiftReading[] @relation("CashierShiftToReadings")
   arPayments             SalePayment[]
 
   @@unique([businessId, shiftNumber])
@@ -2475,6 +2476,40 @@ model CashierShift {
   @@index([status])
   @@index([openedAt])
   @@map("cashier_shifts")
+}
+
+model CashierShiftReading {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  locationId Int @map("location_id")
+  shiftId    Int @map("shift_id")
+  userId     Int @map("user_id")
+
+  type          String   @db.Char(1) // 'X' or 'Z'
+  readingNumber Int      @default(1) @map("reading_number")
+  readingTime   DateTime @map("reading_time")
+
+  grossSales      Decimal  @default(0) @map("gross_sales") @db.Decimal(22, 4)
+  netSales        Decimal  @default(0) @map("net_sales") @db.Decimal(22, 4)
+  totalDiscounts  Decimal  @default(0) @map("total_discounts") @db.Decimal(22, 4)
+  expectedCash    Decimal? @map("expected_cash") @db.Decimal(22, 4)
+  transactionCount Int     @default(0) @map("transaction_count")
+  reportNumber    String?  @map("report_number") @db.VarChar(100)
+  payload         Json?    @map("payload")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  shift CashierShift @relation("CashierShiftToReadings", fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@unique([shiftId, type, readingNumber])
+  @@index([businessId])
+  @@index([locationId])
+  @@index([shiftId])
+  @@index([userId])
+  @@index([type])
+  @@index([readingTime])
+  @@map("cashier_shift_readings")
 }
 
 model Quotation {

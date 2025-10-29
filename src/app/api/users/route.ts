@@ -5,7 +5,13 @@ import { prisma } from '@/lib/prisma'
 import { PERMISSIONS } from '@/lib/rbac'
 import bcrypt from 'bcryptjs'
 
-export async function GET(request: NextRequest) {
+type SessionUser = {
+  businessId: string
+  id?: string
+  permissions?: string[]
+}
+
+export async function GET() {
   try {
     const session = await getServerSession(authOptions)
 
@@ -13,7 +19,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = session.user as any
+    const user = session.user as SessionUser
 
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.USER_VIEW)) {
@@ -44,7 +50,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Format response (exclude passwords)
-    const formattedUsers = users.map(u => ({
+    const formattedUsers = users.map((u) => ({
       id: u.id,
       username: u.username,
       email: u.email,
@@ -52,8 +58,12 @@ export async function GET(request: NextRequest) {
       firstName: u.firstName,
       lastName: u.lastName,
       allowLogin: u.allowLogin,
-      roles: u.roles.map(ur => ur.role.name),
-      locations: u.userLocations.map(ul => ul.location.name),
+      roles: u.roles.map((ur) => ur.role.name),
+      locations: u.userLocations.map((ul) => ul.location.name),
+      locationAssignments: u.userLocations.map((ul) => ({
+        id: ul.location.id,
+        name: ul.location.name,
+      })),
       createdAt: u.createdAt,
     }))
 
@@ -74,7 +84,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = session.user as any
+    const user = session.user as SessionUser
     if (!user.permissions?.includes(PERMISSIONS.USER_CREATE)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -91,18 +101,22 @@ export async function POST(request: NextRequest) {
       // Get role names for the assigned role IDs
       const assignedRoles = await prisma.role.findMany({
         where: { id: { in: roleIds } },
-        select: { name: true }
+        select: { name: true },
       })
 
-      const roleNames = assignedRoles.map(r => r.name)
+      const roleNames = assignedRoles.map((r) => r.name)
       const adminRoles = ['Super Admin', 'Branch Admin', 'All Branch Admin']
-      const hasAdminRole = roleNames.some(name => adminRoles.includes(name))
+      const hasAdminRole = roleNames.some((name) => adminRoles.includes(name))
 
       // Location is ONLY required if user does NOT have an admin role
       if (!hasAdminRole && !locationId) {
-        return NextResponse.json({
-          error: 'Location is required for transactional roles (Cashier, Manager, Staff). Admin roles can work across all locations.'
-        }, { status: 400 })
+        return NextResponse.json(
+          {
+            error:
+              'Location is required for transactional roles (Cashier, Manager, Staff). Admin roles can work across all locations.',
+          },
+          { status: 400 }
+        )
       }
     } else if (!locationId) {
       // If no roles assigned, require location
@@ -173,7 +187,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = session.user as any
+    const user = session.user as SessionUser
     if (!user.permissions?.includes(PERMISSIONS.USER_DELETE)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -199,7 +213,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Prevent self-deletion
-    if (targetUser.id === parseInt(user.id)) {
+    if (targetUser.id === parseInt(user.id ?? '0')) {
       return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 })
     }
 

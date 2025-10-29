@@ -127,7 +127,15 @@ export default function SalesReportPage() {
       const response = await fetch("/api/locations")
       if (response.ok) {
         const data = await response.json()
-        setLocations(data.locations || data)
+        const parsedLocations =
+          Array.isArray(data)
+            ? data
+            : Array.isArray(data.locations)
+              ? data.locations
+              : Array.isArray(data.data)
+                ? data.data
+                : []
+        setLocations(parsedLocations)
       }
     } catch (error) {
       console.error("Failed to fetch locations:", error)
@@ -140,7 +148,15 @@ export default function SalesReportPage() {
       const response = await fetch("/api/customers")
       if (response.ok) {
         const data = await response.json()
-        setCustomers(data.customers || data)
+        const parsedCustomers =
+          Array.isArray(data)
+            ? data
+            : Array.isArray(data.customers)
+              ? data.customers
+              : Array.isArray(data.data)
+                ? data.data
+                : []
+        setCustomers(parsedCustomers)
       }
     } catch (error) {
       console.error("Failed to fetch customers:", error)

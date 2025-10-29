@@ -504,7 +504,7 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
                 {sale.items?.map((item: any, index: number) => (
                   <tr key={index} className="border-b border-dashed border-gray-300">
                     <td className={`py-1 text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                      {item.product?.name || `Product #${item.productId}`}
+                      {item.product?.name || item.productName || `Product #${item.productId}`}
                     </td>
                     <td className={`py-1 text-center text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
                       {parseFloat(item.quantity).toFixed(2)}

@@ -18,10 +18,6 @@ export interface ProductFilters {
   productType: string
   stockMin: string
   stockMax: string
-  purchasePriceMin: string
-  purchasePriceMax: string
-  sellingPriceMin: string
-  sellingPriceMax: string
   taxName: string
 }
 
@@ -49,14 +45,6 @@ const STOCK_RANGES = [
   { value: '500+', label: '500+ units' }
 ]
 
-const PRICE_RANGES = [
-  { value: 'all', label: 'Any Price' },
-  { value: '0-10', label: '$0-$10' },
-  { value: '10-50', label: '$10-$50' },
-  { value: '50-100', label: '$50-$100' },
-  { value: '100-500', label: '$100-$500' },
-  { value: '500+', label: '$500+' }
-]
 
 export default function ProductFiltersPanel({
   filters,
@@ -103,40 +91,7 @@ export default function ProductFiltersPanel({
     }
   }
 
-  const handlePurchasePriceRangeChange = (value: string) => {
-    if (value === 'all') {
-      handleFilterChange('purchasePriceMin', '')
-      handleFilterChange('purchasePriceMax', '')
-      return
-    }
-
-    if (value === '500+') {
-      handleFilterChange('purchasePriceMin', '500')
-      handleFilterChange('purchasePriceMax', '')
-    } else {
-      const [min, max] = value.split('-')
-      handleFilterChange('purchasePriceMin', min)
-      handleFilterChange('purchasePriceMax', max)
-    }
-  }
-
-  const handleSellingPriceRangeChange = (value: string) => {
-    if (value === 'all') {
-      handleFilterChange('sellingPriceMin', '')
-      handleFilterChange('sellingPriceMax', '')
-      return
-    }
-
-    if (value === '500+') {
-      handleFilterChange('sellingPriceMin', '500')
-      handleFilterChange('sellingPriceMax', '')
-    } else {
-      const [min, max] = value.split('-')
-      handleFilterChange('sellingPriceMin', min)
-      handleFilterChange('sellingPriceMax', max)
-    }
-  }
-
+  
   const clearAllFilters = () => {
     const emptyFilters: ProductFilters = {
       search: '',
@@ -147,10 +102,6 @@ export default function ProductFiltersPanel({
       productType: '',
       stockMin: '',
       stockMax: '',
-      purchasePriceMin: '',
-      purchasePriceMax: '',
-      sellingPriceMin: '',
-      sellingPriceMax: '',
       taxName: ''
     }
     setLocalFilters(emptyFilters)
@@ -167,18 +118,7 @@ export default function ProductFiltersPanel({
     return `${localFilters.stockMin}-${localFilters.stockMax}`
   }
 
-  const getPurchasePriceRangeValue = () => {
-    if (!localFilters.purchasePriceMin && !localFilters.purchasePriceMax) return 'all'
-    if (localFilters.purchasePriceMin === '500' && !localFilters.purchasePriceMax) return '500+'
-    return `${localFilters.purchasePriceMin}-${localFilters.purchasePriceMax}`
-  }
-
-  const getSellingPriceRangeValue = () => {
-    if (!localFilters.sellingPriceMin && !localFilters.sellingPriceMax) return 'all'
-    if (localFilters.sellingPriceMin === '500' && !localFilters.sellingPriceMax) return '500+'
-    return `${localFilters.sellingPriceMin}-${localFilters.sellingPriceMax}`
-  }
-
+  
   return (
     <>
       {/* Toggle Button */}
@@ -343,84 +283,7 @@ export default function ProductFiltersPanel({
                 </div>
               </div>
 
-              {/* Purchase Price Range Filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-gray-300">Purchase Price Range</label>
-                <Select value={getPurchasePriceRangeValue()} onValueChange={handlePurchasePriceRangeChange}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue placeholder="Select price range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PRICE_RANGES.map(range => (
-                      <SelectItem key={range.value} value={range.value}>
-                        {range.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Custom Purchase Price Range */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-gray-300">Custom Purchase Price</label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    placeholder="Min"
-                    value={localFilters.purchasePriceMin}
-                    onChange={(e) => handleFilterChange('purchasePriceMin', e.target.value)}
-                    className="bg-white"
-                  />
-                  <span className="text-slate-500 dark:text-gray-400">to</span>
-                  <Input
-                    type="number"
-                    placeholder="Max"
-                    value={localFilters.purchasePriceMax}
-                    onChange={(e) => handleFilterChange('purchasePriceMax', e.target.value)}
-                    className="bg-white"
-                  />
-                </div>
-              </div>
-
-              {/* Selling Price Range Filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-gray-300">Selling Price Range</label>
-                <Select value={getSellingPriceRangeValue()} onValueChange={handleSellingPriceRangeChange}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue placeholder="Select price range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PRICE_RANGES.map(range => (
-                      <SelectItem key={range.value} value={range.value}>
-                        {range.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Custom Selling Price Range */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700 dark:text-gray-300">Custom Selling Price</label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    placeholder="Min"
-                    value={localFilters.sellingPriceMin}
-                    onChange={(e) => handleFilterChange('sellingPriceMin', e.target.value)}
-                    className="bg-white"
-                  />
-                  <span className="text-slate-500 dark:text-gray-400">to</span>
-                  <Input
-                    type="number"
-                    placeholder="Max"
-                    value={localFilters.sellingPriceMax}
-                    onChange={(e) => handleFilterChange('sellingPriceMax', e.target.value)}
-                    className="bg-white"
-                  />
-                </div>
-              </div>
-
+              
               {/* Tax Filter */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700 dark:text-gray-300">Tax</label>

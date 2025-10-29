@@ -195,13 +195,7 @@ export function ReadingDisplay({ xReading, zReading, variance, onClose }: Readin
             Print Z Reading
           </Button>
         )}
-        {xReading && zReading && (
-          <Button onClick={() => handlePrint('both')} variant="default" size="sm">
-            <Printer className="w-4 h-4 mr-2" />
-            Print Both
-          </Button>
-        )}
-        {onClose && (
+          {onClose && (
           <Button onClick={onClose} variant="secondary" size="sm">
             Close
           </Button>

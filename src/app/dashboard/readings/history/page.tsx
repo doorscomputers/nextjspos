@@ -32,6 +32,20 @@ import DataGrid, {
 } from 'devextreme-react/data-grid'
 import 'devextreme/dist/css/dx.light.css'
 
+const pesoFormatter = new Intl.NumberFormat('en-PH', {
+  style: 'currency',
+  currency: 'PHP',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+})
+
+const formatCurrencyValue = (value: unknown) => {
+  if (value === null || value === undefined) return '—'
+  const numeric = typeof value === 'number' ? value : parseFloat(String(value))
+  if (Number.isNaN(numeric)) return '—'
+  return pesoFormatter.format(numeric)
+}
+
 interface Reading {
   id: number
   shiftNumber: string
@@ -44,9 +58,9 @@ interface Reading {
   grossSales: number
   netSales: number
   totalDiscounts: number
-  expectedCash: number
+  expectedCash: number | null
   transactionCount: number
-  status: string
+  reportNumber?: string | null
 }
 
 export default function ReadingsHistoryPage() {
@@ -65,61 +79,12 @@ export default function ReadingsHistoryPage() {
   const fetchReadings = async () => {
     try {
       setLoading(true)
-      // Fetch all closed shifts (Z readings)
-      const shiftsResponse = await fetch('/api/shifts?status=closed&limit=100')
-      if (!shiftsResponse.ok) throw new Error('Failed to fetch shifts')
+      const params = new URLSearchParams({ limit: '300' })
+      const response = await fetch(`/api/readings/history?${params.toString()}`)
+      if (!response.ok) throw new Error('Failed to fetch readings')
 
-      const shiftsData = await shiftsResponse.json()
-
-      // Transform shifts into readings
-      const allReadings: Reading[] = []
-
-      for (const shift of shiftsData.shifts) {
-        // Add Z reading (shift close)
-        allReadings.push({
-          id: shift.id,
-          shiftNumber: shift.shiftNumber,
-          shiftId: shift.id,
-          type: 'Z',
-          readingNumber: 1, // Z reading number
-          readingTime: shift.closedAt || shift.openedAt,
-          cashierName: shift.user?.username || 'Unknown',
-          locationName: shift.location?.name || 'Unknown',
-          grossSales: parseFloat(shift.totalSales || 0),
-          netSales: parseFloat(shift.totalSales || 0) - parseFloat(shift.totalDiscounts || 0),
-          totalDiscounts: parseFloat(shift.totalDiscounts || 0),
-          expectedCash: parseFloat(shift.systemCash || 0),
-          transactionCount: shift.transactionCount || 0,
-          status: shift.status
-        })
-
-        // Add X readings if any were taken
-        if (shift.xReadingCount > 0) {
-          for (let i = 1; i <= shift.xReadingCount; i++) {
-            allReadings.push({
-              id: shift.id * 1000 + i, // Unique ID for X readings
-              shiftNumber: shift.shiftNumber,
-              shiftId: shift.id,
-              type: 'X',
-              readingNumber: i,
-              readingTime: shift.openedAt, // X readings don't have specific timestamps
-              cashierName: shift.user?.username || 'Unknown',
-              locationName: shift.location?.name || 'Unknown',
-              grossSales: parseFloat(shift.totalSales || 0),
-              netSales: parseFloat(shift.totalSales || 0) - parseFloat(shift.totalDiscounts || 0),
-              totalDiscounts: parseFloat(shift.totalDiscounts || 0),
-              expectedCash: parseFloat(shift.systemCash || 0),
-              transactionCount: shift.transactionCount || 0,
-              status: 'viewed'
-            })
-          }
-        }
-      }
-
-      // Sort by reading time descending
-      allReadings.sort((a, b) => new Date(b.readingTime).getTime() - new Date(a.readingTime).getTime())
-
-      setReadings(allReadings)
+      const data = await response.json()
+      setReadings(Array.isArray(data.readings) ? data.readings : [])
     } catch (error: any) {
       console.error('Error fetching readings:', error)
       toast.error('Failed to load readings history')
@@ -133,9 +98,16 @@ export default function ReadingsHistoryPage() {
     if (filterType !== 'ALL' && reading.type !== filterType) return false
 
     // Filter by search term
-    if (searchTerm && !reading.shiftNumber.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !reading.cashierName.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !reading.locationName.toLowerCase().includes(searchTerm.toLowerCase())) {
+    if (
+      searchTerm &&
+      ![
+        reading.shiftNumber,
+        reading.cashierName,
+        reading.locationName,
+        reading.reportNumber || '',
+      ]
+        .some(value => value.toLowerCase().includes(searchTerm.toLowerCase()))
+    ) {
       return false
     }
 
@@ -166,7 +138,7 @@ export default function ReadingsHistoryPage() {
   const renderTypeBadge = (data: any) => {
     const isXReading = data.value === 'X'
     return (
-      <Badge className={isXReading ? 'bg-blue-600' : 'bg-purple-600'}>
+      <Badge className={cn(isXReading ? 'bg-blue-600' : 'bg-purple-600', 'text-white')}>
         {data.value} Reading
       </Badge>
     )
@@ -179,12 +151,18 @@ export default function ReadingsHistoryPage() {
 
   // Render currency values
   const renderCurrency = (data: any) => {
-    return <span className="font-medium">₱{parseFloat(data.value).toFixed(2)}</span>
+    return <span className="font-medium">{formatCurrencyValue(data.value)}</span>
   }
 
   // Render gross sales with color
   const renderGrossSales = (data: any) => {
-    return <span className="font-bold text-green-600">₱{parseFloat(data.value).toFixed(2)}</span>
+    return <span className="font-bold text-green-600">{formatCurrencyValue(data.value)}</span>
+  }
+
+  const renderReportNumber = (data: any) => {
+    return data.value
+      ? <span className="font-medium">{data.value}</span>
+      : <span className="text-muted-foreground">—</span>
   }
 
   // Render action buttons
@@ -388,9 +366,22 @@ export default function ReadingsHistoryPage() {
                 cellRender={renderTypeBadge}
               />
               <Column
+                dataField="readingNumber"
+                caption="Reading #"
+                width={110}
+                alignment="center"
+                dataType="number"
+              />
+              <Column
                 dataField="shiftNumber"
                 caption="Shift #"
                 width={100}
+              />
+              <Column
+                dataField="reportNumber"
+                caption="Report #"
+                width={120}
+                cellRender={renderReportNumber}
               />
               <Column
                 dataField="readingTime"

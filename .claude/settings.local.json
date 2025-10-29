@@ -22,7 +22,8 @@
       "Bash(netstat:*)",
       "Bash(findstr:*)",
       "Bash(powershell -Command \"Stop-Process -Id 20928 -Force\")",
-      "Bash(npx prisma:*)"
+      "Bash(npx prisma:*)",
+      "mcp__ide__getDiagnostics"
     ]
   },
   "enableAllProjectMcpServers": true,

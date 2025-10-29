@@ -470,14 +470,21 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
     // ========== PRICING MANAGEMENT ==========
     {
       key: "pricing_management",
-      name: "Pricing Management",
-      href: "/dashboard/products/bulk-price-editor",
+      name: "Price Editor",
+      href: "/dashboard/products/simple-price-editor",
       icon: CurrencyDollarIcon,
       permission: PERMISSIONS.PRODUCT_PRICE_EDIT,
       children: [
         {
+          key: "simple_price_editor",
+          name: "Price Editor",
+          href: "/dashboard/products/simple-price-editor",
+          icon: CurrencyDollarIcon,
+          permission: PERMISSIONS.PRODUCT_PRICE_EDIT,
+        },
+        {
           key: "bulk_price_editor",
-          name: "Bulk Price Editor",
+          name: "Legacy Bulk Editor",
           href: "/dashboard/products/bulk-price-editor",
           icon: CurrencyDollarIcon,
           permission: PERMISSIONS.PRODUCT_PRICE_BULK_EDIT,
@@ -1405,7 +1412,7 @@ export default function Sidebar({ isOpen }: { isOpen: boolean }) {
           {!isIconOnly && (
             <div className="flex flex-col items-start gap-2">
               {/* Company Logo */}
-              <div className="w-full bg-white rounded-md overflow-hidden shadow-md" style={{ height: '60px' }}>
+              <div className="w-full bg-white rounded-md overflow-hidden shadow-md">
                 <img
                   src="/logo.svg"
                   alt="Company Logo"

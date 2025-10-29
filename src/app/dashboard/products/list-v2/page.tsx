@@ -29,7 +29,6 @@ import DataGrid, {
   Selection,
   MasterDetail,
 } from 'devextreme-react/data-grid'
-import Button from 'devextreme-react/button'
 import { Workbook } from 'exceljs'
 import { saveAs } from 'file-saver'
 import { exportDataGrid as exportToExcel } from 'devextreme/excel_exporter'
@@ -41,8 +40,6 @@ interface Product {
   name: string
   type: string
   sku: string
-  purchasePrice: number | null
-  sellingPrice: number | null
   image: string | null
   enableStock: boolean
   alertQuantity: number | null
@@ -59,8 +56,6 @@ interface ProductVariation {
   id: number
   name: string
   sku: string
-  purchasePrice: number
-  sellingPrice: number
   variationLocationDetails: VariationLocationDetail[]
   supplier: { id: number; name: string } | null
   lastPurchaseDate: string | null
@@ -73,7 +68,7 @@ interface VariationLocationDetail {
   qtyAvailable: number
 }
 
-type ColumnPreset = 'basic' | 'pricing' | 'supplier' | 'purchase' | 'complete'
+type ColumnPreset = 'basic' | 'supplier' | 'purchase' | 'complete'
 
 export default function ProductsListV2Page() {
   const { can } = usePermissions()
@@ -92,9 +87,6 @@ export default function ProductsListV2Page() {
     category: true,
     brand: true,
     unit: true,
-    purchasePrice: true,
-    sellingPrice: true,
-    margin: true,
     alertQuantity: true,
     tax: true,
     lastSupplier: true,
@@ -125,7 +117,6 @@ export default function ProductsListV2Page() {
   // Column Preset Definitions
   const columnPresets: Record<ColumnPreset, string[]> = {
     basic: ['sku', 'name', 'type', 'category', 'brand', 'unit', 'alertQuantity', 'isActive'],
-    pricing: ['sku', 'name', 'category', 'brand', 'purchasePrice', 'sellingPrice', 'margin', 'tax', 'isActive'],
     supplier: ['sku', 'name', 'category', 'lastSupplier', 'latestSupplier', 'lastPurchaseDate', 'isActive'],
     purchase: ['sku', 'name', 'lastSupplier', 'lastPurchaseDate', 'lastPurchaseCost', 'lastPurchaseQuantity', 'isActive'],
     complete: [] // All columns visible
@@ -221,11 +212,6 @@ export default function ProductsListV2Page() {
         const transformedData = data.products.map((product: Product) => {
           const totalStock = getTotalStock(product)
           const stockValue = totalStock !== 'N/A' ? parseFloat(totalStock) : 0
-          const totalCost = product.purchasePrice ? stockValue * product.purchasePrice : 0
-          const totalPrice = product.sellingPrice ? stockValue * product.sellingPrice : 0
-          const margin = product.purchasePrice && product.sellingPrice
-            ? ((product.sellingPrice - product.purchasePrice) / product.purchasePrice * 100).toFixed(2)
-            : '0.00'
 
           // Get last supplier and last purchase info from variations
           let lastSupplier = '-'
@@ -266,13 +252,9 @@ export default function ProductsListV2Page() {
             category: product.category?.name || '-',
             brand: product.brand?.name || '-',
             unit: product.unit?.shortName || '-',
-            purchasePrice: product.purchasePrice || 0,
-            sellingPrice: product.sellingPrice || 0,
-            margin: parseFloat(margin),
             tax: product.tax ? `${product.tax.name} (${product.tax.amount}%)` : '-',
             totalStock: stockValue,
             totalCost: totalCost,
-            totalPrice: totalPrice,
             alertQuantity: product.alertQuantity || 0,
             enableStock: product.enableStock,
             isActive: product.isActive ? 'Active' : 'Inactive',
@@ -332,15 +314,9 @@ export default function ProductsListV2Page() {
         customizeCell: ({ gridCell, excelCell }: any) => {
           if (gridCell.rowType === 'data') {
             // Format currency columns
-            if (gridCell.column.dataField?.includes('Price') || gridCell.column.dataField?.includes('Cost')) {
+            if (gridCell.column.dataField?.includes('Cost')) {
               if (typeof gridCell.value === 'number') {
                 excelCell.numFmt = '₱#,##0.00'
-              }
-            }
-            // Format percentage columns
-            if (gridCell.column.dataField === 'margin') {
-              if (typeof gridCell.value === 'number') {
-                excelCell.numFmt = '0.00"%"'
               }
             }
             // Format stock columns
@@ -788,40 +764,7 @@ export default function ProductsListV2Page() {
           <Column dataField="brand" caption="Brand" width={130} visible={columnVisibility.brand} />
           <Column dataField="unit" caption="Unit" width={80} visible={columnVisibility.unit} />
 
-          {/* Price Columns - Only show if user has permission */}
-          {can(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE) && (
-            <Column
-              dataField="purchasePrice"
-              caption="Purchase Price"
-              dataType="number"
-              format="₱#,##0.00"
-              width={140}
-              alignment="right"
-              visible={columnVisibility.purchasePrice}
-            />
-          )}
-          <Column
-            dataField="sellingPrice"
-            caption="Selling Price"
-            dataType="number"
-            format="₱#,##0.00"
-            width={140}
-            alignment="right"
-            visible={columnVisibility.sellingPrice}
-          />
-          {can(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE) && (
-            <Column
-              dataField="margin"
-              caption="Margin %"
-              dataType="number"
-              format="#,##0.00'%'"
-              width={100}
-              alignment="right"
-              cssClass="bg-yellow-50 dark:bg-yellow-900/20"
-              visible={columnVisibility.margin}
-            />
-          )}
-
+          
           {/* Stock Columns */}
           <Column
             dataField="alertQuantity"

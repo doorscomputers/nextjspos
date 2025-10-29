@@ -251,7 +251,11 @@ export async function generateXReadingData(
     })
   }
 
-  return {
+  const readingTimestamp = new Date()
+  const readingNumber = currentXReadingCount + (incrementCounter ? 1 : 0)
+  const transactionCount = completedSales.length
+
+  const readingData: XReadingData = {
     shiftNumber: shift.shiftNumber,
     cashierName: cashierName,
     cashierId: cashierId,
@@ -259,14 +263,14 @@ export async function generateXReadingData(
     locationAddress: address,
     businessName: business?.name || 'Unknown Business',
     openedAt: shift.openedAt,
-    readingTime: new Date(),
-    xReadingNumber: currentXReadingCount + (incrementCounter ? 1 : 0),
+    readingTime: readingTimestamp,
+    xReadingNumber: readingNumber,
     beginningCash: parseFloat(shift.beginningCash.toString()),
     grossSales,
     totalDiscounts,
     netSales,
     voidAmount,
-    transactionCount: completedSales.length,
+    transactionCount,
     voidCount: voidedSales.length,
     paymentBreakdown,
     cashIn,
@@ -285,6 +289,26 @@ export async function generateXReadingData(
         .reduce((sum, s) => sum + parseFloat(s.discountAmount.toString()), 0),
     },
   }
+
+  if (incrementCounter) {
+    await recordShiftReadingLog({
+      shiftId: shift.id,
+      businessId: shift.businessId,
+      locationId: shift.locationId,
+      userId: shift.userId,
+      type: 'X',
+      readingNumber,
+      readingTime: readingTimestamp,
+      grossSales,
+      netSales,
+      totalDiscounts,
+      expectedCash,
+      transactionCount,
+      payload: readingData,
+    })
+  }
+
+  return readingData
 }
 
 /**
@@ -470,10 +494,12 @@ export async function generateZReadingData(
   // Get cash denomination if available
   const cashDenomination = shift.cashDenominations[0] || null
 
-  return {
+  const generatedAt = new Date()
+
+  const zReadingData: ZReadingData = {
     reportType: 'Z-Reading',
     reportNumber: `Z${String(currentZCounter).padStart(4, '0')}`,
-    generatedAt: new Date().toISOString(),
+    generatedAt: generatedAt.toISOString(),
     zCounter: currentZCounter,
     resetCounter: business.resetCounter,
     previousAccumulatedSales,
@@ -550,5 +576,88 @@ export async function generateZReadingData(
           totalAmount: parseFloat(cashDenomination.totalAmount.toString()),
         }
       : null,
+  }
+
+  if (incrementCounter) {
+    const expectedCashForLog = zReadingData.cash.systemCash
+    await recordShiftReadingLog({
+      shiftId: shift.id,
+      businessId: shift.businessId,
+      locationId: shift.locationId,
+      userId: shift.userId,
+      type: 'Z',
+      readingNumber: 1,
+      readingTime: generatedAt,
+      grossSales,
+      netSales,
+      totalDiscounts,
+      expectedCash: expectedCashForLog,
+      transactionCount: zReadingData.sales.transactionCount,
+      reportNumber: zReadingData.reportNumber,
+      payload: zReadingData,
+    })
+  }
+
+  return zReadingData
+}
+
+interface ShiftReadingLogParams {
+  shiftId: number
+  businessId: number
+  locationId: number
+  userId: number
+  type: 'X' | 'Z'
+  readingNumber: number
+  readingTime: Date
+  grossSales: number
+  netSales: number
+  totalDiscounts: number
+  expectedCash?: number
+  transactionCount: number
+  reportNumber?: string | null
+  payload?: any
+}
+
+async function recordShiftReadingLog(params: ShiftReadingLogParams) {
+  try {
+    const sanitizedPayload = params.payload ? JSON.parse(JSON.stringify(params.payload)) : null
+
+    await prisma.cashierShiftReading.upsert({
+      where: {
+        shiftId_type_readingNumber: {
+          shiftId: params.shiftId,
+          type: params.type,
+          readingNumber: params.readingNumber,
+        },
+      },
+      update: {
+        readingTime: params.readingTime,
+        grossSales: params.grossSales,
+        netSales: params.netSales,
+        totalDiscounts: params.totalDiscounts,
+        expectedCash: params.expectedCash ?? null,
+        transactionCount: params.transactionCount,
+        reportNumber: params.reportNumber ?? null,
+        payload: sanitizedPayload,
+      },
+      create: {
+        businessId: params.businessId,
+        locationId: params.locationId,
+        shiftId: params.shiftId,
+        userId: params.userId,
+        type: params.type,
+        readingNumber: params.readingNumber,
+        readingTime: params.readingTime,
+        grossSales: params.grossSales,
+        netSales: params.netSales,
+        totalDiscounts: params.totalDiscounts,
+        expectedCash: params.expectedCash ?? null,
+        transactionCount: params.transactionCount,
+        reportNumber: params.reportNumber ?? null,
+        payload: sanitizedPayload,
+      },
+    })
+  } catch (error) {
+    console.error('Failed to record shift reading log:', error)
   }
 }

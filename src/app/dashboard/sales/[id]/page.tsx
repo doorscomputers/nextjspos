@@ -34,6 +34,12 @@ interface SaleItem {
   discountAmount: number
   totalPrice: number
   serialNumbers: any
+  product?: {
+    id: number
+    name: string
+    sku?: string | null
+  } | null
+  productName?: string | null
 }
 
 interface SalePayment {
@@ -294,6 +300,10 @@ export default function SaleDetailsPage() {
     return Number(amount).toFixed(2)
   }
 
+  const getItemName = (item: SaleItem) => {
+    return item.product?.name || item.productName || `Item #${item.productVariationId}`
+  }
+
   const getStatusBadge = (status: string) => {
     const variants: { [key: string]: "default" | "secondary" | "destructive" | "outline" } = {
       'completed': 'default',
@@ -447,7 +457,7 @@ export default function SaleDetailsPage() {
                 <tr key={item.id} className="border-b">
                   <td className="py-3 px-2">
                     <div>
-                      <p className="font-medium">Item #{item.productVariationId}</p>
+                      <p className="font-medium">{getItemName(item)}</p>
                       {item.serialNumbers && Array.isArray(item.serialNumbers) && item.serialNumbers.length > 0 && (
                         <p className="text-xs text-gray-500">
                           S/N: {item.serialNumbers.map((sn: any) => sn.serialNumber).join(', ')}
@@ -573,7 +583,7 @@ export default function SaleDetailsPage() {
                   <div key={item.id} className="p-4 space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <p className="font-medium">Item #{item.productVariationId}</p>
+                        <p className="font-medium">{getItemName(item)}</p>
                         <p className="text-sm text-gray-500">
                           Sold Quantity: {item.quantity} | Unit Price: {formatCurrency(item.unitPrice)}
                         </p>

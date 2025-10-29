@@ -107,9 +107,9 @@ export default function AddProductPage() {
     }
   }, [formData.categoryId, categories])
 
-  // Auto-calculate selling price from margin
+  // Auto-calculate selling price from margin - only if sellingPrice is empty
   useEffect(() => {
-    if (formData.purchasePrice && formData.marginPercentage) {
+    if (formData.purchasePrice && formData.marginPercentage && !formData.sellingPrice) {
       const purchase = parseFloat(formData.purchasePrice)
       const margin = parseFloat(formData.marginPercentage)
       if (!isNaN(purchase) && !isNaN(margin)) {
@@ -117,7 +117,7 @@ export default function AddProductPage() {
         setFormData(prev => ({ ...prev, sellingPrice: selling.toFixed(2) }))
       }
     }
-  }, [formData.purchasePrice, formData.marginPercentage])
+  }, [formData.purchasePrice, formData.marginPercentage, formData.sellingPrice])
 
   const fetchMetadata = async () => {
     try {
@@ -144,12 +144,18 @@ export default function AddProductPage() {
       setTaxRates(fetchedTaxRates)
       setAvailableProducts(productsData.products || [])
 
-      // Set default tax to "Standard VAT (12%)" if available
+      // Set default tax to "Standard VAT (12%)" if available - only on initial load
       const standardVAT = fetchedTaxRates.find((tax: TaxRate) =>
         tax.name === 'Standard VAT (12%)' || (tax.name.includes('Standard VAT') && tax.amount === 12)
       )
-      if (standardVAT && !formData.taxId) {
-        setFormData(prev => ({ ...prev, taxId: standardVAT.id.toString() }))
+      if (standardVAT) {
+        setFormData(prev => {
+          // Only set tax if it's not already set and this is the initial load
+          if (!prev.taxId) {
+            return { ...prev, taxId: standardVAT.id.toString() }
+          }
+          return prev
+        })
       }
     } catch (error) {
       console.error('Error fetching metadata:', error)
@@ -1006,14 +1012,6 @@ export default function AddProductPage() {
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-3">
-          <button
-            type="button"
-            onClick={(e: any) => handleSubmit(e, 'save-and-stock')}
-            disabled={loading}
-            className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white rounded-lg disabled:opacity-50 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
-          >
-            {loading && saveAction === 'save-and-stock' ? 'Saving...' : 'Save & Add Opening Stock'}
-          </button>
           <button
             type="button"
             onClick={(e: any) => handleSubmit(e, 'save-and-add')}
