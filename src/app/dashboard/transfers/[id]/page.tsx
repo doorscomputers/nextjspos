@@ -109,6 +109,10 @@ export default function TransferDetailPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [itemToUnverify, setItemToUnverify] = useState<number | null>(null)
 
+  // Inventory Impact Modal
+  const [showInventoryImpact, setShowInventoryImpact] = useState(false)
+  const [inventoryImpactData, setInventoryImpactData] = useState<any>(null)
+
   useEffect(() => {
     fetchLocations()
     fetchUserLocations()
@@ -192,9 +196,34 @@ export default function TransferDetailPage() {
 
       if (response.ok) {
         toast.success(successMessage)
-        fetchTransfer()
+        
+        // Check if this is a send or complete action with inventory impact
+        if (result.inventoryImpact && (endpoint === 'send' || endpoint === 'complete')) {
+          setInventoryImpactData(result.inventoryImpact)
+          setShowInventoryImpact(true)
+        }
+        
+        // Redirect to transfers list after completing transfer
+        if (endpoint === 'complete') {
+          setTimeout(() => {
+            router.push('/dashboard/transfers')
+          }, 2000) // Give user 2 seconds to see the impact modal
+        } else {
+          fetchTransfer()
+        }
       } else {
-        toast.error(result.error || `Failed to ${successMessage.toLowerCase()}`)
+        // Show specific error message from API
+        const errorMessage = result.error || result.details || `Failed to ${successMessage.toLowerCase()}`
+        toast.error(errorMessage)
+        
+        // Log detailed error for debugging
+        console.error(`API Error (${endpoint}):`, {
+          status: response.status,
+          statusText: response.statusText,
+          error: result.error,
+          details: result.details,
+          code: result.code
+        })
       }
     } catch (error) {
       console.error(`Error with ${endpoint}:`, error)
@@ -1395,17 +1424,19 @@ export default function TransferDetailPage() {
         <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-gray-900 dark:text-white">Confirm Send Transfer</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3 text-gray-600 dark:text-gray-400">
-              <p className="text-base">
-                Are you sure you want to send this transfer?
-              </p>
-              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-4">
-                <p className="font-semibold text-amber-900 dark:text-amber-200 mb-2">
-                  ⚠️ Important: Stock will be deducted
-                </p>
-                <p className="text-sm text-amber-800 dark:text-amber-300">
-                  Stock will be immediately deducted from the origin location. This action affects inventory levels.
-                </p>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-gray-600 dark:text-gray-400">
+                <div className="text-base">
+                  Are you sure you want to send this transfer?
+                </div>
+                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-4">
+                  <div className="font-semibold text-amber-900 dark:text-amber-200 mb-2">
+                    ⚠️ Important: Stock will be deducted
+                  </div>
+                  <div className="text-sm text-amber-800 dark:text-amber-300">
+                    Stock will be immediately deducted from the origin location. This action affects inventory levels.
+                  </div>
+                </div>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1430,40 +1461,42 @@ export default function TransferDetailPage() {
             <AlertDialogTitle className="text-gray-900 dark:text-white text-xl">
               ⚠️ FINAL CONFIRMATION - Complete Transfer
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3 text-gray-600 dark:text-gray-400">
-              <p className="text-base font-semibold text-gray-900 dark:text-white">
-                You are about to COMPLETE this transfer and UPDATE INVENTORY.
-              </p>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-gray-600 dark:text-gray-400">
+                <div className="text-base font-semibold text-gray-900 dark:text-white">
+                  You are about to COMPLETE this transfer and UPDATE INVENTORY.
+                </div>
 
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
-                <p className="text-sm text-blue-800 dark:text-blue-300">
-                  <strong>Items verified:</strong> {transfer?.items.filter(item => item.verified).length} / {transfer?.items.length}
-                </p>
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                  <div className="text-sm text-blue-800 dark:text-blue-300">
+                    <strong>Items verified:</strong> {transfer?.items.filter(item => item.verified).length} / {transfer?.items.length}
+                  </div>
+                </div>
+
+                <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-700 rounded-lg p-4">
+                  <div className="font-bold text-amber-900 dark:text-amber-200 mb-3">
+                    This action will:
+                  </div>
+                  <ul className="text-sm text-amber-800 dark:text-amber-300 space-y-2">
+                    <li>✓ Add stock to destination location</li>
+                    <li>✓ Update inventory ledgers permanently</li>
+                    <li>✓ Make this transfer IMMUTABLE (cannot be edited)</li>
+                  </ul>
+                </div>
+
+                <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 rounded-lg p-4">
+                  <div className="font-bold text-red-900 dark:text-red-200 mb-2">
+                    ⚠️ WARNING
+                  </div>
+                  <div className="text-sm text-red-800 dark:text-red-300">
+                    Once completed, you CANNOT change verified quantities! Review all verified quantities carefully before proceeding.
+                  </div>
+                </div>
+
+                <div className="text-base font-semibold text-gray-900 dark:text-white mt-4">
+                  Are you absolutely sure all quantities are correct?
+                </div>
               </div>
-
-              <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-700 rounded-lg p-4">
-                <p className="font-bold text-amber-900 dark:text-amber-200 mb-3">
-                  This action will:
-                </p>
-                <ul className="text-sm text-amber-800 dark:text-amber-300 space-y-2">
-                  <li>✓ Add stock to destination location</li>
-                  <li>✓ Update inventory ledgers permanently</li>
-                  <li>✓ Make this transfer IMMUTABLE (cannot be edited)</li>
-                </ul>
-              </div>
-
-              <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 rounded-lg p-4">
-                <p className="font-bold text-red-900 dark:text-red-200 mb-2">
-                  ⚠️ WARNING
-                </p>
-                <p className="text-sm text-red-800 dark:text-red-300">
-                  Once completed, you CANNOT change verified quantities! Review all verified quantities carefully before proceeding.
-                </p>
-              </div>
-
-              <p className="text-base font-semibold text-gray-900 dark:text-white mt-4">
-                Are you absolutely sure all quantities are correct?
-              </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1485,17 +1518,19 @@ export default function TransferDetailPage() {
         <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-gray-900 dark:text-white">Cancel Transfer</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3 text-gray-600 dark:text-gray-400">
-              <p className="text-base">
-                Are you sure you want to cancel this transfer?
-              </p>
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4">
-                <p className="font-semibold text-red-900 dark:text-red-200 mb-2">
-                  ⚠️ This action cannot be undone
-                </p>
-                <p className="text-sm text-red-800 dark:text-red-300">
-                  The transfer will be permanently cancelled and cannot be recovered.
-                </p>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-gray-600 dark:text-gray-400">
+                <div className="text-base">
+                  Are you sure you want to cancel this transfer?
+                </div>
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4">
+                  <div className="font-semibold text-red-900 dark:text-red-200 mb-2">
+                    ⚠️ This action cannot be undone
+                  </div>
+                  <div className="text-sm text-red-800 dark:text-red-300">
+                    The transfer will be permanently cancelled and cannot be recovered.
+                  </div>
+                </div>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1518,14 +1553,16 @@ export default function TransferDetailPage() {
         <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-gray-900 dark:text-white">Edit Verified Item</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3 text-gray-600 dark:text-gray-400">
-              <p className="text-base">
-                Do you want to edit this verified item?
-              </p>
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
-                <p className="text-sm text-blue-800 dark:text-blue-300">
-                  You can change the quantity and verify it again. This will unmark the item as verified.
-                </p>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-gray-600 dark:text-gray-400">
+                <div className="text-base">
+                  Do you want to edit this verified item?
+                </div>
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                  <div className="text-sm text-blue-800 dark:text-blue-300">
+                    You can change the quantity and verify it again. This will unmark the item as verified.
+                  </div>
+                </div>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1538,6 +1575,117 @@ export default function TransferDetailPage() {
               className="bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-700 hover:to-yellow-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
             >
               Yes, Edit Item
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Inventory Impact Modal - Shows From/To Quantities */}
+      <AlertDialog open={showInventoryImpact} onOpenChange={setShowInventoryImpact}>
+        <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 max-w-4xl max-h-[80vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900 dark:text-white text-2xl flex items-center gap-2">
+              <CheckCircleIcon className="w-8 h-8 text-green-600" />
+              Transfer Impact Report
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4 text-gray-600 dark:text-gray-400">
+                {inventoryImpactData && (
+                  <>
+                    {/* Summary */}
+                    <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-300 dark:border-green-700 rounded-lg p-4">
+                      <div className="text-lg font-bold text-green-900 dark:text-green-200 mb-2">
+                        ✓ Transfer Completed Successfully
+                      </div>
+                      <div className="text-sm text-green-800 dark:text-green-300">
+                        <p><strong>Transfer:</strong> {inventoryImpactData.referenceNumber}</p>
+                        <p><strong>Executed By:</strong> {inventoryImpactData.executedBy}</p>
+                        <p><strong>Date:</strong> {new Date(inventoryImpactData.timestamp).toLocaleString()}</p>
+                      </div>
+                    </div>
+
+                    {/* Items Impact */}
+                    <div className="space-y-3">
+                      <h3 className="font-bold text-gray-900 dark:text-white text-lg">Inventory Changes:</h3>
+                      {inventoryImpactData.items.map((item: any, index: number) => (
+                        <div key={index} className="border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
+                          <div className="font-semibold text-gray-900 dark:text-white mb-3">
+                            {item.productName}
+                            {item.variationName && item.variationName !== 'Default' && item.variationName !== 'DUMMY' && (
+                              <span className="text-gray-600 dark:text-gray-400"> - {item.variationName}</span>
+                            )}
+                          </div>
+
+                          {/* Location Changes */}
+                          {item.locations.map((loc: any, locIndex: number) => (
+                            <div key={locIndex} className="mb-3 last:mb-0">
+                              <div className="flex items-center justify-between bg-white dark:bg-gray-700 p-3 rounded border border-gray-200 dark:border-gray-600">
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    📍 {loc.locationName} ({loc.type === 'source' ? 'From' : 'To'})
+                                  </div>
+                                  <div className="flex items-center gap-4">
+                                    <div>
+                                      <div className="text-xs text-gray-500 dark:text-gray-400">Before</div>
+                                      <div className="text-xl font-bold text-gray-900 dark:text-white">
+                                        {loc.before !== null ? parseFloat(loc.before).toLocaleString() : 'N/A'}
+                                      </div>
+                                    </div>
+                                    <div className="text-2xl text-gray-400">→</div>
+                                    <div>
+                                      <div className="text-xs text-gray-500 dark:text-gray-400">After</div>
+                                      <div className={`text-xl font-bold ${
+                                        loc.type === 'source' 
+                                          ? 'text-red-600 dark:text-red-400' 
+                                          : 'text-green-600 dark:text-green-400'
+                                      }`}>
+                                        {loc.after !== null ? parseFloat(loc.after).toLocaleString() : 'N/A'}
+                                      </div>
+                                    </div>
+                                    <div className="ml-4">
+                                      <div className="text-xs text-gray-500 dark:text-gray-400">Change</div>
+                                      <div className={`text-lg font-bold ${
+                                        loc.change < 0 
+                                          ? 'text-red-600 dark:text-red-400' 
+                                          : 'text-green-600 dark:text-green-400'
+                                      }`}>
+                                        {loc.change > 0 ? '+' : ''}{parseFloat(loc.change).toLocaleString()}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Print Button */}
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                      <div className="text-sm text-blue-800 dark:text-blue-300 mb-3">
+                        💡 <strong>Tip:</strong> Print this report for your records before closing.
+                      </div>
+                      <Button
+                        onClick={() => window.print()}
+                        variant="outline"
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+                      >
+                        <PrinterIcon className="w-4 h-4 mr-2" />
+                        Print Impact Report
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => setShowInventoryImpact(false)}
+              className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
+            >
+              Close
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
