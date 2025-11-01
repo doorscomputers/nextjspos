@@ -122,6 +122,8 @@ export default function MyReceivedTransfersReport() {
   })
 
   useEffect(() => {
+    console.log('🚀 [My Received Transfers] Component mounted, starting initialization...')
+    
     // Fetch locations first (independent of myLocation)
     fetchLocations()
     
@@ -130,7 +132,9 @@ export default function MyReceivedTransfersReport() {
   }, [])
 
   useEffect(() => {
+    console.log('🔄 [My Received Transfers] State changed - myLocation:', myLocation, 'locations count:', locations.length)
     if (myLocation && locations.length > 0) {
+      console.log('✅ Both myLocation and locations are ready, initializing report...')
       fetchDefaultProducts()
       setFilters(prev => ({ ...prev, toLocationId: myLocation.id.toString() }))
       generateReport({ ...filters, toLocationId: myLocation.id.toString() })
@@ -140,15 +144,19 @@ export default function MyReceivedTransfersReport() {
 
   const fetchMyLocation = async () => {
     try {
+      console.log('📡 Fetching my location...')
       const res = await fetch('/api/user-locations/my-location')
       const data = await res.json()
+      console.log('📊 My location API response:', data)
       if (data?.location) {
+        console.log('✅ Setting myLocation:', { id: data.location.id, name: data.location.name })
         setMyLocation({ id: data.location.id, name: data.location.name })
       } else {
+        console.error('❌ No location in response:', data)
         toast.error('No location assigned to your account.')
       }
     } catch (err) {
-      console.error('Error fetching my location:', err)
+      console.error('❌ Error fetching my location:', err)
       toast.error('Unable to fetch your assigned location')
     }
   }
@@ -208,7 +216,7 @@ export default function MyReceivedTransfersReport() {
       const data = await res.json()
       if (res.ok) {
         const unique = new Map<number, { id: number; name: string; sku?: string | null }>()
-        ;(data.products || []).forEach((p: any) => { if (!unique.has(p.id)) unique.set(p.id, { id: p.id, name: p.name, sku: p.sku || null }) })
+          ; (data.products || []).forEach((p: any) => { if (!unique.has(p.id)) unique.set(p.id, { id: p.id, name: p.name, sku: p.sku || null }) })
         setProducts(Array.from(unique.values()))
       }
     } catch (e) {
