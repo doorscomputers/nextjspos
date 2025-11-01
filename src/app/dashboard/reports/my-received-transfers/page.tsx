@@ -110,19 +110,32 @@ export default function MyReceivedTransfersReport() {
     ? locations.filter(loc => loc.id === myLocation.id)
     : []
 
+  // Debug logging
+  console.log('🔍 [My Received Transfers] Debug:', {
+    myLocationId: myLocation?.id,
+    myLocationName: myLocation?.name,
+    totalLocations: locations.length,
+    locationIds: locations.map(l => l.id),
+    availableFromCount: availableFromLocations.length,
+    availableToCount: availableToLocations.length,
+  })
+
   useEffect(() => {
+    // Fetch locations first (independent of myLocation)
+    fetchLocations()
+    
+    // Then fetch user's location
     fetchMyLocation()
   }, [])
 
   useEffect(() => {
-    if (myLocation) {
-      fetchLocations()
+    if (myLocation && locations.length > 0) {
       fetchDefaultProducts()
       setFilters(prev => ({ ...prev, toLocationId: myLocation.id.toString() }))
       generateReport({ ...filters, toLocationId: myLocation.id.toString() })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [myLocation])
+  }, [myLocation, locations])
 
   const fetchMyLocation = async () => {
     try {
@@ -141,13 +154,18 @@ export default function MyReceivedTransfersReport() {
 
   const fetchLocations = async () => {
     try {
+      console.log('📡 Fetching locations...')
       const response = await fetch('/api/locations')
       const result = await response.json()
+      console.log('📊 Locations API response:', result)
       if (response.ok && result.success) {
+        console.log('✅ Setting locations:', result.data?.length, 'locations')
         setLocations(result.data || [])
+      } else {
+        console.error('❌ Failed to fetch locations:', result)
       }
     } catch (error) {
-      console.error('Error fetching locations:', error)
+      console.error('❌ Error fetching locations:', error)
     }
   }
 
@@ -325,9 +343,15 @@ export default function MyReceivedTransfersReport() {
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">From Location</label>
             <select value={filters.fromLocationId} onChange={(e) => setFilters({ ...filters, fromLocationId: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
               <option value="">All Locations</option>
-              {availableFromLocations.map((location) => (
-                <option key={location.id} value={location.id}>{location.name}</option>
-              ))}
+              {loading ? (
+                <option disabled>Loading locations...</option>
+              ) : availableFromLocations.length === 0 ? (
+                <option disabled>No other locations available</option>
+              ) : (
+                availableFromLocations.map((location) => (
+                  <option key={location.id} value={location.id}>{location.name}</option>
+                ))
+              )}
             </select>
           </div>
 
