@@ -69,26 +69,25 @@ export async function POST(
 
     const workflowMode = business?.transferWorkflowMode || 'full'
 
-    // Validate status based on workflow mode
-    if (workflowMode === 'simple') {
-      // SIMPLIFIED WORKFLOW: Can complete directly from in_transit
-      if (transfer.status !== 'in_transit') {
-        return NextResponse.json(
-          { error: `Cannot complete transfer with status: ${transfer.status}. Transfer must be in transit.` },
-          { status: 400 }
-        )
-      }
-      // In simple mode, skip verification requirement
-    } else {
-      // FULL WORKFLOW: Must be verified or verifying
-      if (transfer.status !== 'verified' && transfer.status !== 'verifying') {
-        return NextResponse.json(
-          { error: `Cannot complete transfer with status: ${transfer.status}` },
-          { status: 400 }
-        )
-      }
+    // FLEXIBLE STATUS VALIDATION: Accept transfers that have gone through either workflow
+    // Simple workflow: in_transit → completed
+    // Full workflow: verified/verifying → completed
+    // CRITICAL: Allow both to support workflow mode changes mid-transfer
+    const validSimpleStatuses = ['in_transit', 'arrived']
+    const validFullStatuses = ['verified', 'verifying']
+    const allValidStatuses = [...validSimpleStatuses, ...validFullStatuses]
 
-      // Validate all items are verified
+    if (!allValidStatuses.includes(transfer.status)) {
+      return NextResponse.json(
+        {
+          error: `Cannot complete transfer with status: ${transfer.status}. Transfer must be in one of these states: ${allValidStatuses.join(', ')}`
+        },
+        { status: 400 }
+      )
+    }
+
+    // If transfer went through full workflow (verified/verifying), validate all items are verified
+    if (validFullStatuses.includes(transfer.status)) {
       const unverifiedItems = transfer.items.filter(item => !item.verified)
       if (unverifiedItems.length > 0) {
         return NextResponse.json(
@@ -235,14 +234,15 @@ export async function POST(
             productVariationId: variationId,
             locationId: transfer.toLocationId,
             quantityChange: receivedQty, // Positive = addition
-            quantityBefore: currentQty,
-            quantityAfter: newQty,
+            balanceQuantity: newQty, // Balance after transaction
             transactionType: 'transfer_in',
+            transactionDate: new Date(), // Date when transfer is completed/received
             referenceType: 'stock_transfer',
             referenceId: transferId,
             referenceNumber: transfer.transferNumber,
             createdBy: parseInt(userId),
-            notes: `Transfer ${transfer.transferNumber} received from location ${transfer.fromLocationId}`,
+            createdByName: userDisplayName,
+            reason: `Transfer ${transfer.transferNumber} received from location ${transfer.fromLocationId}`,
           },
         })
 

@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS, isSuperAdmin } from '@/lib/rbac'
-import { BookOpen, RefreshCw, Search, Info } from 'lucide-react'
+import { BookOpen, RefreshCw, Search, Info, X } from 'lucide-react'
 import { StockHistoryEntry } from '@/types/product'
 import { generateStockHistoryNarrative } from '@/utils/stockHistoryNarrative'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import DataGrid, {
   Column,
   Export,
@@ -26,7 +27,7 @@ import { saveAs } from 'file-saver'
 import { exportDataGrid as exportToExcel } from 'devextreme/excel_exporter'
 import { exportDataGrid as exportToPDF } from 'devextreme/pdf_exporter'
 import { jsPDF } from 'jspdf'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 interface Product {
   id: number
@@ -57,35 +58,248 @@ interface ProductOption {
 
 export default function StockHistoryV2Page() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { can, user } = usePermissions()
-  const [products, setProducts] = useState<Product[]>([])
   const [locations, setLocations] = useState<Location[]>([])
   const [history, setHistory] = useState<StockHistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [loadingProductFromUrl, setLoadingProductFromUrl] = useState(false)
   const dataGridRef = useRef<DataGrid>(null)
 
-  // Flattened product options for SelectBox
-  const [productOptions, setProductOptions] = useState<ProductOption[]>([])
-
   // Filters
-  const [selectedProductId, setSelectedProductId] = useState<number | null>(null)
+  const [selectedProduct, setSelectedProduct] = useState<ProductOption | null>(null)
   const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [autoCorrect, setAutoCorrect] = useState(false)
 
-  // Get full objects from IDs
-  const selectedProduct = productOptions.find(p => p.id === selectedProductId) || null
+  // Product autocomplete state
+  const [searchTerm, setSearchTerm] = useState('')
+  const [searchResults, setSearchResults] = useState<ProductOption[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [selectedIndex, setSelectedIndex] = useState(0)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const searchTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
+
+  // Get location object from ID
   const selectedLocation = locations.find(l => l.id === selectedLocationId) || null
 
+  // Debounced product search
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setSearchResults([])
+      setShowDropdown(false)
+      setSelectedIndex(0)
+      return
+    }
+
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+
+    // Debounce search by 300ms
+    searchTimeoutRef.current = setTimeout(async () => {
+      // Only search if 3+ characters
+      if (searchTerm.trim().length < 3) {
+        setSearchResults([])
+        setShowDropdown(false)
+        return
+      }
+
+      try {
+        setSearchLoading(true)
+        const response = await fetch(
+          `/api/products/search-async?q=${encodeURIComponent(searchTerm.trim())}&limit=50`
+        )
+
+        if (response.ok) {
+          const data = await response.json()
+          setSearchResults(data.data || [])
+          setSelectedIndex(0)
+          setShowDropdown(true)
+        } else {
+          console.error('Failed to search products')
+          setSearchResults([])
+          setShowDropdown(false)
+        }
+      } catch (error) {
+        console.error('Error searching products:', error)
+        setSearchResults([])
+        setShowDropdown(false)
+      } finally {
+        setSearchLoading(false)
+      }
+    }, 300)
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+      }
+    }
+  }, [searchTerm])
+
+  // Scroll selected item into view
+  const scrollToSelected = useCallback((index: number) => {
+    setTimeout(() => {
+      const selectedElement = dropdownRef.current?.querySelector(
+        `[data-index="${index}"]`
+      )
+      if (selectedElement) {
+        selectedElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+        })
+      }
+    }, 0)
+  }, [])
+
+  // Handle keyboard navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showDropdown || searchResults.length === 0) {
+      return
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        setSelectedIndex((prev) => {
+          const newIndex = (prev + 1) % searchResults.length
+          scrollToSelected(newIndex)
+          return newIndex
+        })
+        break
+
+      case 'ArrowUp':
+        e.preventDefault()
+        setSelectedIndex((prev) => {
+          const newIndex = (prev - 1 + searchResults.length) % searchResults.length
+          scrollToSelected(newIndex)
+          return newIndex
+        })
+        break
+
+      case 'Enter':
+        e.preventDefault()
+        if (searchResults[selectedIndex]) {
+          handleProductSelect(searchResults[selectedIndex])
+        }
+        break
+
+      case 'Escape':
+        e.preventDefault()
+        setShowDropdown(false)
+        setSearchTerm('')
+        break
+    }
+  }, [showDropdown, searchResults, selectedIndex, scrollToSelected])
+
+  // Handle product selection
+  const handleProductSelect = useCallback((product: ProductOption) => {
+    setSelectedProduct(product)
+    setSearchTerm(product.displayName)
+    setSearchResults([])
+    setShowDropdown(false)
+    setSelectedIndex(0)
+  }, [])
+
+  // Clear search
+  const handleClearSearch = useCallback(() => {
+    setSearchTerm('')
+    setSelectedProduct(null)
+    setSearchResults([])
+    setShowDropdown(false)
+    setSelectedIndex(0)
+    searchInputRef.current?.focus()
+  }, [])
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node) &&
+        searchInputRef.current &&
+        !searchInputRef.current.contains(event.target as Node)
+      ) {
+        setShowDropdown(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Initialize: Load locations first, then product from URL if present
   useEffect(() => {
     if (!can(PERMISSIONS.PRODUCT_VIEW)) {
       router.push('/dashboard')
       return
     }
-    fetchProducts()
-    fetchLocations()
+    
+    const init = async () => {
+      console.log('🚀 Initializing Stock History V2 page...')
+      
+      // Step 1: Load locations first
+      await fetchLocations()
+      console.log('✅ Locations loaded')
+      
+      setLoading(false) // Initial load complete
+      
+      // Step 2: Check for productId in URL and auto-load
+      const productIdParam = searchParams.get('productId')
+      if (productIdParam) {
+        const productId = parseInt(productIdParam)
+        console.log('🔍 Found productId in URL:', productId)
+        console.log('⏳ Auto-loading product...')
+        
+        // Inline the product loading logic to avoid dependency issues
+        try {
+          setLoadingProductFromUrl(true)
+          
+          const response = await fetch(`/api/products/search-async?productId=${productId}`)
+          console.log('📡 API Response status:', response.status)
+          
+          if (response.ok) {
+            const data = await response.json()
+            console.log('📊 API Data:', data)
+            const products = data.data || []
+            
+            if (products.length > 0) {
+              const productOption = products[0] as ProductOption
+              console.log('✅ Product loaded:', productOption.displayName)
+              
+              setSelectedProduct(productOption)
+              setSearchTerm(productOption.displayName)
+              
+              // Set user's primary location if available
+              if (user?.primaryLocationId) {
+                console.log('📍 Setting primary location:', user.primaryLocationId)
+                setSelectedLocationId(user.primaryLocationId)
+              } else {
+                console.log('⚠️ No primary location for user')
+              }
+            } else {
+              console.error('❌ Product not found with ID:', productId)
+            }
+          } else {
+            console.error('❌ API Error:', response.status, response.statusText)
+          }
+        } catch (error) {
+          console.error('❌ Error loading product from URL:', error)
+        } finally {
+          setLoadingProductFromUrl(false)
+        }
+      } else {
+        console.log('ℹ️ No productId in URL - manual search mode')
+      }
+    }
+    
+    init()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -94,45 +308,50 @@ export default function StockHistoryV2Page() {
     }
   }, [selectedProduct, selectedLocation, startDate, endDate, autoCorrect])
 
-  const fetchProducts = async () => {
+  // Load product from URL parameter - OPTIMIZED for speed
+  const loadProductFromUrl = useCallback(async (productId: number) => {
     try {
-      const response = await fetch('/api/products')
-      const data = await response.json()
-      if (response.ok && data.products) {
-        setProducts(data.products)
-
-        // Flatten products with variations for SelectBox
-        const options: ProductOption[] = []
-        data.products.forEach((product: Product) => {
-          if (product.variations && product.variations.length > 0) {
-            product.variations.forEach((variation: ProductVariation) => {
-              const displayName = variation.name === 'DUMMY' || variation.name === 'Default'
-                ? `${product.name} - ${variation.sku}`
-                : `${product.name} - ${variation.name} - ${variation.sku}`
-
-              options.push({
-                id: variation.id,
-                productId: product.id,
-                variationId: variation.id,
-                displayName,
-                sku: variation.sku
-              })
-            })
+      console.log('📦 Starting product load for ID:', productId)
+      setLoadingProductFromUrl(true)
+      
+      // FAST: Use search-async endpoint which is optimized and returns flattened data
+      const response = await fetch(`/api/products/search-async?productId=${productId}`)
+      
+      console.log('📡 API Response status:', response.status)
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('📊 API Data:', data)
+        const products = data.data || []
+        
+        if (products.length > 0) {
+          // The search-async endpoint returns ProductOption format directly
+          const productOption = products[0] as ProductOption
+          
+          console.log('✅ Product loaded:', productOption.displayName)
+          
+          setSelectedProduct(productOption)
+          setSearchTerm(productOption.displayName)
+          
+          // Set user's primary location if available
+          if (user?.primaryLocationId) {
+            console.log('📍 Setting primary location:', user.primaryLocationId)
+            setSelectedLocationId(user.primaryLocationId)
+          } else {
+            console.log('⚠️ No primary location for user')
           }
-        })
-        setProductOptions(options)
-
-        // Auto-select first option
-        if (options.length > 0) {
-          setSelectedProductId(options[0].id)
+        } else {
+          console.error('❌ Product not found with ID:', productId)
         }
+      } else {
+        console.error('❌ API Error:', response.status, response.statusText)
       }
     } catch (error) {
-      console.error('Error fetching products:', error)
+      console.error('❌ Error loading product from URL:', error)
     } finally {
-      setLoading(false)
+      setLoadingProductFromUrl(false)
     }
-  }
+  }, [user])
 
   const fetchLocations = async () => {
     try {
@@ -233,7 +452,18 @@ export default function StockHistoryV2Page() {
       <div className="p-6">
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-300">Loading products...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-300">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (loadingProductFromUrl) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400 mx-auto"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-300">Loading product details...</p>
         </div>
       </div>
     )
@@ -256,20 +486,134 @@ export default function StockHistoryV2Page() {
                 <label className="text-sm font-medium text-gray-900 dark:text-white">
                   Product:
                 </label>
-                <SelectBox
-                  items={productOptions}
-                  value={selectedProductId}
-                  onValueChanged={(e) => setSelectedProductId(e.value)}
-                  displayExpr="displayName"
-                  valueExpr="id"
-                  searchEnabled={true}
-                  searchMode="contains"
-                  searchExpr={["displayName", "sku"]}
-                  placeholder="Select a product..."
-                  showClearButton={true}
-                  className="dx-theme-material-typography"
-                  stylingMode="outlined"
-                />
+                {searchParams.get('productId') && selectedProduct ? (
+                  <p className="text-xs text-green-600 dark:text-green-400 mb-1 font-medium">
+                    ✓ Auto-loaded from products page
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    Type at least 3 characters to search by name, SKU, or barcode
+                  </p>
+                )}
+                <div className="relative">
+                  {/* Search Input */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                    <Input
+                      ref={searchInputRef}
+                      type="text"
+                      placeholder={loadingProductFromUrl ? "Loading product..." : selectedProduct ? selectedProduct.displayName : "Type to search products (min 3 chars)..."}
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      onFocus={() => {
+                        if (searchResults.length > 0) {
+                          setShowDropdown(true)
+                        }
+                      }}
+                      disabled={loadingProductFromUrl || !!searchParams.get('productId')}
+                      className="pl-10 pr-10 text-base h-10 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={selectedProduct ? `Product: ${selectedProduct.displayName}` : "Search for a product"}
+                    />
+                    {searchTerm && (
+                      <button
+                        type="button"
+                        onClick={handleClearSearch}
+                        className="absolute right-3 top-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-1 transition-colors"
+                        tabIndex={-1}
+                      >
+                        <X className="h-4 w-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Loading indicator */}
+                  {searchLoading && (
+                    <div className="absolute right-12 top-3 text-sm text-gray-500">
+                      Searching...
+                    </div>
+                  )}
+
+                  {/* Dropdown Results */}
+                  {showDropdown && searchResults.length > 0 && (
+                    <div
+                      ref={dropdownRef}
+                      className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-96 overflow-y-auto"
+                    >
+                      {searchResults.map((product, index) => {
+                        const isSelected = index === selectedIndex
+
+                        return (
+                          <button
+                            key={product.id}
+                            type="button"
+                            data-index={index}
+                            onClick={() => handleProductSelect(product)}
+                            onMouseEnter={() => setSelectedIndex(index)}
+                            className={`
+                              w-full px-4 py-3 text-left flex justify-between items-center transition-colors
+                              ${
+                                isSelected
+                                  ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600'
+                                  : 'hover:bg-gray-50 dark:hover:bg-gray-700/30 border-l-4 border-transparent'
+                              }
+                            `}
+                          >
+                            <div className="flex-1">
+                              <div className="font-medium text-gray-900 dark:text-white">
+                                {product.displayName}
+                              </div>
+                              <div className="text-sm text-gray-600 dark:text-gray-400">
+                                SKU: <span className="font-mono">{product.sku}</span>
+                              </div>
+                            </div>
+                            {isSelected && (
+                              <div className="ml-4 text-blue-600 dark:text-blue-400 font-medium text-sm">
+                                Press Enter
+                              </div>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* No Results */}
+                  {showDropdown && !searchLoading && searchResults.length === 0 && searchTerm.trim().length >= 3 && (
+                    <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+                      <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                        <p className="font-medium">No products found</p>
+                        <p className="text-sm mt-1">
+                          Try searching by SKU, barcode, or product name
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Keyboard Hints */}
+                  {showDropdown && searchResults.length > 0 && (
+                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-4">
+                      <span>
+                        <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">
+                          ↑↓
+                        </kbd>{' '}
+                        Navigate
+                      </span>
+                      <span>
+                        <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">
+                          Enter
+                        </kbd>{' '}
+                        Select
+                      </span>
+                      <span>
+                        <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">
+                          Esc
+                        </kbd>{' '}
+                        Clear
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-2">
