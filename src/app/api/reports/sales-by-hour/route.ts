@@ -15,8 +15,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const user = session.user
+    const user = session.user as any
     const businessId = parseInt(user.businessId)
+    const userId = parseInt(String(user.id))
 
     // Extract query parameters
     const { searchParams } = new URL(request.url)
@@ -48,7 +49,26 @@ export async function GET(request: NextRequest) {
     }
 
     // Location access control
-    const accessibleLocationIds = getUserAccessibleLocationIds(user)
+    let accessibleLocationIds = getUserAccessibleLocationIds(user)
+
+    if (accessibleLocationIds !== null && accessibleLocationIds.length === 0) {
+      const assignments = await prisma.userLocation.findMany({
+        where: { userId },
+        select: {
+          locationId: true,
+          location: {
+            select: {
+              deletedAt: true,
+              isActive: true,
+            },
+          },
+        },
+      })
+
+      accessibleLocationIds = assignments
+        .filter((assignment) => assignment.location && assignment.location.deletedAt === null && assignment.location.isActive !== false)
+        .map((assignment) => assignment.locationId)
+    }
     if (locationIdParam && locationIdParam !== 'all') {
       const requestedLocationId = parseInt(locationIdParam)
       if (accessibleLocationIds !== null && !accessibleLocationIds.includes(requestedLocationId)) {

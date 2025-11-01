@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
 
     const user = session.user as any
     const businessId = parseInt(user.businessId)
+    const userId = parseInt(String(user.id))
 
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.REPORT_UNPAID_INVOICES)) {
@@ -59,7 +60,26 @@ export async function GET(request: NextRequest) {
     }
 
     // Location access control
-    const accessibleLocationIds = getUserAccessibleLocationIds(user)
+    let accessibleLocationIds = getUserAccessibleLocationIds(user)
+
+    if (accessibleLocationIds !== null && accessibleLocationIds.length === 0) {
+      const assignments = await prisma.userLocation.findMany({
+        where: { userId },
+        select: {
+          locationId: true,
+          location: {
+            select: {
+              deletedAt: true,
+              isActive: true,
+            },
+          },
+        },
+      })
+
+      accessibleLocationIds = assignments
+        .filter((assignment) => assignment.location && assignment.location.deletedAt === null && assignment.location.isActive !== false)
+        .map((assignment) => assignment.locationId)
+    }
 
     if (locationIdParam && locationIdParam !== 'all') {
       const requestedLocationId = parseInt(locationIdParam)
@@ -93,41 +113,39 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch sales with credit payments
-    const sales = await prisma.sale.findMany({
-      where: saleWhere,
-      include: {
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            mobile: true,
-            email: true,
-            creditLimit: true,
-          },
-        },
-        location: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        payments: true,
-        cashierShift: {
-          select: {
-            user: {
-              select: {
-                username: true,
-                firstName: true,
-                lastName: true,
-              },
-            },
-          },
+    const saleInclude: any = {
+      customer: {
+        select: {
+          id: true,
+          name: true,
+          mobile: true,
+          email: true,
+          creditLimit: true,
         },
       },
+      location: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      payments: true,
+      creator: {
+        select: {
+          username: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+    }
+
+    const sales = await prisma.sale.findMany({
+      where: saleWhere,
+      include: saleInclude,
       orderBy: {
         saleDate: 'desc',
       },
-    })
+    }) as unknown as Array<any>
 
     // Calculate payment status and aging for each sale
     const today = new Date()
@@ -136,8 +154,8 @@ export async function GET(request: NextRequest) {
 
       // Calculate total paid (excluding credit method)
       const totalPaid = sale.payments
-        .filter(p => p.paymentMethod !== 'credit')
-        .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0)
+        .filter((p: any) => p.paymentMethod !== 'credit')
+        .reduce((sum: number, p: any) => sum + parseFloat(p.amount.toString()), 0)
 
       const balanceDue = totalAmount - totalPaid
 
@@ -177,9 +195,9 @@ export async function GET(request: NextRequest) {
         paymentStatus = 'overdue'
       }
 
-      const cashier = sale.cashierShift?.user
-        ? `${sale.cashierShift.user.firstName || ''} ${sale.cashierShift.user.lastName || ''}`.trim() ||
-          sale.cashierShift.user.username
+      const cashier = sale.creator
+        ? `${sale.creator.firstName || ''} ${sale.creator.lastName || ''}`.trim() ||
+        sale.creator.username
         : 'N/A'
 
       return {

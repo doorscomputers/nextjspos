@@ -4,6 +4,9 @@ const nextConfig: NextConfig = {
   // Required for DevExtreme React components
   transpilePackages: ['devextreme', 'devextreme-react'],
 
+  // Instrumentation hook is now enabled by default (instrumentation.ts file is auto-detected)
+  // No need for experimental.instrumentationHook anymore
+
   // Ignore ESLint during builds (temp fix for pre-existing errors)
   eslint: {
     ignoreDuringBuilds: true,

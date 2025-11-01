@@ -64,6 +64,7 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
     "Inventory Management": false,
     "Pricing Management": false,
     "Sales Reports": false,
+    "Cashier Reports": false,
     "Purchase Reports": false,
     "Transfer Reports": false,
     "Financial Reports": false,
@@ -88,6 +89,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
       setIsCollapsed(savedState === 'true')
     }
   }, [])
+
+  // Auto-expand Cashier Reports when navigating into it
+  useEffect(() => {
+    if (pathname && pathname.startsWith('/dashboard/cashier-reports')) {
+      setExpandedMenus((prev) => ({ ...prev, Reports: true, 'Cashier Reports': true }))
+    }
+  }, [pathname])
 
   // Fetch menu permissions for current user
   useEffect(() => {
@@ -207,6 +215,26 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
       icon: HomeIcon,
       key: "dashboard",
       permission: PERMISSIONS.DASHBOARD_VIEW,
+    },
+
+    // ========== CASHIER REPORTS ==========
+    {
+      key: "cashier_reports_root",
+      name: "Cashier Reports",
+      href: "/dashboard/cashier-reports",
+      icon: ChartBarIcon,
+      // Use an existing permission cashiers already have so this appears immediately
+      permission: PERMISSIONS.REPORT_SALES_TODAY,
+      children: [
+        {
+          key: "cashier_sales_today",
+          name: "Sales Today",
+          href: "/dashboard/cashier-reports/sales-today",
+          icon: DocumentTextIcon,
+          permission: PERMISSIONS.REPORT_SALES_TODAY,
+        },
+        // Other cashier reports will be added here as we implement them
+      ],
     },
     {
       name: "Analytics Dashboard V1",
@@ -579,6 +607,20 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
           icon: TruckIcon,
           permission: PERMISSIONS.STOCK_TRANSFER_CREATE,
         },
+        {
+          key: "my_transfers_report",
+          name: "My Transfers",
+          href: "/dashboard/reports/my-transfers",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.STOCK_TRANSFER_VIEW,
+        },
+        {
+          key: "my_received_transfers_report",
+          name: "My Received Transfers",
+          href: "/dashboard/reports/my-received-transfers",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.STOCK_TRANSFER_VIEW,
+        },
       ],
     },
 
@@ -725,7 +767,7 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
             },
             {
               key: "sales_report",
-              name: "Sales Report",
+              name: "Sales Invoice Details",
               href: "/dashboard/reports/sales-report",
               icon: ChartBarIcon,
               permission: PERMISSIONS.REPORT_SALES_VIEW,
@@ -771,6 +813,51 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               href: "/dashboard/reports/void-refund-analysis",
               icon: ExclamationTriangleIcon,
               permission: PERMISSIONS.REPORT_VOID_REFUND_ANALYSIS,
+            },
+          ],
+        },
+        {
+          key: "cashier_reports",
+          name: "Cashier Reports",
+          href: "#",
+          icon: ShoppingCartIcon,
+          // Cashiers already have this permission; admins will also pass but can ignore
+          permission: PERMISSIONS.REPORT_SALES_TODAY,
+          children: [
+            {
+              key: "cashier_sales_today_menu",
+              name: "Sales Today (Cashier)",
+              href: "/dashboard/cashier-reports/sales-today",
+              icon: ChartBarIcon,
+              permission: PERMISSIONS.REPORT_SALES_TODAY,
+            },
+            {
+              key: "cashier_sales_history_menu",
+              name: "Sales History (Cashier)",
+              href: "/dashboard/cashier-reports/sales-history",
+              icon: ChartBarIcon,
+              permission: PERMISSIONS.REPORT_SALES_HISTORY,
+            },
+            {
+              key: "cashier_sales_report_menu",
+              name: "Sales Invoice Details (Cashier)",
+              href: "/dashboard/cashier-reports/sales-report",
+              icon: ChartBarIcon,
+              permission: PERMISSIONS.REPORT_SALES_VIEW,
+            },
+            {
+              key: "cashier_sales_journal_menu",
+              name: "Sales Journal (Cashier)",
+              href: "/dashboard/cashier-reports/sales-journal",
+              icon: ChartBarIcon,
+              permission: PERMISSIONS.SALES_REPORT_JOURNAL,
+            },
+            {
+              key: "cashier_sales_per_item_menu",
+              name: "Sales Per Item (Cashier)",
+              href: "/dashboard/cashier-reports/sales-per-item",
+              icon: ChartBarIcon,
+              permission: PERMISSIONS.SALES_REPORT_PER_ITEM,
             },
           ],
         },
@@ -1256,6 +1343,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
           key: "announcements",
           permission: PERMISSIONS.ANNOUNCEMENT_VIEW,
         },
+        {
+          name: "Login History",
+          href: "/dashboard/admin/login-history",
+          icon: ClockIcon,
+          key: "login_history",
+          permission: PERMISSIONS.AUDIT_LOG_VIEW,
+        },
       ],
     },
 
@@ -1362,7 +1456,7 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
       key: "my_profile",
       // No permission check - all users can access their profile
     },
-    ]
+  ]
 
   // Memoized menu filtering logic (major performance optimization)
   const filteredMenuItems = useMemo(() => {
@@ -1572,10 +1666,9 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
                       title={isIconOnly ? item.name : undefined}
                       className={`
                         w-full flex items-center ${isIconOnly ? 'justify-center' : 'justify-between'} ${isIconOnly ? 'px-2' : 'px-4'} ${isCompact ? 'py-2.5' : 'py-3'} text-sm font-semibold rounded-lg transition-all duration-300 relative group shadow-sm
-                        ${
-                          hasActiveChild
-                            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-2 before:h-8 before:bg-white before:rounded-r-md'
-                            : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-indigo-600 shadow-md hover:shadow-lg'
+                        ${hasActiveChild
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-2 before:h-8 before:bg-white before:rounded-r-md'
+                          : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-indigo-600 shadow-md hover:shadow-lg'
                         }
                       `}
                     >
@@ -1609,10 +1702,9 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
                                     onClick={() => toggleMenu(child.name)}
                                     className={`
                                       w-full flex items-center justify-between px-4 ${isCompact ? 'py-2' : 'py-2.5'} text-sm font-normal rounded-lg transition-all duration-200 relative pl-8
-                                      ${
-                                        hasActiveGrandchild
-                                          ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 font-medium'
-                                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
+                                      ${hasActiveGrandchild
+                                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300 font-medium'
+                                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white'
                                       }
                                     `}
                                   >
@@ -1638,10 +1730,9 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
                                               href={grandchild.href}
                                               className={`
                                                 group flex items-center px-4 ${isCompact ? 'py-1.5' : 'py-2'} text-sm font-normal rounded-lg transition-all duration-200 relative pl-12
-                                                ${
-                                                  isGrandchildActive
-                                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-medium before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-5 before:bg-blue-600 before:rounded-r-md'
-                                                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white'
+                                                ${isGrandchildActive
+                                                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-medium before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-5 before:bg-blue-600 before:rounded-r-md'
+                                                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white'
                                                 }
                                               `}
                                             >
@@ -1664,10 +1755,9 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
                                 href={child.href}
                                 className={`
                                   group flex items-center px-4 ${isCompact ? 'py-2' : 'py-2.5'} text-sm font-normal rounded-lg transition-all duration-200 relative pl-8
-                                  ${
-                                    isChildActive
-                                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-medium before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-6 before:bg-blue-600 before:rounded-r-md'
-                                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white hover:before:absolute hover:before:left-0 hover:before:top-1/2 hover:before:-translate-y-1/2 hover:before:w-0.5 hover:before:h-4 hover:before:bg-gray-400 dark:hover:before:bg-gray-500 hover:before:rounded-r-md'
+                                  ${isChildActive
+                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 font-medium before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-6 before:bg-blue-600 before:rounded-r-md'
+                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white hover:before:absolute hover:before:left-0 hover:before:top-1/2 hover:before:-translate-y-1/2 hover:before:w-0.5 hover:before:h-4 hover:before:bg-gray-400 dark:hover:before:bg-gray-500 hover:before:rounded-r-md'
                                   }
                                 `}
                               >
@@ -1686,10 +1776,9 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
                     title={isIconOnly ? item.name : undefined}
                     className={`
                       flex items-center ${isIconOnly ? 'justify-center px-2' : 'px-4'} ${isCompact ? 'py-2.5' : 'py-3'} text-sm font-semibold rounded-lg transition-all duration-300 relative shadow-sm
-                      ${
-                        isActive
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-2 before:h-8 before:bg-white before:rounded-r-md'
-                          : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-indigo-600 shadow-md hover:shadow-lg'
+                      ${isActive
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-2 before:h-8 before:bg-white before:rounded-r-md'
+                        : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-indigo-600 shadow-md hover:shadow-lg'
                       }
                     `}
                   >

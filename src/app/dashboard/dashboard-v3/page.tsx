@@ -137,10 +137,9 @@ interface IntelligenceDashboardData {
 export default function DashboardV3Page() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<IntelligenceDashboardData | null>(null)
-  const [startDate, setStartDate] = useState<Date>(
-    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-  )
-  const [endDate, setEndDate] = useState<Date>(new Date())
+  // Start with null dates = no filter = show all-time data
+  const [startDate, setStartDate] = useState<Date | null>(null)
+  const [endDate, setEndDate] = useState<Date | null>(null)
   const [selectedLocations, setSelectedLocations] = useState<number[]>([])
 
   useEffect(() => {
@@ -156,8 +155,8 @@ export default function DashboardV3Page() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0],
+          startDate: startDate ? startDate.toISOString().split('T')[0] : '',
+          endDate: endDate ? endDate.toISOString().split('T')[0] : '',
           locationIds: selectedLocations,
         }),
       })

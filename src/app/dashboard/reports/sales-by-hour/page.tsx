@@ -31,7 +31,14 @@ export default function SalesByHourReport() {
       const res = await fetch('/api/locations')
       if (res.ok) {
         const data = await res.json()
-        setLocations(data.locations || [])
+        const parsedLocations = Array.isArray(data)
+          ? data
+          : Array.isArray(data.data)
+            ? data.data
+            : Array.isArray(data.locations)
+              ? data.locations
+              : []
+        setLocations(parsedLocations)
       }
     } catch (error) {
       console.error('Error:', error)
@@ -335,11 +342,10 @@ export default function SalesByHourReport() {
               <div className="w-20 text-sm font-medium text-gray-700 dark:text-gray-300">{hour.hourLabel}</div>
               <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-8 relative overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-all ${
-                    hour.salesCount === summary?.peakHour?.salesCount
+                  className={`h-full rounded-full transition-all ${hour.salesCount === summary?.peakHour?.salesCount
                       ? 'bg-gradient-to-r from-pink-500 to-pink-600'
                       : 'bg-gradient-to-r from-purple-500 to-purple-600'
-                  }`}
+                    }`}
                   style={{ width: getHourBarWidth(hour.salesCount) }}
                 >
                   {hour.salesCount > 0 && (

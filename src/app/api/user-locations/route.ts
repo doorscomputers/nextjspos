@@ -31,20 +31,23 @@ export async function GET(request: NextRequest) {
               id: true,
               name: true,
               deletedAt: true,
+              isActive: true,
             },
           },
         },
       })
 
       const assignedLocationIds = userAssignments
-        .filter(ul => ul.location && ul.location.deletedAt === null)
+        .filter(ul => ul.location && ul.location.deletedAt === null && ul.location.isActive)
         .map(ul => ul.location.id)
 
-      // Then get all business locations
+      // Then get all business locations (including Main Warehouse for warehouse managers)
       const allLocations = await prisma.businessLocation.findMany({
         where: {
           businessId: parseInt(businessId),
           deletedAt: null,
+          isActive: true,
+          
         },
         select: {
           id: true,
@@ -88,13 +91,14 @@ export async function GET(request: NextRequest) {
             id: true,
             name: true,
             deletedAt: true,
+            isActive: true,
           },
         },
       },
     })
 
     const locations = userLocations
-      .filter(ul => ul.location && ul.location.deletedAt === null)
+      .filter(ul => ul.location && ul.location.deletedAt === null && ul.location.isActive)
       .map(ul => ({
         ...ul.location,
         isAssigned: true, // All locations here are assigned

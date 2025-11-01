@@ -13,11 +13,14 @@ import { sendTelegramShiftClosingAlert } from '@/lib/telegram'
  * Body: {
  *   endingCash: number,
  *   closingNotes?: string,
- *   managerPassword: string (required - Branch Manager or Admin password)
+ *   managerPassword?: string (Branch Manager or Admin password)
+ *   OR
+ *   locationCode?: string (Location's RFID card code - alternative to password)
  *   cashDenomination: {
  *     count1000, count500, count200, count100, count50, count20, count10, count5, count1, count025
  *   }
  * }
+ * Note: Either managerPassword OR locationCode must be provided for authorization
  */
 export async function POST(
   request: NextRequest,
@@ -35,7 +38,7 @@ export async function POST(
 
     const shiftId = parseInt((await params).id)
     const body = await request.json()
-    const { endingCash, closingNotes, cashDenomination, managerPassword } = body
+    const { endingCash, closingNotes, cashDenomination, managerPassword, locationCode } = body
 
     // Debug logging
     console.log('=== SHIFT CLOSE DEBUG ===')
@@ -43,6 +46,7 @@ export async function POST(
     console.log('Request Body:', JSON.stringify(body, null, 2))
     console.log('Ending Cash:', endingCash, 'Type:', typeof endingCash)
     console.log('Manager Password Present:', !!managerPassword)
+    console.log('Location Code Present:', !!locationCode)
 
     // Validate required fields
     if (endingCash === undefined || endingCash === null || endingCash < 0) {
@@ -50,55 +54,104 @@ export async function POST(
       return NextResponse.json({ error: 'Ending cash must be a valid number' }, { status: 400 })
     }
 
-    // Validate manager password is provided
-    if (!managerPassword) {
-      console.log('❌ ERROR: Manager password missing')
-      return NextResponse.json({ error: 'Manager password is required to close shift' }, { status: 400 })
+    // Validate that at least one authorization method is provided
+    if (!managerPassword && !locationCode) {
+      console.log('❌ ERROR: No authorization method provided')
+      return NextResponse.json({
+        error: 'Authorization required. Please provide either manager password or location RFID code.'
+      }, { status: 400 })
     }
 
-    // Verify manager/admin password
-    const managerUsers = await prisma.user.findMany({
-      where: {
-        businessId: parseInt(session.user.businessId),
-        roles: {
-          some: {
-            role: {
-              name: {
-                in: ['Branch Manager', 'Main Branch Manager', 'Branch Admin', 'All Branch Admin', 'Super Admin']
+    // Authorization verification - either password OR RFID
+    let authorizationValid = false
+    let authorizingUser = null
+    let authMethod = ''
+
+    if (managerPassword) {
+      // Method 1: Manager Password Verification
+      console.log('[ShiftClose] Verifying manager password...')
+      const managerUsers = await prisma.user.findMany({
+        where: {
+          businessId: parseInt(session.user.businessId),
+          roles: {
+            some: {
+              role: {
+                name: {
+                  in: ['Branch Manager', 'Main Branch Manager', 'Branch Admin', 'All Branch Admin', 'Super Admin']
+                }
               }
             }
           }
-        }
-      },
-      select: {
-        id: true,
-        username: true,
-        password: true,
-        roles: {
-          include: {
-            role: true
+        },
+        select: {
+          id: true,
+          username: true,
+          password: true,
+          firstName: true,
+          lastName: true,
+          roles: {
+            include: {
+              role: true
+            }
           }
         }
+      })
+
+      // Check password against all manager/admin users
+      for (const user of managerUsers) {
+        const isMatch = await bcrypt.compare(managerPassword, user.password)
+        if (isMatch) {
+          authorizationValid = true
+          authorizingUser = user
+          authMethod = 'password'
+          console.log(`[ShiftClose] ✓ Password verified for ${user.username}`)
+          break
+        }
       }
-    })
 
-    // Check password against all manager/admin users
-    let passwordValid = false
-    let authorizingUser = null
-
-    for (const user of managerUsers) {
-      const isMatch = await bcrypt.compare(managerPassword, user.password)
-      if (isMatch) {
-        passwordValid = true
-        authorizingUser = user
-        break
+      if (!authorizationValid) {
+        return NextResponse.json({
+          error: 'Invalid manager password. Only Branch Managers or Admins can authorize shift closure.'
+        }, { status: 403 })
       }
-    }
+    } else if (locationCode) {
+      // Method 2: Location RFID Code Verification
+      console.log('[ShiftClose] Verifying location RFID code...')
 
-    if (!passwordValid) {
-      return NextResponse.json({
-        error: 'Invalid manager password. Only Branch Managers or Admins can authorize shift closure.'
-      }, { status: 403 })
+      // Find the shift first to get its location
+      const shift = await prisma.cashierShift.findUnique({
+        where: { id: shiftId },
+        select: { locationId: true }
+      })
+
+      if (!shift) {
+        return NextResponse.json({ error: 'Shift not found' }, { status: 404 })
+      }
+
+      // Verify the RFID code exists and matches the shift's location
+      const location = await prisma.businessLocation.findFirst({
+        where: {
+          locationCode: locationCode.toUpperCase(),
+          id: shift.locationId,
+          isActive: true,
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          name: true,
+          locationCode: true,
+        }
+      })
+
+      if (location) {
+        authorizationValid = true
+        authMethod = 'rfid'
+        console.log(`[ShiftClose] ✓ RFID verified for location: ${location.name}`)
+      } else {
+        return NextResponse.json({
+          error: 'Invalid location RFID code. The code must match this shift\'s location.'
+        }, { status: 403 })
+      }
     }
 
     // Find the shift
@@ -297,7 +350,11 @@ export async function POST(
       })
     })
 
-    // Log audit trail with authorizing manager info
+    // Log audit trail with authorization info
+    const authDescription = authMethod === 'password'
+      ? `Authorized by: ${authorizingUser?.username} (password)`
+      : `Authorized by: Location RFID scan`
+
     await createAuditLog({
       businessId: parseInt(session.user.businessId),
       userId: parseInt(session.user.id),
@@ -305,7 +362,7 @@ export async function POST(
       action: AuditAction.SHIFT_CLOSE,
       entityType: EntityType.CASHIER_SHIFT,
       entityIds: [shift.id],
-      description: `Closed shift ${shift.shiftNumber}. Authorized by: ${authorizingUser?.username}. System: ${systemCash}, Actual: ${endingCash}, Over: ${cashOver}, Short: ${cashShort}`,
+      description: `Closed shift ${shift.shiftNumber}. ${authDescription}. System: ${systemCash}, Actual: ${endingCash}, Over: ${cashOver}, Short: ${cashShort}`,
       metadata: {
         shiftNumber: shift.shiftNumber,
         systemCash: parseFloat(systemCash.toString()),
@@ -314,6 +371,7 @@ export async function POST(
         cashShort,
         totalSales,
         transactionCount,
+        authorizationMethod: authMethod,
         authorizedBy: authorizingUser?.id,
         authorizedByUsername: authorizingUser?.username,
       },

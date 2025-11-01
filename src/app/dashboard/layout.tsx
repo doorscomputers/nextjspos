@@ -8,6 +8,7 @@ import { redirect } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { Toaster } from "@/components/ui/sonner"
 import { InactivityTimeoutProvider } from "@/components/InactivityTimeoutProvider"
+import UnclosedShiftWarning from "@/components/UnclosedShiftWarning"
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -47,6 +48,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           </div>
         </main>
       </div>
+
+      {/* Unclosed Shift Warning Modal - Stays mounted across all dashboard pages */}
+      <UnclosedShiftWarning />
 
       {/* Toast notifications */}
       <Toaster />

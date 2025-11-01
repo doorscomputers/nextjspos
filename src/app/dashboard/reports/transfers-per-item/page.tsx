@@ -43,6 +43,7 @@ export default function TransfersPerItemReport() {
   const [locations, setLocations] = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
   const [productSearch, setProductSearch] = useState('')
+  const [productLoading, setProductLoading] = useState(false)
   const [showPivotView, setShowPivotView] = useState(true) // Toggle between Pivot and Detail view
 
   // Filter state
@@ -114,9 +115,27 @@ export default function TransfersPerItemReport() {
 
   useEffect(() => {
     fetchLocations()
-    fetchProducts()
+    // Load a small default product list for initial view
+    fetchDefaultProducts()
     generateReport()
   }, [])
+
+  // Debounced remote search for products (name or exact SKU)
+  useEffect(() => {
+    const controller = new AbortController()
+    const handler = setTimeout(() => {
+      if (productSearch && productSearch.trim().length > 0) {
+        searchProducts(productSearch, controller.signal)
+      } else {
+        fetchDefaultProducts(controller.signal)
+      }
+    }, 350)
+
+    return () => {
+      controller.abort()
+      clearTimeout(handler)
+    }
+  }, [productSearch])
 
   const fetchLocations = async () => {
     try {
@@ -132,15 +151,42 @@ export default function TransfersPerItemReport() {
     }
   }
 
-  const fetchProducts = async () => {
+  const fetchDefaultProducts = async (signal?: AbortSignal) => {
     try {
-      const response = await fetch('/api/products')
+      setProductLoading(true)
+      const response = await fetch('/api/products?forTransaction=true&limit=50&page=1', { signal })
       const data = await response.json()
       if (response.ok) {
-        setProducts(data.products || [])
+        setProducts((data.products || data.data || []).map((p: any) => ({ id: p.id, name: p.name, sku: p.sku || null })))
       }
     } catch (error) {
-      console.error('Error fetching products:', error)
+      if ((error as any).name !== 'AbortError') {
+        console.error('Error fetching default products:', error)
+      }
+    } finally {
+      setProductLoading(false)
+    }
+  }
+
+  const searchProducts = async (query: string, signal?: AbortSignal) => {
+    try {
+      setProductLoading(true)
+      const response = await fetch(`/api/products/search?q=${encodeURIComponent(query)}&limit=100`, { signal })
+      const data = await response.json()
+      if (response.ok) {
+        // Map to unique products (some endpoints return variations)
+        const unique = new Map<number, { id: number; name: string; sku?: string | null }>()
+        ;(data.products || []).forEach((product: any) => {
+          if (!unique.has(product.id)) unique.set(product.id, { id: product.id, name: product.name, sku: product.sku || null })
+        })
+        setProducts(Array.from(unique.values()))
+      }
+    } catch (error) {
+      if ((error as any).name !== 'AbortError') {
+        console.error('Error searching products:', error)
+      }
+    } finally {
+      setProductLoading(false)
     }
   }
 
@@ -394,6 +440,7 @@ export default function TransfersPerItemReport() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
               >
                 <option value="">All Products</option>
+                {productLoading && <option disabled>Searching...</option>}
                 {filteredProducts.map((product) => (
                   <option key={product.id} value={product.id}>
                     {product.name} {product.sku ? `(${product.sku})` : ''}

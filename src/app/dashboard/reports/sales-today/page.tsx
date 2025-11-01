@@ -12,6 +12,7 @@ import {
   DocumentTextIcon,
   PrinterIcon,
   ArrowTrendingUpIcon,
+  ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -122,20 +123,47 @@ export default function SalesTodayPage() {
 
   const fetchUserLocations = async () => {
     try {
-      const response = await fetch("/api/user-locations")
-      if (response.ok) {
-        const data = await response.json()
-        setLocations(data.locations || [])
-        setHasAccessToAll(data.hasAccessToAll || false)
+      let list: any[] = []
+      let accessAll = false
+      let primary: string | null = null
 
-        // For cashiers (users without ACCESS_ALL_LOCATIONS permission)
-        // Auto-set to their primary location
-        if (!data.hasAccessToAll && data.primaryLocationId) {
-          setLocationId(data.primaryLocationId.toString())
-        } else if (data.hasAccessToAll) {
-          // Admins default to "all" locations
-          setLocationId("all")
+      try {
+        const response = await fetch("/api/user-locations")
+        if (response.ok) {
+          const data = await response.json()
+          const raw = Array.isArray(data.locations) ? data.locations : []
+          // Exclude warehouse locations for sales-facing pages
+          list = raw.filter((l: any) => l?.name && !l.name.toLowerCase().includes('warehouse'))
+          accessAll = Boolean(data.hasAccessToAll)
+          primary = data.primaryLocationId ? String(data.primaryLocationId) : null
+        } else {
+          throw new Error('user-locations not available')
         }
+      } catch (e) {
+        // Fallback to business-wide locations for admins
+        const res = await fetch('/api/locations')
+        if (res.ok) {
+          const data = await res.json()
+          const raw = Array.isArray(data)
+            ? data
+            : Array.isArray(data.locations)
+              ? data.locations
+              : Array.isArray(data.data)
+                ? data.data
+                : []
+          list = raw.filter((l: any) => l?.name && !l.name.toLowerCase().includes('warehouse'))
+          accessAll = true
+        }
+      }
+
+      setLocations(list)
+      setHasAccessToAll(accessAll)
+
+      if (!accessAll) {
+        const resolved = primary || (list[0]?.id ? String(list[0].id) : 'all')
+        setLocationId(resolved)
+      } else {
+        setLocationId('all')
       }
     } catch (error) {
       console.error("Failed to fetch user locations:", error)
@@ -174,6 +202,37 @@ export default function SalesTodayPage() {
 
   const handlePrint = () => {
     window.print()
+  }
+
+  const exportToCSV = () => {
+    if (!reportData) return
+    const headers = [
+      'Invoice Number',
+      'Customer',
+      'Item Count',
+      'Total Amount',
+      'Payments'
+    ]
+    const rows = reportData.sales.map((s) => {
+      const payments = s.payments.map((p) => `${p.method}:${p.amount}`).join('|')
+      return [
+        s.invoiceNumber,
+        s.customer,
+        String(s.itemCount),
+        String(s.totalAmount),
+        payments,
+      ]
+    })
+    const csvContent = [headers, ...rows]
+      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `sales-today-${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   if (loading && !reportData) {
@@ -232,7 +291,18 @@ export default function SalesTodayPage() {
               )}
             </>
           )}
-          <Button onClick={handlePrint}>
+          <Button
+            onClick={exportToCSV}
+            disabled={!reportData}
+            className="bg-green-600 hover:bg-green-700 text-white shadow-sm px-6 rounded-lg"
+          >
+            <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+            Export to Excel
+          </Button>
+          <Button
+            onClick={handlePrint}
+            className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm px-6 rounded-lg"
+          >
             <PrinterIcon className="h-4 w-4 mr-2" />
             Print Report
           </Button>

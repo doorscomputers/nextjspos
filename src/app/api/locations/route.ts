@@ -26,7 +26,26 @@ export async function GET(request: NextRequest) {
     const includeInactive = searchParams.get('includeInactive') === 'true'
 
     // Get accessible location IDs using the RBAC utility function
-    const accessibleLocationIds = getUserAccessibleLocationIds(user)
+    let accessibleLocationIds = getUserAccessibleLocationIds(user)
+
+    if (accessibleLocationIds !== null && accessibleLocationIds.length === 0) {
+      const fallbackAssignments = await prisma.userLocation.findMany({
+        where: { userId: userId },
+        select: {
+          locationId: true,
+          location: {
+            select: {
+              deletedAt: true,
+              isActive: true,
+            },
+          },
+        },
+      })
+
+      accessibleLocationIds = fallbackAssignments
+        .filter((assignment) => assignment.location && assignment.location.deletedAt === null && assignment.location.isActive !== false)
+        .map((assignment) => assignment.locationId)
+    }
 
     console.log('=== Locations API Debug ===')
     console.log('User ID:', userId)
@@ -35,41 +54,31 @@ export async function GET(request: NextRequest) {
     console.log('Accessible Location IDs:', accessibleLocationIds)
     console.log('Include Inactive:', includeInactive)
 
-    let locations
-
-    // Build base where clause
     const baseWhere: any = {
       businessId: parseInt(businessId),
       deletedAt: null
     }
 
-    // Filter by active status unless explicitly requested to include inactive
     if (!includeInactive) {
       baseWhere.isActive = true
     }
 
-    if (accessibleLocationIds === null) {
-      // User can access all locations in their business
-      locations = await prisma.businessLocation.findMany({
+    const locations = accessibleLocationIds === null
+      ? await prisma.businessLocation.findMany({
         where: baseWhere,
         orderBy: { createdAt: 'desc' }
       })
-      console.log('Returned all business locations:', locations.length)
-    } else if (accessibleLocationIds.length === 0) {
-      // User has no location access
-      locations = []
-      console.log('User has no location access')
-    } else {
-      // User can only access specific locations
-      locations = await prisma.businessLocation.findMany({
-        where: {
-          ...baseWhere,
-          id: { in: accessibleLocationIds }
-        },
-        orderBy: { createdAt: 'desc' }
-      })
-      console.log('Returned user-specific locations:', locations.length)
-    }
+      : accessibleLocationIds.length === 0
+        ? []
+        : await prisma.businessLocation.findMany({
+          where: {
+            ...baseWhere,
+            id: { in: accessibleLocationIds }
+          },
+          orderBy: { createdAt: 'desc' }
+        })
+
+    console.log('Returned locations count:', locations.length)
 
     return NextResponse.json({ success: true, data: locations })
   } catch (error) {
@@ -109,10 +118,30 @@ export async function POST(request: NextRequest) {
       mobile,
       alternateNumber,
       email,
+      locationCode, // RFID card code
     } = body
 
     if (!name || !country || !state || !city || !zipCode) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // Validate locationCode format if provided (10-15 alphanumeric)
+    if (locationCode && !/^[A-Z0-9]{10,15}$/i.test(locationCode)) {
+      return NextResponse.json({
+        error: 'Invalid location code format. Must be 10-15 alphanumeric characters.'
+      }, { status: 400 })
+    }
+
+    // Check locationCode uniqueness if provided
+    if (locationCode) {
+      const existingLocation = await prisma.businessLocation.findFirst({
+        where: { locationCode: locationCode.toUpperCase() }
+      })
+      if (existingLocation) {
+        return NextResponse.json({
+          error: 'This RFID code is already assigned to another location. Please use a unique code.'
+        }, { status: 409 })
+      }
     }
 
     // Use transaction to create location and auto-initialize inventory
@@ -130,6 +159,7 @@ export async function POST(request: NextRequest) {
           mobile,
           alternateNumber,
           email,
+          locationCode: locationCode ? locationCode.toUpperCase() : null,
           isActive: true
         } as any
       })

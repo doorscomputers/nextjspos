@@ -123,10 +123,10 @@ export default function MyReceivedTransfersReport() {
 
   useEffect(() => {
     console.log('🚀 [My Received Transfers] Component mounted, starting initialization...')
-    
+
     // Fetch locations first (independent of myLocation)
     fetchLocations()
-    
+
     // Then fetch user's location
     fetchMyLocation()
   }, [])
@@ -164,12 +164,14 @@ export default function MyReceivedTransfersReport() {
   const fetchLocations = async () => {
     try {
       setLocationsLoading(true)
-      console.log('📡 Fetching locations...')
-      const response = await fetch('/api/locations')
+      console.log('📡 Fetching all active locations (for transfer reports)...')
+      // Use the all-active endpoint to get ALL locations (not filtered by RBAC)
+      const response = await fetch('/api/locations/all-active')
       const result = await response.json()
-      console.log('📊 Locations API response:', result)
+      console.log('📊 All Active Locations API response:', result)
       if (response.ok && result.success) {
         console.log('✅ Setting locations:', result.data?.length, 'locations')
+        console.log('📋 Location names:', result.data?.map((l: any) => l.name))
         setLocations(result.data || [])
       } else {
         console.error('❌ Failed to fetch locations:', result)

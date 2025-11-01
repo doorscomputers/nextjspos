@@ -1,24 +1,25 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
 export default function SalesPerItemReport() {
+  const pathname = usePathname()
+  const isCashierMode = pathname?.includes('/dashboard/cashier-reports/') ?? false
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<any[]>([])
   const [summary, setSummary] = useState<any>(null)
   const [pagination, setPagination] = useState<any>(null)
   const [locations, setLocations] = useState<any[]>([])
+  const [hasAccessToAll, setHasAccessToAll] = useState<boolean>(false)
+  const [enforcedLocationName, setEnforcedLocationName] = useState<string>('')
   const [categories, setCategories] = useState<any[]>([])
 
-  // Initialize with default date range (last 30 days)
-  const [startDate, setStartDate] = useState(() => {
-    const date = new Date()
-    date.setDate(date.getDate() - 30)
-    return date.toISOString().split('T')[0]
-  })
+  // Initialize with default date range (today) for faster initial load
+  const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0])
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0])
   const [locationId, setLocationId] = useState('')
   const [categoryId, setCategoryId] = useState('')
@@ -26,7 +27,7 @@ export default function SalesPerItemReport() {
   const [sortBy, setSortBy] = useState('totalRevenue')
   const [sortOrder, setSortOrder] = useState('desc')
   const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(100)
+  const [limit, setLimit] = useState(50)
 
   useEffect(() => {
     fetchLocations()
@@ -35,13 +36,59 @@ export default function SalesPerItemReport() {
 
   const fetchLocations = async () => {
     try {
-      const res = await fetch('/api/locations')
-      if (res.ok) {
-        const data = await res.json()
-        setLocations(data.locations || [])
+      // Prefer user-scoped locations so we can enforce per-user visibility
+      let scopedLocations: any[] = []
+      let accessAll = false
+      let primaryLocationId: string | null = null
+
+      try {
+        const ulRes = await fetch('/api/user-locations')
+        if (ulRes.ok) {
+          const ul = await ulRes.json()
+          const list = Array.isArray(ul.locations) ? ul.locations : []
+          // Exclude any Warehouse location defensively for sales reports
+          scopedLocations = list.filter((loc: any) => loc?.name && !loc.name.toLowerCase().includes('warehouse'))
+          accessAll = isCashierMode ? false : Boolean(ul.hasAccessToAll)
+          primaryLocationId = ul.primaryLocationId ? String(ul.primaryLocationId) : null
+        } else {
+          // Only fallback if the endpoint is unavailable/forbidden
+          throw new Error('user-locations not accessible')
+        }
+      } catch (e) {
+        console.warn('Failed to load user-locations, falling back to /api/locations', e)
+      }
+
+      // Fallback to all business locations ONLY when user-locations call failed entirely
+      if (!scopedLocations.length && accessAll === false && primaryLocationId === null) {
+        const res = await fetch('/api/locations')
+        if (res.ok) {
+          const data = await res.json()
+          const list = Array.isArray(data)
+            ? data
+            : Array.isArray(data.locations)
+              ? data.locations
+              : Array.isArray(data.data)
+                ? data.data
+                : []
+          scopedLocations = list.filter((loc: any) => loc?.name && !loc.name.toLowerCase().includes('warehouse'))
+          accessAll = true // business-wide list implies admin-like access
+        }
+      }
+
+      setLocations(scopedLocations)
+      setHasAccessToAll(accessAll)
+
+      // Auto-select sensible default for restricted users
+      if (!accessAll) {
+        const resolved = primaryLocationId || (scopedLocations[0]?.id ? String(scopedLocations[0].id) : '')
+        setLocationId(resolved)
+        const found = scopedLocations.find((l: any) => String(l.id) === String(resolved))
+        if (found) setEnforcedLocationName(found.name)
       }
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Error loading locations:', error)
+      setLocations([])
+      setHasAccessToAll(false)
     }
   }
 
@@ -57,7 +104,7 @@ export default function SalesPerItemReport() {
     }
   }
 
-  const fetchItems = useCallback(async () => {
+  const fetchItems = async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
@@ -83,11 +130,13 @@ export default function SalesPerItemReport() {
     } finally {
       setLoading(false)
     }
-  }, [startDate, endDate, locationId, categoryId, search, sortBy, sortOrder, page, limit])
+  }
 
+  // Only auto-fetch on table mechanics (page/sort/limit). Do not auto-fetch on typing filters.
   useEffect(() => {
     fetchItems()
-  }, [fetchItems])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, sortBy, sortOrder, limit])
 
   const handleSort = (field: string) => {
     if (sortBy === field) {
@@ -99,7 +148,7 @@ export default function SalesPerItemReport() {
   }
 
   // Predefined date filters
-  const [datePreset, setDatePreset] = useState<string>('custom')
+  const [datePreset, setDatePreset] = useState<string>('today')
 
   const setDateRange = (range: string) => {
     const today = new Date()
@@ -313,16 +362,24 @@ export default function SalesPerItemReport() {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Location</label>
-            <select
-              value={locationId}
-              onChange={(e) => setLocationId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-            >
-              <option value="">All Locations</option>
-              {locations.map((loc) => (
-                <option key={loc.id} value={loc.id}>{loc.name}</option>
-              ))}
-            </select>
+            {isCashierMode ? (
+              <div className="px-3 py-2 bg-blue-50 rounded-md border border-blue-200 text-sm font-semibold text-blue-900">
+                {enforcedLocationName || 'Assigned Location'}
+              </div>
+            ) : (
+              <select
+                value={locationId}
+                onChange={(e) => setLocationId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+              >
+                {hasAccessToAll && (
+                  <option value="">All Locations</option>
+                )}
+                {locations.map((loc) => (
+                  <option key={loc.id} value={loc.id}>{loc.name}</option>
+                ))}
+              </select>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category</label>
@@ -366,23 +423,23 @@ export default function SalesPerItemReport() {
           <button
             onClick={fetchItems}
             disabled={loading}
-            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-lg disabled:opacity-50 transition-colors font-medium"
           >
             {loading ? 'Loading...' : 'Generate Report'}
           </button>
           <button
             onClick={exportToExcel}
             disabled={items.length === 0}
-            className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+            className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white shadow-sm rounded-lg disabled:opacity-50 transition-colors font-medium"
           >
             Export to Excel
           </button>
           <button
-            onClick={exportToPDF}
+            onClick={() => window.print()}
             disabled={items.length === 0}
-            className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+            className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white shadow-sm rounded-lg disabled:opacity-50 transition-colors font-medium"
           >
-            Export to PDF
+            Print Report
           </button>
         </div>
       </div>
@@ -469,11 +526,10 @@ export default function SalesPerItemReport() {
                     <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">₱{item.totalRevenue.toFixed(2)}</td>
                     <td className="px-4 py-3 text-sm text-right font-semibold text-green-600 dark:text-green-400">₱{item.totalProfit.toFixed(2)}</td>
                     <td className="px-4 py-3 text-sm text-right">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        item.profitMargin >= 30 ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' :
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${item.profitMargin >= 30 ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' :
                         item.profitMargin >= 15 ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' :
-                        'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300'
-                      }`}>
+                          'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300'
+                        }`}>
                         {item.profitMargin.toFixed(1)}%
                       </span>
                     </td>

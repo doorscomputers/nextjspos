@@ -210,6 +210,9 @@ export const PERMISSIONS = {
   REPORT_SALES_BY_HOUR: 'report.sales_by_hour', // Hourly sales breakdown for peak hours analysis
   REPORT_VOID_REFUND_ANALYSIS: 'report.void_refund_analysis', // Voided and refunded transactions tracking
 
+  // Cashier-only Reports
+  CASHIER_REPORTS_VIEW: 'report.cashier.view',
+
   // Purchases
   PURCHASE_VIEW: 'purchase.view',
   PURCHASE_CREATE: 'purchase.create',
@@ -671,6 +674,21 @@ export const DEFAULT_ROLES = {
     description: 'Full system access - platform owner/super admin with all technical service permissions',
     category: 'Administrative',
     permissions: Object.values(PERMISSIONS), // Has ALL permissions including technical service
+  },
+
+  // Organization request: Give Admin and All Branch Admin same capabilities as Super Admin.
+  ADMIN: {
+    name: 'Admin',
+    description: 'Full system access equivalent to System Administrator (menus can still be hidden)',
+    category: 'Administrative',
+    permissions: Object.values(PERMISSIONS),
+  },
+
+  ALL_BRANCH_ADMIN: {
+    name: 'All Branch Admin',
+    description: 'Full system access across all branches, same as System Administrator',
+    category: 'Administrative',
+    permissions: Object.values(PERMISSIONS),
   },
 
   MULTI_LOCATION_PRICE_OPERATOR: {
@@ -1159,6 +1177,8 @@ export const DEFAULT_ROLES = {
       // Operational analysis reports
       PERMISSIONS.REPORT_SALES_BY_HOUR,
       PERMISSIONS.REPORT_VOID_REFUND_ANALYSIS,
+      // Cashier-only reports section
+      PERMISSIONS.CASHIER_REPORTS_VIEW,
     ],
   },
 

@@ -87,24 +87,10 @@ export async function GET(request: NextRequest) {
     const records = await prisma.cashInOut.findMany({
       where: cashInOutWhere,
       include: {
-        location: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        shift: {
+        cashierShift: {
           select: {
             id: true,
             shiftNumber: true,
-          },
-        },
-        creator: {
-          select: {
-            id: true,
-            username: true,
-            firstName: true,
-            lastName: true,
           },
         },
       },
@@ -112,6 +98,22 @@ export async function GET(request: NextRequest) {
         createdAt: 'desc',
       },
     })
+
+    // Fetch locations separately
+    const locationIds = [...new Set(records.map(r => r.locationId))]
+    const locations = await prisma.businessLocation.findMany({
+      where: { id: { in: locationIds } },
+      select: { id: true, name: true },
+    })
+    const locationMap = new Map(locations.map(l => [l.id, l]))
+
+    // Fetch users (creators) separately
+    const userIds = [...new Set(records.map(r => r.createdBy))]
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, username: true, firstName: true, lastName: true },
+    })
+    const userMap = new Map(users.map(u => [u.id, u]))
 
     // Calculate summary metrics
     let totalCashIn = 0
@@ -136,11 +138,12 @@ export async function GET(request: NextRequest) {
       }
 
       // Location breakdown
-      const locationKey = record.location.name
+      const location = locationMap.get(record.locationId)
+      const locationKey = location?.name || 'Unknown Location'
       if (!locationBreakdown[locationKey]) {
         locationBreakdown[locationKey] = {
-          locationId: record.location.id,
-          locationName: record.location.name,
+          locationId: record.locationId,
+          locationName: locationKey,
           cashIn: 0,
           cashOut: 0,
           netCash: 0,
@@ -157,9 +160,10 @@ export async function GET(request: NextRequest) {
       locationBreakdown[locationKey].count++
 
       // Cashier breakdown
-      const cashierName = record.creator
-        ? `${record.creator.firstName || ''} ${record.creator.lastName || ''}`.trim() ||
-          record.creator.username
+      const creator = userMap.get(record.createdBy)
+      const cashierName = creator
+        ? `${creator.firstName || ''} ${creator.lastName || ''}`.trim() ||
+          creator.username
         : 'Unknown'
       const cashierKey = `${record.createdBy}-${cashierName}`
       if (!cashierBreakdown[cashierKey]) {
@@ -238,33 +242,43 @@ export async function GET(request: NextRequest) {
       .slice(0, 10)
 
     // Format records for response
-    const formattedRecords = records.map((record) => ({
-      id: record.id,
-      date: record.createdAt.toISOString(),
-      type: record.type,
-      amount: parseFloat(record.amount.toString()),
-      reason: record.reason,
-      referenceNumber: record.referenceNumber,
-      location: {
-        id: record.location.id,
-        name: record.location.name,
-      },
-      shift: record.shift
-        ? {
-            id: record.shift.id,
-            shiftNumber: record.shift.shiftNumber,
-          }
-        : null,
-      cashier: {
-        id: record.creator?.id,
-        name: record.creator
-          ? `${record.creator.firstName || ''} ${record.creator.lastName || ''}`.trim() ||
-            record.creator.username
-          : 'Unknown',
-        username: record.creator?.username || 'unknown',
-      },
-      requiresApproval: record.requiresApproval,
-    }))
+    const formattedRecords = records.map((record) => {
+      const location = locationMap.get(record.locationId)
+      const creator = userMap.get(record.createdBy)
+
+      return {
+        id: record.id,
+        date: record.createdAt.toISOString(),
+        type: record.type,
+        amount: parseFloat(record.amount.toString()),
+        reason: record.reason,
+        referenceNumber: record.referenceNumber,
+        location: location
+          ? {
+              id: location.id,
+              name: location.name,
+            }
+          : {
+              id: record.locationId,
+              name: 'Unknown Location',
+            },
+        shift: record.cashierShift
+          ? {
+              id: record.cashierShift.id,
+              shiftNumber: record.cashierShift.shiftNumber,
+            }
+          : null,
+        cashier: {
+          id: creator?.id || record.createdBy,
+          name: creator
+            ? `${creator.firstName || ''} ${creator.lastName || ''}`.trim() ||
+              creator.username
+            : 'Unknown',
+          username: creator?.username || 'unknown',
+        },
+        requiresApproval: record.requiresApproval,
+      }
+    })
 
     const summary = {
       startDate: startDate.toISOString().split('T')[0],

@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ReadingDisplay } from '@/components/ReadingDisplay'
-import { CheckCircle, Loader2, FileText, Calculator } from 'lucide-react'
+import { CheckCircle, Loader2, FileText, Calculator, CreditCard, Key } from 'lucide-react'
 
 const DENOMINATIONS = [
   { value: 1000, label: '₱1000 Bills', field: 'count1000' },
@@ -33,6 +33,12 @@ export default function CloseShiftPage() {
   const [closingNotes, setClosingNotes] = useState('')
   const [managerPassword, setManagerPassword] = useState('')
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
+  const [authMethod, setAuthMethod] = useState<'password' | 'rfid'>('password')
+  const [rfidCode, setRfidCode] = useState('')
+  const [rfidCodeActual, setRfidCodeActual] = useState('') // Store actual code for API
+  const [rfidVerified, setRfidVerified] = useState(false)
+  const [verifyingRfid, setVerifyingRfid] = useState(false)
+  const [locationName, setLocationName] = useState('')
   // Use empty strings as default for better UX (allows deletion without "0" reappearing)
   const [denominations, setDenominations] = useState<any>({
     count1000: '',
@@ -151,18 +157,74 @@ export default function CloseShiftPage() {
     }, 0)
   }
 
+  const handleRfidScan = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && rfidCode.trim()) {
+      e.preventDefault()
+      setVerifyingRfid(true)
+      setError('')
+
+      const scannedCode = rfidCode.trim()
+
+      try {
+        const response = await fetch(`/api/locations/verify-code?code=${scannedCode}`)
+        const data = await response.json()
+
+        if (data.valid) {
+          // Verify the RFID code matches the shift's location
+          if (currentShift && currentShift.locationId === data.locationId) {
+            setLocationName(data.locationName)
+            setRfidCodeActual(scannedCode) // Store actual code for API
+            setRfidCode('*'.repeat(scannedCode.length)) // Mask with asterisks
+            setRfidVerified(true)
+            console.log(`[ShiftClose] ✓ RFID verified: ${data.locationName}`)
+          } else {
+            setError('Invalid RFID code. This card does not match the shift location.')
+            setRfidCode('')
+            setRfidCodeActual('')
+            setRfidVerified(false)
+          }
+        } else {
+          setError(data.error || 'Invalid RFID code. Please scan the correct card for this location.')
+          setRfidCode('')
+          setRfidCodeActual('')
+          setRfidVerified(false)
+        }
+      } catch (err: any) {
+        setError('Failed to verify RFID code. Please try again.')
+        setRfidCode('')
+        setRfidCodeActual('')
+        setRfidVerified(false)
+      } finally {
+        setVerifyingRfid(false)
+      }
+    }
+  }
+
+  const clearRfidScan = () => {
+    setRfidCode('')
+    setRfidCodeActual('')
+    setLocationName('')
+    setRfidVerified(false)
+    setError('')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Show password dialog first
+    // Show authorization dialog first
     if (!showPasswordDialog) {
       setShowPasswordDialog(true)
       return
     }
 
-    // Validate password entered
-    if (!managerPassword) {
+    // Validate authorization - either password OR RFID required
+    if (authMethod === 'password' && !managerPassword) {
       setError('Manager password is required to close shift')
+      return
+    }
+
+    if (authMethod === 'rfid' && !rfidVerified) {
+      setError('Please scan and verify the location RFID card')
       return
     }
 
@@ -178,15 +240,23 @@ export default function CloseShiftPage() {
         return acc
       }, {} as any)
 
+      // Prepare authorization data based on selected method
+      const authData: any = {
+        endingCash: totalCash,
+        closingNotes,
+        cashDenomination: cashDenominationNumbers,
+      }
+
+      if (authMethod === 'password') {
+        authData.managerPassword = managerPassword
+      } else {
+        authData.locationCode = rfidCodeActual // Use actual code, not masked version
+      }
+
       const res = await fetch(`/api/shifts/${currentShift.id}/close`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          endingCash: totalCash,
-          closingNotes,
-          cashDenomination: cashDenominationNumbers,
-          managerPassword,
-        }),
+        body: JSON.stringify(authData),
       })
 
       const data = await res.json()
@@ -213,6 +283,11 @@ export default function CloseShiftPage() {
   const handleCancelPasswordDialog = () => {
     setShowPasswordDialog(false)
     setManagerPassword('')
+    setRfidCode('')
+    setRfidCodeActual('')
+    setRfidVerified(false)
+    setLocationName('')
+    setAuthMethod('password')
     setError('')
   }
 
@@ -436,31 +511,123 @@ export default function CloseShiftPage() {
               />
             </div>
 
-            {/* Password Dialog */}
+            {/* Authorization Dialog */}
             {showPasswordDialog && (
               <div className="p-6 border-2 border-red-300 rounded-lg bg-red-50 space-y-4">
                 <div className="text-center">
                   <div className="text-4xl mb-2">🔐</div>
                   <h3 className="text-lg font-bold text-red-900">Manager Authorization Required</h3>
                   <p className="text-sm text-red-700 mt-2">
-                    Enter Branch Manager or Admin password to close this shift
+                    Choose one of the two authorization methods to close this shift
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="managerPassword" className="text-red-900 font-medium">
-                    Manager/Admin Password <span className="text-red-600">*</span>
-                  </Label>
-                  <Input
-                    id="managerPassword"
-                    type="password"
-                    placeholder="Enter password..."
-                    value={managerPassword}
-                    onChange={(e) => setManagerPassword(e.target.value)}
-                    className="border-red-300 focus:border-red-500"
-                    autoFocus
-                  />
+                {/* Authorization Method Tabs */}
+                <div className="flex gap-2 p-1 bg-red-100 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMethod('password')
+                      setError('')
+                    }}
+                    className={`flex-1 py-2 px-4 rounded-md font-medium transition-all flex items-center justify-center gap-2 ${
+                      authMethod === 'password'
+                        ? 'bg-white text-red-900 shadow-md'
+                        : 'text-red-700 hover:text-red-900'
+                    }`}
+                  >
+                    <Key className="w-4 h-4" />
+                    Manager Password
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMethod('rfid')
+                      setError('')
+                    }}
+                    className={`flex-1 py-2 px-4 rounded-md font-medium transition-all flex items-center justify-center gap-2 ${
+                      authMethod === 'rfid'
+                        ? 'bg-white text-red-900 shadow-md'
+                        : 'text-red-700 hover:text-red-900'
+                    }`}
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    Location RFID
+                  </button>
                 </div>
+
+                {/* Password Method */}
+                {authMethod === 'password' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="managerPassword" className="text-red-900 font-medium">
+                      Manager/Admin Password <span className="text-red-600">*</span>
+                    </Label>
+                    <Input
+                      id="managerPassword"
+                      type="password"
+                      placeholder="Enter password..."
+                      value={managerPassword}
+                      onChange={(e) => setManagerPassword(e.target.value)}
+                      className="border-red-300 focus:border-red-500"
+                      autoFocus
+                    />
+                    <p className="text-xs text-red-600">
+                      Enter the password of a Branch Manager or Admin
+                    </p>
+                  </div>
+                )}
+
+                {/* RFID Method */}
+                {authMethod === 'rfid' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="rfidAuth" className="text-red-900 font-medium flex items-center gap-2">
+                      <CreditCard className="w-4 h-4" />
+                      Location RFID Card <span className="text-red-600">*</span>
+                    </Label>
+
+                    {!rfidVerified ? (
+                      <>
+                        <Input
+                          id="rfidAuth"
+                          type="text"
+                          className="font-mono text-lg border-red-300 focus:border-red-500"
+                          placeholder="Scan RFID card here..."
+                          value={rfidCode}
+                          onChange={(e) => setRfidCode(e.target.value)}
+                          onKeyDown={handleRfidScan}
+                          disabled={verifyingRfid}
+                          autoFocus
+                        />
+                        <p className="text-xs text-red-600">
+                          📱 Scan the location's RFID card and press Enter to authorize
+                        </p>
+                      </>
+                    ) : (
+                      <div className="bg-green-50 border-2 border-green-500 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-10 h-10 bg-green-500 rounded-full">
+                              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600">Verified Location:</p>
+                              <p className="text-lg font-bold text-green-900">{locationName}</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={clearRfidScan}
+                            className="px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 text-sm rounded-md transition-colors"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex gap-3">
                   <Button
@@ -473,7 +640,11 @@ export default function CloseShiftPage() {
                   </Button>
                   <Button
                     type="submit"
-                    disabled={loading || !managerPassword}
+                    disabled={
+                      loading ||
+                      (authMethod === 'password' && !managerPassword) ||
+                      (authMethod === 'rfid' && !rfidVerified)
+                    }
                     className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg"
                   >
                     {loading ? '🔒 Closing...' : '✅ Confirm & Close Shift'}

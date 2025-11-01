@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
+import { usePathname } from "next/navigation"
 import { usePermissions } from "@/hooks/usePermissions"
 import { PERMISSIONS } from "@/lib/rbac"
 import { formatCurrency } from "@/lib/currencyUtils"
@@ -95,6 +96,8 @@ interface SalesHistoryData {
 
 export default function SalesHistoryPage() {
   const { can } = usePermissions()
+  const pathname = usePathname()
+  const isCashierMode = pathname?.includes('/dashboard/cashier-reports/') ?? false
 
   if (!can(PERMISSIONS.REPORT_SALES_HISTORY)) {
     return (
@@ -130,7 +133,9 @@ export default function SalesHistoryPage() {
 
   // Data for dropdowns
   const [locations, setLocations] = useState<Array<{ id: number; name: string }>>([])
+  const [hasAccessToAll, setHasAccessToAll] = useState<boolean>(false)
   const [customers, setCustomers] = useState<Array<{ id: number; name: string }>>([])
+  const [enforcedLocationName, setEnforcedLocationName] = useState<string>("")
 
   const activeFilterCount = useMemo(() => {
     let count = 0
@@ -170,27 +175,59 @@ export default function SalesHistoryPage() {
 
   const fetchLocations = async () => {
     try {
-      const response = await fetch("/api/locations")
-      if (response.ok) {
-        const data = await response.json()
-        const locationsList =
-          Array.isArray(data)
+      let list: any[] = []
+      let accessAll = false
+      let primaryLocationId: string | null = null
+
+      // Role-aware: try user-locations first
+      try {
+        const ulRes = await fetch('/api/user-locations')
+        if (ulRes.ok) {
+          const ul = await ulRes.json()
+          const raw = Array.isArray(ul.locations) ? ul.locations : []
+          list = raw.filter((l: any) => l?.name && !l.name.toLowerCase().includes('warehouse'))
+          accessAll = Boolean(ul.hasAccessToAll)
+          primaryLocationId = ul.primaryLocationId ? String(ul.primaryLocationId) : null
+          if (isCashierMode) {
+            // Force restricted view in cashier mode
+            accessAll = false
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load /api/user-locations, falling back to /api/locations', e)
+      }
+
+      // Fallback: business locations (admin-like)
+      if (!list.length) {
+        const response = await fetch('/api/locations')
+        if (response.ok) {
+          const data = await response.json()
+          const locs = Array.isArray(data)
             ? data
             : Array.isArray(data.locations)
               ? data.locations
               : Array.isArray(data.data)
                 ? data.data
                 : []
-        setLocations(locationsList)
-
-        // Automatically set the first accessible location as default if available
-        if (locationsList.length > 0 && locationId === "all") {
-          setLocationId(locationsList[0].id.toString())
+          list = locs.filter((l: any) => l?.name && !l.name.toLowerCase().includes('warehouse'))
+          accessAll = true
         }
       }
+
+      setLocations(list)
+      setHasAccessToAll(accessAll)
+
+      // For restricted users, auto-select assigned/first location
+      if (!accessAll) {
+        const resolved = primaryLocationId || (list[0]?.id ? String(list[0].id) : 'all')
+        setLocationId(resolved)
+        const found = list.find((l: any) => String(l.id) === String(resolved))
+        if (found) setEnforcedLocationName(found.name)
+      }
     } catch (error) {
-      console.error("Failed to fetch locations:", error)
+      console.error('Failed to fetch locations:', error)
       setLocations([])
+      setHasAccessToAll(false)
     }
   }
 
@@ -378,23 +415,6 @@ export default function SalesHistoryPage() {
             <FunnelIcon className="h-4 w-4 mr-2" />
             {showFilters ? "Hide" : "Show"} Filters
           </Button>
-          <Button
-            onClick={exportToCSV}
-            disabled={!reportData}
-            variant="default"
-            className="shadow-sm"
-          >
-            <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
-          <Button
-            onClick={() => window.print()}
-            variant="secondary"
-            className="shadow-sm"
-          >
-            <PrinterIcon className="h-4 w-4 mr-2" />
-            Print
-          </Button>
         </div>
       </div>
 
@@ -408,169 +428,196 @@ export default function SalesHistoryPage() {
         description="Adjust quick date ranges and additional criteria to refine the sales dataset."
       >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Date Range Presets */}
-              <div className="flex flex-col gap-2">
-                <Label>Quick Date Range</Label>
-                <Select value={dateRange} onValueChange={(val) => {
-                  setDateRange(val)
-                  if (val !== "custom") {
-                    setStartDate("")
-                    setEndDate("")
-                  }
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select range" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="custom">Custom Range</SelectItem>
-                    <SelectItem value="today">Today</SelectItem>
-                    <SelectItem value="yesterday">Yesterday</SelectItem>
-                    <SelectItem value="thisWeek">This Week</SelectItem>
-                    <SelectItem value="lastWeek">Last Week</SelectItem>
-                    <SelectItem value="thisMonth">This Month</SelectItem>
-                    <SelectItem value="lastMonth">Last Month</SelectItem>
-                    <SelectItem value="thisQuarter">This Quarter</SelectItem>
-                    <SelectItem value="lastQuarter">Last Quarter</SelectItem>
-                    <SelectItem value="thisYear">This Year</SelectItem>
-                    <SelectItem value="lastYear">Last Year</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Date Range Presets */}
+          <div className="flex flex-col gap-2">
+            <Label>Quick Date Range</Label>
+            <Select value={dateRange} onValueChange={(val) => {
+              setDateRange(val)
+              if (val !== "custom") {
+                setStartDate("")
+                setEndDate("")
+              }
+            }}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select range" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="custom">Custom Range</SelectItem>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="yesterday">Yesterday</SelectItem>
+                <SelectItem value="thisWeek">This Week</SelectItem>
+                <SelectItem value="lastWeek">Last Week</SelectItem>
+                <SelectItem value="thisMonth">This Month</SelectItem>
+                <SelectItem value="lastMonth">Last Month</SelectItem>
+                <SelectItem value="thisQuarter">This Quarter</SelectItem>
+                <SelectItem value="lastQuarter">Last Quarter</SelectItem>
+                <SelectItem value="thisYear">This Year</SelectItem>
+                <SelectItem value="lastYear">Last Year</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-              {/* Start Date */}
-              <div className="flex flex-col gap-2">
-                <Label>Start Date</Label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => {
-                    setStartDate(e.target.value)
-                    if (e.target.value) setDateRange("custom")
-                  }}
-                  disabled={dateRange !== "custom"}
-                />
-              </div>
+          {/* Start Date */}
+          <div className="flex flex-col gap-2">
+            <Label>Start Date</Label>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value)
+                if (e.target.value) setDateRange("custom")
+              }}
+              disabled={dateRange !== "custom"}
+            />
+          </div>
 
-              {/* End Date */}
-              <div className="flex flex-col gap-2">
-                <Label>End Date</Label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => {
-                    setEndDate(e.target.value)
-                    if (e.target.value) setDateRange("custom")
-                  }}
-                  disabled={dateRange !== "custom"}
-                />
-              </div>
-              {/* Location */}
-              <div className="flex flex-col gap-2">
-                <Label>Location</Label>
-                <Select value={locationId} onValueChange={setLocationId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Locations" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Locations</SelectItem>
-                    {locations.map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id.toString()}>
-                        {loc.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Customer */}
-              <div className="flex flex-col gap-2">
-                <Label>Customer</Label>
-                <Select value={customerId} onValueChange={setCustomerId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Customers" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Customers</SelectItem>
-                    {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id.toString()}>
-                        {customer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Status */}
-              <div className="flex flex-col gap-2">
-                <Label>Status</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Statuses" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                    <SelectItem value="voided">Voided</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Payment Method */}
-              <div className="flex flex-col gap-2">
-                <Label>Payment Method</Label>
-                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Methods" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Methods</SelectItem>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="card">Card</SelectItem>
-                    <SelectItem value="credit">Credit</SelectItem>
-                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                    <SelectItem value="mobile_payment">Mobile Payment</SelectItem>
-                    <SelectItem value="cheque">Cheque</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Invoice Number */}
-              <div className="flex flex-col gap-2">
-                <Label>Invoice Number</Label>
-                <Input
-                  placeholder="Search invoice..."
-                  value={invoiceNumber}
-                  onChange={(e) => setInvoiceNumber(e.target.value)}
-                />
-              </div>
-
-              {/* Product Search */}
-              <div className="lg:col-span-2 flex flex-col gap-2">
-                <Label>Product Name / SKU</Label>
-                <Input
-                  placeholder="Search by product name or SKU..."
-                  value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
-                />
+          {/* End Date */}
+          <div className="flex flex-col gap-2">
+            <Label>End Date</Label>
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(e) => {
+                setEndDate(e.target.value)
+                if (e.target.value) setDateRange("custom")
+              }}
+              disabled={dateRange !== "custom"}
+            />
+          </div>
+          {/* Location (hidden and enforced in cashier mode) */}
+          {isCashierMode ? (
+            <div className="flex flex-col gap-2">
+              <Label>Location</Label>
+              <div className="px-3 py-2 bg-blue-50 rounded-md border border-blue-200 text-sm font-semibold text-blue-900">
+                {enforcedLocationName || 'Assigned Location'}
               </div>
             </div>
-
-            <div className="flex gap-3 mt-6 flex-wrap">
-              <Button onClick={handleSearch} className="shadow-sm px-6">
-                <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
-                Search
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={handleReset}
-                className="shadow-sm px-6"
-              >
-                Reset All Filters
-              </Button>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <Label>Location</Label>
+              <Select value={locationId} onValueChange={setLocationId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Locations" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Locations</SelectItem>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id.toString()}>
+                      {loc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+          )}
+
+          {/* Customer */}
+          <div className="flex flex-col gap-2">
+            <Label>Customer</Label>
+            <Select value={customerId} onValueChange={setCustomerId}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Customers" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Customers</SelectItem>
+                {customers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id.toString()}>
+                    {customer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Status */}
+          <div className="flex flex-col gap-2">
+            <Label>Status</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="voided">Voided</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Payment Method */}
+          <div className="flex flex-col gap-2">
+            <Label>Payment Method</Label>
+            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Methods" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Methods</SelectItem>
+                <SelectItem value="cash">Cash</SelectItem>
+                <SelectItem value="card">Card</SelectItem>
+                <SelectItem value="credit">Credit</SelectItem>
+                <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                <SelectItem value="mobile_payment">Mobile Payment</SelectItem>
+                <SelectItem value="cheque">Cheque</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Invoice Number */}
+          <div className="flex flex-col gap-2">
+            <Label>Invoice Number</Label>
+            <Input
+              placeholder="Search invoice..."
+              value={invoiceNumber}
+              onChange={(e) => setInvoiceNumber(e.target.value)}
+            />
+          </div>
+
+          {/* Product Search */}
+          <div className="lg:col-span-2 flex flex-col gap-2">
+            <Label>Product Name / SKU</Label>
+            <Input
+              placeholder="Search by product name or SKU..."
+              value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6 flex-wrap">
+          <Button
+            onClick={handleSearch}
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm px-6 rounded-lg"
+          >
+            <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
+            Generate Report
+          </Button>
+          <Button
+            onClick={exportToCSV}
+            disabled={!reportData}
+            className="bg-green-600 hover:bg-green-700 text-white shadow-sm px-6 rounded-lg"
+          >
+            <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+            Export to Excel
+          </Button>
+          <Button
+            onClick={() => window.print()}
+            className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm px-6 rounded-lg"
+          >
+            <PrinterIcon className="h-4 w-4 mr-2" />
+            Print Report
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={handleReset}
+            className="shadow-sm px-6"
+          >
+            Reset All Filters
+          </Button>
+        </div>
       </ReportFilterPanel>
 
       {/* Summary Cards */}

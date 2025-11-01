@@ -52,6 +52,8 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const customerId = searchParams.get('customerId')
     const locationId = searchParams.get('locationId')
+    const shiftId = searchParams.get('shiftId') // Filter by specific shift
+    const date = searchParams.get('date') // Filter by specific date
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
     const page = parseInt(searchParams.get('page') || '1')
@@ -101,6 +103,17 @@ export async function GET(request: NextRequest) {
         // Requested location not in user's assignments - return empty
         where.id = -1
       }
+    }
+
+    // Filter by specific shift (for POS shift session management)
+    if (shiftId) {
+      where.shiftId = parseInt(shiftId)
+    }
+
+    // Filter by specific date (for POS today's sales)
+    if (date) {
+      const filterDate = new Date(date)
+      where.saleDate = filterDate
     }
 
     if (startDate || endDate) {
@@ -337,6 +350,28 @@ export async function POST(request: NextRequest) {
       customerName = customer.name
     }
 
+    // Collect all serial numbers for batch validation (performance optimization)
+    const allSerialNumberIds: number[] = []
+    items.forEach(item => {
+      if (item.requiresSerial && item.serialNumberIds) {
+        allSerialNumberIds.push(...item.serialNumberIds.map((id: any) => Number(id)))
+      }
+    })
+
+    // Batch fetch all serial numbers at once (instead of N+1 queries)
+    let serialNumbersMap = new Map()
+    if (allSerialNumberIds.length > 0) {
+      const serialNumbers = await prisma.productSerialNumber.findMany({
+        where: {
+          id: { in: allSerialNumberIds },
+          businessId: businessIdNumber,
+          currentLocationId: locationIdNumber,
+          status: 'in_stock',
+        },
+      })
+      serialNumbersMap = new Map(serialNumbers.map(sn => [sn.id, sn]))
+    }
+
     // Validate items and check stock availability
     let subtotal = 0
     for (const item of items) {
@@ -373,7 +408,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // If serial numbers required, validate them
+      // If serial numbers required, validate them using batch-fetched data
       if (item.requiresSerial) {
         if (!item.serialNumberIds || item.serialNumberIds.length === 0) {
           return NextResponse.json(
@@ -391,19 +426,11 @@ export async function POST(request: NextRequest) {
           )
         }
 
-        // Verify serial numbers exist and are available
+        // Verify serial numbers exist and are available (using pre-fetched map)
         for (const serialNumberId of item.serialNumberIds) {
-          const serialNumber = await prisma.productSerialNumber.findFirst({
-            where: {
-              id: Number(serialNumberId),
-              businessId: businessIdNumber,
-              productVariationId: Number(item.productVariationId),
-              currentLocationId: locationIdNumber,
-              status: 'in_stock',
-            },
-          })
+          const serialNumber = serialNumbersMap.get(Number(serialNumberId))
 
-          if (!serialNumber) {
+          if (!serialNumber || serialNumber.productVariationId !== Number(item.productVariationId)) {
             return NextResponse.json(
               { error: `Serial number ${serialNumberId} not available for sale` },
               { status: 400 }

@@ -252,114 +252,114 @@ export default function PurchasesReportPage() {
         contentClassName="space-y-4"
       >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Location Filter */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Location</label>
-                <Select value={locationId} onValueChange={setLocationId}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Locations</SelectItem>
-                    {Array.isArray(locations) && locations.map((location) => (
-                      <SelectItem key={location.id} value={location.id.toString()}>
-                        {location.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Location Filter */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Location</label>
+            <Select value={locationId} onValueChange={setLocationId}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Locations</SelectItem>
+                {Array.isArray(locations) && locations.map((location) => (
+                  <SelectItem key={location.id} value={location.id.toString()}>
+                    {location.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-              {/* Supplier Filter */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Supplier</label>
-                <Select value={supplierId} onValueChange={setSupplierId}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Suppliers</SelectItem>
-                    {Array.isArray(suppliers) && suppliers.map((supplier) => (
-                      <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                        {supplier.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Supplier Filter */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Supplier</label>
+            <Select value={supplierId} onValueChange={setSupplierId}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Suppliers</SelectItem>
+                {Array.isArray(suppliers) && suppliers.map((supplier) => (
+                  <SelectItem key={supplier.id} value={supplier.id.toString()}>
+                    {supplier.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-              {/* Status Filter */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Status</label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="DRAFT">Draft</SelectItem>
-                    <SelectItem value="SUBMITTED">Submitted</SelectItem>
-                    <SelectItem value="APPROVED">Approved</SelectItem>
-                    <SelectItem value="PARTIALLY_RECEIVED">Partially Received</SelectItem>
-                    <SelectItem value="RECEIVED">Received</SelectItem>
-                    <SelectItem value="COMPLETED">Completed</SelectItem>
-                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* Status Filter */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Status</label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="DRAFT">Draft</SelectItem>
+                <SelectItem value="SUBMITTED">Submitted</SelectItem>
+                <SelectItem value="APPROVED">Approved</SelectItem>
+                <SelectItem value="PARTIALLY_RECEIVED">Partially Received</SelectItem>
+                <SelectItem value="RECEIVED">Received</SelectItem>
+                <SelectItem value="COMPLETED">Completed</SelectItem>
+                <SelectItem value="CANCELLED">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-              {/* PO Number */}
-              <div>
-                <label className="block text-sm font-medium mb-2">PO Number</label>
-                <Input
-                  type="text"
-                  placeholder="Search PO number..."
-                  value={purchaseOrderNumber}
-                  onChange={(e) => setPurchaseOrderNumber(e.target.value)}
-                />
-              </div>
+          {/* PO Number */}
+          <div>
+            <label className="block text-sm font-medium mb-2">PO Number</label>
+            <Input
+              type="text"
+              placeholder="Search PO number..."
+              value={purchaseOrderNumber}
+              onChange={(e) => setPurchaseOrderNumber(e.target.value)}
+            />
+          </div>
 
-              {/* Start Date */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Start Date</label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
-              </div>
+          {/* Start Date */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Start Date</label>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
 
-              {/* End Date */}
-              <div>
-                <label className="block text-sm font-medium mb-2">End Date</label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
-              </div>
+          {/* End Date */}
+          <div>
+            <label className="block text-sm font-medium mb-2">End Date</label>
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
 
-              {/* Min Amount */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Min Amount</label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  value={minAmount}
-                  onChange={(e) => setMinAmount(e.target.value)}
-                />
-              </div>
+          {/* Min Amount */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Min Amount</label>
+            <Input
+              type="number"
+              placeholder="0.00"
+              value={minAmount}
+              onChange={(e) => setMinAmount(e.target.value)}
+            />
+          </div>
 
-              {/* Max Amount */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Max Amount</label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  value={maxAmount}
-                  onChange={(e) => setMaxAmount(e.target.value)}
-                />
-              </div>
+          {/* Max Amount */}
+          <div>
+            <label className="block text-sm font-medium mb-2">Max Amount</label>
+            <Input
+              type="number"
+              placeholder="0.00"
+              value={maxAmount}
+              onChange={(e) => setMaxAmount(e.target.value)}
+            />
+          </div>
         </div>
 
         <div className="flex gap-3 flex-wrap">
@@ -377,7 +377,7 @@ export default function PurchasesReportPage() {
             ) : (
               <>
                 <MagnifyingGlassIcon className="w-5 h-5 mr-2" />
-                Apply Filters
+                Generate Report
               </>
             )}
           </Button>

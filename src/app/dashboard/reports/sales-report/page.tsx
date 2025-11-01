@@ -10,6 +10,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ArrowPathIcon,
+  PrinterIcon,
 } from "@heroicons/react/24/outline"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -70,8 +71,9 @@ interface SalesReportData {
     totalTax: number
     totalDiscount: number
     totalShipping: number
-    totalCOGS: number
-    grossProfit: number
+    // These may be omitted by the API when user lacks permissions
+    totalCOGS?: number
+    grossProfit?: number
   }
   pagination: {
     page: number
@@ -99,7 +101,7 @@ export default function SalesReportPage() {
 
   // Filter states
   const [locationId, setLocationId] = useState("all")
-  const [customerId, setCustomerId] = useState("all")
+  const [customerSearch, setCustomerSearch] = useState("")
   const [status, setStatus] = useState("all")
   const [invoiceNumber, setInvoiceNumber] = useState("")
   const [startDate, setStartDate] = useState("")
@@ -107,45 +109,97 @@ export default function SalesReportPage() {
   const [minAmount, setMinAmount] = useState("")
   const [maxAmount, setMaxAmount] = useState("")
   const [page, setPage] = useState(1)
+  const [datePreset, setDatePreset] = useState<string>("Today")
   const [limit] = useState(50)
 
   // Data for dropdowns
   const [locations, setLocations] = useState<Array<{ id: number; name: string }>>([])
-  const [customers, setCustomers] = useState<Array<{ id: number; name: string }>>([])
+  const [hasAccessToAll, setHasAccessToAll] = useState<boolean>(false)
+  const [customerSuggestions, setCustomerSuggestions] = useState<Array<{ id: number | null; name: string; mobile?: string }>>([])
+  const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false)
 
   useEffect(() => {
     fetchLocations()
     fetchCustomers()
+    // Default date range so results show immediately
+    applyDatePreset("This Year")
   }, [])
 
   useEffect(() => {
     fetchReport()
   }, [page])
 
+  // Auto-fetch when location changes (helps cashier pages show data immediately)
+  useEffect(() => {
+    if (locations.length > 0) {
+      setPage(1)
+      fetchReport()
+    }
+  }, [locationId, locations.length])
+
+  // Refetch when date range changes via preset
+  useEffect(() => {
+    if (startDate || endDate) {
+      setPage(1)
+      fetchReport()
+    }
+  }, [startDate, endDate])
+
   const fetchLocations = async () => {
     try {
-      const response = await fetch("/api/locations")
-      if (response.ok) {
-        const data = await response.json()
-        const parsedLocations =
-          Array.isArray(data)
+      let list: any[] = []
+      let accessAll = false
+      let primaryLocationId: string | null = null
+
+      // Try user-scoped endpoint first (role-aware)
+      try {
+        const ulRes = await fetch('/api/user-locations')
+        if (ulRes.ok) {
+          const ul = await ulRes.json()
+          list = Array.isArray(ul.locations) ? ul.locations : []
+          accessAll = Boolean(ul.hasAccessToAll)
+          primaryLocationId = ul.primaryLocationId ? String(ul.primaryLocationId) : null
+        }
+      } catch (e) {
+        console.warn('Failed to load /api/user-locations, falling back to /api/locations', e)
+      }
+
+      // Fallback to business-wide locations
+      if (!list.length) {
+        const response = await fetch('/api/locations')
+        if (response.ok) {
+          const data = await response.json()
+          list = Array.isArray(data)
             ? data
             : Array.isArray(data.locations)
               ? data.locations
               : Array.isArray(data.data)
                 ? data.data
                 : []
-        setLocations(parsedLocations)
+          accessAll = true
+        }
+      }
+
+      // Exclude warehouses defensively
+      const filtered = list.filter((loc: any) => loc?.name && !loc.name.toLowerCase().includes('warehouse'))
+      setLocations(filtered)
+      setHasAccessToAll(accessAll)
+
+      // For restricted users, auto-select a sensible default
+      if (!accessAll) {
+        const resolved = primaryLocationId || (filtered[0]?.id ? String(filtered[0].id) : 'all')
+        setLocationId(resolved)
       }
     } catch (error) {
-      console.error("Failed to fetch locations:", error)
+      console.error('Failed to fetch locations:', error)
       setLocations([])
+      setHasAccessToAll(false)
     }
   }
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = async (searchTerm = "") => {
     try {
-      const response = await fetch("/api/customers")
+      const response = await fetch(`/api/customers?search=${encodeURIComponent(searchTerm)}&limit=10`)
       if (response.ok) {
         const data = await response.json()
         const parsedCustomers =
@@ -156,12 +210,37 @@ export default function SalesReportPage() {
               : Array.isArray(data.data)
                 ? data.data
                 : []
-        setCustomers(parsedCustomers)
+
+        // Add "Walk-in Customer" as a special suggestion
+        const suggestions = [...parsedCustomers]
+        if (searchTerm.toLowerCase().includes('walk') || searchTerm === '') {
+          suggestions.unshift({ id: null, name: 'Walk-in Customer', mobile: 'N/A' })
+        }
+
+        setCustomerSuggestions(suggestions)
+      } else {
+        console.error('Customer API error:', response.status, response.statusText)
       }
     } catch (error) {
       console.error("Failed to fetch customers:", error)
-      setCustomers([])
+      setCustomerSuggestions([])
     }
+  }
+
+  const handleCustomerSearch = (value: string) => {
+    setCustomerSearch(value)
+    if (value.length >= 1) {
+      fetchCustomers(value)
+      setShowCustomerSuggestions(true)
+    } else {
+      setCustomerSuggestions([])
+      setShowCustomerSuggestions(false)
+    }
+  }
+
+  const selectCustomer = (customer: { id: number | null; name: string }) => {
+    setCustomerSearch(customer.name)
+    setShowCustomerSuggestions(false)
   }
 
   const fetchReport = async () => {
@@ -172,7 +251,7 @@ export default function SalesReportPage() {
       params.append("limit", limit.toString())
 
       if (locationId !== "all") params.append("locationId", locationId)
-      if (customerId !== "all") params.append("customerId", customerId)
+      if (customerSearch.trim()) params.append("customerSearch", customerSearch.trim())
       if (status !== "all") params.append("status", status)
       if (invoiceNumber) params.append("invoiceNumber", invoiceNumber)
       if (startDate) params.append("startDate", startDate)
@@ -199,30 +278,124 @@ export default function SalesReportPage() {
 
   const handleReset = () => {
     setLocationId("all")
-    setCustomerId("all")
+    setCustomerSearch("")
     setStatus("all")
     setInvoiceNumber("")
     setStartDate("")
     setEndDate("")
     setMinAmount("")
     setMaxAmount("")
+    setDatePreset("Today")
     setPage(1)
     setTimeout(() => {
       fetchReport()
     }, 0)
   }
 
+  const applyDatePreset = (preset: string) => {
+    const today = new Date()
+    const start = new Date()
+    const end = new Date()
+
+    const startOfWeek = (d: Date) => {
+      const date = new Date(d)
+      const day = date.getDay() || 7
+      if (day !== 1) date.setHours(-24 * (day - 1))
+      date.setHours(0, 0, 0, 0)
+      return date
+    }
+    const endOfWeek = (d: Date) => {
+      const date = startOfWeek(d)
+      date.setDate(date.getDate() + 6)
+      date.setHours(23, 59, 59, 999)
+      return date
+    }
+
+    const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1)
+    const endOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth() + 1, 0)
+    const startOfQuarter = (d: Date) => new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3, 1)
+    const endOfQuarter = (d: Date) => new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3 + 3, 0)
+    const startOfYear = (y: number) => new Date(y, 0, 1)
+    const endOfYear = (y: number) => new Date(y, 11, 31)
+
+    switch (preset) {
+      case "Today":
+        start.setHours(0, 0, 0, 0)
+        end.setHours(23, 59, 59, 999)
+        break
+      case "Yesterday":
+        start.setDate(today.getDate() - 1)
+        end.setDate(today.getDate() - 1)
+        start.setHours(0, 0, 0, 0)
+        end.setHours(23, 59, 59, 999)
+        break
+      case "This Week":
+        start.setTime(startOfWeek(today).getTime())
+        end.setTime(endOfWeek(today).getTime())
+        break
+      case "Last Week":
+        const lw = new Date(today)
+        lw.setDate(lw.getDate() - 7)
+        start.setTime(startOfWeek(lw).getTime())
+        end.setTime(endOfWeek(lw).getTime())
+        break
+      case "This Month":
+        start.setTime(startOfMonth(today).getTime())
+        end.setTime(endOfMonth(today).getTime())
+        break
+      case "Last Month":
+        const lm = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+        start.setTime(startOfMonth(lm).getTime())
+        end.setTime(endOfMonth(lm).getTime())
+        break
+      case "This Quarter":
+        start.setTime(startOfQuarter(today).getTime())
+        end.setTime(endOfQuarter(today).getTime())
+        break
+      case "Last Quarter":
+        const lq = new Date(today.getFullYear(), today.getMonth() - 3, 1)
+        start.setTime(startOfQuarter(lq).getTime())
+        end.setTime(endOfQuarter(lq).getTime())
+        break
+      case "This Year":
+        start.setTime(startOfYear(today.getFullYear()).getTime())
+        end.setTime(endOfYear(today.getFullYear()).getTime())
+        break
+      case "Last Year":
+        start.setTime(startOfYear(today.getFullYear() - 1).getTime())
+        end.setTime(endOfYear(today.getFullYear() - 1).getTime())
+        break
+      case "Last 30 Days":
+        start.setDate(today.getDate() - 29)
+        start.setHours(0, 0, 0, 0)
+        end.setHours(23, 59, 59, 999)
+        break
+      case "Last 90 Days":
+        start.setDate(today.getDate() - 89)
+        start.setHours(0, 0, 0, 0)
+        end.setHours(23, 59, 59, 999)
+        break
+      default:
+        return
+    }
+
+    const toISODate = (d: Date) => d.toISOString().slice(0, 10)
+    setStartDate(toISODate(start))
+    setEndDate(toISODate(end))
+    setDatePreset(preset)
+  }
+
   const activeFilterCount = useMemo(
     () =>
       countActiveFilters([
         () => locationId !== "all",
-        () => customerId !== "all",
+        () => customerSearch.trim() !== "",
         () => status !== "all",
         () => invoiceNumber.trim() !== "",
         () => Boolean(startDate || endDate),
         () => Boolean(minAmount || maxAmount),
       ]),
-    [locationId, customerId, status, invoiceNumber, startDate, endDate, minAmount, maxAmount]
+    [locationId, customerSearch, status, invoiceNumber, startDate, endDate, minAmount, maxAmount]
   )
 
   const exportToCSV = () => {
@@ -275,12 +448,16 @@ export default function SalesReportPage() {
     setExpandedRows(newExpanded)
   }
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount?: number) => {
+    const n = Number(amount)
+    if (!Number.isFinite(n)) return "—"
     return new Intl.NumberFormat("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(amount)
+    }).format(n)
   }
+
+  const hasNumericValue = (value?: number) => Number.isFinite(Number(value))
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, string> = {
@@ -301,7 +478,7 @@ export default function SalesReportPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sales Report</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Sales Invoice Details</h1>
           <p className="text-sm text-gray-600 mt-1">
             Comprehensive sales analysis with filtering
           </p>
@@ -329,118 +506,175 @@ export default function SalesReportPage() {
         description="Filter the sales dataset by location, customer, status, date range, and amount thresholds."
       >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <Label>Location</Label>
-                <Select value={locationId} onValueChange={setLocationId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Locations" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Locations</SelectItem>
-                    {locations.map((loc) => (
-                      <SelectItem key={loc.id} value={loc.id.toString()}>
-                        {loc.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div>
+            <Label className="mb-2 block">Location</Label>
+            <Select value={locationId} onValueChange={setLocationId}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Locations" />
+              </SelectTrigger>
+              <SelectContent>
+                {hasAccessToAll && (
+                  <SelectItem value="all">All Locations</SelectItem>
+                )}
+                {locations.map((loc) => (
+                  <SelectItem key={loc.id} value={loc.id.toString()}>
+                    {loc.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-              <div>
-                <Label>Customer</Label>
-                <Select value={customerId} onValueChange={setCustomerId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Customers" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Customers</SelectItem>
-                    {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id.toString()}>
-                        {customer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div>
+            <Label className="mb-2 block">Date Range Preset</Label>
+            <Select value={datePreset} onValueChange={applyDatePreset}>
+              <SelectTrigger>
+                <SelectValue placeholder="Today" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Today">Today</SelectItem>
+                <SelectItem value="Yesterday">Yesterday</SelectItem>
+                <SelectItem value="This Week">This Week</SelectItem>
+                <SelectItem value="Last Week">Last Week</SelectItem>
+                <SelectItem value="This Month">This Month</SelectItem>
+                <SelectItem value="Last Month">Last Month</SelectItem>
+                <SelectItem value="This Quarter">This Quarter</SelectItem>
+                <SelectItem value="Last Quarter">Last Quarter</SelectItem>
+                <SelectItem value="This Year">This Year</SelectItem>
+                <SelectItem value="Last Year">Last Year</SelectItem>
+                <SelectItem value="Last 30 Days">Last 30 Days</SelectItem>
+                <SelectItem value="Last 90 Days">Last 90 Days</SelectItem>
+                <SelectItem value="Custom Range">Custom Range</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-              <div>
-                <Label>Status</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Statuses" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
+          <div className="relative">
+            <Label className="mb-2 block">Customer</Label>
+            <Input
+              placeholder="Search customer by name..."
+              value={customerSearch}
+              onChange={(e) => handleCustomerSearch(e.target.value)}
+              onFocus={() => {
+                if (customerSuggestions.length > 0) {
+                  setShowCustomerSuggestions(true)
+                }
+              }}
+              onBlur={() => {
+                // Delay hiding suggestions to allow clicking on them
+                setTimeout(() => setShowCustomerSuggestions(false), 200)
+              }}
+            />
+            {showCustomerSuggestions && customerSuggestions.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+                {customerSuggestions.map((customer, index) => (
+                  <div
+                    key={customer.id || `walkin-${index}`}
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                    onClick={() => selectCustomer(customer)}
+                  >
+                    <div className="font-medium">{customer.name}</div>
+                    {customer.mobile && customer.mobile !== 'N/A' && (
+                      <div className="text-sm text-gray-500">{customer.mobile}</div>
+                    )}
+                  </div>
+                ))}
               </div>
+            )}
+          </div>
 
-              <div>
-                <Label>Invoice Number</Label>
-                <Input
-                  placeholder="Search invoice..."
-                  value={invoiceNumber}
-                  onChange={(e) => setInvoiceNumber(e.target.value)}
-                />
-              </div>
+          <div>
+            <Label className="mb-2 block">Status</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-              <div>
-                <Label>Start Date</Label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
-              </div>
+          <div>
+            <Label className="mb-2 block">Invoice Number</Label>
+            <Input
+              placeholder="Search invoice..."
+              value={invoiceNumber}
+              onChange={(e) => setInvoiceNumber(e.target.value)}
+            />
+          </div>
 
-              <div>
-                <Label>End Date</Label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
-              </div>
+          <div>
+            <Label className="mb-2 block">Start Date</Label>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
 
-              <div>
-                <Label>Min Amount</Label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  value={minAmount}
-                  onChange={(e) => setMinAmount(e.target.value)}
-                />
-              </div>
+          <div>
+            <Label className="mb-2 block">End Date</Label>
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
 
-              <div>
-                <Label>Max Amount</Label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  value={maxAmount}
-                  onChange={(e) => setMaxAmount(e.target.value)}
-                />
-              </div>
+          <div>
+            <Label className="mb-2 block">Min Amount</Label>
+            <Input
+              type="number"
+              placeholder="0.00"
+              value={minAmount}
+              onChange={(e) => setMinAmount(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label className="mb-2 block">Max Amount</Label>
+            <Input
+              type="number"
+              placeholder="0.00"
+              value={maxAmount}
+              onChange={(e) => setMaxAmount(e.target.value)}
+            />
+          </div>
         </div>
 
-        <div className="flex gap-2 mt-4 flex-wrap">
+        <div className="flex gap-3 mt-6 flex-wrap">
           <Button
             onClick={handleSearch}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold tracking-tight shadow-md px-6 py-2 transition-transform hover:scale-[1.01]"
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm px-6 rounded-lg"
           >
             <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
-            Search
+            Generate Report
           </Button>
           <Button
-            variant="outline"
-            onClick={handleReset}
-            className="font-semibold tracking-tight border-2 border-slate-300 text-slate-700 hover:text-slate-900 hover:bg-slate-100 px-6 py-2"
+            onClick={exportToCSV}
+            disabled={!reportData}
+            className="bg-green-600 hover:bg-green-700 text-white shadow-sm px-6 rounded-lg"
           >
-            <ArrowPathIcon className="h-4 w-4 mr-2" />
-            Reset
+            <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+            Export to Excel
+          </Button>
+          <Button
+            onClick={() => window.print()}
+            className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm px-6 rounded-lg"
+          >
+            <PrinterIcon className="h-4 w-4 mr-2" />
+            Print Report
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={handleReset}
+            className="shadow-sm px-6"
+          >
+            Reset All Filters
           </Button>
         </div>
       </ReportFilterPanel>
@@ -462,7 +696,7 @@ export default function SalesReportPage() {
               </div>
             </CardContent>
           </Card>
-          {can(PERMISSIONS.SELL_VIEW_COST) && (
+          {can(PERMISSIONS.SELL_VIEW_COST) && hasNumericValue(reportData.summary.totalCOGS) && (
             <Card>
               <CardContent className="pt-6">
                 <div className="text-sm text-gray-600">Total COGS</div>
@@ -472,7 +706,7 @@ export default function SalesReportPage() {
               </CardContent>
             </Card>
           )}
-          {can(PERMISSIONS.SELL_VIEW_PROFIT) && (
+          {can(PERMISSIONS.SELL_VIEW_PROFIT) && hasNumericValue(reportData.summary.grossProfit) && (
             <Card>
               <CardContent className="pt-6">
                 <div className="text-sm text-gray-600">Gross Profit</div>

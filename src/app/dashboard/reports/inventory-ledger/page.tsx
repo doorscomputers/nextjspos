@@ -89,6 +89,7 @@ export default function InventoryLedgerPage() {
 
   const [products, setProducts] = useState<Product[]>([])
   const [locations, setLocations] = useState<Location[]>([])
+  const [hasAccessToAll, setHasAccessToAll] = useState<boolean>(false)
   const [selectedProduct, setSelectedProduct] = useState<number | null>(null)
   const [selectedVariation, setSelectedVariation] = useState<number | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<number | null>(null)
@@ -120,10 +121,7 @@ export default function InventoryLedgerPage() {
   const loadInitialData = async () => {
     try {
       setLoadingData(true)
-      const [productsRes, locationsRes] = await Promise.all([
-        fetch('/api/products'),
-        fetch('/api/locations')
-      ])
+      const productsRes = await fetch('/api/products')
 
       if (productsRes.ok) {
         const productsData = await productsRes.json()
@@ -133,12 +131,47 @@ export default function InventoryLedgerPage() {
         console.error('Failed to load products:', productsRes.status)
       }
 
-      if (locationsRes.ok) {
-        const locationsData = await locationsRes.json()
-        console.log('Locations loaded:', locationsData.locations?.length || 0)
-        setLocations(locationsData.locations || [])
-      } else {
-        console.error('Failed to load locations:', locationsRes.status)
+      // Load locations with role-aware filtering
+      let locs: any[] = []
+      let accessAll = false
+      let primaryLocationId: string | null = null
+      try {
+        const ulRes = await fetch('/api/user-locations')
+        if (ulRes.ok) {
+          const ul = await ulRes.json()
+          const list = Array.isArray(ul.locations) ? ul.locations : []
+          // Inventory ledger should include warehouse locations
+          locs = list
+          accessAll = Boolean(ul.hasAccessToAll)
+          primaryLocationId = ul.primaryLocationId ? String(ul.primaryLocationId) : null
+        }
+      } catch (e) {
+        console.warn('Failed to fetch /api/user-locations, falling back to /api/locations', e)
+      }
+
+      if (!locs.length) {
+        const lr = await fetch('/api/locations')
+        if (lr.ok) {
+          const data = await lr.json()
+          const list = Array.isArray(data)
+            ? data
+            : Array.isArray(data.locations)
+              ? data.locations
+              : Array.isArray(data.data)
+                ? data.data
+                : []
+          // Inventory ledger should include warehouse locations
+          locs = list
+          accessAll = true
+        }
+      }
+
+      setLocations(locs)
+      setHasAccessToAll(accessAll)
+      // Auto-select for restricted users if none is chosen
+      if (!accessAll) {
+        const resolved = primaryLocationId || (locs[0]?.id ? Number(locs[0].id) : null)
+        if (resolved !== null) setSelectedLocation(resolved)
       }
     } catch (err) {
       console.error('Error loading data:', err)
@@ -276,7 +309,11 @@ export default function InventoryLedgerPage() {
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 >
-                  <option value="">Select Location First</option>
+                  {hasAccessToAll ? (
+                    <option value="">All Locations</option>
+                  ) : (
+                    <option value="">Select Location First</option>
+                  )}
                   {locations.map((location) => (
                     <option key={location.id} value={location.id}>
                       {location.name}
@@ -399,7 +436,7 @@ export default function InventoryLedgerPage() {
             <button
               onClick={generateReport}
               disabled={loading || !selectedProduct || !selectedVariation || !selectedLocation}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
             >
               {loading ? 'Generating...' : 'Generate Report'}
             </button>
@@ -408,13 +445,13 @@ export default function InventoryLedgerPage() {
               <>
                 <button
                   onClick={exportToExcel}
-                  className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors font-medium"
+                  className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white shadow-sm rounded-lg transition-colors font-medium"
                 >
                   Export to Excel
                 </button>
                 <button
                   onClick={printReport}
-                  className="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors font-medium"
+                  className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white shadow-sm rounded-lg transition-colors font-medium"
                 >
                   Print Report
                 </button>
@@ -496,11 +533,10 @@ export default function InventoryLedgerPage() {
             )}
 
             {/* Reconciliation Status */}
-            <div className={`p-4 rounded-lg mb-6 ${
-              ledgerData.summary.isReconciled
-                ? 'bg-green-50 border border-green-200'
-                : 'bg-red-50 border border-red-200'
-            }`}>
+            <div className={`p-4 rounded-lg mb-6 ${ledgerData.summary.isReconciled
+              ? 'bg-green-50 border border-green-200'
+              : 'bg-red-50 border border-red-200'
+              }`}>
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
                   <p className="font-semibold text-lg">
@@ -566,13 +602,12 @@ export default function InventoryLedgerPage() {
                           {new Date(transaction.date).toLocaleString()}
                         </td>
                         <td className="px-3 py-4 whitespace-nowrap text-sm">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded ${
-                            transaction.type === 'Stock Received' || transaction.type === 'Transfer In' || transaction.type === 'Sales Return'
-                              ? 'bg-green-100 text-green-800'
-                              : transaction.type === 'Inventory Correction'
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded ${transaction.type === 'Stock Received' || transaction.type === 'Transfer In' || transaction.type === 'Sales Return'
+                            ? 'bg-green-100 text-green-800'
+                            : transaction.type === 'Inventory Correction'
                               ? 'bg-blue-100 text-blue-800'
                               : 'bg-red-100 text-red-800'
-                          }`}>
+                            }`}>
                             {transaction.type}
                           </span>
                         </td>

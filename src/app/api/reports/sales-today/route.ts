@@ -41,8 +41,54 @@ export async function GET(request: NextRequest) {
       },
     }
 
-    if (locationId && locationId !== 'all') {
-      where.locationId = parseInt(locationId)
+    // Enforce user location access by default
+    // Retrieve user's assigned locations
+    const userLocations = await prisma.userLocation.findMany({
+      where: { userId: parseInt(user.id) },
+      select: { locationId: true },
+    })
+    const assignedLocationIds = userLocations.map((ul) => ul.locationId)
+
+    if (assignedLocationIds.length > 0) {
+      const defaultAssigned = assignedLocationIds[0]
+      // If a specific location is requested, only accept if within assignments
+      if (locationId && locationId !== 'all') {
+        const requested = parseInt(locationId)
+        if (assignedLocationIds.includes(requested)) {
+          where.locationId = requested
+        } else {
+          // Requested location not allowed; fall back to user's default assigned location
+          where.locationId = defaultAssigned
+        }
+      } else {
+        // No explicit location -> default to the user's first assigned location
+        where.locationId = defaultAssigned
+      }
+    } else {
+      // If user has no explicit assignments
+      if (locationId && locationId !== 'all') {
+        where.locationId = parseInt(locationId)
+      } else if (!user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)) {
+        // Prevent leakage for users without global access and no assignments
+        return NextResponse.json({
+          summary: {
+            date: startOfDay.toISOString(),
+            totalSales: 0,
+            totalAmount: 0,
+            totalSubtotal: 0,
+            totalTax: 0,
+            totalDiscount: 0,
+            totalCOGS: 0,
+            grossProfit: 0,
+            grossMargin: 0,
+          },
+          paymentMethods: { cash: { amount: 0, percentage: 0 }, credit: { amount: 0, percentage: 0 }, digital: { amount: 0, percentage: 0, breakdown: { card: 0, mobilePayment: 0, bankTransfer: 0 } }, cheque: { amount: 0, percentage: 0 }, total: 0 },
+          paymentBreakdown: [],
+          discountBreakdown: { senior: 0, pwd: 0, regular: 0, total: 0 },
+          sales: [],
+        })
+      }
+      // Admins with global access proceed without extra filter
     }
 
     // Fetch today's sales with payments

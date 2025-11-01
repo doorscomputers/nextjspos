@@ -76,6 +76,8 @@ const MENU_TO_RBAC_MAP: Record<string, string | null> = {
   'stock_transfers': 'stock_transfer.view',
   'all_transfers': 'stock_transfer.view',
   'create_transfer': 'stock_transfer.create',
+  'my_transfers_report': 'stock_transfer.view',
+  'my_received_transfers_report': 'stock_transfer.view',
 
   // Returns
   'returns_management': 'customer_return.view',

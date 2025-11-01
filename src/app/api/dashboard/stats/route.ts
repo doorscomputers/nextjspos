@@ -63,16 +63,16 @@ export async function GET(request: NextRequest) {
         whereClause.locationId = normalizedLocationIds[0]
       } else {
         // User has access to multiple locations
-        // Use the first accessible location if no specific location is provided
         if (!locationId || locationId === 'all') {
-          whereClause.locationId = normalizedLocationIds[0]
+          // Show data from ALL accessible locations
+          whereClause.locationId = { in: normalizedLocationIds }
         } else {
           const requestedLocationId = parseInt(locationId)
           if (normalizedLocationIds.includes(requestedLocationId)) {
             whereClause.locationId = requestedLocationId
           } else {
-            // User requested a location they don't have access to - use first accessible
-            whereClause.locationId = normalizedLocationIds[0]
+            // User requested a location they don't have access to - show all their locations
+            whereClause.locationId = { in: normalizedLocationIds }
           }
         }
       }
@@ -83,10 +83,8 @@ export async function GET(request: NextRequest) {
         if (businessLocationIds.includes(requestedLocationId)) {
           whereClause.locationId = requestedLocationId
         }
-      } else if (businessLocationIds.length > 0) {
-        // Default to first business location for "Sales Today"
-        whereClause.locationId = businessLocationIds[0]
       }
+      // If no specific location selected, show data from ALL locations (don't restrict)
     }
 
     const dateFilter: any = {}
@@ -98,10 +96,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Total Sales - only query if user has permission
+    // NOTE: Do NOT apply date filter to total sales - show all-time sales
     const salesData = hasPermission(PERMISSIONS.SELL_VIEW) ? await prisma.sale.aggregate({
       where: {
         ...whereClause,
-        ...(Object.keys(dateFilter).length > 0 ? { saleDate: dateFilter } : {}),
       },
       _sum: {
         totalAmount: true,
@@ -111,13 +109,13 @@ export async function GET(request: NextRequest) {
     }) : { _sum: { totalAmount: null, subtotal: null }, _count: 0 }
 
     // Total Purchases - sum of all purchase amounts
+    // NOTE: Show all-time purchases, not date-filtered
     const purchaseData = await prisma.accountsPayable.aggregate({
       where: {
         businessId,
         ...(locationId && locationId !== 'all' ? {
           purchase: { locationId: parseInt(locationId) }
         } : {}),
-        ...(Object.keys(dateFilter).length > 0 ? { invoiceDate: dateFilter } : {}),
       },
       _sum: {
         totalAmount: true,
@@ -138,10 +136,10 @@ export async function GET(request: NextRequest) {
     // })
 
     // Customer Returns - only query if user has permission
+    // NOTE: Show all-time returns, not date-filtered
     const customerReturnData = hasPermission(PERMISSIONS.CUSTOMER_RETURN_VIEW) ? await prisma.customerReturn.aggregate({
       where: {
         businessId,
-        ...(Object.keys(dateFilter).length > 0 ? { returnDate: dateFilter } : {}),
       },
       _sum: {
         totalRefundAmount: true,
@@ -150,10 +148,10 @@ export async function GET(request: NextRequest) {
     }) : { _sum: { totalRefundAmount: null }, _count: 0 }
 
     // Supplier Returns
+    // NOTE: Show all-time returns, not date-filtered
     const supplierReturnData = await prisma.supplierReturn.aggregate({
       where: {
         businessId,
-        ...(Object.keys(dateFilter).length > 0 ? { returnDate: dateFilter } : {}),
       },
       _sum: {
         totalAmount: true,

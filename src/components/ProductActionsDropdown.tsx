@@ -20,7 +20,6 @@ import {
   Eye,
   Pencil,
   Trash2,
-  Database,
   History,
   Copy
 } from 'lucide-react'
@@ -77,10 +76,6 @@ export default function ProductActionsDropdown({ product, onDelete }: ProductAct
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleOpeningStock = () => {
-    router.push(`/dashboard/products/${product.id}/opening-stock`)
   }
 
   const handleStockHistory = () => {
@@ -171,13 +166,6 @@ export default function ProductActionsDropdown({ product, onDelete }: ProductAct
           {product.enableStock && (
             <>
               <DropdownMenuSeparator />
-              {can(PERMISSIONS.PRODUCT_OPENING_STOCK) && (
-                <DropdownMenuItem onClick={handleOpeningStock}>
-                  <Database className="mr-2 h-4 w-4" />
-                  Add/Edit Opening Stock
-                </DropdownMenuItem>
-              )}
-
               {can(PERMISSIONS.PRODUCT_VIEW) && (
                 <DropdownMenuItem onClick={handleStockHistory}>
                   <History className="mr-2 h-4 w-4" />

@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 
     // Cashier filter
     if (cashierIdParam && cashierIdParam !== 'all') {
-      voidedWhere.userId = parseInt(cashierIdParam)
+      voidedWhere.createdBy = parseInt(cashierIdParam)
     }
 
     // Fetch voided sales
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
-        user: {
+        creator: {
           select: {
             id: true,
             username: true,
@@ -144,13 +144,13 @@ export async function GET(request: NextRequest) {
       locationBreakdown[locationKey].voidAmount += amount
 
       // Cashier breakdown
-      const cashierName = sale.user
-        ? `${sale.user.firstName || ''} ${sale.user.lastName || ''}`.trim() || sale.user.username
+      const cashierName = sale.creator
+        ? `${sale.creator.firstName || ''} ${sale.creator.lastName || ''}`.trim() || sale.creator.username
         : 'Unknown'
-      const cashierKey = `${sale.userId}-${cashierName}`
+      const cashierKey = `${sale.createdBy}-${cashierName}`
       if (!cashierBreakdown[cashierKey]) {
         cashierBreakdown[cashierKey] = {
-          cashierId: sale.userId,
+          cashierId: sale.createdBy,
           cashierName,
           voidCount: 0,
           voidAmount: 0,

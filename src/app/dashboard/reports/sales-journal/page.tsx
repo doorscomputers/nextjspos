@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import * as XLSX from 'xlsx'
@@ -32,6 +33,8 @@ interface Summary {
 
 export default function SalesJournalReport() {
   const { data: session } = useSession()
+  const pathname = usePathname()
+  const isCashierMode = pathname?.includes('/dashboard/cashier-reports/') ?? false
   const [loading, setLoading] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [sales, setSales] = useState<any[]>([])
@@ -39,6 +42,8 @@ export default function SalesJournalReport() {
   const [birInfo, setBirInfo] = useState<BirInfo | null>(null)
   const [pagination, setPagination] = useState<any>(null)
   const [locations, setLocations] = useState<any[]>([])
+  const [hasAccessToAll, setHasAccessToAll] = useState<boolean>(false)
+  const [enforcedLocationName, setEnforcedLocationName] = useState<string>('')
   const printRef = useRef<HTMLDivElement>(null)
 
   // Filters
@@ -71,7 +76,10 @@ export default function SalesJournalReport() {
         const userLocationsRes = await fetch('/api/user-locations')
         if (userLocationsRes.ok) {
           const userLocationsData = await userLocationsRes.json()
-          locationsList = Array.isArray(userLocationsData.locations) ? userLocationsData.locations : []
+          const list = Array.isArray(userLocationsData.locations) ? userLocationsData.locations : []
+          locationsList = list.filter((l: any) => l?.name && !l.name.toLowerCase().includes('warehouse'))
+          const accAll = Boolean(userLocationsData.hasAccessToAll)
+          setHasAccessToAll(isCashierMode ? false : accAll)
           if (userLocationsData.primaryLocationId) {
             defaultLocationId = userLocationsData.primaryLocationId.toString()
           }
@@ -93,6 +101,8 @@ export default function SalesJournalReport() {
                 : Array.isArray(data.data)
                   ? data.data
                   : []
+          locationsList = locationsList.filter((l: any) => l?.name && !l.name.toLowerCase().includes('warehouse'))
+          setHasAccessToAll(true)
         }
       }
 
@@ -104,6 +114,8 @@ export default function SalesJournalReport() {
         const resolvedId = defaultLocationId || fallbackId
         if (resolvedId) {
           setLocationId(resolvedId)
+          const found = locationsList.find((l: any) => String(l.id) === String(resolvedId))
+          if (found) setEnforcedLocationName(found.name)
         }
       }
     } catch (error) {
@@ -407,11 +419,10 @@ export default function SalesJournalReport() {
                 <button
                   key={preset.value}
                   onClick={() => handleDatePreset(preset.value)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    datePreset === preset.value
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
-                  }`}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${datePreset === preset.value
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
                 >
                   {preset.label}
                 </button>
@@ -448,18 +459,26 @@ export default function SalesJournalReport() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</label>
-              <select
-                value={locationId}
-                onChange={(e) => setLocationId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
-              >
-                <option value="">All Locations</option>
-                {locations.map((loc) => (
-                  <option key={loc.id} value={loc.id}>
-                    {loc.name}
-                  </option>
-                ))}
-              </select>
+              {isCashierMode ? (
+                <div className="px-3 py-2 bg-blue-50 rounded-md border border-blue-200 text-sm font-semibold text-blue-900">
+                  {enforcedLocationName || 'Assigned Location'}
+                </div>
+              ) : (
+                <select
+                  value={locationId}
+                  onChange={(e) => setLocationId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
+                >
+                  {hasAccessToAll && (
+                    <option value="">All Locations</option>
+                  )}
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -518,11 +537,11 @@ export default function SalesJournalReport() {
           </div>
 
           {/* Action Buttons */}
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-3">
             <button
               onClick={handleGenerateReport}
               disabled={generating}
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-md hover:shadow-lg"
             >
               {generating ? (
                 <>
@@ -569,14 +588,14 @@ export default function SalesJournalReport() {
             <button
               onClick={exportToExcel}
               disabled={sales.length === 0}
-              className="px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
             >
               Export to Excel
             </button>
             <button
               onClick={handlePrint}
               disabled={sales.length === 0}
-              className="px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
             >
               Print Report
             </button>
@@ -783,11 +802,10 @@ export default function SalesJournalReport() {
                         <>
                           <tr
                             key={sale.id}
-                            className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
-                              sale.status === 'voided' || sale.status === 'cancelled'
-                                ? 'bg-red-50 dark:bg-red-900/20'
-                                : ''
-                            }`}
+                            className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${sale.status === 'voided' || sale.status === 'cancelled'
+                              ? 'bg-red-50 dark:bg-red-900/20'
+                              : ''
+                              }`}
                           >
                             <td className="px-3 md:px-4 py-3 whitespace-nowrap text-xs md:text-sm text-gray-900 dark:text-gray-100">
                               {new Date(sale.date).toLocaleDateString()}
@@ -803,19 +821,18 @@ export default function SalesJournalReport() {
                               {sale.customer}
                               {sale.discountType && (
                                 <span
-                                  className={`ml-2 px-2 py-0.5 rounded text-xs font-semibold ${
-                                    sale.discountType === 'senior'
-                                      ? 'bg-blue-100 text-blue-800'
-                                      : sale.discountType === 'pwd'
+                                  className={`ml-2 px-2 py-0.5 rounded text-xs font-semibold ${sale.discountType === 'senior'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : sale.discountType === 'pwd'
                                       ? 'bg-purple-100 text-purple-800'
                                       : ''
-                                  }`}
+                                    }`}
                                 >
                                   {sale.discountType === 'senior'
                                     ? 'SC'
                                     : sale.discountType === 'pwd'
-                                    ? 'PWD'
-                                    : ''}
+                                      ? 'PWD'
+                                      : ''}
                                 </span>
                               )}
                             </td>
@@ -842,15 +859,14 @@ export default function SalesJournalReport() {
                             </td>
                             <td className="px-3 md:px-4 py-3 text-center text-xs md:text-sm hidden lg:table-cell">
                               <span
-                                className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                                  sale.status === 'completed'
-                                    ? 'bg-green-100 text-green-800'
-                                    : sale.status === 'voided'
+                                className={`px-2 py-1 rounded-full text-xs font-semibold ${sale.status === 'completed'
+                                  ? 'bg-green-100 text-green-800'
+                                  : sale.status === 'voided'
                                     ? 'bg-red-100 text-red-800'
                                     : sale.status === 'cancelled'
-                                    ? 'bg-gray-100 text-gray-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                                }`}
+                                      ? 'bg-gray-100 text-gray-800'
+                                      : 'bg-yellow-100 text-yellow-800'
+                                  }`}
                               >
                                 {sale.status.toUpperCase()}
                               </span>
@@ -997,11 +1013,10 @@ export default function SalesJournalReport() {
                         <button
                           key={pageNum}
                           onClick={() => setPage(pageNum)}
-                          className={`px-3 py-1 border rounded text-xs md:text-sm ${
-                            page === pageNum
-                              ? 'bg-blue-600 text-white border-blue-600'
-                              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                          }`}
+                          className={`px-3 py-1 border rounded text-xs md:text-sm ${page === pageNum
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                            }`}
                         >
                           {pageNum}
                         </button>

@@ -4,6 +4,7 @@ import { prisma } from "./prisma"
 import bcrypt from "bcryptjs"
 import { createAuditLog, AuditAction, EntityType } from "./auditLog"
 import { PERMISSIONS } from "./rbac"
+import { sendLoginAlerts } from "./notifications/login-alert-service"
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -21,6 +22,7 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
+        locationId: { label: "Location", type: "text" },  // Added for login monitoring
       },
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) {
@@ -73,6 +75,151 @@ export const authOptions: NextAuthOptions = {
 
         if (!isPasswordValid) {
           throw new Error("Invalid credentials")
+        }
+
+        // Parse selected location from login form (used in shift validation & notifications)
+        const selectedLocationId = credentials.locationId ? parseInt(credentials.locationId) : null
+
+        // Get user role names for various checks
+        const roleNames = user.roles.map(ur => ur.role.name)
+
+        // Check if user is admin (exempt from RFID location scanning)
+        const isAdminRole = roleNames.some(role =>
+          role === 'Super Admin' ||
+          role === 'System Administrator' ||
+          role === 'All Branch Admin'
+        )
+
+        // ============================================================================
+        // RFID LOCATION VALIDATION: Enforce for non-admin roles only
+        // ============================================================================
+        if (!isAdminRole && !selectedLocationId) {
+          console.log(`[LOGIN] ❌ BLOCKED - Location RFID scan required for ${user.username}`)
+          throw new Error(
+            "Location verification required.\n\n" +
+            "Please scan the RFID card at your location to continue.\n\n" +
+            "The RFID card should be physically located at your workstation."
+          )
+        }
+
+        if (isAdminRole) {
+          console.log(`[LOGIN] ✓ Admin role detected - skipping location validation for ${user.username}`)
+        } else if (selectedLocationId) {
+          console.log(`[LOGIN] ✓ RFID scanned - Location ID: ${selectedLocationId}`)
+        }
+
+        // ============================================================================
+        // SHIFT VALIDATION: Prevent login conflicts for cashiers
+        // ============================================================================
+        // Check if user has cashier-related roles (users who work with shifts)
+        const isCashierRole = roleNames.some(role =>
+          role.toLowerCase().includes('cashier') ||
+          role === 'Manager' ||
+          role === 'Supervisor'
+        )
+
+        // Only enforce shift checks for cashier/manager roles (not for admins)
+        const isExemptFromShiftCheck = roleNames.some(role =>
+          role === 'Super Admin' ||
+          role === 'System Administrator' ||
+          role === 'Admin' ||
+          role === 'All Branch Admin'
+        )
+
+        if (isCashierRole && !isExemptFromShiftCheck) {
+          console.log(`[LOGIN] Checking shift status for user: ${user.username} (ID: ${user.id})`)
+
+          // ===== CHECK 1: Does this user have ANY open shift? =====
+          const userOpenShift = await prisma.cashierShift.findFirst({
+            where: {
+              userId: user.id,
+              status: 'open',
+              businessId: user.businessId,
+            }
+          })
+
+          // IMPORTANT: Allow login if user has their own open shift
+          // (they need to log in to close it!)
+          // The dashboard will auto-redirect them to POS to close the shift
+          if (userOpenShift) {
+            const shiftLocation = await prisma.businessLocation.findUnique({
+              where: { id: userOpenShift.locationId },
+              select: { name: true }
+            })
+
+            const locationName = shiftLocation?.name || 'Unknown Location'
+            const hoursSinceOpen = Math.floor((new Date().getTime() - new Date(userOpenShift.openedAt).getTime()) / (1000 * 60 * 60))
+
+            console.log(`[LOGIN] ✓ ALLOWED - User ${user.username} has their own open shift at ${locationName} (will be redirected to close it)`)
+
+            // Don't block - let them log in to close their shift
+            // The system will auto-redirect them to POS/close shift page
+          }
+
+          // ===== CHECK 2: Does the SELECTED location have a shift by SOMEONE ELSE? =====
+          // Determine which location(s) to check for open shifts
+          let locationsToCheck: number[] = []
+
+          if (selectedLocationId) {
+            // User selected a specific location - check ONLY that location
+            locationsToCheck = [selectedLocationId]
+            console.log(`[LOGIN] Checking shift for selected location: ${selectedLocationId}`)
+          } else {
+            // No location selected - check ALL assigned locations (fallback)
+            locationsToCheck = user.userLocations.map(ul => ul.locationId)
+            console.log(`[LOGIN] No location selected, checking all assigned locations`)
+          }
+
+          if (locationsToCheck.length > 0) {
+            // Check if the selected/assigned location(s) have an open shift by another user
+            const locationOpenShifts = await prisma.cashierShift.findMany({
+              where: {
+                locationId: { in: locationsToCheck },
+                status: 'open',
+                businessId: user.businessId,
+                userId: { not: user.id }, // Exclude current user (already checked above)
+              }
+            })
+
+            if (locationOpenShifts.length > 0) {
+              const conflictShift = locationOpenShifts[0]
+
+              // Fetch location and user separately (no relations in schema)
+              const [conflictLocation, conflictUser] = await Promise.all([
+                prisma.businessLocation.findUnique({
+                  where: { id: conflictShift.locationId },
+                  select: { name: true }
+                }),
+                prisma.user.findUnique({
+                  where: { id: conflictShift.userId },
+                  select: {
+                    username: true,
+                    firstName: true,
+                    lastName: true,
+                  }
+                })
+              ])
+
+              const locationName = conflictLocation?.name || 'Unknown Location'
+              const otherUserName = conflictUser
+                ? `${conflictUser.firstName} ${conflictUser.lastName || ''}`.trim() || conflictUser.username
+                : 'Another user'
+
+              const hoursSinceOpen = Math.floor((new Date().getTime() - new Date(conflictShift.openedAt).getTime()) / (1000 * 60 * 60))
+
+              console.log(`[LOGIN] BLOCKED - Location ${locationName} has open shift by ${otherUserName}`)
+              throw new Error(
+                `Location ${locationName} already has an active shift.\n\n` +
+                `Active Shift: ${conflictShift.shiftNumber}\n` +
+                `Cashier: ${otherUserName}\n` +
+                `Opened: ${hoursSinceOpen} hours ago\n\n` +
+                `Please wait for ${otherUserName} to close their shift before you can start a new shift at this location.\n\n` +
+                `Only ONE active shift is allowed per location at a time.`
+              )
+            }
+          }
+
+          console.log(`[LOGIN] ✓ Shift validation passed for user: ${user.username}`)
         }
 
         // Check schedule-based login restrictions
@@ -190,8 +337,8 @@ export const authOptions: NextAuthOptions = {
         const directPermissions = user.permissions.map(up => up.permission.name)
         let allPermissions = [...new Set([...rolePermissions, ...directPermissions])]
 
-        // Get user role names
-        const roleNames = user.roles.map(ur => ur.role.name)
+        // roleNames already declared at line 82, reuse it here
+        // const roleNames = user.roles.map(ur => ur.role.name) // REMOVED: duplicate declaration
 
         // If user has "Super Admin" role, grant ALL permissions automatically
         // Support all Super Admin role name variations for backward compatibility
@@ -213,6 +360,102 @@ export const authOptions: NextAuthOptions = {
         const locationIds = directLocationIds.length > 0
           ? directLocationIds
           : [...new Set(roleLocationIds)]
+
+        // ============================================================================
+        // LOGIN MONITORING: Send notifications via Telegram, Email, and SMS
+        // ============================================================================
+        try {
+          // Check if user is Super Admin (skip monitoring for admins)
+          const isSuperAdmin = roleNames.includes('Super Admin') ||
+                               roleNames.includes('System Administrator') ||
+                               roleNames.includes('All Branch Admin')
+
+          // Get selected location details (selectedLocationId already declared at top)
+          let selectedLocationName = 'Unknown'
+          let isMismatch = false
+
+          if (selectedLocationId) {
+            // Fetch selected location name
+            const selectedLocation = await prisma.businessLocation.findUnique({
+              where: { id: selectedLocationId },
+              select: { name: true }
+            })
+            selectedLocationName = selectedLocation?.name || 'Unknown'
+
+            // Check for location mismatch (only for non-admins)
+            if (!isSuperAdmin) {
+              isMismatch = !locationIds.includes(selectedLocationId)
+            }
+          }
+
+          // Get assigned location names for alert message
+          const assignedLocationNames: string[] = []
+          if (locationIds.length > 0) {
+            const assignedLocations = await prisma.businessLocation.findMany({
+              where: { id: { in: locationIds } },
+              select: { name: true }
+            })
+            assignedLocationNames.push(...assignedLocations.map(l => l.name))
+          }
+
+          // If location mismatch detected, send CRITICAL alert and BLOCK login
+          if (isMismatch && !isSuperAdmin) {
+            console.log(`[LOGIN] ❌ BLOCKED - Location mismatch for ${user.username}`)
+            console.log(`[LOGIN] Attempted location: ${selectedLocationName} (ID: ${selectedLocationId})`)
+            console.log(`[LOGIN] Assigned locations: ${assignedLocationNames.join(', ')}`)
+
+            // Send CRITICAL alerts immediately (fire-and-forget)
+            sendLoginAlerts({
+              username: user.username,
+              fullName: `${user.firstName} ${user.lastName || ''}`.trim(),
+              role: roleNames.join(', '),
+              selectedLocation: selectedLocationName,
+              assignedLocations: assignedLocationNames,
+              timestamp: new Date(),
+              ipAddress: 'unknown',
+              isMismatch: true,
+            }, false).catch((error) => {
+              console.error('[LoginAlert] Failed to send mismatch alert:', error)
+            })
+
+            // BLOCK THE LOGIN
+            throw new Error(
+              `Access Denied: Location Mismatch\n\n` +
+              `You are not authorized to login at "${selectedLocationName}".\n\n` +
+              `Your assigned locations are: ${assignedLocationNames.join(', ')}\n\n` +
+              `This login attempt has been logged and administrators have been notified.\n\n` +
+              `Please contact your manager if you believe this is an error.`
+            )
+          }
+
+          // Send login alerts for successful logins (async, non-blocking)
+          if (!isMismatch) {
+            sendLoginAlerts({
+              username: user.username,
+              fullName: `${user.firstName} ${user.lastName || ''}`.trim(),
+              role: roleNames.join(', '),
+              selectedLocation: selectedLocationName,
+              assignedLocations: assignedLocationNames,
+              timestamp: new Date(),
+              ipAddress: 'unknown', // TODO: Get from request context
+              isMismatch: false,
+            }, isSuperAdmin).catch((error) => {
+              // Log error but don't block login
+              console.error('[LoginAlert] Failed to send notifications:', error)
+            })
+
+            console.log(`[LoginAlert] Notifications queued for ${user.username} (SUCCESS)`)
+          }
+        } catch (notificationError: any) {
+          // Re-throw errors that are NOT just notification failures (e.g., location mismatch)
+          if (notificationError?.message?.includes('Access Denied') ||
+              notificationError?.message?.includes('Location Mismatch')) {
+            throw notificationError // Re-throw security errors
+          }
+
+          // Only suppress notification failures (don't block login for notification errors)
+          console.error('[LoginAlert] Notification error (non-blocking):', notificationError)
+        }
 
         return {
           id: user.id.toString(),

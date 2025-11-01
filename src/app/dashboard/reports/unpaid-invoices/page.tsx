@@ -32,7 +32,14 @@ export default function UnpaidInvoicesReport() {
       const res = await fetch('/api/locations')
       if (res.ok) {
         const data = await res.json()
-        setLocations(data.locations || [])
+        const parsedLocations = Array.isArray(data)
+          ? data
+          : Array.isArray(data.data)
+            ? data.data
+            : Array.isArray(data.locations)
+              ? data.locations
+              : []
+        setLocations(parsedLocations)
       }
     } catch (error) {
       console.error('Error:', error)
@@ -263,23 +270,23 @@ export default function UnpaidInvoicesReport() {
           <button
             onClick={fetchInvoices}
             disabled={loading}
-            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-lg disabled:opacity-50 transition-colors font-medium"
           >
             {loading ? 'Loading...' : 'Generate Report'}
           </button>
           <button
             onClick={exportToExcel}
             disabled={invoices.length === 0}
-            className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+            className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white shadow-sm rounded-lg disabled:opacity-50 transition-colors font-medium"
           >
             Export to Excel
           </button>
           <button
-            onClick={exportToPDF}
+            onClick={() => window.print()}
             disabled={invoices.length === 0}
-            className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+            className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white shadow-sm rounded-lg disabled:opacity-50 transition-colors font-medium"
           >
-            Export to PDF
+            Print Report
           </button>
         </div>
       </div>

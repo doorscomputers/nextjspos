@@ -104,6 +104,14 @@ const menuItems = [
   { key: 'discount_analysis', name: 'Discount Analysis', href: '/dashboard/reports/discount-analysis', parentKey: 'sales_reports', order: 8 },
   { key: 'void_refund_analysis', name: 'Void & Refund Analysis', href: '/dashboard/reports/void-refund-analysis', parentKey: 'sales_reports', order: 9 },
 
+  // Cashier Reports (2nd level parent)
+  { key: 'cashier_reports', name: 'Cashier Reports', href: '#', parentKey: 'reports', order: 10 },
+  { key: 'cashier_sales_today_menu', name: 'Sales Today (Cashier)', href: '/dashboard/cashier-reports/sales-today', parentKey: 'cashier_reports', order: 1 },
+  { key: 'cashier_sales_history_menu', name: 'Sales History (Cashier)', href: '/dashboard/cashier-reports/sales-history', parentKey: 'cashier_reports', order: 2 },
+  { key: 'cashier_sales_report_menu', name: 'Sales Invoice Details (Cashier)', href: '/dashboard/cashier-reports/sales-report', parentKey: 'cashier_reports', order: 3 },
+  { key: 'cashier_sales_journal_menu', name: 'Sales Journal (Cashier)', href: '/dashboard/cashier-reports/sales-journal', parentKey: 'cashier_reports', order: 4 },
+  { key: 'cashier_sales_per_item_menu', name: 'Sales Per Item (Cashier)', href: '/dashboard/cashier-reports/sales-per-item', parentKey: 'cashier_reports', order: 5 },
+
   // Purchase Reports (2nd level parent)
   { key: 'purchase_reports', name: 'Purchase Reports', href: '/dashboard/reports/purchases', parentKey: 'reports', order: 3 },
   { key: 'purchase_analytics', name: 'Purchase Analytics', href: '/dashboard/reports/purchases/analytics', parentKey: 'purchase_reports', order: 1 },

@@ -105,7 +105,7 @@ export default function SalesPage() {
       setLoading(true)
       const params = new URLSearchParams({
         page: '1',
-        limit: '10000', // Fetch all for DevExtreme to handle pagination
+        limit: '50', // PHASE 1 OPTIMIZATION: Fetch initial batch of 50 sales for better performance
       })
 
       if (statusFilter && statusFilter !== 'all') {

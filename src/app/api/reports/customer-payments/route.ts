@@ -137,19 +137,15 @@ export async function GET(request: NextRequest) {
         },
         payments: {
           orderBy: {
-            createdAt: 'asc',
+            paidAt: 'asc',
           },
         },
-        cashierShift: {
+        creator: {
           select: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                firstName: true,
-                lastName: true,
-              },
-            },
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
           },
         },
       },
@@ -178,9 +174,9 @@ export async function GET(request: NextRequest) {
           return // Skip this payment
         }
 
-        const cashier = sale.cashierShift?.user
-          ? `${sale.cashierShift.user.firstName || ''} ${sale.cashierShift.user.lastName || ''}`.trim() ||
-            sale.cashierShift.user.username
+        const cashier = sale.creator
+          ? `${sale.creator.firstName || ''} ${sale.creator.lastName || ''}`.trim() ||
+            sale.creator.username
           : 'N/A'
 
         paymentHistory.push({

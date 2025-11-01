@@ -111,7 +111,13 @@ export default function InventoryValuationReportPage() {
       const response = await fetch('/api/locations')
       if (response.ok) {
         const data = await response.json()
-        const fetchedLocations = Array.isArray(data.locations) ? data.locations : (Array.isArray(data) ? data : [])
+        const fetchedLocations = Array.isArray(data)
+          ? data
+          : Array.isArray(data.data)
+            ? data.data
+            : Array.isArray(data.locations)
+              ? data.locations
+              : []
         setLocations(fetchedLocations)
       }
     } catch (error) {

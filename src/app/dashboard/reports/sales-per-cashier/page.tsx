@@ -84,6 +84,7 @@ export default function SalesPerCashierReport() {
   const [summary, setSummary] = useState<Summary | null>(null)
   const [pagination, setPagination] = useState<any>(null)
   const [locations, setLocations] = useState<any[]>([])
+  const [hasAccessToAll, setHasAccessToAll] = useState<boolean>(false)
   const [cashiers, setCashiers] = useState<any[]>([])
 
   const [datePreset, setDatePreset] = useState<string>('thisMonth')
@@ -107,16 +108,49 @@ export default function SalesPerCashierReport() {
   useEffect(() => {
     const loadFilters = async () => {
       try {
-        const [locationsRes, cashiersRes] = await Promise.all([
-          fetch('/api/locations'),
-          fetch('/api/users'),
-        ])
-
-        if (locationsRes.ok) {
-          const locationsData = await locationsRes.json()
-          setLocations(locationsData.locations || [])
+        // Load user-scoped locations first
+        let list: any[] = []
+        let accessAll = false
+        let primary: string | null = null
+        try {
+          const ulRes = await fetch('/api/user-locations')
+          if (ulRes.ok) {
+            const ul = await ulRes.json()
+            list = Array.isArray(ul.locations) ? ul.locations : []
+            // Exclude warehouses for sales views
+            list = list.filter((l: any) => l?.name && !l.name.toLowerCase().includes('warehouse'))
+            accessAll = Boolean(ul.hasAccessToAll)
+            primary = ul.primaryLocationId ? String(ul.primaryLocationId) : null
+          }
+        } catch (e) {
+          // ignore and fallback
         }
 
+        if (!list.length) {
+          const res = await fetch('/api/locations')
+          if (res.ok) {
+            const data = await res.json()
+            const raw = Array.isArray(data)
+              ? data
+              : Array.isArray(data.locations)
+                ? data.locations
+                : Array.isArray(data.data)
+                  ? data.data
+                  : []
+            list = raw.filter((l: any) => l?.name && !l.name.toLowerCase().includes('warehouse'))
+            accessAll = true
+          }
+        }
+
+        setLocations(list)
+        setHasAccessToAll(accessAll)
+        if (!accessAll) {
+          const resolved = primary || (list[0]?.id ? String(list[0].id) : 'all')
+          setLocationId(resolved)
+        }
+
+        // Load cashiers
+        const cashiersRes = await fetch('/api/users')
         if (cashiersRes.ok) {
           const cashiersData = await cashiersRes.json()
           const usersArray = Array.isArray(cashiersData) ? cashiersData : cashiersData.users || []
@@ -390,7 +424,7 @@ export default function SalesPerCashierReport() {
               }}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
             >
-              <option value="all">All Locations</option>
+              {hasAccessToAll && <option value="all">All Locations</option>}
               {locations.map((loc: any) => (
                 <option key={loc.id} value={loc.id}>
                   {loc.name}

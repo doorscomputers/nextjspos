@@ -53,8 +53,8 @@ export default function DashboardV2Page() {
   const [metadata, setMetadata] = useState<AnalyticsMetadata | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [filters, setFilters] = useState<AnalyticsFilters>({
-    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
+    startDate: '',  // Empty = no date filter, show all-time data
+    endDate: '',    // Empty = no date filter, show all-time data
     locationIds: [],
     categoryIds: [],
     brandIds: [],

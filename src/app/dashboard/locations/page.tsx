@@ -49,6 +49,7 @@ interface Location {
   mobile: string | null
   alternateNumber: string | null
   email: string | null
+  locationCode: string | null
   isActive: boolean
   createdAt: string
   createdAtTimestamp: number
@@ -64,6 +65,7 @@ interface LocationForm {
   mobile: string
   alternateNumber: string
   email: string
+  locationCode: string
 }
 
 type LocationApiResponse = {
@@ -77,6 +79,7 @@ type LocationApiResponse = {
   mobile: string | null
   alternateNumber: string | null
   email: string | null
+  locationCode: string | null
   isActive: boolean
   createdAt: string
 }
@@ -105,6 +108,7 @@ export default function LocationsPage() {
     mobile: "",
     alternateNumber: "",
     email: "",
+    locationCode: "",
   })
   const [submitting, setSubmitting] = useState(false)
 
@@ -127,7 +131,7 @@ export default function LocationsPage() {
         throw new Error(data.error || "Failed to fetch locations")
       }
 
-      const source: LocationApiResponse[] = Array.isArray(data.locations) ? data.locations : []
+      const source: LocationApiResponse[] = Array.isArray(data.data) ? data.data : []
       const normalized: Location[] = source.map((location) => ({
         id: location.id,
         name: location.name,
@@ -139,6 +143,7 @@ export default function LocationsPage() {
         mobile: location.mobile,
         alternateNumber: location.alternateNumber,
         email: location.email,
+        locationCode: location.locationCode,
         isActive: location.isActive ?? true, // Default to true if undefined
         createdAt: location.createdAt,
         createdAtTimestamp: new Date(location.createdAt).getTime(),
@@ -219,6 +224,7 @@ export default function LocationsPage() {
       mobile: "",
       alternateNumber: "",
       email: "",
+      locationCode: "",
     })
     setDialogOpen(true)
   }
@@ -235,6 +241,7 @@ export default function LocationsPage() {
       mobile: location.mobile || "",
       alternateNumber: location.alternateNumber || "",
       email: location.email || "",
+      locationCode: location.locationCode || "",
     })
     setDialogOpen(true)
   }
@@ -313,6 +320,7 @@ export default function LocationsPage() {
         mobile: formData.mobile || null,
         alternateNumber: formData.alternateNumber || null,
         email: formData.email || null,
+        locationCode: formData.locationCode || null,
       }
 
       const response = await fetch(url, {
@@ -818,6 +826,22 @@ export default function LocationsPage() {
                 onChange={(event) => setFormData((prev) => ({ ...prev, email: event.target.value }))}
                 placeholder="branch@example.com"
               />
+            </div>
+            <div className="md:col-span-2 space-y-2">
+              <Label htmlFor="location-code" className="flex items-center gap-2">
+                🏷️ Location RFID Code (10-15 characters)
+              </Label>
+              <Input
+                id="location-code"
+                value={formData.locationCode}
+                onChange={(event) => setFormData((prev) => ({ ...prev, locationCode: event.target.value.toUpperCase() }))}
+                placeholder="ABC1234567890"
+                maxLength={15}
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                This RFID card must stay physically at this location. Cashiers will scan it to verify their location at login.
+              </p>
             </div>
           </div>
           <DialogFooter className="gap-2">

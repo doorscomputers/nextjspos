@@ -273,23 +273,23 @@ export default function VoidRefundAnalysisReport() {
           <button
             onClick={fetchReport}
             disabled={loading}
-            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-lg disabled:opacity-50 transition-colors font-medium"
           >
             {loading ? 'Loading...' : 'Generate Report'}
           </button>
           <button
             onClick={exportToExcel}
             disabled={voidedTransactions.length === 0}
-            className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+            className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white shadow-sm rounded-lg disabled:opacity-50 transition-colors font-medium"
           >
             Export to Excel
           </button>
           <button
-            onClick={exportToPDF}
+            onClick={() => window.print()}
             disabled={voidedTransactions.length === 0}
-            className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+            className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white shadow-sm rounded-lg disabled:opacity-50 transition-colors font-medium"
           >
-            Export to PDF
+            Print Report
           </button>
         </div>
       </div>

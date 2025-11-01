@@ -2,7 +2,7 @@
 
 import { signOut, useSession } from "next-auth/react"
 import { Bars3Icon, BellIcon, UserCircleIcon, CheckIcon } from "@heroicons/react/24/outline"
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -30,6 +30,8 @@ export default function Header({ toggleSidebar }: HeaderProps) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(false)
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const isFetchingRef = useRef(false)
   const router = useRouter()
   const { data: session } = useSession()
   const user = session?.user as any
@@ -53,10 +55,12 @@ export default function Header({ toggleSidebar }: HeaderProps) {
 
   // Optimized notification fetching with useCallback
   const fetchNotifications = useCallback(async () => {
-    if (loading) return // Prevent concurrent requests
+    if (isFetchingRef.current) return
+
+    isFetchingRef.current = true
+    setLoading(true)
 
     try {
-      setLoading(true)
       const response = await fetch('/api/notifications?limit=10')
       if (response.ok) {
         const data = await response.json()
@@ -67,15 +71,21 @@ export default function Header({ toggleSidebar }: HeaderProps) {
       console.error('Error fetching notifications:', error)
     } finally {
       setLoading(false)
+      isFetchingRef.current = false
     }
-  }, [loading])
+  }, [])
 
   // Optimized notification polling with reduced frequency
   useEffect(() => {
     fetchNotifications()
     // Poll for new notifications every 2 minutes instead of 30 seconds (better performance)
-    const interval = setInterval(fetchNotifications, 120000)
-    return () => clearInterval(interval)
+    pollingRef.current = setInterval(fetchNotifications, 120000)
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+    }
   }, [fetchNotifications])
 
   // Optimized markAsRead with useCallback
@@ -164,7 +174,15 @@ export default function Header({ toggleSidebar }: HeaderProps) {
           {/* Notifications */}
           <div className="relative notifications-container">
             <button
-              onClick={() => setShowNotifications(!showNotifications)}
+              onClick={() => {
+                setShowNotifications(prev => {
+                  const next = !prev
+                  if (!prev) {
+                    fetchNotifications()
+                  }
+                  return next
+                })
+              }}
               className="relative p-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
             >
               <BellIcon className="h-6 w-6" />

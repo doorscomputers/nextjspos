@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { MagnifyingGlassIcon, DocumentArrowDownIcon, PrinterIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
+import { MagnifyingGlassIcon, DocumentArrowDownIcon, PrinterIcon, DocumentTextIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import ColumnVisibilityToggle from '@/components/ColumnVisibilityToggle'
 import { SortableTableHead } from '@/components/ui/sortable-table-head'
 import { exportToCSV, exportToExcel, exportToPDF, printTable, ExportColumn } from '@/lib/exportUtils'
@@ -26,6 +26,7 @@ interface PivotRow {
 
 export default function AllBranchStockPage() {
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [locations, setLocations] = useState<{ id: number; name: string }[]>([])
   const [rows, setRows] = useState<PivotRow[]>([])
   const [columnTotals, setColumnTotals] = useState<{ byLocation: Record<number, number>; grandTotal: number }>({
@@ -236,6 +237,31 @@ const fetchStockData = useCallback(
   },
   [currentPage, itemsPerPage, sortKey, sortDirection, filters]
 )
+
+const handleRefreshCache = async () => {
+  setRefreshing(true)
+  try {
+    const response = await fetch('/api/products/stock/refresh', {
+      method: 'POST',
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to refresh stock data')
+    }
+
+    const result = await response.json()
+
+    toast.success(`Stock data refreshed successfully! (${result.stats.rowsAffected} products, ${result.stats.dbRefreshDurationMs}ms)`)
+
+    // Reload the data after refresh
+    await fetchStockData()
+  } catch (error) {
+    console.error('Error refreshing stock cache:', error)
+    toast.error('Failed to refresh stock data')
+  } finally {
+    setRefreshing(false)
+  }
+}
 
 useEffect(() => {
   fetchStockData()
@@ -541,6 +567,18 @@ const handlePrint = async () => {
           >
             <DocumentTextIcon className="w-4 h-4" />
             <span className="hidden sm:inline">PDF</span>
+          </Button>
+
+          <Button
+            onClick={handleRefreshCache}
+            variant="outline"
+            size="sm"
+            disabled={refreshing || loading}
+            className="shadow-sm hover:shadow-md transition-all bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 border-green-300 dark:border-green-700"
+            title="Refresh stock data from database"
+          >
+            <ArrowPathIcon className={`w-4 h-4 text-green-600 dark:text-green-400 ${refreshing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline text-green-700 dark:text-green-300">{refreshing ? 'Refreshing...' : 'Refresh'}</span>
           </Button>
 
           <div className="flex items-center gap-2">

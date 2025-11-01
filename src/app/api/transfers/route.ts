@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { PERMISSIONS } from '@/lib/rbac'
+import { PERMISSIONS, isSuperAdmin } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 import { getManilaDate } from '@/lib/timezone'
 import { sendTelegramStockTransferAlert } from '@/lib/telegram'
@@ -63,24 +63,26 @@ export async function GET(request: NextRequest) {
       if (endDate) where.transferDate.lte = new Date(endDate)
     }
 
-    // CRITICAL SECURITY: ALWAYS filter by user's assigned locations for stock transfers
-    // Even users with ACCESS_ALL_LOCATIONS should only see transfers involving their physical locations
-    // This prevents unauthorized viewing of transfers between locations they're not assigned to
-    const userLocations = await prisma.userLocation.findMany({
-      where: { userId: parseInt(userId) },
-      select: { locationId: true },
-    })
-    const locationIds = userLocations.map(ul => ul.locationId)
+    const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
 
-    // Only show transfers where user has access to EITHER the source OR destination location
-    if (locationIds.length > 0) {
-      where.OR = [
-        { fromLocationId: { in: locationIds } },
-        { toLocationId: { in: locationIds } },
-      ]
-    } else {
-      // User has no location assignments - return empty result
-      where.id = -1 // Impossible ID to match nothing
+    if (!hasAccessAllLocations && !isSuperAdmin(user)) {
+      // Restrict results to the user's assigned locations when they don't have global access
+      const userLocations = await prisma.userLocation.findMany({
+        where: { userId: parseInt(userId) },
+        select: { locationId: true },
+      })
+      const locationIds = userLocations.map(ul => ul.locationId)
+
+      // Only show transfers where user has access to EITHER the source OR destination location
+      if (locationIds.length > 0) {
+        where.OR = [
+          { fromLocationId: { in: locationIds } },
+          { toLocationId: { in: locationIds } },
+        ]
+      } else {
+        // User has no location assignments - return empty result
+        where.id = -1 // Impossible ID to match nothing
+      }
     }
 
     // Build include object dynamically

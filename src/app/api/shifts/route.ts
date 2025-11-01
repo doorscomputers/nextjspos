@@ -174,12 +174,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { beginningCash, locationId, openingNotes } = body
 
+    console.log('[POST /api/shifts] Shift creation request:', {
+      userId: user.id,
+      username: user.username,
+      beginningCash,
+      locationId,
+      hasOpeningNotes: !!openingNotes
+    })
+
     // Validate required fields
-    if (!beginningCash || beginningCash < 0) {
-      return NextResponse.json({ error: 'Beginning cash must be a positive number' }, { status: 400 })
+    if (!beginningCash || parseFloat(beginningCash) <= 0) {
+      console.error('[POST /api/shifts] REJECTED: Invalid beginning cash:', beginningCash)
+      return NextResponse.json({
+        error: 'Beginning cash is required and must be greater than zero'
+      }, { status: 400 })
     }
 
     if (!locationId) {
+      console.error('[POST /api/shifts] REJECTED: Missing location ID')
       return NextResponse.json({ error: 'Location ID is required' }, { status: 400 })
     }
 
@@ -256,6 +268,14 @@ export async function POST(request: NextRequest) {
       entityIds: [shift.id],
       description: `Opened shift ${shiftNumber} with beginning cash ₱${beginningCash}`,
       metadata: { shiftNumber, beginningCash, locationId },
+    })
+
+    console.log('[POST /api/shifts] ✓ Shift created successfully:', {
+      shiftId: shift.id,
+      shiftNumber: shift.shiftNumber,
+      beginningCash: shift.beginningCash,
+      locationId: shift.locationId,
+      userId: shift.userId
     })
 
     return NextResponse.json({ shift }, { status: 201 })

@@ -14,7 +14,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { hasPermission, PERMISSIONS, type RBACUser } from '@/lib/rbac'
 import SalesInvoicePrint from '@/components/SalesInvoicePrint'
 import { apiPost, isConnectionOnline, getOfflineQueueLength } from '@/lib/client/apiClient'
-import SerialNumberSelector from '@/components/SerialNumberSelector'
 import ARPaymentCollectionModal from '@/components/ARPaymentCollectionModal'
 
 export default function POSEnhancedPage() {
@@ -41,7 +40,7 @@ export default function POSEnhancedPage() {
   const [paymentModes, setPaymentModes] = useState<Array<{method: string, amount: number, reference?: string, photo?: string}>>([])
   const [cashAmount, setCashAmount] = useState<string>('')
   const [digitalAmount, setDigitalAmount] = useState<string>('')
-  const [digitalMethod, setDigitalMethod] = useState<'gcash' | 'maya' | ''>('')
+  const [digitalMethod, setDigitalMethod] = useState<string>('')
   const [digitalReference, setDigitalReference] = useState('')
   const [digitalPhoto, setDigitalPhoto] = useState<string>('')
   const [chequeAmount, setChequeAmount] = useState<string>('')
@@ -55,6 +54,7 @@ export default function POSEnhancedPage() {
   // Discount State - Updated
   const [discountType, setDiscountType] = useState<string>('none')
   const [discountAmount, setDiscountAmount] = useState<string>('')
+  const [regularDiscountPercent, setRegularDiscountPercent] = useState<number>(0)
   const [seniorCitizenId, setSeniorCitizenId] = useState('')
   const [seniorCitizenName, setSeniorCitizenName] = useState('')
   const [pwdId, setPwdId] = useState('')
@@ -69,6 +69,7 @@ export default function POSEnhancedPage() {
   const [showHoldDialog, setShowHoldDialog] = useState(false)
   const [showHeldTransactions, setShowHeldTransactions] = useState(false)
   const [showNumericKeypad, setShowNumericKeypad] = useState(false)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showDigitalPaymentDialog, setShowDigitalPaymentDialog] = useState(false)
   const [showNewCustomerDialog, setShowNewCustomerDialog] = useState(false)
   const [showCameraDialog, setShowCameraDialog] = useState(false)
@@ -127,6 +128,10 @@ export default function POSEnhancedPage() {
 
   // Search State
   const [searchTerm, setSearchTerm] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [selectedSearchIndex, setSelectedSearchIndex] = useState(0)
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false)
+  const searchResultRefs = useRef<(HTMLDivElement | null)[]>([])
 
   // Only run checks when session is ready
   useEffect(() => {
@@ -151,6 +156,39 @@ export default function POSEnhancedPage() {
   useEffect(() => {
     setCurrentPage(1)
   }, [selectedCategory, searchTerm])
+
+  // Live search: Show dropdown as user types
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setShowSearchDropdown(false)
+      setSearchResults([])
+      return
+    }
+
+    // Search with debouncing (wait 300ms after user stops typing)
+    const timer = setTimeout(() => {
+      const matches = searchProducts(searchTerm)
+      if (matches.length > 0) {
+        setSearchResults(matches)
+        setSelectedSearchIndex(0)
+        setShowSearchDropdown(true)
+      } else {
+        setShowSearchDropdown(false)
+      }
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [searchTerm, products])
+
+  // Auto-scroll selected search result into view
+  useEffect(() => {
+    if (showSearchDropdown && searchResultRefs.current[selectedSearchIndex]) {
+      searchResultRefs.current[selectedSearchIndex]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      })
+    }
+  }, [selectedSearchIndex, showSearchDropdown])
 
   // Connection status monitor for API client
   useEffect(() => {
@@ -190,6 +228,11 @@ export default function POSEnhancedPage() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // IMPORTANT: Disable ALL shortcuts when dialogs are open
+      if (showSerialNumberDialog || showPaymentModal) {
+        return
+      }
+
       // Don't trigger shortcuts when typing in input/textarea (except Ctrl+S)
       const target = e.target as HTMLElement
       const isInputField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA'
@@ -279,7 +322,7 @@ export default function POSEnhancedPage() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [cart])
+  }, [cart, showSerialNumberDialog, showPaymentModal])
 
   // Calculate freebie total
   useEffect(() => {
@@ -292,6 +335,11 @@ export default function POSEnhancedPage() {
   // Barcode scanner handler
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
+      // IMPORTANT: Disable barcode scanner when dialogs are open
+      if (showSerialNumberDialog || showPaymentModal) {
+        return
+      }
+
       const currentTime = Date.now()
       if (currentTime - lastKeyTime > 100) {
         setBarcodeBuffer('')
@@ -308,7 +356,7 @@ export default function POSEnhancedPage() {
 
     window.addEventListener('keypress', handleKeyPress)
     return () => window.removeEventListener('keypress', handleKeyPress)
-  }, [barcodeBuffer, lastKeyTime])
+  }, [barcodeBuffer, lastKeyTime, showSerialNumberDialog, showPaymentModal])
 
   const checkShift = async () => {
     try {
@@ -320,16 +368,30 @@ export default function POSEnhancedPage() {
 
       if (data.shifts && data.shifts.length > 0) {
         const shift = data.shifts[0]
-        console.log('[POS] Found shift:', shift.shiftNumber, 'Beginning cash:', shift.beginningCash)
+        console.log('[POS] Found shift:', {
+          shiftNumber: shift.shiftNumber,
+          beginningCash: shift.beginningCash,
+          locationId: shift.locationId,
+          openedAt: shift.openedAt,
+          status: shift.status
+        })
 
         if (!shift.beginningCash || parseFloat(shift.beginningCash) <= 0) {
-          console.error('[POS] Invalid shift - no beginning cash')
-          setError('Invalid shift: No beginning cash found.')
+          console.error('[POS] CRITICAL: Invalid shift detected - missing or zero beginning cash:', {
+            shiftId: shift.id,
+            shiftNumber: shift.shiftNumber,
+            beginningCash: shift.beginningCash
+          })
+          setError(`Invalid shift (${shift.shiftNumber}): No beginning cash found. Please close this shift and start a new one with proper beginning cash.`)
+
+          // Show alert to user
+          alert(`CRITICAL ERROR: Your shift (${shift.shiftNumber}) has no beginning cash!\n\nThis shift cannot be used for sales. You must:\n1. Close this invalid shift\n2. Start a new shift with beginning cash\n\nYou will now be redirected to begin a proper shift.`)
+
           router.push('/dashboard/shifts/begin')
           return
         }
 
-        console.log('[POS] Setting current shift and loading products...')
+        console.log('[POS] ✓ Valid shift confirmed - Setting current shift and loading products...')
         setCurrentShift(shift)
       } else {
         console.log('[POS] No open shift found - redirecting to begin shift')
@@ -511,6 +573,33 @@ export default function POSEnhancedPage() {
     alert('Transaction retrieved!')
   }
 
+  // Search for products by SKU or name (returns ALL matches)
+  const searchProducts = (searchText: string): any[] => {
+    if (!searchText || searchText.trim() === '') {
+      return []
+    }
+
+    const searchLower = searchText.toLowerCase().trim()
+
+    // Find all matching products
+    const matches = products.filter((p) => {
+      // Exact SKU match (highest priority)
+      if (p.sku?.toLowerCase() === searchLower) return true
+      if (p.variations?.some((v: any) => v.sku?.toLowerCase() === searchLower)) return true
+
+      // Partial SKU match
+      if (p.sku?.toLowerCase().includes(searchLower)) return true
+      if (p.variations?.some((v: any) => v.sku?.toLowerCase().includes(searchLower))) return true
+
+      // Partial name match (case-insensitive)
+      if (p.name?.toLowerCase().includes(searchLower)) return true
+
+      return false
+    })
+
+    return matches
+  }
+
   const handleBarcodeScanned = async (barcode: string) => {
     // Check if input starts with * for quantity multiplier
     if (barcode.startsWith('*')) {
@@ -538,53 +627,42 @@ export default function POSEnhancedPage() {
       return
     }
 
-    const searchTerm = barcode.toLowerCase()
-
     // Automatically switch to "All Products" when searching
     if (selectedCategory !== 'all') {
       setSelectedCategory('all')
     }
 
-    // Search for product by barcode, SKU, or name (partial match) - search ALL products
-    const product = products.find((p) => {
-      // Exact barcode/SKU match
-      if (p.sku?.toLowerCase() === searchTerm) return true
-      if (p.variations?.some((v: any) => v.sku?.toLowerCase() === searchTerm)) return true
+    // Search for matching products
+    const matches = searchProducts(barcode)
 
-      // Partial name match (case-insensitive)
-      if (p.name?.toLowerCase().includes(searchTerm)) return true
-
-      return false
-    })
-
-    if (product) {
-      addToCart(product, false)
+    if (matches.length === 1) {
+      // Single match: add immediately (barcode scanner behavior)
+      addToCart(matches[0], false)
       const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIGGS75+mfTQ0OTqni77dhGgU7k')
       audio.play().catch(() => {})
+
+      // Clear search
+      setSearchTerm('')
+      setShowSearchDropdown(false)
+    } else if (matches.length > 1) {
+      // Multiple matches: show dropdown for selection
+      setSearchResults(matches)
+      setSelectedSearchIndex(0)
+      setShowSearchDropdown(true)
     } else {
+      // No matches
       setError('Product not found')
       setTimeout(() => setError(''), 3000)
+      setShowSearchDropdown(false)
     }
 
-    if (barcodeInputRef.current) {
-      barcodeInputRef.current.value = ''
+    if (barcodeInputRef.current && matches.length !== 1) {
       barcodeInputRef.current.focus()
     }
   }
 
-  // Check if product has serial numbers in stock
-  const checkHasSerialNumbers = async (productId: number, variationId: number, locationId: number): Promise<boolean> => {
-    try {
-      const response = await fetch(
-        `/api/serial-numbers/available?productId=${productId}&variationId=${variationId}&locationId=${locationId}`
-      )
-      const data = await response.json()
-      return data.success && data.data && data.data.length > 0
-    } catch (error) {
-      console.error('Error checking serial numbers:', error)
-      return false
-    }
-  }
+  // REMOVED: checkHasSerialNumbers function
+  // No longer needed - user manually enters serial numbers as text
 
   const addToCart = async (product: any, isFreebie: boolean = false) => {
     const variation = product.variations?.[0]
@@ -617,8 +695,9 @@ export default function POSEnhancedPage() {
       setQuantityMultiplier(null)
     }
 
-    // Check if product has serial numbers
-    const hasSerials = await checkHasSerialNumbers(product.id, variation.id, currentShift?.locationId)
+    // PERFORMANCE FIX: Don't check for serial numbers automatically
+    // Let user manually add serial numbers if needed via button
+    // This makes cart additions INSTANT!
 
     if (existingIndex >= 0) {
       const newCart = [...cart]
@@ -633,7 +712,7 @@ export default function POSEnhancedPage() {
 
       newCart[existingIndex].quantity = newQuantity
       // Reset serial numbers if quantity changes
-      if (hasSerials) {
+      if (newCart[existingIndex].serialNumberIds?.length > 0) {
         newCart[existingIndex].serialNumberIds = []
         newCart[existingIndex].serialNumbers = []
       }
@@ -658,7 +737,7 @@ export default function POSEnhancedPage() {
           quantity: qtyToAdd,
           availableStock: availableStock, // Store available stock
           isFreebie,
-          requiresSerial: hasSerials,
+          requiresSerial: false, // Default to false, user can add serials manually
           serialNumberIds: [],
           serialNumbers: [], // Store full serial number objects
         },
@@ -670,20 +749,23 @@ export default function POSEnhancedPage() {
     addToCart(product, true)
   }
 
-  // Handle serial number selection
+  // Handle serial number manual entry - NO database query, just open input dialog
   const handleOpenSerialDialog = (cartIndex: number) => {
     setSerialNumberCartIndex(cartIndex)
     setShowSerialNumberDialog(true)
   }
 
-  const handleSerialNumberConfirm = (selectedIds: number[], selectedSerials: any[]) => {
+  // Handle manual serial number text entry
+  const handleSerialNumberConfirm = (serialNumbersText: string[]) => {
     if (serialNumberCartIndex === null) return
 
     const newCart = [...cart]
-    newCart[serialNumberCartIndex].serialNumberIds = selectedIds
-    newCart[serialNumberCartIndex].serialNumbers = selectedSerials
+    // Store serial numbers as simple text array
+    newCart[serialNumberCartIndex].serialNumberIds = [] // Empty IDs
+    newCart[serialNumberCartIndex].serialNumbers = serialNumbersText.map(sn => ({ serialNumber: sn }))
     setCart(newCart)
     setSerialNumberCartIndex(null)
+    setShowSerialNumberDialog(false)
   }
 
   const removeFromCart = (index: number) => {
@@ -724,10 +806,9 @@ export default function POSEnhancedPage() {
 
   const calculateDiscount = () => {
     const subtotal = calculateSubtotal()
-    if (discountType === 'senior' || discountType === 'pwd') {
-      return subtotal * 0.2
-    } else if (discountType === 'regular' && discountAmount) {
-      return parseFloat(discountAmount)
+    if (discountType === 'regular' && regularDiscountPercent) {
+      // Regular discount is a FIXED AMOUNT, not percentage
+      return parseFloat(String(regularDiscountPercent))
     }
     return 0
   }
@@ -1329,14 +1410,8 @@ export default function POSEnhancedPage() {
       }
     }
 
-    // Validate serial numbers for items that require them
-    const itemsNeedingSerials = cart.filter(item => item.requiresSerial)
-    for (const item of itemsNeedingSerials) {
-      if (!item.serialNumberIds || item.serialNumberIds.length !== item.quantity) {
-        setError(`Please select ${item.quantity} serial number(s) for "${item.name}"`)
-        return
-      }
-    }
+    // Serial numbers are now OPTIONAL at checkout
+    // No validation required - user adds them manually if needed
 
     setLoading(true)
     setIsSubmitting(true) // Lock to prevent double submission
@@ -1385,7 +1460,8 @@ export default function POSEnhancedPage() {
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           isFreebie: item.isFreebie,
-          requiresSerial: item.requiresSerial || false,
+          // Only set requiresSerial=true if user actually added serial numbers
+          requiresSerial: (item.serialNumberIds && item.serialNumberIds.length > 0) ? true : false,
           serialNumberIds: item.serialNumberIds || [],
         })),
         payments,
@@ -1411,6 +1487,7 @@ export default function POSEnhancedPage() {
 
       // Use bulletproof API client with retry logic and offline queue
       console.log('[POS] Submitting sale with apiPost (with retry and offline queue)')
+      console.log('[POS] Sale Data:', JSON.stringify(saleData, null, 2))
       const data = await apiPost('/api/sales', saleData, {
         maxRetries: 3, // Retry up to 3 times
         retryDelay: 1000, // Start with 1 second delay
@@ -1572,247 +1649,264 @@ export default function POSEnhancedPage() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden gap-2">
-        {/* Left Side - Products */}
-        <div className="flex-[1.5] flex flex-col p-4 space-y-3 min-w-0">
-          {/* Barcode Search */}
-          <div className="bg-white p-3 rounded-lg shadow-md">
-            <Label className="text-sm font-medium mb-2 block">
-              Scan Barcode or Search Product (Ctrl+S to focus)
-            </Label>
+      {/* Product Search Bar (Top) */}
+      <div className="px-4 py-3 bg-white border-b shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
             <Input
               ref={barcodeInputRef}
               type="text"
               value={searchTerm}
-              onChange={(e) => {
-                const value = e.target.value
-                setSearchTerm(value)
-                // Auto-switch to All Products when typing
-                if (value && selectedCategory !== 'all') {
-                  setSelectedCategory('all')
-                }
-              }}
-              placeholder="Type product name or SKU, then press Enter..."
-              className="text-lg"
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="🔍 Scan barcode or search product (SKU, Name)... Press Ctrl+S to focus"
+              className="text-xl h-14 font-semibold border-2 border-blue-400 focus:border-blue-600"
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const value = e.currentTarget.value
-                  if (value) {
-                    handleBarcodeScanned(value)
-                    setSearchTerm('')
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault()
+                  if (showSearchDropdown && searchResults.length > 0) {
+                    setSelectedSearchIndex((prev) =>
+                      prev < searchResults.length - 1 ? prev + 1 : 0
+                    )
                   }
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault()
+                  if (showSearchDropdown && searchResults.length > 0) {
+                    setSelectedSearchIndex((prev) =>
+                      prev > 0 ? prev - 1 : searchResults.length - 1
+                    )
+                  }
+                } else if (e.key === 'Enter') {
+                  e.preventDefault()
+                  if (showSearchDropdown && searchResults.length > 0) {
+                    // Add selected product from dropdown
+                    const selectedProduct = searchResults[selectedSearchIndex]
+                    addToCart(selectedProduct, false)
+                    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIGGS75+mfTQ0OTqni77dhGgU7k')
+                    audio.play().catch(() => {})
+                    setSearchTerm('')
+                    setShowSearchDropdown(false)
+                  } else {
+                    // No dropdown, trigger barcode search
+                    const value = e.currentTarget.value
+                    if (value) {
+                      handleBarcodeScanned(value)
+                    }
+                  }
+                } else if (e.key === 'Escape') {
+                  setShowSearchDropdown(false)
+                  setSearchTerm('')
                 }
               }}
             />
             {quantityMultiplier && (
-              <p className="text-xs text-green-600 mt-1 font-semibold">
+              <p className="text-sm text-green-600 mt-1 font-semibold">
                 ✓ Next product will be added with quantity: {quantityMultiplier}
               </p>
             )}
-          </div>
 
-          {/* Action Buttons Bar - Full Width Buttons with Icons and Text */}
-          <div className="bg-white px-2 py-2 flex items-center space-x-2 shadow-md border rounded-lg">
-            {/* X Reading Button */}
-            <Button
-              onClick={() => window.open('/dashboard/readings/x-reading', '_blank')}
-              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg font-bold flex flex-row items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg h-[50px]"
-              title="Generate X Reading (Mid-Shift Report)"
-            >
-              <span className="text-2xl leading-none">📊</span>
-              <span className="text-sm font-bold leading-tight">X Read</span>
-            </Button>
+            {/* Search Results Dropdown */}
+            {showSearchDropdown && searchResults.length > 0 && (
+              <div
+                className="absolute left-4 right-4 mt-1 bg-white border-2 border-blue-400 rounded-lg shadow-2xl z-50 max-h-[700px] overflow-y-auto scrollbar-thin scrollbar-thumb-blue-400 scrollbar-track-gray-200"
+                style={{ scrollbarWidth: 'thin', scrollbarColor: '#60a5fa #e5e7eb' }}
+              >
+                <div className="p-2">
+                  <div className="text-xs text-gray-500 mb-2 px-2">
+                    Found {searchResults.length} product{searchResults.length !== 1 ? 's' : ''} (Use ↑↓ arrows, Enter to select)
+                  </div>
+                  {searchResults.map((product, index) => {
+                    const variation = product.variations?.[0]
+                    const locationStock = variation?.variationLocationDetails?.find(
+                      (vl: any) => vl.locationId === currentShift?.locationId
+                    )
+                    const stockQty = locationStock ? parseFloat(locationStock.qtyAvailable) : 0
 
-            {/* Cash In Button */}
-            <Button
-              onClick={() => {
-                setCashIOAmount('')
-                setCashIORemarks('')
-                setShowCashInDialog(true)
-              }}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg font-bold flex flex-row items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg h-[50px]"
-            >
-              <span className="text-2xl leading-none">💵</span>
-              <span className="text-sm font-bold leading-tight">Cash <u>I</u>n</span>
-            </Button>
-
-            {/* Cash Out Button */}
-            <Button
-              onClick={() => {
-                setCashIOAmount('')
-                setCashIORemarks('')
-                setShowCashOutDialog(true)
-              }}
-              className="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg font-bold flex flex-row items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg h-[50px]"
-            >
-              <span className="text-2xl leading-none">💸</span>
-              <span className="text-sm font-bold leading-tight">Cash <u>O</u>ut</span>
-            </Button>
-
-            {/* AR Payment Collection Button */}
-            <Button
-              onClick={() => setShowARPaymentDialog(true)}
-              className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded-lg font-bold flex flex-row items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg h-[50px]"
-              title="Collect Accounts Receivable Payment"
-            >
-              <span className="text-2xl leading-none">💳</span>
-              <span className="text-sm font-bold leading-tight">AR Pay</span>
-            </Button>
-
-            {/* Save Button */}
-            <Button
-              onClick={() => {
-                if (cart.length === 0) {
-                  setError('Cart is empty - nothing to save as quotation')
-                  setTimeout(() => setError(''), 3000)
-                  return
-                }
-                setShowQuotationDialog(true)
-              }}
-              className="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg font-bold flex flex-row items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg h-[50px]"
-            >
-              <span className="text-2xl leading-none">📋</span>
-              <span className="text-sm font-bold leading-tight">Save (F2)</span>
-            </Button>
-
-            {/* Load Button */}
-            <Button
-              onClick={() => setShowSavedQuotations(true)}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg font-bold flex flex-row items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg h-[50px]"
-            >
-              <span className="text-2xl leading-none">📂</span>
-              <span className="text-sm font-bold leading-tight">Load (F3)</span>
-            </Button>
-
-            {/* Hold Button */}
-            <Button
-              onClick={() => setShowHoldDialog(true)}
-              className="flex-1 bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-lg font-bold flex flex-row items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg h-[50px]"
-            >
-              <span className="text-2xl leading-none">⏸️</span>
-              <span className="text-sm font-bold leading-tight">Hold (F5)</span>
-            </Button>
-
-            {/* Retrieve Button */}
-            <Button
-              onClick={() => setShowHeldTransactions(true)}
-              className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white px-3 py-2 rounded-lg font-bold flex flex-row items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg h-[50px]"
-            >
-              <span className="text-2xl leading-none">▶️</span>
-              <span className="text-sm font-bold leading-tight">Retrieve (F6)</span>
-            </Button>
-          </div>
-
-          {error && (
-            <div className="animate-blink rounded-lg border-2 border-red-700 bg-red-600 text-white text-sm sm:text-base font-semibold text-center py-3 shadow-[0_0_18px_rgba(220,38,38,0.75)]">
-              <div className="flex items-center justify-center gap-3 uppercase tracking-wide">
-                <span className="text-xl sm:text-2xl" role="img" aria-label="warning">
-                  ⚠️
-                </span>
-                <span>{error}</span>
-                <span className="text-xl sm:text-2xl" role="img" aria-label="warning">
-                  ⚠️
-                </span>
-              </div>
-              {error.includes('Insufficient payment') && (
-                <p className="text-xs sm:text-sm font-normal normal-case tracking-normal mt-1">
-                  Please tender the full amount before completing the sale.
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Category Tabs - Scrollable Product Area */}
-          <Tabs
-            value={selectedCategory}
-            onValueChange={setSelectedCategory}
-            className="flex-1 flex flex-col bg-white rounded-lg shadow-md min-h-0 mt-3"
-          >
-            <TabsList className="w-full justify-start overflow-x-auto bg-gradient-to-r from-blue-50 to-blue-100 border-b-2 border-blue-200 rounded-t-lg flex-shrink-0 h-auto py-2">
-              {categories.map((cat) => (
-                <TabsTrigger
-                  key={cat.id}
-                  value={cat.id.toString()}
-                  className="px-6 py-3 text-sm font-semibold text-gray-700 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md transition-all"
-                >
-                  {cat.name}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-
-            <TabsContent
-              value={selectedCategory}
-              className="flex-1 overflow-y-auto p-3 min-h-0"
-            >
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {currentProducts.map((product) => (
-                  <Card
-                    key={product.id}
-                    className="bg-white hover:shadow-xl transition-all hover:border-blue-400 cursor-pointer border"
-                  >
-                    <CardContent className="p-3">
-                      <h3 className="font-bold text-xs mb-1 line-clamp-2 h-8">
-                        {product.name}
-                      </h3>
-                      <p className="text-[10px] text-gray-500 mb-1">
-                        SKU: {product.sku || product.variations?.[0]?.sku}
-                      </p>
-                      <p className="text-lg font-bold text-blue-600 mb-1">
-                        ₱{parseFloat(
-                          product.variations?.[0]?.sellingPrice || 0
-                        ).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </p>
-                      <p className="text-[10px] text-green-600 mb-2">
-                        Stock:{' '}
-                        {product.variations?.[0]?.variationLocationDetails?.find(
-                          (vl: any) => vl.locationId === currentShift.locationId
-                        )?.qtyAvailable || 0}
-                      </p>
-
-                      <Button
-                        size="sm"
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white text-[10px] h-7"
-                        onClick={(e) => {
-                          e.stopPropagation()
+                    return (
+                      <div
+                        key={product.id}
+                        ref={(el) => (searchResultRefs.current[index] = el)}
+                        className={`p-3 rounded-lg cursor-pointer transition-all ${
+                          index === selectedSearchIndex
+                            ? 'bg-blue-100 border-2 border-blue-500 shadow-md'
+                            : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                        }`}
+                        onClick={() => {
                           addToCart(product, false)
+                          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIGGS75+mfTQ0OTqni77dhGgU7k')
+                          audio.play().catch(() => {})
+                          setSearchTerm('')
+                          setShowSearchDropdown(false)
                         }}
                       >
-                        + Add
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="font-bold text-lg text-gray-800">{product.name}</div>
+                            <div className="text-sm text-gray-600">
+                              SKU: {product.sku} | Price: ₱{parseFloat(variation?.sellingPrice || 0).toFixed(2)}
+                            </div>
+                          </div>
+                          <div className={`text-sm font-semibold px-3 py-1 rounded ${
+                            stockQty > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                            Stock: {stockQty}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Compact Action Buttons */}
+          <Button onClick={() => window.open('/dashboard/readings/x-reading', '_blank')} className="h-12 px-4 bg-indigo-600 hover:bg-indigo-700" title="X Reading">📊 X Read</Button>
+          <Button onClick={() => { setCashIOAmount(''); setCashIORemarks(''); setShowCashInDialog(true); }} className="h-12 px-4 bg-green-600 hover:bg-green-700">💵 Cash In</Button>
+          <Button onClick={() => { setCashIOAmount(''); setCashIORemarks(''); setShowCashOutDialog(true); }} className="h-12 px-4 bg-red-600 hover:bg-red-700">💸 Cash Out</Button>
+          <Button onClick={() => setShowARPaymentDialog(true)} className="h-12 px-4 bg-yellow-600 hover:bg-yellow-700" title="AR Payment">💳 AR Pay</Button>
+          <Button onClick={() => { if (cart.length === 0) { setError('Cart is empty'); setTimeout(() => setError(''), 3000); return; } setShowQuotationDialog(true); }} className="h-12 px-4 bg-purple-600 hover:bg-purple-700">📋 Save</Button>
+          <Button onClick={() => setShowSavedQuotations(true)} className="h-12 px-4 bg-blue-600 hover:bg-blue-700">📂 Load</Button>
+          <Button onClick={() => setShowHoldDialog(true)} className="h-12 px-4 bg-amber-500 hover:bg-amber-600">⏸️ Hold</Button>
+          <Button onClick={() => setShowHeldTransactions(true)} className="h-12 px-4 bg-cyan-600 hover:bg-cyan-700">▶️ Retrieve</Button>
+        </div>
+      </div>
+
+      {/* Error Display */}
+      {error && (
+        <div className="mx-4 mt-2 animate-blink rounded-lg border-2 border-red-700 bg-red-600 text-white text-sm font-semibold text-center py-3 shadow-[0_0_18px_rgba(220,38,38,0.75)]">
+          <div className="flex items-center justify-center gap-3 uppercase tracking-wide">
+            <span className="text-xl">⚠️</span>
+            <span>{error}</span>
+            <span className="text-xl">⚠️</span>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content - Two Column Layout */}
+      <div className="flex-1 flex overflow-hidden gap-0">
+        {/* LEFT SIDE - CART ITEMS (70%) */}
+        <div className="flex-[0.7] bg-white border-r flex flex-col shadow-lg">
+          {/* Cart Items - EXPANDED TO FILL MOST OF SIDEBAR */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <h2 className="font-bold text-xl mb-4 flex items-center justify-between border-b pb-3">
+              <span>🛒 Cart Items ({cart.length})</span>
+              {cart.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-red-500 hover:text-red-700 text-sm"
+                  onClick={() => setCart([])}
+                >
+                  Clear All
+                </Button>
+              )}
+            </h2>
+            {cart.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-gray-400">
+                <div className="text-8xl mb-6">🛒</div>
+                <p className="text-2xl font-medium">Empty Cart</p>
+                <p className="text-lg mt-2">Scan or search products to begin</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {cart.map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex flex-col gap-3 p-4 bg-gradient-to-r from-blue-50 to-white rounded-xl border-2 border-blue-200 shadow-md hover:shadow-lg transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-lg truncate">
+                          {item.name}
+                          {item.isFreebie && (
+                            <span className="ml-2 text-xs bg-green-500 text-white px-2 py-1 rounded">
+                              FREE
+                            </span>
+                          )}
+                          {item.requiresSerial && (
+                            <span className="ml-2 text-xs bg-blue-500 text-white px-2 py-1 rounded">
+                              SERIAL
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-base font-semibold text-gray-600 mt-1">
+                          ₱{item.unitPrice.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × {item.quantity}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          className="h-10 w-10 p-0 text-xl bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg shadow"
+                          onClick={() => updateQuantity(index, item.quantity - 1)}
+                        >
+                          −
+                        </Button>
+                        <Input
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            updateQuantity(index, parseInt(e.target.value) || 1)
+                          }
+                          className="w-20 text-center h-10 text-xl font-black border-2 border-blue-400 rounded-lg bg-white text-gray-900"
+                        />
+                        <Button
+                          size="sm"
+                          className="h-10 w-10 p-0 text-xl bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow"
+                          onClick={() => updateQuantity(index, item.quantity + 1)}
+                        >
+                          +
+                        </Button>
+                      </div>
+                      <div className="text-right min-w-[100px]">
+                        <p className="font-bold text-xl text-blue-600">
+                          ₱{(item.unitPrice * item.quantity).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-500 hover:bg-red-100 h-10 w-10 p-0 text-xl"
+                        onClick={() => removeFromCart(index)}
+                      >
+                        ×
                       </Button>
-                    </CardContent>
-                  </Card>
+                    </div>
+
+                    {/* Serial Number Selection - Always show button for manual entry */}
+                    <div className="mt-2 pt-2 border-t">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={`w-full text-sm h-9 ${
+                          item.serialNumberIds && item.serialNumberIds.length > 0
+                            ? 'bg-green-50 border-green-500 text-green-700'
+                            : 'bg-gray-50 border-gray-300 text-gray-600'
+                        }`}
+                        onClick={() => handleOpenSerialDialog(index)}
+                      >
+                        {item.serialNumberIds && item.serialNumberIds.length > 0 ? (
+                          <>✓ {item.serialNumberIds.length} Serial(s) Added</>
+                        ) : (
+                          <>📝 Add Serial Numbers (Optional)</>
+                        )}
+                      </Button>
+                      {item.serialNumbers && item.serialNumbers.length > 0 && (
+                        <div className="mt-2 text-xs text-gray-600">
+                          {item.serialNumbers.map((sn: any, idx: number) => (
+                            <div key={idx} className="truncate">• {sn.serialNumber}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 ))}
               </div>
-
-              {/* Pagination Controls */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center space-x-2 mt-3">
-                  <Button
-                    size="sm"
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                  >
-                    Previous
-                  </Button>
-                  <span className="text-sm">
-                    Page {currentPage} of {totalPages}
-                  </span>
-                  <Button
-                    size="sm"
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                  >
-                    Next
-                  </Button>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+            )}
+          </div>
         </div>
 
-        {/* Right Side - Cart & Checkout */}
-        <div className="flex-1 min-w-[400px] max-w-[550px] bg-white border-l flex flex-col shadow-2xl">
+        {/* RIGHT SIDE - PAYMENT PANEL (30%) */}
+        <div className="flex-[0.3] bg-gradient-to-b from-gray-50 to-white border-l flex flex-col shadow-2xl">
           {/* Customer Selection */}
           <div className="p-2 border-b bg-gradient-to-r from-gray-50 to-gray-100">
             <Label className="text-xs font-medium mb-1 block">Customer</Label>
@@ -1851,373 +1945,182 @@ export default function POSEnhancedPage() {
             </div>
           </div>
 
-          {/* Cart Items */}
-          <div className="flex-1 overflow-y-auto p-2">
-            <h2 className="font-bold text-sm mb-2">Cart Items</h2>
-            {cart.length === 0 ? (
-              <p className="text-gray-400 text-center py-8">
-                No items in cart. Scan or select products.
-              </p>
-            ) : (
-              <div className="space-y-1">
-                {cart.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex flex-col gap-1 p-2 bg-gray-50 rounded border text-xs"
-                  >
-                    <div className="flex items-center gap-1">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-xs truncate">
-                          {item.name}
-                          {item.isFreebie && (
-                            <span className="ml-1 text-[10px] bg-green-500 text-white px-1 py-0.5 rounded">
-                              FREE
-                            </span>
-                          )}
-                          {item.requiresSerial && (
-                            <span className="ml-1 text-[10px] bg-blue-500 text-white px-1 py-0.5 rounded">
-                              SERIAL
-                            </span>
-                          )}
-                        </p>
-                        <p className="text-xs font-semibold text-gray-700">
-                          ₱{item.unitPrice.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × {item.quantity}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-0.5">
-                        <Button
-                          size="sm"
-                          className="h-7 w-7 p-0 text-xs bg-red-500 hover:bg-red-600 text-white font-bold rounded shadow"
-                          onClick={() => updateQuantity(index, item.quantity - 1)}
-                        >
-                          −
-                        </Button>
-                        <Input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) =>
-                            updateQuantity(index, parseInt(e.target.value) || 1)
-                          }
-                          className="w-20 text-center h-7 text-base font-black border-2 border-blue-400 rounded bg-white text-gray-900 px-1"
-                        />
-                        <Button
-                          size="sm"
-                          className="h-7 w-7 p-0 text-xs bg-green-500 hover:bg-green-600 text-white font-bold rounded shadow"
-                          onClick={() => updateQuantity(index, item.quantity + 1)}
-                        >
-                          +
-                        </Button>
-                      </div>
-                      <div className="text-right w-20">
-                        <p className="font-bold text-xs">
-                          ₱{(item.unitPrice * item.quantity).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-red-500 h-6 w-6 p-0"
-                        onClick={() => removeFromCart(index)}
-                      >
-                        ×
-                      </Button>
-                    </div>
+          {/* PAYMENT SECTION - Discount & Payment Methods */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
-                    {/* Serial Number Selection */}
-                    {item.requiresSerial && (
-                      <div className="mt-1 pt-1 border-t">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className={`w-full text-xs h-7 ${
-                            item.serialNumberIds.length === item.quantity
-                              ? 'bg-green-50 border-green-500 text-green-700'
-                              : 'bg-yellow-50 border-yellow-500 text-yellow-700'
-                          }`}
-                          onClick={() => handleOpenSerialDialog(index)}
-                        >
-                          {item.serialNumberIds.length === item.quantity ? (
-                            <>✓ {item.serialNumberIds.length} Serial(s) Selected</>
-                          ) : (
-                            <>⚠ Select {item.quantity} Serial Number(s)</>
-                          )}
-                        </Button>
-                        {item.serialNumbers && item.serialNumbers.length > 0 && (
-                          <div className="mt-1 text-[10px] text-gray-600">
-                            {item.serialNumbers.map((sn: any, idx: number) => (
-                              <div key={idx} className="truncate">• {sn.serialNumber}</div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Discount Section - Renamed */}
-          <div className="p-2 border-t bg-yellow-50">
-            <Label className="text-xs font-bold mb-1 block">Discount</Label>
-            <Select value={discountType} onValueChange={setDiscountType}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No Discount</SelectItem>
-                <SelectItem value="senior">Senior Citizen (20%)</SelectItem>
-                <SelectItem value="pwd">PWD (20%)</SelectItem>
-                <SelectItem value="regular">Regular Discount</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {discountType === 'senior' && (
-              <div className="mt-2 space-y-2">
-                <Input
-                  placeholder="SC ID Number"
-                  value={seniorCitizenId}
-                  onChange={(e) => setSeniorCitizenId(e.target.value)}
-                />
-                <Input
-                  placeholder="SC Full Name"
-                  value={seniorCitizenName}
-                  onChange={(e) => setSeniorCitizenName(e.target.value)}
-                />
-              </div>
-            )}
-
-            {discountType === 'pwd' && (
-              <div className="mt-2 space-y-2">
-                <Input
-                  placeholder="PWD ID Number"
-                  value={pwdId}
-                  onChange={(e) => setPwdId(e.target.value)}
-                />
-                <Input
-                  placeholder="PWD Full Name"
-                  value={pwdName}
-                  onChange={(e) => setPwdName(e.target.value)}
-                />
-              </div>
-            )}
-
-            {discountType === 'regular' && (
-              <div className="mt-2">
-                <Label className="text-xs mb-1 block">Discount Amount</Label>
+            {/* Discount Section */}
+            <div className="border-2 border-gray-300 rounded-lg p-3 bg-white">
+              <Label className="text-sm font-bold mb-2 block text-gray-700">💰 Discount Type</Label>
+              <Select value={discountType} onValueChange={(value) => setDiscountType(value)}>
+                <SelectTrigger className="h-12 text-base border-2 border-gray-400">
+                  <SelectValue placeholder="Select discount type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Discount</SelectItem>
+                  <SelectItem value="regular">Regular Discount</SelectItem>
+                </SelectContent>
+              </Select>
+              {discountType === 'regular' && (
                 <Input
                   type="number"
-                  placeholder="Enter discount amount..."
-                  value={discountAmount}
-                  onChange={(e) => setDiscountAmount(e.target.value)}
-                  onClick={() => openKeypad('discount')}
+                  value={regularDiscountPercent}
+                  onChange={(e) => setRegularDiscountPercent(parseFloat(e.target.value) || 0)}
+                  placeholder="Discount Amount"
+                  className="mt-2 h-10 text-base border-2 border-blue-400"
                 />
-              </div>
-            )}
-          </div>
-
-          {/* Totals */}
-          <div className="p-2 border-t space-y-1">
-            <div className="flex justify-between text-xs">
-              <span>Subtotal:</span>
-              <span>₱{calculateSubtotal().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              )}
             </div>
-            {calculateDiscount() > 0 && (
-              <div className="flex justify-between text-xs text-red-600">
-                <span>Discount:</span>
-                <span>-₱{calculateDiscount().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
-            )}
-            {freebieTotal > 0 && (
-              <div className="flex justify-between text-xs text-green-600">
-                <span>Freebie (Not Charged):</span>
-                <span>₱{freebieTotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-lg font-bold border-t pt-1">
-              <span>TOTAL:</span>
-              <span className="text-blue-600">
-                ₱{calculateTotal().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </div>
-          </div>
-
-          {/* Payment Method */}
-          <div className="p-2 border-t space-y-2">
-            <Label className="text-xs font-medium">Payment Method</Label>
 
             {/* Credit Sale Toggle */}
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="creditSale"
-                checked={isCreditSale}
-                onChange={(e) => setIsCreditSale(e.target.checked)}
-                className="w-4 h-4"
-                disabled={!selectedCustomer}
-              />
-              <label
-                htmlFor="creditSale"
-                className={`text-xs font-medium ${!selectedCustomer ? 'text-gray-400 cursor-not-allowed' : ''}`}
-              >
-                📝 Credit / Charge Invoice {!selectedCustomer && <span>(Select customer first)</span>}
-              </label>
+            <div className="border-2 border-gray-300 rounded-lg p-3 bg-white">
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="credit-sale"
+                  checked={isCreditSale}
+                  onChange={(e) => {
+                    if (!selectedCustomer && e.target.checked) {
+                      setError('Please select a customer first for credit sale')
+                      setTimeout(() => setError(''), 3000)
+                      return
+                    }
+                    setIsCreditSale(e.target.checked)
+                  }}
+                  disabled={!selectedCustomer}
+                  className="w-5 h-5"
+                />
+                <label htmlFor="credit-sale" className="text-sm font-bold cursor-pointer">
+                  📋 Credit Sale / Charge Invoice
+                </label>
+              </div>
+              {!selectedCustomer && (
+                <p className="text-xs text-red-600 mt-1">* Select customer to enable</p>
+              )}
             </div>
 
+            {/* Payment Methods */}
             {!isCreditSale && (
-              <>
+              <div className="border-2 border-gray-300 rounded-lg p-3 bg-white space-y-3">
+                <Label className="text-sm font-bold block text-gray-700">💳 Payment Method</Label>
+
                 {/* Cash Payment */}
-                <div className="space-y-1">
-                  <Label className="text-xs">💵 Cash Payment</Label>
+                <div>
+                  <Label className="text-xs font-medium mb-1 block">Cash Amount</Label>
                   <Input
-                    type="text"
-                    placeholder="Cash amount..."
-                    value={formatCurrencyDisplay(cashAmount)}
-                    onChange={(e) => setCashAmount(sanitizeCurrencyInput(e.target.value))}
-                    onClick={() => openKeypad('cash')}
-                    className="text-sm font-bold h-8"
-                    inputMode="decimal"
+                    type="number"
+                    value={cashAmount}
+                    onChange={(e) => setCashAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="h-12 text-xl font-bold border-2 border-green-400"
                   />
                 </div>
 
                 {/* Digital Payment */}
-                <div className="space-y-1">
-                  <Label className="text-xs">📱 Digital Payment</Label>
-                  <div className="flex gap-2">
-                    <Select value={digitalMethod} onValueChange={setDigitalMethod}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue placeholder="Method" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="gcash">GCash</SelectItem>
-                        <SelectItem value="maya">Maya</SelectItem>
-                      </SelectContent>
-                    </Select>
+                <div>
+                  <Label className="text-xs font-medium mb-1 block">Digital Payment</Label>
+                  <Select value={digitalMethod} onValueChange={(value) => setDigitalMethod(value)}>
+                    <SelectTrigger className="h-10 text-base border-2 border-gray-400 mb-2">
+                      <SelectValue placeholder="Select payment method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gcash">GCash</SelectItem>
+                      <SelectItem value="maya">Maya</SelectItem>
+                      <SelectItem value="other">Other E-Wallet</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    value={digitalAmount}
+                    onChange={(e) => setDigitalAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="h-12 text-xl font-bold border-2 border-blue-400"
+                  />
+                  {parseFloat(digitalAmount || '0') > 0 && (
                     <Input
                       type="text"
-                      placeholder="Amount..."
-                      value={formatCurrencyDisplay(digitalAmount)}
-                      onChange={(e) => setDigitalAmount(sanitizeCurrencyInput(e.target.value))}
-                      onClick={() => openKeypad('digital')}
-                      className="flex-1"
-                      inputMode="decimal"
-                      disabled={!digitalMethod}
+                      value={digitalReference}
+                      onChange={(e) => setDigitalReference(e.target.value)}
+                      placeholder="Reference Number"
+                      className="mt-2 h-10 text-base border-2 border-gray-300"
                     />
-                  </div>
-                  {digitalMethod && (
-                    <>
-                      <Input
-                        placeholder="Reference Number"
-                        value={digitalReference}
-                        onChange={(e) => setDigitalReference(e.target.value)}
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setShowCameraDialog(true)
-                            setTimeout(() => startCamera(), 100)
-                          }}
-                          className="flex-1"
-                        >
-                          📷 Capture Receipt
-                        </Button>
-                        {digitalPhoto && (
-                          <span className="text-xs text-green-600 flex items-center">
-                            ✓ Photo captured
-                          </span>
-                        )}
-                      </div>
-                    </>
                   )}
                 </div>
 
                 {/* Cheque Payment */}
-                <div className="space-y-1">
-                  <Label className="text-xs">🏦 Cheque Payment</Label>
+                <div>
+                  <Label className="text-xs font-medium mb-1 block">Cheque Payment</Label>
                   <Input
-                    type="text"
-                    placeholder="Cheque amount..."
-                    value={formatCurrencyDisplay(chequeAmount)}
-                    onChange={(e) => setChequeAmount(sanitizeCurrencyInput(e.target.value))}
-                    className="text-sm font-bold h-8"
-                    inputMode="decimal"
+                    type="number"
+                    value={chequeAmount}
+                    onChange={(e) => setChequeAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="h-12 text-xl font-bold border-2 border-amber-400"
                   />
-                  {chequeAmount && parseFloat(chequeAmount) > 0 && (
+                  {parseFloat(chequeAmount || '0') > 0 && (
                     <>
                       <Input
-                        placeholder="Cheque Number *"
+                        type="text"
                         value={chequeNumber}
                         onChange={(e) => setChequeNumber(e.target.value)}
-                        className="text-xs"
+                        placeholder="Cheque Number"
+                        className="mt-2 h-10 text-base border-2 border-gray-300"
                       />
                       <Input
-                        placeholder="Bank Name *"
+                        type="text"
                         value={chequeBank}
                         onChange={(e) => setChequeBank(e.target.value)}
-                        className="text-xs"
-                      />
-                      <Input
-                        type="date"
-                        placeholder="Cheque Date"
-                        value={chequeDate}
-                        onChange={(e) => setChequeDate(e.target.value)}
-                        className="text-xs"
+                        placeholder="Bank Name"
+                        className="mt-2 h-10 text-base border-2 border-gray-300"
                       />
                     </>
                   )}
                 </div>
-
-                {/* Change Display */}
-                {(cashAmount || digitalAmount || chequeAmount) && (
-                  <div className={`p-2 rounded ${calculateChange() >= 0 ? 'bg-green-50' : 'bg-red-50 border-2 border-red-500'}`}>
-                    <div className="flex justify-between text-xs mb-0.5">
-                      <span>Total Paid:</span>
-                      <span className="font-bold">₱{getTotalPayments().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className="flex justify-between text-sm font-bold">
-                      <span>Change:</span>
-                      <span className={calculateChange() >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        ₱{calculateChange().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                    {calculateChange() < 0 && (
-                      <div className="mt-2 p-2 bg-red-600 text-white rounded animate-blink">
-                        <div className="flex items-center justify-center space-x-2">
-                          <span className="text-lg">⚠️</span>
-                          <span className="font-bold text-sm">INSUFFICIENT PAYMENT DUE</span>
-                          <span className="text-lg">⚠️</span>
-                        </div>
-                        <div className="text-center text-xs mt-1">
-                          Short: ₱{Math.abs(calculateChange()).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-
-            {isCreditSale && (
-              <Alert>
-                <AlertDescription>
-                  Credit sales require customer selection. Customer will pay later.
-                </AlertDescription>
-              </Alert>
+              </div>
             )}
           </div>
 
-          {/* Checkout Button */}
-          <div className="p-2 border-t">
-            <Button
-              className="w-full py-6 text-xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-xl"
-              size="lg"
-              onClick={handleCheckout}
-              disabled={loading || cart.length === 0}
-            >
-              {loading ? '⏳ Processing...' : '🏪 COMPLETE SALE (Ctrl+P)'}
-            </Button>
+          {/* Total Summary & Complete Sale Button */}
+          <div className="border-t bg-gradient-to-b from-gray-50 to-white">
+            <div className="p-4 space-y-2">
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Subtotal:</span>
+                <span className="font-semibold">₱{calculateSubtotal().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              {calculateDiscount() > 0 && (
+                <div className="flex justify-between text-sm text-red-600">
+                  <span>Discount:</span>
+                  <span className="font-semibold">-₱{calculateDiscount().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-4xl font-bold border-t-2 pt-3 mt-2">
+                <span>TOTAL:</span>
+                <span className="text-blue-600">
+                  ₱{calculateTotal().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              {/* Change/Balance Display */}
+              {!isCreditSale && (
+                <div className="flex justify-between text-xl font-bold pt-2">
+                  <span className="text-gray-600">Change:</span>
+                  <span className="text-green-600">
+                    ₱{Math.max(0, (parseFloat(cashAmount || '0') + parseFloat(digitalAmount || '0') + parseFloat(chequeAmount || '0')) - calculateTotal()).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Complete Sale Button */}
+            <div className="p-3">
+              <Button
+                className="w-full py-7 text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-xl rounded-xl"
+                size="lg"
+                onClick={handleCheckout}
+                disabled={cart.length === 0}
+              >
+                ✅ COMPLETE SALE (Ctrl+P)
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -2750,23 +2653,352 @@ export default function POSEnhancedPage() {
         />
       )}
 
-      {/* Serial Number Selector Dialog */}
+      {/* Manual Serial Number Entry Dialog - Simple Text Input */}
       {showSerialNumberDialog && serialNumberCartIndex !== null && (
-        <SerialNumberSelector
-          open={showSerialNumberDialog}
-          onClose={() => {
-            setShowSerialNumberDialog(false)
-            setSerialNumberCartIndex(null)
-          }}
-          productId={cart[serialNumberCartIndex]?.productId}
-          variationId={cart[serialNumberCartIndex]?.productVariationId}
-          locationId={currentShift?.locationId}
-          productName={cart[serialNumberCartIndex]?.name}
-          quantityRequired={cart[serialNumberCartIndex]?.quantity}
-          onConfirm={handleSerialNumberConfirm}
-          preselectedIds={cart[serialNumberCartIndex]?.serialNumberIds || []}
-        />
+        <Dialog open={showSerialNumberDialog} onOpenChange={setShowSerialNumberDialog}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Add Serial Numbers</DialogTitle>
+              <p className="text-sm text-gray-600 mt-2">
+                Product: <strong>{cart[serialNumberCartIndex]?.name}</strong>
+                <br />
+                Quantity: <strong>{cart[serialNumberCartIndex]?.quantity}</strong>
+              </p>
+            </DialogHeader>
+            <div className="space-y-3 py-4">
+              <Label>Enter Serial Numbers (one per line)</Label>
+              <Textarea
+                placeholder="Example:&#10;SN123456789&#10;SN987654321&#10;IMEI:123456789012345"
+                className="min-h-[200px] font-mono"
+                defaultValue={cart[serialNumberCartIndex]?.serialNumbers?.map((sn: any) => sn.serialNumber).join('\n') || ''}
+                id="serial-numbers-input"
+                autoFocus
+                onKeyDown={(e) => {
+                  // Allow Enter key to create new line (don't let it trigger anything else)
+                  if (e.key === 'Enter') {
+                    e.stopPropagation()
+                  }
+                }}
+              />
+              <p className="text-xs text-gray-500">
+                💡 Tip: Enter one serial number per line. You can enter {cart[serialNumberCartIndex]?.quantity} serial number(s) for this item.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowSerialNumberDialog(false)
+                  setSerialNumberCartIndex(null)
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  const textarea = document.getElementById('serial-numbers-input') as HTMLTextAreaElement
+                  const serialNumbers = textarea.value
+                    .split('\n')
+                    .map(sn => sn.trim())
+                    .filter(sn => sn.length > 0)
+
+                  if (serialNumbers.length === 0) {
+                    setError('Please enter at least one serial number')
+                    setTimeout(() => setError(''), 3000)
+                    return
+                  }
+
+                  handleSerialNumberConfirm(serialNumbers)
+                }}
+              >
+                Save Serial Numbers
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
+
+      {/* Payment Modal - Comprehensive Payment Collection */}
+      <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">💳 Payment Collection</DialogTitle>
+            <p className="text-gray-600">Review cart and collect payment</p>
+          </DialogHeader>
+
+          <div className="grid grid-cols-2 gap-6 py-4">
+            {/* Left Column - Cart Summary */}
+            <div className="space-y-4">
+              <h3 className="font-bold text-lg border-b pb-2">🛒 Cart Summary</h3>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto border rounded-lg p-3 bg-gray-50">
+                {cart.map((item, index) => (
+                  <div key={index} className="flex justify-between items-center text-sm py-2 border-b last:border-0">
+                    <div className="flex-1">
+                      <p className="font-semibold">{item.name}</p>
+                      <p className="text-xs text-gray-600">
+                        ₱{item.unitPrice.toFixed(2)} × {item.quantity}
+                      </p>
+                    </div>
+                    <p className="font-bold text-blue-600">
+                      ₱{(item.unitPrice * item.quantity).toFixed(2)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Total Summary */}
+              <div className="space-y-2 border-t pt-3">
+                <div className="flex justify-between text-sm">
+                  <span>Subtotal:</span>
+                  <span className="font-semibold">₱{calculateSubtotal().toFixed(2)}</span>
+                </div>
+                {calculateDiscount() > 0 && (
+                  <div className="flex justify-between text-sm text-red-600">
+                    <span>Discount:</span>
+                    <span className="font-semibold">-₱{calculateDiscount().toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-xl font-bold border-t-2 pt-2">
+                  <span>TOTAL:</span>
+                  <span className="text-blue-600">₱{calculateTotal().toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column - Payment Options */}
+            <div className="space-y-4">
+              {/* Discount Section */}
+              <div className="border rounded-lg p-4 bg-yellow-50">
+                <Label className="font-bold mb-2 block">💰 Discount</Label>
+                <Select value={discountType} onValueChange={setDiscountType}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Discount</SelectItem>
+                    <SelectItem value="senior">Senior Citizen (20%)</SelectItem>
+                    <SelectItem value="pwd">PWD (20%)</SelectItem>
+                    <SelectItem value="regular">Regular Discount</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {discountType === 'senior' && (
+                  <div className="mt-2 space-y-2">
+                    <Input
+                      placeholder="SC ID Number"
+                      value={seniorCitizenId}
+                      onChange={(e) => setSeniorCitizenId(e.target.value)}
+                    />
+                    <Input
+                      placeholder="SC Full Name"
+                      value={seniorCitizenName}
+                      onChange={(e) => setSeniorCitizenName(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                {discountType === 'pwd' && (
+                  <div className="mt-2 space-y-2">
+                    <Input
+                      placeholder="PWD ID Number"
+                      value={pwdId}
+                      onChange={(e) => setPwdId(e.target.value)}
+                    />
+                    <Input
+                      placeholder="PWD Full Name"
+                      value={pwdName}
+                      onChange={(e) => setPwdName(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                {discountType === 'regular' && (
+                  <div className="mt-2">
+                    <Label className="text-xs mb-1 block">Discount Amount</Label>
+                    <Input
+                      type="number"
+                      placeholder="Enter discount amount..."
+                      value={discountAmount}
+                      onChange={(e) => setDiscountAmount(e.target.value)}
+                      onClick={() => openKeypad('discount')}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Credit Sale Toggle */}
+              <div className="border rounded-lg p-4 bg-blue-50">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="creditSaleModal"
+                    checked={isCreditSale}
+                    onChange={(e) => setIsCreditSale(e.target.checked)}
+                    className="w-4 h-4"
+                    disabled={!selectedCustomer}
+                  />
+                  <label
+                    htmlFor="creditSaleModal"
+                    className={`text-sm font-medium ${!selectedCustomer ? 'text-gray-400 cursor-not-allowed' : ''}`}
+                  >
+                    📝 Credit / Charge Invoice {!selectedCustomer && <span>(Select customer first)</span>}
+                  </label>
+                </div>
+                {isCreditSale && (
+                  <Alert className="mt-2">
+                    <AlertDescription className="text-xs">
+                      Credit sales require customer selection. Customer will pay later.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+
+              {/* Payment Methods (only if not credit sale) */}
+              {!isCreditSale && (
+                <div className="space-y-3">
+                  {/* Cash Payment */}
+                  <div className="border rounded-lg p-3 bg-green-50">
+                    <Label className="text-sm font-bold mb-2 block">💵 Cash Payment</Label>
+                    <Input
+                      type="text"
+                      placeholder="Cash amount..."
+                      value={formatCurrencyDisplay(cashAmount)}
+                      onChange={(e) => setCashAmount(sanitizeCurrencyInput(e.target.value))}
+                      onClick={() => openKeypad('cash')}
+                      className="text-lg font-bold"
+                      inputMode="decimal"
+                    />
+                  </div>
+
+                  {/* Digital Payment */}
+                  <div className="border rounded-lg p-3 bg-purple-50">
+                    <Label className="text-sm font-bold mb-2 block">📱 Digital Payment</Label>
+                    <div className="flex gap-2 mb-2">
+                      <Select value={digitalMethod} onValueChange={setDigitalMethod}>
+                        <SelectTrigger className="w-32">
+                          <SelectValue placeholder="Method" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="gcash">GCash</SelectItem>
+                          <SelectItem value="maya">Maya</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="text"
+                        placeholder="Amount..."
+                        value={formatCurrencyDisplay(digitalAmount)}
+                        onChange={(e) => setDigitalAmount(sanitizeCurrencyInput(e.target.value))}
+                        onClick={() => openKeypad('digital')}
+                        className="flex-1"
+                        inputMode="decimal"
+                        disabled={!digitalMethod}
+                      />
+                    </div>
+                    {digitalMethod && (
+                      <>
+                        <Input
+                          placeholder="Reference Number"
+                          value={digitalReference}
+                          onChange={(e) => setDigitalReference(e.target.value)}
+                          className="mb-2"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowCameraDialog(true)
+                            setTimeout(() => startCamera(), 100)
+                          }}
+                          className="w-full"
+                        >
+                          📷 Capture Receipt {digitalPhoto && '✓'}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Cheque Payment */}
+                  <div className="border rounded-lg p-3 bg-orange-50">
+                    <Label className="text-sm font-bold mb-2 block">🏦 Cheque Payment</Label>
+                    <Input
+                      type="text"
+                      placeholder="Cheque amount..."
+                      value={formatCurrencyDisplay(chequeAmount)}
+                      onChange={(e) => setChequeAmount(sanitizeCurrencyInput(e.target.value))}
+                      className="text-lg font-bold mb-2"
+                      inputMode="decimal"
+                    />
+                    {chequeAmount && parseFloat(chequeAmount) > 0 && (
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Cheque Number *"
+                          value={chequeNumber}
+                          onChange={(e) => setChequeNumber(e.target.value)}
+                          className="text-sm"
+                        />
+                        <Input
+                          placeholder="Bank Name *"
+                          value={chequeBank}
+                          onChange={(e) => setChequeBank(e.target.value)}
+                          className="text-sm"
+                        />
+                        <Input
+                          type="date"
+                          placeholder="Cheque Date"
+                          value={chequeDate}
+                          onChange={(e) => setChequeDate(e.target.value)}
+                          className="text-sm"
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Change Display */}
+                  {(cashAmount || digitalAmount || chequeAmount) && (
+                    <div className={`border-2 rounded-lg p-4 ${calculateChange() >= 0 ? 'bg-green-100 border-green-500' : 'bg-red-100 border-red-500'}`}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span>Total Paid:</span>
+                        <span className="font-bold">₱{getTotalPayments().toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-xl font-bold">
+                        <span>Change:</span>
+                        <span className={calculateChange() >= 0 ? 'text-green-600' : 'text-red-600'}>
+                          ₱{calculateChange().toFixed(2)}
+                        </span>
+                      </div>
+                      {calculateChange() < 0 && (
+                        <div className="mt-2 text-center text-red-600 font-bold animate-pulse">
+                          ⚠️ INSUFFICIENT PAYMENT ⚠️
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowPaymentModal(false)}
+              className="text-lg"
+            >
+              Cancel
+            </Button>
+            <Button
+              className="text-lg py-6 px-8 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+              onClick={() => {
+                setShowPaymentModal(false)
+                handleCheckout()
+              }}
+              disabled={loading || cart.length === 0}
+            >
+              {loading ? '⏳ Processing...' : '🏪 COMPLETE SALE'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

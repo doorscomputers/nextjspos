@@ -20,7 +20,6 @@ import Pagination, { ItemsPerPage, ResultsInfo } from '@/components/Pagination'
 import { exportToCSV, exportToExcel, exportToPDF, printTable, ExportColumn } from '@/lib/exportUtils'
 import { DocumentArrowDownIcon, PrinterIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
 import { AddToLocationModal, RemoveFromLocationModal } from '@/components/BulkLocationModals'
-import { useTableSort } from '@/hooks/useTableSort'
 import { SortableTableHead } from '@/components/ui/sortable-table-head'
 import ProductFiltersPanel, { ProductFilters } from '@/components/ProductFiltersPanel'
 import { debounce } from '@/utils/debounce'
@@ -38,7 +37,10 @@ interface Product {
   brand: { id: number; name: string } | null
   unit: { id: number; name: string; shortName: string } | null
   tax: { id: number; name: string; amount: number } | null
-  variations: ProductVariation[]
+  variations?: ProductVariation[]
+  totalStock?: number | null
+  purchasePrice?: number | null
+  sellingPrice?: number | null
   createdAt: string
 }
 
@@ -79,6 +81,8 @@ export default function ProductsPage() {
     taxName: ''
   })
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
+
+  const [sortState, setSortState] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null)
 
   // Pagination state (server-side)
   const [currentPage, setCurrentPage] = useState(1)
@@ -158,23 +162,52 @@ export default function ProductsPage() {
         }
       })
 
-      const url = `/api/products${params.toString() ? '?' + params.toString() : ''}`
+      if (sortState?.key && sortState.direction) {
+        params.append('sortBy', sortState.key)
+        params.append('sortDirection', sortState.direction)
+      }
+
+      const url = `/api/products/list${params.toString() ? '?' + params.toString() : ''}`
       const response = await fetch(url)
       const data = await response.json()
       if (response.ok) {
-        setProducts(data.products)
-        // Update pagination metadata from server
+        setProducts(Array.isArray(data.products) ? data.products : [])
+        setSelectedProductIds([])
         if (data.pagination) {
-          setTotalCount(data.pagination.totalCount)
-          setTotalPages(data.pagination.totalPages)
+          const nextTotalCount = data.pagination.totalCount ?? 0
+          const nextTotalPages = data.pagination.totalPages ?? 0
+          setTotalCount(nextTotalCount)
+          setTotalPages(nextTotalPages)
+          if (nextTotalPages > 0 && currentPage > nextTotalPages) {
+            setCurrentPage(nextTotalPages)
+          } else if (nextTotalPages === 0 && currentPage !== 1) {
+            setCurrentPage(1)
+          }
+        } else {
+          setTotalCount(data.products ? data.products.length : 0)
+          setTotalPages(0)
+          if (currentPage !== 1) {
+            setCurrentPage(1)
+          }
         }
+      } else {
+        setProducts([])
+        setTotalCount(0)
+        setTotalPages(0)
+        setSelectedProductIds([])
+        toast.error(data.error || 'Failed to load products')
       }
     } catch (error) {
       console.error('Error fetching products:', error)
+      setProducts([])
+      setTotalCount(0)
+      setTotalPages(0)
+      setSelectedProductIds([])
+      toast.error('Failed to load products')
     } finally {
       setLoading(false)
     }
-  }, [activeFilter, filters, currentPage, itemsPerPage])
+  }, [activeFilter, filters, currentPage, itemsPerPage, sortState])
 
   // Debounced fetch function to avoid excessive API calls
   const debouncedFetchProducts = useCallback(debounce(fetchProducts, 300), [fetchProducts])
@@ -459,20 +492,13 @@ export default function ProductsPage() {
 
   const getTotalStock = (product: Product) => {
     if (!product.enableStock) return 'N/A'
-    if (product.type === 'variable') {
-      return product.variations.reduce((total, variation) => {
-        const varStock = variation.variationLocationDetails.reduce((sum, detail) => sum + parseFloat(detail.qtyAvailable.toString()), 0)
-        return total + varStock
-      }, 0).toFixed(2)
+    if (product.totalStock !== undefined && product.totalStock !== null) {
+      return Number(product.totalStock).toFixed(2)
     }
     return '0.00'
   }
 
-  // Client-side sorting (only for current page)
-  const { sortedData, sortConfig, requestSort } = useTableSort<Product>(products, { key: 'name', direction: 'asc' })
-
-  // Pagination is now server-side, so we use the products directly
-  const paginatedProducts = sortedData
+  const paginatedProducts = products
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + paginatedProducts.length
 
@@ -507,6 +533,21 @@ export default function ProductsPage() {
       ...prev,
       [key]: value,
     }))
+  }
+
+  const handleSort = (key: string) => {
+    setSortState((prev) => {
+      if (prev?.key === key) {
+        if (prev.direction === 'asc') {
+          return { key, direction: 'desc' }
+        }
+        if (prev.direction === 'desc') {
+          return null
+        }
+      }
+      return { key, direction: 'asc' }
+    })
+    setCurrentPage(1)
   }
 
   // Export handlers - respecting visible columns
@@ -677,7 +718,7 @@ export default function ProductsPage() {
       <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
         <div className="bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-gray-700 shadow-sm">
           <ResultsInfo
-            startIndex={startIndex + 1}
+            startIndex={startIndex}
             endIndex={Math.min(endIndex, totalCount)}
             totalItems={totalCount}
             itemName="products"
@@ -736,6 +777,7 @@ export default function ProductsPage() {
               setItemsPerPage(value)
               setCurrentPage(1)
             }}
+            options={[10, 25, 50, 100]}
           />
         </div>
       </div>
@@ -766,9 +808,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('product') && (
                   <SortableTableHead
                     sortKey="name"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
+                    currentSortKey={sortState?.key ?? null}
+                    currentSortDirection={sortState?.direction ?? null}
+                    onSort={handleSort}
                     className="font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Product
@@ -780,9 +822,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('sku') && (
                   <SortableTableHead
                     sortKey="sku"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
+                    currentSortKey={sortState?.key ?? null}
+                    currentSortDirection={sortState?.direction ?? null}
+                    onSort={handleSort}
                     className="font-semibold text-slate-700 dark:text-gray-200"
                   >
                     SKU
@@ -791,9 +833,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('status') && (
                   <SortableTableHead
                     sortKey="isActive"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
+                    currentSortKey={sortState?.key ?? null}
+                    currentSortDirection={sortState?.direction ?? null}
+                    onSort={handleSort}
                     className="font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Status
@@ -802,9 +844,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('category') && (
                   <SortableTableHead
                     sortKey="category.name"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
+                    currentSortKey={sortState?.key ?? null}
+                    currentSortDirection={sortState?.direction ?? null}
+                    onSort={handleSort}
                     className="font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Category
@@ -813,9 +855,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('brand') && (
                   <SortableTableHead
                     sortKey="brand.name"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
+                    currentSortKey={sortState?.key ?? null}
+                    currentSortDirection={sortState?.direction ?? null}
+                    onSort={handleSort}
                     className="font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Brand
@@ -824,9 +866,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('unit') && (
                   <SortableTableHead
                     sortKey="unit.shortName"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
+                    currentSortKey={sortState?.key ?? null}
+                    currentSortDirection={sortState?.direction ?? null}
+                    onSort={handleSort}
                     className="font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Unit
@@ -838,9 +880,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('type') && (
                   <SortableTableHead
                     sortKey="type"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
+                    currentSortKey={sortState?.key ?? null}
+                    currentSortDirection={sortState?.direction ?? null}
+                    onSort={handleSort}
                     className="font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Type
@@ -849,9 +891,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('tax') && (
                   <SortableTableHead
                     sortKey="tax.name"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
+                    currentSortKey={sortState?.key ?? null}
+                    currentSortDirection={sortState?.direction ?? null}
+                    onSort={handleSort}
                     className="font-semibold text-slate-700 dark:text-gray-200"
                   >
                     Tax

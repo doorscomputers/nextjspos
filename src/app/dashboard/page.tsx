@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { usePermissions } from "@/hooks/usePermissions"
 import { PERMISSIONS } from "@/lib/rbac"
 import { formatCurrency } from "@/lib/currencyUtils"
@@ -16,7 +17,6 @@ import {
   ArrowPathIcon,
 } from "@heroicons/react/24/outline"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import UnclosedShiftWarning from "@/components/UnclosedShiftWarning"
 import CurrentShiftWidget from "@/components/CurrentShiftWidget"
 import {
   Select,
@@ -118,6 +118,7 @@ interface SalesByLocationData {
 }
 
 export default function DashboardPageV2() {
+  const router = useRouter()
   const { can, hasAnyRole, user } = usePermissions()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -131,7 +132,33 @@ export default function DashboardPageV2() {
   const [loadingSales, setLoadingSales] = useState(false)
 
   // Supplier payments date range filter
-  const [supplierPaymentsDateRange, setSupplierPaymentsDateRange] = useState<'today' | 'week' | 'month' | 'all'>('month')
+  const [supplierPaymentsDateRange, setSupplierPaymentsDateRange] = useState<'today' | 'week' | 'month' | 'all'>('all')
+
+  // AUTO-REDIRECT: Cashiers with active shifts should go straight to POS
+  useEffect(() => {
+    const checkShiftAndRedirect = async () => {
+      // Only auto-redirect for cashier roles with shift permissions
+      if (hasAnyRole([...CASHIER_ROLES]) && can(PERMISSIONS.SHIFT_OPEN)) {
+        try {
+          const response = await fetch('/api/shifts/check-unclosed')
+          if (!response.ok) return
+
+          const data = await response.json()
+          if (data.hasUnclosedShift) {
+            // Cashier has an active shift - redirect to POS
+            console.log('[Dashboard] Auto-redirecting cashier to POS (active shift detected)')
+            router.push('/dashboard/pos')
+          }
+        } catch (error) {
+          console.error('[Dashboard] Error checking shift for auto-redirect:', error)
+        }
+      }
+    }
+
+    if (user) {
+      checkShiftAndRedirect()
+    }
+  }, [user, hasAnyRole, can, router])
 
   useEffect(() => {
     fetchLocations()
@@ -335,9 +362,6 @@ export default function DashboardPageV2() {
 
   return (
     <div className="space-y-6">
-      {/* Unclosed Shift Warning Modal */}
-      <UnclosedShiftWarning />
-
       {/* Header with Location Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

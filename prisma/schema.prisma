@@ -249,6 +249,7 @@ model BusinessLocation {
   mobile          String?
   alternateNumber String? @map("alternate_number")
   email           String?
+  locationCode    String? @unique @map("location_code") @db.VarChar(20) // RFID card code for location verification
   isActive        Boolean @default(true) @map("is_active")
 
   // Timestamps

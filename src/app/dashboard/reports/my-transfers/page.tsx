@@ -141,7 +141,8 @@ export default function MyTransfersReport() {
 
   const fetchLocations = async () => {
     try {
-      const response = await fetch('/api/locations')
+      // Use the all-active endpoint to get ALL locations (not filtered by RBAC)
+      const response = await fetch('/api/locations/all-active')
       const result = await response.json()
       if (response.ok && result.success) {
         setLocations(result.data || [])

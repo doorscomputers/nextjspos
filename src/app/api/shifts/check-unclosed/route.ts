@@ -43,6 +43,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ hasUnclosedShift: false })
     }
 
+    // CRITICAL: Validate that shift has valid beginning cash
+    // If beginningCash is null or <= 0, treat as invalid shift
+    if (!unclosedShift.beginningCash || parseFloat(unclosedShift.beginningCash.toString()) <= 0) {
+      console.warn('[check-unclosed] Found shift with invalid beginningCash:', {
+        shiftId: unclosedShift.id,
+        shiftNumber: unclosedShift.shiftNumber,
+        beginningCash: unclosedShift.beginningCash
+      })
+      return NextResponse.json({
+        hasUnclosedShift: false,
+        invalidShift: {
+          id: unclosedShift.id,
+          shiftNumber: unclosedShift.shiftNumber,
+          reason: 'Missing or invalid beginning cash'
+        }
+      })
+    }
+
     // Fetch location separately since relation doesn't exist in schema
     const location = await prisma.businessLocation.findUnique({
       where: { id: unclosedShift.locationId },

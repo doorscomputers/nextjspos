@@ -11,6 +11,7 @@ export default function DiscountAnalysisReport() {
   const [breakdown, setBreakdown] = useState<any>(null)
   const [trend, setTrend] = useState<any[]>([])
   const [locations, setLocations] = useState<any[]>([])
+  const [hasAccessToAll, setHasAccessToAll] = useState<boolean>(false)
 
   // Initialize with default date range (last 30 days)
   const [startDate, setStartDate] = useState(() => {
@@ -28,13 +29,48 @@ export default function DiscountAnalysisReport() {
 
   const fetchLocations = async () => {
     try {
-      const res = await fetch('/api/locations')
-      if (res.ok) {
-        const data = await res.json()
-        setLocations(data.locations || [])
+      let list: any[] = []
+      let accessAll = false
+      let primaryLocationId: string | null = null
+      try {
+        const ulRes = await fetch('/api/user-locations')
+        if (ulRes.ok) {
+          const ul = await ulRes.json()
+          list = Array.isArray(ul.locations) ? ul.locations : []
+          list = list.filter((l: any) => l?.name && !l.name.toLowerCase().includes('warehouse'))
+          accessAll = Boolean(ul.hasAccessToAll)
+          primaryLocationId = ul.primaryLocationId ? String(ul.primaryLocationId) : null
+        }
+      } catch (e) {
+        console.warn('Failed /api/user-locations, fallback to /api/locations', e)
+      }
+
+      if (!list.length) {
+        const res = await fetch('/api/locations')
+        if (res.ok) {
+          const data = await res.json()
+          const raw = Array.isArray(data)
+            ? data
+            : Array.isArray(data.locations)
+              ? data.locations
+              : Array.isArray(data.data)
+                ? data.data
+                : []
+          list = raw.filter((l: any) => l?.name && !l.name.toLowerCase().includes('warehouse'))
+          accessAll = true
+        }
+      }
+
+      setLocations(list)
+      setHasAccessToAll(accessAll)
+      if (!accessAll) {
+        const resolved = primaryLocationId || (list[0]?.id ? String(list[0].id) : '')
+        setLocationId(resolved)
       }
     } catch (error) {
       console.error('Error:', error)
+      setLocations([])
+      setHasAccessToAll(false)
     }
   }
 
@@ -250,7 +286,9 @@ export default function DiscountAnalysisReport() {
               onChange={(e) => setLocationId(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             >
-              <option value="">All Locations</option>
+              {hasAccessToAll && (
+                <option value="">All Locations</option>
+              )}
               {locations.map((loc) => (
                 <option key={loc.id} value={loc.id}>{loc.name}</option>
               ))}
@@ -263,23 +301,23 @@ export default function DiscountAnalysisReport() {
           <button
             onClick={fetchReport}
             disabled={loading}
-            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm rounded-lg disabled:opacity-50 transition-colors font-medium"
           >
             {loading ? 'Loading...' : 'Generate Report'}
           </button>
           <button
             onClick={exportToExcel}
             disabled={!breakdown}
-            className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+            className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white shadow-sm rounded-lg disabled:opacity-50 transition-colors font-medium"
           >
             Export to Excel
           </button>
           <button
-            onClick={exportToPDF}
+            onClick={() => window.print()}
             disabled={!breakdown}
-            className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50"
+            className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white shadow-sm rounded-lg disabled:opacity-50 transition-colors font-medium"
           >
-            Export to PDF
+            Print Report
           </button>
         </div>
       </div>

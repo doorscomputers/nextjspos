@@ -79,24 +79,7 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
-        sale: {
-          select: {
-            id: true,
-            invoiceNumber: true,
-            saleDate: true,
-            totalAmount: true,
-            customer: {
-              select: {
-                id: true,
-                name: true,
-                mobile: true,
-                email: true,
-              },
-            },
-          },
-        },
         warrantyClaims: {
-          where: { deletedAt: null },
           orderBy: { claimDate: 'desc' },
           include: {
             location: {
@@ -208,15 +191,11 @@ export async function GET(request: NextRequest) {
         } : null,
 
         // Sale info (if sold)
-        saleInfo: serialRecord.sale ? {
-          invoiceNumber: serialRecord.sale.invoiceNumber,
-          saleDate: serialRecord.sale.saleDate,
-          totalAmount: Number(serialRecord.sale.totalAmount),
-          customer: serialRecord.sale.customer,
-        } : serialRecord.status === 'sold' ? {
+        saleInfo: serialRecord.status === 'sold' ? {
+          saleId: serialRecord.saleId,
           soldAt: serialRecord.soldAt,
           soldTo: serialRecord.soldTo,
-          salePrice: serialRecord.salePrice,
+          salePrice: serialRecord.salePrice ? Number(serialRecord.salePrice) : null,
         } : null,
 
         // Purchase cost
