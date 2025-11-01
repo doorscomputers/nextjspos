@@ -425,16 +425,21 @@ export default function CreatePurchaseOrderPage() {
                   <SelectValue placeholder="Select receiving location" />
                 </SelectTrigger>
                 <SelectContent>
-                  {locations
+                  {Array.isArray(locations) && locations
                     .filter((loc) => session?.user?.locationIds?.includes(loc.id))
                     .map((location) => (
                       <SelectItem key={location.id} value={location.id.toString()}>
                         {location.name}
                       </SelectItem>
                     ))}
-                  {locations.filter((loc) => session?.user?.locationIds?.includes(loc.id)).length === 0 && (
+                  {Array.isArray(locations) && locations.filter((loc) => session?.user?.locationIds?.includes(loc.id)).length === 0 && (
                     <div className="px-2 py-6 text-center text-sm text-gray-500">
                       No locations assigned to you
+                    </div>
+                  )}
+                  {!Array.isArray(locations) && (
+                    <div className="px-2 py-6 text-center text-sm text-gray-500">
+                      Loading locations...
                     </div>
                   )}
                 </SelectContent>
@@ -670,10 +675,10 @@ export default function CreatePurchaseOrderPage() {
                   ₱{calculateTotal().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
-                  Supplier: {suppliers.find(s => s.id.toString() === supplierId)?.name || 'Unknown'}
+                  Supplier: {Array.isArray(suppliers) ? suppliers.find(s => s.id.toString() === supplierId)?.name || 'Unknown' : 'Unknown'}
                 </p>
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  Receiving Location: {locations.find(l => l.id.toString() === warehouseLocationId)?.name || 'Unknown'}
+                  Receiving Location: {Array.isArray(locations) ? locations.find(l => l.id.toString() === warehouseLocationId)?.name || 'Unknown' : 'Unknown'}
                 </p>
               </div>
               <p className="text-sm mt-2">
