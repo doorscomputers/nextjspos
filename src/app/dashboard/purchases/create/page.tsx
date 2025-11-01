@@ -82,6 +82,7 @@ export default function CreatePurchaseOrderPage() {
   const [locations, setLocations] = useState<Location[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [myLocation, setMyLocation] = useState<{ id: number; name: string } | null>(null)
 
   // Supplier search and quick add
   const [supplierSearchTerm, setSupplierSearchTerm] = useState('')
@@ -104,8 +105,27 @@ export default function CreatePurchaseOrderPage() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
   useEffect(() => {
+    fetchMyLocation()
     fetchData()
   }, [])
+
+  const fetchMyLocation = async () => {
+    try {
+      const res = await fetch('/api/user-locations/my-location')
+      const data = await res.json()
+      if (data?.location) {
+        const userLoc = { id: data.location.id, name: data.location.name }
+        setMyLocation(userLoc)
+        setWarehouseLocationId(userLoc.id.toString())
+        setWarehouseLocationName(userLoc.name)
+      } else {
+        toast.error('No location assigned to your account.')
+      }
+    } catch (err) {
+      console.error('Error fetching my location:', err)
+      toast.error('Unable to fetch your assigned location')
+    }
+  }
 
   const fetchData = async () => {
     try {
@@ -420,32 +440,40 @@ export default function CreatePurchaseOrderPage() {
               <Label htmlFor="location" className="text-gray-900 dark:text-gray-200">
                 Receiving Location <span className="text-red-500">*</span>
               </Label>
-              <Select value={warehouseLocationId} onValueChange={setWarehouseLocationId}>
-                <SelectTrigger id="location">
+              <Select value={warehouseLocationId} onValueChange={setWarehouseLocationId} disabled={!!myLocation}>
+                <SelectTrigger id="location" className={myLocation ? "bg-gray-100 dark:bg-gray-700 cursor-not-allowed" : ""}>
                   <SelectValue placeholder="Select receiving location" />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.isArray(locations) && locations
-                    .filter((loc) => session?.user?.locationIds?.includes(loc.id))
-                    .map((location) => (
-                      <SelectItem key={location.id} value={location.id.toString()}>
-                        {location.name}
-                      </SelectItem>
-                    ))}
-                  {Array.isArray(locations) && locations.filter((loc) => session?.user?.locationIds?.includes(loc.id)).length === 0 && (
-                    <div className="px-2 py-6 text-center text-sm text-gray-500">
-                      No locations assigned to you
-                    </div>
-                  )}
-                  {!Array.isArray(locations) && (
-                    <div className="px-2 py-6 text-center text-sm text-gray-500">
-                      Loading locations...
-                    </div>
+                  {myLocation ? (
+                    <SelectItem key={myLocation.id} value={myLocation.id.toString()}>
+                      {myLocation.name}
+                    </SelectItem>
+                  ) : (
+                    <>
+                      {Array.isArray(locations) && locations
+                        .filter((loc) => session?.user?.locationIds?.includes(loc.id))
+                        .map((location) => (
+                          <SelectItem key={location.id} value={location.id.toString()}>
+                            {location.name}
+                          </SelectItem>
+                        ))}
+                      {Array.isArray(locations) && locations.filter((loc) => session?.user?.locationIds?.includes(loc.id)).length === 0 && (
+                        <div className="px-2 py-6 text-center text-sm text-gray-500">
+                          No locations assigned to you
+                        </div>
+                      )}
+                      {!Array.isArray(locations) && (
+                        <div className="px-2 py-6 text-center text-sm text-gray-500">
+                          Loading locations...
+                        </div>
+                      )}
+                    </>
                   )}
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Select the branch/location where this purchase will be received
+                {myLocation ? 'Fixed to your assigned location' : 'Select the branch/location where this purchase will be received'}
               </p>
             </div>
 
