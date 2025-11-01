@@ -1,29 +1,85 @@
 "use client"
 
 import { signIn } from "next-auth/react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, MapPin } from "lucide-react"
 import AnimatedLogo from "@/components/AnimatedLogo"
 
 export default function LoginPage() {
   const router = useRouter()
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  const [locationId, setLocationId] = useState("")
+  const [locationName, setLocationName] = useState("")
+  const [rfidCode, setRfidCode] = useState("")
+  const [rfidCodeActual, setRfidCodeActual] = useState("") // Store actual code for verification
+  const [rfidVerified, setRfidVerified] = useState(false)
+  const [verifyingRfid, setVerifyingRfid] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
 
+  // Handle RFID card scan (triggered on Enter key)
+  const handleRfidScan = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && rfidCode.trim()) {
+      e.preventDefault()
+      setVerifyingRfid(true)
+      setError("")
+
+      const scannedCode = rfidCode.trim()
+
+      try {
+        const response = await fetch(`/api/locations/verify-code?code=${scannedCode}`)
+        const data = await response.json()
+
+        if (data.valid) {
+          setLocationId(data.locationId.toString())
+          setLocationName(data.locationName)
+          setRfidCodeActual(scannedCode) // Store actual code
+          setRfidVerified(true)
+          console.log(`[Login] ✓ RFID verified: ${data.locationName}`)
+        } else {
+          setError(data.error || "Invalid RFID code. Please scan the correct card for this location.")
+          setRfidCode("")
+          setRfidCodeActual("")
+          setRfidVerified(false)
+        }
+      } catch (err: any) {
+        setError("Failed to verify RFID code. Please try again.")
+        setRfidCode("")
+        setRfidCodeActual("")
+        setRfidVerified(false)
+      } finally {
+        setVerifyingRfid(false)
+      }
+    }
+  }
+
+  const clearRfidScan = () => {
+    setRfidCode("")
+    setRfidCodeActual("")
+    setLocationId("")
+    setLocationName("")
+    setRfidVerified(false)
+    setError("")
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+
+    // Location is now optional - auth.ts will enforce it only for non-admin roles
+    // Admins can skip RFID scanning entirely
+
     setLoading(true)
 
     try {
       const result = await signIn("credentials", {
         username,
         password,
+        locationId,  // Pass location ID to auth
         redirect: false,
       })
 
@@ -115,6 +171,60 @@ export default function LoginPage() {
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
+          </div>
+
+          {/* RFID Location Scanner */}
+          <div>
+            <label htmlFor="rfid" className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              Scan Location RFID Card (Cashiers/Managers only)
+            </label>
+
+            {!rfidVerified ? (
+              <>
+                <input
+                  id="rfid"
+                  name="rfid"
+                  type="password"
+                  className="appearance-none block w-full px-4 py-3 bg-black/50 border-2 border-blue-500 rounded-lg text-white font-mono text-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all placeholder-gray-500"
+                  placeholder="Scan RFID card here..."
+                  value={rfidCode}
+                  onChange={(e) => setRfidCode(e.target.value)}
+                  onKeyDown={handleRfidScan}
+                  disabled={verifyingRfid}
+                  autoFocus
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  📱 Scan the RFID card at your location, then press Enter
+                </p>
+                <p className="mt-1 text-xs text-yellow-400">
+                  ⚠️ Admins can skip this field - location scan not required for admin roles
+                </p>
+              </>
+            ) : (
+              <div className="bg-green-900/30 border-2 border-green-500 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-10 h-10 bg-green-500 rounded-full">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-400">Verified Location:</p>
+                      <p className="text-lg font-bold text-white">{locationName}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearRfidScan}
+                    className="px-3 py-1 bg-red-600/80 hover:bg-red-600 text-white text-sm rounded-md transition-colors"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Login Button */}
