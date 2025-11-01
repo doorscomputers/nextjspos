@@ -103,11 +103,11 @@ export default function MyReceivedTransfersReport() {
   )
 
   const availableFromLocations = myLocation
-    ? locations.filter(loc => loc.id === myLocation.id)
+    ? locations.filter(loc => loc.id !== myLocation.id)
     : []
 
   const availableToLocations = myLocation
-    ? locations.filter(loc => loc.id !== myLocation.id)
+    ? locations.filter(loc => loc.id === myLocation.id)
     : []
 
   useEffect(() => {
@@ -118,8 +118,8 @@ export default function MyReceivedTransfersReport() {
     if (myLocation) {
       fetchLocations()
       fetchDefaultProducts()
-      setFilters(prev => ({ ...prev, fromLocationId: myLocation.id.toString() }))
-      generateReport({ ...filters, fromLocationId: myLocation.id.toString() })
+      setFilters(prev => ({ ...prev, toLocationId: myLocation.id.toString() }))
+      generateReport({ ...filters, toLocationId: myLocation.id.toString() })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myLocation])
@@ -323,22 +323,22 @@ export default function MyReceivedTransfersReport() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">From Location</label>
-            <select value={filters.fromLocationId} disabled className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+            <select value={filters.fromLocationId} onChange={(e) => setFilters({ ...filters, fromLocationId: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+              <option value="">All Locations</option>
               {availableFromLocations.map((location) => (
                 <option key={location.id} value={location.id}>{location.name}</option>
               ))}
             </select>
-            <p className="text-xs text-gray-500 mt-1">Fixed to your location</p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">To Location</label>
-            <select value={filters.toLocationId} onChange={(e) => setFilters({ ...filters, toLocationId: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
-              <option value="">All Locations</option>
+            <select value={filters.toLocationId} disabled className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100">
               {availableToLocations.map((location) => (
                 <option key={location.id} value={location.id}>{location.name}</option>
               ))}
             </select>
+            <p className="text-xs text-gray-500 mt-1">Fixed to your location</p>
           </div>
 
           <div>
@@ -362,7 +362,7 @@ export default function MyReceivedTransfersReport() {
           <Button onClick={() => generateReport()} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white">
             {loading ? 'Generating...' : 'Generate Report'}
           </Button>
-          <Button onClick={() => { setFilters({ startDate: '', endDate: '', productId: '', fromLocationId: myLocation ? myLocation.id.toString() : '', toLocationId: '', status: 'all' }); setDateRangePreset('custom'); setProductSearch('') }} variant="outline">Clear Filters</Button>
+          <Button onClick={() => { setFilters({ startDate: '', endDate: '', productId: '', fromLocationId: '', toLocationId: myLocation ? myLocation.id.toString() : '', status: 'all' }); setDateRangePreset('custom'); setProductSearch('') }} variant="outline">Clear Filters</Button>
         </div>
       </div>
 
