@@ -148,7 +148,7 @@
   /* Print styles */
   @media print {
     .no-print,
-    .print\\:hidden {
+    [class*="print:hidden"] {
       display: none !important;
     }
 

@@ -277,6 +277,15 @@ const reportSections: ReportSection[] = [
         permission: PERMISSIONS.PRODUCT_VIEW,
         features: ['Transaction tracking', 'Location filtering', 'Date range analysis'],
       },
+      {
+        title: 'Stock History V3 (Admin)',
+        description: 'Advanced stock history with access to all active locations for admins.',
+        href: '/dashboard/reports/stock-history-v3',
+        color: 'from-purple-500 to-purple-600',
+        icon: '📚',
+        permission: PERMISSIONS.STOCK_HISTORY_V3_VIEW,
+        features: ['All locations access', 'Admin-only access', 'Full transaction history', 'Advanced analytics'],
+      },
     ],
   },
   {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
-import { PERMISSIONS, isSuperAdmin } from '@/lib/rbac'
+import { PERMISSIONS, isSuperAdmin, hasAccessToAllLocations } from '@/lib/rbac'
 import { BookOpen, RefreshCw, Search, Info, X } from 'lucide-react'
 import { StockHistoryEntry } from '@/types/product'
 import { generateStockHistoryNarrative } from '@/utils/stockHistoryNarrative'
@@ -56,7 +56,7 @@ interface ProductOption {
   sku: string
 }
 
-export default function StockHistoryV2Page() {
+export default function StockHistoryV3Page() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { can, user } = usePermissions()
@@ -99,6 +99,9 @@ export default function StockHistoryV2Page() {
 
   // Get location object from ID
   const selectedLocation = locations.find(l => l.id === selectedLocationId) || null
+
+  // Check if user has admin access (Super Admin, Admin, or All Branch Admin with ACCESS_ALL_LOCATIONS)
+  const hasAdminAccess = isSuperAdmin(user) || hasAccessToAllLocations(user)
 
   // Debounced product search
   useEffect(() => {
@@ -246,19 +249,25 @@ export default function StockHistoryV2Page() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Initialize: Check permissions and load product from URL
+  // Initialize: Load locations first, then product from URL if present
   useEffect(() => {
     if (!can(PERMISSIONS.PRODUCT_VIEW)) {
       router.push('/dashboard')
       return
     }
     
+    // Check if user has admin access
+    if (!hasAdminAccess) {
+      router.push('/dashboard/reports/stock-history-v2')
+      return
+    }
+    
     const init = async () => {
-      console.log('🚀 Initializing Stock History V2 page...')
+      console.log('🚀 Initializing Stock History V3 (Admin) page...')
       
       setLoading(false) // Initial load complete
       
-      // Check for productId in URL and auto-load
+      // Step 2: Check for productId in URL and auto-load
       const productIdParam = searchParams.get('productId')
       if (productIdParam) {
         const productId = parseInt(productIdParam)
@@ -309,7 +318,7 @@ export default function StockHistoryV2Page() {
   // Load locations when user data becomes available
   useEffect(() => {
     if (user) {
-      console.log('👤 User loaded, fetching locations...')
+      console.log('👤 User loaded, fetching locations for V3...')
       fetchLocations()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -321,49 +330,9 @@ export default function StockHistoryV2Page() {
     }
   }, [selectedProduct, selectedLocation, startDate, endDate, autoCorrect])
 
-  // Load product from URL parameter - OPTIMIZED for speed
-  const loadProductFromUrl = useCallback(async (productId: number) => {
-    try {
-      console.log('📦 Starting product load for ID:', productId)
-      setLoadingProductFromUrl(true)
-      
-      // FAST: Use search-async endpoint which is optimized and returns flattened data
-      const response = await fetch(`/api/products/search-async?productId=${productId}`)
-      
-      console.log('📡 API Response status:', response.status)
-      
-      if (response.ok) {
-        const data = await response.json()
-        console.log('📊 API Data:', data)
-        const products = data.data || []
-        
-        if (products.length > 0) {
-          // The search-async endpoint returns ProductOption format directly
-          const productOption = products[0] as ProductOption
-          
-          console.log('✅ Product loaded:', productOption.displayName)
-          
-          setSelectedProduct(productOption)
-          setSearchTerm(productOption.displayName)
-          
-          // Location will be auto-selected by fetchLocations when user data loads
-          console.log('ℹ️ Product set, waiting for location to be auto-selected...')
-        } else {
-          console.error('❌ Product not found with ID:', productId)
-        }
-      } else {
-        console.error('❌ API Error:', response.status, response.statusText)
-      }
-    } catch (error) {
-      console.error('❌ Error loading product from URL:', error)
-    } finally {
-      setLoadingProductFromUrl(false)
-    }
-  }, [user])
-
   const fetchLocations = async () => {
     try {
-      console.log('📍 Fetching locations for Stock History V2...')
+      console.log('📍 Fetching locations for Stock History V3 (Admin)...')
       
       // Fetch user's assigned locations and primary location ID
       const userLocationsResponse = await fetch('/api/user-locations')
@@ -373,28 +342,26 @@ export default function StockHistoryV2Page() {
       console.log('👤 User primary location ID:', primaryLocationId)
       console.log('📋 User has access to all locations:', userLocationsData.hasAccessToAll)
       
-      // For stock-history-v2, show only the user's primary location (not all accessible locations)
-      if (primaryLocationId) {
-        // Find the primary location from the user's assigned locations
-        const primaryLocation = userLocationsData.locations.find((loc: any) => loc.id === primaryLocationId)
-        
-        if (primaryLocation) {
-          console.log('✅ Primary location found:', primaryLocation.name)
-          setLocations([primaryLocation])
-          setSelectedLocationId(primaryLocation.id)
-          return
-        }
+      // For stock-history-v3, show all accessible locations (for admins)
+      const locationsList = userLocationsData.locations || []
+      
+      console.log('📋 All accessible locations for admin:', locationsList.length)
+      
+      if (locationsList.length === 0) {
+        console.warn('⚠️ No accessible locations found')
+        setLocations([])
+        return
       }
       
-      // Fallback: If no primary location, use first assigned location
-      if (userLocationsData.locations.length > 0) {
-        const firstLocation = userLocationsData.locations[0]
-        console.log('📌 Using first assigned location as fallback:', firstLocation.name)
-        setLocations([firstLocation])
-        setSelectedLocationId(firstLocation.id)
+      setLocations(locationsList)
+      
+      // Auto-select user's primary location if available, otherwise first location
+      if (primaryLocationId && locationsList.find((loc: any) => loc.id === primaryLocationId)) {
+        console.log('✅ Auto-selecting user primary location')
+        setSelectedLocationId(primaryLocationId)
       } else {
-        console.warn('⚠️ No assigned locations found for user')
-        setLocations([])
+        console.log('📌 Auto-selecting first accessible location')
+        setSelectedLocationId(locationsList[0].id)
       }
       
     } catch (error) {
@@ -506,8 +473,15 @@ export default function StockHistoryV2Page() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Stock History Report V2</h1>
-        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">View detailed stock movements with DevExtreme components</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Stock History Report V3 (Admin)</h1>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Advanced stock history with all active locations access</p>
+          </div>
+          <div className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg text-sm font-medium">
+            Admin Access
+          </div>
+        </div>
       </div>
 
       <div className="p-6">
@@ -653,6 +627,9 @@ export default function StockHistoryV2Page() {
                 <label className="text-sm font-medium text-gray-900 dark:text-white">
                   Business Location:
                 </label>
+                <p className="text-xs text-purple-600 dark:text-purple-400 mb-1 font-medium">
+                  ✓ All active locations available (Admin Access)
+                </p>
                 <SelectBox
                   items={locations}
                   value={selectedLocationId}
@@ -981,3 +958,4 @@ export default function StockHistoryV2Page() {
     </div>
   )
 }
+

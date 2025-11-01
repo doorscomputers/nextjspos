@@ -43,6 +43,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Cannot generate inventory reports for future dates' }, { status: 400 });
     }
 
+    // CRITICAL FIX: Set time to end-of-day (23:59:59.999) to include ALL transactions on the selected date
+    // When user selects a date without time, we want the entire day's transactions, not just midnight
+    const targetDateEndOfDay = new Date(targetDateTime);
+    targetDateEndOfDay.setHours(23, 59, 59, 999);
+    console.log('📅 Target Date (start of day):', targetDateTime.toISOString());
+    console.log('📅 Target Date (end of day):', targetDateEndOfDay.toISOString());
+
     // Ensure businessId is a number for Prisma filters
     const businessId = parseInt(session.user.businessId?.toString() || '0');
     const offset = (page - 1) * limit;
@@ -131,9 +138,8 @@ export async function GET(request: NextRequest) {
     console.log('QUERY DEBUG: totalCount:', totalCount);
 
     // Calculate historical quantities for each inventory item
-    // Use EXACT datetime specified by user (no longer forcing end-of-day)
-    // This allows precise inventory snapshots at specific times (e.g., 10:30 AM vs 5:00 PM)
-    const exactDateTime = new Date(targetDateTime);
+    // Use END OF DAY for the target date to include all transactions on that day
+    const exactDateTime = targetDateEndOfDay;
     const nowLocal = new Date();
     const isToday = nowLocal.getFullYear() === exactDateTime.getFullYear() &&
       nowLocal.getMonth() === exactDateTime.getMonth() &&

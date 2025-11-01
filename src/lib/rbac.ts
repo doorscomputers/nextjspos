@@ -399,6 +399,7 @@ export const PERMISSIONS = {
   // Stock Reports
   REPORT_STOCK_ALERT: 'report.stock_alert',
   STOCK_REPORT_VIEW: 'report.stock.view',
+  STOCK_HISTORY_V3_VIEW: 'report.stock.history_v3.view', // Advanced stock history for admins with all locations
   VIEW_INVENTORY_REPORTS: 'view_inventory_reports',
 
   // Inventory Ledger

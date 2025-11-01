@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
-import { ArrowLeftIcon, CheckIcon, XMarkIcon, TruckIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ArrowDownTrayIcon, TableCellsIcon, PencilIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, CheckIcon, XMarkIcon, TruckIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ArrowDownTrayIcon, TableCellsIcon, PencilIcon, ExclamationTriangleIcon, PrinterIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 
 interface Transfer {
@@ -112,6 +112,7 @@ export default function TransferDetailPage() {
   // Inventory Impact Modal
   const [showInventoryImpact, setShowInventoryImpact] = useState(false)
   const [inventoryImpactData, setInventoryImpactData] = useState<any>(null)
+  const [transferJustCompleted, setTransferJustCompleted] = useState(false)
 
   useEffect(() => {
     fetchLocations()
@@ -201,15 +202,22 @@ export default function TransferDetailPage() {
         if (result.inventoryImpact && (endpoint === 'send' || endpoint === 'complete')) {
           setInventoryImpactData(result.inventoryImpact)
           setShowInventoryImpact(true)
-        }
-        
-        // Redirect to transfers list after completing transfer
-        if (endpoint === 'complete') {
-          setTimeout(() => {
-            router.push('/dashboard/transfers')
-          }, 2000) // Give user 2 seconds to see the impact modal
+          
+          // Mark if transfer was just completed
+          if (endpoint === 'complete') {
+            setTransferJustCompleted(true)
+          } else {
+            fetchTransfer()
+          }
         } else {
-          fetchTransfer()
+          // No inventory impact, handle normally
+          if (endpoint === 'complete') {
+            setTimeout(() => {
+              router.push('/dashboard/transfers')
+            }, 2000)
+          } else {
+            fetchTransfer()
+          }
         }
       } else {
         // Show specific error message from API
@@ -301,6 +309,15 @@ export default function TransferDetailPage() {
   const handleCompleteConfirmed = () => {
     setShowCompleteConfirm(false)
     handleAction('complete', 'Transfer completed - stock added to destination')
+  }
+
+  const handleCloseInventoryImpact = () => {
+    setShowInventoryImpact(false)
+    
+    // If transfer was just completed, redirect to transfers list
+    if (transferJustCompleted) {
+      router.push('/dashboard/transfers')
+    }
   }
 
   const handleQuickReceive = async () => {
@@ -1581,7 +1598,7 @@ export default function TransferDetailPage() {
       </AlertDialog>
 
       {/* Inventory Impact Modal - Shows From/To Quantities */}
-      <AlertDialog open={showInventoryImpact} onOpenChange={setShowInventoryImpact}>
+      <AlertDialog open={showInventoryImpact} onOpenChange={(open) => !open && handleCloseInventoryImpact()}>
         <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 max-w-4xl max-h-[80vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-gray-900 dark:text-white text-2xl flex items-center gap-2">
@@ -1599,66 +1616,84 @@ export default function TransferDetailPage() {
                       </div>
                       <div className="text-sm text-green-800 dark:text-green-300">
                         <p><strong>Transfer:</strong> {inventoryImpactData.referenceNumber}</p>
-                        <p><strong>Executed By:</strong> {inventoryImpactData.executedBy}</p>
-                        <p><strong>Date:</strong> {new Date(inventoryImpactData.timestamp).toLocaleString()}</p>
+                        <p><strong>Executed By:</strong> {inventoryImpactData.performedBy || 'N/A'}</p>
+                        <p><strong>Date:</strong> {new Date(inventoryImpactData.transactionDate).toLocaleString()}</p>
                       </div>
                     </div>
 
-                    {/* Items Impact */}
+                    {/* Inventory Impact by Product */}
                     <div className="space-y-3">
                       <h3 className="font-bold text-gray-900 dark:text-white text-lg">Inventory Changes:</h3>
-                      {inventoryImpactData.items.map((item: any, index: number) => (
-                        <div key={index} className="border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
-                          <div className="font-semibold text-gray-900 dark:text-white mb-3">
-                            {item.productName}
-                            {item.variationName && item.variationName !== 'Default' && item.variationName !== 'DUMMY' && (
-                              <span className="text-gray-600 dark:text-gray-400"> - {item.variationName}</span>
-                            )}
-                          </div>
+                      {inventoryImpactData.locations && Array.isArray(inventoryImpactData.locations) && (() => {
+                        // Group products by product variation ID to show both source and destination together
+                        const productGroups = new Map<number, any[]>();
+                        inventoryImpactData.locations.forEach((location: any) => {
+                          if (location.products && Array.isArray(location.products)) {
+                            location.products.forEach((product: any) => {
+                              if (!productGroups.has(product.variationId)) {
+                                productGroups.set(product.variationId, []);
+                              }
+                              productGroups.get(product.variationId)!.push({ ...product, locationType: location.type, fullLocationName: location.locationName });
+                            });
+                          }
+                        });
+                        
+                        return Array.from(productGroups.values()).map((productGroup: any[], index: number) => {
+                          const firstProduct = productGroup[0];
+                          return (
+                            <div key={index} className="border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
+                              <div className="font-semibold text-gray-900 dark:text-white mb-3">
+                                {firstProduct.productName}
+                                {firstProduct.variationName && firstProduct.variationName !== 'Default' && firstProduct.variationName !== 'DUMMY' && (
+                                  <span className="text-gray-600 dark:text-gray-400"> - {firstProduct.variationName}</span>
+                                )}
+                              </div>
 
-                          {/* Location Changes */}
-                          {item.locations.map((loc: any, locIndex: number) => (
-                            <div key={locIndex} className="mb-3 last:mb-0">
-                              <div className="flex items-center justify-between bg-white dark:bg-gray-700 p-3 rounded border border-gray-200 dark:border-gray-600">
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    📍 {loc.locationName} ({loc.type === 'source' ? 'From' : 'To'})
-                                  </div>
-                                  <div className="flex items-center gap-4">
-                                    <div>
-                                      <div className="text-xs text-gray-500 dark:text-gray-400">Before</div>
-                                      <div className="text-xl font-bold text-gray-900 dark:text-white">
-                                        {loc.before !== null ? parseFloat(loc.before).toLocaleString() : 'N/A'}
+                              {/* Location Changes */}
+                              {productGroup.map((product: any, locIndex: number) => (
+                                <div key={locIndex} className="mb-3 last:mb-0">
+                                  <div className="flex items-center justify-between bg-white dark:bg-gray-700 p-3 rounded border border-gray-200 dark:border-gray-600">
+                                    <div className="flex-1">
+                                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        📍 {product.fullLocationName} ({product.locationType === 'source' ? 'From' : 'To'})
                                       </div>
-                                    </div>
-                                    <div className="text-2xl text-gray-400">→</div>
-                                    <div>
-                                      <div className="text-xs text-gray-500 dark:text-gray-400">After</div>
-                                      <div className={`text-xl font-bold ${
-                                        loc.type === 'source' 
-                                          ? 'text-red-600 dark:text-red-400' 
-                                          : 'text-green-600 dark:text-green-400'
-                                      }`}>
-                                        {loc.after !== null ? parseFloat(loc.after).toLocaleString() : 'N/A'}
-                                      </div>
-                                    </div>
-                                    <div className="ml-4">
-                                      <div className="text-xs text-gray-500 dark:text-gray-400">Change</div>
-                                      <div className={`text-lg font-bold ${
-                                        loc.change < 0 
-                                          ? 'text-red-600 dark:text-red-400' 
-                                          : 'text-green-600 dark:text-green-400'
-                                      }`}>
-                                        {loc.change > 0 ? '+' : ''}{parseFloat(loc.change).toLocaleString()}
+                                      <div className="flex items-center gap-4">
+                                        <div>
+                                          <div className="text-xs text-gray-500 dark:text-gray-400">Before</div>
+                                          <div className="text-xl font-bold text-gray-900 dark:text-white">
+                                            {product.previousQty !== null ? parseFloat(product.previousQty).toLocaleString() : 'N/A'}
+                                          </div>
+                                        </div>
+                                        <div className="text-2xl text-gray-400">→</div>
+                                        <div>
+                                          <div className="text-xs text-gray-500 dark:text-gray-400">After</div>
+                                          <div className={`text-xl font-bold ${
+                                            product.locationType === 'source' 
+                                              ? 'text-red-600 dark:text-red-400' 
+                                              : 'text-green-600 dark:text-green-400'
+                                          }`}>
+                                            {product.newQty !== null ? parseFloat(product.newQty).toLocaleString() : 'N/A'}
+                                          </div>
+                                        </div>
+                                        <div className="ml-4">
+                                          <div className="text-xs text-gray-500 dark:text-gray-400">Change</div>
+                                          <div className={`text-lg font-bold ${
+                                            product.changeQty < 0 
+                                              ? 'text-red-600 dark:text-red-400' 
+                                              : 'text-green-600 dark:text-green-400'
+                                          }`}>
+                                            {product.changeQty > 0 ? '+' : ''}{parseFloat(product.changeQty).toLocaleString()}
+                                          </div>
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
                                 </div>
-                              </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      ))}
+                          );
+                        });
+                      })()}
                     </div>
 
                     {/* Print Button */}
@@ -1682,7 +1717,7 @@ export default function TransferDetailPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction
-              onClick={() => setShowInventoryImpact(false)}
+              onClick={handleCloseInventoryImpact}
               className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
             >
               Close

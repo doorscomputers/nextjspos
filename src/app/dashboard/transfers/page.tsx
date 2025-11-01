@@ -65,13 +65,37 @@ interface Transfer {
 }
 
 export default function TransfersDevExtremePage() {
-  const { can } = usePermissions()
+  const { can, user } = usePermissions()
   const [transfers, setTransfers] = useState<Transfer[]>([])
   const [loading, setLoading] = useState(true)
+  const [userLocations, setUserLocations] = useState<any[]>([])
+  const [hasAccessToAll, setHasAccessToAll] = useState(false)
 
   useEffect(() => {
-    fetchTransfers()
-  }, [])
+    fetchUserLocations()
+  }, [user])
+
+  useEffect(() => {
+    if (userLocations.length > 0 || hasAccessToAll) {
+      fetchTransfers()
+    }
+  }, [userLocations, hasAccessToAll])
+
+  const fetchUserLocations = async () => {
+    try {
+      const response = await fetch('/api/user-locations')
+      if (response.ok) {
+        const data = await response.json()
+        setUserLocations(data.locations || [])
+        setHasAccessToAll(data.hasAccessToAll || false)
+        
+        console.log('👤 User locations loaded:', data.locations.length)
+        console.log('🌍 Has access to all locations:', data.hasAccessToAll)
+      }
+    } catch (error) {
+      console.error('Failed to fetch user locations:', error)
+    }
+  }
 
   const fetchTransfers = async () => {
     try {
@@ -80,6 +104,12 @@ export default function TransfersDevExtremePage() {
       if (response.ok) {
         const data = await response.json()
         setTransfers(data || [])
+        
+        console.log(`📦 Loaded ${data?.length || 0} transfers`)
+        if (!hasAccessToAll && userLocations.length > 0) {
+          const locationNames = userLocations.map((l: any) => l.name).join(', ')
+          console.log(`🔒 Filtered by user locations: ${locationNames}`)
+        }
       } else {
         toast.error('Failed to fetch transfers')
       }
@@ -332,6 +362,24 @@ export default function TransfersDevExtremePage() {
           <p className="text-gray-600 dark:text-gray-300 mt-1">
             Manage stock transfers with master-detail view
           </p>
+          {/* Location Filter Info */}
+          {!hasAccessToAll && userLocations.length > 0 && (
+            <div className="mt-2 flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                📍 Filtered by: {userLocations.map((l: any) => l.name).join(', ')}
+              </Badge>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                (Showing transfers from/to your assigned location{userLocations.length > 1 ? 's' : ''})
+              </span>
+            </div>
+          )}
+          {hasAccessToAll && (
+            <div className="mt-2">
+              <Badge variant="secondary" className="text-xs">
+                🌍 Viewing all locations
+              </Badge>
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           <Button onClick={fetchTransfers} variant="outline" size="sm">

@@ -934,6 +934,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               permission: PERMISSIONS.PRODUCT_VIEW,
             },
             {
+              key: "stock_history_v3",
+              name: "Stock History V3 (Admin)",
+              href: "/dashboard/reports/stock-history-v3",
+              icon: ClipboardDocumentListIcon,
+              permission: PERMISSIONS.STOCK_HISTORY_V3_VIEW,
+            },
+            {
               key: "stock_reconciliation",
               name: "Stock Reconciliation",
               href: "/dashboard/reports/reconciliation",

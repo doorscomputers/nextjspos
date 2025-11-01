@@ -1365,50 +1365,48 @@ export default function PurchaseReceiptDetailPage() {
                       </div>
                       <div className="text-sm text-green-800 dark:text-green-300">
                         <p><strong>Receipt:</strong> {inventoryImpactData.referenceNumber}</p>
-                        <p><strong>Executed By:</strong> {inventoryImpactData.executedBy}</p>
-                        <p><strong>Date:</strong> {new Date(inventoryImpactData.timestamp).toLocaleString()}</p>
+                        <p><strong>Executed By:</strong> {inventoryImpactData.performedBy || 'N/A'}</p>
+                        <p><strong>Date:</strong> {new Date(inventoryImpactData.transactionDate).toLocaleString()}</p>
                       </div>
                     </div>
 
-                    {/* Items Impact */}
+                    {/* Inventory Impact by Location */}
                     <div className="space-y-3">
                       <h3 className="font-bold text-gray-900 dark:text-white text-lg">Inventory Changes:</h3>
-                      {inventoryImpactData.items.map((item: any, index: number) => (
-                        <div key={index} className="border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
-                          <div className="font-semibold text-gray-900 dark:text-white mb-3">
-                            {item.productName}
-                            {item.variationName && item.variationName !== 'Default' && item.variationName !== 'DUMMY' && (
-                              <span className="text-gray-600 dark:text-gray-400"> - {item.variationName}</span>
-                            )}
+                      {inventoryImpactData.locations && Array.isArray(inventoryImpactData.locations) && inventoryImpactData.locations.map((location: any, locIndex: number) => (
+                        <div key={locIndex} className="border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
+                          <div className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                            📍 {location.locationName}
                           </div>
 
-                          {/* Location Changes */}
-                          {item.locations.map((loc: any, locIndex: number) => (
-                            <div key={locIndex} className="mb-3 last:mb-0">
-                              <div className="flex items-center justify-between bg-white dark:bg-gray-700 p-3 rounded border border-gray-200 dark:border-gray-600">
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    📍 {loc.locationName}
+                          {/* Products at this location */}
+                          {location.products && Array.isArray(location.products) && location.products.map((product: any, prodIndex: number) => (
+                            <div key={prodIndex} className="mb-3 last:mb-0">
+                              <div className="bg-white dark:bg-gray-700 p-3 rounded border border-gray-200 dark:border-gray-600">
+                                <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                  {product.productName}
+                                  {product.variationName && product.variationName !== 'Default' && product.variationName !== 'DUMMY' && (
+                                    <span className="text-gray-600 dark:text-gray-400"> - {product.variationName}</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-4">
+                                  <div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">Before</div>
+                                    <div className="text-xl font-bold text-gray-900 dark:text-white">
+                                      {product.previousQty !== null ? parseFloat(product.previousQty).toLocaleString() : 'N/A'}
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-4">
-                                    <div>
-                                      <div className="text-xs text-gray-500 dark:text-gray-400">Before</div>
-                                      <div className="text-xl font-bold text-gray-900 dark:text-white">
-                                        {loc.before !== null ? parseFloat(loc.before).toLocaleString() : 'N/A'}
-                                      </div>
+                                  <div className="text-2xl text-gray-400">→</div>
+                                  <div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">After</div>
+                                    <div className="text-xl font-bold text-green-600 dark:text-green-400">
+                                      {product.newQty !== null ? parseFloat(product.newQty).toLocaleString() : 'N/A'}
                                     </div>
-                                    <div className="text-2xl text-gray-400">→</div>
-                                    <div>
-                                      <div className="text-xs text-gray-500 dark:text-gray-400">After</div>
-                                      <div className="text-xl font-bold text-green-600 dark:text-green-400">
-                                        {loc.after !== null ? parseFloat(loc.after).toLocaleString() : 'N/A'}
-                                      </div>
-                                    </div>
-                                    <div className="ml-4">
-                                      <div className="text-xs text-gray-500 dark:text-gray-400">Added</div>
-                                      <div className="text-lg font-bold text-green-600 dark:text-green-400">
-                                        +{parseFloat(loc.change).toLocaleString()}
-                                      </div>
+                                  </div>
+                                  <div className="ml-4">
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">Added</div>
+                                    <div className="text-lg font-bold text-green-600 dark:text-green-400">
+                                      +{parseFloat(product.changeQty).toLocaleString()}
                                     </div>
                                   </div>
                                 </div>

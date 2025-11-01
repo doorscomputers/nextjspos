@@ -64,25 +64,40 @@ export async function GET(request: NextRequest) {
     }
 
     const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
+    const isAdmin = isSuperAdmin(user)
 
-    if (!hasAccessAllLocations && !isSuperAdmin(user)) {
-      // Restrict results to the user's assigned locations when they don't have global access
-      const userLocations = await prisma.userLocation.findMany({
-        where: { userId: parseInt(userId) },
-        select: { locationId: true },
-      })
-      const locationIds = userLocations.map(ul => ul.locationId)
+    console.log('🔍 Transfer Filter Debug:')
+    console.log('  User ID:', userId)
+    console.log('  Username:', user.username)
+    console.log('  Has ACCESS_ALL_LOCATIONS:', hasAccessAllLocations)
+    console.log('  Is Super Admin:', isAdmin)
 
+    // Fetch user's assigned locations
+    const userLocations = await prisma.userLocation.findMany({
+      where: { userId: parseInt(userId) },
+      select: { locationId: true },
+    })
+    const locationIds = userLocations.map(ul => ul.locationId)
+
+    console.log('  User assigned location IDs:', locationIds)
+
+    // ALWAYS filter by user's assigned locations unless they're a Super Admin
+    // Even if they have ACCESS_ALL_LOCATIONS, they should only see transfers from/to their assigned locations
+    if (!isAdmin) {
       // Only show transfers where user has access to EITHER the source OR destination location
       if (locationIds.length > 0) {
         where.OR = [
           { fromLocationId: { in: locationIds } },
           { toLocationId: { in: locationIds } },
         ]
+        console.log('  ✅ Applying location filter:', locationIds)
       } else {
         // User has no location assignments - return empty result
         where.id = -1 // Impossible ID to match nothing
+        console.log('  ⚠️ No location assignments - returning empty result')
       }
+    } else {
+      console.log('  🌍 Super Admin - showing all transfers')
     }
 
     // Build include object dynamically
