@@ -10,8 +10,17 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import Link from 'next/link'
-import { ArrowLeftIcon, CheckCircleIcon, LockClosedIcon, XCircleIcon, ArrowUturnLeftIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, CheckCircleIcon, LockClosedIcon, XCircleIcon, ArrowUturnLeftIcon, PrinterIcon } from '@heroicons/react/24/outline'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Textarea } from '@/components/ui/textarea'
 import CreateReturnModal from '@/components/purchases/CreateReturnModal'
 import { type SerialNumberData } from '@/components/purchases/SerialNumberInputInline'
@@ -121,6 +130,10 @@ export default function PurchaseReceiptDetailPage() {
   const [serialInput, setSerialInput] = useState('')
   const [savingSerials, setSavingSerials] = useState(false)
   const [isCheckingSerial, setIsCheckingSerial] = useState(false)
+
+  // Inventory Impact Modal
+  const [showInventoryImpact, setShowInventoryImpact] = useState(false)
+  const [inventoryImpactData, setInventoryImpactData] = useState<any>(null)
 
   const getRequiredSerialCount = (item: any | null) => {
     if (!item) return 0
@@ -378,7 +391,16 @@ export default function PurchaseReceiptDetailPage() {
         throw new Error(error.error || 'Failed to approve receipt')
       }
 
+      const data = await res.json()
+
       toast.success('Receipt approved successfully! Inventory has been added.')
+      
+      // Show inventory impact modal if available
+      if (data.inventoryImpact) {
+        setInventoryImpactData(data.inventoryImpact)
+        setShowInventoryImpact(true)
+      }
+      
       fetchReceipt() // Refresh to show updated status
     } catch (error: any) {
       console.error('Error approving receipt:', error)
@@ -1323,6 +1345,109 @@ export default function PurchaseReceiptDetailPage() {
           }}
         />
       )}
+
+      {/* Inventory Impact Modal - Shows Before/After Quantities */}
+      <AlertDialog open={showInventoryImpact} onOpenChange={setShowInventoryImpact}>
+        <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 max-w-4xl max-h-[80vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900 dark:text-white text-2xl flex items-center gap-2">
+              <CheckCircleIcon className="w-8 h-8 text-green-600" />
+              Goods Receipt Impact Report
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4 text-gray-600 dark:text-gray-400">
+                {inventoryImpactData && (
+                  <>
+                    {/* Summary */}
+                    <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-300 dark:border-green-700 rounded-lg p-4">
+                      <div className="text-lg font-bold text-green-900 dark:text-green-200 mb-2">
+                        ✓ Goods Received Successfully
+                      </div>
+                      <div className="text-sm text-green-800 dark:text-green-300">
+                        <p><strong>Receipt:</strong> {inventoryImpactData.referenceNumber}</p>
+                        <p><strong>Executed By:</strong> {inventoryImpactData.executedBy}</p>
+                        <p><strong>Date:</strong> {new Date(inventoryImpactData.timestamp).toLocaleString()}</p>
+                      </div>
+                    </div>
+
+                    {/* Items Impact */}
+                    <div className="space-y-3">
+                      <h3 className="font-bold text-gray-900 dark:text-white text-lg">Inventory Changes:</h3>
+                      {inventoryImpactData.items.map((item: any, index: number) => (
+                        <div key={index} className="border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800">
+                          <div className="font-semibold text-gray-900 dark:text-white mb-3">
+                            {item.productName}
+                            {item.variationName && item.variationName !== 'Default' && item.variationName !== 'DUMMY' && (
+                              <span className="text-gray-600 dark:text-gray-400"> - {item.variationName}</span>
+                            )}
+                          </div>
+
+                          {/* Location Changes */}
+                          {item.locations.map((loc: any, locIndex: number) => (
+                            <div key={locIndex} className="mb-3 last:mb-0">
+                              <div className="flex items-center justify-between bg-white dark:bg-gray-700 p-3 rounded border border-gray-200 dark:border-gray-600">
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    📍 {loc.locationName}
+                                  </div>
+                                  <div className="flex items-center gap-4">
+                                    <div>
+                                      <div className="text-xs text-gray-500 dark:text-gray-400">Before</div>
+                                      <div className="text-xl font-bold text-gray-900 dark:text-white">
+                                        {loc.before !== null ? parseFloat(loc.before).toLocaleString() : 'N/A'}
+                                      </div>
+                                    </div>
+                                    <div className="text-2xl text-gray-400">→</div>
+                                    <div>
+                                      <div className="text-xs text-gray-500 dark:text-gray-400">After</div>
+                                      <div className="text-xl font-bold text-green-600 dark:text-green-400">
+                                        {loc.after !== null ? parseFloat(loc.after).toLocaleString() : 'N/A'}
+                                      </div>
+                                    </div>
+                                    <div className="ml-4">
+                                      <div className="text-xs text-gray-500 dark:text-gray-400">Added</div>
+                                      <div className="text-lg font-bold text-green-600 dark:text-green-400">
+                                        +{parseFloat(loc.change).toLocaleString()}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Print Button */}
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                      <div className="text-sm text-blue-800 dark:text-blue-300 mb-3">
+                        💡 <strong>Tip:</strong> Print this report for your records before closing.
+                      </div>
+                      <Button
+                        onClick={() => window.print()}
+                        variant="outline"
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+                      >
+                        <PrinterIcon className="w-4 h-4 mr-2" />
+                        Print Impact Report
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => setShowInventoryImpact(false)}
+              className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
+            >
+              Close
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
