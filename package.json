@@ -21,6 +21,7 @@
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:add-demo-users": "tsx scripts/add-demo-users.ts",
     "db:studio": "prisma studio",
     "db:backfill-inventory": "node scripts/backfill-zero-inventory.mjs",
     "migrate:setup": "tsx scripts/setup-migration.ps1",

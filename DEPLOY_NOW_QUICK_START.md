@@ -1,8 +1,10 @@
 # Deploy to Vercel - Quick Start (5 Minutes)
 
+Remove-Item -Recurse -Force .next
 This is the fastest way to get your UltimatePOS Modern application deployed to Vercel.
 
 ## Prerequisites
+
 - GitHub repository already pushed: ✅ https://github.com/doorscomputers/nextjspos.git
 - Vercel account (free tier works)
 
@@ -11,6 +13,7 @@ This is the fastest way to get your UltimatePOS Modern application deployed to V
 ## Step 1: Generate NEXTAUTH_SECRET (30 seconds)
 
 **Windows (Git Bash)**:
+
 ```bash
 openssl rand -base64 32
 ```
@@ -25,6 +28,7 @@ https://generate-secret.vercel.app/32
 ## Step 2: Get a Database (2 minutes)
 
 ### Option A: Vercel Postgres (Recommended)
+
 1. Go to https://vercel.com/dashboard
 2. Click **Storage** tab
 3. Click **Create Database** > **Postgres**
@@ -33,6 +37,7 @@ https://generate-secret.vercel.app/32
 6. Copy the `POSTGRES_PRISMA_URL` value
 
 ### Option B: Supabase (Free Alternative)
+
 1. Go to https://supabase.com
 2. Create new project
 3. Go to Settings > Database
@@ -45,6 +50,7 @@ https://generate-secret.vercel.app/32
 ## Step 3: Deploy to Vercel (2 minutes)
 
 ### 3.1 Import Project
+
 1. Click this link: https://vercel.com/new
 2. Import your repository: **doorscomputers/nextjspos**
 3. Click **Import**
@@ -56,31 +62,37 @@ Click **Environment Variables** and add these (copy-paste):
 ```
 DATABASE_URL
 ```
+
 Paste your database URL from Step 2
 
 ```
 NEXTAUTH_SECRET
 ```
+
 Paste the secret from Step 1
 
 ```
 NEXTAUTH_URL
 ```
+
 Type: `https://ultimatepos-modern.vercel.app` (or your chosen project name)
 
 ```
 NEXT_PUBLIC_APP_NAME
 ```
+
 Type: `Igoro Tech(IT) Inventory Management System`
 
 ```
 NEXT_PUBLIC_APP_URL
 ```
+
 Type: `https://ultimatepos-modern.vercel.app` (same as NEXTAUTH_URL)
 
 **Important**: Set environment to **Production** for all variables.
 
 ### 3.3 Deploy
+
 Click **Deploy** button and wait 3-5 minutes.
 
 ---
@@ -114,6 +126,7 @@ npm run db:seed
 ### Option B: Manual (If CLI doesn't work)
 
 Use your database client to:
+
 1. Connect to your production database
 2. Run schema from `prisma/schema.prisma`
 3. Run seed data from `prisma/seed.ts`
@@ -157,28 +170,34 @@ Every time you push to GitHub master branch, Vercel will automatically deploy th
 ## Need Help?
 
 See the detailed guides:
+
 - `DEPLOYMENT_CHECKLIST.md` - Complete step-by-step checklist
 - `VERCEL_DATABASE_SETUP.md` - Database setup details
 - `.env.example` - All environment variables explained
+  Remove-Item -Recurse -Force .next
 
 ---
 
 ## Common Issues
 
 **Build fails?**
+
 - Check you added all environment variables in Step 3
 - Ensure postinstall script exists in package.json (already added)
 
 **Can't login?**
+
 - Did you run `npm run db:seed` in Step 4?
 - Check NEXTAUTH_URL matches your deployment URL exactly
 - Verify DATABASE_URL is correct
 
 **Database errors?**
+
 - For Supabase, use connection pooling URL (port 6543)
 - Ensure database allows connections from Vercel
 
 **Still stuck?**
+
 - Check Vercel Dashboard > Your Project > Deployments > Function Logs
 - Look for error messages and search in documentation
 

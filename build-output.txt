@@ -1,0 +1,623 @@
+ ⚠ Linting is disabled.
+   ▲ Next.js 15.5.4
+   - Environments: .env.production
+
+   Creating an optimized production build ...
+ ⚠ Compiled with warnings in 4.1min
+
+./src/app/api/accounting/general-ledger/route.ts
+Attempted import error: 'generateGeneralLedger' is not exported from '@/lib/financialStatements' (imported as 'generateGeneralLedger').
+
+Import trace for requested module:
+./src/app/api/accounting/general-ledger/route.ts
+
+./src/app/api/qc-templates/[id]/route.ts
+Attempted import error: 'getIpAddress' is not exported from '@/lib/utils' (imported as 'getIpAddress').
+
+Import trace for requested module:
+./src/app/api/qc-templates/[id]/route.ts
+
+./src/app/api/qc-templates/[id]/route.ts
+Attempted import error: 'getUserAgent' is not exported from '@/lib/utils' (imported as 'getUserAgent').
+
+Import trace for requested module:
+./src/app/api/qc-templates/[id]/route.ts
+
+./src/app/api/qc-templates/[id]/route.ts
+Attempted import error: 'getIpAddress' is not exported from '@/lib/utils' (imported as 'getIpAddress').
+
+Import trace for requested module:
+./src/app/api/qc-templates/[id]/route.ts
+
+./src/app/api/qc-templates/[id]/route.ts
+Attempted import error: 'getUserAgent' is not exported from '@/lib/utils' (imported as 'getUserAgent').
+
+Import trace for requested module:
+./src/app/api/qc-templates/[id]/route.ts
+
+./src/app/api/qc-templates/route.ts
+Attempted import error: 'getIpAddress' is not exported from '@/lib/utils' (imported as 'getIpAddress').
+
+Import trace for requested module:
+./src/app/api/qc-templates/route.ts
+
+./src/app/api/qc-templates/route.ts
+Attempted import error: 'getUserAgent' is not exported from '@/lib/utils' (imported as 'getUserAgent').
+
+Import trace for requested module:
+./src/app/api/qc-templates/route.ts
+
+./src/lib/cache.ts
+Module not found: Can't resolve 'ioredis' in 'C:\xampp\htdocs\ultimatepos-modern\src\lib'
+
+Import trace for requested module:
+./src/lib/cache.ts
+./src/app/api/system/memory-stats/route.ts
+
+   Skipping validation of types
+   Collecting page data ...
+   Generating static pages (0/410) ...
+   Generating static pages (102/410) 
+   Generating static pages (204/410) 
+   Generating static pages (307/410) 
+ ✓ Generating static pages (410/410)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                                Size  First Load JS
+┌ ○ /                                                   1.04 kB         104 kB
+├ ○ /_not-found                                            1 kB         104 kB
+├ ƒ /api/accounting/balance-sheet                       1.04 kB         104 kB
+├ ƒ /api/accounting/chart-of-accounts                   1.04 kB         104 kB
+├ ƒ /api/accounting/chart-of-accounts/initialize        1.04 kB         104 kB
+├ ƒ /api/accounting/general-ledger                      1.04 kB         104 kB
+├ ƒ /api/accounting/income-statement                    1.04 kB         104 kB
+├ ƒ /api/accounting/journal-entries                     1.04 kB         104 kB
+├ ƒ /api/accounting/trial-balance                       1.04 kB         104 kB
+├ ƒ /api/accounts-payable                               1.04 kB         104 kB
+├ ƒ /api/accounts-payable/[id]                          1.04 kB         104 kB
+├ ƒ /api/admin/login-history                            1.04 kB         104 kB
+├ ƒ /api/announcements                                  1.04 kB         104 kB
+├ ƒ /api/announcements/[id]                             1.04 kB         104 kB
+├ ƒ /api/attendance                                     1.04 kB         104 kB
+├ ƒ /api/attendance/[id]                                1.04 kB         104 kB
+├ ƒ /api/attendance/clock-in                            1.04 kB         104 kB
+├ ƒ /api/attendance/clock-out                           1.04 kB         104 kB
+├ ƒ /api/audit-logs                                     1.04 kB         104 kB
+├ ƒ /api/auth/[...nextauth]                             1.04 kB         104 kB
+├ ƒ /api/auth/logout                                    1.04 kB         104 kB
+├ ƒ /api/auth/verify-password                           1.04 kB         104 kB
+├ ƒ /api/bank-options                                   1.04 kB         104 kB
+├ ƒ /api/bank-transactions                              1.04 kB         104 kB
+├ ƒ /api/bank-transactions/manual                       1.04 kB         104 kB
+├ ƒ /api/banks                                          1.04 kB         104 kB
+├ ƒ /api/banks/[id]                                     1.04 kB         104 kB
+├ ƒ /api/brands                                         1.04 kB         104 kB
+├ ƒ /api/brands/[id]                                    1.04 kB         104 kB
+├ ƒ /api/brands/import                                  1.04 kB         104 kB
+├ ƒ /api/business                                       1.04 kB         104 kB
+├ ƒ /api/business/settings                              1.04 kB         104 kB
+├ ƒ /api/cash/in                                        1.04 kB         104 kB
+├ ƒ /api/cash/in-out                                    1.04 kB         104 kB
+├ ƒ /api/cash/out                                       1.04 kB         104 kB
+├ ƒ /api/categories                                     1.04 kB         104 kB
+├ ƒ /api/categories/[id]                                1.04 kB         104 kB
+├ ƒ /api/categories/import                              1.04 kB         104 kB
+├ ƒ /api/categories/import-from-errors                  1.04 kB         104 kB
+├ ƒ /api/chat                                           1.04 kB         104 kB
+├ ƒ /api/currencies                                     1.04 kB         104 kB
+├ ƒ /api/customer-returns                               1.04 kB         104 kB
+├ ƒ /api/customer-returns/[id]                          1.04 kB         104 kB
+├ ƒ /api/customer-returns/[id]/approve                  1.04 kB         104 kB
+├ ƒ /api/customers                                      1.04 kB         104 kB
+├ ƒ /api/customers/[id]                                 1.04 kB         104 kB
+├ ƒ /api/customers/import                               1.04 kB         104 kB
+├ ƒ /api/dashboard/analytics                            1.04 kB         104 kB
+├ ƒ /api/dashboard/financial-v4                         1.04 kB         104 kB
+├ ƒ /api/dashboard/intelligence                         1.04 kB         104 kB
+├ ƒ /api/dashboard/sales-by-location                    1.04 kB         104 kB
+├ ƒ /api/dashboard/stats                                1.04 kB         104 kB
+├ ƒ /api/email/test                                     1.04 kB         104 kB
+├ ƒ /api/expenses                                       1.04 kB         104 kB
+├ ƒ /api/expenses/[id]                                  1.04 kB         104 kB
+├ ƒ /api/expenses/[id]/approve                          1.04 kB         104 kB
+├ ƒ /api/expenses/[id]/void                             1.04 kB         104 kB
+├ ƒ /api/expenses/categories                            1.04 kB         104 kB
+├ ƒ /api/expenses/categories/[id]                       1.04 kB         104 kB
+├ ƒ /api/inventory-corrections                          1.04 kB         104 kB
+├ ƒ /api/inventory-corrections/[id]                     1.04 kB         104 kB
+├ ƒ /api/inventory-corrections/[id]/approve             1.04 kB         104 kB
+├ ƒ /api/inventory-corrections/bulk-approve             1.04 kB         104 kB
+├ ƒ /api/inventory-corrections/bulk-delete              1.04 kB         104 kB
+├ ƒ /api/job-orders                                     1.04 kB         104 kB
+├ ƒ /api/job-orders/[id]                                1.04 kB         104 kB
+├ ƒ /api/job-orders/[id]/complete                       1.04 kB         104 kB
+├ ƒ /api/job-orders/[id]/diagnose                       1.04 kB         104 kB
+├ ƒ /api/job-orders/[id]/estimate                       1.04 kB         104 kB
+├ ƒ /api/job-orders/[id]/parts                          1.04 kB         104 kB
+├ ƒ /api/job-orders/[id]/parts/[partId]                 1.04 kB         104 kB
+├ ƒ /api/job-orders/[id]/quality-check                  1.04 kB         104 kB
+├ ƒ /api/kendo-license                                  1.04 kB         104 kB
+├ ƒ /api/labels/generate                                1.04 kB         104 kB
+├ ƒ /api/leave-requests                                 1.04 kB         104 kB
+├ ƒ /api/leave-requests/[id]                            1.04 kB         104 kB
+├ ƒ /api/leave-requests/[id]/approve                    1.04 kB         104 kB
+├ ƒ /api/leave-requests/[id]/reject                     1.04 kB         104 kB
+├ ƒ /api/location-changes                               1.04 kB         104 kB
+├ ƒ /api/location-changes/[id]                          1.04 kB         104 kB
+├ ƒ /api/location-changes/[id]/approve                  1.04 kB         104 kB
+├ ƒ /api/location-changes/[id]/reject                   1.04 kB         104 kB
+├ ƒ /api/location-changes/[id]/submit-xreading          1.04 kB         104 kB
+├ ƒ /api/locations                                      1.04 kB         104 kB
+├ ƒ /api/locations/[id]                                 1.04 kB         104 kB
+├ ƒ /api/locations/[id]/toggle-status                   1.04 kB         104 kB
+├ ƒ /api/locations/all                                  1.04 kB         104 kB
+├ ƒ /api/locations/all-active                           1.04 kB         104 kB
+├ ƒ /api/locations/public                               1.04 kB         104 kB
+├ ƒ /api/locations/verify-code                          1.04 kB         104 kB
+├ ƒ /api/my-schedule                                    1.04 kB         104 kB
+├ ƒ /api/notifications                                  1.04 kB         104 kB
+├ ƒ /api/notifications/[id]/mark-read                   1.04 kB         104 kB
+├ ƒ /api/notifications/mark-all-read                    1.04 kB         104 kB
+├ ƒ /api/notifications/pending-approvals                1.04 kB         104 kB
+├ ƒ /api/overtime/alerts                                1.04 kB         104 kB
+├ ƒ /api/overtime/alerts/[id]/acknowledge               1.04 kB         104 kB
+├ ƒ /api/overtime/configuration                         1.04 kB         104 kB
+├ ƒ /api/payments                                       1.04 kB         104 kB
+├ ƒ /api/payments/batch                                 1.04 kB         104 kB
+├ ƒ /api/permissions                                    1.04 kB         104 kB
+├ ƒ /api/physical-inventory/export                      1.04 kB         104 kB
+├ ƒ /api/physical-inventory/import                      1.04 kB         104 kB
+├ ƒ /api/physical-inventory/import-safe                 1.04 kB         104 kB
+├ ƒ /api/post-dated-cheques                             1.04 kB         104 kB
+├ ƒ /api/printers                                       1.04 kB         104 kB
+├ ƒ /api/printers/[id]                                  1.04 kB         104 kB
+├ ƒ /api/products                                       1.04 kB         104 kB
+├ ƒ /api/products/[id]                                  1.04 kB         104 kB
+├ ƒ /api/products/[id]/calculate-reorder                1.04 kB         104 kB
+├ ƒ /api/products/[id]/duplicate                        1.04 kB         104 kB
+├ ƒ /api/products/[id]/grns                             1.04 kB         104 kB
+├ ƒ /api/products/[id]/last-purchase-cost               1.04 kB         104 kB
+├ ƒ /api/products/[id]/opening-stock                    1.04 kB         104 kB
+├ ƒ /api/products/[id]/stock                            1.04 kB         104 kB
+├ ƒ /api/products/[id]/stock-history                    1.04 kB         104 kB
+├ ƒ /api/products/[id]/toggle-active                    1.04 kB         104 kB
+├ ƒ /api/products/[id]/variations                       1.04 kB         104 kB
+├ ƒ /api/products/branch-stock-pivot                    1.04 kB         104 kB
+├ ƒ /api/products/bulk-add-to-location                  1.04 kB         104 kB
+├ ƒ /api/products/bulk-delete                           1.04 kB         104 kB
+├ ƒ /api/products/bulk-price-update                     1.04 kB         104 kB
+├ ƒ /api/products/bulk-prices                           1.04 kB         104 kB
+├ ƒ /api/products/bulk-remove-from-location             1.04 kB         104 kB
+├ ƒ /api/products/bulk-toggle-active                    1.04 kB         104 kB
+├ ƒ /api/products/bulk-update-reorder                   1.04 kB         104 kB
+├ ƒ /api/products/check-location                        1.04 kB         104 kB
+├ ƒ /api/products/csv-id-mapper                         1.04 kB         104 kB
+├ ƒ /api/products/devextreme                            1.04 kB         104 kB
+├ ƒ /api/products/import                                1.04 kB         104 kB
+├ ƒ /api/products/import-branch-stock                   1.04 kB         104 kB
+├ ƒ /api/products/import-prices                         1.04 kB         104 kB
+├ ƒ /api/products/import/template                       1.04 kB         104 kB
+├ ƒ /api/products/labels/generate                       1.04 kB         104 kB
+├ ƒ /api/products/list                                  1.04 kB         104 kB
+├ ƒ /api/products/search                                1.04 kB         104 kB
+├ ƒ /api/products/search-async                          1.04 kB         104 kB
+├ ƒ /api/products/stock                                 1.04 kB         104 kB
+├ ƒ /api/products/stock/refresh                         1.04 kB         104 kB
+├ ƒ /api/products/unlock-opening-stock                  1.04 kB         104 kB
+├ ƒ /api/products/variation/[id]                        1.04 kB         104 kB
+├ ƒ /api/products/variations                            1.04 kB         104 kB
+├ ƒ /api/products/variations/[id]/assign-supplier       1.04 kB         104 kB
+├ ƒ /api/products/variations/[id]/inventory             1.04 kB         104 kB
+├ ƒ /api/products/variations/search                     1.04 kB         104 kB
+├ ƒ /api/purchases                                      1.04 kB         104 kB
+├ ƒ /api/purchases/[id]                                 1.04 kB         104 kB
+├ ƒ /api/purchases/[id]/amendments                      1.04 kB         104 kB
+├ ƒ /api/purchases/[id]/close                           1.04 kB         104 kB
+├ ƒ /api/purchases/[id]/export                          1.04 kB         104 kB
+├ ƒ /api/purchases/[id]/receive                         1.04 kB         104 kB
+├ ƒ /api/purchases/amendments/[id]                      1.04 kB         104 kB
+├ ƒ /api/purchases/amendments/[id]/approve              1.04 kB         104 kB
+├ ƒ /api/purchases/amendments/[id]/reject               1.04 kB         104 kB
+├ ƒ /api/purchases/generate-from-suggestions            1.04 kB         104 kB
+├ ƒ /api/purchases/receipts                             1.04 kB         104 kB
+├ ƒ /api/purchases/receipts/[id]                        1.04 kB         104 kB
+├ ƒ /api/purchases/receipts/[id]/approve                1.04 kB         104 kB
+├ ƒ /api/purchases/receipts/[id]/reject                 1.04 kB         104 kB
+├ ƒ /api/purchases/receipts/[id]/serial-numbers         1.04 kB         104 kB
+├ ƒ /api/purchases/returns                              1.04 kB         104 kB
+├ ƒ /api/purchases/returns/[id]                         1.04 kB         104 kB
+├ ƒ /api/purchases/returns/[id]/approve                 1.04 kB         104 kB
+├ ƒ /api/purchases/suggestions                          1.04 kB         104 kB
+├ ƒ /api/purchases/suggestions/generate-po              1.04 kB         104 kB
+├ ƒ /api/qc-inspections                                 1.04 kB         104 kB
+├ ƒ /api/qc-inspections/[id]                            1.04 kB         104 kB
+├ ƒ /api/qc-inspections/[id]/approve                    1.04 kB         104 kB
+├ ƒ /api/qc-inspections/[id]/conduct                    1.04 kB         104 kB
+├ ƒ /api/qc-templates                                   1.04 kB         104 kB
+├ ƒ /api/qc-templates/[id]                              1.04 kB         104 kB
+├ ƒ /api/quotations                                     1.04 kB         104 kB
+├ ƒ /api/quotations/[id]                                1.04 kB         104 kB
+├ ƒ /api/readings/history                               1.04 kB         104 kB
+├ ƒ /api/readings/x-reading                             1.04 kB         104 kB
+├ ƒ /api/readings/z-reading                             1.04 kB         104 kB
+├ ƒ /api/reports/audit-trail                            1.04 kB         104 kB
+├ ƒ /api/reports/audit-trail/security                   1.04 kB         104 kB
+├ ƒ /api/reports/audit-trail/summary                    1.04 kB         104 kB
+├ ƒ /api/reports/bir/daily-sales-summary                1.04 kB         104 kB
+├ ƒ /api/reports/cash-in-out                            1.04 kB         104 kB
+├ ƒ /api/reports/cost-audit                             1.04 kB         104 kB
+├ ƒ /api/reports/customer-payments                      1.04 kB         104 kB
+├ ƒ /api/reports/customer-sales                         1.04 kB         104 kB
+├ ƒ /api/reports/discount-analysis                      1.04 kB         104 kB
+├ ƒ /api/reports/expenses                               1.04 kB         104 kB
+├ ƒ /api/reports/expenses/by-category                   1.04 kB         104 kB
+├ ƒ /api/reports/expenses/by-location                   1.04 kB         104 kB
+├ ƒ /api/reports/expenses/trend                         1.04 kB         104 kB
+├ ƒ /api/reports/gl-entries                             1.04 kB         104 kB
+├ ƒ /api/reports/historical-inventory                   1.04 kB         104 kB
+├ ƒ /api/reports/inventory-ledger                       1.04 kB         104 kB
+├ ƒ /api/reports/inventory-ledger-new                   1.04 kB         104 kB
+├ ƒ /api/reports/inventory-reconciliation               1.04 kB         104 kB
+├ ƒ /api/reports/inventory-valuation                    1.04 kB         104 kB
+├ ƒ /api/reports/inventory-valuation-history            1.04 kB         104 kB
+├ ƒ /api/reports/payment-method                         1.04 kB         104 kB
+├ ƒ /api/reports/price-comparison                       1.04 kB         104 kB
+├ ƒ /api/reports/product-purchase-history               1.04 kB         104 kB
+├ ƒ /api/reports/product-purchases/detailed             1.04 kB         104 kB
+├ ƒ /api/reports/products-suppliers                     1.04 kB         104 kB
+├ ƒ /api/reports/profit                                 1.04 kB         104 kB
+├ ƒ /api/reports/profit-loss                            1.04 kB         104 kB
+├ ƒ /api/reports/profitability                          1.04 kB         104 kB
+├ ƒ /api/reports/purchase-returns                       1.04 kB         104 kB
+├ ƒ /api/reports/purchase-sale                          1.04 kB         104 kB
+├ ƒ /api/reports/purchases                              1.04 kB         104 kB
+├ ƒ /api/reports/purchases/analytics                    1.04 kB         104 kB
+├ ƒ /api/reports/purchases/budget-vs-actual             1.04 kB         104 kB
+├ ƒ /api/reports/purchases/category-summary             1.04 kB         104 kB
+├ ƒ /api/reports/purchases/cost-trend                   1.04 kB         104 kB
+├ ƒ /api/reports/purchases/daily-summary                1.04 kB         104 kB
+├ ƒ /api/reports/purchases/item-detail                  1.04 kB         104 kB
+├ ƒ /api/reports/purchases/item-summary                 1.04 kB         104 kB
+├ ƒ /api/reports/purchases/items                        1.04 kB         104 kB
+├ ƒ /api/reports/purchases/payment-status               1.04 kB         104 kB
+├ ƒ /api/reports/purchases/return-analysis              1.04 kB         104 kB
+├ ƒ /api/reports/purchases/supplier-performance         1.04 kB         104 kB
+├ ƒ /api/reports/purchases/supplier-summary             1.04 kB         104 kB
+├ ƒ /api/reports/purchases/trend-analysis               1.04 kB         104 kB
+├ ƒ /api/reports/purchases/trends                       1.04 kB         104 kB
+├ ƒ /api/reports/purchases/variance                     1.04 kB         104 kB
+├ ƒ /api/reports/reconciliation                         1.04 kB         104 kB
+├ ƒ /api/reports/returns                                1.04 kB         104 kB
+├ ƒ /api/reports/sales                                  1.04 kB         104 kB
+├ ƒ /api/reports/sales-analytics                        1.04 kB         104 kB
+├ ƒ /api/reports/sales-by-hour                          1.04 kB         104 kB
+├ ƒ /api/reports/sales-history                          1.04 kB         104 kB
+├ ƒ /api/reports/sales-journal                          1.04 kB         104 kB
+├ ƒ /api/reports/sales-per-cashier                      1.04 kB         104 kB
+├ ƒ /api/reports/sales-per-item                         1.04 kB         104 kB
+├ ƒ /api/reports/sales-per-location                     1.04 kB         104 kB
+├ ƒ /api/reports/sales-today                            1.04 kB         104 kB
+├ ƒ /api/reports/service-warranty-slip                  1.04 kB         104 kB
+├ ƒ /api/reports/stock-alert                            1.04 kB         104 kB
+├ ƒ /api/reports/tax                                    1.04 kB         104 kB
+├ ƒ /api/reports/transfers                              1.04 kB         104 kB
+├ ƒ /api/reports/transfers-per-item                     1.04 kB         104 kB
+├ ƒ /api/reports/transfers/discrepancies                1.04 kB         104 kB
+├ ƒ /api/reports/transfers/inventory-movement           1.04 kB         104 kB
+├ ƒ /api/reports/transfers/location-analysis            1.04 kB         104 kB
+├ ƒ /api/reports/transfers/performance                  1.04 kB         104 kB
+├ ƒ /api/reports/transfers/summary                      1.04 kB         104 kB
+├ ƒ /api/reports/transfers/trends                       1.04 kB         104 kB
+├ ƒ /api/reports/trending-products                      1.04 kB         104 kB
+├ ƒ /api/reports/unpaid-invoices                        1.04 kB         104 kB
+├ ƒ /api/reports/void-refund-analysis                   1.04 kB         104 kB
+├ ƒ /api/roles                                          1.04 kB         104 kB
+├ ƒ /api/roles/[id]                                     1.04 kB         104 kB
+├ ƒ /api/roles/[id]/duplicate                           1.04 kB         104 kB
+├ ƒ /api/sales                                          1.04 kB         104 kB
+├ ƒ /api/sales/[id]                                     1.04 kB         104 kB
+├ ƒ /api/sales/[id]/payment                             1.04 kB         104 kB
+├ ƒ /api/sales/[id]/refund                              1.04 kB         104 kB
+├ ƒ /api/sales/[id]/reprint                             1.04 kB         104 kB
+├ ƒ /api/sales/[id]/void                                1.04 kB         104 kB
+├ ƒ /api/sales/devextreme                               1.04 kB         104 kB
+├ ƒ /api/saved-questions                                1.04 kB         104 kB
+├ ƒ /api/saved-questions/[id]                           1.04 kB         104 kB
+├ ƒ /api/schedule-login-config                          1.04 kB         104 kB
+├ ƒ /api/schedules                                      1.04 kB         104 kB
+├ ƒ /api/schedules/[id]                                 1.04 kB         104 kB
+├ ƒ /api/serial-numbers/[serialNumber]/supplier         1.04 kB         104 kB
+├ ƒ /api/serial-numbers/available                       1.04 kB         104 kB
+├ ƒ /api/serial-numbers/check                           1.04 kB         104 kB
+├ ƒ /api/serial-numbers/lookup                          1.04 kB         104 kB
+├ ƒ /api/service-payments                               1.04 kB         104 kB
+├ ƒ /api/service-payments/[id]                          1.04 kB         104 kB
+├ ƒ /api/service-payments/[id]/void                     1.04 kB         104 kB
+├ ƒ /api/service-types                                  1.04 kB         104 kB
+├ ƒ /api/service-types/[id]                             1.04 kB         104 kB
+├ ƒ /api/settings/inactivity                            1.04 kB         104 kB
+├ ƒ /api/settings/menu-management/extract-from-sidebar  1.04 kB         104 kB
+├ ƒ /api/settings/menu-management/menus                 1.04 kB         104 kB
+├ ƒ /api/settings/menu-management/menus/[id]            1.04 kB         104 kB
+├ ƒ /api/settings/menu-permissions/role/[id]            1.04 kB         104 kB
+├ ƒ /api/settings/menu-permissions/roles                1.04 kB         104 kB
+├ ƒ /api/settings/menu-permissions/user/[id]            1.04 kB         104 kB
+├ ƒ /api/settings/pricing                               1.04 kB         104 kB
+├ ƒ /api/settings/sod-rules                             1.04 kB         104 kB
+├ ƒ /api/shifts                                         1.04 kB         104 kB
+├ ƒ /api/shifts/[id]/close                              1.04 kB         104 kB
+├ ƒ /api/shifts/[id]/force-close                        1.04 kB         104 kB
+├ ƒ /api/shifts/check-unclosed                          1.04 kB         104 kB
+├ ƒ /api/stock-transactions                             1.04 kB         104 kB
+├ ƒ /api/stock/query                                    1.04 kB         104 kB
+├ ƒ /api/superadmin/businesses                          1.04 kB         104 kB
+├ ƒ /api/superadmin/businesses/[id]                     1.04 kB         104 kB
+├ ƒ /api/superadmin/stats                               1.04 kB         104 kB
+├ ƒ /api/supplier-returns                               1.04 kB         104 kB
+├ ƒ /api/supplier-returns/[id]                          1.04 kB         104 kB
+├ ƒ /api/supplier-returns/[id]/approve                  1.04 kB         104 kB
+├ ƒ /api/suppliers                                      1.04 kB         104 kB
+├ ƒ /api/suppliers/[id]                                 1.04 kB         104 kB
+├ ƒ /api/suppliers/[id]/products                        1.04 kB         104 kB
+├ ƒ /api/suppliers/[id]/products/[productId]/last-cost  1.04 kB         104 kB
+├ ƒ /api/suppliers/import                               1.04 kB         104 kB
+├ ƒ /api/system/memory-stats                            1.04 kB         104 kB
+├ ƒ /api/tax-rates                                      1.04 kB         104 kB
+├ ƒ /api/tax-rates/[id]                                 1.04 kB         104 kB
+├ ƒ /api/technicians                                    1.04 kB         104 kB
+├ ƒ /api/technicians/[id]                               1.04 kB         104 kB
+├ ƒ /api/technicians/available                          1.04 kB         104 kB
+├ ƒ /api/telegram/test                                  1.04 kB         104 kB
+├ ƒ /api/test-bulk-update                               1.04 kB         104 kB
+├ ƒ /api/test-inventory                                 1.04 kB         104 kB
+├ ƒ /api/test-query                                     1.04 kB         104 kB
+├ ƒ /api/transfers                                      1.04 kB         104 kB
+├ ƒ /api/transfers/[id]                                 1.04 kB         104 kB
+├ ƒ /api/transfers/[id]/cancel                          1.04 kB         104 kB
+├ ƒ /api/transfers/[id]/check-approve                   1.04 kB         104 kB
+├ ƒ /api/transfers/[id]/check-reject                    1.04 kB         104 kB
+├ ƒ /api/transfers/[id]/complete                        1.04 kB         104 kB
+├ ƒ /api/transfers/[id]/mark-arrived                    1.04 kB         104 kB
+├ ƒ /api/transfers/[id]/receive                         1.04 kB         104 kB
+├ ƒ /api/transfers/[id]/send                            1.04 kB         104 kB
+├ ƒ /api/transfers/[id]/start-verification              1.04 kB         104 kB
+├ ƒ /api/transfers/[id]/submit-for-check                1.04 kB         104 kB
+├ ƒ /api/transfers/[id]/unverify-item                   1.04 kB         104 kB
+├ ƒ /api/transfers/[id]/verify-item                     1.04 kB         104 kB
+├ ƒ /api/units                                          1.04 kB         104 kB
+├ ƒ /api/units/[id]                                     1.04 kB         104 kB
+├ ƒ /api/user-locations                                 1.04 kB         104 kB
+├ ƒ /api/user-locations/my-location                     1.04 kB         104 kB
+├ ƒ /api/user/change-password                           1.04 kB         104 kB
+├ ƒ /api/user/preferences                               1.04 kB         104 kB
+├ ƒ /api/user/update-profile                            1.04 kB         104 kB
+├ ƒ /api/users                                          1.04 kB         104 kB
+├ ƒ /api/users/[id]                                     1.04 kB         104 kB
+├ ƒ /api/users/[id]/reset-password                      1.04 kB         104 kB
+├ ƒ /api/users/me/permissions                           1.04 kB         104 kB
+├ ƒ /api/warranties                                     1.04 kB         104 kB
+├ ƒ /api/warranties/[id]                                1.04 kB         104 kB
+├ ƒ /api/warranty-claims                                1.04 kB         104 kB
+├ ƒ /api/warranty-claims/[id]                           1.04 kB         104 kB
+├ ƒ /api/warranty-claims/[id]/accept                    1.04 kB         104 kB
+├ ƒ /api/warranty-claims/[id]/approve                   1.04 kB         104 kB
+├ ƒ /api/warranty-claims/[id]/assign                    1.04 kB         104 kB
+├ ƒ /api/warranty-claims/[id]/create-supplier-return    1.04 kB         104 kB
+├ ƒ /api/warranty-claims/[id]/inspect                   1.04 kB         104 kB
+├ ƒ /api/warranty-claims/[id]/reject                    1.04 kB         104 kB
+├ ○ /dashboard                                          7.07 kB         890 kB
+├ ○ /dashboard/accounting/balance-sheet                 8.67 kB         151 kB
+├ ○ /dashboard/accounting/general-ledger                4.83 kB         166 kB
+├ ○ /dashboard/accounting/income-statement              9.19 kB         151 kB
+├ ○ /dashboard/accounting/trial-balance                 8.91 kB         151 kB
+├ ○ /dashboard/accounts-payable                         11.7 kB         418 kB
+├ ○ /dashboard/admin/login-history                      6.48 kB         930 kB
+├ ○ /dashboard/ai-assistant                             84.1 kB         196 kB
+├ ○ /dashboard/analytics-devextreme                     4.92 kB         568 kB
+├ ○ /dashboard/announcements                            4.34 kB         132 kB
+├ ○ /dashboard/attendance                               6.94 kB         944 kB
+├ ƒ /dashboard/attendance/[id]                          5.84 kB         145 kB
+├ ○ /dashboard/audit-logs                               3.68 kB         122 kB
+├ ○ /dashboard/bank-transactions                        6.26 kB         176 kB
+├ ○ /dashboard/bank-transactions/manual                   10 kB         165 kB
+├ ○ /dashboard/banks                                    7.86 kB         166 kB
+├ ○ /dashboard/business-settings                        2.99 kB         121 kB
+├ ○ /dashboard/cashier-reports                            676 B         122 kB
+├ ○ /dashboard/cashier-reports/sales-history              425 B         168 kB
+├ ○ /dashboard/cashier-reports/sales-journal              523 B         225 kB
+├ ○ /dashboard/cashier-reports/sales-per-item             535 B         263 kB
+├ ○ /dashboard/cashier-reports/sales-report              5.9 kB         168 kB
+├ ○ /dashboard/cashier-reports/sales-today                461 B         166 kB
+├ ○ /dashboard/clock                                    4.99 kB         140 kB
+├ ○ /dashboard/customer-returns                         4.01 kB         408 kB
+├ ƒ /dashboard/customer-returns/[id]                    6.15 kB         145 kB
+├ ○ /dashboard/customers                                8.22 kB        1.08 MB
+├ ○ /dashboard/customers/import                         4.59 kB         124 kB
+├ ○ /dashboard/dashboard-v2                              5.8 kB         717 kB
+├ ○ /dashboard/dashboard-v3                             5.16 kB         835 kB
+├ ○ /dashboard/dashboard-v4                             4.53 kB         840 kB
+├ ○ /dashboard/expenses                                 16.3 kB        1.11 MB
+├ ○ /dashboard/expenses/categories                      14.8 kB        1.11 MB
+├ ○ /dashboard/help                                     20.9 kB         139 kB
+├ ○ /dashboard/inventory-corrections                    10.6 kB         184 kB
+├ ƒ /dashboard/inventory-corrections/[id]               6.33 kB         142 kB
+├ ƒ /dashboard/inventory-corrections/[id]/edit          5.63 kB         170 kB
+├ ○ /dashboard/inventory-corrections/new                7.64 kB         172 kB
+├ ○ /dashboard/kendo-demo                                2.3 kB         285 kB
+├ ○ /dashboard/kendo-examples                            182 kB         474 kB
+├ ○ /dashboard/labels/generate                          26.7 kB         145 kB
+├ ○ /dashboard/leave-requests                           5.43 kB         685 kB
+├ ƒ /dashboard/leave-requests/[id]                      5.11 kB         140 kB
+├ ○ /dashboard/leave-requests/create                    4.59 kB         140 kB
+├ ○ /dashboard/location-changes                         5.13 kB         685 kB
+├ ○ /dashboard/locations                                7.25 kB         411 kB
+├ ○ /dashboard/notifications                            5.43 kB         131 kB
+├ ○ /dashboard/payments                                 6.95 kB         411 kB
+├ ○ /dashboard/payments/batch                           8.11 kB         178 kB
+├ ○ /dashboard/payments/new                             14.1 kB         304 kB
+├ ○ /dashboard/physical-inventory                       3.24 kB         121 kB
+├ ○ /dashboard/pos                                      21.1 kB         195 kB
+├ ○ /dashboard/post-dated-cheques                       7.71 kB         408 kB
+├ ○ /dashboard/printers                                  7.5 kB        1.08 MB
+├ ○ /dashboard/products                                 17.3 kB         430 kB
+├ ƒ /dashboard/products/[id]                            11.8 kB         196 kB
+├ ƒ /dashboard/products/[id]/edit                       7.67 kB         114 kB
+├ ƒ /dashboard/products/[id]/opening-stock              6.18 kB         129 kB
+├ ƒ /dashboard/products/[id]/stock-history               6.9 kB         162 kB
+├ ○ /dashboard/products/add                             6.41 kB         112 kB
+├ ○ /dashboard/products/add-v2                          16.2 kB         692 kB
+├ ○ /dashboard/products/branch-stock-pivot              11.1 kB         362 kB
+├ ○ /dashboard/products/branch-stock-pivot-v2           6.56 kB        1.07 MB
+├ ○ /dashboard/products/brands                          6.43 kB         395 kB
+├ ○ /dashboard/products/brands/import                   4.49 kB         124 kB
+├ ○ /dashboard/products/bulk-price-editor               14.7 kB         939 kB
+├ ○ /dashboard/products/bulk-reorder-update             10.4 kB         165 kB
+├ ○ /dashboard/products/categories                      6.74 kB         395 kB
+├ ○ /dashboard/products/categories/import               4.52 kB         124 kB
+├ ○ /dashboard/products/csv-id-mapper                   5.28 kB         134 kB
+├ ○ /dashboard/products/import                          5.65 kB         125 kB
+├ ○ /dashboard/products/import-branch-stock             5.05 kB         124 kB
+├ ○ /dashboard/products/list-v2                         17.2 kB        1.12 MB
+├ ○ /dashboard/products/print-labels                    10.1 kB         149 kB
+├ ○ /dashboard/products/simple-price-editor             10.7 kB         207 kB
+├ ○ /dashboard/products/stock                           12.9 kB         364 kB
+├ ○ /dashboard/products/stock-history                   2.64 kB         115 kB
+├ ○ /dashboard/products/units                           6.43 kB         395 kB
+├ ○ /dashboard/products/warranties                       2.6 kB         105 kB
+├ ○ /dashboard/profile                                  6.13 kB         135 kB
+├ ○ /dashboard/purchases                                5.58 kB         689 kB
+├ ƒ /dashboard/purchases/[id]                           15.8 kB         190 kB
+├ ƒ /dashboard/purchases/[id]/receive                   7.41 kB         131 kB
+├ ○ /dashboard/purchases/create                         6.82 kB         184 kB
+├ ○ /dashboard/purchases/receipts                       7.86 kB         175 kB
+├ ƒ /dashboard/purchases/receipts/[id]                  13.5 kB         193 kB
+├ ○ /dashboard/purchases/receipts/new                   14.9 kB         185 kB
+├ ○ /dashboard/purchases/returns                        5.25 kB         161 kB
+├ ƒ /dashboard/purchases/returns/[id]                   6.58 kB         145 kB
+├ ○ /dashboard/purchases/suggestions                      11 kB         169 kB
+├ ○ /dashboard/qc-inspections                           5.26 kB         164 kB
+├ ƒ /dashboard/qc-inspections/[id]                      7.16 kB         166 kB
+├ ○ /dashboard/readings/history                         5.97 kB         685 kB
+├ ○ /dashboard/readings/x-reading                       6.92 kB         117 kB
+├ ○ /dashboard/readings/z-reading                       5.52 kB         116 kB
+├ ○ /dashboard/reports                                  4.75 kB         126 kB
+├ ○ /dashboard/reports/attendance                       5.64 kB         798 kB
+├ ○ /dashboard/reports/audit-trail                      14.3 kB         181 kB
+├ ○ /dashboard/reports/bir/daily-sales-summary          12.4 kB        1.09 MB
+├ ○ /dashboard/reports/cash-in-out                      3.42 kB         247 kB
+├ ○ /dashboard/reports/cost-audit                       7.64 kB         932 kB
+├ ○ /dashboard/reports/customer-payments                3.83 kB         247 kB
+├ ○ /dashboard/reports/discount-analysis                2.97 kB         246 kB
+├ ○ /dashboard/reports/expenses                          6.2 kB         715 kB
+├ ○ /dashboard/reports/expenses-analytics                5.6 kB         885 kB
+├ ○ /dashboard/reports/gl-entries                       6.68 kB         715 kB
+├ ○ /dashboard/reports/historical-inventory             7.42 kB         168 kB
+├ ○ /dashboard/reports/inventory-corrections            25.6 kB         289 kB
+├ ○ /dashboard/reports/inventory-ledger                 4.64 kB         123 kB
+├ ○ /dashboard/reports/inventory-valuation              6.53 kB         828 kB
+├ ○ /dashboard/reports/inventory-valuation-history      8.59 kB        1.04 MB
+├ ○ /dashboard/reports/my-received-transfers            6.21 kB         994 kB
+├ ○ /dashboard/reports/my-transfers                     5.78 kB         993 kB
+├ ○ /dashboard/reports/price-comparison                 6.42 kB         930 kB
+├ ○ /dashboard/reports/product-purchase-history         1.04 kB         104 kB
+├ ○ /dashboard/reports/products-suppliers               7.75 kB        1.09 MB
+├ ○ /dashboard/reports/profit                           5.14 kB         173 kB
+├ ○ /dashboard/reports/profit-loss                        11 kB         175 kB
+├ ○ /dashboard/reports/profitability                     4.7 kB         172 kB
+├ ○ /dashboard/reports/purchase-returns                 9.31 kB         181 kB
+├ ○ /dashboard/reports/purchase-sale                    11.7 kB         176 kB
+├ ○ /dashboard/reports/purchase-trends                  6.66 kB         497 kB
+├ ○ /dashboard/reports/purchases                         4.3 kB         661 kB
+├ ○ /dashboard/reports/purchases-devextreme             1.46 kB         658 kB
+├ ○ /dashboard/reports/purchases-items.backup           9.32 kB        1.15 MB
+├ ○ /dashboard/reports/purchases-report                 8.65 kB         382 kB
+├ ○ /dashboard/reports/purchases/analytics              2.79 kB         833 kB
+├ ○ /dashboard/reports/purchases/budget-vs-actual       2.23 kB         246 kB
+├ ○ /dashboard/reports/purchases/category-summary       2.05 kB         245 kB
+├ ○ /dashboard/reports/purchases/cost-trend             2.44 kB         246 kB
+├ ○ /dashboard/reports/purchases/daily-summary          1.99 kB         245 kB
+├ ○ /dashboard/reports/purchases/item-detail            2.12 kB         245 kB
+├ ○ /dashboard/reports/purchases/item-summary           2.35 kB         246 kB
+├ ○ /dashboard/reports/purchases/payment-status         2.53 kB         246 kB
+├ ○ /dashboard/reports/purchases/supplier-performance   2.31 kB         246 kB
+├ ○ /dashboard/reports/purchases/supplier-summary       2.37 kB         246 kB
+├ ○ /dashboard/reports/purchases/trend-analysis         2.31 kB         246 kB
+├ ○ /dashboard/reports/reconciliation                   7.78 kB         716 kB
+├ ○ /dashboard/reports/returns-analysis                 8.55 kB         950 kB
+├ ○ /dashboard/reports/sales-by-hour                    3.06 kB         246 kB
+├ ○ /dashboard/reports/sales-history                      199 B         168 kB
+├ ○ /dashboard/reports/sales-journal                      180 B         218 kB
+├ ○ /dashboard/reports/sales-per-cashier                4.46 kB         110 kB
+├ ○ /dashboard/reports/sales-per-item                     187 B         247 kB
+├ ○ /dashboard/reports/sales-report                      6.1 kB         168 kB
+├ ○ /dashboard/reports/sales-today                        196 B         165 kB
+├ ○ /dashboard/reports/stock-alert                      6.03 kB         161 kB
+├ ○ /dashboard/reports/stock-history-v2                 12.7 kB        1.08 MB
+├ ○ /dashboard/reports/stock-history-v3                   14 kB        1.08 MB
+├ ○ /dashboard/reports/tax                              22.3 kB        1.12 MB
+├ ○ /dashboard/reports/transfer-trends                  6.47 kB         497 kB
+├ ○ /dashboard/reports/transfers-per-item               6.78 kB         994 kB
+├ ○ /dashboard/reports/transfers-per-item-pivot         4.91 kB         716 kB
+├ ○ /dashboard/reports/transfers-report                 7.35 kB         668 kB
+├ ○ /dashboard/reports/trending-products                12.9 kB        1.25 MB
+├ ○ /dashboard/reports/unpaid-invoices                  3.94 kB         247 kB
+├ ○ /dashboard/reports/void-refund-analysis             2.93 kB         246 kB
+├ ○ /dashboard/roles                                    8.53 kB         111 kB
+├ ○ /dashboard/sales                                    16.7 kB        1.12 MB
+├ ƒ /dashboard/sales/[id]                               7.06 kB         184 kB
+├ ƒ /dashboard/sales/[id]/payment                        4.1 kB         122 kB
+├ ○ /dashboard/sales/create                             7.09 kB         175 kB
+├ ○ /dashboard/schedules                                4.81 kB         688 kB
+├ ƒ /dashboard/schedules/[id]                           7.53 kB         418 kB
+├ ○ /dashboard/schedules/create                         8.32 kB         419 kB
+├ ○ /dashboard/serial-lookup                            5.71 kB         125 kB
+├ ○ /dashboard/settings/barcode-settings                1.46 kB         104 kB
+├ ○ /dashboard/settings/inactivity                      3.75 kB         116 kB
+├ ○ /dashboard/settings/invoice-settings                1.35 kB         104 kB
+├ ○ /dashboard/settings/menu-management                 4.82 kB         652 kB
+├ ○ /dashboard/settings/menu-permissions                5.16 kB         652 kB
+├ ○ /dashboard/settings/pricing                         8.83 kB         375 kB
+├ ○ /dashboard/settings/product-settings                2.04 kB         108 kB
+├ ○ /dashboard/settings/schedule-login                  3.08 kB         121 kB
+├ ○ /dashboard/settings/sod-rules                       4.13 kB         107 kB
+├ ○ /dashboard/settings/tax-rates                       2.59 kB         105 kB
+├ ○ /dashboard/settings/warranties                      6.29 kB         170 kB
+├ ○ /dashboard/shifts/begin                             7.45 kB         127 kB
+├ ○ /dashboard/shifts/close                             11.6 kB         122 kB
+├ ○ /dashboard/supplier-returns                          4.8 kB        1.07 MB
+├ ƒ /dashboard/supplier-returns/[id]                    6.82 kB         274 kB
+├ ○ /dashboard/supplier-returns/create-manual           7.91 kB         421 kB
+├ ○ /dashboard/supplier-returns/new                     6.19 kB         174 kB
+├ ○ /dashboard/suppliers                                8.45 kB         397 kB
+├ ○ /dashboard/suppliers/import                         4.86 kB         124 kB
+├ ○ /dashboard/technical                                7.85 kB         429 kB
+├ ○ /dashboard/technical/job-orders                     7.79 kB        1.08 MB
+├ ○ /dashboard/technical/payments                       7.62 kB        1.08 MB
+├ ○ /dashboard/technical/serial-lookup                   6.7 kB         687 kB
+├ ○ /dashboard/technical/service-types                  8.54 kB        1.08 MB
+├ ○ /dashboard/technical/technicians                    8.03 kB        1.08 MB
+├ ○ /dashboard/technical/warranty-claims                9.03 kB        1.08 MB
+├ ○ /dashboard/test-email                               4.67 kB         115 kB
+├ ○ /dashboard/test-telegram                            5.27 kB         116 kB
+├ ○ /dashboard/theme-demo                               1.84 kB         112 kB
+├ ○ /dashboard/theme-demo-simple                        1.74 kB         112 kB
+├ ○ /dashboard/transfers                                 5.8 kB         689 kB
+├ ƒ /dashboard/transfers/[id]                           14.9 kB         166 kB
+├ ƒ /dashboard/transfers/[id]/ExportTransfers           7.08 kB        1.09 MB
+├ ○ /dashboard/transfers/create                          4.2 kB         181 kB
+├ ○ /dashboard/users                                    4.86 kB        1.07 MB
+├ ƒ /dashboard/users/[id]/edit                          2.48 kB         109 kB
+├ ○ /dashboard/users/new                                2.19 kB         108 kB
+├ ○ /login                                              7.06 kB         119 kB
+├ ○ /superadmin                                         2.32 kB         105 kB
+└ ○ /superadmin/businesses                              2.96 kB         106 kB
++ First Load JS shared by all                            103 kB
+  ├ chunks/31255-d1a2b49835a16599.js                    45.5 kB
+  ├ chunks/4bd1b696-bad92808725a934a.js                 54.2 kB
+  └ other shared chunks (total)                         2.85 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

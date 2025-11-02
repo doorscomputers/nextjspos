@@ -275,6 +275,24 @@
       position: static !important;
     }
 
+    /* Hide dialog/modal overlays when printing */
+    [data-radix-dialog-overlay],
+    [role="dialog"] ~ div[class*="fixed inset-0"],
+    [class*="AlertDialogOverlay"] {
+      display: none !important;
+    }
+
+    /* Ensure dialog content is visible and takes full page */
+    [data-radix-dialog-content],
+    [role="alertdialog"] {
+      position: static !important;
+      transform: none !important;
+      max-width: 100% !important;
+      width: 100% !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+
     @page {
       size: A4 portrait;
       margin: 1cm;

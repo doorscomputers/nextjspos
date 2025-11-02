@@ -4,6 +4,8 @@ echo    PRODUCTION BUILD & TEST SCRIPT
 echo ================================================
 echo.
 
+Remove-Item -Recurse -Force .next
+
 echo [1/4] Killing old Node.js dev servers...
 taskkill /F /IM node.exe >nul 2>&1
 if %errorlevel%==0 (

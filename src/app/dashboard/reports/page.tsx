@@ -195,14 +195,15 @@ const reportSections: ReportSection[] = [
         icon: '📉',
         permission: PERMISSIONS.REPORT_PURCHASE_TRENDS,
       },
-      {
-        title: 'Purchase Items',
-        description: 'Item-level purchase insight with quantity and cost metrics.',
-        href: '/dashboard/reports/purchases-items',
-        color: 'from-blue-500 to-blue-600',
-        icon: '📦',
-        permission: PERMISSIONS.REPORT_PURCHASE_ITEMS,
-      },
+      // Temporarily disabled - has syntax errors
+      // {
+      //   title: 'Purchase Items',
+      //   description: 'Item-level purchase insight with quantity and cost metrics.',
+      //   href: '/dashboard/reports/purchases-items',
+      //   color: 'from-blue-500 to-blue-600',
+      //   icon: '📦',
+      //   permission: PERMISSIONS.REPORT_PURCHASE_ITEMS,
+      // },
       {
         title: 'Product Purchase History',
         description: 'Supplier-by-product purchase history and receiving trail.',

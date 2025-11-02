@@ -68,13 +68,14 @@ const quickAccessReports: ReportCard[] = [
     icon: TrendingUp,
     route: '/dashboard/reports/purchase-trends',
   },
-  {
-    id: 'items',
-    title: 'Purchase Items Report',
-    description: 'Detailed item-wise breakdown',
-    icon: FileText,
-    route: '/dashboard/reports/purchases-items',
-  },
+  // Temporarily disabled - purchases-items page has syntax errors
+  // {
+  //   id: 'items',
+  //   title: 'Purchase Items Report',
+  //   description: 'Detailed item-wise breakdown',
+  //   icon: FileText,
+  //   route: '/dashboard/reports/purchases-items',
+  // },
   {
     id: 'suppliers',
     title: 'Products-Suppliers Report',

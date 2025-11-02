@@ -1,5 +1,7 @@
 # Vercel Database Setup Instructions
 
+Remove-Item -Recurse -Force .next
+
 ## Step 1: Install Vercel CLI (if not already installed)
 
 ```bash
@@ -20,6 +22,7 @@ vercel link
 ```
 
 Follow the prompts:
+
 - Set up and deploy? **N** (No, we just want to link)
 - Which scope? Select your account
 - Link to existing project? **Y** (Yes)
@@ -55,6 +58,7 @@ npm run db:seed
 ```
 
 This will create:
+
 - Default business account
 - Super Admin user (username: `superadmin`, password: `password`)
 - Admin, Manager, and Cashier demo accounts
@@ -62,6 +66,7 @@ This will create:
 - Sample data
 
 **SECURITY NOTE**: After deployment, you should:
+
 1. Login as superadmin
 2. Change the default password immediately
 3. Create your actual admin account
@@ -70,34 +75,43 @@ This will create:
 ## Step 7: Verify Deployment
 
 Visit your deployed application:
+
 ```
 https://your-project.vercel.app/login
 ```
 
 Login with:
+
 - **Username**: `superadmin`
 - **Password**: `password`
 
 ## Common Issues
 
 ### Issue 1: Database Connection Timeout
+
 **Solution**: Ensure your DATABASE_URL uses connection pooling if using Supabase:
+
 ```
 postgresql://user:pass@host:6543/postgres?pgbouncer=true
 ```
 
 ### Issue 2: Prisma Client Out of Sync
+
 **Solution**: Run in your project directory:
+
 ```bash
 npx prisma generate
 git add .
 git commit -m "chore: regenerate Prisma client"
 git push origin master
 ```
+
 Vercel will auto-deploy the update.
 
 ### Issue 3: Build Fails with "Cannot find module '@prisma/client'"
+
 **Solution**: Ensure your package.json has a postinstall script:
+
 ```json
 {
   "scripts": {
@@ -107,7 +121,9 @@ Vercel will auto-deploy the update.
 ```
 
 ### Issue 4: Environment Variables Not Loading
+
 **Solution**:
+
 1. Go to Vercel Dashboard > Your Project > Settings > Environment Variables
 2. Ensure all variables are set for the "Production" environment
 3. Redeploy: Vercel Dashboard > Deployments > Click "..." > Redeploy
