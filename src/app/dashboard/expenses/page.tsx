@@ -519,7 +519,7 @@ export default function ExpensesPage() {
             {can(PERMISSIONS.EXPENSE_CREATE) && (
               <Button
                 onClick={() => handleOpenDialog()}
-                className="gap-2 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
+                className="gap-2 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 font-semibold text-base"
               >
                 <Plus className="w-4 h-4" />
                 Add Expense
@@ -617,20 +617,38 @@ export default function ExpensesPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="categoryId">Category *</Label>
+                    <div className="flex items-center justify-between mb-2">
+                      <Label htmlFor="categoryId">Category *</Label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        onClick={() => window.open('/dashboard/expenses/categories', '_blank')}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Add Category
+                      </Button>
+                    </div>
                     <Select
                       value={formData.categoryId}
                       onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
+                      <SelectTrigger className="bg-white border-gray-300">
+                        <SelectValue placeholder={categories.length === 0 ? "No categories available" : "Select category"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {categories.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.id.toString()}>
-                            {cat.name}
-                          </SelectItem>
-                        ))}
+                        {categories.length === 0 ? (
+                          <div className="p-4 text-center text-sm text-gray-500">
+                            No categories found. Click "Add Category" to create one.
+                          </div>
+                        ) : (
+                          categories.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.id.toString()}>
+                              {cat.name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -641,15 +659,21 @@ export default function ExpensesPage() {
                       value={formData.locationId}
                       onValueChange={(value) => setFormData({ ...formData, locationId: value })}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select location" />
+                      <SelectTrigger className="bg-white border-gray-300">
+                        <SelectValue placeholder={locations.length === 0 ? "No locations available" : "Select location"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {locations.map((loc) => (
-                          <SelectItem key={loc.id} value={loc.id.toString()}>
-                            {loc.name}
-                          </SelectItem>
-                        ))}
+                        {locations.length === 0 ? (
+                          <div className="p-4 text-center text-sm text-gray-500">
+                            No locations found. Contact administrator to add locations.
+                          </div>
+                        ) : (
+                          locations.map((loc) => (
+                            <SelectItem key={loc.id} value={loc.id.toString()}>
+                              {loc.name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -661,6 +685,7 @@ export default function ExpensesPage() {
                       type="date"
                       value={formData.expenseDate}
                       onChange={(e) => setFormData({ ...formData, expenseDate: e.target.value })}
+                      className="bg-white border-gray-300"
                     />
                   </div>
 
@@ -674,6 +699,7 @@ export default function ExpensesPage() {
                       value={formData.amount}
                       onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                       placeholder="0.00"
+                      className="bg-white border-gray-300 text-lg font-semibold"
                     />
                   </div>
 
@@ -683,8 +709,8 @@ export default function ExpensesPage() {
                       value={formData.paymentMethod}
                       onValueChange={(value) => setFormData({ ...formData, paymentMethod: value })}
                     >
-                      <SelectTrigger>
-                        <SelectValue />
+                      <SelectTrigger className="bg-white border-gray-300">
+                        <SelectValue placeholder="Select payment method" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="cash">Cash</SelectItem>
@@ -703,20 +729,21 @@ export default function ExpensesPage() {
                       value={formData.payeeName}
                       onChange={(e) => setFormData({ ...formData, payeeName: e.target.value })}
                       placeholder="Who was paid"
+                      className="bg-white border-gray-300"
                     />
                   </div>
 
                   <div className="md:col-span-2">
                     <Label htmlFor="glAccountId">GL Account (Optional)</Label>
                     <Select
-                      value={formData.glAccountId}
-                      onValueChange={(value) => setFormData({ ...formData, glAccountId: value })}
+                      value={formData.glAccountId || "none"}
+                      onValueChange={(value) => setFormData({ ...formData, glAccountId: value === "none" ? "" : value })}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-white border-gray-300">
                         <SelectValue placeholder="Select GL account (optional)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">-- Use Category Default --</SelectItem>
+                        <SelectItem value="none">-- Use Category Default --</SelectItem>
                         {glAccounts.map((account) => (
                           <SelectItem key={account.id} value={account.id.toString()}>
                             {account.accountCode} - {account.accountName}
@@ -734,25 +761,36 @@ export default function ExpensesPage() {
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                       placeholder="Enter expense description"
                       rows={3}
+                      className="bg-white border-gray-300 resize-none"
                     />
                   </div>
                 </div>
 
-                <div className="flex gap-2 mt-6">
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={saving}
-                    className="flex-1"
-                  >
-                    {saving ? 'Saving...' : editingExpense ? 'Update' : 'Create'}
-                  </Button>
+                <div className="flex gap-3 mt-6 pt-4 border-t">
                   <Button
                     onClick={handleCloseDialog}
                     variant="outline"
                     disabled={saving}
-                    className="flex-1"
+                    className="flex-1 h-11 font-semibold border-2 hover:bg-gray-50"
                   >
                     Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={saving}
+                    className="flex-1 h-11 font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-md"
+                  >
+                    {saving ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        {editingExpense ? 'Update Expense' : 'Create Expense'}
+                      </>
+                    )}
                   </Button>
                 </div>
               </CardContent>

@@ -70,22 +70,31 @@ export default function StockHistoryV2Page() {
   // Filters
   const [selectedProduct, setSelectedProduct] = useState<ProductOption | null>(null)
   const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null)
-  
+
   // Set default date range: first day of current month to today
   const getDefaultStartDate = () => {
     const now = new Date()
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     return firstDayOfMonth.toISOString().split('T')[0]
   }
-  
+
   const getDefaultEndDate = () => {
     const now = new Date()
     return now.toISOString().split('T')[0]
   }
-  
-  const [startDate, setStartDate] = useState(getDefaultStartDate())
-  const [endDate, setEndDate] = useState(getDefaultEndDate())
-  const [autoCorrect, setAutoCorrect] = useState(false)
+
+  const [startDate, setStartDate] = useState(() => {
+    const date = getDefaultStartDate()
+    console.log('📅 V2 Initializing Start Date:', date)
+    return date
+  })
+  const [endDate, setEndDate] = useState(() => {
+    const date = getDefaultEndDate()
+    console.log('📅 V2 Initializing End Date:', date)
+    return date
+  })
+
+  console.log('🔍 V2 Current State - Start Date:', startDate, 'End Date:', endDate)
 
   // Product autocomplete state
   const [searchTerm, setSearchTerm] = useState('')
@@ -252,38 +261,38 @@ export default function StockHistoryV2Page() {
       router.push('/dashboard')
       return
     }
-    
+
     const init = async () => {
       console.log('🚀 Initializing Stock History V2 page...')
-      
+
       setLoading(false) // Initial load complete
-      
+
       // Check for productId in URL and auto-load
       const productIdParam = searchParams.get('productId')
       if (productIdParam) {
         const productId = parseInt(productIdParam)
         console.log('🔍 Found productId in URL:', productId)
         console.log('⏳ Auto-loading product...')
-        
+
         // Inline the product loading logic to avoid dependency issues
         try {
           setLoadingProductFromUrl(true)
-          
+
           const response = await fetch(`/api/products/search-async?productId=${productId}`)
           console.log('📡 API Response status:', response.status)
-          
+
           if (response.ok) {
             const data = await response.json()
             console.log('📊 API Data:', data)
             const products = data.data || []
-            
+
             if (products.length > 0) {
               const productOption = products[0] as ProductOption
               console.log('✅ Product loaded:', productOption.displayName)
-              
+
               setSelectedProduct(productOption)
               setSearchTerm(productOption.displayName)
-              
+
               // Location will be auto-selected by fetchLocations when user data loads
               console.log('ℹ️ Product set, waiting for location to be auto-selected...')
             } else {
@@ -301,7 +310,7 @@ export default function StockHistoryV2Page() {
         console.log('ℹ️ No productId in URL - manual search mode')
       }
     }
-    
+
     init()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -319,33 +328,33 @@ export default function StockHistoryV2Page() {
     if (selectedProduct && selectedLocation) {
       fetchStockHistory()
     }
-  }, [selectedProduct, selectedLocation, startDate, endDate, autoCorrect])
+  }, [selectedProduct, selectedLocation, startDate, endDate])
 
   // Load product from URL parameter - OPTIMIZED for speed
   const loadProductFromUrl = useCallback(async (productId: number) => {
     try {
       console.log('📦 Starting product load for ID:', productId)
       setLoadingProductFromUrl(true)
-      
+
       // FAST: Use search-async endpoint which is optimized and returns flattened data
       const response = await fetch(`/api/products/search-async?productId=${productId}`)
-      
+
       console.log('📡 API Response status:', response.status)
-      
+
       if (response.ok) {
         const data = await response.json()
         console.log('📊 API Data:', data)
         const products = data.data || []
-        
+
         if (products.length > 0) {
           // The search-async endpoint returns ProductOption format directly
           const productOption = products[0] as ProductOption
-          
+
           console.log('✅ Product loaded:', productOption.displayName)
-          
+
           setSelectedProduct(productOption)
           setSearchTerm(productOption.displayName)
-          
+
           // Location will be auto-selected by fetchLocations when user data loads
           console.log('ℹ️ Product set, waiting for location to be auto-selected...')
         } else {
@@ -364,20 +373,20 @@ export default function StockHistoryV2Page() {
   const fetchLocations = async () => {
     try {
       console.log('📍 Fetching locations for Stock History V2...')
-      
+
       // Fetch user's assigned locations and primary location ID
       const userLocationsResponse = await fetch('/api/user-locations')
       const userLocationsData = await userLocationsResponse.json()
       const primaryLocationId = userLocationsData.primaryLocationId
-      
+
       console.log('👤 User primary location ID:', primaryLocationId)
       console.log('📋 User has access to all locations:', userLocationsData.hasAccessToAll)
-      
+
       // For stock-history-v2, show only the user's primary location (not all accessible locations)
       if (primaryLocationId) {
         // Find the primary location from the user's assigned locations
         const primaryLocation = userLocationsData.locations.find((loc: any) => loc.id === primaryLocationId)
-        
+
         if (primaryLocation) {
           console.log('✅ Primary location found:', primaryLocation.name)
           setLocations([primaryLocation])
@@ -385,7 +394,7 @@ export default function StockHistoryV2Page() {
           return
         }
       }
-      
+
       // Fallback: If no primary location, use first assigned location
       if (userLocationsData.locations.length > 0) {
         const firstLocation = userLocationsData.locations[0]
@@ -396,7 +405,7 @@ export default function StockHistoryV2Page() {
         console.warn('⚠️ No assigned locations found for user')
         setLocations([])
       }
-      
+
     } catch (error) {
       console.error('❌ Error fetching locations:', error)
       setLocations([])
@@ -410,8 +419,7 @@ export default function StockHistoryV2Page() {
     try {
       const queryParams = new URLSearchParams({
         variationId: selectedProduct.variationId.toString(),
-        locationId: selectedLocation.id.toString(),
-        autoCorrect: autoCorrect.toString()
+        locationId: selectedLocation.id.toString()
       })
 
       if (startDate) queryParams.append('startDate', startDate)
@@ -511,6 +519,23 @@ export default function StockHistoryV2Page() {
       </div>
 
       <div className="p-6">
+        {/* Info Note */}
+        <div className="mb-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-blue-900 dark:text-blue-200">
+              <p className="font-semibold mb-1">How Stock History is Calculated:</p>
+              <p>This report shows the complete transaction history and calculates accurate stock levels based on:</p>
+              <ul className="list-disc list-inside mt-2 space-y-1 text-blue-800 dark:text-blue-300">
+                <li><strong>Beginning Inventory:</strong> Initial stock when the product was added to the system</li>
+                <li><strong>Inventory Corrections:</strong> Manual adjustments made by authorized users</li>
+                <li><strong>All Transactions:</strong> Purchases, sales, transfers, and adjustments</li>
+              </ul>
+              <p className="mt-2">The "Quantity on Hand" shown after each transaction is the actual calculated stock level at that point in time.</p>
+            </div>
+          </div>
+        </div>
+
         {/* Filter Controls */}
         <Card className="mb-6 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
           <CardContent className="pt-6">
@@ -525,7 +550,7 @@ export default function StockHistoryV2Page() {
                   </p>
                 ) : (
                   <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                    Type at least 3 characters to search by name, SKU, or barcode
+                    Type at least 3 characters to search by name or SKU
                   </p>
                 )}
                 <div className="relative">
@@ -585,10 +610,9 @@ export default function StockHistoryV2Page() {
                             onMouseEnter={() => setSelectedIndex(index)}
                             className={`
                               w-full px-4 py-3 text-left flex justify-between items-center transition-colors
-                              ${
-                                isSelected
-                                  ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600'
-                                  : 'hover:bg-gray-50 dark:hover:bg-gray-700/30 border-l-4 border-transparent'
+                              ${isSelected
+                                ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600'
+                                : 'hover:bg-gray-50 dark:hover:bg-gray-700/30 border-l-4 border-transparent'
                               }
                             `}
                           >
@@ -617,7 +641,7 @@ export default function StockHistoryV2Page() {
                       <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                         <p className="font-medium">No products found</p>
                         <p className="text-sm mt-1">
-                          Try searching by SKU, barcode, or product name
+                          Try searching by SKU or product name
                         </p>
                       </div>
                     </div>
@@ -695,39 +719,7 @@ export default function StockHistoryV2Page() {
               </div>
             </div>
 
-            {/* Auto-Correct Toggle - SUPER ADMIN ONLY */}
-            {isSuperAdmin(user) && (
-              <div className="mt-4">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      checked={autoCorrect}
-                      onChange={(e) => setAutoCorrect(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer peer-checked:bg-green-500 dark:peer-checked:bg-green-600 transition-colors"></div>
-                    <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      Auto-correct stock discrepancies
-                    </span>
-                    <div className="group relative">
-                      <Info className="w-4 h-4 text-gray-400 hover:text-blue-500 dark:text-gray-500 dark:hover:text-blue-400 cursor-help" />
-                      <div className="invisible group-hover:visible absolute left-0 top-6 z-50 w-80 p-3 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg shadow-lg">
-                        <p className="font-semibold mb-1">What is Auto-Correct? (Super Admin Only)</p>
-                        <p>When enabled, the system will automatically verify and correct any stock level discrepancies by recalculating from transaction history for the <strong>selected product at the selected location only</strong>.</p>
-                        <p className="mt-2">This ensures your stock quantities match all purchases, sales, transfers, and adjustments.</p>
-                        <p className="mt-2 text-yellow-300">⚠️ Use this carefully as it will update your current stock levels for this product/location.</p>
-                      </div>
-                    </div>
-                  </div>
-                </label>
-              </div>
-            )}
-
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-6 flex flex-wrap gap-2">
               <Button
                 onClick={handleRefresh}
                 disabled={!selectedProduct || !selectedLocation || loadingHistory}
@@ -747,9 +739,8 @@ export default function StockHistoryV2Page() {
                 onClick={() => {
                   setStartDate(getDefaultStartDate())
                   setEndDate(getDefaultEndDate())
-                  setAutoCorrect(false)
                 }}
-                disabled={startDate === getDefaultStartDate() && endDate === getDefaultEndDate() && !autoCorrect}
+                disabled={startDate === getDefaultStartDate() && endDate === getDefaultEndDate()}
                 className="bg-gray-600 hover:bg-gray-700 text-white font-medium border-2 border-gray-700 hover:border-gray-800 shadow-md hover:shadow-lg transition-all disabled:opacity-50"
               >
                 Reset Filters
@@ -908,71 +899,71 @@ export default function StockHistoryV2Page() {
                   className="dx-card"
                   width="100%"
                 >
-                <LoadPanel enabled={true} />
-                <Scrolling mode="virtual" />
-                <Paging defaultPageSize={20} />
-                <Pager
-                  visible={true}
-                  showPageSizeSelector={true}
-                  allowedPageSizes={[10, 20, 50, 100]}
-                  showInfo={true}
-                  showNavigationButtons={true}
-                />
-                <FilterRow visible={true} />
-                <HeaderFilter visible={true} />
-                <SearchPanel visible={true} width={240} placeholder="Search..." />
-                <Sorting mode="multiple" />
-                <Export enabled={true} allowExportSelectedData={false} />
+                  <LoadPanel enabled={true} />
+                  <Scrolling mode="virtual" />
+                  <Paging defaultPageSize={20} />
+                  <Pager
+                    visible={true}
+                    showPageSizeSelector={true}
+                    allowedPageSizes={[10, 20, 50, 100]}
+                    showInfo={true}
+                    showNavigationButtons={true}
+                  />
+                  <FilterRow visible={true} />
+                  <HeaderFilter visible={true} />
+                  <SearchPanel visible={true} width={240} placeholder="Search..." />
+                  <Sorting mode="multiple" />
+                  <Export enabled={true} allowExportSelectedData={false} />
 
-                <Column
-                  dataField="transactionTypeLabel"
-                  caption="Type"
-                  width={150}
-                />
-                <Column
-                  dataField="quantityChange"
-                  caption="Quantity Change"
-                  width={150}
-                  cellRender={(data) => {
-                    const entry = data.data as StockHistoryEntry
-                    if (entry.quantityAdded > 0) {
-                      return <span className="text-green-600 dark:text-green-400 font-semibold">+{entry.quantityAdded.toFixed(2)}</span>
-                    } else if (entry.quantityRemoved > 0) {
-                      return <span className="text-red-600 dark:text-red-400 font-semibold">-{entry.quantityRemoved.toFixed(2)}</span>
-                    } else {
-                      return <span className="text-gray-400">0.00</span>
-                    }
-                  }}
-                />
-                <Column
-                  dataField="runningBalance"
-                  caption="New Quantity"
-                  width={150}
-                  format={{ type: 'fixedPoint', precision: 2 }}
-                  cellRender={(data) => (
-                    <span className="font-semibold text-gray-900 dark:text-white">
-                      {data.value.toFixed(2)}
-                    </span>
-                  )}
-                />
-                <Column
-                  dataField="date"
-                  caption="Date"
-                  dataType="date"
-                  width={150}
-                  format="MM/dd/yyyy"
-                />
-                <Column
-                  dataField="referenceNumber"
-                  caption="Reference No"
-                  width={150}
-                />
-                <Column
-                  dataField="createdBy"
-                  caption="Customer/Supplier"
-                  minWidth={200}
-                />
-              </DataGrid>
+                  <Column
+                    dataField="transactionTypeLabel"
+                    caption="Type"
+                    width={150}
+                  />
+                  <Column
+                    dataField="quantityChange"
+                    caption="Quantity Change"
+                    width={150}
+                    cellRender={(data) => {
+                      const entry = data.data as StockHistoryEntry
+                      if (entry.quantityAdded > 0) {
+                        return <span className="text-green-600 dark:text-green-400 font-semibold">+{entry.quantityAdded.toFixed(2)}</span>
+                      } else if (entry.quantityRemoved > 0) {
+                        return <span className="text-red-600 dark:text-red-400 font-semibold">-{entry.quantityRemoved.toFixed(2)}</span>
+                      } else {
+                        return <span className="text-gray-400">0.00</span>
+                      }
+                    }}
+                  />
+                  <Column
+                    dataField="runningBalance"
+                    caption="New Quantity"
+                    width={150}
+                    format={{ type: 'fixedPoint', precision: 2 }}
+                    cellRender={(data) => (
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {data.value.toFixed(2)}
+                      </span>
+                    )}
+                  />
+                  <Column
+                    dataField="date"
+                    caption="Date"
+                    dataType="date"
+                    width={150}
+                    format="MM/dd/yyyy"
+                  />
+                  <Column
+                    dataField="referenceNumber"
+                    caption="Reference No"
+                    width={150}
+                  />
+                  <Column
+                    dataField="createdBy"
+                    caption="Customer/Supplier"
+                    minWidth={200}
+                  />
+                </DataGrid>
               </div>
             )}
           </CardContent>

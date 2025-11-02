@@ -222,12 +222,12 @@ export default function BankTransactionsPage() {
 
             <div className="space-y-2">
               <Label htmlFor="type">Transaction Type</Label>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <Select value={typeFilter || "all"} onValueChange={(value) => setTypeFilter(value === "all" ? "" : value)}>
                 <SelectTrigger id="type">
                   <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All types</SelectItem>
+                  <SelectItem value="all">All types</SelectItem>
                   <SelectItem value="payment">Payment</SelectItem>
                   <SelectItem value="receipt">Receipt</SelectItem>
                   <SelectItem value="transfer">Transfer</SelectItem>

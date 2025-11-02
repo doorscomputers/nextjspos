@@ -258,6 +258,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
       permission: PERMISSIONS.DASHBOARD_VIEW,
     },
     {
+      name: "Dashboard V4",
+      href: "/dashboard/dashboard-v4",
+      icon: DocumentMagnifyingGlassIcon,
+      key: "dashboard_v4",
+      permission: PERMISSIONS.DASHBOARD_VIEW,
+    },
+    {
       name: "POS & Sales",
       href: "/dashboard/pos",
       icon: ShoppingCartIcon,
@@ -927,6 +934,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               permission: PERMISSIONS.PRODUCT_VIEW,
             },
             {
+              key: "inventory_valuation_history",
+              name: "Inventory Valuation History",
+              href: "/dashboard/reports/inventory-valuation-history",
+              icon: CurrencyDollarIcon,
+              permission: PERMISSIONS.ACCESS_ALL_LOCATIONS, // Admin, Super Admin, and All Branch Admin only
+            },
+            {
               key: "stock_history_v2",
               name: "Stock History V2",
               href: "/dashboard/reports/stock-history-v2",
@@ -1063,6 +1077,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               icon: CreditCardIcon,
               permission: PERMISSIONS.EXPENSE_VIEW,
               children: [
+                {
+                  key: "expense_analytics",
+                  name: "Expense Analytics",
+                  href: "/dashboard/reports/expenses-analytics",
+                  icon: SparklesIcon,
+                  permission: PERMISSIONS.EXPENSE_VIEW,
+                },
                 {
                   key: "all_expenses_report",
                   name: "All Expenses Report",

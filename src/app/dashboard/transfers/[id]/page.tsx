@@ -197,12 +197,12 @@ export default function TransferDetailPage() {
 
       if (response.ok) {
         toast.success(successMessage)
-        
+
         // Check if this is a send or complete action with inventory impact
         if (result.inventoryImpact && (endpoint === 'send' || endpoint === 'complete')) {
           setInventoryImpactData(result.inventoryImpact)
           setShowInventoryImpact(true)
-          
+
           // Mark if transfer was just completed
           if (endpoint === 'complete') {
             setTransferJustCompleted(true)
@@ -223,7 +223,7 @@ export default function TransferDetailPage() {
         // Show specific error message from API
         const errorMessage = result.error || result.details || `Failed to ${successMessage.toLowerCase()}`
         toast.error(errorMessage)
-        
+
         // Log detailed error for debugging
         console.error(`API Error (${endpoint}):`, {
           status: response.status,
@@ -313,7 +313,7 @@ export default function TransferDetailPage() {
 
   const handleCloseInventoryImpact = () => {
     setShowInventoryImpact(false)
-    
+
     // If transfer was just completed, redirect to transfers list
     if (transferJustCompleted) {
       router.push('/dashboard/transfers')
@@ -331,8 +331,8 @@ export default function TransferDetailPage() {
         // Parse serial numbers from JSON field
         const serialNumbersSent = item.serialNumbersSent
           ? (Array.isArray(item.serialNumbersSent)
-              ? item.serialNumbersSent
-              : JSON.parse(item.serialNumbersSent as string))
+            ? item.serialNumbersSent
+            : JSON.parse(item.serialNumbersSent as string))
           : []
 
         return {
@@ -561,13 +561,13 @@ export default function TransferDetailPage() {
 
     // All other statuses - return standard text
     return status === 'draft' ? 'Draft' :
-           status === 'pending_check' ? 'Pending Check' :
-           status === 'checked' ? 'Checked' :
-           status === 'arrived' ? 'Arrived' :
-           status === 'verifying' ? 'Verifying' :
-           status === 'verified' ? 'Verified' :
-           status === 'cancelled' ? 'Cancelled' :
-           status.toUpperCase()
+      status === 'pending_check' ? 'Pending Check' :
+        status === 'checked' ? 'Checked' :
+          status === 'arrived' ? 'Arrived' :
+            status === 'verifying' ? 'Verifying' :
+              status === 'verified' ? 'Verified' :
+                status === 'cancelled' ? 'Cancelled' :
+                  status.toUpperCase()
   }
 
   // Helper: Get location-aware stock status message
@@ -740,7 +740,7 @@ export default function TransferDetailPage() {
 
     // Cancel - available for draft, pending_check, checked, in_transit
     if (['draft', 'pending_check', 'checked', 'in_transit'].includes(status) &&
-        can(PERMISSIONS.STOCK_TRANSFER_DELETE)) {
+      can(PERMISSIONS.STOCK_TRANSFER_DELETE)) {
       actions.push({
         label: 'Cancel Transfer',
         icon: XMarkIcon,
@@ -851,18 +851,17 @@ export default function TransferDetailPage() {
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <div className={`px-4 py-2 rounded-lg text-base font-semibold shadow-sm ${
-            transfer.status === 'draft' ? 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100' :
+          <div className={`px-4 py-2 rounded-lg text-base font-semibold shadow-sm ${transfer.status === 'draft' ? 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100' :
             transfer.status === 'pending_check' ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200' :
-            transfer.status === 'checked' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200' :
-            transfer.status === 'in_transit' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200' :
-            transfer.status === 'arrived' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200' :
-            transfer.status === 'verifying' ? 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200' :
-            transfer.status === 'verified' ? 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-800 dark:text-cyan-200' :
-            transfer.status === 'completed' ? 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200' :
-            transfer.status === 'cancelled' ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200' :
-            'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
-          }`}>
+              transfer.status === 'checked' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200' :
+                transfer.status === 'in_transit' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200' :
+                  transfer.status === 'arrived' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200' :
+                    transfer.status === 'verifying' ? 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200' :
+                      transfer.status === 'verified' ? 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-800 dark:text-cyan-200' :
+                        transfer.status === 'completed' ? 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200' :
+                          transfer.status === 'cancelled' ? 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200' :
+                            'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
+            }`}>
             {getLocationAwareStatusText()}
           </div>
           {(() => {
@@ -1053,18 +1052,15 @@ export default function TransferDetailPage() {
 
           {/* Verification Summary - Shows when items are being verified or ready for completion */}
           {(transfer.status === 'verifying' || transfer.status === 'verified') && (
-            <div className={`p-6 rounded-lg shadow space-y-4 ${
-              transfer.status === 'verified'
-                ? 'bg-green-50 dark:bg-green-900/20 border-2 border-green-400 dark:border-green-700'
-                : 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-400 dark:border-blue-700'
-            }`}>
+            <div className={`p-6 rounded-lg shadow space-y-4 ${transfer.status === 'verified'
+              ? 'bg-green-50 dark:bg-green-900/20 border-2 border-green-400 dark:border-green-700'
+              : 'bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-400 dark:border-blue-700'
+              }`}>
               <div className="flex items-center gap-3">
-                <ClipboardDocumentCheckIcon className={`w-7 h-7 ${
-                  transfer.status === 'verified' ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'
-                }`} />
-                <h2 className={`text-xl font-bold ${
-                  transfer.status === 'verified' ? 'text-green-900 dark:text-green-200' : 'text-blue-900 dark:text-blue-200'
-                }`}>
+                <ClipboardDocumentCheckIcon className={`w-7 h-7 ${transfer.status === 'verified' ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400'
+                  }`} />
+                <h2 className={`text-xl font-bold ${transfer.status === 'verified' ? 'text-green-900 dark:text-green-200' : 'text-blue-900 dark:text-blue-200'
+                  }`}>
                   {transfer.status === 'verified' ? '✓ All Items Verified - Ready to Complete' : 'Verification In Progress'}
                 </h2>
               </div>
@@ -1102,9 +1098,8 @@ export default function TransferDetailPage() {
                       const hasDiscrepancy = sent !== received
 
                       return (
-                        <div key={item.id} className={`flex justify-between items-center p-2 rounded ${
-                          hasDiscrepancy ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700' : 'bg-gray-50 dark:bg-gray-700/50'
-                        }`}>
+                        <div key={item.id} className={`flex justify-between items-center p-2 rounded ${hasDiscrepancy ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700' : 'bg-gray-50 dark:bg-gray-700/50'
+                          }`}>
                           <div className="flex-1">
                             <div className="font-medium text-gray-900 dark:text-gray-100">{item.product.name}</div>
                             <div className="text-xs text-gray-500 dark:text-gray-400">{item.productVariation.name}</div>
@@ -1116,9 +1111,8 @@ export default function TransferDetailPage() {
                             </div>
                             <div className="text-right">
                               <div className="text-xs text-gray-500 dark:text-gray-400">Received</div>
-                              <div className={`font-bold ${
-                                hasDiscrepancy ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400'
-                              }`}>
+                              <div className={`font-bold ${hasDiscrepancy ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400'
+                                }`}>
                                 {received}
                               </div>
                             </div>
@@ -1245,40 +1239,37 @@ export default function TransferDetailPage() {
 
                       {/* Warning for discrepancies */}
                       {verificationQuantities[item.id] !== undefined &&
-                       verificationQuantities[item.id] !== parseFloat(item.quantity) && (
-                        <div className={`p-3 rounded-lg border-2 ${
-                          verificationQuantities[item.id] < parseFloat(item.quantity)
+                        verificationQuantities[item.id] !== parseFloat(item.quantity) && (
+                          <div className={`p-3 rounded-lg border-2 ${verificationQuantities[item.id] < parseFloat(item.quantity)
                             ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700'
                             : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700'
-                        }`}>
-                          <div className={`font-semibold mb-1 ${
-                            verificationQuantities[item.id] < parseFloat(item.quantity)
+                            }`}>
+                            <div className={`font-semibold mb-1 ${verificationQuantities[item.id] < parseFloat(item.quantity)
                               ? 'text-red-900 dark:text-red-200'
                               : 'text-yellow-900 dark:text-yellow-200'
-                          }`}>
-                            ⚠️ Quantity Discrepancy Detected
-                          </div>
-                          <div className={`text-sm ${
-                            verificationQuantities[item.id] < parseFloat(item.quantity)
+                              }`}>
+                              ⚠️ Quantity Discrepancy Detected
+                            </div>
+                            <div className={`text-sm ${verificationQuantities[item.id] < parseFloat(item.quantity)
                               ? 'text-red-800 dark:text-red-300'
                               : 'text-yellow-800 dark:text-yellow-300'
-                          }`}>
-                            {verificationQuantities[item.id] < parseFloat(item.quantity) ? (
-                              <>
-                                <strong>Missing items:</strong> {parseFloat(item.quantity) - verificationQuantities[item.id]} units short
-                                <br />
-                                <strong>Action Required:</strong> Investigate shortage before accepting
-                              </>
-                            ) : (
-                              <>
-                                <strong>Extra items received:</strong> {verificationQuantities[item.id] - parseFloat(item.quantity)} units over
-                                <br />
-                                <strong>Unusual:</strong> Verify this is correct - receiving more than sent?
-                              </>
-                            )}
+                              }`}>
+                              {verificationQuantities[item.id] < parseFloat(item.quantity) ? (
+                                <>
+                                  <strong>Missing items:</strong> {parseFloat(item.quantity) - verificationQuantities[item.id]} units short
+                                  <br />
+                                  <strong>Action Required:</strong> Investigate shortage before accepting
+                                </>
+                              ) : (
+                                <>
+                                  <strong>Extra items received:</strong> {verificationQuantities[item.id] - parseFloat(item.quantity)} units over
+                                  <br />
+                                  <strong>Unusual:</strong> Verify this is correct - receiving more than sent?
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
                       <Button
                         onClick={() => handleVerifyItem(item.id)}
@@ -1599,31 +1590,109 @@ export default function TransferDetailPage() {
 
       {/* Inventory Impact Modal - Shows From/To Quantities */}
       <AlertDialog open={showInventoryImpact} onOpenChange={(open) => !open && handleCloseInventoryImpact()}>
-        <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 max-w-4xl max-h-[80vh] overflow-y-auto">
-          <AlertDialogHeader>
+        <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 max-w-4xl max-h-[80vh] overflow-y-auto print:max-w-full print:max-h-full print:overflow-visible print:border-0 print:shadow-none">
+          <AlertDialogHeader className="print:hidden">
             <AlertDialogTitle className="text-gray-900 dark:text-white text-2xl flex items-center gap-2">
               <CheckCircleIcon className="w-8 h-8 text-green-600" />
               Transfer Impact Report
             </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-4 text-gray-600 dark:text-gray-400">
-                {inventoryImpactData && (
-                  <>
-                    {/* Summary */}
-                    <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-300 dark:border-green-700 rounded-lg p-4">
-                      <div className="text-lg font-bold text-green-900 dark:text-green-200 mb-2">
-                        ✓ Transfer Completed Successfully
-                      </div>
-                      <div className="text-sm text-green-800 dark:text-green-300">
-                        <p><strong>Transfer:</strong> {inventoryImpactData.referenceNumber}</p>
-                        <p><strong>Executed By:</strong> {inventoryImpactData.performedBy || 'N/A'}</p>
-                        <p><strong>Date:</strong> {new Date(inventoryImpactData.transactionDate).toLocaleString()}</p>
-                      </div>
+          </AlertDialogHeader>
+
+          {/* Print-only header */}
+          <div className="hidden print:block mb-6">
+            <h1 className="text-2xl font-bold text-center mb-2">Transfer Impact Report</h1>
+            <div className="text-center text-sm text-gray-600 mb-4">
+              {inventoryImpactData && (
+                <>
+                  <p><strong>Transfer #:</strong> {inventoryImpactData.referenceNumber}</p>
+                  <p><strong>Executed By:</strong> {inventoryImpactData.performedBy || 'N/A'}</p>
+                  <p><strong>Date:</strong> {new Date(inventoryImpactData.transactionDate).toLocaleString()}</p>
+                </>
+              )}
+            </div>
+          </div>
+
+          <AlertDialogDescription asChild>
+            <div className="space-y-4 text-gray-600 dark:text-gray-400 print:text-black">
+              {inventoryImpactData && (
+                <>
+                  {/* Summary - Screen only */}
+                  <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-300 dark:border-green-700 rounded-lg p-4 print:hidden">
+                    <div className="text-lg font-bold text-green-900 dark:text-green-200 mb-2">
+                      ✓ Transfer Completed Successfully
+                    </div>
+                    <div className="text-sm text-green-800 dark:text-green-300">
+                      <p><strong>Transfer:</strong> {inventoryImpactData.referenceNumber}</p>
+                      <p><strong>Executed By:</strong> {inventoryImpactData.performedBy || 'N/A'}</p>
+                      <p><strong>Date:</strong> {new Date(inventoryImpactData.transactionDate).toLocaleString()}</p>
+                    </div>
+                  </div>
+
+                  {/* Inventory Impact by Product */}
+                  <div className="space-y-3 print:space-y-0">
+                    <h3 className="font-bold text-gray-900 dark:text-white text-lg print:text-base print:mb-3 print:pb-2 print:border-b-2 print:border-gray-800">
+                      Inventory Changes:
+                    </h3>
+
+                    {/* Print: Simple Table Layout */}
+                    <div className="hidden print:block">
+                      <table className="w-full border-collapse text-sm">
+                        <thead>
+                          <tr className="border-b-2 border-gray-800">
+                            <th className="text-left py-2 font-bold">Product</th>
+                            <th className="text-left py-2 font-bold">Location</th>
+                            <th className="text-right py-2 font-bold">Before</th>
+                            <th className="text-right py-2 font-bold">After</th>
+                            <th className="text-right py-2 font-bold">Change</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {inventoryImpactData.locations && Array.isArray(inventoryImpactData.locations) && (() => {
+                            const rows: any[] = [];
+                            inventoryImpactData.locations.forEach((location: any) => {
+                              if (location.products && Array.isArray(location.products)) {
+                                location.products.forEach((product: any) => {
+                                  rows.push({
+                                    productName: product.productName,
+                                    variationName: product.variationName,
+                                    locationName: location.locationName,
+                                    locationType: location.type,
+                                    previousQty: product.previousQty,
+                                    newQty: product.newQty,
+                                    changeQty: product.changeQty,
+                                  });
+                                });
+                              }
+                            });
+                            return rows.map((row: any, index: number) => (
+                              <tr key={index} className="border-b border-gray-300">
+                                <td className="py-2">
+                                  <div className="font-medium">{row.productName}</div>
+                                  {row.variationName && row.variationName !== 'Default' && row.variationName !== 'DUMMY' && (
+                                    <div className="text-xs text-gray-600">{row.variationName}</div>
+                                  )}
+                                </td>
+                                <td className="py-2">
+                                  {row.locationName} <span className="text-xs">({row.locationType === 'source' ? 'From' : 'To'})</span>
+                                </td>
+                                <td className="text-right py-2 font-medium">
+                                  {row.previousQty !== null ? parseFloat(row.previousQty).toLocaleString() : 'N/A'}
+                                </td>
+                                <td className="text-right py-2 font-medium">
+                                  {row.newQty !== null ? parseFloat(row.newQty).toLocaleString() : 'N/A'}
+                                </td>
+                                <td className="text-right py-2 font-bold">
+                                  {row.changeQty > 0 ? '+' : ''}{parseFloat(row.changeQty).toLocaleString()}
+                                </td>
+                              </tr>
+                            ));
+                          })()}
+                        </tbody>
+                      </table>
                     </div>
 
-                    {/* Inventory Impact by Product */}
-                    <div className="space-y-3">
-                      <h3 className="font-bold text-gray-900 dark:text-white text-lg">Inventory Changes:</h3>
+                    {/* Screen: Grouped Card Layout */}
+                    <div className="print:hidden">
                       {inventoryImpactData.locations && Array.isArray(inventoryImpactData.locations) && (() => {
                         // Group products by product variation ID to show both source and destination together
                         const productGroups = new Map<number, any[]>();
@@ -1637,7 +1706,7 @@ export default function TransferDetailPage() {
                             });
                           }
                         });
-                        
+
                         return Array.from(productGroups.values()).map((productGroup: any[], index: number) => {
                           const firstProduct = productGroup[0];
                           return (
@@ -1667,21 +1736,19 @@ export default function TransferDetailPage() {
                                         <div className="text-2xl text-gray-400">→</div>
                                         <div>
                                           <div className="text-xs text-gray-500 dark:text-gray-400">After</div>
-                                          <div className={`text-xl font-bold ${
-                                            product.locationType === 'source' 
-                                              ? 'text-red-600 dark:text-red-400' 
-                                              : 'text-green-600 dark:text-green-400'
-                                          }`}>
+                                          <div className={`text-xl font-bold ${product.locationType === 'source'
+                                            ? 'text-red-600 dark:text-red-400'
+                                            : 'text-green-600 dark:text-green-400'
+                                            }`}>
                                             {product.newQty !== null ? parseFloat(product.newQty).toLocaleString() : 'N/A'}
                                           </div>
                                         </div>
                                         <div className="ml-4">
                                           <div className="text-xs text-gray-500 dark:text-gray-400">Change</div>
-                                          <div className={`text-lg font-bold ${
-                                            product.changeQty < 0 
-                                              ? 'text-red-600 dark:text-red-400' 
-                                              : 'text-green-600 dark:text-green-400'
-                                          }`}>
+                                          <div className={`text-lg font-bold ${product.changeQty < 0
+                                            ? 'text-red-600 dark:text-red-400'
+                                            : 'text-green-600 dark:text-green-400'
+                                            }`}>
                                             {product.changeQty > 0 ? '+' : ''}{parseFloat(product.changeQty).toLocaleString()}
                                           </div>
                                         </div>
@@ -1695,27 +1762,92 @@ export default function TransferDetailPage() {
                         });
                       })()}
                     </div>
+                  </div>
 
-                    {/* Print Button */}
-                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
-                      <div className="text-sm text-blue-800 dark:text-blue-300 mb-3">
-                        💡 <strong>Tip:</strong> Print this report for your records before closing.
-                      </div>
-                      <Button
-                        onClick={() => window.print()}
-                        variant="outline"
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
-                      >
-                        <PrinterIcon className="w-4 h-4 mr-2" />
-                        Print Impact Report
-                      </Button>
+                  {/* Export PDF Button - Screen only */}
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4 print:hidden">
+                    <div className="text-sm text-blue-800 dark:text-blue-300 mb-3">
+                      💡 <strong>Tip:</strong> Download this report as PDF for your records.
                     </div>
-                  </>
-                )}
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
+                    <Button
+                      onClick={() => {
+                        import('jspdf').then(({ default: jsPDF }) => {
+                          import('jspdf-autotable').then(() => {
+                            const doc = new jsPDF()
+
+                            // Title
+                            doc.setFontSize(16)
+                            doc.setFont('helvetica', 'bold')
+                            doc.text('Transfer Impact Report', 105, 15, { align: 'center' })
+
+                            // Summary info
+                            doc.setFontSize(10)
+                            doc.setFont('helvetica', 'normal')
+                            doc.text(`Transfer #: ${inventoryImpactData.referenceNumber}`, 14, 25)
+                            doc.text(`Executed By: ${inventoryImpactData.performedBy || 'N/A'}`, 14, 31)
+                            doc.text(`Date: ${new Date(inventoryImpactData.transactionDate).toLocaleString()}`, 14, 37)
+
+                            // Prepare table data
+                            const tableData: any[] = []
+                            if (inventoryImpactData.locations && Array.isArray(inventoryImpactData.locations)) {
+                              inventoryImpactData.locations.forEach((location: any) => {
+                                if (location.products && Array.isArray(location.products)) {
+                                  location.products.forEach((product: any) => {
+                                    tableData.push([
+                                      product.productName + (product.variationName && product.variationName !== 'Default' && product.variationName !== 'DUMMY' ? `\n${product.variationName}` : ''),
+                                      `${location.locationName}\n(${location.type === 'source' ? 'From' : 'To'})`,
+                                      product.previousQty !== null ? parseFloat(product.previousQty).toLocaleString() : 'N/A',
+                                      product.newQty !== null ? parseFloat(product.newQty).toLocaleString() : 'N/A',
+                                      (product.changeQty > 0 ? '+' : '') + parseFloat(product.changeQty).toLocaleString()
+                                    ])
+                                  })
+                                }
+                              })
+                            }
+
+                            // Add table
+                            ; (doc as any).autoTable({
+                              startY: 45,
+                              head: [['Product', 'Location', 'Before', 'After', 'Change']],
+                              body: tableData,
+                              theme: 'grid',
+                              headStyles: {
+                                fillColor: [59, 130, 246],
+                                textColor: 255,
+                                fontStyle: 'bold',
+                                halign: 'left'
+                              },
+                              columnStyles: {
+                                0: { cellWidth: 60 },
+                                1: { cellWidth: 50 },
+                                2: { halign: 'right', cellWidth: 25 },
+                                3: { halign: 'right', cellWidth: 25 },
+                                4: { halign: 'right', cellWidth: 25, fontStyle: 'bold' }
+                              },
+                              styles: {
+                                fontSize: 9,
+                                cellPadding: 3
+                              }
+                            })
+
+                            // Save PDF
+                            doc.save(`Transfer_Impact_${inventoryImpactData.referenceNumber}.pdf`)
+                          })
+                        })
+                      }}
+                      variant="outline"
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
+                    >
+                      <ArrowDownTrayIcon className="w-4 h-4 mr-2" />
+                      Download PDF Report
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          </AlertDialogDescription>
+
+          <AlertDialogFooter className="print:hidden">
             <AlertDialogAction
               onClick={handleCloseInventoryImpact}
               className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"

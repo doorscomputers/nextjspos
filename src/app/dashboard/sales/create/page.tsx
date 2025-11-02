@@ -449,12 +449,12 @@ export default function CreateSalePage() {
           {/* Customer Selection */}
           <div className="bg-white rounded-lg shadow p-6">
             <label className="block text-sm font-medium mb-2">Customer (Optional)</label>
-            <Select value={selectedCustomerId?.toString() || ''} onValueChange={(val) => setSelectedCustomerId(val ? parseInt(val) : null)}>
+            <Select value={selectedCustomerId?.toString() || 'walk-in'} onValueChange={(val) => setSelectedCustomerId(val === 'walk-in' ? null : parseInt(val))}>
               <SelectTrigger>
                 <SelectValue placeholder="Walk-in Customer" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Walk-in Customer</SelectItem>
+                <SelectItem value="walk-in">Walk-in Customer</SelectItem>
                 {customers.map((customer) => (
                   <SelectItem key={customer.id} value={customer.id.toString()}>
                     {customer.name} {customer.mobile && `(${customer.mobile})`}

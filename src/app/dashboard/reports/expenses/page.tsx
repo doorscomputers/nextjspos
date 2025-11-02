@@ -243,14 +243,14 @@ export default function ExpenseReportsPage() {
               <div>
                 <Label htmlFor="categoryId">Category</Label>
                 <Select
-                  value={filters.categoryId}
-                  onValueChange={(value) => setFilters({ ...filters, categoryId: value })}
+                  value={filters.categoryId || "all"}
+                  onValueChange={(value) => setFilters({ ...filters, categoryId: value === "all" ? "" : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="All categories" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Categories</SelectItem>
+                    <SelectItem value="all">All Categories</SelectItem>
                     {categories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id.toString()}>
                         {cat.name}
@@ -263,14 +263,14 @@ export default function ExpenseReportsPage() {
               <div>
                 <Label htmlFor="locationId">Location</Label>
                 <Select
-                  value={filters.locationId}
-                  onValueChange={(value) => setFilters({ ...filters, locationId: value })}
+                  value={filters.locationId || "all"}
+                  onValueChange={(value) => setFilters({ ...filters, locationId: value === "all" ? "" : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="All locations" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Locations</SelectItem>
+                    <SelectItem value="all">All Locations</SelectItem>
                     {locations.map((loc) => (
                       <SelectItem key={loc.id} value={loc.id.toString()}>
                         {loc.name}
@@ -283,14 +283,14 @@ export default function ExpenseReportsPage() {
               <div>
                 <Label htmlFor="status">Status</Label>
                 <Select
-                  value={filters.status}
-                  onValueChange={(value) => setFilters({ ...filters, status: value })}
+                  value={filters.status || "all"}
+                  onValueChange={(value) => setFilters({ ...filters, status: value === "all" ? "" : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="All statuses" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Statuses</SelectItem>
+                    <SelectItem value="all">All Statuses</SelectItem>
                     <SelectItem value="draft">Draft</SelectItem>
                     <SelectItem value="approved">Approved</SelectItem>
                     <SelectItem value="posted">Posted</SelectItem>

@@ -6,7 +6,8 @@ import { prisma } from '@/lib/prisma'
 /**
  * GET /api/products/search-async
  * Async product search for dropdown/autocomplete components
- * Searches by name, SKU, or barcode with minimum 3 character input
+ * Searches by product name, product SKU, variation name, or variation SKU
+ * Requires minimum 3 character input
  */
 export async function GET(request: NextRequest) {
   try {
@@ -105,7 +106,7 @@ export async function GET(request: NextRequest) {
 
     const trimmedSearch = searchTerm.trim()
 
-    // Build where clause
+    // Build where clause - search in both product AND variation fields
     const where: any = {
       businessId,
       deletedAt: null,
@@ -123,9 +124,27 @@ export async function GET(request: NextRequest) {
           },
         },
         {
-          barcode: {
-            contains: trimmedSearch,
-            mode: 'insensitive',
+          // Also search in variation SKUs
+          variations: {
+            some: {
+              deletedAt: null,
+              sku: {
+                contains: trimmedSearch,
+                mode: 'insensitive',
+              },
+            },
+          },
+        },
+        {
+          // Also search in variation names
+          variations: {
+            some: {
+              deletedAt: null,
+              name: {
+                contains: trimmedSearch,
+                mode: 'insensitive',
+              },
+            },
           },
         },
       ],

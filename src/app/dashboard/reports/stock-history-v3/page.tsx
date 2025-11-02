@@ -70,22 +70,81 @@ export default function StockHistoryV3Page() {
   // Filters
   const [selectedProduct, setSelectedProduct] = useState<ProductOption | null>(null)
   const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null)
-  
+
   // Set default date range: first day of current month to today
   const getDefaultStartDate = () => {
     const now = new Date()
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     return firstDayOfMonth.toISOString().split('T')[0]
   }
-  
+
   const getDefaultEndDate = () => {
     const now = new Date()
     return now.toISOString().split('T')[0]
   }
-  
-  const [startDate, setStartDate] = useState(getDefaultStartDate())
-  const [endDate, setEndDate] = useState(getDefaultEndDate())
-  const [autoCorrect, setAutoCorrect] = useState(false)
+
+  const [startDate, setStartDate] = useState(() => {
+    const date = getDefaultStartDate()
+    console.log('📅 Initializing Start Date:', date)
+    return date
+  })
+  const [endDate, setEndDate] = useState(() => {
+    const date = getDefaultEndDate()
+    console.log('📅 Initializing End Date:', date)
+    return date
+  })
+
+  console.log('🔍 Current State - Start Date:', startDate, 'End Date:', endDate)
+
+  // Pre-defined date range functions
+  const setDateRangeToday = () => {
+    const today = new Date().toISOString().split('T')[0]
+    setStartDate(today)
+    setEndDate(today)
+  }
+
+  const setDateRangeYesterday = () => {
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    const dateStr = yesterday.toISOString().split('T')[0]
+    setStartDate(dateStr)
+    setEndDate(dateStr)
+  }
+
+  const setDateRangeThisWeek = () => {
+    const now = new Date()
+    const firstDayOfWeek = new Date(now)
+    firstDayOfWeek.setDate(now.getDate() - now.getDay()) // Sunday
+    setStartDate(firstDayOfWeek.toISOString().split('T')[0])
+    setEndDate(new Date().toISOString().split('T')[0])
+  }
+
+  const setDateRangeThisMonth = () => {
+    const now = new Date()
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    setStartDate(firstDayOfMonth.toISOString().split('T')[0])
+    setEndDate(new Date().toISOString().split('T')[0])
+  }
+
+  const setDateRangeLastMonth = () => {
+    const now = new Date()
+    const firstDayOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const lastDayOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+    setStartDate(firstDayOfLastMonth.toISOString().split('T')[0])
+    setEndDate(lastDayOfLastMonth.toISOString().split('T')[0])
+  }
+
+  const setDateRangeThisYear = () => {
+    const now = new Date()
+    const firstDayOfYear = new Date(now.getFullYear(), 0, 1)
+    setStartDate(firstDayOfYear.toISOString().split('T')[0])
+    setEndDate(new Date().toISOString().split('T')[0])
+  }
+
+  const setDateRangeAllTime = () => {
+    setStartDate('')
+    setEndDate('')
+  }
 
   // Product autocomplete state
   const [searchTerm, setSearchTerm] = useState('')
@@ -103,9 +162,14 @@ export default function StockHistoryV3Page() {
   // Check if user has admin access (Super Admin, Admin, or All Branch Admin with ACCESS_ALL_LOCATIONS)
   const hasAdminAccess = isSuperAdmin(user) || hasAccessToAllLocations(user)
 
-  // Debounced product search
+  // Debounced product search - ROCKET SCIENCE EDITION 🚀
   useEffect(() => {
+    console.log('🚀 SEARCH USEEFFECT TRIGGERED')
+    console.log('   Search Term:', `"${searchTerm}"`)
+    console.log('   Trimmed Length:', searchTerm.trim().length)
+    
     if (!searchTerm.trim()) {
+      console.log('   ❌ Empty search term, clearing results')
       setSearchResults([])
       setShowDropdown(false)
       setSelectedIndex(0)
@@ -114,40 +178,70 @@ export default function StockHistoryV3Page() {
 
     // Clear previous timeout
     if (searchTimeoutRef.current) {
+      console.log('   ⏹️ Clearing previous timeout')
       clearTimeout(searchTimeoutRef.current)
     }
 
+    // Only search if 3+ characters
+    if (searchTerm.trim().length < 3) {
+      console.log('   ⚠️ Need at least 3 characters. Current:', searchTerm.trim().length)
+      setSearchResults([])
+      setShowDropdown(false)
+      return
+    }
+
+    console.log('   ⏳ Setting 300ms timeout for search...')
+    
     // Debounce search by 300ms
     searchTimeoutRef.current = setTimeout(async () => {
-      // Only search if 3+ characters
-      if (searchTerm.trim().length < 3) {
-        setSearchResults([])
-        setShowDropdown(false)
-        return
-      }
-
+      console.log('🔥 300ms PASSED - EXECUTING SEARCH NOW!')
+      console.log('   Search term:', searchTerm.trim())
+      
       try {
         setSearchLoading(true)
-        const response = await fetch(
-          `/api/products/search-async?q=${encodeURIComponent(searchTerm.trim())}&limit=50`
-        )
+        console.log('   📡 searchLoading set to TRUE')
+        
+        const url = `/api/products/search-async?q=${encodeURIComponent(searchTerm.trim())}&limit=50`
+        console.log('   🌐 Fetching URL:', url)
+        
+        const response = await fetch(url)
+        console.log('   ✅ Response received!')
+        console.log('   Status:', response.status)
+        console.log('   OK:', response.ok)
 
         if (response.ok) {
           const data = await response.json()
+          console.log('   📦 Data received:', data)
+          console.log('   📊 Number of results:', data.data?.length || 0)
+          
+          if (data.data && data.data.length > 0) {
+            console.log('   🎉 FIRST 3 RESULTS:')
+            data.data.slice(0, 3).forEach((item: any, idx: number) => {
+              console.log(`      ${idx + 1}. ${item.displayName} (SKU: ${item.sku})`)
+            })
+          } else {
+            console.log('   😢 No results found')
+          }
+          
           setSearchResults(data.data || [])
           setSelectedIndex(0)
           setShowDropdown(true)
+          console.log('   ✅ Results set, dropdown should show NOW')
         } else {
-          console.error('Failed to search products')
+          console.error('   ❌ Response not OK:', response.status, response.statusText)
+          const errorText = await response.text()
+          console.error('   ❌ Error body:', errorText)
           setSearchResults([])
           setShowDropdown(false)
         }
       } catch (error) {
-        console.error('Error searching products:', error)
+        console.error('   💥 EXCEPTION during search:', error)
         setSearchResults([])
         setShowDropdown(false)
       } finally {
         setSearchLoading(false)
+        console.log('   🏁 searchLoading set to FALSE')
+        console.log('🚀 SEARCH COMPLETE\n')
       }
     }, 300)
 
@@ -215,21 +309,33 @@ export default function StockHistoryV3Page() {
 
   // Handle product selection
   const handleProductSelect = useCallback((product: ProductOption) => {
+    console.log('🎯 PRODUCT SELECTED:', product)
+    console.log('   Product ID:', product.productId)
+    console.log('   Variation ID:', product.variationId)
+    console.log('   Display Name:', product.displayName)
+    console.log('   SKU:', product.sku)
+    console.log('   ✅ Report will use Variation ID:', product.variationId, 'NOT the search text')
     setSelectedProduct(product)
-    setSearchTerm(product.displayName)
+    setSearchTerm('') // Clear search field after selection
     setSearchResults([])
     setShowDropdown(false)
     setSelectedIndex(0)
   }, [])
 
+  // Clear selected product
+  const handleClearSelection = useCallback(() => {
+    console.log('🗑️ Clearing product selection')
+    setSelectedProduct(null)
+    setHistory([]) // Clear history when clearing selection
+    searchInputRef.current?.focus()
+  }, [])
+
   // Clear search
   const handleClearSearch = useCallback(() => {
     setSearchTerm('')
-    setSelectedProduct(null)
     setSearchResults([])
     setShowDropdown(false)
     setSelectedIndex(0)
-    searchInputRef.current?.focus()
   }, [])
 
   // Close dropdown when clicking outside
@@ -255,44 +361,44 @@ export default function StockHistoryV3Page() {
       router.push('/dashboard')
       return
     }
-    
+
     // Check if user has admin access
     if (!hasAdminAccess) {
       router.push('/dashboard/reports/stock-history-v2')
       return
     }
-    
+
     const init = async () => {
       console.log('🚀 Initializing Stock History V3 (Admin) page...')
-      
+
       setLoading(false) // Initial load complete
-      
+
       // Step 2: Check for productId in URL and auto-load
       const productIdParam = searchParams.get('productId')
       if (productIdParam) {
         const productId = parseInt(productIdParam)
         console.log('🔍 Found productId in URL:', productId)
         console.log('⏳ Auto-loading product...')
-        
+
         // Inline the product loading logic to avoid dependency issues
         try {
           setLoadingProductFromUrl(true)
-          
+
           const response = await fetch(`/api/products/search-async?productId=${productId}`)
           console.log('📡 API Response status:', response.status)
-          
+
           if (response.ok) {
             const data = await response.json()
             console.log('📊 API Data:', data)
             const products = data.data || []
-            
+
             if (products.length > 0) {
               const productOption = products[0] as ProductOption
               console.log('✅ Product loaded:', productOption.displayName)
-              
+
               setSelectedProduct(productOption)
               setSearchTerm(productOption.displayName)
-              
+
               // Location will be auto-selected by fetchLocations when user data loads
               console.log('ℹ️ Product set, waiting for location to be auto-selected...')
             } else {
@@ -310,7 +416,7 @@ export default function StockHistoryV3Page() {
         console.log('ℹ️ No productId in URL - manual search mode')
       }
     }
-    
+
     init()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -324,37 +430,31 @@ export default function StockHistoryV3Page() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
-  useEffect(() => {
-    if (selectedProduct && selectedLocation) {
-      fetchStockHistory()
-    }
-  }, [selectedProduct, selectedLocation, startDate, endDate, autoCorrect])
-
   const fetchLocations = async () => {
     try {
       console.log('📍 Fetching locations for Stock History V3 (Admin)...')
-      
+
       // Fetch user's assigned locations and primary location ID
       const userLocationsResponse = await fetch('/api/user-locations')
       const userLocationsData = await userLocationsResponse.json()
       const primaryLocationId = userLocationsData.primaryLocationId
-      
+
       console.log('👤 User primary location ID:', primaryLocationId)
       console.log('📋 User has access to all locations:', userLocationsData.hasAccessToAll)
-      
+
       // For stock-history-v3, show all accessible locations (for admins)
       const locationsList = userLocationsData.locations || []
-      
+
       console.log('📋 All accessible locations for admin:', locationsList.length)
-      
+
       if (locationsList.length === 0) {
         console.warn('⚠️ No accessible locations found')
         setLocations([])
         return
       }
-      
+
       setLocations(locationsList)
-      
+
       // Auto-select user's primary location if available, otherwise first location
       if (primaryLocationId && locationsList.find((loc: any) => loc.id === primaryLocationId)) {
         console.log('✅ Auto-selecting user primary location')
@@ -363,40 +463,64 @@ export default function StockHistoryV3Page() {
         console.log('📌 Auto-selecting first accessible location')
         setSelectedLocationId(locationsList[0].id)
       }
-      
+
     } catch (error) {
       console.error('❌ Error fetching locations:', error)
       setLocations([])
     }
   }
 
-  const fetchStockHistory = async () => {
-    if (!selectedProduct || !selectedLocation) return
+  const fetchStockHistory = useCallback(async () => {
+    console.log('📊 FETCHING STOCK HISTORY...')
+    console.log('   Selected Product:', selectedProduct)
+    console.log('   Selected Location:', selectedLocation)
+    console.log('   Start Date:', startDate)
+    console.log('   End Date:', endDate)
+
+    if (!selectedProduct || !selectedLocation) {
+      console.log('   ❌ ABORT: Missing product or location')
+      return
+    }
 
     setLoadingHistory(true)
     try {
       const queryParams = new URLSearchParams({
         variationId: selectedProduct.variationId.toString(),
-        locationId: selectedLocation.id.toString(),
-        autoCorrect: autoCorrect.toString()
+        locationId: selectedLocation.id.toString()
       })
 
       if (startDate) queryParams.append('startDate', startDate)
       if (endDate) queryParams.append('endDate', endDate)
 
-      const response = await fetch(
-        `/api/products/${selectedProduct.productId}/stock-history?${queryParams.toString()}`
-      )
+      const apiUrl = `/api/products/${selectedProduct.productId}/stock-history?${queryParams.toString()}`
+      console.log('   🌐 API URL:', apiUrl)
+
+      const response = await fetch(apiUrl)
+      console.log('   ✅ Response Status:', response.status, response.ok ? 'OK' : 'ERROR')
+
       const data = await response.json()
+      console.log('   📦 Response Data:', data)
+
       if (response.ok) {
+        console.log('   ✅ History Records:', data.history?.length || 0)
         setHistory(data.history || [])
+      } else {
+        console.error('   ❌ API Error:', data)
       }
     } catch (error) {
-      console.error('Error fetching stock history:', error)
+      console.error('   💥 Exception:', error)
     } finally {
       setLoadingHistory(false)
+      console.log('📊 FETCH COMPLETE\n')
     }
-  }
+  }, [selectedProduct, selectedLocation, startDate, endDate])
+
+  useEffect(() => {
+    if (selectedProduct && selectedLocation) {
+      console.log('🔄 Triggering fetchStockHistory from useEffect')
+      fetchStockHistory()
+    }
+  }, [selectedProduct, selectedLocation, startDate, endDate, fetchStockHistory])
 
   const handleRefresh = () => {
     fetchStockHistory()
@@ -485,6 +609,23 @@ export default function StockHistoryV3Page() {
       </div>
 
       <div className="p-6">
+        {/* Info Note */}
+        <div className="mb-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-blue-900 dark:text-blue-200">
+              <p className="font-semibold mb-1">How Stock History is Calculated:</p>
+              <p>This report shows the complete transaction history and calculates accurate stock levels based on:</p>
+              <ul className="list-disc list-inside mt-2 space-y-1 text-blue-800 dark:text-blue-300">
+                <li><strong>Beginning Inventory:</strong> Initial stock when the product was added to the system</li>
+                <li><strong>Inventory Corrections:</strong> Manual adjustments made by authorized users</li>
+                <li><strong>All Transactions:</strong> Purchases, sales, transfers, and adjustments</li>
+              </ul>
+              <p className="mt-2">The "Quantity on Hand" shown after each transaction is the actual calculated stock level at that point in time.</p>
+            </div>
+          </div>
+        </div>
+
         {/* Filter Controls */}
         <Card className="mb-6 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
           <CardContent className="pt-6">
@@ -493,134 +634,168 @@ export default function StockHistoryV3Page() {
                 <label className="text-sm font-medium text-gray-900 dark:text-white">
                   Product:
                 </label>
-                {searchParams.get('productId') && selectedProduct ? (
-                  <p className="text-xs text-green-600 dark:text-green-400 mb-1 font-medium">
-                    ✓ Auto-loaded from products page
-                  </p>
-                ) : (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                    Type at least 3 characters to search by name, SKU, or barcode
-                  </p>
-                )}
-                <div className="relative">
-                  {/* Search Input */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                    <Input
-                      ref={searchInputRef}
-                      type="text"
-                      placeholder={loadingProductFromUrl ? "Loading product..." : selectedProduct ? selectedProduct.displayName : "Type to search products (min 3 chars)..."}
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      onFocus={() => {
-                        if (searchResults.length > 0) {
-                          setShowDropdown(true)
-                        }
-                      }}
-                      disabled={loadingProductFromUrl || !!searchParams.get('productId')}
-                      className="pl-10 pr-10 text-base h-10 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title={selectedProduct ? `Product: ${selectedProduct.displayName}` : "Search for a product"}
-                    />
-                    {searchTerm && (
-                      <button
-                        type="button"
-                        onClick={handleClearSearch}
-                        className="absolute right-3 top-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-1 transition-colors"
-                        tabIndex={-1}
-                      >
-                        <X className="h-4 w-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
-                      </button>
-                    )}
-                  </div>
 
-                  {/* Loading indicator */}
-                  {searchLoading && (
-                    <div className="absolute right-12 top-3 text-sm text-gray-500">
-                      Searching...
-                    </div>
-                  )}
-
-                  {/* Dropdown Results */}
-                  {showDropdown && searchResults.length > 0 && (
-                    <div
-                      ref={dropdownRef}
-                      className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-96 overflow-y-auto"
-                    >
-                      {searchResults.map((product, index) => {
-                        const isSelected = index === selectedIndex
-
-                        return (
-                          <button
-                            key={product.id}
-                            type="button"
-                            data-index={index}
-                            onClick={() => handleProductSelect(product)}
-                            onMouseEnter={() => setSelectedIndex(index)}
-                            className={`
-                              w-full px-4 py-3 text-left flex justify-between items-center transition-colors
-                              ${
-                                isSelected
-                                  ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600'
-                                  : 'hover:bg-gray-50 dark:hover:bg-gray-700/30 border-l-4 border-transparent'
-                              }
-                            `}
-                          >
-                            <div className="flex-1">
-                              <div className="font-medium text-gray-900 dark:text-white">
-                                {product.displayName}
-                              </div>
-                              <div className="text-sm text-gray-600 dark:text-gray-400">
-                                SKU: <span className="font-mono">{product.sku}</span>
-                              </div>
-                            </div>
-                            {isSelected && (
-                              <div className="ml-4 text-blue-600 dark:text-blue-400 font-medium text-sm">
-                                Press Enter
-                              </div>
-                            )}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-
-                  {/* No Results */}
-                  {showDropdown && !searchLoading && searchResults.length === 0 && searchTerm.trim().length >= 3 && (
-                    <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
-                      <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
-                        <p className="font-medium">No products found</p>
-                        <p className="text-sm mt-1">
-                          Try searching by SKU, barcode, or product name
+                {/* Selected Product Display */}
+                {selectedProduct && (
+                  <div className="mb-3">
+                    <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border-2 border-green-500 dark:border-green-600 rounded-lg">
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-green-900 dark:text-green-100">
+                          ✓ Selected: {selectedProduct.displayName}
                         </p>
+                        <p className="text-xs text-green-700 dark:text-green-300 mt-0.5">
+                          SKU: {selectedProduct.sku} | Variation ID: {selectedProduct.variationId}
+                        </p>
+                        {searchParams.get('productId') && (
+                          <p className="text-xs text-green-600 dark:text-green-400 mt-1 font-medium">
+                            📌 Auto-loaded from products page
+                          </p>
+                        )}
                       </div>
+                      {!searchParams.get('productId') && (
+                        <button
+                          type="button"
+                          onClick={handleClearSelection}
+                          className="flex-shrink-0 p-2 hover:bg-green-100 dark:hover:bg-green-800 rounded-lg transition-colors"
+                          title="Clear selection"
+                        >
+                          <X className="h-5 w-5 text-green-700 dark:text-green-300" />
+                        </button>
+                      )}
                     </div>
-                  )}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 italic">
+                      💡 Report will be generated using Product Variation ID: {selectedProduct.variationId}
+                    </p>
+                  </div>
+                )}
 
-                  {/* Keyboard Hints */}
-                  {showDropdown && searchResults.length > 0 && (
-                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-4">
-                      <span>
-                        <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">
-                          ↑↓
-                        </kbd>{' '}
-                        Navigate
-                      </span>
-                      <span>
-                        <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">
-                          Enter
-                        </kbd>{' '}
-                        Select
-                      </span>
-                      <span>
-                        <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">
-                          Esc
-                        </kbd>{' '}
-                        Clear
-                      </span>
+                {/* Search Input */}
+                {!selectedProduct && (
+                  <>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                      Type at least 3 characters to search by name or SKU
+                    </p>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                      <Input
+                        ref={searchInputRef}
+                        type="text"
+                        placeholder={loadingProductFromUrl ? "Loading product..." : "Search by name or SKU (min 3 chars)..."}
+                        value={searchTerm}
+                        onChange={(e) => {
+                          const newValue = e.target.value
+                          console.log('⌨️ TYPING DETECTED! New value:', `"${newValue}"`)
+                          setSearchTerm(newValue)
+                        }}
+                        onKeyDown={handleKeyDown}
+                        onFocus={() => {
+                          if (searchResults.length > 0) {
+                            setShowDropdown(true)
+                          }
+                        }}
+                        disabled={loadingProductFromUrl}
+                        className="pl-10 pr-10 text-base h-10 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Search for a product"
+                      />
+                      {searchTerm && (
+                        <button
+                          type="button"
+                          onClick={handleClearSearch}
+                          className="absolute right-3 top-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-1 transition-colors"
+                          tabIndex={-1}
+                        >
+                          <X className="h-4 w-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
+                        </button>
+                      )}
+
+                      {/* Loading indicator */}
+                      {searchLoading && (
+                        <div className="absolute right-12 top-3 text-sm text-gray-500">
+                          Searching...
+                        </div>
+                      )}
+
+                      {/* Dropdown Results */}
+                      {showDropdown && searchResults.length > 0 && (
+                        <div
+                          ref={dropdownRef}
+                          className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-96 overflow-y-auto"
+                        >
+                          {searchResults.map((product, index) => {
+                            const isSelected = index === selectedIndex
+
+                            return (
+                              <button
+                                key={product.id}
+                                type="button"
+                                data-index={index}
+                                onClick={() => handleProductSelect(product)}
+                                onMouseEnter={() => setSelectedIndex(index)}
+                                className={`
+                                  w-full px-4 py-3 text-left flex justify-between items-center transition-colors
+                                  ${isSelected
+                                    ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-600'
+                                    : 'hover:bg-gray-50 dark:hover:bg-gray-700/30 border-l-4 border-transparent'
+                                  }
+                                `}
+                              >
+                                <div className="flex-1">
+                                  <div className="font-medium text-gray-900 dark:text-white">
+                                    {product.displayName}
+                                  </div>
+                                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                                    SKU: <span className="font-mono">{product.sku}</span>
+                                  </div>
+                                </div>
+                                {isSelected && (
+                                  <div className="ml-4 text-blue-600 dark:text-blue-400 font-medium text-sm">
+                                    Press Enter
+                                  </div>
+                                )}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {/* No Results */}
+                      {showDropdown && !searchLoading && searchResults.length === 0 && searchTerm.trim().length >= 3 && (
+                        <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+                          <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                            <p className="font-medium">No products found</p>
+                            <p className="text-sm mt-1">
+                              Try searching by SKU or product name
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Keyboard Hints */}
+                      {showDropdown && searchResults.length > 0 && (
+                        <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-4">
+                          <span>
+                            <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">
+                              ↑↓
+                            </kbd>{' '}
+                            Navigate
+                          </span>
+                          <span>
+                            <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">
+                              Enter
+                            </kbd>{' '}
+                            Select
+                          </span>
+                          <span>
+                            <kbd className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded border border-gray-300 dark:border-gray-600">
+                              Esc
+                            </kbd>{' '}
+                            Clear
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  </>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -672,39 +847,72 @@ export default function StockHistoryV3Page() {
               </div>
             </div>
 
-            {/* Auto-Correct Toggle - SUPER ADMIN ONLY */}
-            {isSuperAdmin(user) && (
-              <div className="mt-4">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      checked={autoCorrect}
-                      onChange={(e) => setAutoCorrect(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer peer-checked:bg-green-500 dark:peer-checked:bg-green-600 transition-colors"></div>
-                    <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      Auto-correct stock discrepancies
-                    </span>
-                    <div className="group relative">
-                      <Info className="w-4 h-4 text-gray-400 hover:text-blue-500 dark:text-gray-500 dark:hover:text-blue-400 cursor-help" />
-                      <div className="invisible group-hover:visible absolute left-0 top-6 z-50 w-80 p-3 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-lg shadow-lg">
-                        <p className="font-semibold mb-1">What is Auto-Correct? (Super Admin Only)</p>
-                        <p>When enabled, the system will automatically verify and correct any stock level discrepancies by recalculating from transaction history for the <strong>selected product at the selected location only</strong>.</p>
-                        <p className="mt-2">This ensures your stock quantities match all purchases, sales, transfers, and adjustments.</p>
-                        <p className="mt-2 text-yellow-300">⚠️ Use this carefully as it will update your current stock levels for this product/location.</p>
-                      </div>
-                    </div>
-                  </div>
-                </label>
+            {/* Quick Date Range Buttons */}
+            <div className="mt-4">
+              <label className="text-sm font-medium text-gray-900 dark:text-white block mb-2">
+                Quick Date Ranges:
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={setDateRangeToday}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 border-gray-300 dark:border-gray-600"
+                >
+                  Today
+                </Button>
+                <Button
+                  onClick={setDateRangeYesterday}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 border-gray-300 dark:border-gray-600"
+                >
+                  Yesterday
+                </Button>
+                <Button
+                  onClick={setDateRangeThisWeek}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 border-gray-300 dark:border-gray-600"
+                >
+                  This Week
+                </Button>
+                <Button
+                  onClick={setDateRangeThisMonth}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 border-gray-300 dark:border-gray-600"
+                >
+                  This Month
+                </Button>
+                <Button
+                  onClick={setDateRangeLastMonth}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 border-gray-300 dark:border-gray-600"
+                >
+                  Last Month
+                </Button>
+                <Button
+                  onClick={setDateRangeThisYear}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 border-gray-300 dark:border-gray-600"
+                >
+                  This Year
+                </Button>
+                <Button
+                  onClick={setDateRangeAllTime}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs bg-gray-50 hover:bg-gray-100 dark:bg-gray-700 dark:hover:bg-gray-600 border-gray-300 dark:border-gray-600"
+                >
+                  All Time
+                </Button>
               </div>
-            )}
+            </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-6 flex flex-wrap gap-2">
               <Button
                 onClick={handleRefresh}
                 disabled={!selectedProduct || !selectedLocation || loadingHistory}
@@ -724,9 +932,8 @@ export default function StockHistoryV3Page() {
                 onClick={() => {
                   setStartDate(getDefaultStartDate())
                   setEndDate(getDefaultEndDate())
-                  setAutoCorrect(false)
                 }}
-                disabled={startDate === getDefaultStartDate() && endDate === getDefaultEndDate() && !autoCorrect}
+                disabled={startDate === getDefaultStartDate() && endDate === getDefaultEndDate()}
                 className="bg-gray-600 hover:bg-gray-700 text-white font-medium border-2 border-gray-700 hover:border-gray-800 shadow-md hover:shadow-lg transition-all disabled:opacity-50"
               >
                 Reset Filters
@@ -885,71 +1092,71 @@ export default function StockHistoryV3Page() {
                   className="dx-card"
                   width="100%"
                 >
-                <LoadPanel enabled={true} />
-                <Scrolling mode="virtual" />
-                <Paging defaultPageSize={20} />
-                <Pager
-                  visible={true}
-                  showPageSizeSelector={true}
-                  allowedPageSizes={[10, 20, 50, 100]}
-                  showInfo={true}
-                  showNavigationButtons={true}
-                />
-                <FilterRow visible={true} />
-                <HeaderFilter visible={true} />
-                <SearchPanel visible={true} width={240} placeholder="Search..." />
-                <Sorting mode="multiple" />
-                <Export enabled={true} allowExportSelectedData={false} />
+                  <LoadPanel enabled={true} />
+                  <Scrolling mode="virtual" />
+                  <Paging defaultPageSize={20} />
+                  <Pager
+                    visible={true}
+                    showPageSizeSelector={true}
+                    allowedPageSizes={[10, 20, 50, 100]}
+                    showInfo={true}
+                    showNavigationButtons={true}
+                  />
+                  <FilterRow visible={true} />
+                  <HeaderFilter visible={true} />
+                  <SearchPanel visible={true} width={240} placeholder="Search..." />
+                  <Sorting mode="multiple" />
+                  <Export enabled={true} allowExportSelectedData={false} />
 
-                <Column
-                  dataField="transactionTypeLabel"
-                  caption="Type"
-                  width={150}
-                />
-                <Column
-                  dataField="quantityChange"
-                  caption="Quantity Change"
-                  width={150}
-                  cellRender={(data) => {
-                    const entry = data.data as StockHistoryEntry
-                    if (entry.quantityAdded > 0) {
-                      return <span className="text-green-600 dark:text-green-400 font-semibold">+{entry.quantityAdded.toFixed(2)}</span>
-                    } else if (entry.quantityRemoved > 0) {
-                      return <span className="text-red-600 dark:text-red-400 font-semibold">-{entry.quantityRemoved.toFixed(2)}</span>
-                    } else {
-                      return <span className="text-gray-400">0.00</span>
-                    }
-                  }}
-                />
-                <Column
-                  dataField="runningBalance"
-                  caption="New Quantity"
-                  width={150}
-                  format={{ type: 'fixedPoint', precision: 2 }}
-                  cellRender={(data) => (
-                    <span className="font-semibold text-gray-900 dark:text-white">
-                      {data.value.toFixed(2)}
-                    </span>
-                  )}
-                />
-                <Column
-                  dataField="date"
-                  caption="Date"
-                  dataType="date"
-                  width={150}
-                  format="MM/dd/yyyy"
-                />
-                <Column
-                  dataField="referenceNumber"
-                  caption="Reference No"
-                  width={150}
-                />
-                <Column
-                  dataField="createdBy"
-                  caption="Customer/Supplier"
-                  minWidth={200}
-                />
-              </DataGrid>
+                  <Column
+                    dataField="transactionTypeLabel"
+                    caption="Type"
+                    width={150}
+                  />
+                  <Column
+                    dataField="quantityChange"
+                    caption="Quantity Change"
+                    width={150}
+                    cellRender={(data) => {
+                      const entry = data.data as StockHistoryEntry
+                      if (entry.quantityAdded > 0) {
+                        return <span className="text-green-600 dark:text-green-400 font-semibold">+{entry.quantityAdded.toFixed(2)}</span>
+                      } else if (entry.quantityRemoved > 0) {
+                        return <span className="text-red-600 dark:text-red-400 font-semibold">-{entry.quantityRemoved.toFixed(2)}</span>
+                      } else {
+                        return <span className="text-gray-400">0.00</span>
+                      }
+                    }}
+                  />
+                  <Column
+                    dataField="runningBalance"
+                    caption="New Quantity"
+                    width={150}
+                    format={{ type: 'fixedPoint', precision: 2 }}
+                    cellRender={(data) => (
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {data.value.toFixed(2)}
+                      </span>
+                    )}
+                  />
+                  <Column
+                    dataField="date"
+                    caption="Date"
+                    dataType="date"
+                    width={150}
+                    format="MM/dd/yyyy"
+                  />
+                  <Column
+                    dataField="referenceNumber"
+                    caption="Reference No"
+                    width={150}
+                  />
+                  <Column
+                    dataField="createdBy"
+                    caption="Customer/Supplier"
+                    minWidth={200}
+                  />
+                </DataGrid>
               </div>
             )}
           </CardContent>

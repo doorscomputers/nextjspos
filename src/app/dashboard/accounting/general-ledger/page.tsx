@@ -270,12 +270,12 @@ export default function GeneralLedgerPage() {
             {/* Account Type */}
             <div>
               <Label htmlFor="accountType">Account Type</Label>
-              <Select value={accountType} onValueChange={setAccountType}>
+              <Select value={accountType || "all"} onValueChange={(value) => setAccountType(value === "all" ? "" : value)}>
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All types</SelectItem>
+                  <SelectItem value="all">All types</SelectItem>
                   <SelectItem value="asset">Asset</SelectItem>
                   <SelectItem value="liability">Liability</SelectItem>
                   <SelectItem value="equity">Equity</SelectItem>

@@ -453,14 +453,14 @@ export default function ExpenseCategoriesPage() {
                   <div>
                     <Label htmlFor="glAccountId">GL Account (Expense)</Label>
                     <Select
-                      value={formData.glAccountId}
-                      onValueChange={(value) => setFormData({ ...formData, glAccountId: value })}
+                      value={formData.glAccountId || "none"}
+                      onValueChange={(value) => setFormData({ ...formData, glAccountId: value === "none" ? "" : value })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select GL account (optional)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">-- None --</SelectItem>
+                        <SelectItem value="none">-- None --</SelectItem>
                         {glAccounts.map((account) => (
                           <SelectItem key={account.id} value={account.id.toString()}>
                             {account.accountCode} - {account.accountName}
