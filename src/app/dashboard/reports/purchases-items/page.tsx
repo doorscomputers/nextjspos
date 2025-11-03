@@ -10,3 +10,4 @@ export default function PurchaseItemsReportPage() {
   redirect('/dashboard/reports/purchases')
 }
 
+
