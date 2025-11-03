@@ -46,7 +46,9 @@
       "Bash(psql:*)",
       "Bash(tee:*)",
       "Bash(git ls-tree:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(dir:*)",
+      "Bash(move testsvercel-login-test.spec.ts e2evercel-login-test.spec.ts)"
     ]
   },
   "enableAllProjectMcpServers": true,

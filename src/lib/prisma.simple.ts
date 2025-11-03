@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
+declare global {
+  var prisma: PrismaClient | undefined
 }
 
 // Simplified Prisma Client for Vercel deployment
@@ -13,10 +13,10 @@ const createPrismaClient = () => {
   })
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient()
+export const prisma = globalThis.prisma ?? createPrismaClient()
 
 if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma
+  globalThis.prisma = prisma
 }
 
 export default prisma

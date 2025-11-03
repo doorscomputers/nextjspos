@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs"
 import { PERMISSIONS } from "./rbac"
 
 export const authOptions: NextAuthOptions = {
+  debug: process.env.NODE_ENV === 'development',
   session: {
     strategy: "jwt",
     maxAge: 8 * 60 * 60, // 8 hours
@@ -14,6 +15,20 @@ export const authOptions: NextAuthOptions = {
     signIn: "/login",
   },
   secret: process.env.NEXTAUTH_SECRET,
+  useSecureCookies: process.env.NEXTAUTH_URL?.startsWith('https://'),
+  cookies: {
+    sessionToken: {
+      name: process.env.NEXTAUTH_URL?.startsWith('https://')
+        ? '__Secure-next-auth.session-token'
+        : 'next-auth.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NEXTAUTH_URL?.startsWith('https://'),
+      },
+    },
+  },
   providers: [
     CredentialsProvider({
       name: "credentials",
