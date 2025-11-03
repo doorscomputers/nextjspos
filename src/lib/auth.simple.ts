@@ -118,34 +118,44 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user }) {
-      if (user) {
-        token.userId = user.id
-        token.username = (user as any).username
-        token.firstName = (user as any).firstName
-        token.lastName = (user as any).lastName
-        token.surname = (user as any).surname
-        token.businessId = (user as any).businessId
-        token.businessName = (user as any).businessName
-        token.permissions = (user as any).permissions
-        token.roles = (user as any).roles
-        token.locationIds = (user as any).locationIds
+      try {
+        if (user) {
+          token.userId = user.id
+          token.username = (user as any).username
+          token.firstName = (user as any).firstName
+          token.lastName = (user as any).lastName
+          token.surname = (user as any).surname
+          token.businessId = (user as any).businessId
+          token.businessName = (user as any).businessName
+          token.permissions = (user as any).permissions
+          token.roles = (user as any).roles
+          token.locationIds = (user as any).locationIds
+        }
+        return token
+      } catch (error) {
+        console.error('[JWT Callback Error]:', error)
+        return token
       }
-      return token
     },
     async session({ session, token }) {
-      if (session.user && token) {
-        ;(session.user as any).id = token.userId
-        ;(session.user as any).username = token.username
-        ;(session.user as any).firstName = token.firstName
-        ;(session.user as any).lastName = token.lastName
-        ;(session.user as any).surname = token.surname
-        ;(session.user as any).businessId = token.businessId
-        ;(session.user as any).businessName = token.businessName
-        ;(session.user as any).permissions = token.permissions || []
-        ;(session.user as any).roles = token.roles || []
-        ;(session.user as any).locationIds = token.locationIds || []
+      try {
+        if (session.user && token) {
+          ;(session.user as any).id = token.userId
+          ;(session.user as any).username = token.username
+          ;(session.user as any).firstName = token.firstName
+          ;(session.user as any).lastName = token.lastName
+          ;(session.user as any).surname = token.surname
+          ;(session.user as any).businessId = token.businessId
+          ;(session.user as any).businessName = token.businessName
+          ;(session.user as any).permissions = token.permissions || []
+          ;(session.user as any).roles = token.roles || []
+          ;(session.user as any).locationIds = token.locationIds || []
+        }
+        return session
+      } catch (error) {
+        console.error('[Session Callback Error]:', error)
+        return session
       }
-      return session
     },
   },
 }
