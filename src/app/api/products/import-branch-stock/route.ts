@@ -347,7 +347,7 @@ export async function POST(request: NextRequest) {
           if (stock.quantity > 0) {
             const notes = `Opening stock from Branch Stock Pivot CSV import`
             stockTransValues.push(
-              `(${businessId}, ${stock.locationId}, ${productId}, ${variationId}, 'opening_stock', ${stock.quantity}, ${validProduct.purchasePrice}, 'CSV-IMPORT-${productId}', '${notes.replace(/'/g, "''")}', ${user.id}, NOW())`
+              `(${businessId}, ${stock.locationId}, ${productId}, ${variationId}, 'opening_stock', ${stock.quantity}, ${validProduct.purchasePrice}, ${stock.quantity}, '${notes.replace(/'/g, "''")}', ${user.id}, NOW())`
             )
 
             // Product history
@@ -374,7 +374,7 @@ export async function POST(request: NextRequest) {
       if (stockTransValues.length > 0) {
         await tx.$executeRawUnsafe(`
           INSERT INTO stock_transactions
-            (business_id, location_id, product_id, product_variation_id, type, quantity, unit_cost, ref_no, notes, created_by, created_at)
+            (business_id, location_id, product_id, product_variation_id, type, quantity, unit_cost, balance_qty, notes, created_by, created_at)
           VALUES ${stockTransValues.join(',\n')}
         `)
         console.log(`[${Date.now() - startTime}ms] Inserted ${stockTransValues.length} stock transactions`)
