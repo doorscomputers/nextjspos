@@ -235,6 +235,32 @@ async function main() {
     }
   }
 
+  // Assign ALL permissions to System Administrator and Super Admin
+  console.log('Assigning ALL permissions to System Administrator and Super Admin...')
+  const adminRoles = [
+    roleMap.get('System Administrator'),
+    roleMap.get('Super Admin')
+  ].filter(Boolean)
+
+  for (const adminRole of adminRoles) {
+    for (const permission of permissionRecords) {
+      await prisma.rolePermission.upsert({
+        where: {
+          roleId_permissionId: {
+            roleId: adminRole.id,
+            permissionId: permission.id,
+          },
+        },
+        update: {},
+        create: {
+          roleId: adminRole.id,
+          permissionId: permission.id,
+        },
+      })
+      assignmentCount++
+    }
+  }
+
   console.log(`✅ ${assignmentCount} permissions assigned to ${roleMap.size} roles`)
 
   // Create Demo Users
