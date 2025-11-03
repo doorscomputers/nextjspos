@@ -16,9 +16,19 @@ export async function POST(request: NextRequest) {
 
     const businessId = parseInt(session.user.businessId)
 
-    // Date range setup
-    const start = new Date(startDate)
-    const end = new Date(endDate)
+    // Date range setup - handle empty strings by using last 30 days as default
+    let start: Date
+    let end: Date
+
+    if (!startDate || startDate === '' || !endDate || endDate === '') {
+      // Default to last 30 days if no dates provided
+      end = new Date()
+      start = new Date()
+      start.setDate(start.getDate() - 30)
+    } else {
+      start = new Date(startDate)
+      end = new Date(endDate)
+    }
 
     // Previous period for comparison (same duration)
     const periodDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
