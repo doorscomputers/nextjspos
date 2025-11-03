@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
-    const locationId = searchParams.get('locationId')
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
 
     // Default to last 30 days if no dates provided
     const end = endDate ? new Date(endDate) : new Date()

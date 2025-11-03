@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
         const search = searchParams.get('search')?.trim() || ''
         const isActive = searchParams.get('isActive')
         const customerType = searchParams.get('customerType')?.trim() || ''
-        const locationId = searchParams.get('locationId')
+        const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
 
         // Build where clause
         const where: any = {

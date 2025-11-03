@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const locationId = searchParams.get('locationId')
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
 
     const businessId = parseInt(session.user.businessId)
 

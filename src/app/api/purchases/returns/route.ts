@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') // pending, approved, completed, rejected
     const supplierId = searchParams.get('supplierId')
-    const locationId = searchParams.get('locationId')
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
 
     // Build where clause
     const whereClause: any = {

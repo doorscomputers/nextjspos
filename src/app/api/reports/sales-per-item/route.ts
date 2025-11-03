@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     }
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
-    const locationId = searchParams.get('locationId')
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
     const categoryId = searchParams.get('categoryId')
     const sortBy = searchParams.get('sortBy') || 'totalRevenue'
     const sortOrder = searchParams.get('sortOrder') || 'desc'
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       permissions: session.user.permissions || [],
       roles: session.user.roles || [],
       businessId: parseInt(session.user.businessId),
-      locationIds: session.user.locationIds || []
+      locationIds: session.user.locationIds?.map(id => parseInt(String(id))) || []
     })
 
     // Get all locations for this business to ensure business ID filtering

@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const startDateParam = searchParams.get('startDate')
     const endDateParam = searchParams.get('endDate')
-    const locationIdParam = searchParams.get('locationId')
+    const locationIdParam = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
     const dayOfWeekParam = searchParams.get('dayOfWeek') // 0=Sunday, 6=Saturday
 
     // Default date range: last 7 days

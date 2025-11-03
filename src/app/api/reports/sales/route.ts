@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
 
     // Filters
-    const locationId = searchParams.get('locationId')
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
     const customerId = searchParams.get('customerId')
     const status = searchParams.get('status')
     const startDate = searchParams.get('startDate')

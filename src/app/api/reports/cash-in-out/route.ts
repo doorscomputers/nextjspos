@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const startDateParam = searchParams.get('startDate')
     const endDateParam = searchParams.get('endDate')
-    const locationIdParam = searchParams.get('locationId')
+    const locationIdParam = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
     const cashierIdParam = searchParams.get('cashierId')
     const typeParam = searchParams.get('type') // 'cash_in', 'cash_out', or 'all'
     const searchParam = searchParams.get('search') || ''

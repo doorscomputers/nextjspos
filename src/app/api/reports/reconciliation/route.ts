@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     // Parse query parameters
     const { searchParams } = new URL(request.url)
-    const locationIdParam = searchParams.get('locationId')
+    const locationIdParam = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
     const autoFix = searchParams.get('autoFix') === 'true'
     const format = searchParams.get('format') || 'json'
     const variationIdParam = searchParams.get('variationId')

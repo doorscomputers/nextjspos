@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const supplierId = searchParams.get('supplierId')
     const categoryId = searchParams.get('categoryId')
     const productId = searchParams.get('productId')
-    const locationId = searchParams.get('locationId')
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
 
     const businessId = parseInt(session.user.businessId)
 

@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
 
     // Filters
-    const locationIdParam = searchParams.get('locationId')
+    const locationIdParam = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
     const customerIdParam = searchParams.get('customerId')
     const statusParam = searchParams.get('status')
     const agingPeriodParam = searchParams.get('agingPeriod')

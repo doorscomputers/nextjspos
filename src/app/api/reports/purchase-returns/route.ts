@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit
 
     // Filters
-    const locationId = searchParams.get('locationId')
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
     const supplierId = searchParams.get('supplierId')
     const status = searchParams.get('status')
     const returnReason = searchParams.get('returnReason')

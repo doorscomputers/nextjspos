@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     // Parse query parameters
     const { searchParams } = new URL(request.url)
-    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : undefined
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null ? parseInt(searchParams.get('locationId')!) : undefined
     const methodParam = searchParams.get('method') as string | null
     const includeLayers = searchParams.get('includeLayers') === 'true'
     const groupByCategory = searchParams.get('groupByCategory') === 'true'

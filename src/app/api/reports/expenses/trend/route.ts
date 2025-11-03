@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const categoryId = searchParams.get("categoryId");
-    const locationId = searchParams.get("locationId");
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null;
     const groupBy = searchParams.get("groupBy") || "month"; // day, week, month, year
     const status = searchParams.get("status");
 

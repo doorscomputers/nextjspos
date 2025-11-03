@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     // Get query parameters for filtering
     const searchParams = request.nextUrl.searchParams
     const userId = searchParams.get("userId")
-    const locationId = searchParams.get("locationId")
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
     const startDate = searchParams.get("startDate")
     const endDate = searchParams.get("endDate")
     const days = searchParams.get("days") || "30" // Default to 30 days

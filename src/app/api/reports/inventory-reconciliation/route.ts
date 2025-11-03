@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const action = searchParams.get('action') || 'check'
     const variationId = searchParams.get('variationId')
-    const locationId = searchParams.get('locationId')
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
 
     // Action: Get transaction history for specific product/location
     if (action === 'history' && variationId && locationId) {

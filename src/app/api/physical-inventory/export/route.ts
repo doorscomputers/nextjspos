@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const locationId = searchParams.get('locationId')
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
 
     if (!locationId) {
       return NextResponse.json({ error: 'Location ID is required' }, { status: 400 })

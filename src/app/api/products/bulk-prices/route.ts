@@ -36,7 +36,7 @@ export async function GET() {
       userId: session.user.id,
       username: session.user.username,
       roles: session.user.roles,
-      locationIds: session.user.locationIds,
+      locationIds: session.user.locationIds?.map(id => parseInt(String(id))),
       accessibleLocationIds,
       businessId: parseInt(session.user.businessId)
     })

@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Other filters
-    const locationIdParam = searchParams.get('locationId')
+    const locationIdParam = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
     const customerIdParam = searchParams.get('customerId')
     const paymentMethodParam = searchParams.get('paymentMethod')
     const searchQuery = searchParams.get('search')

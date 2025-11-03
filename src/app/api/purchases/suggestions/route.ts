@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const locationId = searchParams.get('locationId')
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
     const supplierId = searchParams.get('supplierId')
     const categoryId = searchParams.get('categoryId')
     const urgency = searchParams.get('urgency')

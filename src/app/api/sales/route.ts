@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
     const customerId = searchParams.get('customerId')
-    const locationId = searchParams.get('locationId')
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
     const shiftId = searchParams.get('shiftId') // Filter by specific shift
     const date = searchParams.get('date') // Filter by specific date
     const startDate = searchParams.get('startDate')

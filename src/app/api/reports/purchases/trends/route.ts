@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     const groupBy = searchParams.get('groupBy') || 'month' // week, month, quarter, year
     const productIdParam = searchParams.get('productId')
     const supplierIdParam = searchParams.get('supplierId')
-    const locationIdParam = searchParams.get('locationId')
+    const locationIdParam = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
 
     const businessId = parseInt(session.user.businessId)
 

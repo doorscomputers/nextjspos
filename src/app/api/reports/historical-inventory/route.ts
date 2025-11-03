@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const targetDate = searchParams.get('date');
-    const locationId = searchParams.get('locationId');
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null;
     const categoryId = searchParams.get('categoryId');
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');

@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const timePeriod = searchParams.get('timePeriod') || 'last_30_days'
 
     // Location filter
-    const locationId = searchParams.get('locationId')
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
     const accessibleLocationIds = getUserAccessibleLocationIds(session.user as any)
 
     // Category and Brand filters

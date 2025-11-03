@@ -25,7 +25,7 @@ export async function GET(
     const productId = parseInt(id)
 
     const { searchParams } = new URL(request.url)
-    const locationId = searchParams.get('locationId')
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
 
     if (!locationId) {
       return NextResponse.json(

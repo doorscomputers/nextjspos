@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const yearParam = searchParams.get('year')
     const periodTypeParam = searchParams.get('periodType')
-    const locationIdParam = searchParams.get('locationId')
+    const locationIdParam = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
     const methodParam = searchParams.get('method') || 'avco'
     const includeCurrentParam = searchParams.get('includeCurrent') === 'true'
 

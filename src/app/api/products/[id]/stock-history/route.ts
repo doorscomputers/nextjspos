@@ -36,7 +36,7 @@ export async function GET(
     // Get query parameters
     const { searchParams } = new URL(request.url)
     const variationId = searchParams.get('variationId')
-    const locationId = searchParams.get('locationId')
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
     const autoCorrect = searchParams.get('autoCorrect') === 'true'

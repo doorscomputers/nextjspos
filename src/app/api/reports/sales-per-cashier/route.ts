@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     // Filters
     const cashierId = searchParams.get('cashierId') || 'all' // Default to all cashiers
-    const locationId = searchParams.get('locationId')
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
     const customerId = searchParams.get('customerId')
     const status = searchParams.get('status')
     const invoiceNumber = searchParams.get('invoiceNumber')

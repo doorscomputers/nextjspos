@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     // Get query parameters
     const searchParams = request.nextUrl.searchParams
     const productId = searchParams.get('productId')
-    const locationId = searchParams.get('locationId')
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
     const variationId = searchParams.get('variationId')
 
     if (!productId || !locationId || !variationId) {

@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const technicianId = searchParams.get('technicianId')
     const customerId = searchParams.get('customerId')
-    const locationId = searchParams.get('locationId')
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
     const search = searchParams.get('search')?.trim() || ''

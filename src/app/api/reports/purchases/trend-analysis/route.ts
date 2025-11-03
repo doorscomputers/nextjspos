@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const period = searchParams.get('period') || 'month' // month|quarter|year
     const year = searchParams.get('year') || new Date().getFullYear().toString()
     const compareYears = searchParams.get('compareYears') === 'true' // Enable year-over-year comparison
-    const locationId = searchParams.get('locationId')
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
 
     const businessId = parseInt(session.user.businessId)
 
