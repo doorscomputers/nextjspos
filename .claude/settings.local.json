@@ -50,7 +50,8 @@
       "Bash(dir:*)",
       "Bash(move testsvercel-login-test.spec.ts e2evercel-login-test.spec.ts)",
       "Bash(move testsvercel-production-login.spec.ts e2evercel-production-login.spec.ts)",
-      "Bash(del next.config.ts)"
+      "Bash(del next.config.ts)",
+      "Bash(move testsproduction-login.spec.ts e2eproduction-login.spec.ts)"
     ]
   },
   "enableAllProjectMcpServers": true,
