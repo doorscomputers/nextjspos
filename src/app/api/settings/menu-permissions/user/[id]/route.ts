@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/prisma.simple'
 
 // GET /api/settings/menu-permissions/user/[id]
 // Get all accessible menu keys for a user (combines role permissions + user overrides)

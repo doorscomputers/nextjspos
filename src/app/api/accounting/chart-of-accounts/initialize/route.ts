@@ -8,7 +8,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { initializeChartOfAccounts } from '@/lib/chartOfAccounts'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/prisma.simple'
 
 /**
  * POST /api/accounting/chart-of-accounts/initialize

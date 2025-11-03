@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/prisma.simple'
 
 /**
  * GET /api/shifts/check-unclosed - Check if user has any unclosed shifts

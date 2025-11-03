@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/prisma.simple'
 
 // GET - Fetch ALL locations for user's business (no permission filtering)
 // This is used for transfer destinations - users can transfer TO any branch

@@ -8,7 +8,7 @@ import {
   getTotalInventoryValue,
   ValuationMethod
 } from '@/lib/inventoryValuation'
-import { prisma } from '@/lib/prisma'
+import { prisma } from '@/lib/prisma.simple'
 
 /**
  * GET /api/reports/inventory-valuation

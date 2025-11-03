@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { prisma } from '@/lib/prisma.simple'
 
 /**
  * GET /api/locations/verify-code?code=XXXXX
