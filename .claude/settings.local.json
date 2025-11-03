@@ -48,7 +48,9 @@
       "Bash(git ls-tree:*)",
       "Bash(git add:*)",
       "Bash(dir:*)",
-      "Bash(move testsvercel-login-test.spec.ts e2evercel-login-test.spec.ts)"
+      "Bash(move testsvercel-login-test.spec.ts e2evercel-login-test.spec.ts)",
+      "Bash(move testsvercel-production-login.spec.ts e2evercel-production-login.spec.ts)",
+      "Bash(del next.config.ts)"
     ]
   },
   "enableAllProjectMcpServers": true,

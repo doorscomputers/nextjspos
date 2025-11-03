@@ -1,6 +1,5 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   // Required for DevExtreme React components
   transpilePackages: ['devextreme', 'devextreme-react'],
 
