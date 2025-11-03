@@ -144,7 +144,7 @@ SELECT
     schemaname,
     tablename,
     indexname,
-    pg_size_pretty(pg_relation_size(indexrelid)) as index_size
+    pg_size_pretty(pg_relation_size(pg_class.oid)) as index_size
 FROM pg_indexes
 JOIN pg_class ON pg_class.relname = indexname
 WHERE schemaname = 'public'
