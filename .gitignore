@@ -62,3 +62,5 @@ src/devextreme-license.js
 
 # Kendo UI license (each developer should use their own key)
 kendo-license.txt
+
+.vercel
