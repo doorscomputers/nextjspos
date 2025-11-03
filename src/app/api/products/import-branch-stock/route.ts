@@ -390,6 +390,9 @@ export async function POST(request: NextRequest) {
       }
 
       results.success = validProducts.length
+    }, {
+      timeout: 60000, // 60 seconds for large CSV imports
+      maxWait: 10000, // Wait up to 10 seconds to get a connection from the pool
     })
 
     const elapsedMs = Date.now() - startTime
