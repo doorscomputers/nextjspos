@@ -76,6 +76,12 @@ export default function MenuPermissionsPage() {
       const res = await fetch(`/api/settings/menu-permissions/role/${roleId}`)
       if (res.ok) {
         const data = await res.json()
+        console.log('📋 Fetched menus:', {
+          total: data.data.allMenus?.length || 0,
+          parents: data.data.allMenus?.filter((m: any) => m.parentId === null).length || 0,
+          children: data.data.allMenus?.filter((m: any) => m.parentId !== null).length || 0,
+          allMenus: data.data.allMenus
+        })
         setAllMenus(data.data.allMenus || [])
         setEnabledMenuKeys(data.data.enabledMenuKeys || [])
       } else {
@@ -263,9 +269,12 @@ export default function MenuPermissionsPage() {
                   {selectedRole ? `${selectedRole.displayName} - Menu Access` : 'Menu Access'}
                 </h2>
                 {selectedRole && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                    {enabledMenuKeys.length} of {allMenus.length} menus enabled
-                  </p>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 space-y-1">
+                    <p>{enabledMenuKeys.length} of {allMenus.length} menus enabled</p>
+                    <p className="text-xs">
+                      {parentMenus.length} parent menus · {allMenus.length - parentMenus.length} child menus
+                    </p>
+                  </div>
                 )}
               </div>
               {selectedRole && (
