@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const businessId = session.user.businessId
+    const businessId = parseInt(session.user.businessId)
     const userId = session.user.id
 
     const body = await request.json()

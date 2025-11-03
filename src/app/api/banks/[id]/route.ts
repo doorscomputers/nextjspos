@@ -20,7 +20,7 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const businessId = session.user.businessId
+    const businessId = parseInt(session.user.businessId)
     const { id } = await params
     const bankId = parseInt(id)
 
@@ -68,7 +68,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const businessId = session.user.businessId
+    const businessId = parseInt(session.user.businessId)
     const { id } = await params
     const bankId = parseInt(id)
 
@@ -162,7 +162,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const businessId = session.user.businessId
+    const businessId = parseInt(session.user.businessId)
     const { id } = await params
     const bankId = parseInt(id)
 

@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 
     // Generate balance sheet
     const balanceSheet = await generateBalanceSheet(
-      session.user.businessId,
+      parseInt(session.user.businessId),
       asOfDate
     )
 
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       meta: {
         generatedAt: new Date().toISOString(),
         generatedBy: session.user.username,
-        businessId: session.user.businessId,
+        businessId: parseInt(session.user.businessId),
       },
     })
   } catch (error) {

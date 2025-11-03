@@ -24,7 +24,7 @@ export async function PUT(
       where: {
         id: notificationId,
         userId: session.user.id,
-        businessId: session.user.businessId
+        businessId: parseInt(session.user.businessId)
       }
     })
 

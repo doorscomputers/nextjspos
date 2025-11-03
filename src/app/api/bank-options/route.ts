@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const businessId = session.user.businessId
+    const businessId = parseInt(session.user.businessId)
 
     // Get unique bank names from BankTransaction table
     // If table doesn't exist or has no records, return empty array

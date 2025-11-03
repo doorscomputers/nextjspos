@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { startDate, endDate, locationIds = [] } = body
 
-    const businessId = parseInt(session.user.businessId as string)
+    const businessId = parseInt(session.user.businessId)
 
     // Date range setup
     const start = new Date(startDate)

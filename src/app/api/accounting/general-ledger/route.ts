@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
 
     // Generate general ledger
     const generalLedger = await generateGeneralLedger(
-      session.user.businessId,
+      parseInt(session.user.businessId),
       startDate,
       endDate,
       accountCode,
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
       meta: {
         generatedAt: new Date().toISOString(),
         generatedBy: session.user.username,
-        businessId: session.user.businessId,
+        businessId: parseInt(session.user.businessId),
         periodStart: startDate.toISOString(),
         periodEnd: endDate.toISOString(),
         filters: {

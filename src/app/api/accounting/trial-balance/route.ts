@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
 
     // Generate trial balance
     const trialBalance = await generateTrialBalance(
-      session.user.businessId,
+      parseInt(session.user.businessId),
       asOfDate
     )
 
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
       meta: {
         generatedAt: new Date().toISOString(),
         generatedBy: session.user.username,
-        businessId: session.user.businessId,
+        businessId: parseInt(session.user.businessId),
       },
     })
   } catch (error) {

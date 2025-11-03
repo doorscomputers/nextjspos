@@ -16,7 +16,7 @@ export async function DELETE(
     }
 
     const userId = parseInt(session.user.id);
-    const businessId = session.user.businessId;
+    const businessId = parseInt(session.user.businessId);
     const { id } = await params;
     const questionId = parseInt(id);
 
@@ -70,7 +70,7 @@ export async function PATCH(
     }
 
     const userId = parseInt(session.user.id);
-    const businessId = session.user.businessId;
+    const businessId = parseInt(session.user.businessId);
     const { id } = await params;
     const questionId = parseInt(id);
 

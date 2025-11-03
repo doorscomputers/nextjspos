@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     // Check if already initialized
     const existingAccounts = await prisma.chartOfAccounts.count({
-      where: { businessId: session.user.businessId }
+      where: { businessId: parseInt(session.user.businessId) }
     })
 
     if (existingAccounts > 0) {
@@ -54,12 +54,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Initialize Chart of Accounts
-    const accounts = await initializeChartOfAccounts(session.user.businessId)
+    const accounts = await initializeChartOfAccounts(parseInt(session.user.businessId))
 
     // Log the initialization
     await prisma.accountingAuditLog.create({
       data: {
-        businessId: session.user.businessId,
+        businessId: parseInt(session.user.businessId),
         entityType: 'ChartOfAccounts',
         entityId: 0,
         action: 'initialize',
@@ -126,11 +126,11 @@ export async function GET(request: NextRequest) {
     }
 
     const accountCount = await prisma.chartOfAccounts.count({
-      where: { businessId: session.user.businessId }
+      where: { businessId: parseInt(session.user.businessId) }
     })
 
     const accounts = await prisma.chartOfAccounts.findMany({
-      where: { businessId: session.user.businessId },
+      where: { businessId: parseInt(session.user.businessId) },
       select: {
         accountCode: true,
         accountName: true,

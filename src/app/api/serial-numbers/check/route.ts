@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const existingSerial = await prisma.productSerialNumber.findFirst({
       where: {
         serialNumber: serialNumber.trim(),
-        businessId: parseInt(session.user.businessId.toString()),
+        businessId: parseInt(session.user.businessId),
       },
       include: {
         product: {

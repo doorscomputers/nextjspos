@@ -49,7 +49,7 @@ export async function GET(
     const printer = await prisma.printer.findFirst({
       where: {
         id: printerId,
-        businessId: session.user.businessId, // Prevent cross-tenant access
+        businessId: parseInt(session.user.businessId), // Prevent cross-tenant access
         deletedAt: null,
       },
       include: {
@@ -124,7 +124,7 @@ export async function PUT(
     const existingPrinter = await prisma.printer.findFirst({
       where: {
         id: printerId,
-        businessId: session.user.businessId,
+        businessId: parseInt(session.user.businessId),
         deletedAt: null,
       },
     })
@@ -153,7 +153,7 @@ export async function PUT(
     if (data.name && data.name !== existingPrinter.name) {
       const duplicatePrinter = await prisma.printer.findFirst({
         where: {
-          businessId: session.user.businessId,
+          businessId: parseInt(session.user.businessId),
           name: data.name,
           id: { not: printerId },
           deletedAt: null,
@@ -254,7 +254,7 @@ export async function DELETE(
     const existingPrinter = await prisma.printer.findFirst({
       where: {
         id: printerId,
-        businessId: session.user.businessId,
+        businessId: parseInt(session.user.businessId),
         deletedAt: null,
       },
       include: {

@@ -97,7 +97,7 @@ export async function GET(request: Request) {
     }
 
     // Verify multi-tenant access
-    if (jobOrder.businessId !== session.user.businessId) {
+    if (jobOrder.businessId !== parseInt(session.user.businessId)) {
       return NextResponse.json(
         { error: 'Access denied - different business' },
         { status: 403 }

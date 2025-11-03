@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     // Get all roles for the business with menu permission counts
     const roles = await prisma.role.findMany({
       where: {
-        businessId: parseInt(session.user.businessId as string)
+        businessId: parseInt(session.user.businessId)
       },
       include: {
         _count: {

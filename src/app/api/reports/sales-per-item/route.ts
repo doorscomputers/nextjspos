@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
-    const businessIdRaw = session.user.businessId
+    const businessIdRaw = parseInt(session.user.businessId)
     const businessId = typeof businessIdRaw === 'string' ? parseInt(businessIdRaw, 10) : businessIdRaw
 
     if (!businessId || Number.isNaN(businessId)) {
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       id: session.user.id,
       permissions: session.user.permissions || [],
       roles: session.user.roles || [],
-      businessId: session.user.businessId,
+      businessId: parseInt(session.user.businessId),
       locationIds: session.user.locationIds || []
     })
 

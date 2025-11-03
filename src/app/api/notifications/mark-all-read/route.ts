@@ -17,7 +17,7 @@ export async function PUT(request: NextRequest) {
     const result = await prisma.notification.updateMany({
       where: {
         userId: session.user.id,
-        businessId: session.user.businessId,
+        businessId: parseInt(session.user.businessId),
         isRead: false
       },
       data: {

@@ -65,7 +65,7 @@ export async function GET(request: Request) {
 
     // 4. Build filters with multi-tenant isolation
     const where: any = {
-      businessId: session.user.businessId, // Multi-tenant isolation
+      businessId: parseInt(session.user.businessId), // Multi-tenant isolation
       deletedAt: null, // Exclude soft-deleted printers
     }
 
@@ -173,7 +173,7 @@ export async function POST(request: Request) {
     // 4. Check for duplicate printer name in the same business
     const existingPrinter = await prisma.printer.findFirst({
       where: {
-        businessId: session.user.businessId,
+        businessId: parseInt(session.user.businessId),
         name: data.name,
         deletedAt: null,
       }
@@ -196,7 +196,7 @@ export async function POST(request: Request) {
         ipAddress: data.ipAddress || null,
         port: data.port || '9100',
         path: data.path || null,
-        businessId: session.user.businessId,
+        businessId: parseInt(session.user.businessId),
       },
       include: {
         business: {

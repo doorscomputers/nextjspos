@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     console.log('📅 Target Date (end of day):', targetDateEndOfDay.toISOString());
 
     // Ensure businessId is a number for Prisma filters
-    const businessId = parseInt(session.user.businessId?.toString() || '0');
+    const businessId = parseInt(session.user.businessId);
     const offset = (page - 1) * limit;
 
     // Build WHERE conditions - businessId filtering through relationships

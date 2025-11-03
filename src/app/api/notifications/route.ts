@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: any = {
       userId: parseInt(session.user.id.toString()),
-      businessId: parseInt(session.user.businessId.toString())
+      businessId: parseInt(session.user.businessId)
     }
 
     if (unreadOnly) {
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       prisma.notification.count({
         where: {
           userId: parseInt(session.user.id.toString()),
-          businessId: parseInt(session.user.businessId.toString()),
+          businessId: parseInt(session.user.businessId),
           isRead: false
         }
       })
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     const notification = await prisma.notification.create({
       data: {
-        businessId: parseInt(session.user.businessId.toString()),
+        businessId: parseInt(session.user.businessId),
         userId: parseInt(userId.toString()),
         type,
         title,

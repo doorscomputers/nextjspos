@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where: any = {
-      businessId: session.user.businessId,
+      businessId: parseInt(session.user.businessId),
       status: { not: 'VOID' },
     }
 

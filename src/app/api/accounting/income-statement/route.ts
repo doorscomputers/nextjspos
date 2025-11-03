@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
 
     // Generate income statement
     const incomeStatement = await generateIncomeStatement(
-      session.user.businessId,
+      parseInt(session.user.businessId),
       startDate,
       endDate
     )
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
       meta: {
         generatedAt: new Date().toISOString(),
         generatedBy: session.user.username,
-        businessId: session.user.businessId,
+        businessId: parseInt(session.user.businessId),
         periodStart: startDate.toISOString(),
         periodEnd: endDate.toISOString(),
       },

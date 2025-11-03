@@ -196,7 +196,7 @@ export async function PUT(
         entityType: 'PURCHASE_RECEIPT_ITEM',
         entityId: receiptItemId,
         userId: session.user.id,
-        businessId: session.user.businessId,
+        businessId: parseInt(session.user.businessId),
         oldValues: JSON.stringify({
           serialNumbers: receiptItem.serialNumbers
         }),

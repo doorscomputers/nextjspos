@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const businessId = parseInt(String(session.user.businessId))
+    const businessId = parseInt(session.user.businessId)
 
     const banks = await prisma.bank.findMany({
       where: {
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const businessId = parseInt(String(session.user.businessId))
+    const businessId = parseInt(session.user.businessId)
     const userId = parseInt(String(session.user.id))
 
     const body = await request.json()

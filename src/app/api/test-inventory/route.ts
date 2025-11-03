@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const businessId = session.user.businessId;
+    const businessId = parseInt(session.user.businessId);
 
     // Test simple query first
     console.log('Testing simple query for businessId:', businessId);

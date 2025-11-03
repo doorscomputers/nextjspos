@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
     // Find accounts
     const accounts = await prisma.chartOfAccounts.findMany({
       where: {
-        businessId: session.user.businessId,
+        businessId: parseInt(session.user.businessId),
         accountCode: { in: uniqueAccountCodes }
       }
     })
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     // Create journal entry
     const entry = await prisma.journalEntry.create({
       data: {
-        businessId: session.user.businessId,
+        businessId: parseInt(session.user.businessId),
         entryDate: new Date(entryDate),
         description,
         referenceNumber: referenceNumber || null,
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
     // Create audit log
     await prisma.accountingAuditLog.create({
       data: {
-        businessId: session.user.businessId,
+        businessId: parseInt(session.user.businessId),
         entityType: 'JournalEntry',
         entityId: entry.id,
         action: 'create',
@@ -282,7 +282,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
 
     const where: any = {
-      businessId: session.user.businessId
+      businessId: parseInt(session.user.businessId)
     }
 
     if (startDate && endDate) {

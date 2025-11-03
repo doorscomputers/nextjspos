@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const businessId = session.user.businessId
+    const businessId = parseInt(session.user.businessId)
 
     // Parse query parameters
     const searchParams = request.nextUrl.searchParams

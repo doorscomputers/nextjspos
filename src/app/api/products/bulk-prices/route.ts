@@ -24,7 +24,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
 
-    const businessId = Number(session.user.businessId)
+    const businessId = parseInt(session.user.businessId)
     if (!Number.isInteger(businessId)) {
       return NextResponse.json({ error: 'Invalid business context' }, { status: 400 })
     }
@@ -38,7 +38,7 @@ export async function GET() {
       roles: session.user.roles,
       locationIds: session.user.locationIds,
       accessibleLocationIds,
-      businessId: session.user.businessId
+      businessId: parseInt(session.user.businessId)
     })
 
     // Build location filter

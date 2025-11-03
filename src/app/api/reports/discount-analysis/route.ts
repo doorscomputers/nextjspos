@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause for sales with discounts
     const where: any = {
-      businessId: parseInt(String(session.user.businessId)),
+      businessId: parseInt(session.user.businessId),
       status: { not: 'VOID' },
       discountAmount: { gt: 0 },
     }

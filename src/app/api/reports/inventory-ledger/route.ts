@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const businessId = parseInt(session.user.businessId.toString())
+    const businessId = parseInt(session.user.businessId)
     const prodId = parseInt(productId)
     const locId = parseInt(locationId)
     const varId = parseInt(variationId)

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     }
 
     const userId = parseInt(session.user.id);
-    const businessId = session.user.businessId;
+    const businessId = parseInt(session.user.businessId);
 
     // Fetch saved questions for this user, ordered by usage count and last used
     const savedQuestions = await prisma.savedQuestion.findMany({
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = parseInt(session.user.id);
-    const businessId = session.user.businessId;
+    const businessId = parseInt(session.user.businessId);
 
     const body = await req.json();
     const { question, category } = body;
@@ -106,7 +106,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     const userId = parseInt(session.user.id);
-    const businessId = session.user.businessId;
+    const businessId = parseInt(session.user.businessId);
 
     // Delete all saved questions for this user
     await prisma.savedQuestion.deleteMany({
