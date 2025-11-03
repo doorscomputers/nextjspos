@@ -8,8 +8,8 @@ interface CSVRow {
   'Item Code': string
   'Item Name': string
   'Supplier': string
-  'Category ID': string  // Changed to ID
-  'Brand ID': string      // Changed to ID
+  'Category ID': string
+  'Brand ID': string
   'Last Delivery Date': string
   'Last Qty Delivered': string
   '?Cost': string
@@ -24,7 +24,7 @@ interface CSVRow {
   'Active': string
 }
 
-// Helper function to get column value with fallback for different column name variations
+// Helper function to get column value with fallback
 function getColumnValue(row: any, ...columnNames: string[]): string | undefined {
   for (const name of columnNames) {
     if (row[name] !== undefined && row[name] !== null && row[name] !== '') {
@@ -34,7 +34,7 @@ function getColumnValue(row: any, ...columnNames: string[]): string | undefined 
   return undefined
 }
 
-// Helper function to parse currency values (remove ₱, ?, and commas)
+// Helper function to parse currency values
 function parseCurrency(value: string | undefined): number {
   if (!value || value === '') return 0
   const cleaned = value.replace(/₱|\?|,/g, '').trim()
@@ -62,6 +62,8 @@ const LOCATION_MAPPING: Record<string, string> = {
 }
 
 export async function POST(request: NextRequest) {
+  const startTime = Date.now()
+
   try {
     const session = await getServerSession(authOptions)
 
@@ -86,16 +88,52 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No products to import' }, { status: 400 })
     }
 
-    // Quick validation log
-    console.log(`Starting import of ${products.length} products...`)
+    console.log(`[${Date.now() - startTime}ms] Starting OPTIMIZED import of ${products.length} products...`)
 
-    // Fetch all business locations upfront
-    const locations = await prisma.businessLocation.findMany({
-      where: { businessId },
-      select: { id: true, name: true }
-    })
+    // OPTIMIZATION 1: Fetch all data upfront (4 queries instead of 1529 * 3)
+    const [locations, brands, categories, defaultUnit, existingProducts] = await Promise.all([
+      // Fetch locations
+      prisma.businessLocation.findMany({
+        where: { businessId },
+        select: { id: true, name: true }
+      }),
+      // Fetch ALL brands once
+      prisma.brand.findMany({
+        where: { businessId },
+        select: { id: true, name: true }
+      }),
+      // Fetch ALL categories once
+      prisma.category.findMany({
+        where: { businessId },
+        select: { id: true, name: true }
+      }),
+      // Get or create default unit
+      prisma.unit.upsert({
+        where: {
+          businessId_name: { businessId, name: 'Piece' }
+        },
+        create: {
+          name: 'Piece',
+          shortName: 'PC',
+          allowDecimal: false,
+          businessId
+        },
+        update: {},
+        select: { id: true }
+      }),
+      // Fetch ALL existing product SKUs once
+      prisma.product.findMany({
+        where: { businessId },
+        select: { sku: true }
+      })
+    ])
+
+    console.log(`[${Date.now() - startTime}ms] Fetched reference data`)
 
     const locationMap = new Map(locations.map(loc => [loc.name, loc.id]))
+    const brandMap = new Map(brands.map(b => [b.id, b]))
+    const categoryMap = new Map(categories.map(c => [c.id, c]))
+    const existingSKUs = new Set(existingProducts.map(p => p.sku))
 
     // Validate all required locations exist
     const requiredLocations = Object.values(LOCATION_MAPPING)
@@ -103,7 +141,7 @@ export async function POST(request: NextRequest) {
 
     if (missingLocations.length > 0) {
       return NextResponse.json({
-        error: `Missing required locations: ${missingLocations.join(', ')}. Please create these locations first.`
+        error: `Missing required locations: ${missingLocations.join(', ')}`
       }, { status: 400 })
     }
 
@@ -115,26 +153,30 @@ export async function POST(request: NextRequest) {
       errors: [] as Array<{ row: number; sku: string; error: string }>
     }
 
-    // Get default unit if needed
-    let defaultUnit = await prisma.unit.findFirst({
-      where: { businessId, name: 'Piece' }
-    })
-
-    if (!defaultUnit) {
-      defaultUnit = await prisma.unit.create({
-        data: {
-          name: 'Piece',
-          shortName: 'PC',
-          allowDecimal: false,
-          businessId
-        }
-      })
+    // OPTIMIZATION 2: Validate ALL products upfront (in-memory, no DB queries)
+    interface ValidatedProduct {
+      rowNumber: number
+      sku: string
+      name: string
+      brandId: number | null
+      categoryId: number | null
+      purchasePrice: number
+      sellingPrice: number
+      isActive: boolean
+      stocks: Array<{
+        locationName: string
+        locationId: number
+        quantity: number
+      }>
     }
 
-    // Process each product in a transaction
+    const validProducts: ValidatedProduct[] = []
+
+    console.log(`[${Date.now() - startTime}ms] Validating products...`)
+
     for (let i = 0; i < products.length; i++) {
       const product = products[i] as CSVRow
-      const rowNumber = i + 2 // Account for header row
+      const rowNumber = i + 2
 
       try {
         // Validate required fields
@@ -151,15 +193,8 @@ export async function POST(request: NextRequest) {
         const sku = product['Item Code'].trim()
         const name = product['Item Name'].trim()
 
-        // Check if product already exists
-        const existingProduct = await prisma.product.findFirst({
-          where: {
-            businessId,
-            sku
-          }
-        })
-
-        if (existingProduct) {
+        // Check if SKU already exists (in-memory check)
+        if (existingSKUs.has(sku)) {
           results.skipped++
           results.errors.push({
             row: rowNumber,
@@ -169,153 +204,65 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Parse prices - try multiple column name variations
-        const costRaw = getColumnValue(product, '?Cost', 'Cost', '﻿?Cost', 'Purchase Price', 'Unit Cost')
-        const priceRaw = getColumnValue(product, '?Price', 'Price', '﻿?Price', 'Selling Price', 'Unit Price')
+        // Validate Brand ID (in-memory check)
+        let brandId: number | null = null
+        if (product['Brand ID'] && product['Brand ID'].trim()) {
+          const parsedBrandId = parseInt(product['Brand ID'].trim())
+          if (!isNaN(parsedBrandId) && brandMap.has(parsedBrandId)) {
+            brandId = parsedBrandId
+          } else {
+            throw new Error(`Brand ID ${parsedBrandId} not found`)
+          }
+        }
 
+        // Validate Category ID (in-memory check)
+        let categoryId: number | null = null
+        if (product['Category ID'] && product['Category ID'].trim()) {
+          const parsedCategoryId = parseInt(product['Category ID'].trim())
+          if (!isNaN(parsedCategoryId) && categoryMap.has(parsedCategoryId)) {
+            categoryId = parsedCategoryId
+          } else {
+            throw new Error(`Category ID ${parsedCategoryId} not found`)
+          }
+        }
+
+        // Parse prices
+        const costRaw = getColumnValue(product, '?Cost', 'Cost', '﻿?Cost')
+        const priceRaw = getColumnValue(product, '?Price', 'Price', '﻿?Price')
         const purchasePrice = parseCurrency(costRaw)
         const sellingPrice = parseCurrency(priceRaw)
         const isActive = parseBoolean(product['Active'])
 
-        // Log progress every 100 products
-        if (i % 100 === 0) {
-          console.log(`Processing ${i + 1}/${products.length}...`)
-        }
+        // Parse stocks for each location
+        const stockColumns = ['Warehouse', 'Main Store', 'Bambang', 'Tuguegarao'] as const
+        const stocks: ValidatedProduct['stocks'] = []
 
-        // Get Brand ID (must already exist)
-        let brandId: number | null = null
-        if (product['Brand ID'] && product['Brand ID'].trim()) {
-          const parsedBrandId = parseInt(product['Brand ID'].trim())
-          if (!isNaN(parsedBrandId)) {
-            const brand = await prisma.brand.findFirst({
-              where: { id: parsedBrandId, businessId }
+        for (const columnName of stockColumns) {
+          const quantity = parseStock(product[columnName])
+          const dbLocationName = LOCATION_MAPPING[columnName]
+          const locationId = locationMap.get(dbLocationName)
+
+          if (locationId) {
+            stocks.push({
+              locationName: dbLocationName,
+              locationId,
+              quantity
             })
-            if (brand) {
-              brandId = brand.id
-            } else {
-              throw new Error(`Brand ID ${parsedBrandId} not found. Please import brands first.`)
-            }
           }
         }
 
-        // Get Category ID (must already exist)
-        let categoryId: number | null = null
-        if (product['Category ID'] && product['Category ID'].trim()) {
-          const parsedCategoryId = parseInt(product['Category ID'].trim())
-          if (!isNaN(parsedCategoryId)) {
-            const category = await prisma.category.findFirst({
-              where: { id: parsedCategoryId, businessId }
-            })
-            if (category) {
-              categoryId = category.id
-            } else {
-              throw new Error(`Category ID ${parsedCategoryId} not found. Please import categories first.`)
-            }
-          }
-        }
-
-        // Use transaction to ensure atomicity
-        await prisma.$transaction(async (tx) => {
-          // Create product
-          const newProduct = await tx.product.create({
-            data: {
-              name,
-              sku,
-              type: 'single',
-              businessId,
-              unitId: defaultUnit!.id,
-              brandId,
-              categoryId,
-              purchasePrice,
-              sellingPrice,
-              barcodeType: 'C128',
-              enableStock: true,
-              isActive
-              // Note: Product model doesn't have createdBy field, only createdAt (auto-set)
-            }
-          })
-
-          // Create default variation for single product
-          const variation = await tx.productVariation.create({
-            data: {
-              productId: newProduct.id,
-              name: 'Default',
-              sku: sku, // Use the same SKU as the product
-              purchasePrice: purchasePrice || 0,
-              sellingPrice: sellingPrice || 0,
-              isDefault: true,
-              businessId
-              // Note: ProductVariation doesn't have isActive field
-            }
-          })
-
-          // Process stock for each location
-          const stockColumns = ['Warehouse', 'Main Store', 'Bambang', 'Tuguegarao'] as const
-
-          for (const columnName of stockColumns) {
-            const stockValue = parseStock(product[columnName])
-            const dbLocationName = LOCATION_MAPPING[columnName]
-            const locationId = locationMap.get(dbLocationName)
-
-            if (!locationId) continue
-
-            // Create VariationLocationDetails entry with selling price
-            await tx.variationLocationDetails.create({
-              data: {
-                productId: newProduct.id,
-                productVariationId: variation.id,
-                locationId,
-                qtyAvailable: stockValue,
-                sellingPrice: sellingPrice || 0  // Set location selling price from CSV
-                // Note: VariationLocationDetails doesn't have businessId field
-              }
-            })
-
-            // Create StockTransaction entry for beginning inventory (CRITICAL for inventory tracking)
-            if (stockValue > 0) {
-              await tx.stockTransaction.create({
-                data: {
-                  businessId,
-                  locationId,
-                  productId: newProduct.id,
-                  productVariationId: variation.id,
-                  type: 'opening_stock',
-                  quantity: stockValue,
-                  unitCost: purchasePrice || 0,
-                  refNo: `CSV-IMPORT-${newProduct.id}`,
-                  notes: `Opening stock from Branch Stock Pivot CSV import`,
-                  createdBy: parseInt(String(user.id))
-                }
-              })
-
-              // Create ProductHistory entry for beginning inventory
-              await tx.productHistory.create({
-                data: {
-                  businessId,
-                  locationId,
-                  productId: newProduct.id,
-                  productVariationId: variation.id,
-                  transactionType: 'opening_stock',
-                  transactionDate: new Date(),
-                  referenceType: 'csv_import',
-                  referenceId: newProduct.id,
-                  referenceNumber: `CSV-IMPORT-${newProduct.id}`,
-                  quantityChange: stockValue,
-                  balanceQuantity: stockValue,
-                  unitCost: purchasePrice || 0,
-                  totalValue: (purchasePrice || 0) * stockValue,
-                  createdBy: parseInt(String(user.id)),
-                  createdByName: user.username,
-                  reason: `Opening stock from Branch Stock Pivot CSV import`
-                }
-              })
-
-              results.totalInventoryRecords++
-            }
-          }
+        validProducts.push({
+          rowNumber,
+          sku,
+          name,
+          brandId,
+          categoryId,
+          purchasePrice,
+          sellingPrice,
+          isActive,
+          stocks
         })
 
-        results.success++
       } catch (error: any) {
         results.failed++
         results.errors.push({
@@ -326,15 +273,137 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log(`Import completed: ${results.success} successful, ${results.failed} failed, ${results.skipped} skipped`)
+    console.log(`[${Date.now() - startTime}ms] Validated ${validProducts.length} products`)
+
+    if (validProducts.length === 0) {
+      return NextResponse.json({
+        success: true,
+        results
+      })
+    }
+
+    // OPTIMIZATION 3: Bulk insert using RAW SQL
+    console.log(`[${Date.now() - startTime}ms] Starting bulk insert...`)
+
+    // Create all products in one transaction with bulk inserts
+    await prisma.$transaction(async (tx) => {
+      // Bulk insert products
+      const productValues = validProducts.map(p => {
+        const brandVal = p.brandId !== null ? p.brandId : 'NULL'
+        const catVal = p.categoryId !== null ? p.categoryId : 'NULL'
+        return `(${businessId}, '${p.name.replace(/'/g, "''")}', '${p.sku}', 'single', ${defaultUnit.id}, ${brandVal}, ${catVal}, ${p.purchasePrice}, ${p.sellingPrice}, 'C128', true, ${p.isActive}, NOW(), NOW())`
+      }).join(',\n')
+
+      const productInsertSQL = `
+        INSERT INTO products
+          (business_id, name, sku, type, unit_id, brand_id, category_id, purchase_price, selling_price, barcode_type, enable_stock, is_active, created_at, updated_at)
+        VALUES ${productValues}
+        RETURNING id, sku
+      `
+
+      const insertedProducts = await tx.$queryRawUnsafe<Array<{ id: number; sku: string }>>(productInsertSQL)
+
+      console.log(`[${Date.now() - startTime}ms] Inserted ${insertedProducts.length} products`)
+
+      // Create SKU to ID map
+      const skuToProductMap = new Map(insertedProducts.map(p => [p.sku, p.id]))
+
+      // Bulk insert variations
+      const variationValues = validProducts.map(p => {
+        const productId = skuToProductMap.get(p.sku)!
+        return `(${productId}, 'Default', '${p.sku}', ${p.purchasePrice}, ${p.sellingPrice}, true, ${businessId}, NOW(), NOW())`
+      }).join(',\n')
+
+      const variationInsertSQL = `
+        INSERT INTO product_variations
+          (product_id, name, sku, purchase_price, selling_price, is_default, business_id, created_at, updated_at)
+        VALUES ${variationValues}
+        RETURNING id, product_id
+      `
+
+      const insertedVariations = await tx.$queryRawUnsafe<Array<{ id: number; product_id: number }>>(variationInsertSQL)
+
+      console.log(`[${Date.now() - startTime}ms] Inserted ${insertedVariations.length} variations`)
+
+      // Create product_id to variation_id map
+      const productToVariationMap = new Map(insertedVariations.map(v => [v.product_id, v.id]))
+
+      // Bulk insert variation_location_details, stock_transactions, and product_history
+      const vldValues: string[] = []
+      const stockTransValues: string[] = []
+      const historyValues: string[] = []
+
+      for (const validProduct of validProducts) {
+        const productId = skuToProductMap.get(validProduct.sku)!
+        const variationId = productToVariationMap.get(productId)!
+
+        for (const stock of validProduct.stocks) {
+          // Variation location details
+          vldValues.push(
+            `(${productId}, ${variationId}, ${stock.locationId}, ${stock.quantity}, ${validProduct.sellingPrice}, NOW(), NOW())`
+          )
+
+          // Stock transactions (only if quantity > 0)
+          if (stock.quantity > 0) {
+            const notes = `Opening stock from Branch Stock Pivot CSV import`
+            stockTransValues.push(
+              `(${businessId}, ${stock.locationId}, ${productId}, ${variationId}, 'opening_stock', ${stock.quantity}, ${validProduct.purchasePrice}, 'CSV-IMPORT-${productId}', '${notes.replace(/'/g, "''")}', ${user.id}, NOW())`
+            )
+
+            // Product history
+            const totalValue = validProduct.purchasePrice * stock.quantity
+            historyValues.push(
+              `(${businessId}, ${stock.locationId}, ${productId}, ${variationId}, 'opening_stock', NOW(), 'csv_import', ${productId}, 'CSV-IMPORT-${productId}', ${stock.quantity}, ${stock.quantity}, ${validProduct.purchasePrice}, ${totalValue}, ${user.id}, '${user.username}', '${notes.replace(/'/g, "''")}', NOW())`
+            )
+
+            results.totalInventoryRecords++
+          }
+        }
+      }
+
+      // Execute bulk inserts
+      if (vldValues.length > 0) {
+        await tx.$executeRawUnsafe(`
+          INSERT INTO variation_location_details
+            (product_id, product_variation_id, location_id, qty_available, selling_price, created_at, updated_at)
+          VALUES ${vldValues.join(',\n')}
+        `)
+        console.log(`[${Date.now() - startTime}ms] Inserted ${vldValues.length} variation location details`)
+      }
+
+      if (stockTransValues.length > 0) {
+        await tx.$executeRawUnsafe(`
+          INSERT INTO stock_transactions
+            (business_id, location_id, product_id, product_variation_id, type, quantity, unit_cost, ref_no, notes, created_by, created_at)
+          VALUES ${stockTransValues.join(',\n')}
+        `)
+        console.log(`[${Date.now() - startTime}ms] Inserted ${stockTransValues.length} stock transactions`)
+      }
+
+      if (historyValues.length > 0) {
+        await tx.$executeRawUnsafe(`
+          INSERT INTO product_history
+            (business_id, location_id, product_id, product_variation_id, transaction_type, transaction_date, reference_type, reference_id, reference_number, quantity_change, balance_quantity, unit_cost, total_value, created_by, created_by_name, reason, created_at)
+          VALUES ${historyValues.join(',\n')}
+        `)
+        console.log(`[${Date.now() - startTime}ms] Inserted ${historyValues.length} product history records`)
+      }
+
+      results.success = validProducts.length
+    })
+
+    const elapsedMs = Date.now() - startTime
+    console.log(`[${elapsedMs}ms] Import completed: ${results.success} successful, ${results.failed} failed, ${results.skipped} skipped`)
 
     return NextResponse.json({
       success: true,
-      results
+      results,
+      performanceMs: elapsedMs
     })
 
   } catch (error: any) {
-    console.error('Import branch stock error:', error)
+    const elapsedMs = Date.now() - startTime
+    console.error(`[${elapsedMs}ms] Import error:`, error)
     return NextResponse.json(
       { error: error.message || 'Failed to import branch stock' },
       { status: 500 }
