@@ -6,7 +6,7 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import Link from 'next/link'
 import { PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
-import { History } from 'lucide-react'
+import { History, Pencil } from 'lucide-react'
 import ProductActionsDropdown from '@/components/ProductActionsDropdown'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
@@ -1117,13 +1117,25 @@ export default function ProductsPage() {
                     {visibleColumns.includes('actions') && (
                       <TableCell>
                         <div className="flex items-center gap-1">
+                          {/* Quick Edit Button */}
+                          {can(PERMISSIONS.PRODUCT_UPDATE) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => router.push(`/dashboard/products/${product.id}/edit`)}
+                              className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                              title="Edit Product"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
                           {/* Quick History Button */}
                           {product.enableStock && can(PERMISSIONS.PRODUCT_VIEW) && (
                             <Button
                               variant="ghost"
                               size="icon"
                               onClick={() => router.push(`/dashboard/reports/stock-history-v2?productId=${product.id}`)}
-                              className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
                               title="View Stock History"
                             >
                               <History className="h-4 w-4" />
