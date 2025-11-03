@@ -82,31 +82,54 @@ export async function GET(request: NextRequest) {
         groupBy = 'hour'
     }
 
-    // Fetch sales data for each location
+    // OPTIMIZATION: Fetch ALL sales data in a single query instead of N queries (one per location)
+    // This eliminates the N+1 query problem
+    const startQueryTime = Date.now()
+
+    const allSales = await prisma.sale.findMany({
+      where: {
+        businessId,
+        locationId: { in: locations.map(l => l.id) },
+        saleDate: { gte: startDate },
+        status: { notIn: ['cancelled', 'draft'] },
+      },
+      select: {
+        locationId: true,
+        saleDate: true,
+        totalAmount: true,
+      },
+      orderBy: {
+        saleDate: 'asc',
+      },
+    })
+
+    console.log(`[Sales by Location] Fetched ${allSales.length} sales in ${Date.now() - startQueryTime}ms`)
+
+    // Group sales by location and time period
     const salesByLocation: Record<string, any[]> = {}
 
-    for (const location of locations) {
-      const sales = await prisma.sale.findMany({
-        where: {
-          businessId,
-          locationId: location.id,
-          saleDate: {
-            gte: startDate,
-          },
-          status: {
-            notIn: ['cancelled', 'draft'],
-          },
-        },
-        select: {
-          saleDate: true,
-          totalAmount: true,
-        },
-        orderBy: {
-          saleDate: 'asc',
-        },
-      })
+    // Initialize empty arrays for each location
+    locations.forEach(location => {
+      salesByLocation[location.name] = []
+    })
 
-      // Group sales by time period
+    // Create location ID to name map for fast lookup
+    const locationIdToName = new Map(locations.map(l => [l.id, l.name]))
+
+    // Group all sales by location first
+    const salesByLocationId = new Map<number, typeof allSales>()
+    allSales.forEach(sale => {
+      if (!salesByLocationId.has(sale.locationId)) {
+        salesByLocationId.set(sale.locationId, [])
+      }
+      salesByLocationId.get(sale.locationId)!.push(sale)
+    })
+
+    // Process each location's sales
+    salesByLocationId.forEach((sales, locationId) => {
+      const locationName = locationIdToName.get(locationId)
+      if (!locationName) return
+
       const grouped = new Map<string, number>()
 
       sales.forEach((sale) => {
@@ -134,11 +157,11 @@ export async function GET(request: NextRequest) {
         grouped.set(key, (grouped.get(key) || 0) + amount)
       })
 
-      salesByLocation[location.name] = Array.from(grouped.entries()).map(([period, amount]) => ({
+      salesByLocation[locationName] = Array.from(grouped.entries()).map(([period, amount]) => ({
         period,
         amount,
       }))
-    }
+    })
 
     // Calculate totals
     const totals = locations.map((location) => {

@@ -95,157 +95,124 @@ export async function GET(request: NextRequest) {
       dateFilter.lte = new Date(endDate)
     }
 
-    // Total Sales - only query if user has permission
-    // NOTE: Do NOT apply date filter to total sales - show all-time sales
-    const salesData = hasPermission(PERMISSIONS.SELL_VIEW) ? await prisma.sale.aggregate({
-      where: {
-        ...whereClause,
-      },
-      _sum: {
-        totalAmount: true,
-        subtotal: true,
-      },
-      _count: true,
-    }) : { _sum: { totalAmount: null, subtotal: null }, _count: 0 }
+    // OPTIMIZATION: Execute all independent queries in parallel using Promise.all()
+    // This reduces total time from ~14x individual query time to ~1x (the slowest query)
+    const startQueryTime = Date.now()
 
-    // Total Purchases - sum of all purchase amounts
-    // NOTE: Show all-time purchases, not date-filtered
-    const purchaseData = await prisma.accountsPayable.aggregate({
-      where: {
-        businessId,
-        ...(locationId && locationId !== 'all' ? {
-          purchase: { locationId: parseInt(locationId) }
-        } : {}),
-      },
-      _sum: {
-        totalAmount: true,
-      },
-      _count: true,
-    })
-
-    // Total Expenses - TODO: Implement Expense model
-    const expenseData = { _sum: { amount: null } } // Placeholder until Expense model is created
-    // const expenseData = await prisma.expense.aggregate({
-    //   where: {
-    //     ...whereClause,
-    //     ...(Object.keys(dateFilter).length > 0 ? { expenseDate: dateFilter } : {}),
-    //   },
-    //   _sum: {
-    //     amount: true,
-    //   },
-    // })
-
-    // Customer Returns - only query if user has permission
-    // NOTE: Show all-time returns, not date-filtered
-    const customerReturnData = hasPermission(PERMISSIONS.CUSTOMER_RETURN_VIEW) ? await prisma.customerReturn.aggregate({
-      where: {
-        businessId,
-      },
-      _sum: {
-        totalRefundAmount: true,
-      },
-      _count: true,
-    }) : { _sum: { totalRefundAmount: null }, _count: 0 }
-
-    // Supplier Returns
-    // NOTE: Show all-time returns, not date-filtered
-    const supplierReturnData = await prisma.supplierReturn.aggregate({
-      where: {
-        businessId,
-      },
-      _sum: {
-        totalAmount: true,
-      },
-      _count: true,
-    })
-
-    // Invoice Due (Sales with unpaid amounts) - only query if user has permission
-    const invoiceDue = hasPermission(PERMISSIONS.SELL_VIEW) ? await prisma.sale.aggregate({
-      where: {
-        ...whereClause,
-        status: { not: 'cancelled' },
-      },
-      _sum: {
-        totalAmount: true,
-      },
-    }) : { _sum: { totalAmount: null } }
-
-    // Purchase Due (Outstanding balance from Accounts Payable)
-    const purchaseDue = await prisma.accountsPayable.aggregate({
-      where: {
-        businessId,
-        ...(locationId && locationId !== 'all' ? {
-          purchase: { locationId: parseInt(locationId) }
-        } : {}),
-        paymentStatus: { in: ['unpaid', 'partial', 'overdue'] },
-      },
-      _sum: {
-        balanceAmount: true,
-      },
-    })
-
-    // Sales Last 30 Days - only query if user has permission
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-
-    const salesLast30Days = hasPermission(PERMISSIONS.SELL_VIEW) ? await prisma.sale.groupBy({
-      by: ['saleDate'],
-      where: {
-        ...whereClause,
-        saleDate: { gte: thirtyDaysAgo },
-      },
-      _sum: {
-        totalAmount: true,
-      },
-      orderBy: {
-        saleDate: 'asc',
-      },
-    }) : []
-
-    // Sales Current Financial Year - only query if user has permission
     const currentYear = new Date().getFullYear()
     const financialYearStart = new Date(currentYear, 0, 1)
 
-    const salesCurrentYear = hasPermission(PERMISSIONS.SELL_VIEW) ? await prisma.sale.groupBy({
-      by: ['saleDate'],
-      where: {
-        ...whereClause,
-        saleDate: { gte: financialYearStart },
-      },
-      _sum: {
-        totalAmount: true,
-      },
-      orderBy: {
-        saleDate: 'asc',
-      },
-    }) : []
+    const [
+      salesData,
+      purchaseData,
+      customerReturnData,
+      supplierReturnData,
+      invoiceDue,
+      purchaseDue,
+      salesLast30Days,
+      salesCurrentYear,
+      allProductsWithAlerts,
+    ] = await Promise.all([
+      // Total Sales
+      hasPermission(PERMISSIONS.SELL_VIEW)
+        ? prisma.sale.aggregate({
+            where: { ...whereClause },
+            _sum: { totalAmount: true, subtotal: true },
+            _count: true,
+          })
+        : Promise.resolve({ _sum: { totalAmount: null, subtotal: null }, _count: 0 }),
 
-    // Product Stock Alert (products below alert quantity)
-    // Get ALL products with alert quantity set, then filter
-    const allProductsWithAlerts = await prisma.variationLocationDetails.findMany({
-      where: {
-        ...(locationId && locationId !== 'all' ? { locationId: parseInt(locationId) } : {}),
-        product: {
+      // Total Purchases
+      prisma.accountsPayable.aggregate({
+        where: {
           businessId,
-          alertQuantity: { not: null },
+          ...(locationId && locationId !== 'all' ? {
+            purchase: { locationId: parseInt(locationId) }
+          } : {}),
         },
-      },
-      include: {
-        product: {
-          select: {
-            id: true,
-            name: true,
-            sku: true,
-            alertQuantity: true,
+        _sum: { totalAmount: true },
+        _count: true,
+      }),
+
+      // Customer Returns
+      hasPermission(PERMISSIONS.CUSTOMER_RETURN_VIEW)
+        ? prisma.customerReturn.aggregate({
+            where: { businessId },
+            _sum: { totalRefundAmount: true },
+            _count: true,
+          })
+        : Promise.resolve({ _sum: { totalRefundAmount: null }, _count: 0 }),
+
+      // Supplier Returns
+      prisma.supplierReturn.aggregate({
+        where: { businessId },
+        _sum: { totalAmount: true },
+        _count: true,
+      }),
+
+      // Invoice Due
+      hasPermission(PERMISSIONS.SELL_VIEW)
+        ? prisma.sale.aggregate({
+            where: { ...whereClause, status: { not: 'cancelled' } },
+            _sum: { totalAmount: true },
+          })
+        : Promise.resolve({ _sum: { totalAmount: null } }),
+
+      // Purchase Due
+      prisma.accountsPayable.aggregate({
+        where: {
+          businessId,
+          ...(locationId && locationId !== 'all' ? {
+            purchase: { locationId: parseInt(locationId) }
+          } : {}),
+          paymentStatus: { in: ['unpaid', 'partial', 'overdue'] },
+        },
+        _sum: { balanceAmount: true },
+      }),
+
+      // Sales Last 30 Days
+      hasPermission(PERMISSIONS.SELL_VIEW)
+        ? prisma.sale.groupBy({
+            by: ['saleDate'],
+            where: { ...whereClause, saleDate: { gte: thirtyDaysAgo } },
+            _sum: { totalAmount: true },
+            orderBy: { saleDate: 'asc' },
+          })
+        : Promise.resolve([]),
+
+      // Sales Current Year
+      hasPermission(PERMISSIONS.SELL_VIEW)
+        ? prisma.sale.groupBy({
+            by: ['saleDate'],
+            where: { ...whereClause, saleDate: { gte: financialYearStart } },
+            _sum: { totalAmount: true },
+            orderBy: { saleDate: 'asc' },
+          })
+        : Promise.resolve([]),
+
+      // Product Stock Alerts
+      prisma.variationLocationDetails.findMany({
+        where: {
+          ...(locationId && locationId !== 'all' ? { locationId: parseInt(locationId) } : {}),
+          product: { businessId, alertQuantity: { not: null } },
+        },
+        include: {
+          product: {
+            select: { id: true, name: true, sku: true, alertQuantity: true },
+          },
+          productVariation: {
+            select: { name: true },
           },
         },
-        productVariation: {
-          select: {
-            name: true,
-          },
-        },
-      },
-    })
+      }),
+    ])
+
+    console.log(`[Dashboard Stats] Parallel queries completed in ${Date.now() - startQueryTime}ms`)
+
+    // Total Expenses - TODO: Implement Expense model
+    const expenseData = { _sum: { amount: null } }
 
     // Filter to find products where current quantity is below or equal to alert quantity
     const stockAlerts = allProductsWithAlerts
@@ -259,22 +226,14 @@ export async function GET(request: NextRequest) {
       })
       .slice(0, 10) // Take top 10 after filtering
 
-    // Pending Shipments (Stock Transfers in transit or pending)
-    // Show transfers that are not yet completed, cancelled, or received
-    // Filter by user's accessible locations (either fromLocation or toLocation)
+    // Build where clauses for remaining queries
     const transferWhereClause: any = {
       businessId,
-      status: {
-        notIn: ['completed', 'cancelled']
-      },
-      // Exclude transfers that have been received (receivedAt is set)
+      status: { notIn: ['completed', 'cancelled'] },
       receivedAt: null,
-      // Exclude transfers that have been completed (completedAt is set)
       completedAt: null,
     }
 
-    // Apply location filtering for transfers
-    // Show transfers where user has access to either source or destination location
     if (accessibleLocationIds !== null) {
       const normalizedLocationIds = accessibleLocationIds
         .map((id) => Number(id))
@@ -289,32 +248,11 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const pendingShipments = await prisma.stockTransfer.findMany({
-      where: transferWhereClause,
-      include: {
-        fromLocation: { select: { name: true } },
-        toLocation: { select: { name: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-    })
-
-    // Sales Payment Due - only include invoices with an outstanding balance
-    // This includes:
-    // 1. Credit sales (charge invoices) with no payments
-    // 2. Partially paid sales
-    // 3. Any sale where total amount > sum of payments
-    //
-    // IMPORTANT: Show unpaid invoices from ALL accessible locations, not just the selected location
-    // This is critical for managers to see all outstanding receivables
     const salesPaymentDueWhereClause: any = {
       businessId,
-      status: {
-        notIn: ['voided', 'cancelled']
-      }
+      status: { notIn: ['voided', 'cancelled'] }
     }
 
-    // Apply location filtering based on user's access
     if (accessibleLocationIds !== null) {
       const normalizedLocationIds = accessibleLocationIds
         .map((id) => Number(id))
@@ -322,30 +260,81 @@ export async function GET(request: NextRequest) {
         .filter((id) => businessLocationIds.includes(id))
 
       if (normalizedLocationIds.length > 0) {
-        // Show unpaid sales from all accessible locations
         salesPaymentDueWhereClause.locationId = { in: normalizedLocationIds }
       } else if (businessLocationIds.length > 0) {
-        // User has no specific access - use first business location
         salesPaymentDueWhereClause.locationId = businessLocationIds[0]
       }
     }
-    // If accessibleLocationIds is null (full access), show from all locations (no location filter)
 
-    const salesPaymentDueRaw = await prisma.sale.findMany({
-      where: salesPaymentDueWhereClause,
-      include: {
-        customer: { select: { name: true } },
-        payments: {
-          select: { amount: true }
-        },
-        location: {
-          select: { name: true }
-        },
-      },
-      orderBy: { saleDate: 'desc' },
-      take: 100, // fetch more to account for filtering below
-    })
+    const supplierPaymentsWhere: any = {
+      businessId,
+      status: 'completed',
+      ...(Object.keys(dateFilter).length > 0 ? { paymentDate: dateFilter } : {}),
+    }
 
+    // OPTIMIZATION: Execute remaining queries in parallel
+    const startTableQueriesTime = Date.now()
+
+    const [pendingShipments, salesPaymentDueRaw, purchasePaymentDue, supplierPayments] = await Promise.all([
+      // Pending Shipments
+      prisma.stockTransfer.findMany({
+        where: transferWhereClause,
+        include: {
+          fromLocation: { select: { name: true } },
+          toLocation: { select: { name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      }),
+
+      // Sales Payment Due
+      prisma.sale.findMany({
+        where: salesPaymentDueWhereClause,
+        include: {
+          customer: { select: { name: true } },
+          payments: { select: { amount: true } },
+          location: { select: { name: true } },
+        },
+        orderBy: { saleDate: 'desc' },
+        take: 100,
+      }),
+
+      // Purchase Payment Due
+      prisma.accountsPayable.findMany({
+        where: {
+          businessId,
+          ...(locationId && locationId !== 'all' ? {
+            purchase: { locationId: parseInt(locationId) }
+          } : {}),
+          paymentStatus: { in: ['unpaid', 'partial', 'overdue'] },
+        },
+        include: {
+          supplier: { select: { name: true } },
+          purchase: { select: { purchaseOrderNumber: true } },
+        },
+        orderBy: { dueDate: 'asc' },
+        take: 10,
+      }),
+
+      // Supplier Payments
+      prisma.payment.findMany({
+        where: supplierPaymentsWhere,
+        include: {
+          supplier: { select: { name: true } },
+          accountsPayable: {
+            select: {
+              purchase: { select: { purchaseOrderNumber: true } }
+            }
+          }
+        },
+        orderBy: { paymentDate: 'desc' },
+        take: 20,
+      }),
+    ])
+
+    console.log(`[Dashboard Stats] Table queries completed in ${Date.now() - startTableQueriesTime}ms`)
+
+    // Process sales payment due
     const salesPaymentDue = salesPaymentDueRaw
       .map((sale) => {
         const totalAmount = parseFloat(sale.totalAmount.toString())
@@ -365,46 +354,8 @@ export async function GET(request: NextRequest) {
           paidAmount: paidAmount,
         }
       })
-      .filter((sale) => sale.amount > 0) // Only show sales with outstanding balance
+      .filter((sale) => sale.amount > 0)
       .slice(0, 10)
-
-    // Purchase Payment Due - Get unpaid/partially paid accounts payable
-    const purchasePaymentDue = await prisma.accountsPayable.findMany({
-      where: {
-        businessId,
-        ...(locationId && locationId !== 'all' ? {
-          purchase: { locationId: parseInt(locationId) }
-        } : {}),
-        paymentStatus: { in: ['unpaid', 'partial', 'overdue'] },
-      },
-      include: {
-        supplier: { select: { name: true } },
-        purchase: { select: { purchaseOrderNumber: true } },
-      },
-      orderBy: { dueDate: 'asc' },
-      take: 10,
-    })
-
-    // Supplier Payments (Recent payments made to suppliers)
-    const supplierPaymentsWhere: any = {
-      businessId,
-      status: 'completed',
-      ...(Object.keys(dateFilter).length > 0 ? { paymentDate: dateFilter } : {}),
-    }
-
-    const supplierPayments = await prisma.payment.findMany({
-      where: supplierPaymentsWhere,
-      include: {
-        supplier: { select: { name: true } },
-        accountsPayable: {
-          select: {
-            purchase: { select: { purchaseOrderNumber: true } }
-          }
-        }
-      },
-      orderBy: { paymentDate: 'desc' },
-      take: 20,
-    })
 
     return NextResponse.json({
       metrics: {
