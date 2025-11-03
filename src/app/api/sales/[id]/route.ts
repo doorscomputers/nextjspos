@@ -21,7 +21,7 @@ export async function GET(
     }
 
     const { user } = session
-    const businessId = user.businessId
+    const businessId = parseInt(String(user.businessId))
     const userId = user.id
 
     // Check permissions
@@ -110,7 +110,7 @@ export async function DELETE(
     }
 
     const { user } = session
-    const businessId = user.businessId
+    const businessId = parseInt(String(user.businessId))
     const userId = user.id
 
     // Check permissions

@@ -13,8 +13,7 @@ export async function GET() {
     }
 
     const user = session.user as any
-    const businessId = user.businessId
-
+    const businessId = parseInt(String(user.businessId))
     const business = await prisma.business.findUnique({
       where: { id: parseInt(businessId) },
       select: {

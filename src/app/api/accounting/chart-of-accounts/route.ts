@@ -21,8 +21,7 @@ export async function GET(request: NextRequest) {
     }
 
     const user = session.user as any
-    const businessId = user.businessId
-
+    const businessId = parseInt(String(user.businessId))
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.EXPENSE_VIEW)) {
       return NextResponse.json(
@@ -89,8 +88,7 @@ export async function POST(request: NextRequest) {
     }
 
     const user = session.user as any
-    const businessId = user.businessId
-
+    const businessId = parseInt(String(user.businessId))
     // Check permission (only admins can create accounts)
     if (!user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)) {
       return NextResponse.json(

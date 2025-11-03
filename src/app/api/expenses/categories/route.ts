@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     }
 
     const user = session.user as any;
-    const businessId = user.businessId;
+    const businessId = parseInt(String(user.businessId));
 
     // Get query parameters for filtering
     const { searchParams } = new URL(request.url);
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     const user = session.user as any;
-    const businessId = user.businessId;
+    const businessId = parseInt(String(user.businessId));
 
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.EXPENSE_CREATE)) {

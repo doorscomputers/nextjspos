@@ -18,8 +18,7 @@ export async function GET(request: NextRequest) {
     }
 
     const user = session.user as any
-    const businessId = user.businessId
-
+    const businessId = parseInt(String(user.businessId))
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.PURCHASE_RETURN_VIEW)) {
       return NextResponse.json(
@@ -102,7 +101,7 @@ export async function POST(request: NextRequest) {
     }
 
     const user = session.user as any
-    const businessId = user.businessId
+    const businessId = parseInt(String(user.businessId))
     const userId = user.id
 
     // Check permission

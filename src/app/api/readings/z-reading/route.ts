@@ -23,8 +23,7 @@ export async function GET(request: NextRequest) {
     }
 
     const user = session.user as any
-    const businessId = user.businessId
-
+    const businessId = parseInt(String(user.businessId))
     const { searchParams } = new URL(request.url)
     const shiftIdParam = searchParams.get('shiftId')
 

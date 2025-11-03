@@ -21,7 +21,7 @@ export async function GET(
     }
 
     const user = session.user as any
-    const businessId = user.businessId
+    const businessId = parseInt(String(user.businessId))
     const { id: receiptId } = await params
     console.log('Fetching receipt ID:', receiptId, 'for business:', businessId)
 

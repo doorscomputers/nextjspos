@@ -22,8 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     const user = session.user as any
-    const businessId = user.businessId
-
+    const businessId = parseInt(String(user.businessId))
     // Check permission - require either view reports or manage inventory
     if (
       !user.permissions?.includes(PERMISSIONS.REPORT_VIEW) &&
@@ -108,8 +107,7 @@ export async function POST(request: NextRequest) {
     }
 
     const user = session.user as any
-    const businessId = user.businessId
-
+    const businessId = parseInt(String(user.businessId))
     // Require INVENTORY_MANAGE permission to fix discrepancies
     if (!user.permissions?.includes(PERMISSIONS.INVENTORY_MANAGE)) {
       return NextResponse.json(

@@ -14,8 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     const user = session.user as any
-    const businessId = user.businessId
-
+    const businessId = parseInt(String(user.businessId))
     const body = await request.json()
     const { products, settings } = body
 

@@ -13,8 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     const user = session.user as any
-    const businessId = user.businessId
-
+    const businessId = parseInt(String(user.businessId))
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.REPORT_SALES_TODAY)) {
       return NextResponse.json(

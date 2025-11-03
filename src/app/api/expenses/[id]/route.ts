@@ -17,7 +17,7 @@ export async function GET(
     }
 
     const user = session.user as any;
-    const businessId = user.businessId;
+    const businessId = parseInt(String(user.businessId));
 
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.EXPENSE_VIEW)) {
@@ -117,7 +117,7 @@ export async function PUT(
     }
 
     const user = session.user as any;
-    const businessId = user.businessId;
+    const businessId = parseInt(String(user.businessId));
 
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.EXPENSE_UPDATE)) {
@@ -326,7 +326,7 @@ export async function DELETE(
     }
 
     const user = session.user as any;
-    const businessId = user.businessId;
+    const businessId = parseInt(String(user.businessId));
 
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.EXPENSE_DELETE)) {

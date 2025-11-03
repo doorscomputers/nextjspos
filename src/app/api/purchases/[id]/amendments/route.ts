@@ -20,8 +20,7 @@ export async function GET(
     }
 
     const user = session.user as any
-    const businessId = user.businessId
-
+    const businessId = parseInt(String(user.businessId))
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.PURCHASE_AMENDMENT_VIEW)) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
@@ -93,7 +92,7 @@ export async function POST(
     }
 
     const user = session.user as any
-    const businessId = user.businessId
+    const businessId = parseInt(String(user.businessId))
     const userId = user.id
 
     // Check permission

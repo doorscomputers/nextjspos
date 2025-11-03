@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     const user = session.user as any;
-    const businessId = user.businessId;
+    const businessId = parseInt(String(user.businessId));
 
     // Check permission
     if (!user.permissions?.includes(PERMISSIONS.EXPENSE_VIEW)) {
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
     }
 
     const user = session.user as any;
-    const businessId = user.businessId;
+    const businessId = parseInt(String(user.businessId));
     const userId = user.id;
 
     // Check permission

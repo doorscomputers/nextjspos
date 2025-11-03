@@ -21,7 +21,7 @@ export async function GET(
     }
 
     const user = session.user as any
-    const businessId = user.businessId
+    const businessId = parseInt(String(user.businessId))
     const { id: productId } = await params
 
     // Check permission - must have PURCHASE_RETURN_CREATE to see this

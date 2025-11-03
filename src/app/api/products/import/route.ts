@@ -97,7 +97,12 @@ export async function POST(request: NextRequest) {
     }
 
     const user = session.user
-    const businessId = user.businessId
+    const businessId = parseInt(String(user.businessId))
+
+    // Validate businessId
+    if (isNaN(businessId)) {
+      return NextResponse.json({ error: 'Invalid business context' }, { status: 400 })
+    }
 
     // Check permission
     if (!user.permissions.includes(PERMISSIONS.PRODUCT_CREATE)) {

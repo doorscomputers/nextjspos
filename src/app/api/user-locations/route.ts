@@ -15,8 +15,7 @@ export async function GET(request: NextRequest) {
 
     const user = session.user as any
     const userId = user.id
-    const businessId = user.businessId
-
+    const businessId = parseInt(String(user.businessId))
     // If user has ACCESS_ALL_LOCATIONS permission, return all business locations
     // BUT prioritize their actual assigned locations first
     if (user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)) {

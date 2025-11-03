@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     const user = session.user as any
-    const businessId = user.businessId
+    const businessId = parseInt(String(user.businessId))
     const businessIdInt = parseInt(businessId)
 
     // Check permission

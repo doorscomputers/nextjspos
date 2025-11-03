@@ -20,7 +20,7 @@ export async function POST(
     }
 
     const user = session.user as any
-    const businessId = user.businessId
+    const businessId = parseInt(String(user.businessId))
     const userId = user.id
 
     // Check permission

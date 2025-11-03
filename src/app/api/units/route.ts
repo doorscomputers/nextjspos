@@ -12,8 +12,7 @@ export async function GET() {
     }
 
     const user = session.user as any
-    const businessId = user.businessId
-
+    const businessId = parseInt(String(user.businessId))
     const units = await prisma.unit.findMany({
       where: {
         businessId: parseInt(businessId),
