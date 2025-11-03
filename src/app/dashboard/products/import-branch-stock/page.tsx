@@ -86,7 +86,17 @@ export default function ImportBranchStockPage() {
               body: JSON.stringify({ products: results.data }),
             })
 
-            const data = await response.json()
+            // Read response as text first to handle non-JSON errors
+            const responseText = await response.text()
+
+            // Try to parse as JSON
+            let data
+            try {
+              data = JSON.parse(responseText)
+            } catch (parseError) {
+              // If JSON parsing fails, show the raw error text
+              throw new Error(`Server error: ${responseText.substring(0, 500)}`)
+            }
 
             if (!response.ok) {
               throw new Error(data.error || 'Failed to import branch stock')
