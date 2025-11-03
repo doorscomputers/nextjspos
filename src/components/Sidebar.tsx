@@ -889,14 +889,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               icon: ChartBarIcon,
               permission: PERMISSIONS.REPORT_PURCHASE_TRENDS,
             },
-            // Temporarily disabled - has syntax errors
-            // {
-            //   key: "purchase_items_report",
-            //   name: "Purchase Items Report",
-            //   href: "/dashboard/reports/purchases-items",
-            //   icon: ChartBarIcon,
-            //   permission: PERMISSIONS.REPORT_PURCHASE_ITEMS,
-            // },
+            {
+              key: "purchase_items_report",
+              name: "Purchase Items Report",
+              href: "/dashboard/reports/purchases-items",
+              icon: ChartBarIcon,
+              permission: PERMISSIONS.REPORT_PURCHASE_ITEMS,
+            },
             {
               key: "products_suppliers_report",
               name: "Products-Suppliers Report",
