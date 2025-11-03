@@ -142,6 +142,34 @@ export default function MenuPermissionsPage() {
     }
   }
 
+  // Toggle all children of a parent menu
+  const toggleParentAndChildren = (parentId: number, checked: boolean) => {
+    const parent = allMenus.find(m => m.id === parentId)
+    if (!parent) return
+
+    const children = childMenusByParent[parentId] || []
+    const allKeys = [parent.key, ...children.flatMap(child => {
+      const grandchildren = childMenusByParent[child.id] || []
+      return [child.key, ...grandchildren.map(gc => gc.key)]
+    })]
+
+    setEnabledMenuKeys(prev => {
+      if (checked) {
+        // Add all keys
+        const newKeys = [...prev]
+        allKeys.forEach(k => {
+          if (!newKeys.includes(k)) {
+            newKeys.push(k)
+          }
+        })
+        return newKeys
+      } else {
+        // Remove all keys
+        return prev.filter(k => !allKeys.includes(k))
+      }
+    })
+  }
+
   const selectedRole = roles.find(r => r.id === selectedRoleId)
 
   // Group menus by parent (support 3 levels: parent → child → grandchild)
@@ -159,6 +187,28 @@ export default function MenuPermissionsPage() {
   // Check if a menu has children
   const hasChildren = (menuId: number) => {
     return (childMenusByParent[menuId] || []).length > 0
+  }
+
+  // Check if parent has partial selection (some children checked, some not)
+  const getParentSelectionState = (parentId: number): 'none' | 'partial' | 'full' => {
+    const parent = allMenus.find(m => m.id === parentId)
+    const children = childMenusByParent[parentId] || []
+
+    if (!parent) return 'none'
+
+    const allDescendantKeys: string[] = []
+    children.forEach(child => {
+      allDescendantKeys.push(child.key)
+      const grandchildren = childMenusByParent[child.id] || []
+      grandchildren.forEach(gc => allDescendantKeys.push(gc.key))
+    })
+
+    const allKeysIncludingParent = [parent.key, ...allDescendantKeys]
+    const checkedCount = allKeysIncludingParent.filter(k => enabledMenuKeys.includes(k)).length
+
+    if (checkedCount === 0) return 'none'
+    if (checkedCount === allKeysIncludingParent.length) return 'full'
+    return 'partial'
   }
 
   return (
@@ -254,19 +304,42 @@ export default function MenuPermissionsPage() {
                 {parentMenus.map(parent => {
                   const children = childMenusByParent[parent.id] || []
                   const isParentChecked = enabledMenuKeys.includes(parent.key)
+                  const selectionState = getParentSelectionState(parent.id)
 
                   return (
-                    <div key={parent.id} className="border dark:border-gray-700 rounded-lg p-4">
+                    <div key={parent.id} className={`border rounded-lg p-4 ${
+                      selectionState === 'full' ? 'border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-900/10' :
+                      selectionState === 'partial' ? 'border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/10' :
+                      'border-gray-300 dark:border-gray-700'
+                    }`}>
                       <div className="flex items-start gap-3 mb-3">
                         <CheckBox
                           value={isParentChecked}
                           onValueChanged={(e) => toggleMenuKey(parent.key, e.value)}
                         />
                         <div className="flex-1">
-                          <div className="font-semibold text-gray-900 dark:text-white">
-                            {parent.name}
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-gray-900 dark:text-white">
+                              {parent.name}
+                            </span>
                             {children.length > 0 && (
-                              <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">#</span>
+                              <>
+                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                  selectionState === 'full' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' :
+                                  selectionState === 'partial' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300' :
+                                  'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                                }`}>
+                                  {selectionState === 'full' ? 'All Selected' :
+                                   selectionState === 'partial' ? 'Partial' :
+                                   'None Selected'}
+                                </span>
+                                <button
+                                  onClick={() => toggleParentAndChildren(parent.id, selectionState !== 'full')}
+                                  className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline"
+                                >
+                                  {selectionState === 'full' ? 'Deselect All' : 'Select All'}
+                                </button>
+                              </>
                             )}
                           </div>
                           {parent.href && (
@@ -343,6 +416,25 @@ export default function MenuPermissionsPage() {
               </div>
             )}
           </div>
+
+          {/* Help Guide */}
+          {selectedRole && (
+            <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">💡 Flexible Menu Control:</h3>
+              <ul className="list-disc list-inside text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                <li><strong>Independent Control:</strong> Each menu item has its own checkbox - check/uncheck any combination</li>
+                <li><strong>Example:</strong> You can enable "Purchases" menu but hide "Add Purchase" - only "List Purchases" will show</li>
+                <li><strong>Visual Indicators:</strong></li>
+                <ul className="list-none ml-6 mt-1 space-y-1">
+                  <li><span className="inline-block bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">All Selected</span> - All children enabled</li>
+                  <li><span className="inline-block bg-orange-100 text-orange-700 px-2 py-0.5 rounded text-xs">Partial</span> - Some children enabled, some disabled</li>
+                  <li><span className="inline-block bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs">None Selected</span> - No children enabled</li>
+                </ul>
+                <li><strong>Quick Actions:</strong> Use "Select All" / "Deselect All" buttons to quickly toggle all children of a parent</li>
+                <li><strong>Users must logout/login</strong> after menu permission changes to see updates</li>
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     </div>
