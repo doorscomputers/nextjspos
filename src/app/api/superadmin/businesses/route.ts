@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma'
 import { isSuperAdmin, PERMISSIONS } from '@/lib/rbac'
 import bcrypt from 'bcryptjs'

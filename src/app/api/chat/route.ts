@@ -1,7 +1,7 @@
 import { openai } from '@ai-sdk/openai'
 import { streamText } from 'ai'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/lib/auth.simple'
 
 // Remove edge runtime to allow NextAuth compatibility
 // export const runtime = 'edge'

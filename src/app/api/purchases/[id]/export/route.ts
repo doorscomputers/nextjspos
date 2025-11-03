@@ -1,6 +1,6 @@
 ﻿import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma'
 import ExcelJS from 'exceljs'
 import { jsPDF } from 'jspdf'
