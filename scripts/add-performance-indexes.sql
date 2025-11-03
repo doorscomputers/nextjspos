@@ -1,22 +1,24 @@
 -- Performance Indexes for Dashboard and Core Queries
--- Run this in Supabase SQL Editor to add indexes
+-- Supabase SQL Editor Compatible Version
+-- Note: Removed CONCURRENTLY to work with Supabase SQL Editor transaction blocks
+-- Index creation will have brief table locks (typically < 1 second for moderate data)
 
 -- ============================================
 -- SALES TABLE INDEXES
 -- ============================================
 
 -- Index for dashboard sales queries (business + location + date filtering)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sales_business_location_date
+CREATE INDEX IF NOT EXISTS idx_sales_business_location_date
   ON sales(business_id, location_id, sale_date DESC)
   WHERE deleted_at IS NULL;
 
 -- Index for sales with status filtering
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sales_business_status
+CREATE INDEX IF NOT EXISTS idx_sales_business_status
   ON sales(business_id, status, sale_date DESC)
   WHERE deleted_at IS NULL;
 
 -- Index for payment due calculations
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sales_payment_status
+CREATE INDEX IF NOT EXISTS idx_sales_payment_status
   ON sales(business_id, location_id, sale_date DESC)
   WHERE status NOT IN ('voided', 'cancelled') AND deleted_at IS NULL;
 
@@ -25,17 +27,17 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_sales_payment_status
 -- ============================================
 
 -- Index for product lookups by SKU (used in imports and searches)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_business_sku
+CREATE INDEX IF NOT EXISTS idx_products_business_sku
   ON products(business_id, sku)
   WHERE deleted_at IS NULL;
 
 -- Index for product alert queries
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_business_alert
+CREATE INDEX IF NOT EXISTS idx_products_business_alert
   ON products(business_id, alert_quantity)
   WHERE alert_quantity IS NOT NULL AND deleted_at IS NULL;
 
 -- Index for active products
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_business_active
+CREATE INDEX IF NOT EXISTS idx_products_business_active
   ON products(business_id, is_active)
   WHERE deleted_at IS NULL;
 
@@ -44,11 +46,11 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_products_business_active
 -- ============================================
 
 -- Index for stock queries by location
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_vld_location_product
+CREATE INDEX IF NOT EXISTS idx_vld_location_product
   ON variation_location_details(location_id, product_id, product_variation_id);
 
 -- Index for stock alerts with product join
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_vld_product_qty
+CREATE INDEX IF NOT EXISTS idx_vld_product_qty
   ON variation_location_details(product_id, qty_available);
 
 -- ============================================
@@ -56,7 +58,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_vld_product_qty
 -- ============================================
 
 -- Index for purchase due queries
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_ap_business_status
+CREATE INDEX IF NOT EXISTS idx_ap_business_status
   ON accounts_payable(business_id, payment_status, due_date)
   WHERE deleted_at IS NULL;
 
@@ -65,12 +67,12 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_ap_business_status
 -- ============================================
 
 -- Index for pending shipments (from location)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_transfers_from_status
+CREATE INDEX IF NOT EXISTS idx_transfers_from_status
   ON stock_transfers(business_id, from_location_id, status, created_at DESC)
   WHERE received_at IS NULL AND completed_at IS NULL;
 
 -- Index for pending shipments (to location)
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_transfers_to_status
+CREATE INDEX IF NOT EXISTS idx_transfers_to_status
   ON stock_transfers(business_id, to_location_id, status, created_at DESC)
   WHERE received_at IS NULL AND completed_at IS NULL;
 
@@ -79,7 +81,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_transfers_to_status
 -- ============================================
 
 -- Index for supplier payment queries
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_payments_business_status_date
+CREATE INDEX IF NOT EXISTS idx_payments_business_status_date
   ON payments(business_id, status, payment_date DESC)
   WHERE deleted_at IS NULL;
 
@@ -88,7 +90,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_payments_business_status_date
 -- ============================================
 
 -- Index for customer return aggregations
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_customer_returns_business
+CREATE INDEX IF NOT EXISTS idx_customer_returns_business
   ON customer_returns(business_id, created_at DESC)
   WHERE deleted_at IS NULL;
 
@@ -97,7 +99,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_customer_returns_business
 -- ============================================
 
 -- Index for supplier return aggregations
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_supplier_returns_business
+CREATE INDEX IF NOT EXISTS idx_supplier_returns_business
   ON supplier_returns(business_id, created_at DESC)
   WHERE deleted_at IS NULL;
 
@@ -106,11 +108,11 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_supplier_returns_business
 -- ============================================
 
 -- Index for product history queries by product
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_product_history_product
+CREATE INDEX IF NOT EXISTS idx_product_history_product
   ON product_history(business_id, product_id, transaction_date DESC);
 
 -- Index for product history by location
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_product_history_location
+CREATE INDEX IF NOT EXISTS idx_product_history_location
   ON product_history(business_id, location_id, transaction_date DESC);
 
 -- ============================================
@@ -118,7 +120,7 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_product_history_location
 -- ============================================
 
 -- Index for active locations
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_locations_business_active
+CREATE INDEX IF NOT EXISTS idx_locations_business_active
   ON business_locations(business_id, is_active)
   WHERE deleted_at IS NULL;
 
