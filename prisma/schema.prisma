@@ -705,6 +705,7 @@ model Unit {
   products          Product[]
   productVariations ProductVariation[]
 
+  @@unique([businessId, name], map: "businessId_name")
   @@index([businessId])
   @@map("units")
 }

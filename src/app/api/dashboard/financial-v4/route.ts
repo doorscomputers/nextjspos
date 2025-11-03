@@ -93,20 +93,152 @@ export async function GET(request: NextRequest) {
     const dateEnd = endDate ? new Date(endDate) : defaultEndDate
 
     // ============================================
-    // 1. RECEIVABLES ANALYSIS
+    // OPTIMIZATION: Execute ALL independent queries in PARALLEL
     // ============================================
-    const salesForReceivables = await prisma.sale.findMany({
-      where: {
-        businessId,
-        ...locationFilter,
-        saleDate: { gte: dateStart, lte: dateEnd },
-        status: { notIn: ['voided', 'cancelled'] }
-      },
-      include: {
-        payments: { select: { amount: true } }
-      }
-    })
+    const startQueryTime = Date.now()
 
+    const [
+      salesForReceivables,
+      accountsPayables,
+      soldProducts,
+      availableInventory,
+      salesByMonthLocation,
+      expenses,
+      topSellingByQty,
+      topGrossingByProfit
+    ] = await Promise.all([
+      // 1. RECEIVABLES - Sales with payments
+      prisma.sale.findMany({
+        where: {
+          businessId,
+          ...locationFilter,
+          saleDate: { gte: dateStart, lte: dateEnd },
+          status: { notIn: ['voided', 'cancelled'] }
+        },
+        include: {
+          payments: { select: { amount: true } }
+        }
+      }),
+
+      // 2. PAYABLES - Accounts payable
+      prisma.accountsPayable.findMany({
+        where: {
+          businessId,
+          invoiceDate: { gte: dateStart, lte: dateEnd }
+        },
+        select: {
+          totalAmount: true,
+          balanceAmount: true,
+          paidAmount: true,
+          paymentStatus: true,
+          dueDate: true
+        }
+      }),
+
+      // 3. INVENTORY - Sold products
+      prisma.saleItem.groupBy({
+        by: ['productId'],
+        where: {
+          sale: {
+            businessId,
+            ...locationFilter,
+            saleDate: { gte: dateStart, lte: dateEnd },
+            status: { notIn: ['voided', 'cancelled'] }
+          }
+        },
+        _sum: {
+          quantity: true,
+          unitPrice: true
+        }
+      }),
+
+      // 4. INVENTORY - Available stock
+      prisma.variationLocationDetails.findMany({
+        where: {
+          ...locationFilter,
+          product: { businessId }
+        },
+        select: {
+          qtyAvailable: true,
+          sellingPrice: true
+        }
+      }),
+
+      // 5. SALES BY LOCATION - Monthly grouping
+      prisma.sale.groupBy({
+        by: ['saleDate', 'locationId'],
+        where: {
+          businessId,
+          ...locationFilter,
+          saleDate: { gte: dateStart, lte: dateEnd },
+          status: { notIn: ['voided', 'cancelled'] }
+        },
+        _sum: {
+          totalAmount: true
+        }
+      }),
+
+      // 6. EXPENSES - Monthly expenses
+      prisma.expense.groupBy({
+        by: ['expenseDate'],
+        where: {
+          businessId,
+          ...locationFilter,
+          expenseDate: { gte: dateStart, lte: dateEnd },
+          status: { in: ['approved', 'posted'] }
+        },
+        _sum: {
+          amount: true
+        }
+      }),
+
+      // 7. TOP PRODUCTS - By quantity
+      prisma.saleItem.groupBy({
+        by: ['productId'],
+        where: {
+          sale: {
+            businessId,
+            ...locationFilter,
+            saleDate: { gte: dateStart, lte: dateEnd },
+            status: { notIn: ['voided', 'cancelled'] }
+          }
+        },
+        _sum: {
+          quantity: true,
+          unitPrice: true
+        },
+        orderBy: {
+          _sum: {
+            quantity: 'desc'
+          }
+        },
+        take: 10
+      }),
+
+      // 8. TOP PRODUCTS - By profit
+      prisma.saleItem.groupBy({
+        by: ['productId'],
+        where: {
+          sale: {
+            businessId,
+            ...locationFilter,
+            saleDate: { gte: dateStart, lte: dateEnd },
+            status: { notIn: ['voided', 'cancelled'] }
+          }
+        },
+        _sum: {
+          quantity: true,
+          unitPrice: true,
+          unitCost: true
+        }
+      })
+    ])
+
+    console.log(`[Dashboard V4] Parallel queries completed in ${Date.now() - startQueryTime}ms`)
+
+    // ============================================
+    // 1. PROCESS RECEIVABLES
+    // ============================================
     let receivablesPaid = 0
     let receivablesUnpaid = 0
     const receivablesAging = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 }
@@ -131,22 +263,8 @@ export async function GET(request: NextRequest) {
     })
 
     // ============================================
-    // 2. PAYABLES ANALYSIS
+    // 2. PROCESS PAYABLES
     // ============================================
-    const accountsPayables = await prisma.accountsPayable.findMany({
-      where: {
-        businessId,
-        invoiceDate: { gte: dateStart, lte: dateEnd }
-      },
-      select: {
-        totalAmount: true,
-        balanceAmount: true,
-        paidAmount: true,
-        paymentStatus: true,
-        dueDate: true
-      }
-    })
-
     let payablesPaid = 0
     let payablesUnpaid = 0
     const payablesAging = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 }
@@ -172,41 +290,11 @@ export async function GET(request: NextRequest) {
     })
 
     // ============================================
-    // 3. INVENTORY ANALYSIS
+    // 3. PROCESS INVENTORY
     // ============================================
-    // For inventory aging, we need to look at stock movement dates
-    // This is a simplified version - you may want to enhance this based on your needs
-    const soldProducts = await prisma.saleItem.groupBy({
-      by: ['productId'],
-      where: {
-        sale: {
-          businessId,
-          ...locationFilter,
-          saleDate: { gte: dateStart, lte: dateEnd },
-          status: { notIn: ['voided', 'cancelled'] }
-        }
-      },
-      _sum: {
-        quantity: true,
-        unitPrice: true
-      }
-    })
-
     const totalSoldValue = soldProducts.reduce((sum, item) => {
       return sum + parseFloat(item._sum.unitPrice?.toString() || '0') * parseFloat(item._sum.quantity?.toString() || '0')
     }, 0)
-
-    // Get available inventory value
-    const availableInventory = await prisma.variationLocationDetails.findMany({
-      where: {
-        ...locationFilter,
-        product: { businessId }
-      },
-      select: {
-        qtyAvailable: true,
-        sellingPrice: true
-      }
-    })
 
     const totalAvailableValue = availableInventory.reduce((sum, item) => {
       const qty = parseFloat(item.qtyAvailable.toString())
@@ -223,23 +311,9 @@ export async function GET(request: NextRequest) {
     }
 
     // ============================================
-    // 4. SALES BY LOCATION (Per Branch/Store)
+    // 4. PROCESS SALES BY LOCATION
     // ============================================
-    // Group sales by month and location
-    const salesByMonthLocation = await prisma.sale.groupBy({
-      by: ['saleDate', 'locationId'],
-      where: {
-        businessId,
-        ...locationFilter,
-        saleDate: { gte: dateStart, lte: dateEnd },
-        status: { notIn: ['voided', 'cancelled'] }
-      },
-      _sum: {
-        totalAmount: true
-      }
-    })
-
-    // Get location names
+    // Get location names (dependent query - runs after salesByMonthLocation)
     const locationIds = [...new Set(salesByMonthLocation.map(s => s.locationId))]
     const locations = await prisma.businessLocation.findMany({
       where: { id: { in: locationIds } },
@@ -280,23 +354,8 @@ export async function GET(request: NextRequest) {
     const locationNames = [...new Set(salesByMonthLocation.map(s => locationMap.get(s.locationId) || `Location ${s.locationId}`))]
 
     // ============================================
-    // 5. INCOME & EXPENSES
+    // 5. PROCESS INCOME & EXPENSES
     // ============================================
-    // Get monthly expenses
-    const expenses = await prisma.expense.groupBy({
-      by: ['expenseDate'],
-      where: {
-        businessId,
-        ...locationFilter,
-        expenseDate: { gte: dateStart, lte: dateEnd },
-        status: { in: ['approved', 'posted'] }
-      },
-      _sum: {
-        amount: true
-      }
-    })
-
-    // Process monthly income and expenses
     const monthlyIncomeExpenses: Record<string, { grossIncome: number; expenses: number }> = {}
 
     // Add sales (income) - aggregate from salesByMonthLocation
@@ -325,88 +384,56 @@ export async function GET(request: NextRequest) {
     })).sort((a, b) => a.month.localeCompare(b.month))
 
     // ============================================
-    // 6. TOP PRODUCTS
+    // 6. PROCESS TOP PRODUCTS (Dependent queries)
     // ============================================
-    // Top selling by quantity
-    const topSellingByQty = await prisma.saleItem.groupBy({
-      by: ['productId'],
-      where: {
-        sale: {
-          businessId,
-          ...locationFilter,
-          saleDate: { gte: dateStart, lte: dateEnd },
-          status: { notIn: ['voided', 'cancelled'] }
-        }
-      },
-      _sum: {
-        quantity: true,
-        unitPrice: true
-      },
-      orderBy: {
-        _sum: {
-          quantity: 'desc'
-        }
-      },
-      take: 10
-    })
+    const startProductQueriesTime = Date.now()
 
-    const topSellingProducts = await Promise.all(
-      topSellingByQty.map(async (item) => {
-        const product = await prisma.product.findUnique({
-          where: { id: item.productId },
-          select: { name: true, sku: true }
+    const [topSellingProducts, productsWithProfit] = await Promise.all([
+      // Top selling products with details
+      Promise.all(
+        topSellingByQty.map(async (item) => {
+          const product = await prisma.product.findUnique({
+            where: { id: item.productId },
+            select: { name: true, sku: true }
+          })
+          return {
+            rank: 0, // Will be set below
+            productName: product?.name || 'Unknown',
+            sku: product?.sku || '',
+            quantity: parseFloat(item._sum.quantity?.toString() || '0'),
+            avgPrice: parseFloat(item._sum.unitPrice?.toString() || '0'),
+            totalSales: parseFloat(item._sum.quantity?.toString() || '0') * parseFloat(item._sum.unitPrice?.toString() || '0')
+          }
         })
-        return {
-          rank: 0, // Will be set below
-          productName: product?.name || 'Unknown',
-          sku: product?.sku || '',
-          quantity: parseFloat(item._sum.quantity?.toString() || '0'),
-          avgPrice: parseFloat(item._sum.unitPrice?.toString() || '0'),
-          totalSales: parseFloat(item._sum.quantity?.toString() || '0') * parseFloat(item._sum.unitPrice?.toString() || '0')
-        }
-      })
-    )
+      ),
+
+      // Products with profit calculations
+      Promise.all(
+        topGrossingByProfit.map(async (item) => {
+          const product = await prisma.product.findUnique({
+            where: { id: item.productId },
+            select: { name: true, sku: true }
+          })
+          const qty = parseFloat(item._sum.quantity?.toString() || '0')
+          const price = parseFloat(item._sum.unitPrice?.toString() || '0')
+          const cost = parseFloat(item._sum.unitCost?.toString() || '0')
+          const margin = price - cost
+          const profit = qty * margin
+
+          return {
+            productName: product?.name || 'Unknown',
+            sku: product?.sku || '',
+            quantity: qty,
+            margin,
+            profit
+          }
+        })
+      )
+    ])
+
+    console.log(`[Dashboard V4] Product detail queries completed in ${Date.now() - startProductQueriesTime}ms`)
+
     topSellingProducts.forEach((p, i) => p.rank = i + 1)
-
-    // Top grossing by profit
-    const topGrossingByProfit = await prisma.saleItem.groupBy({
-      by: ['productId'],
-      where: {
-        sale: {
-          businessId,
-          ...locationFilter,
-          saleDate: { gte: dateStart, lte: dateEnd },
-          status: { notIn: ['voided', 'cancelled'] }
-        }
-      },
-      _sum: {
-        quantity: true,
-        unitPrice: true,
-        unitCost: true
-      }
-    })
-
-    const productsWithProfit = await Promise.all(
-      topGrossingByProfit.map(async (item) => {
-        const product = await prisma.product.findUnique({
-          where: { id: item.productId },
-          select: { name: true, sku: true }
-        })
-        const qty = parseFloat(item._sum.quantity?.toString() || '0')
-        const price = parseFloat(item._sum.unitPrice?.toString() || '0')
-        const cost = parseFloat(item._sum.unitCost?.toString() || '0')
-        const margin = price - cost
-        const profit = qty * margin
-
-        return {
-          productName: product?.name || 'Unknown',
-          sku: product?.sku || '',
-          quantity: qty,
-          margin,
-          profit
-        }
-      })
-    )
 
     // Top 10 by profit
     const topGrossingProducts = productsWithProfit
