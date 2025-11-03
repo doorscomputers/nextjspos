@@ -1,10 +1,12 @@
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import Link from 'next/link'
 import { PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { History } from 'lucide-react'
 import ProductActionsDropdown from '@/components/ProductActionsDropdown'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
@@ -62,6 +64,7 @@ interface BusinessLocation {
 }
 
 export default function ProductsPage() {
+  const router = useRouter()
   const { can } = usePermissions()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -1113,14 +1116,28 @@ export default function ProductsPage() {
                     )}
                     {visibleColumns.includes('actions') && (
                       <TableCell>
-                        <ProductActionsDropdown
-                          product={{
-                            id: product.id,
-                            name: product.name,
-                            enableStock: product.enableStock
-                          }}
-                          onDelete={fetchProducts}
-                        />
+                        <div className="flex items-center gap-1">
+                          {/* Quick History Button */}
+                          {product.enableStock && can(PERMISSIONS.PRODUCT_VIEW) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => router.push(`/dashboard/reports/stock-history-v2?productId=${product.id}`)}
+                              className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              title="View Stock History"
+                            >
+                              <History className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <ProductActionsDropdown
+                            product={{
+                              id: product.id,
+                              name: product.name,
+                              enableStock: product.enableStock
+                            }}
+                            onDelete={fetchProducts}
+                          />
+                        </div>
                       </TableCell>
                     )}
                     {visibleColumns.includes('sku') && (
