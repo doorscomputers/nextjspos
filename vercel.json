@@ -18,14 +18,11 @@
   "functions": {
     "src/app/api/**/*.ts": {
       "maxDuration": 30
+    },
+    "pages/api/**/*.js": {
+      "maxDuration": 30
     }
   },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/"
-    }
-  ],
   "headers": [
     {
       "source": "/api/(.*)",
