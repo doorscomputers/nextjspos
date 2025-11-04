@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useIdleTimer } from '@/hooks/useIdleTimer'
 import { InactivityWarningModal } from '@/components/InactivityWarningModal'
@@ -139,6 +139,32 @@ export function InactivityTimeoutProvider({ children }: { children: React.ReactN
       })
     }
   }, [settings, timeoutMinutes, warningMinutes, status, isLoading, session])
+
+  // 🔄 SESSION KEEP-ALIVE: Ping server every 5 minutes to prevent session expiry
+  // This solves the issue where users fill out long forms and get Internal Server Error on save
+  const keepSessionAlive = useCallback(async () => {
+    if (status === 'authenticated') {
+      try {
+        await fetch('/api/auth/session', { method: 'GET' })
+        console.log('🔄 Session refreshed (keep-alive ping)')
+      } catch (error) {
+        console.error('❌ Failed to refresh session:', error)
+      }
+    }
+  }, [status])
+
+  // Keep session alive every 5 minutes
+  useEffect(() => {
+    if (status !== 'authenticated' || !settings?.enabled) return
+
+    console.log('🔄 Session keep-alive enabled (ping every 5 minutes)')
+
+    const keepAliveInterval = setInterval(() => {
+      keepSessionAlive()
+    }, 5 * 60 * 1000) // 5 minutes
+
+    return () => clearInterval(keepAliveInterval)
+  }, [status, settings?.enabled, keepSessionAlive])
 
   const { isWarning, remainingTime, reset } = useIdleTimer({
     timeoutMinutes,
