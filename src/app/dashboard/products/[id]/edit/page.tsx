@@ -59,6 +59,7 @@ export default function EditProductPage() {
 
   const [loading, setLoading] = useState(false)
   const [fetchLoading, setFetchLoading] = useState(true)
+  const [productsLoading, setProductsLoading] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [subCategories, setSubCategories] = useState<Category[]>([])
   const [brands, setBrands] = useState<Brand[]>([])
@@ -147,31 +148,57 @@ export default function EditProductPage() {
     }
   }, [formData.purchasePrice, formData.marginPercentage])
 
+  // Lazy load products only when product type is 'combo'
+  useEffect(() => {
+    if (formData.type === 'combo' && availableProducts.length === 0) {
+      console.log('🔄 Product type is combo - fetching products for dropdown...')
+      fetchProductsForCombo()
+    }
+  }, [formData.type, availableProducts.length])
+
   const fetchMetadata = async () => {
     try {
-      const [categoriesRes, brandsRes, unitsRes, taxRatesRes, productsRes] = await Promise.all([
+      // Only fetch essential metadata (categories, brands, units, tax rates)
+      // Products will be fetched lazily only if product type is 'combo'
+      const [categoriesRes, brandsRes, unitsRes, taxRatesRes] = await Promise.all([
         fetch('/api/categories'),
         fetch('/api/brands'),
         fetch('/api/units'),
-        fetch('/api/tax-rates'),
-        fetch('/api/products')
+        fetch('/api/tax-rates')
       ])
 
-      const [categoriesData, brandsData, unitsData, taxRatesData, productsData] = await Promise.all([
+      const [categoriesData, brandsData, unitsData, taxRatesData] = await Promise.all([
         categoriesRes.json(),
         brandsRes.json(),
         unitsRes.json(),
-        taxRatesRes.json(),
-        productsRes.json()
+        taxRatesRes.json()
       ])
 
       setCategories(categoriesData.categories || [])
       setBrands(brandsData.brands || [])
       setUnits(unitsData.units || [])
       setTaxRates(taxRatesData.taxRates || [])
-      setAvailableProducts(productsData.products || [])
+
+      console.log('✅ Metadata loaded (fast mode - products excluded)')
     } catch (error) {
       console.error('Error fetching metadata:', error)
+    }
+  }
+
+  // Lazy load products only when needed for combo type
+  const fetchProductsForCombo = async () => {
+    setProductsLoading(true)
+    try {
+      console.log('📦 Lazy loading products for combo dropdown...')
+      const response = await fetch('/api/products')
+      const data = await response.json()
+      setAvailableProducts(data.products || [])
+      console.log('✅ Loaded', data.products?.length || 0, 'products for combo selection')
+    } catch (error) {
+      console.error('Error fetching products for combo:', error)
+      alert('Failed to load products for combo selection')
+    } finally {
+      setProductsLoading(false)
     }
   }
 
@@ -1120,7 +1147,8 @@ export default function EditProductPage() {
               <button
                 type="button"
                 onClick={addComboItem}
-                className="flex items-center px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700"
+                disabled={productsLoading}
+                className="flex items-center px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50"
               >
                 <PlusIcon className="w-4 h-4 mr-1" />
                 Add Product
@@ -1130,6 +1158,19 @@ export default function EditProductPage() {
             <p className="text-sm text-gray-600 mb-4">
               Select products to include in this combo package
             </p>
+
+            {productsLoading && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-center">
+                  <div className="flex space-x-1 mr-3">
+                    <div className="h-2 w-2 bg-blue-600 rounded-full animate-bounce"></div>
+                    <div className="h-2 w-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="h-2 w-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  </div>
+                  <span className="text-sm text-blue-800">Loading products for combo selection...</span>
+                </div>
+              </div>
+            )}
 
             {comboItems.map((item, index) => (
               <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4 bg-gray-50">
@@ -1155,9 +1196,10 @@ export default function EditProductPage() {
                       value={item.productId}
                       onChange={(e) => updateComboItem(index, 'productId', e.target.value)}
                       required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                      disabled={productsLoading}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed"
                     >
-                      <option value="">Select Product</option>
+                      <option value="">{productsLoading ? 'Loading products...' : 'Select Product'}</option>
                       {availableProducts.filter(p => p.id !== parseInt(productId)).map((product) => (
                         <option key={product.id} value={product.id}>
                           {product.name} ({product.sku})
