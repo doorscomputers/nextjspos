@@ -197,14 +197,43 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify supplier belongs to business
-    const supplier = await prisma.supplier.findFirst({
-      where: {
-        id: parseInt(supplierId),
-        businessId: parseInt(businessId),
-        deletedAt: null,
-      },
-    })
+    // ✅ OPTIMIZATION: Run validation queries in parallel
+    const currentYear = new Date().getFullYear()
+    const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0')
+
+    const [supplier, location, lastPurchase] = await Promise.all([
+      // Verify supplier
+      prisma.supplier.findFirst({
+        where: {
+          id: parseInt(supplierId),
+          businessId: parseInt(businessId),
+          deletedAt: null,
+        },
+        select: { id: true, name: true } // Only select needed fields
+      }),
+      // Verify location
+      prisma.businessLocation.findFirst({
+        where: {
+          id: parseInt(locationId),
+          businessId: parseInt(businessId),
+          deletedAt: null,
+        },
+        select: { id: true, name: true } // Only select needed fields
+      }),
+      // Get last PO number
+      prisma.purchase.findFirst({
+        where: {
+          businessId: parseInt(businessId),
+          purchaseOrderNumber: {
+            startsWith: `PO-${currentYear}${currentMonth}`,
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        select: { purchaseOrderNumber: true } // Only select needed field
+      })
+    ])
 
     if (!supplier) {
       return NextResponse.json(
@@ -212,15 +241,6 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       )
     }
-
-    // Verify location belongs to business
-    const location = await prisma.businessLocation.findFirst({
-      where: {
-        id: parseInt(locationId),
-        businessId: parseInt(businessId),
-        deletedAt: null,
-      },
-    })
 
     if (!location) {
       return NextResponse.json(
@@ -273,21 +293,7 @@ export async function POST(request: NextRequest) {
       parseFloat(discountAmount || 0)
     ).toFixed(2))
 
-    // Generate PO number
-    const currentYear = new Date().getFullYear()
-    const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0')
-    const lastPurchase = await prisma.purchase.findFirst({
-      where: {
-        businessId: parseInt(businessId),
-        purchaseOrderNumber: {
-          startsWith: `PO-${currentYear}${currentMonth}`,
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    })
-
+    // Generate PO number (lastPurchase already fetched in parallel above)
     let poNumber
     if (lastPurchase) {
       const lastNumber = parseInt(lastPurchase.purchaseOrderNumber.split('-').pop() || '0')
@@ -296,7 +302,7 @@ export async function POST(request: NextRequest) {
       poNumber = `PO-${currentYear}${currentMonth}-0001`
     }
 
-    // Create purchase order in transaction
+    // ✅ OPTIMIZATION: Create purchase order with bulk item insert
     const purchase = await prisma.$transaction(async (tx) => {
       // Create purchase
       const newPurchase = await tx.purchase.create({
@@ -316,28 +322,41 @@ export async function POST(request: NextRequest) {
           notes,
           createdBy: parseInt(userId),
         },
+        include: {
+          supplier: {
+            select: {
+              id: true,
+              name: true,
+              mobile: true,
+              email: true,
+            }
+          }
+        }
       })
 
-      // Create purchase items
-      for (const item of items) {
-        await tx.purchaseItem.create({
-          data: {
-            purchaseId: newPurchase.id,
-            productId: parseInt(item.productId),
-            productVariationId: parseInt(item.productVariationId),
-            quantity: parseFloat(item.quantity),
-            unitCost: parseFloat(item.unitCost),
-            quantityReceived: 0,
-            requiresSerial: item.requiresSerial || false,
-          },
-        })
-      }
+      // ✅ OPTIMIZATION: Bulk insert items (1 query instead of N queries)
+      await tx.purchaseItem.createMany({
+        data: items.map((item: any) => ({
+          purchaseId: newPurchase.id,
+          productId: parseInt(item.productId),
+          productVariationId: parseInt(item.productVariationId),
+          quantity: parseFloat(item.quantity),
+          unitCost: parseFloat(item.unitCost),
+          quantityReceived: 0,
+          requiresSerial: item.requiresSerial || false,
+        }))
+      })
 
-      return newPurchase
+      // Fetch items to return in response
+      const purchaseItems = await tx.purchaseItem.findMany({
+        where: { purchaseId: newPurchase.id }
+      })
+
+      return { ...newPurchase, items: purchaseItems }
     })
 
-    // Create audit log
-    await createAuditLog({
+    // ✅ OPTIMIZATION: Create audit log asynchronously (don't block response)
+    createAuditLog({
       businessId: parseInt(businessId),
       userId: parseInt(userId),
       username: user.username,
@@ -357,18 +376,10 @@ export async function POST(request: NextRequest) {
       },
       ipAddress: getIpAddress(request),
       userAgent: getUserAgent(request),
-    })
+    }).catch(err => console.error('Audit log creation failed:', err))
 
-    // Fetch complete purchase with relations
-    const completePurchase = await prisma.purchase.findUnique({
-      where: { id: purchase.id },
-      include: {
-        supplier: true,
-        items: true,
-      },
-    })
-
-    return NextResponse.json(completePurchase, { status: 201 })
+    // ✅ OPTIMIZATION: Return immediately (purchase already has relations from transaction)
+    return NextResponse.json(purchase, { status: 201 })
   } catch (error) {
     console.error('Error creating purchase order:', error)
     return NextResponse.json(
