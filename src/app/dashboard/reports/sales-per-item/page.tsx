@@ -18,9 +18,9 @@ export default function SalesPerItemReport() {
   const [enforcedLocationName, setEnforcedLocationName] = useState<string>('')
   const [categories, setCategories] = useState<any[]>([])
 
-  // Initialize with default date range (today) for faster initial load
-  const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0])
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0])
+  // Initialize with empty date range to show ALL sales by default
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [locationId, setLocationId] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const [search, setSearch] = useState('')
