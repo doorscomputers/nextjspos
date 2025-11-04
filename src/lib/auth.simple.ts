@@ -122,6 +122,59 @@ export const authOptions: NextAuthOptions = {
           console.log(`[LOGIN] ✓ RFID scanned - Location ID: ${selectedLocationId}`)
         }
 
+        // ============================================================================
+        // LOCATION MISMATCH VALIDATION: Verify user is assigned to scanned location
+        // ============================================================================
+        if (selectedLocationId && !isAdminRole) {
+          // Collect user's assigned location IDs
+          const directLocationIds = user.userLocations.map(ul => ul.locationId)
+          const roleLocationIds = user.roles.flatMap(ur =>
+            (ur.role.locations || []).map(rl => rl.locationId)
+          )
+          const assignedLocationIds = directLocationIds.length > 0
+            ? directLocationIds
+            : [...new Set(roleLocationIds)]
+
+          // Check for Super Admin (can access any location)
+          const isSuperAdmin = roleNames.includes('Super Admin') ||
+                               roleNames.includes('System Administrator')
+
+          // Check if scanned location matches assigned locations
+          const isMismatch = !assignedLocationIds.includes(selectedLocationId)
+
+          if (isMismatch && !isSuperAdmin) {
+            // Get location names for error message
+            const selectedLocation = await prisma.businessLocation.findUnique({
+              where: { id: selectedLocationId },
+              select: { name: true }
+            })
+            const selectedLocationName = selectedLocation?.name || 'Unknown'
+
+            const assignedLocations = await prisma.businessLocation.findMany({
+              where: { id: { in: assignedLocationIds } },
+              select: { name: true }
+            })
+            const assignedLocationNames = assignedLocations.map(l => l.name)
+
+            console.log(`[LOGIN] ❌ BLOCKED - Location mismatch for ${user.username}`)
+            console.log(`[LOGIN] Attempted location: ${selectedLocationName} (ID: ${selectedLocationId})`)
+            console.log(`[LOGIN] Assigned locations: ${assignedLocationNames.join(', ')}`)
+
+            // BLOCK THE LOGIN
+            throw new Error(
+              `Access Denied: Location Mismatch\n\n` +
+              `You are not authorized to login at "${selectedLocationName}".\n\n` +
+              `Your assigned locations are: ${assignedLocationNames.join(', ')}\n\n` +
+              `This login attempt has been logged.\n\n` +
+              `Please contact your manager if you believe this is an error.`
+            )
+          }
+
+          if (!isMismatch) {
+            console.log(`[LOGIN] ✓ Location verified - User has access to location ID: ${selectedLocationId}`)
+          }
+        }
+
         // Collect all permissions
         const rolePermissions = user.roles.flatMap(ur =>
           ur.role.permissions.map(rp => rp.permission.name)
