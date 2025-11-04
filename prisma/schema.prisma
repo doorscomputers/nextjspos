@@ -112,6 +112,10 @@ model User {
   // AI Assistant Relations
   savedQuestions               SavedQuestion[]
 
+  @@index([businessId]) // ✅ NEW: For business user queries
+  @@index([username]) // ✅ NEW: For login queries (already unique but explicit index helps)
+  @@index([email]) // ✅ NEW: For email lookup
+  @@index([businessId, allowLogin]) // ✅ NEW: For active user filtering
   @@map("users")
 }
 
@@ -815,6 +819,9 @@ model Product {
   @@index([categoryId])
   @@index([brandId])
   @@index([sku])
+  @@index([name]) // ✅ NEW: For product name search optimization
+  @@index([businessId, isActive]) // ✅ NEW: For active products queries
+  @@index([businessId, name]) // ✅ NEW: Composite index for business product search
   @@map("products")
 }
 
@@ -885,6 +892,8 @@ model ProductVariation {
   @@index([sku])
   @@index([supplierId])
   @@index([warrantyId])
+  @@index([name]) // ✅ NEW: For variation name search optimization
+  @@index([businessId, name]) // ✅ NEW: Composite index for business variation search
   @@map("product_variations")
 }
 
@@ -967,6 +976,10 @@ model StockTransaction {
   @@index([locationId])
   @@index([type])
   @@index([createdAt])
+  @@index([businessId, locationId]) // ✅ NEW: For location-specific stock queries
+  @@index([businessId, type]) // ✅ NEW: For transaction type filtering
+  @@index([productVariationId, locationId]) // ✅ NEW: For product stock history at location
+  @@index([referenceType, referenceId]) // ✅ NEW: For finding related transactions
   @@map("stock_transactions")
 }
 
@@ -1270,6 +1283,10 @@ model Purchase {
   @@index([supplierId])
   @@index([status])
   @@index([purchaseDate])
+  @@index([businessId, status]) // ✅ NEW: For filtered purchase list queries
+  @@index([businessId, purchaseDate]) // ✅ NEW: For date range queries
+  @@index([businessId, supplierId]) // ✅ NEW: For supplier-specific purchase history
+  @@index([createdAt]) // ✅ NEW: For sorting by creation date
   @@map("purchases")
 }
 
@@ -1792,6 +1809,10 @@ model Sale {
   @@index([saleDate])
   @@index([discountType])
   @@index([saleType])
+  @@index([businessId, saleDate]) // ✅ NEW: For date range queries
+  @@index([businessId, status]) // ✅ NEW: For filtered sales list
+  @@index([businessId, customerId]) // ✅ NEW: For customer sales history
+  @@index([createdAt]) // ✅ NEW: For sorting by creation date
   @@map("sales")
 }
 
