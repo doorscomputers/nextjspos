@@ -17,14 +17,18 @@ interface SavedQuestion {
 
 export default function AIAssistantPage() {
   const { data: session } = useSession()
+  const [chatError, setChatError] = useState<string | null>(null)
+
   const { messages, input, handleInputChange, handleSubmit, isLoading, setInput } = useChat({
     api: '/api/chat',
     onError: (error) => {
       console.error('❌ Chat error:', error)
-      alert(`AI Assistant Error: ${error.message || 'Failed to connect to AI service'}`)
+      setChatError(error.message || 'Failed to connect to AI service')
     },
-    initialInput: ''
+    initialInput: '',
+    initialMessages: []
   })
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Saved questions state
@@ -202,6 +206,30 @@ export default function AIAssistantPage() {
           </div>
         </div>
 
+        {/* Error Banner */}
+        {chatError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <div className="flex items-start">
+              <svg className="h-5 w-5 text-red-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <div className="ml-3 flex-1">
+                <h3 className="text-sm font-medium text-red-800">AI Assistant Error</h3>
+                <p className="mt-1 text-sm text-red-700">{chatError}</p>
+                <p className="mt-2 text-xs text-red-600">
+                  💡 Tip: Make sure OPENAI_API_KEY is configured in Vercel environment variables
+                </p>
+              </div>
+              <button
+                onClick={() => setChatError(null)}
+                className="ml-3 text-red-400 hover:text-red-600"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        )}
+
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto bg-white rounded-lg shadow-sm p-6 mb-4">
         {messages.length === 0 ? (
@@ -320,16 +348,26 @@ export default function AIAssistantPage() {
       </div>
 
       {/* Input Form */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm p-4">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (handleSubmit) {
+            handleSubmit(e)
+          } else {
+            setChatError('AI Assistant is not properly initialized. Please refresh the page.')
+          }
+        }}
+        className="bg-white rounded-lg shadow-sm p-4"
+      >
         <div className="flex space-x-2">
           <input
             id="chat-input"
             type="text"
-            value={input}
-            onChange={handleInputChange}
+            value={input || ''}
+            onChange={handleInputChange || (() => {})}
             placeholder="Ask me anything about your POS system..."
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            disabled={isLoading}
+            disabled={!handleSubmit || isLoading}
+            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
           />
           <button
             type="button"
