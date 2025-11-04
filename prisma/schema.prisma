@@ -1733,6 +1733,12 @@ model Sale {
 
   status String @default("completed") @db.VarChar(50) // draft, completed, cancelled, voided
 
+  // Sale type (regular, replacement, exchange)
+  saleType String @default("regular") @map("sale_type") @db.VarChar(50) // regular, replacement, exchange
+
+  // Link to customer return (for replacements) - relation only, FK is on CustomerReturn side
+  relatedReturn CustomerReturn? @relation("ReplacementSales")
+
   // Cashier shift tracking (BIR Compliance)
   shiftId      Int?          @map("shift_id")
   cashierShift CashierShift? @relation(fields: [shiftId], references: [id])
@@ -1785,6 +1791,7 @@ model Sale {
   @@index([status])
   @@index([saleDate])
   @@index([discountType])
+  @@index([saleType])
   @@map("sales")
 }
 
@@ -1988,8 +1995,15 @@ model CustomerReturn {
   approvedBy Int?      @map("approved_by")
   approvedAt DateTime? @map("approved_at")
 
+  // Replacement issuance tracking
+  replacementIssued   Boolean  @default(false) @map("replacement_issued")
+  replacementIssuedAt DateTime? @map("replacement_issued_at")
+  replacementIssuedBy Int?      @map("replacement_issued_by")
+  replacementSaleId   Int?      @unique @map("replacement_sale_id")
+
   // Relations
-  items CustomerReturnItem[]
+  items           CustomerReturnItem[]
+  replacementSale Sale?                @relation("ReplacementSales", fields: [replacementSaleId], references: [id])
 
   @@unique([businessId, returnNumber])
   @@index([businessId])
@@ -1998,6 +2012,8 @@ model CustomerReturn {
   @@index([customerId])
   @@index([status])
   @@index([returnDate])
+  @@index([replacementIssued])
+  @@index([replacementSaleId])
   @@map("customer_returns")
 }
 

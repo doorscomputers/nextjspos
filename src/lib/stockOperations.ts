@@ -77,6 +77,7 @@ export enum StockTransactionType {
   CUSTOMER_RETURN = 'customer_return',
   SUPPLIER_RETURN = 'supplier_return',
   CORRECTION = 'correction',
+  REPLACEMENT_ISSUED = 'replacement_issued',
 }
 
 /**
@@ -873,5 +874,56 @@ export async function getZeroStockProducts({
         },
       },
     },
+  })
+}
+
+/**
+ * Process replacement issuance (deduct stock for replacement item)
+ * Used when issuing replacement items for approved customer returns
+ */
+export async function processReplacementIssuance({
+  businessId,
+  productId,
+  productVariationId,
+  locationId,
+  quantity,
+  unitCost,
+  returnId,
+  returnNumber,
+  userId,
+  userDisplayName,
+  tx,
+}: {
+  businessId: number
+  productId: number
+  productVariationId: number
+  locationId: number
+  quantity: number
+  unitCost: number
+  returnId: number
+  returnNumber?: string
+  userId: number
+  userDisplayName?: string
+  tx?: TransactionClient
+}) {
+  const notes = returnNumber
+    ? `Replacement issued for return ${returnNumber}`
+    : `Replacement issued for return #${returnId}`
+
+  return await deductStock({
+    businessId,
+    productId,
+    productVariationId,
+    locationId,
+    quantity,
+    type: StockTransactionType.REPLACEMENT_ISSUED,
+    unitCost,
+    referenceType: 'customer_return',
+    referenceId: returnId,
+    referenceNumber: returnNumber,
+    userId,
+    notes,
+    userDisplayName,
+    tx,
   })
 }

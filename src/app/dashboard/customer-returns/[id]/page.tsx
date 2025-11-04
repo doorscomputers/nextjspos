@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { ArrowLeftIcon, CheckIcon, XMarkIcon, ExclamationTriangleIcon, ShieldCheckIcon, WrenchIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, CheckIcon, XMarkIcon, ExclamationTriangleIcon, ShieldCheckIcon, WrenchIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 
 interface CustomerReturn {
@@ -20,6 +20,10 @@ interface CustomerReturn {
   createdAt: string
   approvedAt: string | null
   approvedBy: number | null
+  replacementIssued: boolean
+  replacementIssuedAt: string | null
+  replacementIssuedBy: number | null
+  replacementSaleId: number | null
   customer: {
     id: number
     name: string
@@ -59,6 +63,9 @@ export default function CustomerReturnDetailPage() {
 
   // For rejection
   const [showRejectDialog, setShowRejectDialog] = useState(false)
+
+  // For replacement issuance
+  const [showReplacementDialog, setShowReplacementDialog] = useState(false)
 
   useEffect(() => {
     fetchCustomerReturn()
@@ -133,6 +140,67 @@ export default function CustomerReturnDetailPage() {
     } catch (error) {
       console.error('Error rejecting return:', error)
       toast.error('Failed to reject return')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleIssueReplacement = async () => {
+    if (!customerReturn) return
+
+    // Get replacement items from the return
+    const replacementItems = customerReturn.items
+      .filter(item => item.returnType === 'replacement')
+      .map(item => ({
+        productId: item.productId,
+        productVariationId: item.productVariationId,
+        quantity: item.quantity,
+        unitCost: item.unitPrice, // Use the original price as cost
+      }))
+
+    if (replacementItems.length === 0) {
+      toast.error('No items marked for replacement')
+      return
+    }
+
+    // Show confirmation
+    const itemList = replacementItems
+      .map((item, index) => `\n${index + 1}. Product ${item.productId} (Qty: ${item.quantity})`)
+      .join('')
+
+    const confirmed = confirm(
+      `Issue replacement for the following items?${itemList}\n\nThis will deduct inventory from the return location.`
+    )
+
+    if (!confirmed) return
+
+    // Process replacement
+    await processReplacementIssuance(replacementItems)
+  }
+
+  const processReplacementIssuance = async (replacementItems: any[]) => {
+    try {
+      setActionLoading(true)
+      const response = await fetch(`/api/customer-returns/${returnId}/issue-replacement`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ replacementItems }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success(`Replacement issued successfully - Invoice: ${data.replacementSale.invoiceNumber}`)
+        setShowReplacementDialog(false)
+        fetchCustomerReturn()
+      } else {
+        toast.error(data.error || 'Failed to issue replacement')
+      }
+    } catch (error) {
+      console.error('Error issuing replacement:', error)
+      toast.error('Failed to issue replacement')
     } finally {
       setActionLoading(false)
     }
@@ -221,6 +289,20 @@ export default function CustomerReturnDetailPage() {
           icon: XMarkIcon,
           onClick: handleReject,
           variant: 'destructive' as const
+        })
+      }
+    }
+
+    // Approved returns with replacement items can issue replacements
+    if (customerReturn.status === 'approved' && !customerReturn.replacementIssued) {
+      const hasReplacementItems = customerReturn.items.some(item => item.returnType === 'replacement')
+
+      if (hasReplacementItems && can(PERMISSIONS.CUSTOMER_RETURN_APPROVE)) {
+        actions.push({
+          label: 'Issue Replacement',
+          icon: ArrowPathIcon,
+          onClick: handleIssueReplacement,
+          variant: 'default' as const
         })
       }
     }
@@ -325,7 +407,7 @@ export default function CustomerReturnDetailPage() {
         </div>
       )}
 
-      {customerReturn.status === 'approved' && (
+      {customerReturn.status === 'approved' && !customerReturn.replacementIssued && (
         <div className="bg-green-50 border border-green-200 p-4 rounded-lg">
           <div className="flex items-start">
             <CheckIcon className="w-5 h-5 text-green-600 mt-0.5 mr-3" />
@@ -334,6 +416,21 @@ export default function CustomerReturnDetailPage() {
               <p className="text-sm text-green-800 mt-1">
                 This return was approved on {customerReturn.approvedAt ? formatDate(customerReturn.approvedAt) : 'N/A'}.
                 {conditionSummary.resellable > 0 && ` Stock was restored for ${conditionSummary.resellable} resellable item(s).`}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {customerReturn.replacementIssued && (
+        <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg">
+          <div className="flex items-start">
+            <ArrowPathIcon className="w-5 h-5 text-purple-600 mt-0.5 mr-3" />
+            <div>
+              <h3 className="font-semibold text-purple-900">Replacement Issued</h3>
+              <p className="text-sm text-purple-800 mt-1">
+                Replacement items were issued on {customerReturn.replacementIssuedAt ? formatDate(customerReturn.replacementIssuedAt) : 'N/A'}.
+                {customerReturn.replacementSaleId && ` Sale ID: ${customerReturn.replacementSaleId}`}
               </p>
             </div>
           </div>

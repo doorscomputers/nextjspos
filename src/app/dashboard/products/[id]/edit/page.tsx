@@ -148,22 +148,9 @@ export default function EditProductPage() {
     }
   }, [formData.purchasePrice, formData.marginPercentage])
 
-  // Auto-calculate margin percentage from selling price (REVERSE calculation)
-  useEffect(() => {
-    if (formData.purchasePrice && formData.sellingPrice) {
-      const purchase = parseFloat(formData.purchasePrice)
-      const selling = parseFloat(formData.sellingPrice)
-      if (!isNaN(purchase) && !isNaN(selling) && purchase > 0) {
-        // Calculate margin % = ((selling - purchase) / purchase) * 100
-        const margin = ((selling - purchase) / purchase) * 100
-        // Only update if margin is different (to avoid infinite loops)
-        const currentMargin = parseFloat(formData.marginPercentage || '0')
-        if (Math.abs(margin - currentMargin) > 0.01) {
-          setFormData(prev => ({ ...prev, marginPercentage: margin.toFixed(2) }))
-        }
-      }
-    }
-  }, [formData.purchasePrice, formData.sellingPrice])
+  // REMOVED: Auto-calculate margin percentage from selling price (caused infinite loop)
+  // The margin percentage should only be manually set by the user, then it calculates selling price
+  // Having both directions (margin→price AND price→margin) creates a computation cycle
 
   // Lazy load products only when product type is 'combo'
   useEffect(() => {
@@ -173,10 +160,39 @@ export default function EditProductPage() {
     }
   }, [formData.type, availableProducts.length])
 
-  const fetchMetadata = async () => {
+  const fetchMetadata = async (forceRefresh = false) => {
     try {
-      // Only fetch essential metadata (categories, brands, units, tax rates)
-      // Products will be fetched lazily only if product type is 'combo'
+      // Check cache first (15-minute cache for dropdown metadata)
+      const CACHE_KEY = 'productFormMetadata'
+      const CACHE_DURATION = 15 * 60 * 1000 // 15 minutes
+
+      if (!forceRefresh) {
+        const cachedData = localStorage.getItem(CACHE_KEY)
+        if (cachedData) {
+          try {
+            const { data, timestamp } = JSON.parse(cachedData)
+            const age = Date.now() - timestamp
+
+            if (age < CACHE_DURATION) {
+              console.log('✅ Using cached metadata (age:', Math.round(age / 1000), 'seconds)')
+              setCategories(data.categories || [])
+              setBrands(data.brands || [])
+              setUnits(data.units || [])
+              setTaxRates(data.taxRates || [])
+              return // Exit early - using cache
+            } else {
+              console.log('⏰ Cache expired (age:', Math.round(age / 1000), 'seconds) - fetching fresh data')
+            }
+          } catch (e) {
+            console.log('⚠️ Invalid cache, fetching fresh data')
+          }
+        }
+      } else {
+        console.log('🔄 Force refresh - fetching fresh metadata')
+      }
+
+      // Fetch fresh data
+      console.log('📡 Fetching metadata from API...')
       const [categoriesRes, brandsRes, unitsRes, taxRatesRes] = await Promise.all([
         fetch('/api/categories'),
         fetch('/api/brands'),
@@ -196,7 +212,18 @@ export default function EditProductPage() {
       setUnits(unitsData.units || [])
       setTaxRates(taxRatesData.taxRates || [])
 
-      console.log('✅ Metadata loaded (fast mode - products excluded)')
+      // Save to cache
+      const cacheData = {
+        data: {
+          categories: categoriesData.categories || [],
+          brands: brandsData.brands || [],
+          units: unitsData.units || [],
+          taxRates: taxRatesData.taxRates || []
+        },
+        timestamp: Date.now()
+      }
+      localStorage.setItem('productFormMetadata', JSON.stringify(cacheData))
+      console.log('✅ Metadata loaded and cached')
     } catch (error) {
       console.error('Error fetching metadata:', error)
     }
@@ -589,7 +616,20 @@ export default function EditProductPage() {
           <ArrowLeftIcon className="w-4 h-4 mr-2" />
           Back to Products
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900">Edit Product</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-gray-900">Edit Product</h1>
+          <button
+            type="button"
+            onClick={() => fetchMetadata(true)}
+            className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200 border border-gray-300"
+            title="Force refresh categories, brands, units, and tax rates from server"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh Dropdowns
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
