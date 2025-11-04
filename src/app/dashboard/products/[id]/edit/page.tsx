@@ -136,17 +136,34 @@ export default function EditProductPage() {
     }
   }, [formData.categoryId, categories])
 
-  // Auto-calculate selling price from margin
+  // Auto-calculate selling price from margin percentage
   useEffect(() => {
     if (formData.purchasePrice && formData.marginPercentage) {
       const purchase = parseFloat(formData.purchasePrice)
       const margin = parseFloat(formData.marginPercentage)
-      if (!isNaN(purchase) && !isNaN(margin)) {
+      if (!isNaN(purchase) && !isNaN(margin) && purchase > 0) {
         const selling = purchase + (purchase * margin / 100)
         setFormData(prev => ({ ...prev, sellingPrice: selling.toFixed(2) }))
       }
     }
   }, [formData.purchasePrice, formData.marginPercentage])
+
+  // Auto-calculate margin percentage from selling price (REVERSE calculation)
+  useEffect(() => {
+    if (formData.purchasePrice && formData.sellingPrice) {
+      const purchase = parseFloat(formData.purchasePrice)
+      const selling = parseFloat(formData.sellingPrice)
+      if (!isNaN(purchase) && !isNaN(selling) && purchase > 0) {
+        // Calculate margin % = ((selling - purchase) / purchase) * 100
+        const margin = ((selling - purchase) / purchase) * 100
+        // Only update if margin is different (to avoid infinite loops)
+        const currentMargin = parseFloat(formData.marginPercentage || '0')
+        if (Math.abs(margin - currentMargin) > 0.01) {
+          setFormData(prev => ({ ...prev, marginPercentage: margin.toFixed(2) }))
+        }
+      }
+    }
+  }, [formData.purchasePrice, formData.sellingPrice])
 
   // Lazy load products only when product type is 'combo'
   useEffect(() => {
@@ -204,7 +221,8 @@ export default function EditProductPage() {
 
   const fetchProduct = async () => {
     try {
-      const response = await fetch(`/api/products/${productId}`)
+      // Use lightweight edit endpoint (no stock calculations)
+      const response = await fetch(`/api/products/${productId}/edit`)
       const data = await response.json()
 
       if (response.ok) {
