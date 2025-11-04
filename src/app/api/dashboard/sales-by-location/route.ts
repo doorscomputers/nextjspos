@@ -35,12 +35,12 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const period = searchParams.get('period') || 'day' // day, month, quarter, year
 
-    // Get all locations for this business (including inactive)
+    // Get all active locations for this business
     const locations = await prisma.businessLocation.findMany({
       where: {
         businessId,
         deletedAt: null,
-        // Removed isActive filter - show all locations with sales
+        isActive: true, // Only show active locations
       },
       select: {
         id: true,
