@@ -108,6 +108,11 @@ export async function GET(request: NextRequest) {
     const params: any[] = []
     let paramIndex = 1
 
+    // Business ID filter (CRITICAL - must be first!)
+    conditions.push(`s.business_id = $${paramIndex}`)
+    params.push(businessId)
+    paramIndex++
+
     // Status filter
     conditions.push(`s.status != 'voided'`)
 
