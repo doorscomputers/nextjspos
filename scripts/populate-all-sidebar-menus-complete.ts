@@ -26,9 +26,10 @@ const COMPLETE_MENU_STRUCTURE = [
   { key: 'accounting', name: 'Accounting', href: '/dashboard/accounting', order: 19, parentKey: null },
   { key: 'administration', name: 'Administration', href: '/dashboard/admin', order: 20, parentKey: null },
   { key: 'settings', name: 'Settings', href: '/dashboard/settings', order: 21, parentKey: null },
-  { key: 'help_center', name: 'Help Center', href: '/dashboard/help', order: 22, parentKey: null },
-  { key: 'notifications', name: 'Notifications', href: '/dashboard/notifications', order: 23, parentKey: null },
-  { key: 'my_profile', name: 'My Profile', href: '/dashboard/profile', order: 24, parentKey: null },
+  { key: 'ai_assistant', name: 'AI Assistant', href: '/dashboard/ai-assistant', order: 22, parentKey: null },
+  { key: 'help_center', name: 'Help Center', href: '/dashboard/help', order: 23, parentKey: null },
+  { key: 'notifications', name: 'Notifications', href: '/dashboard/notifications', order: 24, parentKey: null },
+  { key: 'my_profile', name: 'My Profile', href: '/dashboard/profile', order: 25, parentKey: null },
 
   // ========== LEVEL 1: CHILDREN OF PARENT MENUS ==========
 
