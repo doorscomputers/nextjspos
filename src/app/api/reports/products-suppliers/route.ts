@@ -59,92 +59,43 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    // Get all products with their variations
-    const products = await prisma.product.findMany({
-      where: productWhere,
+    console.time('⏱️ [REPORT] Total execution time')
+
+    // ✅ OPTIMIZATION: Single query with all joins instead of N+1 queries
+    console.time('⏱️ [REPORT] Database query')
+    const variations = await prisma.productVariation.findMany({
+      where: {
+        businessId,
+        product: {
+          ...productWhere,
+        },
+      },
       include: {
-        category: {
-          select: {
-            id: true,
-            name: true,
+        product: {
+          include: {
+            category: { select: { id: true, name: true } },
+            brand: { select: { id: true, name: true } },
+            unit: { select: { id: true, name: true, shortName: true } },
           },
         },
-        brand: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        unit: {
-          select: {
-            id: true,
-            name: true,
-            shortName: true,
-          },
-        },
-        variations: {
-          select: {
-            id: true,
-            name: true,
-            sku: true,
-          },
-        },
-      },
-      orderBy: {
-        name: 'asc',
-      },
-    })
-
-    // For each product, get the latest purchase information
-    const reportData = await Promise.all(
-      products.map(async (product) => {
-        // Get variation IDs for this product
-        const variationIds = product.variations.map(v => v.id)
-
-        if (variationIds.length === 0) {
-          // No variations, skip this product
-          return null
-        }
-
-        // Find the most recent purchase receipt item for any variation of this product
-        const latestPurchaseItem = await prisma.purchaseReceiptItem.findFirst({
+        // Get latest purchase receipt item
+        purchaseReceiptItems: {
           where: {
-            productId: product.id,
-            productVariationId: {
-              in: variationIds,
-            },
             purchaseReceipt: {
-              is: {
-                businessId,
-                status: 'approved', // Only consider approved receipts
-              },
+              businessId,
+              status: 'approved',
             },
           },
           include: {
             purchaseReceipt: {
               include: {
                 supplier: {
-                  select: {
-                    id: true,
-                    name: true,
-                    email: true,
-                    mobile: true,
-                  },
+                  select: { id: true, name: true, email: true, mobile: true },
                 },
               },
             },
             purchaseItem: {
-              select: {
-                id: true,
-                unitCost: true,
-              },
-            },
-            productVariation: {
-              select: {
-                id: true,
-                name: true,
-                sku: true,
-              },
+              select: { unitCost: true },
             },
           },
           orderBy: {
@@ -152,125 +103,54 @@ export async function GET(request: NextRequest) {
               receiptDate: 'desc',
             },
           },
-        })
-
-        // If no receipt item found, try getting from purchase items (non-received POs)
-        let fallbackPurchaseItem = null
-        if (!latestPurchaseItem) {
-          fallbackPurchaseItem = await prisma.purchaseItem.findFirst({
-            where: {
-              productId: product.id,
-              productVariationId: {
-                in: variationIds,
-              },
-              purchase: {
-                is: {
-                  businessId,
-                  deletedAt: null,
-                  status: {
-                    in: ['ordered', 'partially_received', 'received'],
-                  },
+          take: 1,
+        },
+        // Fallback: Get latest purchase item
+        purchaseItems: {
+          where: {
+            purchase: {
+              businessId,
+              deletedAt: null,
+              status: { in: ['ordered', 'partially_received', 'received'] },
+            },
+          },
+          include: {
+            purchase: {
+              include: {
+                supplier: {
+                  select: { id: true, name: true, email: true, mobile: true },
                 },
               },
             },
-            include: {
-              purchase: {
-                include: {
-                  supplier: {
-                    select: {
-                      id: true,
-                      name: true,
-                      email: true,
-                      mobile: true,
-                    },
-                  },
-                },
-              },
-              productVariation: {
-                select: {
-                  id: true,
-                  name: true,
-                  sku: true,
-                },
-              },
+          },
+          orderBy: {
+            purchase: {
+              purchaseDate: 'desc',
             },
-            orderBy: {
-              purchase: {
-                purchaseDate: 'desc',
-              },
-            },
-          })
-        }
+          },
+          take: 1,
+        },
+      },
+      orderBy: {
+        product: {
+          name: 'asc',
+        },
+      },
+    })
+    console.timeEnd('⏱️ [REPORT] Database query')
 
-        // Determine which data source to use
-        const sourceItem = latestPurchaseItem || fallbackPurchaseItem
+    console.log(`✅ Loaded ${variations.length} variations in single query (was ${variations.length * 2}+ queries before)`)
 
-        if (!sourceItem) {
-          // No purchase history for this product
-          return {
-            productId: product.id,
-            productName: product.name,
-            productSku: product.sku,
-            productType: product.type,
-            category: product.category?.name || '-',
-            categoryId: product.category?.id || null,
-            brand: product.brand?.name || '-',
-            unit: product.unit?.shortName || '-',
-            variationName: '-',
-            variationSku: '-',
-            supplierId: null,
-            supplierName: 'No Purchase History',
-            supplierContact: '-',
-            latestCost: 0,
-            lastQtyDelivered: 0,
-            lastDeliveryDate: null,
-            daysSinceLastDelivery: null,
-            hasHistory: false,
-          }
-        }
+    // Transform data (no more database queries!)
+    const reportData = variations.map((variation) => {
+      const product = variation.product
+      const latestReceiptItem = variation.purchaseReceiptItems[0]
+      const latestPurchaseItem = variation.purchaseItems[0]
 
-        let lastDeliveryDate: Date
-        let lastQty: number
-        let unitCost: number
+      // Determine data source
+      const sourceItem = latestReceiptItem || latestPurchaseItem
 
-        if (latestPurchaseItem) {
-          // From approved receipt
-          lastDeliveryDate = latestPurchaseItem.purchaseReceipt.receiptDate
-          lastQty = parseFloat(latestPurchaseItem.quantityReceived.toString())
-          // unitCost comes from the related purchaseItem (may be null for direct GRN)
-          unitCost = latestPurchaseItem.purchaseItem
-            ? parseFloat(latestPurchaseItem.purchaseItem.unitCost.toString())
-            : 0
-        } else {
-          // From purchase order
-          lastDeliveryDate = fallbackPurchaseItem!.purchase.purchaseDate
-          lastQty = parseFloat(fallbackPurchaseItem!.quantity.toString())
-          unitCost = parseFloat(fallbackPurchaseItem!.unitCost.toString())
-        }
-
-        const supplier = latestPurchaseItem
-          ? latestPurchaseItem.purchaseReceipt.supplier
-          : fallbackPurchaseItem!.purchase.supplier
-
-        const variation = latestPurchaseItem
-          ? latestPurchaseItem.productVariation
-          : fallbackPurchaseItem!.productVariation
-
-        // Calculate days since last delivery
-        const daysSinceLastDelivery = Math.floor(
-          (new Date().getTime() - lastDeliveryDate.getTime()) / (1000 * 60 * 60 * 24)
-        )
-
-        // Apply supplier filter if specified
-        if (supplierId && supplier.id !== parseInt(supplierId)) {
-          return null
-        }
-
-        const supplierContact = [
-          supplier.mobile || '',
-          supplier.email || '',
-        ].filter(Boolean).join(' | ') || '-'
-
+      if (!sourceItem) {
         return {
           productId: product.id,
           productName: product.name,
@@ -280,19 +160,73 @@ export async function GET(request: NextRequest) {
           categoryId: product.category?.id || null,
           brand: product.brand?.name || '-',
           unit: product.unit?.shortName || '-',
-          variationName: variation.name || '-',
-          variationSku: variation.sku || '-',
-          supplierId: supplier.id,
-          supplierName: supplier.name,
-          supplierContact,
-          latestCost: unitCost,
-          lastQtyDelivered: lastQty,
-          lastDeliveryDate: lastDeliveryDate.toISOString(),
-          daysSinceLastDelivery,
-          hasHistory: true,
+          variationName: variation.name,
+          variationSku: variation.sku,
+          supplierId: null,
+          supplierName: 'No Purchase History',
+          supplierContact: '-',
+          latestCost: 0,
+          lastQtyDelivered: 0,
+          lastDeliveryDate: null,
+          daysSinceLastDelivery: null,
+          hasHistory: false,
         }
-      })
-    )
+      }
+
+      let lastDeliveryDate: Date
+      let lastQty: number
+      let unitCost: number
+      let supplier: any
+
+      if (latestReceiptItem) {
+        lastDeliveryDate = latestReceiptItem.purchaseReceipt.receiptDate
+        lastQty = parseFloat(latestReceiptItem.quantityReceived.toString())
+        unitCost = latestReceiptItem.purchaseItem?.unitCost
+          ? parseFloat(latestReceiptItem.purchaseItem.unitCost.toString())
+          : 0
+        supplier = latestReceiptItem.purchaseReceipt.supplier
+      } else {
+        lastDeliveryDate = latestPurchaseItem!.purchase.purchaseDate
+        lastQty = parseFloat(latestPurchaseItem!.quantity.toString())
+        unitCost = parseFloat(latestPurchaseItem!.unitCost.toString())
+        supplier = latestPurchaseItem!.purchase.supplier
+      }
+
+      // Apply supplier filter
+      if (supplierId && supplier.id !== parseInt(supplierId)) {
+        return null
+      }
+
+      const daysSinceLastDelivery = Math.floor(
+        (new Date().getTime() - lastDeliveryDate.getTime()) / (1000 * 60 * 60 * 24)
+      )
+
+      const supplierContact = [
+        supplier.mobile || '',
+        supplier.email || '',
+      ].filter(Boolean).join(' | ') || '-'
+
+      return {
+        productId: product.id,
+        productName: product.name,
+        productSku: product.sku,
+        productType: product.type,
+        category: product.category?.name || '-',
+        categoryId: product.category?.id || null,
+        brand: product.brand?.name || '-',
+        unit: product.unit?.shortName || '-',
+        variationName: variation.name,
+        variationSku: variation.sku,
+        supplierId: supplier.id,
+        supplierName: supplier.name,
+        supplierContact,
+        latestCost: unitCost,
+        lastQtyDelivered: lastQty,
+        lastDeliveryDate: lastDeliveryDate.toISOString(),
+        daysSinceLastDelivery,
+        hasHistory: true,
+      }
+    })
 
     // Filter out null entries
     const filteredData = reportData.filter((item): item is NonNullable<typeof item> => item !== null)
@@ -316,6 +250,8 @@ export async function GET(request: NextRequest) {
             )
           : 0,
     }
+
+    console.timeEnd('⏱️ [REPORT] Total execution time')
 
     return NextResponse.json({
       success: true,
