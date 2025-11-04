@@ -51,7 +51,7 @@ export default function AIAssistantPage() {
   }
 
   const saveCurrentQuestion = async () => {
-    if (!input.trim()) return
+    if (!input || !input.trim()) return
 
     setIsSavingQuestion(true)
     try {

@@ -14,6 +14,20 @@ export async function POST(req: Request) {
     return new Response('Unauthorized', { status: 401 })
   }
 
+  // Check if OpenAI API key is configured
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('❌ OPENAI_API_KEY is not configured in environment variables')
+    return new Response(
+      JSON.stringify({
+        error: 'AI Assistant is not configured. Please contact your administrator to set up the OpenAI API key.'
+      }),
+      {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    )
+  }
+
   const { messages } = await req.json()
 
   // Add system context about POS system
@@ -35,12 +49,25 @@ export async function POST(req: Request) {
     Be helpful, concise, and provide actionable insights.`
   }
 
-  const result = streamText({
-    model: openai('gpt-4o-mini'),
-    messages: [systemMessage, ...messages],
-    temperature: 0.7,
-    maxTokens: 1000,
-  })
+  try {
+    const result = streamText({
+      model: openai('gpt-4o-mini'),
+      messages: [systemMessage, ...messages],
+      temperature: 0.7,
+      maxTokens: 1000,
+    })
 
-  return result.toDataStreamResponse()
+    return result.toDataStreamResponse()
+  } catch (error: any) {
+    console.error('❌ OpenAI API Error:', error)
+    return new Response(
+      JSON.stringify({
+        error: 'Failed to connect to AI service. Please check if the OpenAI API key is valid.'
+      }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    )
+  }
 }
