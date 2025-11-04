@@ -111,18 +111,24 @@ export default function CreatePurchaseOrderPage() {
 
   const fetchMyLocation = async () => {
     try {
+      console.log('🔵 [CLIENT] Fetching my location from API...')
       const res = await fetch('/api/user-locations/my-location')
+      console.log('🔵 [CLIENT] API response status:', res.status)
       const data = await res.json()
+      console.log('🔵 [CLIENT] API response data:', data)
+
       if (data?.location) {
         const userLoc = { id: data.location.id, name: data.location.name }
+        console.log('✅ [CLIENT] Setting myLocation to:', userLoc)
         setMyLocation(userLoc)
         setWarehouseLocationId(userLoc.id.toString())
         setWarehouseLocationName(userLoc.name)
       } else {
+        console.log('❌ [CLIENT] No location in API response')
         toast.error('No location assigned to your account.')
       }
     } catch (err) {
-      console.error('Error fetching my location:', err)
+      console.error('❌ [CLIENT] Error fetching my location:', err)
       toast.error('Unable to fetch your assigned location')
     }
   }
