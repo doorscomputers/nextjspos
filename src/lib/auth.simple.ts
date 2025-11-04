@@ -89,14 +89,45 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid credentials")
         }
 
+        // Get user role names for various checks
+        const roleNames = user.roles.map(ur => ur.role.name)
+
+        // Parse selected location from login form (used for RFID validation)
+        const selectedLocationId = (credentials as any).locationId
+          ? parseInt((credentials as any).locationId)
+          : null
+
+        // Check if user is admin (exempt from RFID location scanning)
+        const isAdminRole = roleNames.some(role =>
+          role === 'Super Admin' ||
+          role === 'System Administrator' ||
+          role === 'All Branch Admin'
+        )
+
+        // ============================================================================
+        // RFID LOCATION VALIDATION: Enforce for non-admin roles only
+        // ============================================================================
+        if (!isAdminRole && !selectedLocationId) {
+          console.log(`[LOGIN] ❌ BLOCKED - Location RFID scan required for ${user.username}`)
+          throw new Error(
+            "Location verification required.\n\n" +
+            "Please scan the RFID card at your location to continue.\n\n" +
+            "The RFID card should be physically located at your workstation."
+          )
+        }
+
+        if (isAdminRole) {
+          console.log(`[LOGIN] ✓ Admin role detected - skipping location validation for ${user.username}`)
+        } else if (selectedLocationId) {
+          console.log(`[LOGIN] ✓ RFID scanned - Location ID: ${selectedLocationId}`)
+        }
+
         // Collect all permissions
         const rolePermissions = user.roles.flatMap(ur =>
           ur.role.permissions.map(rp => rp.permission.name)
         )
         const directPermissions = user.permissions.map(up => up.permission.name)
         let allPermissions = [...new Set([...rolePermissions, ...directPermissions])]
-
-        const roleNames = user.roles.map(ur => ur.role.name)
 
         // Grant all permissions to Super Admin
         if (roleNames.includes('Super Admin') ||
