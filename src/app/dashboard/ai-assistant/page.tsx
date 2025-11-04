@@ -17,7 +17,14 @@ interface SavedQuestion {
 
 export default function AIAssistantPage() {
   const { data: session } = useSession()
-  const { messages, input, handleInputChange, handleSubmit, isLoading, setInput } = useChat()
+  const { messages, input, handleInputChange, handleSubmit, isLoading, setInput } = useChat({
+    api: '/api/chat',
+    onError: (error) => {
+      console.error('❌ Chat error:', error)
+      alert(`AI Assistant Error: ${error.message || 'Failed to connect to AI service'}`)
+    },
+    initialInput: ''
+  })
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Saved questions state
