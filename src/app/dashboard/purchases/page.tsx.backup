@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import Link from 'next/link'
@@ -20,13 +20,10 @@ import DataGrid, {
   Selection,
   Toolbar,
   Item,
-  RemoteOperations,
 } from 'devextreme-react/data-grid'
-import CustomStore from 'devextreme/data/custom_store'
 import { Template } from 'devextreme-react/core/template'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency } from '@/lib/currencyUtils'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface Purchase {
   id: number
@@ -73,91 +70,31 @@ interface Purchase {
   }>
 }
 
-export default function PurchasesDevExtremePageOptimized() {
+export default function PurchasesDevExtremePage() {
   const { can } = usePermissions()
-  const [refreshKey, setRefreshKey] = useState(0)
-  const [statusFilter, setStatusFilter] = useState<string>('pending') // Default to pending
+  const [purchases, setPurchases] = useState<Purchase[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // ✅ OPTIMIZATION: Create DevExtreme CustomStore for server-side operations
-  const dataSource = useCallback(() => {
-    return new CustomStore({
-      key: 'id',
-      load: async (loadOptions) => {
-        try {
-          console.log('⏱️ [PURCHASES] Loading data with options:', loadOptions)
-          console.time('⏱️ [PURCHASES] Fetch time')
+  useEffect(() => {
+    fetchPurchases()
+  }, [])
 
-          // Build query parameters from DevExtreme load options
-          const params = new URLSearchParams()
-
-          // Pagination
-          const skip = loadOptions.skip || 0
-          const take = loadOptions.take || 25
-          const page = Math.floor(skip / take) + 1
-          params.append('page', page.toString())
-          params.append('limit', take.toString())
-
-          // Status filter
-          if (statusFilter && statusFilter !== 'all') {
-            params.append('status', statusFilter)
-          }
-
-          // Include details for master-detail view
-          params.append('includeDetails', 'true')
-
-          // Sorting
-          if (loadOptions.sort) {
-            const sortInfo = loadOptions.sort[0]
-            params.append('sortBy', sortInfo.selector)
-            params.append('sortOrder', sortInfo.desc ? 'desc' : 'asc')
-          }
-
-          // Filtering (DevExtreme filter expressions)
-          if (loadOptions.filter) {
-            // Convert DevExtreme filter to API format
-            // For now, we'll handle basic filters
-            // More complex filters can be added based on requirements
-            params.append('filter', JSON.stringify(loadOptions.filter))
-          }
-
-          const url = `/api/purchases?${params.toString()}`
-          console.log('📡 [PURCHASES] Fetching:', url)
-
-          const response = await fetch(url)
-          console.timeEnd('⏱️ [PURCHASES] Fetch time')
-
-          if (!response.ok) {
-            throw new Error('Failed to fetch purchase orders')
-          }
-
-          const data = await response.json()
-          console.log(`✅ [PURCHASES] Loaded ${data.purchases.length} purchases (Page ${page}/${data.pagination.totalPages})`)
-
-          return {
-            data: data.purchases || [],
-            totalCount: data.pagination.total || 0,
-          }
-        } catch (error) {
-          console.error('❌ [PURCHASES] Failed to fetch:', error)
-          toast.error('Failed to fetch purchase orders')
-          return {
-            data: [],
-            totalCount: 0,
-          }
-        }
-      },
-    })
-  }, [statusFilter])
-
-  const handleRefresh = () => {
-    setRefreshKey(prev => prev + 1)
-    toast.success('Purchase orders refreshed')
-  }
-
-  const handleStatusFilterChange = (value: string) => {
-    console.log('🔄 [PURCHASES] Status filter changed to:', value)
-    setStatusFilter(value)
-    setRefreshKey(prev => prev + 1) // Force grid refresh
+  const fetchPurchases = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/purchases?includeDetails=true')
+      if (response.ok) {
+        const data = await response.json()
+        setPurchases(data.purchases || [])
+      } else {
+        toast.error('Failed to fetch purchase orders')
+      }
+    } catch (error) {
+      console.error('Failed to fetch purchases:', error)
+      toast.error('Failed to fetch purchase orders')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const getStatusBadge = (status: string) => {
@@ -388,12 +325,12 @@ export default function PurchasesDevExtremePageOptimized() {
             Purchase Orders
           </h1>
           <p className="text-gray-600 dark:text-gray-300 mt-1">
-            Manage purchase orders with server-side pagination
+            Manage purchase orders with master-detail view
           </p>
         </div>
         <div className="flex gap-3">
           <Button
-            onClick={handleRefresh}
+            onClick={fetchPurchases}
             size="default"
             className="bg-teal-600 hover:bg-teal-700 text-white font-medium border-2 border-teal-700 hover:border-teal-800 shadow-md hover:shadow-lg transition-all"
           >
@@ -414,51 +351,16 @@ export default function PurchasesDevExtremePageOptimized() {
         </div>
       </div>
 
-      {/* Status Filter */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
-        <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Status Filter:
-          </label>
-          <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Select status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="pending">⏳ Pending</SelectItem>
-              <SelectItem value="ordered">📦 Ordered</SelectItem>
-              <SelectItem value="partial">📋 Partially Received</SelectItem>
-              <SelectItem value="received">✅ Received</SelectItem>
-              <SelectItem value="completed">🎉 Completed</SelectItem>
-              <SelectItem value="cancelled">❌ Cancelled</SelectItem>
-              <SelectItem value="draft">📝 Draft</SelectItem>
-            </SelectContent>
-          </Select>
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            Default: Pending orders
-          </span>
-        </div>
-      </div>
-
-      {/* DevExtreme DataGrid with Remote Operations */}
+      {/* DevExtreme DataGrid with Master-Detail */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
         <DataGrid
-          key={refreshKey}
-          dataSource={dataSource()}
+          dataSource={purchases}
           keyExpr="id"
           showBorders={true}
           columnAutoWidth={true}
           rowAlternationEnabled={true}
           height={700}
         >
-          {/* ✅ OPTIMIZATION: Enable remote operations for server-side processing */}
-          <RemoteOperations
-            paging={true}
-            sorting={true}
-            filtering={false} // We handle filtering via status dropdown
-          />
-
           <StateStoring enabled={true} type="localStorage" storageKey="purchasesGridState" />
           <Selection mode="multiple" showCheckBoxesMode="always" />
           <FilterRow visible={true} />
