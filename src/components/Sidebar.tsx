@@ -1464,6 +1464,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
 
     // ========== USER SECTION (BOTTOM) ==========
     {
+      name: "AI Assistant",
+      href: "/dashboard/ai-assistant",
+      icon: SparklesIcon,
+      key: "ai_assistant",
+      // No permission check - visibility controlled by menu permissions
+    },
+    {
       name: "Help Center",
       href: "/dashboard/help",
       icon: QuestionMarkCircleIcon,
