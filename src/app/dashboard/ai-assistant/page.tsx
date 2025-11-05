@@ -372,7 +372,7 @@ export default function AIAssistantPage() {
           <button
             type="button"
             onClick={saveCurrentQuestion}
-            disabled={!input.trim() || isSavingQuestion}
+            disabled={!input?.trim() || isSavingQuestion}
             className="px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             title="Save this question"
           >
@@ -380,7 +380,7 @@ export default function AIAssistantPage() {
           </button>
           <button
             type="submit"
-            disabled={isLoading || !input.trim()}
+            disabled={isLoading || !input?.trim()}
             className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center space-x-2"
           >
             <PaperAirplaneIcon className="h-5 w-5" />
