@@ -257,19 +257,15 @@ async function fixAllMenuPermissionsOptimized() {
       console.log('   ⏭️  All menu records already exist')
     }
 
-    // Step 5: Refresh menu list and IDs
-    const allMenus = await prisma.menuPermission.findMany()
-    const finalMenuKeyToId = new Map(allMenus.map(m => [m.key, m.id]))
-
-    console.log(`\n📊 Total menus in database: ${allMenus.length}`)
+    console.log(`\n📊 Total menus in database: ${existingMenus.length}`)
     console.log()
     console.log('='.repeat(80))
     console.log()
 
-    // Step 6: Create missing role-menu links
+    // Step 5: Create missing role-menu links
     const linksToCreate: any[] = []
 
-    for (const menu of allMenus) {
+    for (const menu of existingMenus) {
       for (const role of allRoles) {
         const linkKey = `${role.id}-${menu.id}`
         if (!linkSet.has(linkKey)) {
@@ -305,7 +301,7 @@ async function fixAllMenuPermissionsOptimized() {
     console.log('📊 Summary:')
     console.log(`   ✅ Menu records created: ${menusToCreate.length}`)
     console.log(`   🔗 Role-menu links created: ${linksToCreate.length}`)
-    console.log(`   📋 Total menus in system: ${allMenus.length}`)
+    console.log(`   📋 Total menus in system: ${existingMenus.length}`)
     console.log(`   👥 Roles configured: ${allRoles.length}`)
     console.log()
     console.log('📝 Next Steps:')
