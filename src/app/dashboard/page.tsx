@@ -226,7 +226,7 @@ export default function DashboardPageV2() {
       }
       // 'all' doesn't add date filters
 
-      const response = await fetch(`/api/dashboard/stats?${params.toString()}`)
+      const response = await fetch(`/api/dashboard/stats-cached?${params.toString()}`)
       if (response.ok) {
         const data = await response.json()
         setStats(data)

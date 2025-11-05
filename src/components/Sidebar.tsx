@@ -90,10 +90,46 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
     }
   }, [])
 
-  // Auto-expand Cashier Reports when navigating into it
+  // Auto-expand menus based on current pathname
   useEffect(() => {
-    if (pathname && pathname.startsWith('/dashboard/cashier-reports')) {
-      setExpandedMenus((prev) => ({ ...prev, Reports: true, 'Cashier Reports': true }))
+    if (!pathname) return
+
+    // Helper function to check if a menu item or its children match the current pathname
+    const findAndExpandMenus = (items: MenuItem[], menusToExpand: Record<string, boolean> = {}) => {
+      items.forEach(item => {
+        // Check if current item matches pathname
+        if (pathname === item.href || pathname.startsWith(item.href + '/')) {
+          menusToExpand[item.name] = true
+        }
+
+        // Check children
+        if (item.children) {
+          item.children.forEach(child => {
+            if (pathname === child.href || pathname.startsWith(child.href + '/')) {
+              menusToExpand[item.name] = true // Expand parent
+              if (child.children) {
+                menusToExpand[child.name] = true // Expand child if it has grandchildren
+              }
+            }
+
+            // Check grandchildren
+            if (child.children) {
+              child.children.forEach(grandchild => {
+                if (pathname === grandchild.href || pathname.startsWith(grandchild.href + '/')) {
+                  menusToExpand[item.name] = true // Expand parent
+                  menusToExpand[child.name] = true // Expand child
+                }
+              })
+            }
+          })
+        }
+      })
+      return menusToExpand
+    }
+
+    const newExpandedMenus = findAndExpandMenus(menuItems)
+    if (Object.keys(newExpandedMenus).length > 0) {
+      setExpandedMenus((prev) => ({ ...prev, ...newExpandedMenus }))
     }
   }, [pathname])
 
@@ -871,10 +907,17 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
         {
           key: "purchase_reports",
           name: "Purchase Reports",
-          href: "/dashboard/reports/purchases",
+          href: "#",
           icon: TruckIcon,
           permission: PERMISSIONS.REPORT_PURCHASE_VIEW,
           children: [
+            {
+              key: "purchase_reports_hub",
+              name: "Purchase Reports Hub",
+              href: "/dashboard/reports/purchases",
+              icon: ChartBarIcon,
+              permission: PERMISSIONS.REPORT_PURCHASE_VIEW,
+            },
             {
               key: "purchase_analytics",
               name: "Purchase Analytics",
