@@ -352,8 +352,16 @@ export default function NewInventoryCorrectionPage() {
     setLoading(true)
 
     // Validate required fields
-    if (!formData.locationId || !formData.productId || !formData.productVariationId || !formData.physicalCount || !formData.reason) {
-      toast.error('Please fill in all required fields')
+    if (!formData.locationId || !formData.productId || !formData.productVariationId || !formData.physicalCount || !formData.reason || !formData.remarks) {
+      toast.error('Please fill in all required fields (Location, Physical Count, Reason, and Remarks)')
+      setLoading(false)
+      return
+    }
+
+    // Validate physical count is a valid number >= 0
+    const physCount = parseFloat(formData.physicalCount)
+    if (isNaN(physCount) || physCount < 0) {
+      toast.error('Physical Count must be a number greater than or equal to 0')
       setLoading(false)
       return
     }
@@ -581,7 +589,9 @@ export default function NewInventoryCorrectionPage() {
 
                 {/* Location */}
                 <div>
-                  <Label htmlFor="locationId" className="required text-sm">Location</Label>
+                  <Label htmlFor="locationId" className="text-sm">
+                    Location <span className="text-red-500">*</span>
+                  </Label>
                   {userLocation ? (
                     <div className="mt-1">
                       <Input
@@ -597,16 +607,21 @@ export default function NewInventoryCorrectionPage() {
                     <Select
                       value={formData.locationId}
                       onValueChange={(value) => setFormData((prev) => ({ ...prev, locationId: value }))}
+                      required
                     >
                       <SelectTrigger id="locationId" className="mt-1">
                         <SelectValue placeholder="Select location" />
                       </SelectTrigger>
                       <SelectContent>
-                        {locations.map((loc) => (
-                          <SelectItem key={loc.id} value={loc.id.toString()}>
-                            {loc.name}
-                          </SelectItem>
-                        ))}
+                        {locations.length === 0 ? (
+                          <div className="p-2 text-sm text-gray-500">No active locations available</div>
+                        ) : (
+                          locations.map((loc) => (
+                            <SelectItem key={loc.id} value={loc.id.toString()}>
+                              {loc.name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   )}
@@ -626,7 +641,9 @@ export default function NewInventoryCorrectionPage() {
 
                 {/* Physical Count */}
                 <div>
-                  <Label htmlFor="physicalCount" className="required text-sm">Physical Count</Label>
+                  <Label htmlFor="physicalCount" className="text-sm">
+                    Physical Count <span className="text-red-500">*</span>
+                  </Label>
                   <Input
                     id="physicalCount"
                     type="number"
@@ -658,10 +675,13 @@ export default function NewInventoryCorrectionPage() {
 
                 {/* Reason */}
                 <div>
-                  <Label htmlFor="reason" className="required text-sm">Reason</Label>
+                  <Label htmlFor="reason" className="text-sm">
+                    Reason <span className="text-red-500">*</span>
+                  </Label>
                   <Select
                     value={formData.reason}
                     onValueChange={(value) => setFormData((prev) => ({ ...prev, reason: value }))}
+                    required
                   >
                     <SelectTrigger id="reason" className="mt-1">
                       <SelectValue placeholder="Select reason" />
@@ -678,7 +698,9 @@ export default function NewInventoryCorrectionPage() {
 
                 {/* Remarks */}
                 <div>
-                  <Label htmlFor="remarks" className="text-sm">Remarks</Label>
+                  <Label htmlFor="remarks" className="text-sm">
+                    Remarks <span className="text-red-500">*</span>
+                  </Label>
                   <Textarea
                     id="remarks"
                     value={formData.remarks}
@@ -686,6 +708,7 @@ export default function NewInventoryCorrectionPage() {
                     placeholder="Additional notes..."
                     className="mt-1"
                     rows={3}
+                    required
                   />
                 </div>
 
@@ -693,8 +716,18 @@ export default function NewInventoryCorrectionPage() {
                 <div className="flex flex-col gap-2 pt-4 border-t">
                   <Button
                     type="submit"
-                    disabled={loading || systemCount === null || !formData.productId}
-                    className="bg-blue-600 hover:bg-blue-700 text-white w-full"
+                    disabled={
+                      loading ||
+                      systemCount === null ||
+                      !formData.locationId ||
+                      !formData.productId ||
+                      !formData.productVariationId ||
+                      !formData.physicalCount ||
+                      !formData.reason ||
+                      !formData.remarks ||
+                      parseFloat(formData.physicalCount) < 0
+                    }
+                    className="bg-blue-600 hover:bg-blue-700 text-white w-full disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Save className="h-4 w-4 mr-2" />
                     {loading ? 'Creating...' : 'Create Correction'}
