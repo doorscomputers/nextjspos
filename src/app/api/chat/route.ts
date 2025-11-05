@@ -1,4 +1,5 @@
 import { openai } from '@ai-sdk/openai'
+import { createOpenAI } from '@ai-sdk/openai'
 import { streamText } from 'ai'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
@@ -14,12 +15,15 @@ export async function POST(req: Request) {
     return new Response('Unauthorized', { status: 401 })
   }
 
-  // Check if OpenAI API key is configured
-  if (!process.env.OPENAI_API_KEY) {
-    console.error('❌ OPENAI_API_KEY is not configured in environment variables')
+  // Check which AI provider is configured
+  const openaiKey = process.env.OPENAI_API_KEY
+  const xaiKey = process.env.XAI_API_KEY
+
+  if (!openaiKey && !xaiKey) {
+    console.error('❌ No AI API key configured (OPENAI_API_KEY or XAI_API_KEY)')
     return new Response(
       JSON.stringify({
-        error: 'AI Assistant is not configured. Please contact your administrator to set up the OpenAI API key.'
+        error: 'AI Assistant is not configured. Please add OPENAI_API_KEY or XAI_API_KEY to your environment variables.'
       }),
       {
         status: 503,
@@ -50,20 +54,54 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = streamText({
-      model: openai('gpt-4o-mini'),
-      messages: [systemMessage, ...messages],
-      temperature: 0.7,
-      maxTokens: 1000,
-    })
+    let result
+
+    // Use xAI if configured, otherwise fallback to OpenAI
+    if (xaiKey && xaiKey !== 'your-xai-api-key-here') {
+      console.log('🤖 Using xAI (x.ai) for AI Assistant')
+
+      // Create xAI client (OpenAI-compatible)
+      const xai = createOpenAI({
+        apiKey: xaiKey,
+        baseURL: 'https://api.x.ai/v1',
+      })
+
+      result = streamText({
+        model: xai('grok-beta'), // or 'grok-2-latest'
+        messages: [systemMessage, ...messages],
+        temperature: 0.7,
+        maxTokens: 1000,
+      })
+    } else if (openaiKey && openaiKey !== 'your-openai-api-key-here') {
+      console.log('🤖 Using OpenAI for AI Assistant')
+
+      result = streamText({
+        model: openai('gpt-4o-mini'),
+        messages: [systemMessage, ...messages],
+        temperature: 0.7,
+        maxTokens: 1000,
+      })
+    } else {
+      throw new Error('Valid API key not configured')
+    }
 
     return result.toDataStreamResponse()
   } catch (error: any) {
-    console.error('❌ OpenAI API Error:', error)
+    console.error('❌ AI API Error:', error)
+
+    // Provide helpful error message
+    let errorMessage = 'Failed to connect to AI service.'
+
+    if (error.message?.includes('401') || error.message?.includes('authentication')) {
+      errorMessage = 'Invalid AI API key. Please check your OPENAI_API_KEY or XAI_API_KEY.'
+    } else if (error.message?.includes('quota') || error.message?.includes('billing')) {
+      errorMessage = 'AI API quota exceeded or billing issue. Please check your account.'
+    } else if (error.message?.includes('rate_limit')) {
+      errorMessage = 'AI API rate limit exceeded. Please try again in a moment.'
+    }
+
     return new Response(
-      JSON.stringify({
-        error: 'Failed to connect to AI service. Please check if the OpenAI API key is valid.'
-      }),
+      JSON.stringify({ error: errorMessage }),
       {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
