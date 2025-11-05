@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
+import { useUserLocations } from '@/hooks/useUserLocations'
 import { PERMISSIONS } from '@/lib/rbac'
 import Link from 'next/link'
 import { PlusIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
@@ -66,10 +67,12 @@ interface Transfer {
 
 export default function TransfersDevExtremePage() {
   const { can, user } = usePermissions()
+  const { isLocationUser, loading: locationsLoading } = useUserLocations()
   const [transfers, setTransfers] = useState<Transfer[]>([])
   const [loading, setLoading] = useState(true)
   const [userLocations, setUserLocations] = useState<any[]>([])
   const [hasAccessToAll, setHasAccessToAll] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<string>('pending_check') // Default to pending
 
   useEffect(() => {
     fetchUserLocations()
@@ -79,7 +82,7 @@ export default function TransfersDevExtremePage() {
     if (userLocations.length > 0 || hasAccessToAll) {
       fetchTransfers()
     }
-  }, [userLocations, hasAccessToAll])
+  }, [userLocations, hasAccessToAll, statusFilter])
 
   const fetchUserLocations = async () => {
     try {
@@ -100,7 +103,8 @@ export default function TransfersDevExtremePage() {
   const fetchTransfers = async () => {
     try {
       setLoading(true)
-      const response = await fetch('/api/transfers?includeDetails=true')
+      const statusParam = statusFilter ? `&status=${statusFilter}` : ''
+      const response = await fetch(`/api/transfers?includeDetails=true${statusParam}`)
       if (response.ok) {
         const data = await response.json()
         setTransfers(data || [])
@@ -355,13 +359,39 @@ export default function TransfersDevExtremePage() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex-1">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
             Stock Transfers
           </h1>
           <p className="text-gray-600 dark:text-gray-300 mt-1">
-            Manage stock transfers with master-detail view
+            Manage stock transfers with master-detail view (default: pending check)
           </p>
+
+          {/* Status Filter */}
+          <div className="mt-3 flex items-center gap-3">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Status Filter:
+            </label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Statuses</option>
+              <option value="draft">Draft</option>
+              <option value="pending_check">Pending Check</option>
+              <option value="checked">Checked</option>
+              <option value="in_transit">In Transit</option>
+              <option value="arrived">Arrived</option>
+              <option value="verifying">Verifying</option>
+              <option value="verified">Verified</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+            <Badge variant="outline" className="text-xs">
+              Showing: {transfers.length} transfer{transfers.length !== 1 ? 's' : ''}
+            </Badge>
+          </div>
           {/* Location Filter Info */}
           {!hasAccessToAll && userLocations.length > 0 && (
             <div className="mt-2 flex items-center gap-2">
@@ -381,20 +411,28 @@ export default function TransfersDevExtremePage() {
             </div>
           )}
         </div>
-        <div className="flex gap-2">
-          <Button onClick={fetchTransfers} variant="outline" size="sm">
-            <ArrowPathIcon className="w-4 h-4 mr-2" />
-            Refresh
-          </Button>
-          {can(PERMISSIONS.STOCK_TRANSFER_CREATE) && (
-            <Link href="/dashboard/transfers/create">
-              <Button
-                text="New Transfer"
-                type="default"
-                icon="add"
-                stylingMode="contained"
-              />
-            </Link>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex gap-2">
+            <Button onClick={fetchTransfers} variant="outline" size="sm">
+              <ArrowPathIcon className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
+            {can(PERMISSIONS.STOCK_TRANSFER_CREATE) && isLocationUser && (
+              <Link href="/dashboard/transfers/create">
+                <Button
+                  text="New Transfer"
+                  type="default"
+                  icon="add"
+                  stylingMode="contained"
+                  disabled={locationsLoading}
+                />
+              </Link>
+            )}
+          </div>
+          {can(PERMISSIONS.STOCK_TRANSFER_CREATE) && !isLocationUser && !locationsLoading && (
+            <div className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-4 py-2 rounded border border-amber-200 dark:border-amber-800">
+              ⓘ New Transfer is only available for users assigned to specific locations
+            </div>
           )}
         </div>
       </div>

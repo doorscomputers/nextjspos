@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { useUserLocations } from '@/hooks/useUserLocations'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -19,6 +20,7 @@ import ARPaymentCollectionModal from '@/components/ARPaymentCollectionModal'
 export default function POSEnhancedPage() {
   const { data: session } = useSession()
   const router = useRouter()
+  const { isLocationUser, loading: locationsLoading } = useUserLocations()
   const barcodeInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -1570,6 +1572,34 @@ export default function POSEnhancedPage() {
     session.user as unknown as RBACUser,
     PERMISSIONS.FREEBIE_ADD
   ) : false
+
+  // Check if user has location assignments
+  if (!locationsLoading && !isLocationUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <Card className="w-[500px]">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <div className="text-4xl">🚫</div>
+              <h2 className="text-xl font-semibold text-red-600">Access Restricted</h2>
+              <p className="text-sm text-muted-foreground">
+                POS access is only available for users assigned to specific locations.
+              </p>
+              <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded border border-amber-200">
+                Please contact your administrator to assign you to a location before using the POS system.
+              </p>
+              <Button
+                onClick={() => router.push('/dashboard')}
+                className="mt-4"
+              >
+                Return to Dashboard
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   if (!currentShift) {
     return (

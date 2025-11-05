@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { usePermissions } from '@/hooks/usePermissions'
+import { useUserLocations } from '@/hooks/useUserLocations'
 import { PERMISSIONS } from '@/lib/rbac'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -115,6 +116,7 @@ export default function PurchaseReceiptDetailPage() {
   const params = useParams()
   const router = useRouter()
   const { can } = usePermissions()
+  const { isLocationUser, loading: locationsLoading } = useUserLocations()
   const [loading, setLoading] = useState(true)
   const [approving, setApproving] = useState(false)
   const [rejecting, setRejecting] = useState(false)
@@ -535,17 +537,25 @@ export default function PurchaseReceiptDetailPage() {
             <p className="text-gray-600 mt-1">Goods Received Note Details</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          {getStatusBadge(receipt.status)}
-          {receipt.status === 'approved' && can(PERMISSIONS.PURCHASE_RETURN_CREATE) && (
-            <Button
-              onClick={() => setShowCreateReturnModal(true)}
-              className="bg-orange-600 hover:bg-orange-700 text-white"
-              size="sm"
-            >
-              <ArrowUturnLeftIcon className="w-4 h-4 mr-2" />
-              Create Return
-            </Button>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-3">
+            {getStatusBadge(receipt.status)}
+            {receipt.status === 'approved' && can(PERMISSIONS.PURCHASE_RETURN_CREATE) && isLocationUser && (
+              <Button
+                onClick={() => setShowCreateReturnModal(true)}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+                size="sm"
+                disabled={locationsLoading}
+              >
+                <ArrowUturnLeftIcon className="w-4 h-4 mr-2" />
+                Create Return
+              </Button>
+            )}
+          </div>
+          {receipt.status === 'approved' && can(PERMISSIONS.PURCHASE_RETURN_CREATE) && !isLocationUser && !locationsLoading && (
+            <div className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-4 py-2 rounded border border-amber-200 dark:border-amber-800">
+              ⓘ Create Return is only available for users assigned to specific locations
+            </div>
           )}
         </div>
       </div>

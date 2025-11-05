@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
+import { useUserLocations } from '@/hooks/useUserLocations'
 import { PERMISSIONS } from '@/lib/rbac'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -57,6 +58,7 @@ const STATUS_OPTIONS = [
 
 export default function SupplierReturnsPage() {
   const { can } = usePermissions()
+  const { isLocationUser, loading: locationsLoading } = useUserLocations()
   const router = useRouter()
   const dataGridRef = useRef<DataGrid>(null)
 
@@ -196,15 +198,23 @@ export default function SupplierReturnsPage() {
             Manage returns to suppliers for damaged, defective, or warranty items
           </p>
         </div>
-        {can(PERMISSIONS.PURCHASE_RETURN_CREATE) && (
-          <Button
-            text="Create Return (Manual)"
-            icon="add"
-            type="default"
-            stylingMode="contained"
-            onClick={() => router.push('/dashboard/supplier-returns/create-manual')}
-          />
-        )}
+        <div className="flex flex-col items-end gap-2">
+          {can(PERMISSIONS.PURCHASE_RETURN_CREATE) && isLocationUser && (
+            <Button
+              text="Create Return (Manual)"
+              icon="add"
+              type="default"
+              stylingMode="contained"
+              onClick={() => router.push('/dashboard/supplier-returns/create-manual')}
+              disabled={locationsLoading}
+            />
+          )}
+          {can(PERMISSIONS.PURCHASE_RETURN_CREATE) && !isLocationUser && !locationsLoading && (
+            <div className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-4 py-2 rounded border border-amber-200 dark:border-amber-800">
+              ⓘ Create button is only available for users assigned to specific locations
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
