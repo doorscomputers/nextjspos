@@ -222,7 +222,9 @@ export default function NewInventoryCorrectionPage() {
       const res = await fetch('/api/locations')
       if (res.ok) {
         const data = await res.json()
-        setLocations(data.locations || [])
+        // API returns { success: true, data: [...] }
+        setLocations(data.data || [])
+        console.log('📍 Locations loaded:', data.data?.length || 0)
       }
     } catch (error) {
       console.error('Error fetching locations:', error)
