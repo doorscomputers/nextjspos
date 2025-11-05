@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import "@progress/kendo-theme-default/dist/all.css";
 import Providers from "./providers";
 import { PageLoader } from "@/components/PageLoader";
 import { DevExtremeStyles } from "@/components/DevExtremeStyles";
-import { KendoLicenseProvider } from "@/components/KendoLicenseProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -30,9 +28,7 @@ export default function RootLayout({
       >
         <DevExtremeStyles />
         <PageLoader />
-        <KendoLicenseProvider>
-          <Providers>{children}</Providers>
-        </KendoLicenseProvider>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
