@@ -18,6 +18,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    console.log('[APPROVE] Starting purchase return approval...')
     const session = await getServerSession(authOptions)
 
     if (!session?.user) {
@@ -45,6 +46,7 @@ export async function POST(
     }
 
     // Fetch purchase return with all details
+    console.log(`[APPROVE] Fetching return ID: ${returnIdNumber}`)
     const purchaseReturn = await prisma.purchaseReturn.findFirst({
       where: {
         id: returnIdNumber,
@@ -66,11 +68,15 @@ export async function POST(
     })
 
     if (!purchaseReturn) {
+      console.log(`[APPROVE] ❌ Return not found: ${returnIdNumber}`)
       return NextResponse.json({ error: 'Purchase return not found' }, { status: 404 })
     }
 
+    console.log(`[APPROVE] ✅ Found return: ${purchaseReturn.returnNumber}, Status: ${purchaseReturn.status}`)
+
     // Validate status
     if (purchaseReturn.status !== 'pending') {
+      console.log(`[APPROVE] ❌ Invalid status: ${purchaseReturn.status}`)
       return NextResponse.json(
         { error: `Cannot approve return with status: ${purchaseReturn.status}` },
         { status: 400 }
@@ -98,8 +104,10 @@ export async function POST(
     }
 
     // Perform approval in transaction
+    console.log(`[APPROVE] Starting transaction...`)
     const result = await prisma.$transaction(async (tx) => {
       // 1. Update purchase return status
+      console.log(`[APPROVE] 1. Updating return status...`)
       const approvedReturn = await tx.purchaseReturn.update({
         where: { id: purchaseReturn.id },
         data: {
@@ -108,13 +116,16 @@ export async function POST(
           approvedAt: new Date(),
         },
       })
+      console.log(`[APPROVE] ✅ Status updated to approved`)
 
       // 2. Reduce inventory for each item
+      console.log(`[APPROVE] 2. Processing ${purchaseReturn.items.length} items...`)
       for (const item of purchaseReturn.items) {
         const returnQty = parseFloat(String(item.quantityReturned))
         const unitCost = item.unitCost ? parseFloat(String(item.unitCost)) : 0
 
         if (returnQty > 0) {
+          console.log(`[APPROVE]    - Processing item ${item.id}: Product ${item.productId}, Qty: ${returnQty}`)
           await processSupplierReturn({
             businessId: businessIdNumber,
             productId: item.productId,
@@ -127,6 +138,7 @@ export async function POST(
             userDisplayName,
             tx,
           })
+          console.log(`[APPROVE]    ✅ Item processed successfully`)
         }
 
         // Update serial numbers status if applicable
@@ -148,12 +160,14 @@ export async function POST(
       }
 
       // 3. Generate debit note number
+      console.log(`[APPROVE] 3. Generating debit note...`)
       const debitNoteCount = await tx.debitNote.count({
         where: { businessId: businessIdNumber },
       })
       const debitNoteNumber = `DN-${String(debitNoteCount + 1).padStart(6, '0')}`
 
       // 4. Create debit note
+      console.log(`[APPROVE] 4. Creating debit note: ${debitNoteNumber}`)
       const debitNote = await tx.debitNote.create({
         data: {
           businessId: businessIdNumber,
@@ -169,6 +183,7 @@ export async function POST(
       })
 
       // 5. Update accounts payable if exists
+      console.log(`[APPROVE] 5. Updating accounts payable...`)
       if (purchaseReturn.purchaseReceipt.purchaseId) {
         const accountsPayable = await tx.accountsPayable.findFirst({
           where: {
@@ -183,6 +198,8 @@ export async function POST(
           const returnAmount = parseFloat(String(purchaseReturn.totalAmount))
           const newBalance = Math.max(0, currentBalance - returnAmount)
 
+          console.log(`[APPROVE]    Current balance: ₱${currentBalance}, Return: ₱${returnAmount}, New: ₱${newBalance}`)
+
           // Update paid amount
           const totalAmount = parseFloat(String(accountsPayable.totalAmount))
           const newPaidAmount = totalAmount - newBalance
@@ -195,11 +212,19 @@ export async function POST(
               paymentStatus: newBalance <= 0 ? 'paid' : 'partial',
             },
           })
+          console.log(`[APPROVE]    ✅ AP updated`)
+        } else {
+          console.log(`[APPROVE]    ⚠️  No AP record found`)
         }
+      } else {
+        console.log(`[APPROVE]    ⚠️  No purchase ID linked`)
       }
 
+      console.log(`[APPROVE] ✅ Transaction completed successfully!`)
       return { approvedReturn, debitNote }
     })
+
+    console.log(`[APPROVE] Creating audit log...`)
 
     // Create audit log
     await createAuditLog({
@@ -246,6 +271,7 @@ export async function POST(
       },
     })
 
+    console.log(`[APPROVE] ✅ ALL DONE! Returning success response`)
     return NextResponse.json({
       success: true,
       message: 'Purchase return approved successfully',
@@ -253,7 +279,8 @@ export async function POST(
       debitNote: result.debitNote,
     })
   } catch (error: any) {
-    console.error('Error approving purchase return:', error)
+    console.error('[APPROVE] ❌ ERROR:', error)
+    console.error('[APPROVE] Error stack:', error.stack)
     return NextResponse.json(
       { error: 'Failed to approve purchase return', details: error.message },
       { status: 500 }
