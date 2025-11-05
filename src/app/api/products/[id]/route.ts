@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { generateProductSKU, generateVariationSKU, isSkuEmpty } from '@/lib/sku-generator'
 import { sendTelegramProductEditAlert } from '@/lib/telegram'
+import { detectFieldChanges, formatChangesDescription, getCriticalFields } from '@/lib/auditFieldChanges'
+import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 
 export async function GET(
   request: NextRequest,
@@ -544,6 +546,68 @@ export async function PUT(
         // Don't fail the request if Telegram notification fails
       }
     }
+
+    // Field-level audit logging (async, non-blocking)
+    setImmediate(async () => {
+      try {
+        // Prepare old and new data for comparison
+        const oldData = {
+          name: existingProduct.name,
+          purchasePrice: existingProduct.purchasePrice,
+          sellingPrice: existingProduct.sellingPrice,
+          isActive: existingProduct.isActive,
+          sku: existingProduct.sku,
+          categoryId: existingProduct.categoryId,
+          brandId: existingProduct.brandId,
+          enableStock: existingProduct.enableStock,
+          alertQuantity: existingProduct.alertQuantity,
+          description: existingProduct.description
+        }
+
+        const newData = {
+          name: result.name,
+          purchasePrice: result.purchasePrice,
+          sellingPrice: result.sellingPrice,
+          isActive: result.isActive,
+          sku: result.sku,
+          categoryId: result.categoryId,
+          brandId: result.brandId,
+          enableStock: result.enableStock,
+          alertQuantity: result.alertQuantity,
+          description: result.description
+        }
+
+        // Detect field-level changes
+        const fieldChanges = detectFieldChanges(oldData, newData, getCriticalFields('Product'))
+
+        // Only create audit log if there are actual changes
+        if (fieldChanges.length > 0) {
+          await createAuditLog({
+            businessId: parseInt(user.businessId),
+            userId: parseInt(user.id),
+            username: user.username,
+            action: AuditAction.PRODUCT_UPDATE,
+            entityType: EntityType.PRODUCT,
+            entityIds: [result.id],
+            description: `Updated product "${result.name}": ${formatChangesDescription(fieldChanges)}`,
+            metadata: {
+              changes: fieldChanges,
+              oldValues: oldData,
+              newValues: newData,
+              changedFields: fieldChanges.map(c => c.field),
+              changeCount: fieldChanges.length
+            },
+            ipAddress: getIpAddress(request),
+            userAgent: getUserAgent(request)
+          })
+
+          console.log(`[AUDIT] Product update tracked: ${fieldChanges.length} field(s) changed for product ID ${result.id}`)
+        }
+      } catch (auditError) {
+        console.error('Failed to create audit log for product update:', auditError)
+        // Don't fail the request if audit logging fails
+      }
+    })
 
     return NextResponse.json({ product: result, message: 'Product updated successfully' }, { status: 200 })
   } catch (error) {
