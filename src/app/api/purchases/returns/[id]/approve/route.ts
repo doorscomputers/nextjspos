@@ -222,6 +222,8 @@ export async function POST(
 
       console.log(`[APPROVE] ✅ Transaction completed successfully!`)
       return { approvedReturn, debitNote }
+    }, {
+      timeout: 30000, // 30 second timeout for complex operations
     })
 
     console.log(`[APPROVE] Creating audit log...`)
