@@ -19,15 +19,38 @@ export default function AIAssistantPage() {
   const { data: session } = useSession()
   const [chatError, setChatError] = useState<string | null>(null)
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, setInput } = useChat({
+  // State for input (now managed locally, not by useChat)
+  const [input, setInput] = useState('')
+
+  console.log('🚀 Initializing useChat hook...')
+  const chatResult = useChat({
     api: '/api/chat',
     onError: (error) => {
       console.error('❌ Chat error:', error)
       setChatError(error.message || 'Failed to connect to AI service')
     },
-    initialInput: '',
-    initialMessages: []
   })
+  console.log('✅ useChat result:', chatResult)
+
+  const { messages, sendMessage, status, error: chatHookError } = chatResult
+  const isLoading = status === 'in_progress'
+
+  // Handle chat errors
+  useEffect(() => {
+    if (chatHookError) {
+      setChatError(chatHookError.message || 'Failed to connect to AI service')
+    }
+  }, [chatHookError])
+
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 useChat initialized:', {
+      hasSendMessage: !!sendMessage,
+      messagesCount: messages.length,
+      status,
+      isLoading,
+    })
+  }, [sendMessage, messages.length, status, isLoading])
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -244,11 +267,9 @@ export default function AIAssistantPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl">
               <button
                 onClick={() => {
-                  const event = new Event('submit', { bubbles: true, cancelable: true })
-                  const form = document.querySelector('form')
-                  if (form) {
-                    ;(document.getElementById('chat-input') as HTMLInputElement).value = "Show me today's sales summary"
-                    form.dispatchEvent(event)
+                  const message = "Show me today's sales summary"
+                  if (sendMessage) {
+                    sendMessage({ content: message, role: 'user' })
                   }
                 }}
                 className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-all text-left"
@@ -258,11 +279,9 @@ export default function AIAssistantPage() {
               </button>
               <button
                 onClick={() => {
-                  const event = new Event('submit', { bubbles: true, cancelable: true })
-                  const form = document.querySelector('form')
-                  if (form) {
-                    ;(document.getElementById('chat-input') as HTMLInputElement).value = "What are my top selling products?"
-                    form.dispatchEvent(event)
+                  const message = "What are my top selling products?"
+                  if (sendMessage) {
+                    sendMessage({ content: message, role: 'user' })
                   }
                 }}
                 className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-all text-left"
@@ -272,11 +291,9 @@ export default function AIAssistantPage() {
               </button>
               <button
                 onClick={() => {
-                  const event = new Event('submit', { bubbles: true, cancelable: true })
-                  const form = document.querySelector('form')
-                  if (form) {
-                    ;(document.getElementById('chat-input') as HTMLInputElement).value = "Help me understand inventory management"
-                    form.dispatchEvent(event)
+                  const message = "Help me understand inventory management"
+                  if (sendMessage) {
+                    sendMessage({ content: message, role: 'user' })
                   }
                 }}
                 className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-all text-left"
@@ -286,11 +303,9 @@ export default function AIAssistantPage() {
               </button>
               <button
                 onClick={() => {
-                  const event = new Event('submit', { bubbles: true, cancelable: true })
-                  const form = document.querySelector('form')
-                  if (form) {
-                    ;(document.getElementById('chat-input') as HTMLInputElement).value = "Give me business insights and recommendations"
-                    form.dispatchEvent(event)
+                  const message = "Give me business insights and recommendations"
+                  if (sendMessage) {
+                    sendMessage({ content: message, role: 'user' })
                   }
                 }}
                 className="p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-indigo-500 hover:bg-indigo-50 transition-all text-left"
@@ -351,9 +366,17 @@ export default function AIAssistantPage() {
       <form
         onSubmit={(e) => {
           e.preventDefault()
-          if (handleSubmit) {
-            handleSubmit(e)
+          console.log('📝 Form submitted, input:', input)
+          if (!input?.trim()) {
+            console.log('⏭️ Empty input, skipping')
+            return
+          }
+          if (sendMessage) {
+            console.log('✅ Sending message via sendMessage()')
+            sendMessage({ content: input, role: 'user' })
+            setInput('') // Clear input after sending
           } else {
+            console.error('❌ sendMessage is undefined!')
             setChatError('AI Assistant is not properly initialized. Please refresh the page.')
           }
         }}
@@ -363,10 +386,12 @@ export default function AIAssistantPage() {
           <input
             id="chat-input"
             type="text"
-            value={input || ''}
-            onChange={handleInputChange || (() => {})}
-            placeholder="Ask me anything about your POS system..."
-            disabled={!handleSubmit || isLoading}
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value)
+            }}
+            placeholder={!sendMessage ? "Initializing AI Assistant..." : "Ask me anything about your POS system..."}
+            disabled={!sendMessage || isLoading}
             className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
           />
           <button

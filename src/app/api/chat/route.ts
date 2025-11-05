@@ -32,7 +32,23 @@ export async function POST(req: Request) {
     )
   }
 
-  const { messages } = await req.json()
+  const body = await req.json()
+  console.log('📥 Received request body:', JSON.stringify(body, null, 2))
+
+  const { messages } = body
+
+  if (!messages || !Array.isArray(messages)) {
+    console.error('❌ Invalid messages format:', messages)
+    return new Response(
+      JSON.stringify({ error: 'Invalid request: messages must be an array' }),
+      {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      }
+    )
+  }
+
+  console.log('📝 Messages count:', messages.length)
 
   // Add system context about POS system
   const businessName = (session.user as any)?.businessName || 'your business'
@@ -66,28 +82,38 @@ export async function POST(req: Request) {
         baseURL: 'https://api.x.ai/v1',
       })
 
-      result = streamText({
+      console.log('🚀 Calling streamText with xAI...')
+      result = await streamText({
         model: xai('grok-beta'), // or 'grok-2-latest'
         messages: [systemMessage, ...messages],
         temperature: 0.7,
         maxTokens: 1000,
       })
+      console.log('✅ streamText completed')
     } else if (openaiKey && openaiKey !== 'your-openai-api-key-here') {
       console.log('🤖 Using OpenAI for AI Assistant')
 
-      result = streamText({
+      console.log('🚀 Calling streamText with OpenAI...')
+      result = await streamText({
         model: openai('gpt-4o-mini'),
         messages: [systemMessage, ...messages],
         temperature: 0.7,
         maxTokens: 1000,
       })
+      console.log('✅ streamText completed')
     } else {
       throw new Error('Valid API key not configured')
     }
 
+    console.log('📤 Sending response...')
     return result.toDataStreamResponse()
   } catch (error: any) {
     console.error('❌ AI API Error:', error)
+    console.error('❌ Error details:', {
+      message: error.message,
+      stack: error.stack,
+      cause: error.cause,
+    })
 
     // Provide helpful error message
     let errorMessage = 'Failed to connect to AI service.'

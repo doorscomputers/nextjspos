@@ -1438,10 +1438,11 @@ export default function PurchaseReceiptDetailPage() {
                       💡 <strong>Tip:</strong> Download this report as PDF for your records.
                     </div>
                     <Button
-                      onClick={() => {
-                        import('jspdf').then(({ default: jsPDF }) => {
-                          import('jspdf-autotable').then(() => {
-                            const doc = new jsPDF()
+                      onClick={async () => {
+                        try {
+                          const { default: jsPDF } = await import('jspdf')
+                          await import('jspdf-autotable')
+                          const doc = new jsPDF() as any
 
                             // Title
                             doc.setFontSize(16)
@@ -1474,7 +1475,7 @@ export default function PurchaseReceiptDetailPage() {
                             }
 
                             // Add table
-                            ; (doc as any).autoTable({
+                            doc.autoTable({
                               startY: 45,
                               head: [['Product', 'Location', 'Before', 'After', 'Added']],
                               body: tableData,
@@ -1500,8 +1501,10 @@ export default function PurchaseReceiptDetailPage() {
 
                             // Save PDF
                             doc.save(`GRN_Impact_${inventoryImpactData.referenceNumber}.pdf`)
-                          })
-                        })
+                        } catch (error) {
+                          console.error('Failed to generate PDF:', error)
+                          alert('Failed to generate PDF. Please try again.')
+                        }
                       }}
                       variant="outline"
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
