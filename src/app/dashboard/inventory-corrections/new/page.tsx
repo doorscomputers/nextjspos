@@ -92,8 +92,17 @@ export default function NewInventoryCorrectionPage() {
   // Auto-select location based on user's assigned location
   useEffect(() => {
     if (locations.length > 0 && session?.user) {
+      const userPermissions = (session.user as any).permissions || []
+      const hasAccessAllLocations = userPermissions.includes('location.access_all')
       const userLocationIds = (session.user as any).locationIds || []
 
+      // If user has access to all locations, show all locations
+      if (hasAccessAllLocations) {
+        // Don't lock location, let them choose
+        return
+      }
+
+      // If user has exactly one location, auto-lock it
       if (userLocationIds.length === 1) {
         const userLoc = locations.find(loc => userLocationIds.includes(loc.id))
         if (userLoc) {
@@ -101,9 +110,12 @@ export default function NewInventoryCorrectionPage() {
           setFormData(prev => ({ ...prev, locationId: userLoc.id.toString() }))
         }
       } else if (userLocationIds.length > 1) {
+        // Filter to show only accessible locations
         const accessibleLocs = locations.filter(loc => userLocationIds.includes(loc.id))
         setLocations(accessibleLocs)
       }
+      // If userLocationIds is empty and no ACCESS_ALL_LOCATIONS,
+      // they'll see empty dropdown (which is correct - they need location assignment)
     }
   }, [locations.length, session?.user])
 
