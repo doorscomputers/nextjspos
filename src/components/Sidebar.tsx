@@ -673,7 +673,7 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
       name: "Returns Management",
       href: "/dashboard/customer-returns",
       icon: ArrowUturnLeftIcon,
-      permission: PERMISSIONS.CUSTOMER_RETURN_VIEW,
+      // No permission check - controlled by menu permissions only
       children: [
         {
           key: "customer_returns",

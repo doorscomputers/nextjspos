@@ -25,30 +25,27 @@ async function addReturnsMenuPermissions() {
     const menuPermissionsToAdd = [
       {
         key: 'returns_management',
-        label: 'Returns Management',
+        name: 'Returns Management',
         icon: 'Package',
         href: null,
-        parentKey: null,
+        parentId: null,
         order: 11,
-        description: 'Access returns management features',
       },
       {
         key: 'purchase_returns',
-        label: 'Purchase Returns',
+        name: 'Purchase Returns',
         icon: 'PackageMinus',
         href: '/dashboard/purchases/returns',
         parentKey: 'returns_management',
         order: 1,
-        description: 'Manage purchase returns from GRN',
       },
       {
         key: 'supplier_returns',
-        label: 'Supplier Returns',
+        name: 'Supplier Returns',
         icon: 'PackageX',
         href: '/dashboard/supplier-returns',
         parentKey: 'returns_management',
         order: 2,
-        description: 'Manage standalone supplier returns',
       },
     ]
 
@@ -63,16 +60,24 @@ async function addReturnsMenuPermissions() {
       if (menuPermission) {
         console.log(`   ⏭️  ${menuPerm.key} already exists (ID: ${menuPermission.id})`)
       } else {
+        // For child menus, we need to find parent first
+        let parentId: number | null = null
+        if (menuPerm.parentKey) {
+          const parentMenu = await prisma.menuPermission.findFirst({
+            where: { key: menuPerm.parentKey },
+          })
+          parentId = parentMenu?.id || null
+        }
+
         // Create menu permission
         menuPermission = await prisma.menuPermission.create({
           data: {
             key: menuPerm.key,
-            label: menuPerm.label,
+            name: menuPerm.name,
             icon: menuPerm.icon,
             href: menuPerm.href,
-            parentKey: menuPerm.parentKey,
+            parentId: parentId,
             order: menuPerm.order,
-            description: menuPerm.description,
           },
         })
         console.log(`   ✅ Created ${menuPerm.key} (ID: ${menuPermission.id})`)
@@ -126,7 +131,7 @@ async function addReturnsMenuPermissions() {
 
     console.log(`📊 Warehouse Manager now has ${returnsMenus?.length || 0} returns-related menu permissions:`)
     for (const rm of returnsMenus || []) {
-      console.log(`   ✅ ${rm.menuPermission.key} - ${rm.menuPermission.label}`)
+      console.log(`   ✅ ${rm.menuPermission.key} - ${rm.menuPermission.name}`)
     }
 
     console.log('\n📝 Next Steps:')
