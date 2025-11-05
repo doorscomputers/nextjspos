@@ -86,19 +86,25 @@
 
 ---
 
-### 5. ✅ Inventory Correction - Location Dropdown Blank
-**Issue:** Warehouse Managers with `ACCESS_ALL_LOCATIONS` permission saw blank dropdown
+### 5. ✅ Inventory Correction - Location Dropdown Blank (FIXED: 2025-11-05)
+**Issue:** Location dropdown showed "No active locations available" for all users
 
-**Fixed File:** `src/app/dashboard/inventory-corrections/new/page.tsx`
+**Root Cause:** API response parsing error
+- API returns `{ success: true, data: [...] }`
+- Frontend was accessing `data.locations` instead of `data.data`
+
+**Fixed File:** `src/app/dashboard/inventory-corrections/new/page.tsx` (Commit: `64e36d3`)
 
 **How to Test:**
-1. Login as Warehouse Manager (or role with ACCESS_ALL_LOCATIONS permission)
+1. Login as Warehouse Manager (or any role with inventory correction permission)
 2. Go to: Inventory Corrections → New Correction
-3. Check Location dropdown
-4. ✅ **Expected:** All locations visible in dropdown
-5. ❌ **Before Fix:** Blank dropdown (no locations)
+3. Click Location dropdown
+4. ✅ **Expected:** All active locations visible in dropdown
+5. ❌ **Before Fix:** "No active locations available" message
 
 **Test URL:** https://pcinet.shop/dashboard/inventory-corrections/new
+
+**Note:** Must clear browser cache and hard refresh (Ctrl+Shift+R) after deployment
 
 ---
 
@@ -322,8 +328,11 @@ If you find bugs:
 
 ## ✅ DEPLOYMENT VERIFICATION
 
-**Current Commit:** 3ad9eca (Inventory correction location dropdown fix)
-**Previous Commit:** 2bcf11c (Critical approval errors and payment form)
+**Current Commit:** 64e36d3 (Inventory correction location dropdown API fix - 2025-11-05)
+**Previous Commits:**
+- 8424cd4 (Complete Kendo UI removal)
+- e8f0ef3 (Inventory correction required fields)
+- 2bcf11c (Critical approval errors and payment form)
 
 **To Verify Deployment:**
 1. Go to https://pcinet.shop

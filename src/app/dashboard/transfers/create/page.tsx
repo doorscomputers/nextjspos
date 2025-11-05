@@ -315,7 +315,7 @@ export default function CreateTransferPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Transfer Details */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Locations and Date */}
+          {/* Locations */}
           <div className="bg-white p-6 rounded-lg shadow space-y-4">
             <h2 className="text-lg font-semibold">Transfer Details</h2>
 
@@ -399,27 +399,6 @@ export default function CreateTransferPage() {
                 })()}
               </div>
             </div>
-
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
-                <strong>📅 Transfer Date:</strong> Automatically recorded as current date/time when you submit.
-                <br />
-                <span className="text-xs">This prevents backdating and ensures accurate audit trails.</span>
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Notes
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="Optional notes about this transfer..."
-              />
-            </div>
           </div>
 
           {/* Add Items */}
@@ -490,6 +469,30 @@ export default function CreateTransferPage() {
               </div>
             </div>
           )}
+
+          {/* Transfer Date and Notes */}
+          <div className="bg-white p-6 rounded-lg shadow space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                <strong>📅 Transfer Date:</strong> Automatically recorded as current date/time when you submit.
+                <br />
+                <span className="text-xs">This prevents backdating and ensures accurate audit trails.</span>
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Notes
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Optional notes about this transfer..."
+              />
+            </div>
+          </div>
         </div>
 
         {/* Summary Sidebar */}
