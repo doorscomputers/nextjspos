@@ -24,8 +24,10 @@ import { saveAs } from 'file-saver-es'
 import { exportDataGrid as exportDataGridToPdf } from 'devextreme/pdf_exporter'
 import { exportDataGrid as exportDataGridToExcel } from 'devextreme/excel_exporter'
 import { jsPDF } from 'jspdf'
-import Button from 'devextreme-react/button'
+import DxButton from 'devextreme-react/button'
 import SelectBox from 'devextreme-react/select-box'
+import { Button as UiButton } from '@/components/ui/button'
+import { Eye } from 'lucide-react'
 
 interface SupplierReturn {
   id: number
@@ -200,7 +202,7 @@ export default function SupplierReturnsPage() {
         </div>
         <div className="flex flex-col items-end gap-2">
           {can(PERMISSIONS.PURCHASE_RETURN_CREATE) && isLocationUser && (
-            <Button
+            <DxButton
               text="Create Return (Manual)"
               icon="add"
               type="default"
@@ -369,17 +371,24 @@ export default function SupplierReturnsPage() {
 
         <Column
           caption="Actions"
-          width={100}
+          width={130}
           alignment="center"
           allowFiltering={false}
           allowSorting={false}
           allowExporting={false}
           cellRender={(cellData) => (
-            <Button
-              icon="eyeopen"
-              hint="View Details"
-              onClick={() => handleViewReturn(cellData.data.id)}
-            />
+            <div className="flex justify-center">
+              <UiButton
+                variant="outline"
+                size="sm"
+                className="min-w-[96px]"
+                title="View details"
+                onClick={() => handleViewReturn(cellData.data.id)}
+              >
+                <Eye className="size-4" />
+                View
+              </UiButton>
+            </div>
           )}
         />
       </DataGrid>
