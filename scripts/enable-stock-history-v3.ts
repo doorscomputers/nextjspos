@@ -29,6 +29,7 @@ async function enableStockHistoryV3() {
     const rolesToUpdate = [
       'Super Admin',
       'Admin',
+      
       'All Branch Admin', // This is the one user specifically wants
     ]
 

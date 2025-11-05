@@ -1,7 +1,14 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { MagnifyingGlassIcon, DocumentArrowDownIcon, PrinterIcon, DocumentTextIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
+import {
+  MagnifyingGlassIcon,
+  DocumentArrowDownIcon,
+  PrinterIcon,
+  DocumentTextIcon,
+  ArrowPathIcon,
+  ExclamationTriangleIcon,
+} from '@heroicons/react/24/outline'
 import ColumnVisibilityToggle from '@/components/ColumnVisibilityToggle'
 import { SortableTableHead } from '@/components/ui/sortable-table-head'
 import { exportToCSV, exportToExcel, exportToPDF, printTable, ExportColumn } from '@/lib/exportUtils'
@@ -475,6 +482,16 @@ const handlePrint = async () => {
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">All Branch Stock</h1>
         <p className="text-gray-600 dark:text-gray-300 mt-1">View stock levels across all business locations</p>
+      </div>
+
+      <div className="mb-6 flex items-start gap-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
+        <ExclamationTriangleIcon className="h-5 w-5 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
+        <div>
+          <p className="font-medium">Inventory counts are cached.</p>
+          <p className="mt-1 text-amber-800 dark:text-amber-200">
+            Click the Refresh button before relying on these numbers to pull the latest stock from every location.
+          </p>
+        </div>
       </div>
 
       {/* Filters */}
