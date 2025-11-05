@@ -691,7 +691,7 @@ test.describe('Branch-Level Permissions for Opening Stock', () => {
         body: JSON.stringify({
           stockEntries: [
             {
-              locationId: '1', // Main Store - cashier doesn't have access
+              locationId: '1', // Main Warehouse - cashier doesn't have access
               quantity: '100',
               purchasePrice: '100',
               sellingPrice: '150'
