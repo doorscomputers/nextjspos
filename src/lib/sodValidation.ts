@@ -70,8 +70,8 @@ export async function validateSOD(
     allowCustomerReturnCreatorToApprove: false,
     allowSupplierReturnCreatorToApprove: false,
 
-    // Exempt roles
-    exemptRoles: 'Super Admin,System Administrator',
+    // Exempt roles (TEMPORARY: Added Warehouse Manager per user request)
+    exemptRoles: 'Super Admin,System Administrator,Warehouse Manager',
   }
 
   // Check if user has exempt role

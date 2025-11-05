@@ -13,18 +13,13 @@ import { ArrowLeftIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import SelectBox from 'devextreme-react/select-box'
 import NumberBox from 'devextreme-react/number-box'
+import SupplierProductAutocomplete from '@/components/SupplierProductAutocomplete'
 
 interface Supplier {
   id: number
   name: string
   mobile: string | null
   email: string | null
-}
-
-interface Product {
-  id: number
-  name: string
-  sku: string
 }
 
 interface Variation {
@@ -54,13 +49,14 @@ export default function CreateManualSupplierReturnPage() {
 
   const [loading, setLoading] = useState(false)
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
-  const [products, setProducts] = useState<Product[]>([])
   const [variations, setVariations] = useState<Variation[]>([])
   const [locations, setLocations] = useState<Location[]>([])
 
   // Form state
   const [supplierId, setSupplierId] = useState('')
   const [productId, setProductId] = useState('')
+  const [productName, setProductName] = useState('')
+  const [productSku, setProductSku] = useState('')
   const [variationId, setVariationId] = useState('')
   const [locationId, setLocationId] = useState('1') // Main Warehouse (only authorized location)
   const [quantity, setQuantity] = useState(1)
@@ -71,7 +67,6 @@ export default function CreateManualSupplierReturnPage() {
   const [notes, setNotes] = useState('')
 
   const [loadingSuppliers, setLoadingSuppliers] = useState(true)
-  const [loadingProducts, setLoadingProducts] = useState(true)
   const [loadingLocations, setLoadingLocations] = useState(true)
 
   useEffect(() => {
@@ -80,16 +75,11 @@ export default function CreateManualSupplierReturnPage() {
   }, [])
 
   useEffect(() => {
-    // When supplier changes, fetch products for that supplier
-    if (supplierId) {
-      fetchProductsBySupplier(supplierId)
-      // Clear product and variation selection
+    // When supplier changes, clear product and variation selection
+    if (!supplierId) {
       setProductId('')
-      setVariationId('')
-      setUnitCost(0)
-    } else {
-      setProducts([])
-      setProductId('')
+      setProductName('')
+      setProductSku('')
       setVariationId('')
       setUnitCost(0)
     }
@@ -121,30 +111,6 @@ export default function CreateManualSupplierReturnPage() {
       toast.error('Failed to fetch suppliers')
     } finally {
       setLoadingSuppliers(false)
-    }
-  }
-
-  const fetchProductsBySupplier = async (suppId: string) => {
-    try {
-      setLoadingProducts(true)
-      // Fetch products that have been purchased from this supplier
-      const response = await fetch(`/api/suppliers/${suppId}/products`)
-      const data = await response.json()
-      if (response.ok) {
-        setProducts(data.products || [])
-        if (data.products?.length === 0) {
-          toast.info('No products purchased from this supplier yet')
-        }
-      } else {
-        toast.error('Failed to fetch products for this supplier')
-        setProducts([])
-      }
-    } catch (error) {
-      console.error('Error fetching products for supplier:', error)
-      toast.error('Failed to fetch products for this supplier')
-      setProducts([])
-    } finally {
-      setLoadingProducts(false)
     }
   }
 
@@ -403,29 +369,19 @@ export default function CreateManualSupplierReturnPage() {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Product <span className="text-red-500">*</span>
                 </label>
-                <SelectBox
-                  dataSource={products}
-                  displayExpr={(item) => item ? `${item.name} (${item.sku})` : ''}
-                  valueExpr="id"
-                  value={productId ? parseInt(productId) : null}
-                  onValueChanged={(e) => setProductId(e.value ? e.value.toString() : '')}
-                  searchEnabled={true}
-                  searchMode="contains"
-                  searchExpr={['name', 'sku']}
-                  placeholder={
-                    !supplierId
-                      ? "Select supplier first"
-                      : loadingProducts
-                      ? "Loading products..."
-                      : "Select product"
-                  }
-                  disabled={!supplierId || loadingProducts}
-                  showClearButton={true}
-                  stylingMode="outlined"
+                <SupplierProductAutocomplete
+                  supplierId={supplierId}
+                  onProductSelect={(prodId, prodName, prodSku) => {
+                    setProductId(prodId)
+                    setProductName(prodName)
+                    setProductSku(prodSku)
+                  }}
+                  placeholder="Search products purchased from this supplier..."
+                  disabled={!supplierId}
                 />
-                {supplierId && products.length === 0 && !loadingProducts && (
-                  <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
-                    No products have been purchased from this supplier yet
+                {productId && (
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                    ✓ Selected: {productName} ({productSku})
                   </p>
                 )}
               </div>

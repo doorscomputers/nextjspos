@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const query = searchParams.get('q') || ''
     const limit = parseInt(searchParams.get('limit') || '20')
+    const supplierId = searchParams.get('supplierId') // Optional supplier filter
 
     if (!query.trim()) {
       return NextResponse.json({ products: [] })
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest) {
     console.log(`=== Product Search Debug ===`)
     console.log(`Search term: "${searchTrimmed}"`)
     console.log(`Business ID: ${businessId}`)
+    console.log(`Supplier ID filter: ${supplierId || 'none'}`)
     console.log(`User: ${session.user.username}`)
 
     // Step 1: Try exact SKU match first (EQUALS operator)
@@ -51,6 +53,17 @@ export async function GET(request: NextRequest) {
             sku: { equals: searchTrimmed, mode: 'insensitive' },
           },
         },
+        // Filter by supplier if supplierId is provided
+        ...(supplierId ? {
+          purchaseItems: {
+            some: {
+              purchase: {
+                supplierId: parseInt(supplierId),
+                businessId,
+              },
+            },
+          },
+        } : {}),
       },
       include: {
         variations: {
@@ -116,6 +129,17 @@ export async function GET(request: NextRequest) {
             },
           },
         ],
+        // Filter by supplier if supplierId is provided
+        ...(supplierId ? {
+          purchaseItems: {
+            some: {
+              purchase: {
+                supplierId: parseInt(supplierId),
+                businessId,
+              },
+            },
+          },
+        } : {}),
       },
       include: {
         variations: {

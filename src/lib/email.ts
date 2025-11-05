@@ -589,6 +589,96 @@ export async function sendTransferDiscrepancyAlert(data: {
   })
 }
 
+// Alert: Supplier Return
+export async function sendSupplierReturnAlert(data: {
+  returnNumber: string
+  supplierName: string
+  totalAmount: number
+  itemCount: number
+  reason: string
+  status: string
+  createdBy: string
+  locationName: string
+  timestamp: Date
+  items?: Array<{
+    productName: string
+    quantity: number
+    unitCost: number
+  }>
+}): Promise<boolean> {
+  if (!alertConfig.enabled) {
+    return false
+  }
+
+  const itemRows = data.items && data.items.length > 0
+    ? data.items.map(item => `
+      <tr>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;">
+          <strong>${item.productName}</strong>
+        </td>
+        <td style="padding: 10px; border: 1px solid #e5e7eb; text-align: center;">
+          ${item.quantity}
+        </td>
+        <td style="padding: 10px; border: 1px solid #e5e7eb; text-align: right;">
+          ${item.unitCost.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+        </td>
+        <td style="padding: 10px; border: 1px solid #e5e7eb; text-align: right;">
+          <strong>₱${(item.quantity * item.unitCost).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</strong>
+        </td>
+      </tr>
+    `).join('')
+    : ''
+
+  const content = `
+    <div class="alert-box warning">
+      <strong>↩️ Supplier Return Alert</strong>
+      <p>A supplier return has been created and is pending approval.</p>
+    </div>
+    <table class="detail-table">
+      <tr><td>Return Number:</td><td><strong>${data.returnNumber}</strong></td></tr>
+      <tr><td>Supplier:</td><td>${data.supplierName}</td></tr>
+      <tr><td>Total Amount:</td><td><strong style="color: #ef4444;">₱${data.totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</strong></td></tr>
+      <tr><td>Item Count:</td><td>${data.itemCount}</td></tr>
+      <tr><td>Reason:</td><td><strong>${data.reason}</strong></td></tr>
+      <tr><td>Status:</td><td><strong>${data.status.toUpperCase()}</strong></td></tr>
+      <tr><td>Created By:</td><td>${data.createdBy}</td></tr>
+      <tr><td>Location:</td><td>${data.locationName}</td></tr>
+      <tr><td>Timestamp:</td><td>${data.timestamp.toLocaleString('en-PH', { dateStyle: 'long', timeStyle: 'short' })}</td></tr>
+    </table>
+    ${itemRows ? `
+    <h3 style="color: #6b7280; margin-top: 30px; margin-bottom: 15px;">Return Items</h3>
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+      <thead>
+        <tr style="background-color: #f3f4f6;">
+          <th style="padding: 10px; border: 1px solid #e5e7eb; text-align: left;">Product</th>
+          <th style="padding: 10px; border: 1px solid #e5e7eb; text-align: center;">Quantity</th>
+          <th style="padding: 10px; border: 1px solid #e5e7eb; text-align: right;">Unit Cost</th>
+          <th style="padding: 10px; border: 1px solid #e5e7eb; text-align: right;">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${itemRows}
+      </tbody>
+    </table>
+    ` : ''}
+    <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px;">
+      <p style="margin: 0; font-weight: 600; color: #92400e;">⚠️ Action Required:</p>
+      <p style="margin: 10px 0 0 0; color: #78350f;">
+        This supplier return requires approval before inventory and accounting adjustments are made.
+      </p>
+    </div>
+    <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/supplier-returns" class="button">
+      View Supplier Returns
+    </a>
+  `
+
+  return sendEmail({
+    to: alertConfig.adminRecipients,
+    subject: `↩️ Supplier Return Created - ${data.returnNumber} (₱${data.totalAmount.toLocaleString('en-PH')})`,
+    html: getEmailTemplate('Supplier Return Alert', content),
+  })
+}
+
 // Test email function
 export async function sendTestEmail(recipientEmail: string): Promise<boolean> {
   const content = `

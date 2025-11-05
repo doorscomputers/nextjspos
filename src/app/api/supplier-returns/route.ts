@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { sendSupplierReturnAlert } from '@/lib/email'
+import { sendTelegramSupplierReturnAlert } from '@/lib/telegram'
 
 /**
  * GET /api/supplier-returns
@@ -279,8 +281,44 @@ export async function POST(request: NextRequest) {
       where: { id: supplierReturn.id },
       include: {
         supplier: true,
-        items: true,
+        items: {
+          include: {
+            product: { select: { name: true } },
+          },
+        },
+        location: { select: { name: true } },
       },
+    })
+
+    // Get user display name for notifications
+    const userDisplayName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || `User#${userId}`
+
+    // Send notifications (async, don't await - fire and forget)
+    const notificationData = {
+      returnNumber,
+      supplierName: supplier.name,
+      totalAmount,
+      itemCount: items.length,
+      reason: returnReason,
+      status: 'pending',
+      createdBy: userDisplayName,
+      locationName: completeReturn?.location?.name || 'Unknown Location',
+      timestamp: new Date(),
+      items: completeReturn?.items?.map((item: any) => ({
+        productName: item.product?.name || 'Unknown Product',
+        quantity: Number(item.quantity),
+        unitCost: Number(item.unitCost),
+      })),
+    }
+
+    // Send Email notification
+    sendSupplierReturnAlert(notificationData).catch((err) => {
+      console.error('Failed to send supplier return email alert:', err)
+    })
+
+    // Send Telegram notification
+    sendTelegramSupplierReturnAlert(notificationData).catch((err) => {
+      console.error('Failed to send supplier return Telegram alert:', err)
     })
 
     return NextResponse.json({ return: completeReturn }, { status: 201 })

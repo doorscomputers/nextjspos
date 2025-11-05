@@ -913,6 +913,44 @@ ${isLarge ? '⚠️ <i>Large bank transaction - verify against bank statement</i
 }
 
 /**
+ * Send supplier return alert
+ */
+export async function sendTelegramSupplierReturnAlert(data: {
+  returnNumber: string
+  supplierName: string
+  totalAmount: number
+  itemCount: number
+  reason: string
+  status: string
+  createdBy: string
+  locationName: string
+  timestamp: Date
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const message = `
+↩️ <b>SUPPLIER RETURN ALERT</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Return #:</b> ${data.returnNumber}
+<b>Supplier:</b> ${data.supplierName}
+<b>Amount:</b> ${formatCurrency(data.totalAmount)}
+<b>Items:</b> ${data.itemCount} products
+<b>Reason:</b> ${data.reason}
+<b>Status:</b> ${data.status.toUpperCase()}
+
+<b>Created By:</b> ${data.createdBy}
+<b>Location:</b> ${data.locationName}
+<b>Time:</b> ${formatDateTime(data.timestamp)}
+
+⚠️ <i>Supplier return created - pending approval</i>
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
  * Get bot information (for testing)
  */
 export async function getTelegramBotInfo(): Promise<any> {

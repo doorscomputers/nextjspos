@@ -53,9 +53,9 @@ export async function POST(
     const returnIdNumber = Number(returnId)
 
     // Check permission
-    if (!user.permissions?.includes(PERMISSIONS.PURCHASE_RETURN_APPROVE)) {
+    if (!user.permissions?.includes(PERMISSIONS.SUPPLIER_RETURN_APPROVE)) {
       return NextResponse.json(
-        { error: 'Forbidden - Requires PURCHASE_RETURN_APPROVE permission' },
+        { error: 'Forbidden - Requires SUPPLIER_RETURN_APPROVE permission' },
         { status: 403 }
       )
     }

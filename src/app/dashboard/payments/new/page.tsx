@@ -293,10 +293,10 @@ export default function NewPaymentPage() {
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex items-center gap-4">
         <Link href="/dashboard/accounts-payable">
-          <Button variant="outline" size="sm">
+          <UiButton variant="outline" size="sm">
             <ArrowLeftIcon className="w-4 h-4 mr-2" />
             Back
-          </Button>
+          </UiButton>
         </Link>
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Record Payment</h1>
@@ -336,7 +336,7 @@ export default function NewPaymentPage() {
                 ) : (
                   <Popover open={supplierSearchOpen} onOpenChange={setSupplierSearchOpen}>
                     <PopoverTrigger asChild>
-                      <Button
+                      <UiButton
                         variant="outline"
                         role="combobox"
                         aria-expanded={supplierSearchOpen}
@@ -346,7 +346,7 @@ export default function NewPaymentPage() {
                           ? suppliers.find((supplier) => supplier.id.toString() === selectedSupplierId)?.name
                           : "Select supplier"}
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
+                      </UiButton>
                     </PopoverTrigger>
                     <PopoverContent className="w-[400px] p-0 bg-popover border border-border shadow-lg" align="start">
                       <Command className="bg-popover">
@@ -717,7 +717,11 @@ export default function NewPaymentPage() {
             type="default"
             icon="save"
             disabled={loading}
-            onClick={handleSubmit}
+            onClick={(e) => {
+              // Create a synthetic event for form submission
+              const formEvent = { preventDefault: () => {} } as React.FormEvent
+              handleSubmit(formEvent)
+            }}
             stylingMode="contained"
           />
         </div>
