@@ -52,6 +52,19 @@ export default function AIAssistantPage() {
     })
   }, [sendMessage, messages.length, status, isLoading])
 
+  // Enhanced logging for messages updates
+  useEffect(() => {
+    console.log('💬 Messages array updated:', {
+      count: messages.length,
+      messages: messages.map(m => ({
+        id: m.id,
+        role: m.role,
+        contentLength: m.content?.length || 0,
+        contentPreview: m.content?.substring(0, 50)
+      }))
+    })
+  }, [messages])
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Saved questions state

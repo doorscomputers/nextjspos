@@ -106,7 +106,7 @@ export async function POST(req: Request) {
     }
 
     console.log('📤 Sending response...')
-    return result.toTextStreamResponse()
+    return result.toDataStreamResponse()
   } catch (error: any) {
     console.error('❌ AI API Error:', error)
     console.error('❌ Error details:', {
