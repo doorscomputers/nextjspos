@@ -62,7 +62,7 @@ export default function CreateManualSupplierReturnPage() {
   const [supplierId, setSupplierId] = useState('')
   const [productId, setProductId] = useState('')
   const [variationId, setVariationId] = useState('')
-  const [locationId, setLocationId] = useState('2') // Main Warehouse (only authorized location)
+  const [locationId, setLocationId] = useState('1') // Main Warehouse (only authorized location)
   const [quantity, setQuantity] = useState(1)
   const [unitCost, setUnitCost] = useState(0)
   const [condition, setCondition] = useState('defective')
@@ -347,7 +347,7 @@ export default function CreateManualSupplierReturnPage() {
                   dataSource={locations}
                   displayExpr="name"
                   valueExpr="id"
-                  value={2}
+                  value={1}
                   searchEnabled={false}
                   placeholder="Main Warehouse"
                   disabled={true}
