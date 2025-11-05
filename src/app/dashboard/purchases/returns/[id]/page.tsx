@@ -134,22 +134,40 @@ export default function ReturnDetailPage() {
 
     setApproving(true)
     try {
+      console.log('[FRONTEND] Starting approval...')
       const res = await fetch(`/api/purchases/returns/${returnId}/approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
 
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Failed to approve return')
-      }
+      console.log('[FRONTEND] Response status:', res.status)
 
       const data = await res.json()
-      toast.success('Purchase return approved successfully')
+      console.log('[FRONTEND] Response data:', data)
+
+      if (!res.ok) {
+        throw new Error(data.error || data.details || 'Failed to approve return')
+      }
+
+      // Success!
+      console.log('[FRONTEND] ✅ Approval successful!')
+
+      // Show success message
+      toast.success(
+        `Purchase return approved successfully!\n• Inventory reduced\n• Debit note ${data.debitNote?.debitNoteNumber || 'created'}\n• Accounts payable updated`,
+        { duration: 4000 }
+      )
+
+      // Close modal
       setShowApproveModal(false)
-      fetchReturn()
+
+      // Small delay to let user see the success message, then refresh
+      setTimeout(async () => {
+        await fetchReturn()
+      }, 500)
+
     } catch (error: any) {
-      console.error('Error approving return:', error)
+      console.error('[FRONTEND] ❌ Error approving return:', error)
       toast.error(error.message || 'Failed to approve return')
     } finally {
       setApproving(false)
