@@ -117,9 +117,6 @@ export async function GET(request: NextRequest) {
         _count: {
           action: true,
         },
-        _sum: {
-          // Note: entityIds is a text field, we'll calculate this in application logic
-        },
         having: {
           action: {
             _count: {

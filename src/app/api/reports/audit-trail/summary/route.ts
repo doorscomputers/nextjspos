@@ -106,13 +106,13 @@ export async function GET(request: NextRequest) {
     const [
       // Current period counts
       totalActivities,
-      uniqueUsersCount,
-      uniqueBusinessesCount,
+      uniqueUsersGroups,
+      uniqueBusinessesGroups,
 
       // Previous period counts (optional)
       prevTotalActivities,
-      prevUniqueUsersCount,
-      prevUniqueBusinessesCount,
+      prevUniqueUsersGroups,
+      prevUniqueBusinessesGroups,
 
       // Distributions and lists
       actionCounts,
@@ -125,41 +125,54 @@ export async function GET(request: NextRequest) {
       dailyActivities
     ] = await Promise.all([
       prisma.auditLog.count({ where: baseWhere }),
-      prisma.auditLog.count({ where: baseWhere, distinct: ['userId'] }),
-      prisma.auditLog.count({ where: baseWhere, distinct: ['businessId'] }),
+      // Fix: Use groupBy instead of count with distinct
+      prisma.auditLog.groupBy({
+        by: ['userId'],
+        where: baseWhere,
+      }),
+      prisma.auditLog.groupBy({
+        by: ['businessId'],
+        where: baseWhere,
+      }),
 
       includeComparison && previousWhere
         ? prisma.auditLog.count({ where: previousWhere })
         : Promise.resolve(null),
       includeComparison && previousWhere
-        ? prisma.auditLog.count({ where: previousWhere, distinct: ['userId'] })
+        ? prisma.auditLog.groupBy({
+            by: ['userId'],
+            where: previousWhere,
+          })
         : Promise.resolve(null),
       includeComparison && previousWhere
-        ? prisma.auditLog.count({ where: previousWhere, distinct: ['businessId'] })
+        ? prisma.auditLog.groupBy({
+            by: ['businessId'],
+            where: previousWhere,
+          })
         : Promise.resolve(null),
 
       // Action type distribution
       prisma.auditLog.groupBy({
         by: ['action'],
         where: baseWhere,
-        _count: { _all: true },
-        orderBy: { _count: { _all: 'desc' } },
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } },
       }),
 
       // Entity type distribution
       prisma.auditLog.groupBy({
         by: ['entityType'],
         where: baseWhere,
-        _count: { _all: true },
-        orderBy: { _count: { _all: 'desc' } },
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } },
       }),
 
       // Most active users
       prisma.auditLog.groupBy({
         by: ['userId', 'username'],
         where: baseWhere,
-        _count: { _all: true },
-        orderBy: { _count: { _all: 'desc' } },
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } },
         take: 10,
       }),
 
@@ -168,8 +181,8 @@ export async function GET(request: NextRequest) {
         ? prisma.auditLog.groupBy({
             by: ['businessId'],
             where: baseWhere,
-            _count: { _all: true },
-            orderBy: { _count: { _all: 'desc' } },
+            _count: { id: true },
+            orderBy: { _count: { id: 'desc' } },
             take: 10,
           })
         : Promise.resolve([]),
@@ -178,7 +191,7 @@ export async function GET(request: NextRequest) {
       prisma.auditLog.groupBy({
         by: ['requiresPassword', 'passwordVerified'],
         where: { ...baseWhere, requiresPassword: true },
-        _count: { _all: true },
+        _count: { id: true },
       }),
 
       // Recent activities (last 24 hours)
@@ -206,8 +219,8 @@ export async function GET(request: NextRequest) {
       prisma.auditLog.groupBy({
         by: ['username'],
         where: baseWhere,
-        _count: { _all: true },
-        orderBy: { _count: { _all: 'desc' } },
+        _count: { id: true },
+        orderBy: { _count: { id: 'desc' } },
         take: 5,
       }),
 
@@ -230,6 +243,12 @@ export async function GET(request: NextRequest) {
         ORDER BY date ASC
       `)
     ])
+
+    // Calculate counts from groupBy results
+    const uniqueUsersCount = (uniqueUsersGroups as any[]).length
+    const uniqueBusinessesCount = (uniqueBusinessesGroups as any[]).length
+    const prevUniqueUsersCount = prevUniqueUsersGroups ? (prevUniqueUsersGroups as any[]).length : null
+    const prevUniqueBusinessesCount = prevUniqueBusinessesGroups ? (prevUniqueBusinessesGroups as any[]).length : null
 
     // Calculate comparison metrics
     const comparison = includeComparison && prevTotalActivities !== null ? {
@@ -278,7 +297,7 @@ export async function GET(request: NextRequest) {
         return {
           businessId: count.businessId,
           businessName: business?.name || `Business ${count.businessId}`,
-          count: count._count.businessId,
+          count: count._count.id,
         }
       }).sort((a: any, b: any) => b.count - a.count)
     }
@@ -298,30 +317,30 @@ export async function GET(request: NextRequest) {
       distributions: {
         actionTypes: (actionCounts as any[]).map((item: any) => ({
           action: item.action,
-          count: item._count._all,
-          percentage: totalActivities > 0 ? (item._count._all / totalActivities) * 100 : 0,
+          count: item._count.id,
+          percentage: totalActivities > 0 ? (item._count.id / totalActivities) * 100 : 0,
         })),
         entityTypes: (entityCounts as any[]).map((item: any) => ({
           entityType: item.entityType,
-          count: item._count._all,
-          percentage: totalActivities > 0 ? (item._count._all / totalActivities) * 100 : 0,
+          count: item._count.id,
+          percentage: totalActivities > 0 ? (item._count.id / totalActivities) * 100 : 0,
         })),
       },
       topUsers: (userCounts as any[]).map((item: any) => ({
         userId: item.userId,
         username: item.username,
-        count: item._count._all,
-        percentage: totalActivities > 0 ? (item._count._all / totalActivities) * 100 : 0,
+        count: item._count.id,
+        percentage: totalActivities > 0 ? (item._count.id / totalActivities) * 100 : 0,
       })),
       topBusinesses,
       passwordProtected: {
-        total: (passwordProtectedCounts as any[]).reduce((sum: number, item: any) => sum + item._count._all, 0),
+        total: (passwordProtectedCounts as any[]).reduce((sum: number, item: any) => sum + item._count.id, 0),
         verified: (passwordProtectedCounts as any[])
           .filter((item: any) => item.passwordVerified)
-          .reduce((sum: number, item: any) => sum + item._count._all, 0),
+          .reduce((sum: number, item: any) => sum + item._count.id, 0),
         unverified: (passwordProtectedCounts as any[])
           .filter((item: any) => !item.passwordVerified)
-          .reduce((sum: number, item: any) => sum + item._count._all, 0),
+          .reduce((sum: number, item: any) => sum + item._count.id, 0),
       },
       recentActivities,
       analytics: {
