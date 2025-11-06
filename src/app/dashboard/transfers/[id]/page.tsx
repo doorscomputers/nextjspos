@@ -525,12 +525,12 @@ export default function TransferDetailPage() {
 
   // Helper: Check if user is at FROM location (sender)
   const isUserAtFromLocation = () => {
-    return primaryLocationId === transfer?.fromLocationId
+    return primaryLocationId === transfer?.fromLocationId || can(PERMISSIONS.ACCESS_ALL_LOCATIONS)
   }
 
   // Helper: Check if user is at TO location (receiver)
   const isUserAtToLocation = () => {
-    return primaryLocationId === transfer?.toLocationId
+    return primaryLocationId === transfer?.toLocationId || can(PERMISSIONS.ACCESS_ALL_LOCATIONS)
   }
 
   // Helper: Get location-aware status display text
@@ -621,7 +621,8 @@ export default function TransferDetailPage() {
     // Users at destination should NOT see this button
     if (status === 'draft' && can(PERMISSIONS.STOCK_TRANSFER_CREATE)) {
       // Check if user's PRIMARY location matches the FROM location (origin/source)
-      const isAssignedToOrigin = primaryLocationId === transfer.fromLocationId
+      // OR if user has access_all_locations permission (Cross-Location Approver)
+      const isAssignedToOrigin = primaryLocationId === transfer.fromLocationId || can(PERMISSIONS.ACCESS_ALL_LOCATIONS)
 
       if (isAssignedToOrigin) {
         actions.push({
@@ -639,7 +640,8 @@ export default function TransferDetailPage() {
     // Check approval with SOD settings
     if (status === 'pending_check' && can(PERMISSIONS.STOCK_TRANSFER_CHECK)) {
       // Check if user's PRIMARY location matches the FROM location (origin/source)
-      const isAssignedToOrigin = primaryLocationId === transfer.fromLocationId
+      // OR if user has access_all_locations permission (Cross-Location Approver)
+      const isAssignedToOrigin = primaryLocationId === transfer.fromLocationId || can(PERMISSIONS.ACCESS_ALL_LOCATIONS)
       const isCreator = transfer.createdBy === currentUserId
 
       // Determine if SOD allows creator to approve
@@ -648,7 +650,7 @@ export default function TransferDetailPage() {
       const allowCreatorToCheck = sodSettings?.allowCreatorToCheck ?? false
 
       // Show approve button if:
-      // 1. User is at origin location AND
+      // 1. User is at origin location (or has access_all_locations) AND
       // 2. Either not the creator OR (is creator AND allowed by SOD settings)
       const canApprove = isAssignedToOrigin && (!isCreator || (!enforceSOD || allowCreatorToCheck))
 
@@ -674,7 +676,8 @@ export default function TransferDetailPage() {
     // Uses primaryLocationId to check user's actual home location, not all accessible locations
     if (status === 'checked' && can(PERMISSIONS.STOCK_TRANSFER_SEND)) {
       // Check if user's PRIMARY location matches the FROM location (origin/source)
-      const isAssignedToOrigin = primaryLocationId === transfer.fromLocationId
+      // OR if user has access_all_locations permission (Cross-Location Approver)
+      const isAssignedToOrigin = primaryLocationId === transfer.fromLocationId || can(PERMISSIONS.ACCESS_ALL_LOCATIONS)
 
       if (isAssignedToOrigin) {
         actions.push({
@@ -692,7 +695,8 @@ export default function TransferDetailPage() {
     // Uses primaryLocationId to check user's actual home location, not all accessible locations
     if (status === 'in_transit' && can(PERMISSIONS.STOCK_TRANSFER_RECEIVE)) {
       // Check if user's PRIMARY location matches the TO location (destination)
-      const isAssignedToDestination = primaryLocationId === transfer.toLocationId
+      // OR if user has access_all_locations permission (Cross-Location Approver)
+      const isAssignedToDestination = primaryLocationId === transfer.toLocationId || can(PERMISSIONS.ACCESS_ALL_LOCATIONS)
 
       if (isAssignedToDestination) {
         actions.push({
@@ -708,7 +712,9 @@ export default function TransferDetailPage() {
     // CRITICAL SECURITY: Only show to users ASSIGNED to DESTINATION location
     // Uses primaryLocationId to check user's actual home location, not all accessible locations
     if (status === 'arrived') {
-      const isAssignedToDestination = primaryLocationId === transfer.toLocationId
+      // Check if user's PRIMARY location matches the TO location (destination)
+      // OR if user has access_all_locations permission (Cross-Location Approver)
+      const isAssignedToDestination = primaryLocationId === transfer.toLocationId || can(PERMISSIONS.ACCESS_ALL_LOCATIONS)
 
       if (can(PERMISSIONS.STOCK_TRANSFER_VERIFY) && isAssignedToDestination) {
         actions.push({
@@ -726,7 +732,9 @@ export default function TransferDetailPage() {
     // CRITICAL SECURITY: Only show to users ASSIGNED to DESTINATION location
     // Uses primaryLocationId to check user's actual home location, not all accessible locations
     if (status === 'verified' && can(PERMISSIONS.STOCK_TRANSFER_COMPLETE)) {
-      const isAssignedToDestination = primaryLocationId === transfer.toLocationId
+      // Check if user's PRIMARY location matches the TO location (destination)
+      // OR if user has access_all_locations permission (Cross-Location Approver)
+      const isAssignedToDestination = primaryLocationId === transfer.toLocationId || can(PERMISSIONS.ACCESS_ALL_LOCATIONS)
 
       if (isAssignedToDestination) {
         actions.push({
