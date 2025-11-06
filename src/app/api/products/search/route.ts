@@ -5,14 +5,21 @@ import { prisma } from '@/lib/prisma.simple'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 
 /**
- * Smart Product Search API
+ * Optimized Product Search API
  *
- * Search logic:
- * 1. If search term matches SKU EXACTLY (equals operator) - return that specific variation
- * 2. If no exact match, search by product name using CONTAINS operator
+ * TWO MODES:
+ * 1. LEGACY MODE (backward compatible): Uses 'q' parameter
+ *    - Tries exact SKU match first, then fuzzy name search
  *
- * This allows quick SKU/barcode scanning (exact match) while still supporting fuzzy name search
- * Note: Barcode field is not currently in the schema, using SKU for exact matching
+ * 2. OPTIMIZED MODE (new): Uses 'type' and 'method' parameters
+ *    - type=sku: Exact match on SKU/Barcode (FAST ⚡)
+ *    - type=name&method=beginsWith: Prefix search (FAST ⚡)
+ *    - type=name&method=contains: Full text search (SLOWER 🐌)
+ *
+ * EXAMPLES:
+ * Legacy: /api/products/search?q=ABC123
+ * SKU: /api/products/search?type=sku&query=ABC123
+ * Name: /api/products/search?type=name&query=Product&method=beginsWith
  */
 export async function GET(request: NextRequest) {
   try {
@@ -26,16 +33,140 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams
-    const query = searchParams.get('q') || ''
+
+    // NEW OPTIMIZED PARAMETERS
+    const type = searchParams.get('type') // "sku" | "name"
+    const query = searchParams.get('query') // New optimized query param
+    const method = searchParams.get('method') || 'beginsWith' // "beginsWith" | "contains"
+
+    // LEGACY PARAMETERS (backward compatibility)
+    const legacyQuery = searchParams.get('q') || ''
     const limit = parseInt(searchParams.get('limit') || '20')
     const supplierId = searchParams.get('supplierId') // Optional supplier filter
 
-    if (!query.trim()) {
+    const businessId = parseInt(session.user.businessId)
+
+    // ================================================================
+    // OPTIMIZED MODE: Use 'type' and 'query' parameters
+    // ================================================================
+    if (type && query) {
+      const searchTrimmed = query.trim()
+
+      if (!searchTrimmed) {
+        return NextResponse.json({ products: [] })
+      }
+
+      // TYPE 1: SKU/BARCODE EXACT MATCH (FASTEST)
+      if (type === 'sku') {
+        const exactMatch = await prisma.product.findMany({
+          where: {
+            businessId,
+            isActive: true,
+            deletedAt: null,
+            variations: {
+              some: {
+                OR: [
+                  { sku: { equals: searchTrimmed, mode: 'insensitive' } },
+                  { barcode: { equals: searchTrimmed, mode: 'insensitive' } },
+                ],
+                deletedAt: null,
+              },
+            },
+          },
+          include: {
+            variations: {
+              where: {
+                OR: [
+                  { sku: { equals: searchTrimmed, mode: 'insensitive' } },
+                  { barcode: { equals: searchTrimmed, mode: 'insensitive' } },
+                ],
+                deletedAt: null,
+              },
+              orderBy: { name: 'asc' },
+            },
+          },
+          take: 1,
+        })
+
+        const results = exactMatch
+          .filter(p => p.variations && p.variations.length > 0)
+          .map(product => ({
+            id: product.id,
+            name: product.name,
+            categoryName: null,
+            variations: product.variations.map(v => ({
+              id: v.id,
+              name: v.name,
+              sku: v.sku,
+              barcode: v.barcode,
+              enableSerialNumber: Boolean(product.enableProductInfo),
+              defaultPurchasePrice: v.purchasePrice ? Number(v.purchasePrice) : 0,
+              defaultSellingPrice: v.sellingPrice ? Number(v.sellingPrice) : 0,
+            })),
+            matchType: 'exact' as const,
+          }))
+
+        return NextResponse.json({ products: results })
+      }
+
+      // TYPE 2: PRODUCT NAME PREFIX/CONTAINS SEARCH
+      if (type === 'name') {
+        const searchCondition = method === 'beginsWith'
+          ? { startsWith: searchTrimmed, mode: 'insensitive' as const }
+          : { contains: searchTrimmed, mode: 'insensitive' as const }
+
+        const nameMatches = await prisma.product.findMany({
+          where: {
+            businessId,
+            isActive: true,
+            deletedAt: null,
+            name: searchCondition,
+          },
+          include: {
+            variations: {
+              where: { deletedAt: null },
+              orderBy: { name: 'asc' },
+            },
+          },
+          orderBy: { name: 'asc' },
+          take: limit,
+        })
+
+        const results = nameMatches
+          .filter(p => p.variations && p.variations.length > 0)
+          .map(product => ({
+            id: product.id,
+            name: product.name,
+            categoryName: null,
+            variations: product.variations.map(v => ({
+              id: v.id,
+              name: v.name,
+              sku: v.sku,
+              barcode: v.barcode,
+              enableSerialNumber: Boolean(product.enableProductInfo),
+              defaultPurchasePrice: v.purchasePrice ? Number(v.purchasePrice) : 0,
+              defaultSellingPrice: v.sellingPrice ? Number(v.sellingPrice) : 0,
+            })),
+            matchType: 'fuzzy' as const,
+          }))
+
+        return NextResponse.json({ products: results })
+      }
+
+      return NextResponse.json(
+        { error: 'Invalid type. Use "sku" or "name"' },
+        { status: 400 }
+      )
+    }
+
+    // ================================================================
+    // LEGACY MODE: Use 'q' parameter (backward compatibility)
+    // ================================================================
+    if (!legacyQuery.trim()) {
       return NextResponse.json({ products: [] })
     }
 
-    const businessId = parseInt(session.user.businessId)
-    const searchTrimmed = query.trim()
+    const searchTrimmed = legacyQuery.trim()
 
     console.log(`=== Product Search Debug ===`)
     console.log(`Search term: "${searchTrimmed}"`)

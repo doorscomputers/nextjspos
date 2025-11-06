@@ -31,7 +31,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
-import ProductAutocomplete from '@/components/ProductAutocomplete'
+import SKUBarcodeSearch from '@/components/SKUBarcodeSearch'
+import ProductNameSearch from '@/components/ProductNameSearch'
 
 interface Supplier {
   id: number
@@ -107,6 +108,9 @@ export default function CreatePurchaseOrderPage() {
   const [shippingCost, setShippingCost] = useState(0)
   const [notes, setNotes] = useState('')
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+
+  // Product search method state
+  const [searchMethod, setSearchMethod] = useState<'beginsWith' | 'contains'>('beginsWith')
 
   useEffect(() => {
     fetchData()
@@ -484,14 +488,31 @@ export default function CreatePurchaseOrderPage() {
         {/* Add Products Section */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Add Products</h2>
-          <div className="space-y-2">
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-              <strong>Quick search:</strong> Scan barcode or type exact SKU for instant match.
-              Or search by product name to browse all matching products.
-            </p>
-            <ProductAutocomplete
+
+          <div className="space-y-6">
+            {/* Product Name Search (PRIMARY for Purchase page) */}
+            <ProductNameSearch
               onProductSelect={handleProductSelect}
-              placeholder="Scan barcode, enter SKU, or search product name..."
+              searchMethod={searchMethod}
+              onSearchMethodChange={setSearchMethod}
+              placeholder="Search by product name..."
+              autoFocus={true}
+            />
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">OR</span>
+              </div>
+            </div>
+
+            {/* SKU/Barcode Search (SECONDARY for Purchase page) */}
+            <SKUBarcodeSearch
+              onProductSelect={handleProductSelect}
+              placeholder="Scan barcode or enter exact SKU..."
               autoFocus={false}
             />
           </div>
