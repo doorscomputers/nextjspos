@@ -132,14 +132,14 @@ export async function reconcileLedgerVsSystem(
     const lastTransaction = await prisma.stockTransaction.findFirst({
       where: {
         businessId,
-        variationId: record.variationId,
+        productVariationId: record.productVariationId,
         locationId: record.locationId
       },
       orderBy: { createdAt: 'desc' },
       select: {
-        balance: true,
+        balanceQty: true,
         createdAt: true,
-        transactionType: true,
+        type: true,
         unitCost: true
       }
     })
@@ -148,7 +148,7 @@ export async function reconcileLedgerVsSystem(
     const totalTransactions = await prisma.stockTransaction.count({
       where: {
         businessId,
-        variationId: record.variationId,
+        productVariationId: record.productVariationId,
         locationId: record.locationId
       }
     })
@@ -157,7 +157,7 @@ export async function reconcileLedgerVsSystem(
     const recentTransactionCount = await prisma.stockTransaction.count({
       where: {
         businessId,
-        variationId: record.variationId,
+        productVariationId: record.productVariationId,
         locationId: record.locationId,
         createdAt: {
           gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
@@ -165,10 +165,10 @@ export async function reconcileLedgerVsSystem(
       }
     })
 
-    const ledgerBalance = lastTransaction?.balance || 0
-    const systemBalance = record.currentQty
+    const ledgerBalance = lastTransaction?.balanceQty ? parseFloat(lastTransaction.balanceQty.toString()) : 0
+    const systemBalance = parseFloat(record.qtyAvailable.toString())
     const variance = systemBalance - ledgerBalance
-    const unitCost = lastTransaction?.unitCost || 0
+    const unitCost = lastTransaction?.unitCost ? parseFloat(lastTransaction.unitCost.toString()) : 0
     const varianceValue = variance * unitCost
 
     // Determine if requires investigation
@@ -192,7 +192,7 @@ export async function reconcileLedgerVsSystem(
       (ledgerBalance < 0) // Negative ledger balance
 
     variances.push({
-      variationId: record.variationId,
+      variationId: record.productVariationId,
       locationId: record.locationId,
       productId: record.variation.product.id,
       productName: record.variation.product.name,
@@ -209,7 +209,7 @@ export async function reconcileLedgerVsSystem(
       varianceType: variance > 0 ? 'overage' : variance < 0 ? 'shortage' : 'match',
 
       lastTransactionDate: lastTransaction?.createdAt || null,
-      lastTransactionType: lastTransaction?.transactionType || null,
+      lastTransactionType: lastTransaction?.type || null,
 
       unitCost,
       varianceValue,
