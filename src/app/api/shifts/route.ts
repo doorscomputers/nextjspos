@@ -245,6 +245,15 @@ export async function POST(request: NextRequest) {
     const shiftNumber = `SHIFT-${dateStr}-${String(shiftCount + 1).padStart(4, '0')}`
 
     // Create new shift
+    console.log('[POST /api/shifts] Creating shift with data:', {
+      businessId: parseInt(user.businessId),
+      locationId: parseInt(locationId),
+      userId: parseInt(user.id),
+      shiftNumber,
+      beginningCash: parseFloat(beginningCash),
+      status: 'open'
+    })
+
     const shift = await prisma.cashierShift.create({
       data: {
         businessId: parseInt(user.businessId),

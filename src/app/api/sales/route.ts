@@ -338,6 +338,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for open cashier shift - REQUIRED FOR POS
+    console.log('DEBUG: Checking for open shift...')
+    console.log('- userId:', userIdNumber)
+    console.log('- businessId:', businessIdNumber)
+
     const currentShift = await prisma.cashierShift.findFirst({
       where: {
         userId: userIdNumber,
@@ -346,7 +350,15 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    console.log('DEBUG: Shift query result:', currentShift ? 'FOUND' : 'NOT FOUND')
+    if (currentShift) {
+      console.log('- Shift ID:', currentShift.id)
+      console.log('- Shift status:', currentShift.status)
+      console.log('- Shift locationId:', currentShift.locationId)
+    }
+
     if (!currentShift) {
+      console.error('VALIDATION ERROR: No open shift found')
       return NextResponse.json(
         { error: 'No open shift found. Please start your shift before making sales.' },
         { status: 400 }
@@ -819,10 +831,13 @@ export async function POST(request: NextRequest) {
     }, { status: 201 })
   } catch (error) {
     console.error('Error creating sale:', error)
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack')
     return NextResponse.json(
       {
         error: 'Failed to create sale',
         details: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        type: error instanceof Error ? error.constructor.name : typeof error,
       },
       { status: 500 }
     )
