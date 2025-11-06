@@ -61,7 +61,6 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
     Purchases: false,
     Reports: false,
     "POS & Sales": false,
-    "Inventory Management": false,
     "Pricing Management": false,
     "Sales Reports": false,
     "Cashier Reports": false,
@@ -359,9 +358,9 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
       ],
     },
 
-    // ========== INVENTORY MANAGEMENT ==========
+    // ========== PRODUCTS ==========
     {
-      name: "Inventory Management",
+      name: "Products",
       href: "/dashboard/products",
       icon: CubeIcon,
       key: "inventory_management",
