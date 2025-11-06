@@ -152,6 +152,9 @@ model Business {
   skuFormat            String   @default("hyphen") @map("sku_format") // hyphen (PROD-001) or no_hyphen (PROD001)
   enableTooltip        Boolean  @default(true) @map("enable_tooltip")
 
+  // Multi-Unit Support - UOM Feature Flag
+  enableSubUnits Boolean @default(true) @map("enable_sub_units")
+
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -702,15 +705,23 @@ model Unit {
   shortName    String  @map("short_name") @db.VarChar(191)
   allowDecimal Boolean @default(false) @map("allow_decimal")
 
+  // Multi-Unit Support - UOM Conversion
+  baseUnitId         Int?     @map("base_unit_id")
+  baseUnit           Unit?    @relation("UnitHierarchy", fields: [baseUnitId], references: [id], onDelete: Restrict)
+  baseUnitMultiplier Decimal? @map("base_unit_multiplier") @db.Decimal(20, 4)
+
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
+  // Relations
+  subUnits          Unit[]               @relation("UnitHierarchy")
   products          Product[]
   productVariations ProductVariation[]
 
   @@unique([businessId, name], map: "businessId_name")
   @@index([businessId])
+  @@index([baseUnitId])
   @@map("units")
 }
 
@@ -786,6 +797,9 @@ model Product {
   enableProductInfo Boolean  @default(false) @map("enable_product_info") // Enable IMEI/Serial tracking
   notForSelling     Boolean  @default(false) @map("not_for_selling") // Exclude from selling
   isActive          Boolean  @default(true) @map("is_active") // Active/Inactive status for transactions
+
+  // Multi-Unit Support - Allowed sub-units for buying/selling
+  subUnitIds String? @map("sub_unit_ids") @db.Text // JSON array of allowed unit IDs [1, 2, 3]
 
   // Timestamps
   createdAt DateTime  @default(now()) @map("created_at")
@@ -952,6 +966,9 @@ model StockTransaction {
   type     String   @db.VarChar(50) // opening_stock, sale, purchase, transfer_in, transfer_out, adjustment
   quantity Decimal  @db.Decimal(22, 4) // Positive for additions, negative for subtractions
   unitCost Decimal? @map("unit_cost") @db.Decimal(22, 4)
+
+  // Multi-Unit Support - Track which unit was used in the transaction
+  subUnitId Int? @map("sub_unit_id")
 
   // Balance after transaction
   balanceQty Decimal @map("balance_qty") @db.Decimal(22, 4)
@@ -1358,6 +1375,9 @@ model PurchaseItem {
 
   // Serial number tracking flag
   requiresSerial Boolean @default(false) @map("requires_serial")
+
+  // Multi-Unit Support - Track which unit was used in purchase
+  subUnitId Int? @map("sub_unit_id")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -1832,6 +1852,10 @@ model SaleItem {
   // Serial numbers sold (stored as JSON array)
   serialNumbers Json? @map("serial_numbers") // Array of serial numbers sold
 
+  // Multi-Unit Support - Track which unit was used in sale and its price
+  subUnitId    Int?     @map("sub_unit_id")
+  subUnitPrice Decimal? @map("sub_unit_price") @db.Decimal(22, 4)
+
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([saleId])
@@ -1962,6 +1986,9 @@ model StockTransferItem {
   productVariation   ProductVariation @relation(fields: [productVariationId], references: [id], onDelete: Restrict)
 
   quantity Decimal @db.Decimal(22, 4)
+
+  // Multi-Unit Support - Track which unit was used in the transfer
+  subUnitId Int? @map("sub_unit_id")
 
   // Serial numbers (stored as JSON array)
   serialNumbersSent     Json? @map("serial_numbers_sent") // Scanned at source

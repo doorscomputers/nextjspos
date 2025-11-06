@@ -1,6 +1,7 @@
 import { prisma } from './prisma'
 import { Prisma, type StockTransaction } from '@prisma/client'
 import { validateStockConsistency } from './stockValidation'
+import { convertToBaseUnit, type UnitWithConversion } from './uomConversion'
 
 type TransactionClient = Prisma.TransactionClient
 
@@ -55,6 +56,7 @@ export type UpdateStockParams = {
   userDisplayName?: string
   notes?: string
   allowNegative?: boolean
+  subUnitId?: number // UOM: Track which unit was used in transaction
   tx?: TransactionClient
 }
 
@@ -157,6 +159,7 @@ async function executeStockUpdate(
     userDisplayName,
     notes,
     allowNegative = false,
+    subUnitId, // UOM: Track which unit was used
   } = params
 
   const quantityDecimal = toDecimal(quantity)
@@ -218,6 +221,7 @@ async function executeStockUpdate(
       referenceId,
       createdBy: userId,
       notes: notes || `Stock ${quantity > 0 ? 'added' : 'deducted'} - ${type}`,
+      subUnitId, // UOM: Store which unit was used in this transaction
     },
   })
 
@@ -317,6 +321,7 @@ export async function addStock({
   userId,
   userDisplayName,
   notes,
+  subUnitId,
   tx,
 }: {
   businessId: number
@@ -332,6 +337,7 @@ export async function addStock({
   userId: number
   userDisplayName?: string
   notes?: string
+  subUnitId?: number // UOM: Track which unit was used
   tx?: TransactionClient
 }) {
   if (quantity <= 0) {
@@ -352,6 +358,7 @@ export async function addStock({
     userId,
     userDisplayName,
     notes,
+    subUnitId, // UOM: Pass unit tracking
     tx,
   })
 }
@@ -374,6 +381,7 @@ export async function deductStock({
   notes,
   allowNegative = false,
   userDisplayName,
+  subUnitId,
   tx,
 }: {
   businessId: number
@@ -390,6 +398,7 @@ export async function deductStock({
   notes?: string
   allowNegative?: boolean
   userDisplayName?: string
+  subUnitId?: number // UOM: Track which unit was used
   tx?: TransactionClient
 }) {
   if (quantity <= 0) {
@@ -426,6 +435,7 @@ export async function deductStock({
     notes,
     allowNegative,
     userDisplayName,
+    subUnitId, // UOM: Pass unit tracking
     tx,
   })
 }
