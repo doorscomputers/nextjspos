@@ -342,6 +342,26 @@ export async function POST(request: NextRequest) {
     console.log('- userId:', userIdNumber)
     console.log('- businessId:', businessIdNumber)
 
+    // First check if ANY shift exists for this user
+    const anyShift = await prisma.cashierShift.findFirst({
+      where: {
+        userId: userIdNumber,
+        businessId: businessIdNumber,
+      },
+      orderBy: { openedAt: 'desc' }
+    })
+
+    if (anyShift) {
+      console.log('DEBUG: Most recent shift found:', {
+        id: anyShift.id,
+        shiftNumber: anyShift.shiftNumber,
+        status: anyShift.status,
+        openedAt: anyShift.openedAt
+      })
+    } else {
+      console.log('DEBUG: No shifts found at all for this user')
+    }
+
     const currentShift = await prisma.cashierShift.findFirst({
       where: {
         userId: userIdNumber,
@@ -350,7 +370,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    console.log('DEBUG: Shift query result:', currentShift ? 'FOUND' : 'NOT FOUND')
+    console.log('DEBUG: Open shift query result:', currentShift ? 'FOUND' : 'NOT FOUND')
     if (currentShift) {
       console.log('- Shift ID:', currentShift.id)
       console.log('- Shift status:', currentShift.status)
