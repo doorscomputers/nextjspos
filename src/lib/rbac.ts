@@ -2695,7 +2695,7 @@ export const DEFAULT_ROLES = {
 
   CROSS_LOCATION_APPROVER: {
     name: 'Cross-Location Approver',
-    description: 'Handles complete transfer workflow across all locations: Approve → Send → Receive → Verify → Complete (NO create permissions)',
+    description: 'Approves transfers across all locations for Separation of Duties - APPROVE ONLY (creator must send, receiver must verify)',
     category: 'Operations',
     permissions: [
       // Dashboard
@@ -2704,19 +2704,21 @@ export const DEFAULT_ROLES = {
       // View Products (needed to see what\'s being transferred)
       PERMISSIONS.PRODUCT_VIEW,
 
-      // Stock Transfers - FULL WORKFLOW (NO CREATE)
+      // Stock Transfers - APPROVE ONLY for proper SOD
       PERMISSIONS.STOCK_TRANSFER_VIEW,
-      PERMISSIONS.STOCK_TRANSFER_CHECK, // Approve transfers
-      PERMISSIONS.STOCK_TRANSFER_SEND, // Send after approval
-      PERMISSIONS.STOCK_TRANSFER_RECEIVE, // Mark as arrived
-      PERMISSIONS.STOCK_TRANSFER_VERIFY, // Verify items
-      PERMISSIONS.STOCK_TRANSFER_COMPLETE, // Final completion
-      PERMISSIONS.STOCK_TRANSFER_CANCEL, // Cancel if needed
+      PERMISSIONS.STOCK_TRANSFER_CHECK, // APPROVE ONLY - ensures 2 people minimum
+      PERMISSIONS.STOCK_TRANSFER_CANCEL, // Can cancel invalid transfers
+
+      // WHY NO SEND/RECEIVE/VERIFY/COMPLETE?
+      // Proper Separation of Duties (SOD):
+      // - SENDER SIDE: Creator sends (after approval) = 2 people minimum
+      // - RECEIVER SIDE: Receiver verifies and completes = Different location users
+      // - APPROVER: Only approves, cannot execute = Prevents 1-person fraud
 
       // BIR Z-Reading Approval
       PERMISSIONS.Z_READING,
 
-      // Access all locations (can handle transfers between ANY locations)
+      // Access all locations (can approve transfers between ANY locations)
       PERMISSIONS.ACCESS_ALL_LOCATIONS,
 
       // Reports - View Only
