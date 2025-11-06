@@ -31,13 +31,14 @@ export default function EditUserPage() {
     if (formData.roleIds.length === 0) return true
 
     const selectedRoles = roles.filter(r => formData.roleIds.includes(r.id))
-    const selectedRoleNames = selectedRoles.map(r => r.name)
 
-    // If user has ANY admin role or cross-location approver, location is NOT required
-    const adminRoles = ['Super Admin', 'Branch Admin', 'All Branch Admin', 'Cross-Location Approver']
-    const hasAdminRole = selectedRoleNames.some(name => adminRoles.includes(name))
+    // If ANY selected role has ACCESS_ALL_LOCATIONS permission, location is NOT required
+    // Permissions are returned as string array: ['dashboard.view', 'access_all_locations', ...]
+    const hasAccessAllLocations = selectedRoles.some(role =>
+      role.permissions?.includes('access_all_locations')
+    )
 
-    return !hasAdminRole
+    return !hasAccessAllLocations
   }, [formData.roleIds, roles])
 
   useEffect(() => {

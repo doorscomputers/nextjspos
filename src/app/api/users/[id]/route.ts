@@ -139,18 +139,21 @@ export async function PUT(
 
     // Validate location requirement based on assigned roles
     if (roleIds && Array.isArray(roleIds) && roleIds.length > 0) {
-      // Get role names for the assigned role IDs
+      // Get roles with their permissions
       const assignedRoles = await prisma.role.findMany({
         where: { id: { in: roleIds } },
-        select: { name: true }
+        include: {
+          permissions: true
+        }
       })
 
-      const roleNames = assignedRoles.map(r => r.name)
-      const adminRoles = ['Super Admin', 'Branch Admin', 'All Branch Admin', 'Cross-Location Approver']
-      const hasAdminRole = roleNames.some(name => adminRoles.includes(name))
+      // Check if ANY role has ACCESS_ALL_LOCATIONS permission
+      const hasAccessAllLocations = assignedRoles.some(role =>
+        role.permissions.some(p => p.permission === 'access_all_locations')
+      )
 
-      // Location is ONLY required if user does NOT have an admin role or cross-location approver
-      if (!hasAdminRole && locationId === undefined) {
+      // Location is ONLY required if user does NOT have a role with ACCESS_ALL_LOCATIONS
+      if (!hasAccessAllLocations && locationId === undefined) {
         // Check if user currently has a location
         const currentLocation = await prisma.userLocation.findFirst({
           where: { userId }
@@ -158,7 +161,7 @@ export async function PUT(
 
         if (!currentLocation) {
           return NextResponse.json({
-            error: 'Location is required for transactional roles (Cashier, Manager, Staff). Admin roles and approvers can work across all locations.'
+            error: 'Location is required for transactional roles (Cashier, Manager, Staff). Roles with ACCESS_ALL_LOCATIONS permission can work across all locations.'
           }, { status: 400 })
         }
       }
