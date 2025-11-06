@@ -99,20 +99,23 @@ export async function GET(
     })
     const locationMap = new Map(locations.map(l => [l.id, l.name]))
 
-    // CRITICAL SECURITY: Verify user has access to either source or destination location
-    // This check is ALWAYS enforced, regardless of ACCESS_ALL_LOCATIONS permission
-    const userLocations = await prisma.userLocation.findMany({
-      where: { userId: parseInt(userId) },
-      select: { locationId: true },
-    })
-    const locationIds = userLocations.map(ul => ul.locationId)
+    // Verify user has access to either source or destination location (unless they have ACCESS_ALL_LOCATIONS)
+    const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
 
-    // User must be assigned to EITHER the from location OR the to location
-    if (!locationIds.includes(transfer.fromLocationId) && !locationIds.includes(transfer.toLocationId)) {
-      return NextResponse.json(
-        { error: 'Access denied. You can only view transfers involving your assigned locations.' },
-        { status: 403 }
-      )
+    if (!hasAccessAllLocations) {
+      const userLocations = await prisma.userLocation.findMany({
+        where: { userId: parseInt(userId) },
+        select: { locationId: true },
+      })
+      const locationIds = userLocations.map(ul => ul.locationId)
+
+      // User must be assigned to EITHER the from location OR the to location
+      if (!locationIds.includes(transfer.fromLocationId) && !locationIds.includes(transfer.toLocationId)) {
+        return NextResponse.json(
+          { error: 'Access denied. You can only view transfers involving your assigned locations.' },
+          { status: 403 }
+        )
+      }
     }
 
     // Fetch SOD settings and workflow mode for the business

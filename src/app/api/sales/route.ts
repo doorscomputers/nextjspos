@@ -65,20 +65,25 @@ export async function GET(request: NextRequest) {
       deletedAt: null,
     }
 
-    // CRITICAL SECURITY: ALWAYS filter sales by user's assigned locations
-    // Users should only see sales from their physical location(s)
-    const userLocations = await prisma.userLocation.findMany({
-      where: { userId: parseInt(userId) },
-      select: { locationId: true },
-    })
-    const userLocationIds = userLocations.map(ul => ul.locationId)
+    // Check if user has access to all locations (admin permission)
+    const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
 
-    if (userLocationIds.length > 0) {
-      where.locationId = { in: userLocationIds }
-    } else {
-      // User has no location assignments - return empty result
-      where.id = -1 // Impossible ID to match nothing
+    // Filter sales by user's assigned locations UNLESS they have ACCESS_ALL_LOCATIONS permission
+    if (!hasAccessAllLocations) {
+      const userLocations = await prisma.userLocation.findMany({
+        where: { userId: parseInt(userId) },
+        select: { locationId: true },
+      })
+      const userLocationIds = userLocations.map(ul => ul.locationId)
+
+      if (userLocationIds.length > 0) {
+        where.locationId = { in: userLocationIds }
+      } else {
+        // User has no location assignments - return empty result
+        where.id = -1 // Impossible ID to match nothing
+      }
     }
+    // If hasAccessAllLocations is true, no location filter is applied (show all sales)
 
     // If user has SELL_VIEW_OWN, only show their own sales (within their locations)
     if (user.permissions?.includes(PERMISSIONS.SELL_VIEW_OWN) &&

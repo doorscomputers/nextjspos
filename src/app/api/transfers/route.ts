@@ -81,9 +81,8 @@ export async function GET(request: NextRequest) {
 
     console.log('  User assigned location IDs:', locationIds)
 
-    // ALWAYS filter by user's assigned locations unless they're a Super Admin
-    // Even if they have ACCESS_ALL_LOCATIONS, they should only see transfers from/to their assigned locations
-    if (!isAdmin) {
+    // Filter by user's assigned locations UNLESS they have ACCESS_ALL_LOCATIONS permission or are Super Admin
+    if (!hasAccessAllLocations && !isAdmin) {
       // Only show transfers where user has access to EITHER the source OR destination location
       if (locationIds.length > 0) {
         where.OR = [
@@ -97,7 +96,7 @@ export async function GET(request: NextRequest) {
         console.log('  ⚠️ No location assignments - returning empty result')
       }
     } else {
-      console.log('  🌍 Super Admin - showing all transfers')
+      console.log('  🌍 ACCESS_ALL_LOCATIONS or Super Admin - showing all transfers')
     }
 
     // Build include object dynamically
