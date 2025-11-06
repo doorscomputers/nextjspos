@@ -29,7 +29,7 @@ export function calculateStockSummary(history: StockHistoryEntry[]): StockSummar
     transfersIn: history.filter(h => h.transactionType === 'transfer_in').reduce((sum, h) => sum + h.quantityAdded, 0),
     sales: history.filter(h => h.transactionType === 'sale').reduce((sum, h) => sum + h.quantityRemoved, 0),
     adjustments: history.filter(h => h.transactionType === 'adjustment').reduce((sum, h) => sum + h.quantityRemoved, 0),
-    purchaseReturns: history.filter(h => h.transactionType === 'purchase_return').reduce((sum, h) => sum + h.quantityRemoved, 0),
+    purchaseReturns: history.filter(h => h.transactionType === 'purchase_return' || h.transactionType === 'supplier_return').reduce((sum, h) => sum + h.quantityRemoved, 0),
     transfersOut: history.filter(h => h.transactionType === 'transfer_out').reduce((sum, h) => sum + h.quantityRemoved, 0),
   }
 

@@ -566,7 +566,7 @@ export default function StockHistoryV3Page() {
     transfersIn: history.filter(h => h.transactionType === 'transfer_in').reduce((sum, h) => sum + h.quantityAdded, 0),
     totalSold: history.filter(h => h.transactionType === 'sale').reduce((sum, h) => sum + h.quantityRemoved, 0),
     totalAdjustment: history.filter(h => h.transactionType === 'adjustment').reduce((sum, h) => sum + h.quantityRemoved, 0),
-    totalPurchaseReturn: history.filter(h => h.transactionType === 'purchase_return').reduce((sum, h) => sum + h.quantityRemoved, 0),
+    totalPurchaseReturn: history.filter(h => h.transactionType === 'purchase_return' || h.transactionType === 'supplier_return').reduce((sum, h) => sum + h.quantityRemoved, 0),
     transfersOut: history.filter(h => h.transactionType === 'transfer_out').reduce((sum, h) => sum + h.quantityRemoved, 0),
     currentStock: history.length > 0 ? history[0].runningBalance : 0
   }

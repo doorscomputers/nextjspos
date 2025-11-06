@@ -332,7 +332,7 @@ export default function ProductStockHistoryPage() {
                   <span className="text-sm text-gray-700">Total Purchase Return</span>
                   <span className="text-sm font-medium text-gray-900">
                     {selectedVariation && selectedLocation && history.length > 0
-                      ? history.filter(h => h.transactionType === 'purchase_return').reduce((sum, h) => sum + h.quantityRemoved, 0).toFixed(2)
+                      ? history.filter(h => h.transactionType === 'purchase_return' || h.transactionType === 'supplier_return').reduce((sum, h) => sum + h.quantityRemoved, 0).toFixed(2)
                       : '0.00'}
                   </span>
                 </div>
