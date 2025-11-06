@@ -24,6 +24,7 @@ import {
   ArrowUturnLeftIcon,
   CurrencyDollarIcon,
   DocumentTextIcon,
+  DocumentPlusIcon,
   UserCircleIcon,
   ExclamationTriangleIcon,
   ShieldCheckIcon,
@@ -583,6 +584,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
           href: "/dashboard/serial-lookup",
           icon: DocumentTextIcon,
           permission: PERMISSIONS.PURCHASE_RECEIPT_VIEW,
+        },
+        {
+          key: "serial_number_import",
+          name: "Import Serial Numbers",
+          href: "/dashboard/serial-numbers/bulk-import",
+          icon: DocumentPlusIcon,
+          permission: PERMISSIONS.PURCHASE_CREATE,
         },
         {
           key: "reorder_suggestions",
