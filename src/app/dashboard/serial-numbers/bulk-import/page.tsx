@@ -7,7 +7,7 @@ import { PERMISSIONS } from '@/lib/rbac'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { ArrowLeftIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, PlusIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -41,12 +41,15 @@ interface ProductVariation {
   defaultSellingPrice?: number | null
 }
 
-interface SerialNumberEntry {
+interface SelectedProduct {
   productId: number
   productVariationId: number
   productName: string
   variationName: string
   sku: string | null
+}
+
+interface SerialNumberEntry {
   serialNumber: string
   imei?: string
 }
@@ -72,7 +75,9 @@ export default function BulkSerialNumberImportPage() {
   const currentLocationId = locationId?.toString() || ''
   const currentLocationName = location?.name || ''
 
-  const [entries, setEntries] = useState<SerialNumberEntry[]>([])
+  const [selectedProduct, setSelectedProduct] = useState<SelectedProduct | null>(null)
+  const [serialNumbersText, setSerialNumbersText] = useState('')
+  const [parsedEntries, setParsedEntries] = useState<SerialNumberEntry[]>([])
   const [searchMethod, setSearchMethod] = useState<'beginsWith' | 'contains'>('beginsWith')
 
   useEffect(() => {
@@ -102,33 +107,57 @@ export default function BulkSerialNumberImportPage() {
       return
     }
 
-    // Add a new blank entry for this product
-    const newEntry: SerialNumberEntry = {
+    // Save the selected product
+    setSelectedProduct({
       productId: product.id,
       productVariationId: variation.id,
       productName: product.name,
       variationName: variation.name,
       sku: variation.sku,
-      serialNumber: '',
-      imei: undefined,
-    }
+    })
 
-    setEntries([...entries, newEntry])
-    toast.success(`Added product: ${product.name} - ${variation.name}. Now enter serial number.`)
+    toast.success(`Selected: ${product.name} - ${variation.name}. Now paste serial numbers below.`)
   }
 
-  const handleSerialNumberChange = (index: number, field: 'serialNumber' | 'imei', value: string) => {
-    const newEntries = [...entries]
-    if (field === 'serialNumber') {
-      newEntries[index].serialNumber = value
+  // Parse serial numbers from textarea (one per line)
+  const parseSerialNumbers = (text: string) => {
+    const lines = text.split('\n')
+    const entries: SerialNumberEntry[] = []
+    const seen = new Set<string>()
+
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed) continue // Skip empty lines
+
+      // Check for duplicates in this batch
+      const lowerSerial = trimmed.toLowerCase()
+      if (seen.has(lowerSerial)) {
+        continue // Skip duplicates silently (user will see count)
+      }
+      seen.add(lowerSerial)
+
+      entries.push({
+        serialNumber: trimmed,
+      })
+    }
+
+    return entries
+  }
+
+  // Update parsed entries when text changes
+  useEffect(() => {
+    if (serialNumbersText.trim()) {
+      const parsed = parseSerialNumbers(serialNumbersText)
+      setParsedEntries(parsed)
     } else {
-      newEntries[index].imei = value
+      setParsedEntries([])
     }
-    setEntries(newEntries)
-  }
+  }, [serialNumbersText])
 
-  const handleRemoveEntry = (index: number) => {
-    setEntries(entries.filter((_, i) => i !== index))
+  const handleClearProduct = () => {
+    setSelectedProduct(null)
+    setSerialNumbersText('')
+    setParsedEntries([])
   }
 
   const handleSubmit = async () => {
@@ -143,23 +172,13 @@ export default function BulkSerialNumberImportPage() {
       return
     }
 
-    if (entries.length === 0) {
-      toast.error('Please add at least one serial number entry')
+    if (!selectedProduct) {
+      toast.error('Please select a product first')
       return
     }
 
-    // Validate all serial numbers are filled
-    const emptySerials = entries.filter(e => !e.serialNumber.trim())
-    if (emptySerials.length > 0) {
-      toast.error(`Please enter serial numbers for all products (${emptySerials.length} missing)`)
-      return
-    }
-
-    // Check for duplicate serial numbers in this batch
-    const serialNumbers = entries.map(e => e.serialNumber.trim().toLowerCase())
-    const duplicates = serialNumbers.filter((item, index) => serialNumbers.indexOf(item) !== index)
-    if (duplicates.length > 0) {
-      toast.error(`Duplicate serial numbers found: ${duplicates.join(', ')}`)
+    if (parsedEntries.length === 0) {
+      toast.error('Please paste serial numbers (one per line)')
       return
     }
 
@@ -173,9 +192,9 @@ export default function BulkSerialNumberImportPage() {
           supplierId: parseInt(supplierId),
           locationId: parseInt(currentLocationId),
           purchaseDate: new Date(purchaseDate).toISOString(),
-          entries: entries.map(e => ({
-            productId: e.productId,
-            productVariationId: e.productVariationId,
+          entries: parsedEntries.map(e => ({
+            productId: selectedProduct.productId,
+            productVariationId: selectedProduct.productVariationId,
             serialNumber: e.serialNumber.trim(),
             imei: e.imei?.trim() || null,
           })),
@@ -185,10 +204,12 @@ export default function BulkSerialNumberImportPage() {
       const data = await response.json()
 
       if (response.ok) {
-        toast.success(`Successfully imported ${entries.length} serial number(s)`)
+        toast.success(`Successfully imported ${parsedEntries.length} serial number(s)`)
 
         // Reset form
-        setEntries([])
+        setSelectedProduct(null)
+        setSerialNumbersText('')
+        setParsedEntries([])
         setSupplierId('')
 
         // Optionally redirect or stay on page
@@ -284,7 +305,7 @@ export default function BulkSerialNumberImportPage() {
               This allows warranty returns to be tracked back to the original supplier.
             </p>
             <p className="text-xs text-blue-700 dark:text-blue-400 mt-2">
-              <strong>Workflow:</strong> Select Supplier → Search Product → Enter Serial Number(s) → Submit
+              <strong>Workflow:</strong> Select Supplier → Search Product → Paste Serial Numbers (one per line) → Submit
             </p>
           </div>
         </div>
@@ -360,102 +381,137 @@ export default function BulkSerialNumberImportPage() {
           </div>
         </div>
 
-        {/* Add Products Section */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Search Products</h2>
+        {/* Select Product Section */}
+        {!selectedProduct ? (
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Step 2: Select Product</h2>
 
-          {!supplierId ? (
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200 px-4 py-3 rounded">
-              Please select a supplier first before searching for products.
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Product Name Search */}
-              <ProductNameSearch
-                onProductSelect={handleProductSelect}
-                searchMethod={searchMethod}
-                onSearchMethodChange={setSearchMethod}
-                placeholder="Search by product name..."
-                autoFocus={true}
-              />
+            {!supplierId ? (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200 px-4 py-3 rounded">
+                Please select a supplier first before searching for products.
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Product Name Search */}
+                <ProductNameSearch
+                  onProductSelect={handleProductSelect}
+                  searchMethod={searchMethod}
+                  onSearchMethodChange={setSearchMethod}
+                  placeholder="Search by product name..."
+                  autoFocus={true}
+                />
 
-              {/* Divider */}
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+                {/* Divider */}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">OR</span>
+                  </div>
                 </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">OR</span>
+
+                {/* SKU/Barcode Search */}
+                <SKUBarcodeSearch
+                  onProductSelect={handleProductSelect}
+                  placeholder="Scan barcode or enter exact SKU..."
+                  autoFocus={false}
+                />
+              </div>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Selected Product Display */}
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Selected Product</h2>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    All serial numbers below will be linked to this product
+                  </p>
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearProduct}
+                  className="text-gray-700 dark:text-gray-300"
+                >
+                  <XMarkIcon className="w-4 h-4 mr-1" />
+                  Change Product
+                </Button>
               </div>
 
-              {/* SKU/Barcode Search */}
-              <SKUBarcodeSearch
-                onProductSelect={handleProductSelect}
-                placeholder="Scan barcode or enter exact SKU..."
-                autoFocus={false}
-              />
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-900 dark:text-white text-lg">{selectedProduct.productName}</h3>
+                <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
+                  {selectedProduct.variationName}
+                  {selectedProduct.sku && ` • SKU: ${selectedProduct.sku}`}
+                </p>
+              </div>
             </div>
-          )}
-        </div>
 
-        {/* Serial Number Entries */}
-        {entries.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
-              Serial Number Entries ({entries.length})
-            </h2>
+            {/* Paste Serial Numbers Section */}
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">
+                Step 3: Paste Serial Numbers
+              </h2>
 
-            <div className="space-y-4">
-              {entries.map((entry, index) => (
-                <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900 dark:text-white">{entry.productName}</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {entry.variationName} {entry.sku && `• SKU: ${entry.sku}`}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="serialNumbers" className="text-gray-900 dark:text-gray-200 flex items-center gap-2">
+                    Serial Numbers <span className="text-red-500">*</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 font-normal">
+                      (one per line)
+                    </span>
+                  </Label>
+                  <textarea
+                    id="serialNumbers"
+                    value={serialNumbersText}
+                    onChange={(e) => setSerialNumbersText(e.target.value)}
+                    rows={12}
+                    placeholder={"Paste serial numbers here, one per line:\nSN001\nSN002\nSN003\n..."}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Copy serial numbers from Excel/CSV and paste here. Empty lines and duplicates will be automatically removed.
+                  </p>
+                </div>
+
+                {/* Real-time Counter */}
+                {parsedEntries.length > 0 && (
+                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4">
+                    <div className="flex items-center gap-2">
+                      <svg className="h-5 w-5 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <p className="text-sm font-semibold text-green-900 dark:text-green-200">
+                        Ready to import: <strong className="text-lg">{parsedEntries.length}</strong> serial number(s)
                       </p>
                     </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveEntry(index)}
-                    >
-                      <TrashIcon className="w-4 h-4 text-red-600" />
-                    </Button>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-gray-900 dark:text-gray-200">
-                        Serial Number <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        type="text"
-                        value={entry.serialNumber}
-                        onChange={(e) => handleSerialNumberChange(index, 'serialNumber', e.target.value)}
-                        placeholder="Enter serial number"
-                        required
-                        className="font-mono"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-gray-900 dark:text-gray-200">IMEI (Optional)</Label>
-                      <Input
-                        type="text"
-                        value={entry.imei || ''}
-                        onChange={(e) => handleSerialNumberChange(index, 'imei', e.target.value)}
-                        placeholder="Enter IMEI (for mobile devices)"
-                        className="font-mono"
-                      />
+                    {/* Preview first few entries */}
+                    <div className="mt-3">
+                      <p className="text-xs font-semibold text-green-800 dark:text-green-300 mb-1">Preview:</p>
+                      <div className="bg-white dark:bg-gray-900 rounded p-2 font-mono text-xs space-y-1">
+                        {parsedEntries.slice(0, 5).map((entry, index) => (
+                          <div key={index} className="text-gray-700 dark:text-gray-300">
+                            {index + 1}. {entry.serialNumber}
+                          </div>
+                        ))}
+                        {parsedEntries.length > 5 && (
+                          <div className="text-gray-500 dark:text-gray-400 italic">
+                            ... and {parsedEntries.length - 5} more
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )}
+              </div>
             </div>
-          </div>
+          </>
         )}
 
         {/* Submit Button */}
@@ -473,10 +529,10 @@ export default function BulkSerialNumberImportPage() {
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={submitting || entries.length === 0 || !supplierId}
+            disabled={submitting || parsedEntries.length === 0 || !supplierId || !selectedProduct}
             className="px-8 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg hover:shadow-2xl transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
           >
-            {submitting ? 'Importing...' : `Import ${entries.length} Serial Number(s)`}
+            {submitting ? 'Importing...' : `Import ${parsedEntries.length} Serial Number(s)`}
           </Button>
         </div>
       </form>
