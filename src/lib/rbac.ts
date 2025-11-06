@@ -2715,6 +2715,9 @@ export const DEFAULT_ROLES = {
       // - RECEIVER SIDE: Receiver verifies and completes = Different location users
       // - APPROVER: Only approves, cannot execute = Prevents 1-person fraud
 
+      // Serial Number Import (Historical data entry - not actual purchases)
+      PERMISSIONS.PURCHASE_CREATE, // Needed for serial number bulk import menu
+
       // BIR Z-Reading Approval
       PERMISSIONS.Z_READING,
 
