@@ -92,22 +92,33 @@ export const authOptions: NextAuthOptions = {
         // Get user role names for various checks
         const roleNames = user.roles.map(ur => ur.role.name)
 
+        // Collect all permissions to check for access_all_locations
+        const rolePermissionsCheck = user.roles.flatMap(ur =>
+          (ur.role.permissions || []).map(rp => rp.permission.name)
+        )
+        const directPermissionsCheck = user.permissions.map(p => p.permission.name)
+        const allPermissionsCheck = [...new Set([...rolePermissionsCheck, ...directPermissionsCheck])]
+
         // Parse selected location from login form (used for RFID validation)
         const selectedLocationId = (credentials as any).locationId
           ? parseInt((credentials as any).locationId)
           : null
 
-        // Check if user is admin (exempt from RFID location scanning)
+        // Check if user is exempt from location scanning:
+        // 1. Admin roles (Super Admin, System Administrator, All Branch Admin)
+        // 2. Users with access_all_locations permission (e.g., Cross-Location Approver)
         const isAdminRole = roleNames.some(role =>
           role === 'Super Admin' ||
           role === 'System Administrator' ||
           role === 'All Branch Admin'
         )
+        const hasAccessAllLocations = allPermissionsCheck.includes('access_all_locations')
+        const isLocationExempt = isAdminRole || hasAccessAllLocations
 
         // ============================================================================
-        // RFID LOCATION VALIDATION: Enforce for non-admin roles only
+        // RFID LOCATION VALIDATION: Enforce for non-exempt users only
         // ============================================================================
-        if (!isAdminRole && !selectedLocationId) {
+        if (!isLocationExempt && !selectedLocationId) {
           console.log(`[LOGIN] ❌ BLOCKED - Location RFID scan required for ${user.username}`)
           throw new Error(
             "Location verification required.\n\n" +
@@ -116,8 +127,12 @@ export const authOptions: NextAuthOptions = {
           )
         }
 
-        if (isAdminRole) {
-          console.log(`[LOGIN] ✓ Admin role detected - skipping location validation for ${user.username}`)
+        if (isLocationExempt) {
+          if (isAdminRole) {
+            console.log(`[LOGIN] ✓ Admin role detected - skipping location validation for ${user.username}`)
+          } else if (hasAccessAllLocations) {
+            console.log(`[LOGIN] ✓ access_all_locations permission - skipping location validation for ${user.username}`)
+          }
         } else if (selectedLocationId) {
           console.log(`[LOGIN] ✓ RFID scanned - Location ID: ${selectedLocationId}`)
         }
@@ -125,7 +140,7 @@ export const authOptions: NextAuthOptions = {
         // ============================================================================
         // LOCATION MISMATCH VALIDATION: Verify user is assigned to scanned location
         // ============================================================================
-        if (selectedLocationId && !isAdminRole) {
+        if (selectedLocationId && !isLocationExempt) {
           // Collect user's assigned location IDs
           const directLocationIds = user.userLocations.map(ul => ul.locationId)
           const roleLocationIds = user.roles.flatMap(ur =>
@@ -135,14 +150,10 @@ export const authOptions: NextAuthOptions = {
             ? directLocationIds
             : [...new Set(roleLocationIds)]
 
-          // Check for Super Admin (can access any location)
-          const isSuperAdmin = roleNames.includes('Super Admin') ||
-                               roleNames.includes('System Administrator')
-
           // Check if scanned location matches assigned locations
           const isMismatch = !assignedLocationIds.includes(selectedLocationId)
 
-          if (isMismatch && !isSuperAdmin) {
+          if (isMismatch) {
             // Get location names for error message
             const selectedLocation = await prisma.businessLocation.findUnique({
               where: { id: selectedLocationId },
