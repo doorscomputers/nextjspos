@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
+import { useUserPrimaryLocation } from '@/hooks/useUserPrimaryLocation'
 import { PERMISSIONS } from '@/lib/rbac'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -78,11 +79,13 @@ export default function CreatePurchaseOrderPage() {
   const { data: session } = useSession()
   const router = useRouter()
 
+  // BULLETPROOF location detection from session (instant, no API delay)
+  const { locationId, location, loading: locationLoading, error: locationError, noLocationAssigned } = useUserPrimaryLocation()
+
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [locations, setLocations] = useState<Location[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [myLocation, setMyLocation] = useState<{ id: number; name: string } | null>(null)
 
   // Supplier search and quick add
   const [supplierSearchTerm, setSupplierSearchTerm] = useState('')
@@ -94,8 +97,9 @@ export default function CreatePurchaseOrderPage() {
 
   // Form state
   const [supplierId, setSupplierId] = useState('')
-  const [warehouseLocationId, setWarehouseLocationId] = useState('')
-  const [warehouseLocationName, setWarehouseLocationName] = useState('')
+  // Location state managed by useUserPrimaryLocation hook (locationId is from session, instant!)
+  const warehouseLocationId = locationId?.toString() || ''
+  const warehouseLocationName = location?.name || ''
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('')
   const [items, setItems] = useState<POItem[]>([])
   const [taxAmount, setTaxAmount] = useState(0)
@@ -105,33 +109,8 @@ export default function CreatePurchaseOrderPage() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
   useEffect(() => {
-    fetchMyLocation()
     fetchData()
   }, [])
-
-  const fetchMyLocation = async () => {
-    try {
-      console.log('🔵 [CLIENT] Fetching my location from API...')
-      const res = await fetch('/api/user-locations/my-location')
-      console.log('🔵 [CLIENT] API response status:', res.status)
-      const data = await res.json()
-      console.log('🔵 [CLIENT] API response data:', data)
-
-      if (data?.location) {
-        const userLoc = { id: data.location.id, name: data.location.name }
-        console.log('✅ [CLIENT] Setting myLocation to:', userLoc)
-        setMyLocation(userLoc)
-        setWarehouseLocationId(userLoc.id.toString())
-        setWarehouseLocationName(userLoc.name)
-      } else {
-        console.log('❌ [CLIENT] No location in API response')
-        toast.error('No location assigned to your account.')
-      }
-    } catch (err) {
-      console.error('❌ [CLIENT] Error fetching my location:', err)
-      toast.error('Unable to fetch your assigned location')
-    }
-  }
 
   const fetchData = async () => {
     try {
@@ -352,11 +331,24 @@ export default function CreatePurchaseOrderPage() {
     )
   }
 
-  if (loading) {
+  if (loading || locationLoading) {
     return (
       <div className="p-6">
         <div className="text-center py-12">
           <div className="text-gray-500 dark:text-gray-400">Loading form data...</div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show location error if user has no location assigned
+  if (noLocationAssigned) {
+    return (
+      <div className="p-8">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-4 py-3 rounded">
+          <strong className="font-semibold">No Location Assigned</strong>
+          <p className="mt-2">You need to have a location assigned to your account before you can create purchase orders.</p>
+          <p className="mt-1">Please contact your administrator to assign you to a location.</p>
         </div>
       </div>
     )
@@ -441,45 +433,29 @@ export default function CreatePurchaseOrderPage() {
               </Select>
             </div>
 
-            {/* Receiving Location (Manual Selection) */}
+            {/* Receiving Location (Auto-assigned from session) */}
             <div className="space-y-2">
               <Label htmlFor="location" className="text-gray-900 dark:text-gray-200">
                 Receiving Location <span className="text-red-500">*</span>
               </Label>
-              <Select value={warehouseLocationId} onValueChange={setWarehouseLocationId} disabled={!!myLocation}>
-                <SelectTrigger id="location" className={myLocation ? "bg-gray-100 dark:bg-gray-700 cursor-not-allowed" : ""}>
-                  <SelectValue placeholder="Select receiving location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {myLocation ? (
-                    <SelectItem key={myLocation.id} value={myLocation.id.toString()}>
-                      {myLocation.name}
-                    </SelectItem>
-                  ) : (
-                    <>
-                      {Array.isArray(locations) && locations
-                        .filter((loc) => session?.user?.locationIds?.includes(loc.id))
-                        .map((location) => (
-                          <SelectItem key={location.id} value={location.id.toString()}>
-                            {location.name}
-                          </SelectItem>
-                        ))}
-                      {Array.isArray(locations) && locations.filter((loc) => session?.user?.locationIds?.includes(loc.id)).length === 0 && (
-                        <div className="px-2 py-6 text-center text-sm text-gray-500">
-                          No locations assigned to you
-                        </div>
-                      )}
-                      {!Array.isArray(locations) && (
-                        <div className="px-2 py-6 text-center text-sm text-gray-500">
-                          Loading locations...
-                        </div>
-                      )}
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
+              {locationLoading ? (
+                <div className="px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
+                  Loading your location...
+                </div>
+              ) : noLocationAssigned ? (
+                <div className="px-3 py-2 border border-red-300 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400">
+                  No location assigned to your account
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  value={warehouseLocationName}
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-not-allowed font-medium"
+                />
+              )}
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {myLocation ? 'Fixed to your assigned location' : 'Select the branch/location where this purchase will be received'}
+                <strong>🎯 Auto-assigned from session:</strong> This is automatically set to your primary assigned location (instant, no API delay)
               </p>
             </div>
 

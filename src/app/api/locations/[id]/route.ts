@@ -31,7 +31,8 @@ export async function GET(
       return NextResponse.json({ error: 'Location not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ location })
+    // Return location object directly (no wrapper) for cleaner hook consumption
+    return NextResponse.json(location)
   } catch (error) {
     console.error('Error fetching location:', error)
     return NextResponse.json({ error: 'Failed to fetch location' }, { status: 500 })

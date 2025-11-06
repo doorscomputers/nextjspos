@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
+import { useUserPrimaryLocation } from '@/hooks/useUserPrimaryLocation'
 import { PERMISSIONS } from '@/lib/rbac'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -60,11 +61,14 @@ export default function CreateTransferPage() {
   const { can, user } = usePermissions()
   const router = useRouter()
 
+  // BULLETPROOF location detection from session (instant, no API delay)
+  const { locationId, location, loading: locationLoading, noLocationAssigned } = useUserPrimaryLocation()
+
   const [allLocations, setAllLocations] = useState<Location[]>([]) // All business locations for To dropdown
-  const [userLocations, setUserLocations] = useState<Location[]>([]) // User's assigned locations
   const [loadingLocations, setLoadingLocations] = useState(true)
 
-  const [fromLocationId, setFromLocationId] = useState('')
+  // From location is auto-set from session (user's primary location)
+  const fromLocationId = locationId?.toString() || ''
   const [toLocationId, setToLocationId] = useState('')
   const [notes, setNotes] = useState('')
 
@@ -79,51 +83,8 @@ export default function CreateTransferPage() {
   const fetchInitialData = async () => {
     try {
       setLoadingLocations(true)
-      // Fetch user's assigned locations first
-      const userLocationsRes = await fetch('/api/user-locations')
-
-      if (!userLocationsRes.ok) {
-        console.error('Failed to fetch user locations:', userLocationsRes.status)
-        toast.error(`Failed to load user locations: ${userLocationsRes.status}`)
-        return
-      }
-
-      const userLocationsData = await userLocationsRes.json()
-      console.log('🔍 User locations API response:', userLocationsData)
-      console.log('📍 Number of locations:', userLocationsData.locations?.length || 0)
-      console.log('🔓 Has access to all:', userLocationsData.hasAccessToAll)
-      console.log('🏠 Primary location ID:', userLocationsData.primaryLocationId)
-
-      if (userLocationsData.locations && userLocationsData.locations.length > 0) {
-        setUserLocations(userLocationsData.locations)
-
-        // Use primaryLocationId if available (user's actual assigned location)
-        // This prioritizes the user's home location even if they have ACCESS_ALL_LOCATIONS
-        const defaultLocationId = userLocationsData.primaryLocationId
-          ? userLocationsData.primaryLocationId.toString()
-          : userLocationsData.locations[0].id.toString()
-
-        setFromLocationId(defaultLocationId)
-
-        const defaultLocation = userLocationsData.locations.find(
-          loc => loc.id.toString() === defaultLocationId
-        )
-
-        if (defaultLocation) {
-          const locationLabel = defaultLocation.isAssigned
-            ? `${defaultLocation.name} (Your Assigned Location)`
-            : defaultLocation.name
-
-          console.log('✅ Auto-assigned from location:', defaultLocationId, '-', locationLabel)
-          toast.success(`From Location set to: ${locationLabel}`)
-        }
-      } else {
-        console.warn('⚠️ No locations found for user')
-        toast.warning('No locations assigned. Please contact your administrator.')
-      }
 
       // Fetch ALL business locations for the To Location dropdown
-      // We need to fetch all locations so users can transfer TO any branch
       const allLocationsRes = await fetch('/api/locations/all')
       const allLocationsData = await allLocationsRes.json()
 
@@ -137,11 +98,8 @@ export default function CreateTransferPage() {
         // If from location is NOT Main Warehouse, auto-set to Main Warehouse
         // This ensures all branch transfers go to Main Warehouse (centralized model)
         const mainWarehouse = locations.find(loc => loc.name === 'Main Warehouse')
-        const defaultFromLocation = userLocationsData.locations.find(
-          loc => loc.id === userLocationsData.primaryLocationId
-        )
 
-        if (mainWarehouse && defaultFromLocation && defaultFromLocation.name !== 'Main Warehouse') {
+        if (mainWarehouse && location && location.name !== 'Main Warehouse') {
           setToLocationId(mainWarehouse.id.toString())
           console.log('🏭 Auto-set destination to Main Warehouse (Hub-and-Spoke model)')
           toast.info('Destination auto-set to Main Warehouse (centralized transfer policy)')
@@ -325,23 +283,36 @@ export default function CreateTransferPage() {
                   From Location <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <input
-                    type="text"
-                    value={
-                      userLocations.find(loc => loc.id.toString() === fromLocationId)?.name || 'Loading...'
-                    }
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 cursor-not-allowed dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300"
-                    placeholder="Your assigned location"
-                  />
-                  {userLocations.find(loc => loc.id.toString() === fromLocationId)?.isAssigned && (
+                  {locationLoading ? (
+                    <input
+                      type="text"
+                      value="Loading your location..."
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed dark:bg-gray-800 dark:border-gray-600 dark:text-gray-400"
+                    />
+                  ) : noLocationAssigned ? (
+                    <input
+                      type="text"
+                      value="No location assigned"
+                      disabled
+                      className="w-full px-3 py-2 border border-red-300 rounded-lg bg-red-50 text-red-700 cursor-not-allowed dark:bg-red-900/20 dark:border-red-800 dark:text-red-400"
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={location?.name || 'Unknown'}
+                      disabled
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 cursor-not-allowed dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300 font-medium"
+                    />
+                  )}
+                  {!locationLoading && !noLocationAssigned && (
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-green-600 bg-green-50 px-2 py-1 rounded dark:bg-green-900 dark:text-green-300">
-                      Assigned
+                      Auto-Assigned
                     </span>
                   )}
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  <strong>Auto-assigned:</strong> This is automatically set to your primary assigned location
+                  <strong>🎯 Auto-assigned from session:</strong> Instantly set to your primary location (no API delay)
                 </p>
               </div>
 
@@ -351,12 +322,11 @@ export default function CreateTransferPage() {
                 </label>
                 {(() => {
                   // HUB-AND-SPOKE MODEL LOGIC
-                  const fromLocation = userLocations.find(loc => loc.id.toString() === fromLocationId)
-                  const isFromMainWarehouse = fromLocation?.name === 'Main Warehouse'
+                  const isFromMainWarehouse = location?.name === 'Main Warehouse'
                   const mainWarehouse = allLocations.find(loc => loc.name === 'Main Warehouse')
 
                   // If transferring FROM a branch (not Main Warehouse), TO location is locked to Main Warehouse
-                  if (!isFromMainWarehouse && mainWarehouse) {
+                  if (!isFromMainWarehouse && mainWarehouse && !locationLoading) {
                     return (
                       <>
                         <input
@@ -375,14 +345,14 @@ export default function CreateTransferPage() {
                   // If transferring FROM Main Warehouse, allow selecting any other location
                   return (
                     <>
-                      <Select value={toLocationId} onValueChange={setToLocationId}>
+                      <Select value={toLocationId} onValueChange={setToLocationId} disabled={locationLoading || noLocationAssigned}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select destination location" />
                         </SelectTrigger>
                         <SelectContent>
                           {allLocations
                             .filter(loc => {
-                              // Exclude Main Warehouse itself (can't transfer to itself)
+                              // Exclude from location itself (can't transfer to itself)
                               if (fromLocationId && loc.id === parseInt(fromLocationId)) return false
                               return true
                             })
@@ -405,14 +375,15 @@ export default function CreateTransferPage() {
           <div className="bg-white p-6 rounded-lg shadow space-y-4">
             <h2 className="text-lg font-semibold">Add Items</h2>
 
-            {loadingLocations ? (
+            {loadingLocations || locationLoading ? (
               <div className="text-center py-8 text-gray-500">
                 Loading locations...
               </div>
-            ) : !fromLocationId ? (
-              <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded">
-                <p className="font-medium">No location assigned</p>
-                <p className="text-sm mt-1">Please contact your administrator to assign you to a location before creating transfers.</p>
+            ) : noLocationAssigned ? (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-300 dark:border-red-800 text-red-800 dark:text-red-200 px-4 py-3 rounded">
+                <p className="font-semibold">No Location Assigned</p>
+                <p className="text-sm mt-1">You need to have a location assigned to your account before creating transfers.</p>
+                <p className="text-sm mt-1">Please contact your administrator to assign you to a location.</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -545,7 +516,7 @@ export default function CreateTransferPage() {
                   {allLocations.find(loc => loc.id === parseInt(toLocationId))?.name || 'Unknown Location'}
                 </p>
                 <p className="text-sm text-blue-700 mt-1">
-                  From: {userLocations.find(loc => loc.id === parseInt(fromLocationId))?.name || allLocations.find(loc => loc.id === parseInt(fromLocationId))?.name || 'Unknown Location'}
+                  From: {location?.name || 'Unknown Location'}
                 </p>
               </div>
               <p className="text-sm text-gray-600 mt-2">
