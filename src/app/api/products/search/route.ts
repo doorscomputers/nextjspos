@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ products: [] })
       }
 
-      // TYPE 1: SKU/BARCODE EXACT MATCH (FASTEST)
+      // TYPE 1: SKU EXACT MATCH (FASTEST)
       if (type === 'sku') {
         const exactMatch = await prisma.product.findMany({
           where: {
@@ -65,10 +65,7 @@ export async function GET(request: NextRequest) {
             deletedAt: null,
             variations: {
               some: {
-                OR: [
-                  { sku: { equals: searchTrimmed, mode: 'insensitive' } },
-                  { barcode: { equals: searchTrimmed, mode: 'insensitive' } },
-                ],
+                sku: { equals: searchTrimmed, mode: 'insensitive' },
                 deletedAt: null,
               },
             },
@@ -76,10 +73,7 @@ export async function GET(request: NextRequest) {
           include: {
             variations: {
               where: {
-                OR: [
-                  { sku: { equals: searchTrimmed, mode: 'insensitive' } },
-                  { barcode: { equals: searchTrimmed, mode: 'insensitive' } },
-                ],
+                sku: { equals: searchTrimmed, mode: 'insensitive' },
                 deletedAt: null,
               },
               orderBy: { name: 'asc' },
@@ -98,7 +92,6 @@ export async function GET(request: NextRequest) {
               id: v.id,
               name: v.name,
               sku: v.sku,
-              barcode: v.barcode,
               enableSerialNumber: Boolean(product.enableProductInfo),
               defaultPurchasePrice: v.purchasePrice ? Number(v.purchasePrice) : 0,
               defaultSellingPrice: v.sellingPrice ? Number(v.sellingPrice) : 0,
@@ -142,7 +135,6 @@ export async function GET(request: NextRequest) {
               id: v.id,
               name: v.name,
               sku: v.sku,
-              barcode: v.barcode,
               enableSerialNumber: Boolean(product.enableProductInfo),
               defaultPurchasePrice: v.purchasePrice ? Number(v.purchasePrice) : 0,
               defaultSellingPrice: v.sellingPrice ? Number(v.sellingPrice) : 0,
@@ -223,7 +215,6 @@ export async function GET(request: NextRequest) {
                     id: v.id,
                     name: v.name,
                     sku: v.sku,
-                    barcode: null,
                     enableSerialNumber: Boolean(product.enableProductInfo),
                     defaultPurchasePrice: v.purchasePrice ? Number(v.purchasePrice) : 0,
                     defaultSellingPrice: v.sellingPrice ? Number(v.sellingPrice) : 0,
@@ -301,7 +292,6 @@ export async function GET(request: NextRequest) {
                   id: v.id,
                   name: v.name,
                   sku: v.sku,
-                  barcode: null,
                   enableSerialNumber: Boolean(product.enableProductInfo),
                   defaultPurchasePrice: v.purchasePrice ? Number(v.purchasePrice) : 0,
                   defaultSellingPrice: v.sellingPrice ? Number(v.sellingPrice) : 0,

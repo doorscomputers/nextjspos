@@ -32,7 +32,6 @@ interface ProductVariation {
   id: number
   name: string
   sku: string | null
-  barcode: string | null
   enableSerialNumber: boolean
   defaultPurchasePrice?: number | null
   defaultSellingPrice?: number | null
@@ -88,10 +87,9 @@ export default function SKUBarcodeSearch({
         if (data.products && data.products.length > 0) {
           const product = data.products[0]
 
-          // Find the variation with matching SKU or Barcode
+          // Find the variation with matching SKU
           const variation = product.variations.find(
-            (v: ProductVariation) =>
-              v.sku === searchValue || v.barcode === searchValue
+            (v: ProductVariation) => v.sku === searchValue
           )
 
           if (variation) {
