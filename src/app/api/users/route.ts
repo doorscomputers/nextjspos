@@ -105,15 +105,15 @@ export async function POST(request: NextRequest) {
       })
 
       const roleNames = assignedRoles.map((r) => r.name)
-      const adminRoles = ['Super Admin', 'Branch Admin', 'All Branch Admin']
+      const adminRoles = ['Super Admin', 'Branch Admin', 'All Branch Admin', 'Cross-Location Approver']
       const hasAdminRole = roleNames.some((name) => adminRoles.includes(name))
 
-      // Location is ONLY required if user does NOT have an admin role
+      // Location is ONLY required if user does NOT have an admin role or cross-location approver
       if (!hasAdminRole && !locationId) {
         return NextResponse.json(
           {
             error:
-              'Location is required for transactional roles (Cashier, Manager, Staff). Admin roles can work across all locations.',
+              'Location is required for transactional roles (Cashier, Manager, Staff). Admin roles and approvers can work across all locations.',
           },
           { status: 400 }
         )

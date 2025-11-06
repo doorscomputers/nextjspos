@@ -33,8 +33,8 @@ export default function EditUserPage() {
     const selectedRoles = roles.filter(r => formData.roleIds.includes(r.id))
     const selectedRoleNames = selectedRoles.map(r => r.name)
 
-    // If user has ANY admin role (Super Admin or Branch Admin), location is NOT required
-    const adminRoles = ['Super Admin', 'Branch Admin', 'All Branch Admin']
+    // If user has ANY admin role or cross-location approver, location is NOT required
+    const adminRoles = ['Super Admin', 'Branch Admin', 'All Branch Admin', 'Cross-Location Approver']
     const hasAdminRole = selectedRoleNames.some(name => adminRoles.includes(name))
 
     return !hasAdminRole
