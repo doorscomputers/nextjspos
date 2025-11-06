@@ -10,8 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner'
 import { ArrowLeftIcon, TrashIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
-import SKUBarcodeSearch from '@/components/SKUBarcodeSearch'
-import ProductNameSearch from '@/components/ProductNameSearch'
+import UnifiedProductSearch from '@/components/UnifiedProductSearch'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -78,8 +77,6 @@ export default function CreateTransferPage() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
   // Product search method state
-  const [searchMethod, setSearchMethod] = useState<'beginsWith' | 'contains'>('beginsWith')
-
   useEffect(() => {
     fetchInitialData()
   }, [])
@@ -390,31 +387,12 @@ export default function CreateTransferPage() {
                 <p className="text-sm mt-1">Please contact your administrator to assign you to a location.</p>
               </div>
             ) : (
-              <div className="space-y-6">
-                {/* Product Name Search (PRIMARY for Transfer page) */}
-                <ProductNameSearch
+              <div>
+                {/* Unified Product Search (POS-style: Single fast search field) */}
+                <UnifiedProductSearch
                   onProductSelect={handleProductSelect}
-                  searchMethod={searchMethod}
-                  onSearchMethodChange={setSearchMethod}
-                  placeholder="Search by product name..."
+                  placeholder="🔍 Scan barcode or search product (SKU, Name)..."
                   autoFocus={true}
-                />
-
-                {/* Divider */}
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">OR</span>
-                  </div>
-                </div>
-
-                {/* SKU/Barcode Search (SECONDARY for Transfer page) */}
-                <SKUBarcodeSearch
-                  onProductSelect={handleProductSelect}
-                  placeholder="Scan barcode or enter exact SKU..."
-                  autoFocus={false}
                 />
               </div>
             )}
