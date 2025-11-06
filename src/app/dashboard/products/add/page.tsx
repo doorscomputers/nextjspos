@@ -107,17 +107,17 @@ export default function AddProductPage() {
     }
   }, [formData.categoryId, categories])
 
-  // Auto-calculate selling price from margin - only if sellingPrice is empty
+  // Auto-calculate selling price from margin whenever purchase price or margin changes
   useEffect(() => {
-    if (formData.purchasePrice && formData.marginPercentage && !formData.sellingPrice) {
+    if (formData.purchasePrice && formData.marginPercentage) {
       const purchase = parseFloat(formData.purchasePrice)
       const margin = parseFloat(formData.marginPercentage)
-      if (!isNaN(purchase) && !isNaN(margin)) {
+      if (!isNaN(purchase) && !isNaN(margin) && purchase > 0) {
         const selling = purchase + (purchase * margin / 100)
         setFormData(prev => ({ ...prev, sellingPrice: selling.toFixed(2) }))
       }
     }
-  }, [formData.purchasePrice, formData.marginPercentage, formData.sellingPrice])
+  }, [formData.purchasePrice, formData.marginPercentage])
 
   const fetchMetadata = async () => {
     try {
