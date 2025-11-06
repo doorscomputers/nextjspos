@@ -131,20 +131,25 @@ export async function POST(
       }
     })
 
-    // Delete existing role menu permissions
-    await prisma.roleMenuPermission.deleteMany({
-      where: { roleId }
-    })
-
-    // Create new role menu permissions
-    if (menuPermissions.length > 0) {
-      await prisma.roleMenuPermission.createMany({
-        data: menuPermissions.map(mp => ({
-          roleId,
-          menuPermissionId: mp.id
-        }))
+    // ✅ ATOMIC TRANSACTION: Delete old + create new menu permissions
+    await prisma.$transaction(async (tx) => {
+      // Delete existing role menu permissions
+      await tx.roleMenuPermission.deleteMany({
+        where: { roleId }
       })
-    }
+
+      // Create new role menu permissions
+      if (menuPermissions.length > 0) {
+        await tx.roleMenuPermission.createMany({
+          data: menuPermissions.map(mp => ({
+            roleId,
+            menuPermissionId: mp.id
+          }))
+        })
+      }
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
     return NextResponse.json({
       success: true,

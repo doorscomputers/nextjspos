@@ -298,6 +298,8 @@ export async function POST(request: NextRequest) {
       }
 
       return newReturn
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     // Create audit log

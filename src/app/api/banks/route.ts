@@ -113,7 +113,9 @@ export async function POST(request: NextRequest) {
           notes: notes?.trim() || null,
           createdBy: userId,
         },
-      })
+      }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
       // If there's an opening balance, create a bank transaction
       if (parseFloat(openingBalance) !== 0) {

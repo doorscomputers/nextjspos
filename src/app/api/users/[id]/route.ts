@@ -192,49 +192,57 @@ export async function PUT(
       updateData.password = await bcrypt.hash(password, 10)
     }
 
-    // Update user
-    const updatedUser = await prisma.user.update({
-      where: { id: userId },
-      data: updateData,
-    })
-
-    // Update roles if provided
-    if (roleIds && Array.isArray(roleIds)) {
-      // Delete existing role assignments
-      await prisma.userRole.deleteMany({
-        where: { userId },
+    // ✅ ATOMIC TRANSACTION: Update user + roles + locations
+    // All updates happen together or none at all
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      // Update user
+      const user = await tx.user.update({
+        where: { id: userId },
+        data: updateData,
       })
 
-      // Create new role assignments
-      await Promise.all(
-        roleIds.map((roleId: number) =>
-          prisma.userRole.create({
+      // Update roles if provided
+      if (roleIds && Array.isArray(roleIds)) {
+        // Delete existing role assignments
+        await tx.userRole.deleteMany({
+          where: { userId },
+        })
+
+        // Create new role assignments
+        await Promise.all(
+          roleIds.map((roleId: number) =>
+            tx.userRole.create({
+              data: {
+                userId,
+                roleId,
+              },
+            })
+          )
+        )
+      }
+
+      // Update location if provided (single location)
+      if (locationId !== undefined) {
+        // Delete existing location assignments
+        await tx.userLocation.deleteMany({
+          where: { userId },
+        })
+
+        // Create new location assignment
+        if (locationId) {
+          await tx.userLocation.create({
             data: {
               userId,
-              roleId,
+              locationId: parseInt(locationId),
             },
           })
-        )
-      )
-    }
-
-    // Update location if provided (single location)
-    if (locationId !== undefined) {
-      // Delete existing location assignments
-      await prisma.userLocation.deleteMany({
-        where: { userId },
-      })
-
-      // Create new location assignment
-      if (locationId) {
-        await prisma.userLocation.create({
-          data: {
-            userId,
-            locationId: parseInt(locationId),
-          },
-        })
+        }
       }
-    }
+
+      return user
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
     // Send Telegram notification for role changes
     if (roleIds && Array.isArray(roleIds)) {

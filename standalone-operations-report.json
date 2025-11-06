@@ -1,0 +1,2475 @@
+{
+  "timestamp": "2025-11-06T00:16:57.013Z",
+  "total": 204,
+  "critical": [
+    {
+      "file": "inventory-corrections\\route.ts",
+      "line": 210,
+      "code": "const correction = await prisma.inventoryCorrection.create({",
+      "operation": "create"
+    },
+    {
+      "file": "location-changes\\[id]\\approve\\route.ts",
+      "line": 145,
+      "code": "await prisma.auditLog.create({",
+      "operation": "create"
+    },
+    {
+      "file": "purchases\\receipts\\[id]\\serial-numbers\\route.ts",
+      "line": 193,
+      "code": "await prisma.auditLog.create({",
+      "operation": "create"
+    },
+    {
+      "file": "purchases\\suggestions\\generate-po\\route.ts",
+      "line": 130,
+      "code": "const purchaseOrder = await prisma.purchase.create({",
+      "operation": "create"
+    },
+    {
+      "file": "sales\\[id]\\payment\\route.ts",
+      "line": 129,
+      "code": "const payment = await prisma.salePayment.create({",
+      "operation": "create"
+    },
+    {
+      "file": "customer-returns\\[id]\\route.ts",
+      "line": 137,
+      "code": "await prisma.customerReturn.update({",
+      "operation": "update"
+    },
+    {
+      "file": "expenses\\[id]\\approve\\route.ts",
+      "line": 76,
+      "code": "const approvedExpense = await prisma.expense.update({",
+      "operation": "update"
+    },
+    {
+      "file": "expenses\\[id]\\approve\\route.ts",
+      "line": 127,
+      "code": "await prisma.expense.update({",
+      "operation": "update"
+    },
+    {
+      "file": "inventory-corrections\\bulk-delete\\route.ts",
+      "line": 98,
+      "code": "const deletedCorrection = await prisma.inventoryCorrection.update({",
+      "operation": "update"
+    },
+    {
+      "file": "inventory-corrections\\[id]\\route.ts",
+      "line": 170,
+      "code": "const correction = await prisma.inventoryCorrection.update({",
+      "operation": "update"
+    },
+    {
+      "file": "inventory-corrections\\[id]\\route.ts",
+      "line": 288,
+      "code": "await prisma.inventoryCorrection.update({",
+      "operation": "update"
+    },
+    {
+      "file": "leave-requests\\[id]\\approve\\route.ts",
+      "line": 91,
+      "code": "const approvedRequest = await prisma.leaveRequest.update({",
+      "operation": "update"
+    },
+    {
+      "file": "purchases\\amendments\\[id]\\reject\\route.ts",
+      "line": 72,
+      "code": "const rejectedAmendment = await prisma.purchaseAmendment.update({",
+      "operation": "update"
+    },
+    {
+      "file": "purchases\\receipts\\[id]\\reject\\route.ts",
+      "line": 102,
+      "code": "const updatedReceipt = await prisma.purchaseReceipt.update({",
+      "operation": "update"
+    },
+    {
+      "file": "purchases\\receipts\\[id]\\serial-numbers\\route.ts",
+      "line": 179,
+      "code": "const updatedReceiptItem = await prisma.purchaseReceiptItem.update({",
+      "operation": "update"
+    },
+    {
+      "file": "qc-inspections\\[id]\\approve\\route.ts",
+      "line": 82,
+      "code": "const approvedInspection = await prisma.qualityControlInspection.update({",
+      "operation": "update"
+    },
+    {
+      "file": "transfers\\[id]\\check-approve\\route.ts",
+      "line": 123,
+      "code": "const updatedTransfer = await prisma.stockTransfer.update({",
+      "operation": "update"
+    },
+    {
+      "file": "transfers\\[id]\\check-reject\\route.ts",
+      "line": 72,
+      "code": "const updatedTransfer = await prisma.stockTransfer.update({",
+      "operation": "update"
+    },
+    {
+      "file": "transfers\\[id]\\mark-arrived\\route.ts",
+      "line": 120,
+      "code": "const updatedTransfer = await prisma.stockTransfer.update({",
+      "operation": "update"
+    },
+    {
+      "file": "transfers\\[id]\\route.ts",
+      "line": 263,
+      "code": "const updatedTransfer = await prisma.stockTransfer.update({",
+      "operation": "update"
+    },
+    {
+      "file": "transfers\\[id]\\start-verification\\route.ts",
+      "line": 87,
+      "code": "const updatedTransfer = await prisma.stockTransfer.update({",
+      "operation": "update"
+    },
+    {
+      "file": "transfers\\[id]\\submit-for-check\\route.ts",
+      "line": 69,
+      "code": "const updatedTransfer = await prisma.stockTransfer.update({",
+      "operation": "update"
+    },
+    {
+      "file": "transfers\\[id]\\unverify-item\\route.ts",
+      "line": 95,
+      "code": "const updatedItem = await prisma.stockTransferItem.update({",
+      "operation": "update"
+    },
+    {
+      "file": "transfers\\[id]\\unverify-item\\route.ts",
+      "line": 111,
+      "code": "await prisma.stockTransfer.update({",
+      "operation": "update"
+    },
+    {
+      "file": "transfers\\[id]\\verify-item\\route.ts",
+      "line": 93,
+      "code": "const updatedItem = await prisma.stockTransferItem.update({",
+      "operation": "update"
+    },
+    {
+      "file": "transfers\\[id]\\verify-item\\route.ts",
+      "line": 108,
+      "code": "await prisma.stockTransfer.update({",
+      "operation": "update"
+    },
+    {
+      "file": "transfers\\[id]\\verify-item\\route.ts",
+      "line": 131,
+      "code": "await prisma.stockTransfer.update({",
+      "operation": "update"
+    },
+    {
+      "file": "warranty-claims\\[id]\\approve\\route.ts",
+      "line": 57,
+      "code": "const claim = await prisma.serviceWarrantyClaim.update({",
+      "operation": "update"
+    }
+  ],
+  "medium": [
+    {
+      "file": "quotations\\[id]\\route.ts",
+      "line": 50,
+      "code": "await prisma.quotation.delete({",
+      "operation": "delete"
+    },
+    {
+      "file": "roles\\route.ts",
+      "line": 199,
+      "code": "await prisma.role.delete({",
+      "operation": "delete"
+    },
+    {
+      "file": "saved-questions\\[id]\\route.ts",
+      "line": 44,
+      "code": "await prisma.savedQuestion.delete({",
+      "operation": "delete"
+    },
+    {
+      "file": "service-types\\[id]\\route.ts",
+      "line": 209,
+      "code": "await prisma.repairServiceType.delete({",
+      "operation": "delete"
+    },
+    {
+      "file": "settings\\menu-management\\menus\\[id]\\route.ts",
+      "line": 105,
+      "code": "await prisma.menuPermission.delete({",
+      "operation": "delete"
+    },
+    {
+      "file": "superadmin\\businesses\\[id]\\route.ts",
+      "line": 162,
+      "code": "await prisma.business.delete({",
+      "operation": "delete"
+    },
+    {
+      "file": "settings\\menu-permissions\\role\\[id]\\route.ts",
+      "line": 141,
+      "code": "await prisma.roleMenuPermission.createMany({",
+      "operation": "createMany"
+    },
+    {
+      "file": "notifications\\mark-all-read\\route.ts",
+      "line": 17,
+      "code": "const result = await prisma.notification.updateMany({",
+      "operation": "updateMany"
+    },
+    {
+      "file": "products\\bulk-delete\\route.ts",
+      "line": 68,
+      "code": "const result = await prisma.product.updateMany({",
+      "operation": "updateMany"
+    },
+    {
+      "file": "products\\bulk-toggle-active\\route.ts",
+      "line": 70,
+      "code": "const result = await prisma.product.updateMany({",
+      "operation": "updateMany"
+    },
+    {
+      "file": "products\\bulk-update-reorder\\route.ts",
+      "line": 57,
+      "code": "const result = await prisma.product.updateMany({",
+      "operation": "updateMany"
+    },
+    {
+      "file": "products\\bulk-remove-from-location\\route.ts",
+      "line": 170,
+      "code": "const result = await prisma.variationLocationDetails.deleteMany({",
+      "operation": "deleteMany"
+    },
+    {
+      "file": "saved-questions\\route.ts",
+      "line": 112,
+      "code": "await prisma.savedQuestion.deleteMany({",
+      "operation": "deleteMany"
+    },
+    {
+      "file": "settings\\menu-management\\menus\\[id]\\route.ts",
+      "line": 95,
+      "code": "await prisma.roleMenuPermission.deleteMany({",
+      "operation": "deleteMany"
+    },
+    {
+      "file": "settings\\menu-management\\menus\\[id]\\route.ts",
+      "line": 100,
+      "code": "await prisma.userMenuPermission.deleteMany({",
+      "operation": "deleteMany"
+    },
+    {
+      "file": "settings\\menu-permissions\\role\\[id]\\route.ts",
+      "line": 135,
+      "code": "await prisma.roleMenuPermission.deleteMany({",
+      "operation": "deleteMany"
+    },
+    {
+      "file": "users\\[id]\\route.ts",
+      "line": 204,
+      "code": "await prisma.userRole.deleteMany({",
+      "operation": "deleteMany"
+    },
+    {
+      "file": "users\\[id]\\route.ts",
+      "line": 224,
+      "code": "await prisma.userLocation.deleteMany({",
+      "operation": "deleteMany"
+    }
+  ],
+  "low": [
+    {
+      "file": "accounting\\chart-of-accounts\\initialize\\route.ts",
+      "line": 60,
+      "code": "await prisma.accountingAuditLog.create({",
+      "operation": "create"
+    },
+    {
+      "file": "accounting\\chart-of-accounts\\route.ts",
+      "line": 134,
+      "code": "const account = await prisma.chartOfAccounts.create({",
+      "operation": "create"
+    },
+    {
+      "file": "accounting\\journal-entries\\route.ts",
+      "line": 150,
+      "code": "const entry = await prisma.journalEntry.create({",
+      "operation": "create"
+    },
+    {
+      "file": "accounting\\journal-entries\\route.ts",
+      "line": 206,
+      "code": "await prisma.accountingAuditLog.create({",
+      "operation": "create"
+    },
+    {
+      "file": "accounts-payable\\route.ts",
+      "line": 258,
+      "code": "const accountsPayable = await prisma.accountsPayable.create({",
+      "operation": "create"
+    },
+    {
+      "file": "announcements\\route.ts",
+      "line": 144,
+      "code": "const announcement = await prisma.announcement.create({",
+      "operation": "create"
+    },
+    {
+      "file": "attendance\\clock-in\\route.ts",
+      "line": 102,
+      "code": "const attendance = await prisma.attendance.create({",
+      "operation": "create"
+    },
+    {
+      "file": "attendance\\clock-in\\route.ts",
+      "line": 139,
+      "code": "await prisma.auditLog.create({",
+      "operation": "create"
+    },
+    {
+      "file": "attendance\\clock-out\\route.ts",
+      "line": 156,
+      "code": "await prisma.auditLog.create({",
+      "operation": "create"
+    },
+    {
+      "file": "attendance\\clock-out\\route.ts",
+      "line": 200,
+      "code": "await prisma.overtimeAlert.create({",
+      "operation": "create"
+    },
+    {
+      "file": "attendance\\[id]\\route.ts",
+      "line": 224,
+      "code": "await prisma.auditLog.create({",
+      "operation": "create"
+    },
+    {
+      "file": "attendance\\[id]\\route.ts",
+      "line": 304,
+      "code": "await prisma.auditLog.create({",
+      "operation": "create"
+    },
+    {
+      "file": "brands\\import\\route.ts",
+      "line": 95,
+      "code": "await prisma.brand.create({",
+      "operation": "create"
+    },
+    {
+      "file": "brands\\route.ts",
+      "line": 42,
+      "code": "const brand = await prisma.brand.create({",
+      "operation": "create"
+    },
+    {
+      "file": "cash\\in\\route.ts",
+      "line": 68,
+      "code": "const cashInRecord = await prisma.cashInOut.create({",
+      "operation": "create"
+    },
+    {
+      "file": "cash\\in-out\\route.ts",
+      "line": 58,
+      "code": "const cashInOut = await prisma.cashInOut.create({",
+      "operation": "create"
+    },
+    {
+      "file": "cash\\out\\route.ts",
+      "line": 75,
+      "code": "const cashOutRecord = await prisma.cashInOut.create({",
+      "operation": "create"
+    },
+    {
+      "file": "categories\\import\\route.ts",
+      "line": 96,
+      "code": "await prisma.category.create({",
+      "operation": "create"
+    },
+    {
+      "file": "categories\\import-from-errors\\route.ts",
+      "line": 77,
+      "code": "await prisma.category.create({",
+      "operation": "create"
+    },
+    {
+      "file": "categories\\route.ts",
+      "line": 42,
+      "code": "const category = await prisma.category.create({",
+      "operation": "create"
+    },
+    {
+      "file": "customers\\import\\route.ts",
+      "line": 120,
+      "code": "await prisma.customer.create({",
+      "operation": "create"
+    },
+    {
+      "file": "customers\\route.ts",
+      "line": 120,
+      "code": "const customer = await prisma.customer.create({",
+      "operation": "create"
+    },
+    {
+      "file": "expenses\\categories\\route.ts",
+      "line": 141,
+      "code": "const category = await prisma.expenseCategory.create({",
+      "operation": "create"
+    },
+    {
+      "file": "expenses\\route.ts",
+      "line": 276,
+      "code": "const expense = await prisma.expense.create({",
+      "operation": "create"
+    },
+    {
+      "file": "leave-requests\\route.ts",
+      "line": 201,
+      "code": "const leaveRequest = await prisma.leaveRequest.create({",
+      "operation": "create"
+    },
+    {
+      "file": "location-changes\\route.ts",
+      "line": 223,
+      "code": "const locationChangeRequest = await prisma.locationChangeRequest.create({",
+      "operation": "create"
+    },
+    {
+      "file": "location-changes\\route.ts",
+      "line": 269,
+      "code": "await prisma.auditLog.create({",
+      "operation": "create"
+    },
+    {
+      "file": "location-changes\\[id]\\reject\\route.ts",
+      "line": 132,
+      "code": "await prisma.auditLog.create({",
+      "operation": "create"
+    },
+    {
+      "file": "location-changes\\[id]\\route.ts",
+      "line": 160,
+      "code": "await prisma.auditLog.create({",
+      "operation": "create"
+    },
+    {
+      "file": "location-changes\\[id]\\submit-xreading\\route.ts",
+      "line": 92,
+      "code": "await prisma.auditLog.create({",
+      "operation": "create"
+    },
+    {
+      "file": "notifications\\route.ts",
+      "line": 110,
+      "code": "const notification = await prisma.notification.create({",
+      "operation": "create"
+    },
+    {
+      "file": "overtime\\alerts\\route.ts",
+      "line": 195,
+      "code": "const alert = await prisma.overtimeAlert.create({",
+      "operation": "create"
+    },
+    {
+      "file": "overtime\\alerts\\route.ts",
+      "line": 227,
+      "code": "await prisma.auditLog.create({",
+      "operation": "create"
+    },
+    {
+      "file": "overtime\\alerts\\[id]\\acknowledge\\route.ts",
+      "line": 93,
+      "code": "await prisma.auditLog.create({",
+      "operation": "create"
+    },
+    {
+      "file": "overtime\\configuration\\route.ts",
+      "line": 38,
+      "code": "config = await prisma.overtimeConfiguration.create({",
+      "operation": "create"
+    },
+    {
+      "file": "overtime\\configuration\\route.ts",
+      "line": 132,
+      "code": "await prisma.auditLog.create({",
+      "operation": "create"
+    },
+    {
+      "file": "printers\\route.ts",
+      "line": 190,
+      "code": "const printer = await prisma.printer.create({",
+      "operation": "create"
+    },
+    {
+      "file": "products\\import\\route.ts",
+      "line": 185,
+      "code": "brand = await prisma.brand.create({",
+      "operation": "create"
+    },
+    {
+      "file": "products\\import\\route.ts",
+      "line": 204,
+      "code": "unit = await prisma.unit.create({",
+      "operation": "create"
+    },
+    {
+      "file": "products\\import\\route.ts",
+      "line": 225,
+      "code": "category = await prisma.category.create({",
+      "operation": "create"
+    },
+    {
+      "file": "products\\import\\route.ts",
+      "line": 247,
+      "code": "subCategory = await prisma.category.create({",
+      "operation": "create"
+    },
+    {
+      "file": "products\\import\\route.ts",
+      "line": 259,
+      "code": "const createdProduct = await prisma.product.create({",
+      "operation": "create"
+    },
+    {
+      "file": "products\\import\\route.ts",
+      "line": 278,
+      "code": "const variationTemplate = await prisma.variationTemplate.create({",
+      "operation": "create"
+    },
+    {
+      "file": "products\\import\\route.ts",
+      "line": 306,
+      "code": "await prisma.productVariation.create({",
+      "operation": "create"
+    },
+    {
+      "file": "products\\import\\route.ts",
+      "line": 320,
+      "code": "await prisma.productVariation.create({",
+      "operation": "create"
+    },
+    {
+      "file": "products\\[id]\\opening-stock\\route.ts",
+      "line": 192,
+      "code": "await prisma.stockTransaction.create({",
+      "operation": "create"
+    },
+    {
+      "file": "products\\[id]\\opening-stock\\route.ts",
+      "line": 242,
+      "code": "defaultVariation = await prisma.productVariation.create({",
+      "operation": "create"
+    },
+    {
+      "file": "products\\[id]\\opening-stock\\route.ts",
+      "line": 328,
+      "code": "await prisma.stockTransaction.create({",
+      "operation": "create"
+    },
+    {
+      "file": "qc-inspections\\route.ts",
+      "line": 210,
+      "code": "const qcInspection = await prisma.qualityControlInspection.create({",
+      "operation": "create"
+    },
+    {
+      "file": "qc-templates\\route.ts",
+      "line": 110,
+      "code": "const template = await prisma.qCChecklistTemplate.create({",
+      "operation": "create"
+    },
+    {
+      "file": "roles\\route.ts",
+      "line": 90,
+      "code": "const role = await prisma.role.create({",
+      "operation": "create"
+    },
+    {
+      "file": "roles\\[id]\\duplicate\\route.ts",
+      "line": 69,
+      "code": "const newRole = await prisma.role.create({",
+      "operation": "create"
+    },
+    {
+      "file": "saved-questions\\route.ts",
+      "line": 80,
+      "code": "const savedQuestion = await prisma.savedQuestion.create({",
+      "operation": "create"
+    },
+    {
+      "file": "schedule-login-config\\route.ts",
+      "line": 38,
+      "code": "config = await prisma.scheduleLoginConfiguration.create({",
+      "operation": "create"
+    },
+    {
+      "file": "schedule-login-config\\route.ts",
+      "line": 130,
+      "code": "await prisma.auditLog.create({",
+      "operation": "create"
+    },
+    {
+      "file": "schedules\\route.ts",
+      "line": 222,
+      "code": "const schedule = await prisma.employeeSchedule.create({",
+      "operation": "create"
+    },
+    {
+      "file": "service-types\\route.ts",
+      "line": 148,
+      "code": "const serviceType = await prisma.repairServiceType.create({",
+      "operation": "create"
+    },
+    {
+      "file": "settings\\inactivity\\route.ts",
+      "line": 34,
+      "code": "settings = await prisma.inactivitySettings.create({",
+      "operation": "create"
+    },
+    {
+      "file": "settings\\menu-management\\menus\\route.ts",
+      "line": 80,
+      "code": "const menu = await prisma.menuPermission.create({",
+      "operation": "create"
+    },
+    {
+      "file": "settings\\menu-management\\sync-all\\route.ts",
+      "line": 358,
+      "code": "const created = await prisma.menuPermission.create({",
+      "operation": "create"
+    },
+    {
+      "file": "settings\\menu-management\\sync-all\\route.ts",
+      "line": 403,
+      "code": "const created = await prisma.menuPermission.create({",
+      "operation": "create"
+    },
+    {
+      "file": "settings\\sod-rules\\route.ts",
+      "line": 34,
+      "code": "settings = await prisma.businessSODSettings.create({",
+      "operation": "create"
+    },
+    {
+      "file": "shifts\\route.ts",
+      "line": 248,
+      "code": "const shift = await prisma.cashierShift.create({",
+      "operation": "create"
+    },
+    {
+      "file": "suppliers\\import\\route.ts",
+      "line": 134,
+      "code": "await prisma.supplier.create({",
+      "operation": "create"
+    },
+    {
+      "file": "suppliers\\route.ts",
+      "line": 103,
+      "code": "const supplier = await prisma.supplier.create({",
+      "operation": "create"
+    },
+    {
+      "file": "tax-rates\\route.ts",
+      "line": 42,
+      "code": "const taxRate = await prisma.taxRate.create({",
+      "operation": "create"
+    },
+    {
+      "file": "units\\route.ts",
+      "line": 42,
+      "code": "const unit = await prisma.unit.create({",
+      "operation": "create"
+    },
+    {
+      "file": "user\\change-password\\route.ts",
+      "line": 83,
+      "code": "await prisma.auditLog.create({",
+      "operation": "create"
+    },
+    {
+      "file": "user\\update-profile\\route.ts",
+      "line": 65,
+      "code": "await prisma.auditLog.create({",
+      "operation": "create"
+    },
+    {
+      "file": "users\\route.ts",
+      "line": 139,
+      "code": "const newUser = await prisma.user.create({",
+      "operation": "create"
+    },
+    {
+      "file": "users\\route.ts",
+      "line": 168,
+      "code": "await prisma.userLocation.create({",
+      "operation": "create"
+    },
+    {
+      "file": "users\\[id]\\route.ts",
+      "line": 230,
+      "code": "await prisma.userLocation.create({",
+      "operation": "create"
+    },
+    {
+      "file": "warranties\\route.ts",
+      "line": 42,
+      "code": "const warranty = await prisma.warranty.create({",
+      "operation": "create"
+    },
+    {
+      "file": "accounting\\journal-entries\\route.ts",
+      "line": 191,
+      "code": "await prisma.chartOfAccounts.update({",
+      "operation": "update"
+    },
+    {
+      "file": "accounts-payable\\[id]\\route.ts",
+      "line": 130,
+      "code": "const updated = await prisma.accountsPayable.update({",
+      "operation": "update"
+    },
+    {
+      "file": "accounts-payable\\[id]\\route.ts",
+      "line": 205,
+      "code": "await prisma.accountsPayable.update({",
+      "operation": "update"
+    },
+    {
+      "file": "announcements\\[id]\\route.ts",
+      "line": 59,
+      "code": "const announcement = await prisma.announcement.update({",
+      "operation": "update"
+    },
+    {
+      "file": "announcements\\[id]\\route.ts",
+      "line": 138,
+      "code": "await prisma.announcement.update({",
+      "operation": "update"
+    },
+    {
+      "file": "attendance\\clock-out\\route.ts",
+      "line": 130,
+      "code": "const attendance = await prisma.attendance.update({",
+      "operation": "update"
+    },
+    {
+      "file": "attendance\\[id]\\route.ts",
+      "line": 190,
+      "code": "const attendance = await prisma.attendance.update({",
+      "operation": "update"
+    },
+    {
+      "file": "attendance\\[id]\\route.ts",
+      "line": 293,
+      "code": "await prisma.attendance.update({",
+      "operation": "update"
+    },
+    {
+      "file": "banks\\[id]\\route.ts",
+      "line": 128,
+      "code": "const updatedBank = await prisma.bank.update({",
+      "operation": "update"
+    },
+    {
+      "file": "banks\\[id]\\route.ts",
+      "line": 195,
+      "code": "const deletedBank = await prisma.bank.update({",
+      "operation": "update"
+    },
+    {
+      "file": "brands\\[id]\\route.ts",
+      "line": 21,
+      "code": "const brand = await prisma.brand.update({",
+      "operation": "update"
+    },
+    {
+      "file": "brands\\[id]\\route.ts",
+      "line": 53,
+      "code": "await prisma.brand.update({",
+      "operation": "update"
+    },
+    {
+      "file": "business\\settings\\route.ts",
+      "line": 86,
+      "code": "const business = await prisma.business.update({",
+      "operation": "update"
+    },
+    {
+      "file": "categories\\[id]\\route.ts",
+      "line": 21,
+      "code": "const category = await prisma.category.update({",
+      "operation": "update"
+    },
+    {
+      "file": "categories\\[id]\\route.ts",
+      "line": 54,
+      "code": "await prisma.category.update({",
+      "operation": "update"
+    },
+    {
+      "file": "customers\\[id]\\route.ts",
+      "line": 98,
+      "code": "const customer = await prisma.customer.update({",
+      "operation": "update"
+    },
+    {
+      "file": "customers\\[id]\\route.ts",
+      "line": 188,
+      "code": "await prisma.customer.update({",
+      "operation": "update"
+    },
+    {
+      "file": "expenses\\categories\\[id]\\route.ts",
+      "line": 164,
+      "code": "const category = await prisma.expenseCategory.update({",
+      "operation": "update"
+    },
+    {
+      "file": "expenses\\categories\\[id]\\route.ts",
+      "line": 251,
+      "code": "await prisma.expenseCategory.update({",
+      "operation": "update"
+    },
+    {
+      "file": "expenses\\[id]\\route.ts",
+      "line": 264,
+      "code": "const expense = await prisma.expense.update({",
+      "operation": "update"
+    },
+    {
+      "file": "expenses\\[id]\\route.ts",
+      "line": 364,
+      "code": "await prisma.expense.update({",
+      "operation": "update"
+    },
+    {
+      "file": "job-orders\\[id]\\diagnose\\route.ts",
+      "line": 51,
+      "code": "const jobOrder = await prisma.repairJobOrder.update({",
+      "operation": "update"
+    },
+    {
+      "file": "job-orders\\[id]\\estimate\\route.ts",
+      "line": 61,
+      "code": "const jobOrder = await prisma.repairJobOrder.update({",
+      "operation": "update"
+    },
+    {
+      "file": "job-orders\\[id]\\quality-check\\route.ts",
+      "line": 60,
+      "code": "const jobOrder = await prisma.repairJobOrder.update({",
+      "operation": "update"
+    },
+    {
+      "file": "job-orders\\[id]\\route.ts",
+      "line": 190,
+      "code": "const jobOrder = await prisma.repairJobOrder.update({",
+      "operation": "update"
+    },
+    {
+      "file": "labels\\generate\\route.ts",
+      "line": 120,
+      "code": "await prisma.product.update({",
+      "operation": "update"
+    },
+    {
+      "file": "leave-requests\\[id]\\reject\\route.ts",
+      "line": 60,
+      "code": "const rejectedRequest = await prisma.leaveRequest.update({",
+      "operation": "update"
+    },
+    {
+      "file": "leave-requests\\[id]\\route.ts",
+      "line": 196,
+      "code": "const updatedRequest = await prisma.leaveRequest.update({",
+      "operation": "update"
+    },
+    {
+      "file": "leave-requests\\[id]\\route.ts",
+      "line": 287,
+      "code": "await prisma.leaveRequest.update({",
+      "operation": "update"
+    },
+    {
+      "file": "location-changes\\[id]\\reject\\route.ts",
+      "line": 89,
+      "code": "const updatedRequest = await prisma.locationChangeRequest.update({",
+      "operation": "update"
+    },
+    {
+      "file": "location-changes\\[id]\\route.ts",
+      "line": 149,
+      "code": "await prisma.locationChangeRequest.update({",
+      "operation": "update"
+    },
+    {
+      "file": "location-changes\\[id]\\submit-xreading\\route.ts",
+      "line": 67,
+      "code": "const updatedRequest = await prisma.locationChangeRequest.update({",
+      "operation": "update"
+    },
+    {
+      "file": "locations\\[id]\\route.ts",
+      "line": 85,
+      "code": "const location = await prisma.businessLocation.update({",
+      "operation": "update"
+    },
+    {
+      "file": "locations\\[id]\\route.ts",
+      "line": 131,
+      "code": "await prisma.businessLocation.update({",
+      "operation": "update"
+    },
+    {
+      "file": "locations\\[id]\\toggle-status\\route.ts",
+      "line": 57,
+      "code": "const updatedLocation = await prisma.businessLocation.update({",
+      "operation": "update"
+    },
+    {
+      "file": "notifications\\[id]\\mark-read\\route.ts",
+      "line": 36,
+      "code": "const updated = await prisma.notification.update({",
+      "operation": "update"
+    },
+    {
+      "file": "overtime\\alerts\\[id]\\acknowledge\\route.ts",
+      "line": 58,
+      "code": "const updatedAlert = await prisma.overtimeAlert.update({",
+      "operation": "update"
+    },
+    {
+      "file": "printers\\[id]\\route.ts",
+      "line": 187,
+      "code": "const updatedPrinter = await prisma.printer.update({",
+      "operation": "update"
+    },
+    {
+      "file": "printers\\[id]\\route.ts",
+      "line": 284,
+      "code": "await prisma.printer.update({",
+      "operation": "update"
+    },
+    {
+      "file": "products\\unlock-opening-stock\\route.ts",
+      "line": 96,
+      "code": "await prisma.variationLocationDetails.update({",
+      "operation": "update"
+    },
+    {
+      "file": "products\\variations\\[id]\\assign-supplier\\route.ts",
+      "line": 61,
+      "code": "const updatedVariation = await prisma.productVariation.update({",
+      "operation": "update"
+    },
+    {
+      "file": "products\\[id]\\opening-stock\\route.ts",
+      "line": 209,
+      "code": "await prisma.productVariation.update({",
+      "operation": "update"
+    },
+    {
+      "file": "products\\[id]\\toggle-active\\route.ts",
+      "line": 45,
+      "code": "const updated = await prisma.product.update({",
+      "operation": "update"
+    },
+    {
+      "file": "qc-templates\\[id]\\route.ts",
+      "line": 139,
+      "code": "const updatedTemplate = await prisma.qCChecklistTemplate.update({",
+      "operation": "update"
+    },
+    {
+      "file": "qc-templates\\[id]\\route.ts",
+      "line": 218,
+      "code": "await prisma.qCChecklistTemplate.update({",
+      "operation": "update"
+    },
+    {
+      "file": "saved-questions\\[id]\\route.ts",
+      "line": 98,
+      "code": "const updatedQuestion = await prisma.savedQuestion.update({",
+      "operation": "update"
+    },
+    {
+      "file": "schedules\\[id]\\route.ts",
+      "line": 254,
+      "code": "const scheduleRecord = await prisma.employeeSchedule.update({",
+      "operation": "update"
+    },
+    {
+      "file": "schedules\\[id]\\route.ts",
+      "line": 373,
+      "code": "await prisma.employeeSchedule.update({",
+      "operation": "update"
+    },
+    {
+      "file": "service-types\\[id]\\route.ts",
+      "line": 125,
+      "code": "const serviceType = await prisma.repairServiceType.update({",
+      "operation": "update"
+    },
+    {
+      "file": "settings\\menu-management\\menus\\[id]\\route.ts",
+      "line": 34,
+      "code": "const menu = await prisma.menuPermission.update({",
+      "operation": "update"
+    },
+    {
+      "file": "settings\\menu-management\\sync-all\\route.ts",
+      "line": 346,
+      "code": "await prisma.menuPermission.update({",
+      "operation": "update"
+    },
+    {
+      "file": "settings\\menu-management\\sync-all\\route.ts",
+      "line": 390,
+      "code": "await prisma.menuPermission.update({",
+      "operation": "update"
+    },
+    {
+      "file": "settings\\pricing\\route.ts",
+      "line": 139,
+      "code": "const updatedBusiness = await prisma.business.update({",
+      "operation": "update"
+    },
+    {
+      "file": "shifts\\[id]\\force-close\\route.ts",
+      "line": 188,
+      "code": "const updatedShift = await prisma.cashierShift.update({",
+      "operation": "update"
+    },
+    {
+      "file": "superadmin\\businesses\\[id]\\route.ts",
+      "line": 103,
+      "code": "const business = await prisma.business.update({",
+      "operation": "update"
+    },
+    {
+      "file": "suppliers\\[id]\\route.ts",
+      "line": 109,
+      "code": "const supplier = await prisma.supplier.update({",
+      "operation": "update"
+    },
+    {
+      "file": "suppliers\\[id]\\route.ts",
+      "line": 177,
+      "code": "await prisma.supplier.update({",
+      "operation": "update"
+    },
+    {
+      "file": "tax-rates\\[id]\\route.ts",
+      "line": 21,
+      "code": "const taxRate = await prisma.taxRate.update({",
+      "operation": "update"
+    },
+    {
+      "file": "tax-rates\\[id]\\route.ts",
+      "line": 54,
+      "code": "await prisma.taxRate.update({",
+      "operation": "update"
+    },
+    {
+      "file": "technicians\\[id]\\route.ts",
+      "line": 336,
+      "code": "await prisma.technicalServiceEmployee.update({",
+      "operation": "update"
+    },
+    {
+      "file": "units\\[id]\\route.ts",
+      "line": 21,
+      "code": "const unit = await prisma.unit.update({",
+      "operation": "update"
+    },
+    {
+      "file": "units\\[id]\\route.ts",
+      "line": 54,
+      "code": "await prisma.unit.update({",
+      "operation": "update"
+    },
+    {
+      "file": "user\\change-password\\route.ts",
+      "line": 74,
+      "code": "await prisma.user.update({",
+      "operation": "update"
+    },
+    {
+      "file": "user\\preferences\\route.ts",
+      "line": 86,
+      "code": "const updatedUser = await prisma.user.update({",
+      "operation": "update"
+    },
+    {
+      "file": "user\\update-profile\\route.ts",
+      "line": 44,
+      "code": "const updatedUser = await prisma.user.update({",
+      "operation": "update"
+    },
+    {
+      "file": "users\\route.ts",
+      "line": 221,
+      "code": "await prisma.user.update({",
+      "operation": "update"
+    },
+    {
+      "file": "users\\[id]\\reset-password\\route.ts",
+      "line": 82,
+      "code": "await prisma.user.update({",
+      "operation": "update"
+    },
+    {
+      "file": "users\\[id]\\route.ts",
+      "line": 196,
+      "code": "const updatedUser = await prisma.user.update({",
+      "operation": "update"
+    },
+    {
+      "file": "warranties\\[id]\\route.ts",
+      "line": 21,
+      "code": "const warranty = await prisma.warranty.update({",
+      "operation": "update"
+    },
+    {
+      "file": "warranties\\[id]\\route.ts",
+      "line": 55,
+      "code": "await prisma.warranty.update({",
+      "operation": "update"
+    },
+    {
+      "file": "warranty-claims\\[id]\\accept\\route.ts",
+      "line": 54,
+      "code": "const claim = await prisma.serviceWarrantyClaim.update({",
+      "operation": "update"
+    },
+    {
+      "file": "warranty-claims\\[id]\\assign\\route.ts",
+      "line": 81,
+      "code": "const claim = await prisma.serviceWarrantyClaim.update({",
+      "operation": "update"
+    },
+    {
+      "file": "warranty-claims\\[id]\\inspect\\route.ts",
+      "line": 62,
+      "code": "const claim = await prisma.serviceWarrantyClaim.update({",
+      "operation": "update"
+    },
+    {
+      "file": "warranty-claims\\[id]\\reject\\route.ts",
+      "line": 62,
+      "code": "const claim = await prisma.serviceWarrantyClaim.update({",
+      "operation": "update"
+    },
+    {
+      "file": "warranty-claims\\[id]\\route.ts",
+      "line": 197,
+      "code": "const claim = await prisma.serviceWarrantyClaim.update({",
+      "operation": "update"
+    },
+    {
+      "file": "warranty-claims\\[id]\\route.ts",
+      "line": 286,
+      "code": "await prisma.serviceWarrantyClaim.update({",
+      "operation": "update"
+    },
+    {
+      "file": "overtime\\configuration\\route.ts",
+      "line": 96,
+      "code": "const config = await prisma.overtimeConfiguration.upsert({",
+      "operation": "upsert"
+    },
+    {
+      "file": "products\\bulk-price-update\\route.ts",
+      "line": 205,
+      "code": "const locationDetails = await prisma.variationLocationDetails.upsert({",
+      "operation": "upsert"
+    },
+    {
+      "file": "products\\import-prices\\route.ts",
+      "line": 182,
+      "code": "const locationDetails = await prisma.variationLocationDetails.upsert({",
+      "operation": "upsert"
+    },
+    {
+      "file": "products\\variations\\[id]\\inventory\\route.ts",
+      "line": 236,
+      "code": "const inventory = await prisma.variationLocationDetails.upsert({",
+      "operation": "upsert"
+    },
+    {
+      "file": "products\\[id]\\opening-stock\\route.ts",
+      "line": 163,
+      "code": "await prisma.variationLocationDetails.upsert({",
+      "operation": "upsert"
+    },
+    {
+      "file": "products\\[id]\\opening-stock\\route.ts",
+      "line": 299,
+      "code": "await prisma.variationLocationDetails.upsert({",
+      "operation": "upsert"
+    },
+    {
+      "file": "schedule-login-config\\route.ts",
+      "line": 108,
+      "code": "const config = await prisma.scheduleLoginConfiguration.upsert({",
+      "operation": "upsert"
+    },
+    {
+      "file": "settings\\inactivity\\route.ts",
+      "line": 116,
+      "code": "settings = await prisma.inactivitySettings.upsert({",
+      "operation": "upsert"
+    },
+    {
+      "file": "settings\\sod-rules\\route.ts",
+      "line": 113,
+      "code": "settings = await prisma.businessSODSettings.upsert({",
+      "operation": "upsert"
+    }
+  ],
+  "byOperation": {
+    "create": [
+      {
+        "file": "accounting\\chart-of-accounts\\initialize\\route.ts",
+        "line": 60,
+        "code": "await prisma.accountingAuditLog.create({",
+        "operation": "await prisma.accountingAuditLog.create("
+      },
+      {
+        "file": "accounting\\chart-of-accounts\\route.ts",
+        "line": 134,
+        "code": "const account = await prisma.chartOfAccounts.create({",
+        "operation": "await prisma.chartOfAccounts.create("
+      },
+      {
+        "file": "accounting\\journal-entries\\route.ts",
+        "line": 150,
+        "code": "const entry = await prisma.journalEntry.create({",
+        "operation": "await prisma.journalEntry.create("
+      },
+      {
+        "file": "accounting\\journal-entries\\route.ts",
+        "line": 206,
+        "code": "await prisma.accountingAuditLog.create({",
+        "operation": "await prisma.accountingAuditLog.create("
+      },
+      {
+        "file": "accounts-payable\\route.ts",
+        "line": 258,
+        "code": "const accountsPayable = await prisma.accountsPayable.create({",
+        "operation": "await prisma.accountsPayable.create("
+      },
+      {
+        "file": "announcements\\route.ts",
+        "line": 144,
+        "code": "const announcement = await prisma.announcement.create({",
+        "operation": "await prisma.announcement.create("
+      },
+      {
+        "file": "attendance\\clock-in\\route.ts",
+        "line": 102,
+        "code": "const attendance = await prisma.attendance.create({",
+        "operation": "await prisma.attendance.create("
+      },
+      {
+        "file": "attendance\\clock-in\\route.ts",
+        "line": 139,
+        "code": "await prisma.auditLog.create({",
+        "operation": "await prisma.auditLog.create("
+      },
+      {
+        "file": "attendance\\clock-out\\route.ts",
+        "line": 156,
+        "code": "await prisma.auditLog.create({",
+        "operation": "await prisma.auditLog.create("
+      },
+      {
+        "file": "attendance\\clock-out\\route.ts",
+        "line": 200,
+        "code": "await prisma.overtimeAlert.create({",
+        "operation": "await prisma.overtimeAlert.create("
+      },
+      {
+        "file": "attendance\\[id]\\route.ts",
+        "line": 224,
+        "code": "await prisma.auditLog.create({",
+        "operation": "await prisma.auditLog.create("
+      },
+      {
+        "file": "attendance\\[id]\\route.ts",
+        "line": 304,
+        "code": "await prisma.auditLog.create({",
+        "operation": "await prisma.auditLog.create("
+      },
+      {
+        "file": "brands\\import\\route.ts",
+        "line": 95,
+        "code": "await prisma.brand.create({",
+        "operation": "await prisma.brand.create("
+      },
+      {
+        "file": "brands\\route.ts",
+        "line": 42,
+        "code": "const brand = await prisma.brand.create({",
+        "operation": "await prisma.brand.create("
+      },
+      {
+        "file": "cash\\in\\route.ts",
+        "line": 68,
+        "code": "const cashInRecord = await prisma.cashInOut.create({",
+        "operation": "await prisma.cashInOut.create("
+      },
+      {
+        "file": "cash\\in-out\\route.ts",
+        "line": 58,
+        "code": "const cashInOut = await prisma.cashInOut.create({",
+        "operation": "await prisma.cashInOut.create("
+      },
+      {
+        "file": "cash\\out\\route.ts",
+        "line": 75,
+        "code": "const cashOutRecord = await prisma.cashInOut.create({",
+        "operation": "await prisma.cashInOut.create("
+      },
+      {
+        "file": "categories\\import\\route.ts",
+        "line": 96,
+        "code": "await prisma.category.create({",
+        "operation": "await prisma.category.create("
+      },
+      {
+        "file": "categories\\import-from-errors\\route.ts",
+        "line": 77,
+        "code": "await prisma.category.create({",
+        "operation": "await prisma.category.create("
+      },
+      {
+        "file": "categories\\route.ts",
+        "line": 42,
+        "code": "const category = await prisma.category.create({",
+        "operation": "await prisma.category.create("
+      },
+      {
+        "file": "customers\\import\\route.ts",
+        "line": 120,
+        "code": "await prisma.customer.create({",
+        "operation": "await prisma.customer.create("
+      },
+      {
+        "file": "customers\\route.ts",
+        "line": 120,
+        "code": "const customer = await prisma.customer.create({",
+        "operation": "await prisma.customer.create("
+      },
+      {
+        "file": "expenses\\categories\\route.ts",
+        "line": 141,
+        "code": "const category = await prisma.expenseCategory.create({",
+        "operation": "await prisma.expenseCategory.create("
+      },
+      {
+        "file": "expenses\\route.ts",
+        "line": 276,
+        "code": "const expense = await prisma.expense.create({",
+        "operation": "await prisma.expense.create("
+      },
+      {
+        "file": "inventory-corrections\\route.ts",
+        "line": 210,
+        "code": "const correction = await prisma.inventoryCorrection.create({",
+        "operation": "await prisma.inventoryCorrection.create("
+      },
+      {
+        "file": "leave-requests\\route.ts",
+        "line": 201,
+        "code": "const leaveRequest = await prisma.leaveRequest.create({",
+        "operation": "await prisma.leaveRequest.create("
+      },
+      {
+        "file": "location-changes\\route.ts",
+        "line": 223,
+        "code": "const locationChangeRequest = await prisma.locationChangeRequest.create({",
+        "operation": "await prisma.locationChangeRequest.create("
+      },
+      {
+        "file": "location-changes\\route.ts",
+        "line": 269,
+        "code": "await prisma.auditLog.create({",
+        "operation": "await prisma.auditLog.create("
+      },
+      {
+        "file": "location-changes\\[id]\\approve\\route.ts",
+        "line": 145,
+        "code": "await prisma.auditLog.create({",
+        "operation": "await prisma.auditLog.create("
+      },
+      {
+        "file": "location-changes\\[id]\\reject\\route.ts",
+        "line": 132,
+        "code": "await prisma.auditLog.create({",
+        "operation": "await prisma.auditLog.create("
+      },
+      {
+        "file": "location-changes\\[id]\\route.ts",
+        "line": 160,
+        "code": "await prisma.auditLog.create({",
+        "operation": "await prisma.auditLog.create("
+      },
+      {
+        "file": "location-changes\\[id]\\submit-xreading\\route.ts",
+        "line": 92,
+        "code": "await prisma.auditLog.create({",
+        "operation": "await prisma.auditLog.create("
+      },
+      {
+        "file": "notifications\\route.ts",
+        "line": 110,
+        "code": "const notification = await prisma.notification.create({",
+        "operation": "await prisma.notification.create("
+      },
+      {
+        "file": "overtime\\alerts\\route.ts",
+        "line": 195,
+        "code": "const alert = await prisma.overtimeAlert.create({",
+        "operation": "await prisma.overtimeAlert.create("
+      },
+      {
+        "file": "overtime\\alerts\\route.ts",
+        "line": 227,
+        "code": "await prisma.auditLog.create({",
+        "operation": "await prisma.auditLog.create("
+      },
+      {
+        "file": "overtime\\alerts\\[id]\\acknowledge\\route.ts",
+        "line": 93,
+        "code": "await prisma.auditLog.create({",
+        "operation": "await prisma.auditLog.create("
+      },
+      {
+        "file": "overtime\\configuration\\route.ts",
+        "line": 38,
+        "code": "config = await prisma.overtimeConfiguration.create({",
+        "operation": "await prisma.overtimeConfiguration.create("
+      },
+      {
+        "file": "overtime\\configuration\\route.ts",
+        "line": 132,
+        "code": "await prisma.auditLog.create({",
+        "operation": "await prisma.auditLog.create("
+      },
+      {
+        "file": "printers\\route.ts",
+        "line": 190,
+        "code": "const printer = await prisma.printer.create({",
+        "operation": "await prisma.printer.create("
+      },
+      {
+        "file": "products\\import\\route.ts",
+        "line": 185,
+        "code": "brand = await prisma.brand.create({",
+        "operation": "await prisma.brand.create("
+      },
+      {
+        "file": "products\\import\\route.ts",
+        "line": 204,
+        "code": "unit = await prisma.unit.create({",
+        "operation": "await prisma.unit.create("
+      },
+      {
+        "file": "products\\import\\route.ts",
+        "line": 225,
+        "code": "category = await prisma.category.create({",
+        "operation": "await prisma.category.create("
+      },
+      {
+        "file": "products\\import\\route.ts",
+        "line": 247,
+        "code": "subCategory = await prisma.category.create({",
+        "operation": "await prisma.category.create("
+      },
+      {
+        "file": "products\\import\\route.ts",
+        "line": 259,
+        "code": "const createdProduct = await prisma.product.create({",
+        "operation": "await prisma.product.create("
+      },
+      {
+        "file": "products\\import\\route.ts",
+        "line": 278,
+        "code": "const variationTemplate = await prisma.variationTemplate.create({",
+        "operation": "await prisma.variationTemplate.create("
+      },
+      {
+        "file": "products\\import\\route.ts",
+        "line": 306,
+        "code": "await prisma.productVariation.create({",
+        "operation": "await prisma.productVariation.create("
+      },
+      {
+        "file": "products\\import\\route.ts",
+        "line": 320,
+        "code": "await prisma.productVariation.create({",
+        "operation": "await prisma.productVariation.create("
+      },
+      {
+        "file": "products\\[id]\\opening-stock\\route.ts",
+        "line": 192,
+        "code": "await prisma.stockTransaction.create({",
+        "operation": "await prisma.stockTransaction.create("
+      },
+      {
+        "file": "products\\[id]\\opening-stock\\route.ts",
+        "line": 242,
+        "code": "defaultVariation = await prisma.productVariation.create({",
+        "operation": "await prisma.productVariation.create("
+      },
+      {
+        "file": "products\\[id]\\opening-stock\\route.ts",
+        "line": 328,
+        "code": "await prisma.stockTransaction.create({",
+        "operation": "await prisma.stockTransaction.create("
+      },
+      {
+        "file": "purchases\\receipts\\[id]\\serial-numbers\\route.ts",
+        "line": 193,
+        "code": "await prisma.auditLog.create({",
+        "operation": "await prisma.auditLog.create("
+      },
+      {
+        "file": "purchases\\suggestions\\generate-po\\route.ts",
+        "line": 130,
+        "code": "const purchaseOrder = await prisma.purchase.create({",
+        "operation": "await prisma.purchase.create("
+      },
+      {
+        "file": "qc-inspections\\route.ts",
+        "line": 210,
+        "code": "const qcInspection = await prisma.qualityControlInspection.create({",
+        "operation": "await prisma.qualityControlInspection.create("
+      },
+      {
+        "file": "qc-templates\\route.ts",
+        "line": 110,
+        "code": "const template = await prisma.qCChecklistTemplate.create({",
+        "operation": "await prisma.qCChecklistTemplate.create("
+      },
+      {
+        "file": "roles\\route.ts",
+        "line": 90,
+        "code": "const role = await prisma.role.create({",
+        "operation": "await prisma.role.create("
+      },
+      {
+        "file": "roles\\[id]\\duplicate\\route.ts",
+        "line": 69,
+        "code": "const newRole = await prisma.role.create({",
+        "operation": "await prisma.role.create("
+      },
+      {
+        "file": "sales\\[id]\\payment\\route.ts",
+        "line": 129,
+        "code": "const payment = await prisma.salePayment.create({",
+        "operation": "await prisma.salePayment.create("
+      },
+      {
+        "file": "saved-questions\\route.ts",
+        "line": 80,
+        "code": "const savedQuestion = await prisma.savedQuestion.create({",
+        "operation": "await prisma.savedQuestion.create("
+      },
+      {
+        "file": "schedule-login-config\\route.ts",
+        "line": 38,
+        "code": "config = await prisma.scheduleLoginConfiguration.create({",
+        "operation": "await prisma.scheduleLoginConfiguration.create("
+      },
+      {
+        "file": "schedule-login-config\\route.ts",
+        "line": 130,
+        "code": "await prisma.auditLog.create({",
+        "operation": "await prisma.auditLog.create("
+      },
+      {
+        "file": "schedules\\route.ts",
+        "line": 222,
+        "code": "const schedule = await prisma.employeeSchedule.create({",
+        "operation": "await prisma.employeeSchedule.create("
+      },
+      {
+        "file": "service-types\\route.ts",
+        "line": 148,
+        "code": "const serviceType = await prisma.repairServiceType.create({",
+        "operation": "await prisma.repairServiceType.create("
+      },
+      {
+        "file": "settings\\inactivity\\route.ts",
+        "line": 34,
+        "code": "settings = await prisma.inactivitySettings.create({",
+        "operation": "await prisma.inactivitySettings.create("
+      },
+      {
+        "file": "settings\\menu-management\\menus\\route.ts",
+        "line": 80,
+        "code": "const menu = await prisma.menuPermission.create({",
+        "operation": "await prisma.menuPermission.create("
+      },
+      {
+        "file": "settings\\menu-management\\sync-all\\route.ts",
+        "line": 358,
+        "code": "const created = await prisma.menuPermission.create({",
+        "operation": "await prisma.menuPermission.create("
+      },
+      {
+        "file": "settings\\menu-management\\sync-all\\route.ts",
+        "line": 403,
+        "code": "const created = await prisma.menuPermission.create({",
+        "operation": "await prisma.menuPermission.create("
+      },
+      {
+        "file": "settings\\sod-rules\\route.ts",
+        "line": 34,
+        "code": "settings = await prisma.businessSODSettings.create({",
+        "operation": "await prisma.businessSODSettings.create("
+      },
+      {
+        "file": "shifts\\route.ts",
+        "line": 248,
+        "code": "const shift = await prisma.cashierShift.create({",
+        "operation": "await prisma.cashierShift.create("
+      },
+      {
+        "file": "suppliers\\import\\route.ts",
+        "line": 134,
+        "code": "await prisma.supplier.create({",
+        "operation": "await prisma.supplier.create("
+      },
+      {
+        "file": "suppliers\\route.ts",
+        "line": 103,
+        "code": "const supplier = await prisma.supplier.create({",
+        "operation": "await prisma.supplier.create("
+      },
+      {
+        "file": "tax-rates\\route.ts",
+        "line": 42,
+        "code": "const taxRate = await prisma.taxRate.create({",
+        "operation": "await prisma.taxRate.create("
+      },
+      {
+        "file": "units\\route.ts",
+        "line": 42,
+        "code": "const unit = await prisma.unit.create({",
+        "operation": "await prisma.unit.create("
+      },
+      {
+        "file": "user\\change-password\\route.ts",
+        "line": 83,
+        "code": "await prisma.auditLog.create({",
+        "operation": "await prisma.auditLog.create("
+      },
+      {
+        "file": "user\\update-profile\\route.ts",
+        "line": 65,
+        "code": "await prisma.auditLog.create({",
+        "operation": "await prisma.auditLog.create("
+      },
+      {
+        "file": "users\\route.ts",
+        "line": 139,
+        "code": "const newUser = await prisma.user.create({",
+        "operation": "await prisma.user.create("
+      },
+      {
+        "file": "users\\route.ts",
+        "line": 168,
+        "code": "await prisma.userLocation.create({",
+        "operation": "await prisma.userLocation.create("
+      },
+      {
+        "file": "users\\[id]\\route.ts",
+        "line": 230,
+        "code": "await prisma.userLocation.create({",
+        "operation": "await prisma.userLocation.create("
+      },
+      {
+        "file": "warranties\\route.ts",
+        "line": 42,
+        "code": "const warranty = await prisma.warranty.create({",
+        "operation": "await prisma.warranty.create("
+      }
+    ],
+    "update": [
+      {
+        "file": "accounting\\journal-entries\\route.ts",
+        "line": 191,
+        "code": "await prisma.chartOfAccounts.update({",
+        "operation": "await prisma.chartOfAccounts.update("
+      },
+      {
+        "file": "accounts-payable\\[id]\\route.ts",
+        "line": 130,
+        "code": "const updated = await prisma.accountsPayable.update({",
+        "operation": "await prisma.accountsPayable.update("
+      },
+      {
+        "file": "accounts-payable\\[id]\\route.ts",
+        "line": 205,
+        "code": "await prisma.accountsPayable.update({",
+        "operation": "await prisma.accountsPayable.update("
+      },
+      {
+        "file": "announcements\\[id]\\route.ts",
+        "line": 59,
+        "code": "const announcement = await prisma.announcement.update({",
+        "operation": "await prisma.announcement.update("
+      },
+      {
+        "file": "announcements\\[id]\\route.ts",
+        "line": 138,
+        "code": "await prisma.announcement.update({",
+        "operation": "await prisma.announcement.update("
+      },
+      {
+        "file": "attendance\\clock-out\\route.ts",
+        "line": 130,
+        "code": "const attendance = await prisma.attendance.update({",
+        "operation": "await prisma.attendance.update("
+      },
+      {
+        "file": "attendance\\[id]\\route.ts",
+        "line": 190,
+        "code": "const attendance = await prisma.attendance.update({",
+        "operation": "await prisma.attendance.update("
+      },
+      {
+        "file": "attendance\\[id]\\route.ts",
+        "line": 293,
+        "code": "await prisma.attendance.update({",
+        "operation": "await prisma.attendance.update("
+      },
+      {
+        "file": "banks\\[id]\\route.ts",
+        "line": 128,
+        "code": "const updatedBank = await prisma.bank.update({",
+        "operation": "await prisma.bank.update("
+      },
+      {
+        "file": "banks\\[id]\\route.ts",
+        "line": 195,
+        "code": "const deletedBank = await prisma.bank.update({",
+        "operation": "await prisma.bank.update("
+      },
+      {
+        "file": "brands\\[id]\\route.ts",
+        "line": 21,
+        "code": "const brand = await prisma.brand.update({",
+        "operation": "await prisma.brand.update("
+      },
+      {
+        "file": "brands\\[id]\\route.ts",
+        "line": 53,
+        "code": "await prisma.brand.update({",
+        "operation": "await prisma.brand.update("
+      },
+      {
+        "file": "business\\settings\\route.ts",
+        "line": 86,
+        "code": "const business = await prisma.business.update({",
+        "operation": "await prisma.business.update("
+      },
+      {
+        "file": "categories\\[id]\\route.ts",
+        "line": 21,
+        "code": "const category = await prisma.category.update({",
+        "operation": "await prisma.category.update("
+      },
+      {
+        "file": "categories\\[id]\\route.ts",
+        "line": 54,
+        "code": "await prisma.category.update({",
+        "operation": "await prisma.category.update("
+      },
+      {
+        "file": "customer-returns\\[id]\\route.ts",
+        "line": 137,
+        "code": "await prisma.customerReturn.update({",
+        "operation": "await prisma.customerReturn.update("
+      },
+      {
+        "file": "customers\\[id]\\route.ts",
+        "line": 98,
+        "code": "const customer = await prisma.customer.update({",
+        "operation": "await prisma.customer.update("
+      },
+      {
+        "file": "customers\\[id]\\route.ts",
+        "line": 188,
+        "code": "await prisma.customer.update({",
+        "operation": "await prisma.customer.update("
+      },
+      {
+        "file": "expenses\\categories\\[id]\\route.ts",
+        "line": 164,
+        "code": "const category = await prisma.expenseCategory.update({",
+        "operation": "await prisma.expenseCategory.update("
+      },
+      {
+        "file": "expenses\\categories\\[id]\\route.ts",
+        "line": 251,
+        "code": "await prisma.expenseCategory.update({",
+        "operation": "await prisma.expenseCategory.update("
+      },
+      {
+        "file": "expenses\\[id]\\approve\\route.ts",
+        "line": 76,
+        "code": "const approvedExpense = await prisma.expense.update({",
+        "operation": "await prisma.expense.update("
+      },
+      {
+        "file": "expenses\\[id]\\approve\\route.ts",
+        "line": 127,
+        "code": "await prisma.expense.update({",
+        "operation": "await prisma.expense.update("
+      },
+      {
+        "file": "expenses\\[id]\\route.ts",
+        "line": 264,
+        "code": "const expense = await prisma.expense.update({",
+        "operation": "await prisma.expense.update("
+      },
+      {
+        "file": "expenses\\[id]\\route.ts",
+        "line": 364,
+        "code": "await prisma.expense.update({",
+        "operation": "await prisma.expense.update("
+      },
+      {
+        "file": "inventory-corrections\\bulk-delete\\route.ts",
+        "line": 98,
+        "code": "const deletedCorrection = await prisma.inventoryCorrection.update({",
+        "operation": "await prisma.inventoryCorrection.update("
+      },
+      {
+        "file": "inventory-corrections\\[id]\\route.ts",
+        "line": 170,
+        "code": "const correction = await prisma.inventoryCorrection.update({",
+        "operation": "await prisma.inventoryCorrection.update("
+      },
+      {
+        "file": "inventory-corrections\\[id]\\route.ts",
+        "line": 288,
+        "code": "await prisma.inventoryCorrection.update({",
+        "operation": "await prisma.inventoryCorrection.update("
+      },
+      {
+        "file": "job-orders\\[id]\\diagnose\\route.ts",
+        "line": 51,
+        "code": "const jobOrder = await prisma.repairJobOrder.update({",
+        "operation": "await prisma.repairJobOrder.update("
+      },
+      {
+        "file": "job-orders\\[id]\\estimate\\route.ts",
+        "line": 61,
+        "code": "const jobOrder = await prisma.repairJobOrder.update({",
+        "operation": "await prisma.repairJobOrder.update("
+      },
+      {
+        "file": "job-orders\\[id]\\quality-check\\route.ts",
+        "line": 60,
+        "code": "const jobOrder = await prisma.repairJobOrder.update({",
+        "operation": "await prisma.repairJobOrder.update("
+      },
+      {
+        "file": "job-orders\\[id]\\route.ts",
+        "line": 190,
+        "code": "const jobOrder = await prisma.repairJobOrder.update({",
+        "operation": "await prisma.repairJobOrder.update("
+      },
+      {
+        "file": "labels\\generate\\route.ts",
+        "line": 120,
+        "code": "await prisma.product.update({",
+        "operation": "await prisma.product.update("
+      },
+      {
+        "file": "leave-requests\\[id]\\approve\\route.ts",
+        "line": 91,
+        "code": "const approvedRequest = await prisma.leaveRequest.update({",
+        "operation": "await prisma.leaveRequest.update("
+      },
+      {
+        "file": "leave-requests\\[id]\\reject\\route.ts",
+        "line": 60,
+        "code": "const rejectedRequest = await prisma.leaveRequest.update({",
+        "operation": "await prisma.leaveRequest.update("
+      },
+      {
+        "file": "leave-requests\\[id]\\route.ts",
+        "line": 196,
+        "code": "const updatedRequest = await prisma.leaveRequest.update({",
+        "operation": "await prisma.leaveRequest.update("
+      },
+      {
+        "file": "leave-requests\\[id]\\route.ts",
+        "line": 287,
+        "code": "await prisma.leaveRequest.update({",
+        "operation": "await prisma.leaveRequest.update("
+      },
+      {
+        "file": "location-changes\\[id]\\reject\\route.ts",
+        "line": 89,
+        "code": "const updatedRequest = await prisma.locationChangeRequest.update({",
+        "operation": "await prisma.locationChangeRequest.update("
+      },
+      {
+        "file": "location-changes\\[id]\\route.ts",
+        "line": 149,
+        "code": "await prisma.locationChangeRequest.update({",
+        "operation": "await prisma.locationChangeRequest.update("
+      },
+      {
+        "file": "location-changes\\[id]\\submit-xreading\\route.ts",
+        "line": 67,
+        "code": "const updatedRequest = await prisma.locationChangeRequest.update({",
+        "operation": "await prisma.locationChangeRequest.update("
+      },
+      {
+        "file": "locations\\[id]\\route.ts",
+        "line": 85,
+        "code": "const location = await prisma.businessLocation.update({",
+        "operation": "await prisma.businessLocation.update("
+      },
+      {
+        "file": "locations\\[id]\\route.ts",
+        "line": 131,
+        "code": "await prisma.businessLocation.update({",
+        "operation": "await prisma.businessLocation.update("
+      },
+      {
+        "file": "locations\\[id]\\toggle-status\\route.ts",
+        "line": 57,
+        "code": "const updatedLocation = await prisma.businessLocation.update({",
+        "operation": "await prisma.businessLocation.update("
+      },
+      {
+        "file": "notifications\\[id]\\mark-read\\route.ts",
+        "line": 36,
+        "code": "const updated = await prisma.notification.update({",
+        "operation": "await prisma.notification.update("
+      },
+      {
+        "file": "overtime\\alerts\\[id]\\acknowledge\\route.ts",
+        "line": 58,
+        "code": "const updatedAlert = await prisma.overtimeAlert.update({",
+        "operation": "await prisma.overtimeAlert.update("
+      },
+      {
+        "file": "printers\\[id]\\route.ts",
+        "line": 187,
+        "code": "const updatedPrinter = await prisma.printer.update({",
+        "operation": "await prisma.printer.update("
+      },
+      {
+        "file": "printers\\[id]\\route.ts",
+        "line": 284,
+        "code": "await prisma.printer.update({",
+        "operation": "await prisma.printer.update("
+      },
+      {
+        "file": "products\\unlock-opening-stock\\route.ts",
+        "line": 96,
+        "code": "await prisma.variationLocationDetails.update({",
+        "operation": "await prisma.variationLocationDetails.update("
+      },
+      {
+        "file": "products\\variations\\[id]\\assign-supplier\\route.ts",
+        "line": 61,
+        "code": "const updatedVariation = await prisma.productVariation.update({",
+        "operation": "await prisma.productVariation.update("
+      },
+      {
+        "file": "products\\[id]\\opening-stock\\route.ts",
+        "line": 209,
+        "code": "await prisma.productVariation.update({",
+        "operation": "await prisma.productVariation.update("
+      },
+      {
+        "file": "products\\[id]\\toggle-active\\route.ts",
+        "line": 45,
+        "code": "const updated = await prisma.product.update({",
+        "operation": "await prisma.product.update("
+      },
+      {
+        "file": "purchases\\amendments\\[id]\\reject\\route.ts",
+        "line": 72,
+        "code": "const rejectedAmendment = await prisma.purchaseAmendment.update({",
+        "operation": "await prisma.purchaseAmendment.update("
+      },
+      {
+        "file": "purchases\\receipts\\[id]\\reject\\route.ts",
+        "line": 102,
+        "code": "const updatedReceipt = await prisma.purchaseReceipt.update({",
+        "operation": "await prisma.purchaseReceipt.update("
+      },
+      {
+        "file": "purchases\\receipts\\[id]\\serial-numbers\\route.ts",
+        "line": 179,
+        "code": "const updatedReceiptItem = await prisma.purchaseReceiptItem.update({",
+        "operation": "await prisma.purchaseReceiptItem.update("
+      },
+      {
+        "file": "qc-inspections\\[id]\\approve\\route.ts",
+        "line": 82,
+        "code": "const approvedInspection = await prisma.qualityControlInspection.update({",
+        "operation": "await prisma.qualityControlInspection.update("
+      },
+      {
+        "file": "qc-templates\\[id]\\route.ts",
+        "line": 139,
+        "code": "const updatedTemplate = await prisma.qCChecklistTemplate.update({",
+        "operation": "await prisma.qCChecklistTemplate.update("
+      },
+      {
+        "file": "qc-templates\\[id]\\route.ts",
+        "line": 218,
+        "code": "await prisma.qCChecklistTemplate.update({",
+        "operation": "await prisma.qCChecklistTemplate.update("
+      },
+      {
+        "file": "saved-questions\\[id]\\route.ts",
+        "line": 98,
+        "code": "const updatedQuestion = await prisma.savedQuestion.update({",
+        "operation": "await prisma.savedQuestion.update("
+      },
+      {
+        "file": "schedules\\[id]\\route.ts",
+        "line": 254,
+        "code": "const scheduleRecord = await prisma.employeeSchedule.update({",
+        "operation": "await prisma.employeeSchedule.update("
+      },
+      {
+        "file": "schedules\\[id]\\route.ts",
+        "line": 373,
+        "code": "await prisma.employeeSchedule.update({",
+        "operation": "await prisma.employeeSchedule.update("
+      },
+      {
+        "file": "service-types\\[id]\\route.ts",
+        "line": 125,
+        "code": "const serviceType = await prisma.repairServiceType.update({",
+        "operation": "await prisma.repairServiceType.update("
+      },
+      {
+        "file": "settings\\menu-management\\menus\\[id]\\route.ts",
+        "line": 34,
+        "code": "const menu = await prisma.menuPermission.update({",
+        "operation": "await prisma.menuPermission.update("
+      },
+      {
+        "file": "settings\\menu-management\\sync-all\\route.ts",
+        "line": 346,
+        "code": "await prisma.menuPermission.update({",
+        "operation": "await prisma.menuPermission.update("
+      },
+      {
+        "file": "settings\\menu-management\\sync-all\\route.ts",
+        "line": 390,
+        "code": "await prisma.menuPermission.update({",
+        "operation": "await prisma.menuPermission.update("
+      },
+      {
+        "file": "settings\\pricing\\route.ts",
+        "line": 139,
+        "code": "const updatedBusiness = await prisma.business.update({",
+        "operation": "await prisma.business.update("
+      },
+      {
+        "file": "shifts\\[id]\\force-close\\route.ts",
+        "line": 188,
+        "code": "const updatedShift = await prisma.cashierShift.update({",
+        "operation": "await prisma.cashierShift.update("
+      },
+      {
+        "file": "superadmin\\businesses\\[id]\\route.ts",
+        "line": 103,
+        "code": "const business = await prisma.business.update({",
+        "operation": "await prisma.business.update("
+      },
+      {
+        "file": "suppliers\\[id]\\route.ts",
+        "line": 109,
+        "code": "const supplier = await prisma.supplier.update({",
+        "operation": "await prisma.supplier.update("
+      },
+      {
+        "file": "suppliers\\[id]\\route.ts",
+        "line": 177,
+        "code": "await prisma.supplier.update({",
+        "operation": "await prisma.supplier.update("
+      },
+      {
+        "file": "tax-rates\\[id]\\route.ts",
+        "line": 21,
+        "code": "const taxRate = await prisma.taxRate.update({",
+        "operation": "await prisma.taxRate.update("
+      },
+      {
+        "file": "tax-rates\\[id]\\route.ts",
+        "line": 54,
+        "code": "await prisma.taxRate.update({",
+        "operation": "await prisma.taxRate.update("
+      },
+      {
+        "file": "technicians\\[id]\\route.ts",
+        "line": 336,
+        "code": "await prisma.technicalServiceEmployee.update({",
+        "operation": "await prisma.technicalServiceEmployee.update("
+      },
+      {
+        "file": "transfers\\[id]\\check-approve\\route.ts",
+        "line": 123,
+        "code": "const updatedTransfer = await prisma.stockTransfer.update({",
+        "operation": "await prisma.stockTransfer.update("
+      },
+      {
+        "file": "transfers\\[id]\\check-reject\\route.ts",
+        "line": 72,
+        "code": "const updatedTransfer = await prisma.stockTransfer.update({",
+        "operation": "await prisma.stockTransfer.update("
+      },
+      {
+        "file": "transfers\\[id]\\mark-arrived\\route.ts",
+        "line": 120,
+        "code": "const updatedTransfer = await prisma.stockTransfer.update({",
+        "operation": "await prisma.stockTransfer.update("
+      },
+      {
+        "file": "transfers\\[id]\\route.ts",
+        "line": 263,
+        "code": "const updatedTransfer = await prisma.stockTransfer.update({",
+        "operation": "await prisma.stockTransfer.update("
+      },
+      {
+        "file": "transfers\\[id]\\start-verification\\route.ts",
+        "line": 87,
+        "code": "const updatedTransfer = await prisma.stockTransfer.update({",
+        "operation": "await prisma.stockTransfer.update("
+      },
+      {
+        "file": "transfers\\[id]\\submit-for-check\\route.ts",
+        "line": 69,
+        "code": "const updatedTransfer = await prisma.stockTransfer.update({",
+        "operation": "await prisma.stockTransfer.update("
+      },
+      {
+        "file": "transfers\\[id]\\unverify-item\\route.ts",
+        "line": 95,
+        "code": "const updatedItem = await prisma.stockTransferItem.update({",
+        "operation": "await prisma.stockTransferItem.update("
+      },
+      {
+        "file": "transfers\\[id]\\unverify-item\\route.ts",
+        "line": 111,
+        "code": "await prisma.stockTransfer.update({",
+        "operation": "await prisma.stockTransfer.update("
+      },
+      {
+        "file": "transfers\\[id]\\verify-item\\route.ts",
+        "line": 93,
+        "code": "const updatedItem = await prisma.stockTransferItem.update({",
+        "operation": "await prisma.stockTransferItem.update("
+      },
+      {
+        "file": "transfers\\[id]\\verify-item\\route.ts",
+        "line": 108,
+        "code": "await prisma.stockTransfer.update({",
+        "operation": "await prisma.stockTransfer.update("
+      },
+      {
+        "file": "transfers\\[id]\\verify-item\\route.ts",
+        "line": 131,
+        "code": "await prisma.stockTransfer.update({",
+        "operation": "await prisma.stockTransfer.update("
+      },
+      {
+        "file": "units\\[id]\\route.ts",
+        "line": 21,
+        "code": "const unit = await prisma.unit.update({",
+        "operation": "await prisma.unit.update("
+      },
+      {
+        "file": "units\\[id]\\route.ts",
+        "line": 54,
+        "code": "await prisma.unit.update({",
+        "operation": "await prisma.unit.update("
+      },
+      {
+        "file": "user\\change-password\\route.ts",
+        "line": 74,
+        "code": "await prisma.user.update({",
+        "operation": "await prisma.user.update("
+      },
+      {
+        "file": "user\\preferences\\route.ts",
+        "line": 86,
+        "code": "const updatedUser = await prisma.user.update({",
+        "operation": "await prisma.user.update("
+      },
+      {
+        "file": "user\\update-profile\\route.ts",
+        "line": 44,
+        "code": "const updatedUser = await prisma.user.update({",
+        "operation": "await prisma.user.update("
+      },
+      {
+        "file": "users\\route.ts",
+        "line": 221,
+        "code": "await prisma.user.update({",
+        "operation": "await prisma.user.update("
+      },
+      {
+        "file": "users\\[id]\\reset-password\\route.ts",
+        "line": 82,
+        "code": "await prisma.user.update({",
+        "operation": "await prisma.user.update("
+      },
+      {
+        "file": "users\\[id]\\route.ts",
+        "line": 196,
+        "code": "const updatedUser = await prisma.user.update({",
+        "operation": "await prisma.user.update("
+      },
+      {
+        "file": "warranties\\[id]\\route.ts",
+        "line": 21,
+        "code": "const warranty = await prisma.warranty.update({",
+        "operation": "await prisma.warranty.update("
+      },
+      {
+        "file": "warranties\\[id]\\route.ts",
+        "line": 55,
+        "code": "await prisma.warranty.update({",
+        "operation": "await prisma.warranty.update("
+      },
+      {
+        "file": "warranty-claims\\[id]\\accept\\route.ts",
+        "line": 54,
+        "code": "const claim = await prisma.serviceWarrantyClaim.update({",
+        "operation": "await prisma.serviceWarrantyClaim.update("
+      },
+      {
+        "file": "warranty-claims\\[id]\\approve\\route.ts",
+        "line": 57,
+        "code": "const claim = await prisma.serviceWarrantyClaim.update({",
+        "operation": "await prisma.serviceWarrantyClaim.update("
+      },
+      {
+        "file": "warranty-claims\\[id]\\assign\\route.ts",
+        "line": 81,
+        "code": "const claim = await prisma.serviceWarrantyClaim.update({",
+        "operation": "await prisma.serviceWarrantyClaim.update("
+      },
+      {
+        "file": "warranty-claims\\[id]\\inspect\\route.ts",
+        "line": 62,
+        "code": "const claim = await prisma.serviceWarrantyClaim.update({",
+        "operation": "await prisma.serviceWarrantyClaim.update("
+      },
+      {
+        "file": "warranty-claims\\[id]\\reject\\route.ts",
+        "line": 62,
+        "code": "const claim = await prisma.serviceWarrantyClaim.update({",
+        "operation": "await prisma.serviceWarrantyClaim.update("
+      },
+      {
+        "file": "warranty-claims\\[id]\\route.ts",
+        "line": 197,
+        "code": "const claim = await prisma.serviceWarrantyClaim.update({",
+        "operation": "await prisma.serviceWarrantyClaim.update("
+      },
+      {
+        "file": "warranty-claims\\[id]\\route.ts",
+        "line": 286,
+        "code": "await prisma.serviceWarrantyClaim.update({",
+        "operation": "await prisma.serviceWarrantyClaim.update("
+      }
+    ],
+    "delete": [
+      {
+        "file": "quotations\\[id]\\route.ts",
+        "line": 50,
+        "code": "await prisma.quotation.delete({",
+        "operation": "await prisma.quotation.delete("
+      },
+      {
+        "file": "roles\\route.ts",
+        "line": 199,
+        "code": "await prisma.role.delete({",
+        "operation": "await prisma.role.delete("
+      },
+      {
+        "file": "saved-questions\\[id]\\route.ts",
+        "line": 44,
+        "code": "await prisma.savedQuestion.delete({",
+        "operation": "await prisma.savedQuestion.delete("
+      },
+      {
+        "file": "service-types\\[id]\\route.ts",
+        "line": 209,
+        "code": "await prisma.repairServiceType.delete({",
+        "operation": "await prisma.repairServiceType.delete("
+      },
+      {
+        "file": "settings\\menu-management\\menus\\[id]\\route.ts",
+        "line": 105,
+        "code": "await prisma.menuPermission.delete({",
+        "operation": "await prisma.menuPermission.delete("
+      },
+      {
+        "file": "superadmin\\businesses\\[id]\\route.ts",
+        "line": 162,
+        "code": "await prisma.business.delete({",
+        "operation": "await prisma.business.delete("
+      }
+    ],
+    "createMany": [
+      {
+        "file": "settings\\menu-permissions\\role\\[id]\\route.ts",
+        "line": 141,
+        "code": "await prisma.roleMenuPermission.createMany({",
+        "operation": "await prisma.roleMenuPermission.createMany("
+      }
+    ],
+    "updateMany": [
+      {
+        "file": "notifications\\mark-all-read\\route.ts",
+        "line": 17,
+        "code": "const result = await prisma.notification.updateMany({",
+        "operation": "await prisma.notification.updateMany("
+      },
+      {
+        "file": "products\\bulk-delete\\route.ts",
+        "line": 68,
+        "code": "const result = await prisma.product.updateMany({",
+        "operation": "await prisma.product.updateMany("
+      },
+      {
+        "file": "products\\bulk-toggle-active\\route.ts",
+        "line": 70,
+        "code": "const result = await prisma.product.updateMany({",
+        "operation": "await prisma.product.updateMany("
+      },
+      {
+        "file": "products\\bulk-update-reorder\\route.ts",
+        "line": 57,
+        "code": "const result = await prisma.product.updateMany({",
+        "operation": "await prisma.product.updateMany("
+      }
+    ],
+    "deleteMany": [
+      {
+        "file": "products\\bulk-remove-from-location\\route.ts",
+        "line": 170,
+        "code": "const result = await prisma.variationLocationDetails.deleteMany({",
+        "operation": "await prisma.variationLocationDetails.deleteMany("
+      },
+      {
+        "file": "saved-questions\\route.ts",
+        "line": 112,
+        "code": "await prisma.savedQuestion.deleteMany({",
+        "operation": "await prisma.savedQuestion.deleteMany("
+      },
+      {
+        "file": "settings\\menu-management\\menus\\[id]\\route.ts",
+        "line": 95,
+        "code": "await prisma.roleMenuPermission.deleteMany({",
+        "operation": "await prisma.roleMenuPermission.deleteMany("
+      },
+      {
+        "file": "settings\\menu-management\\menus\\[id]\\route.ts",
+        "line": 100,
+        "code": "await prisma.userMenuPermission.deleteMany({",
+        "operation": "await prisma.userMenuPermission.deleteMany("
+      },
+      {
+        "file": "settings\\menu-permissions\\role\\[id]\\route.ts",
+        "line": 135,
+        "code": "await prisma.roleMenuPermission.deleteMany({",
+        "operation": "await prisma.roleMenuPermission.deleteMany("
+      },
+      {
+        "file": "users\\[id]\\route.ts",
+        "line": 204,
+        "code": "await prisma.userRole.deleteMany({",
+        "operation": "await prisma.userRole.deleteMany("
+      },
+      {
+        "file": "users\\[id]\\route.ts",
+        "line": 224,
+        "code": "await prisma.userLocation.deleteMany({",
+        "operation": "await prisma.userLocation.deleteMany("
+      }
+    ],
+    "upsert": [
+      {
+        "file": "overtime\\configuration\\route.ts",
+        "line": 96,
+        "code": "const config = await prisma.overtimeConfiguration.upsert({",
+        "operation": "await prisma.overtimeConfiguration.upsert("
+      },
+      {
+        "file": "products\\bulk-price-update\\route.ts",
+        "line": 205,
+        "code": "const locationDetails = await prisma.variationLocationDetails.upsert({",
+        "operation": "await prisma.variationLocationDetails.upsert("
+      },
+      {
+        "file": "products\\import-prices\\route.ts",
+        "line": 182,
+        "code": "const locationDetails = await prisma.variationLocationDetails.upsert({",
+        "operation": "await prisma.variationLocationDetails.upsert("
+      },
+      {
+        "file": "products\\variations\\[id]\\inventory\\route.ts",
+        "line": 236,
+        "code": "const inventory = await prisma.variationLocationDetails.upsert({",
+        "operation": "await prisma.variationLocationDetails.upsert("
+      },
+      {
+        "file": "products\\[id]\\opening-stock\\route.ts",
+        "line": 163,
+        "code": "await prisma.variationLocationDetails.upsert({",
+        "operation": "await prisma.variationLocationDetails.upsert("
+      },
+      {
+        "file": "products\\[id]\\opening-stock\\route.ts",
+        "line": 299,
+        "code": "await prisma.variationLocationDetails.upsert({",
+        "operation": "await prisma.variationLocationDetails.upsert("
+      },
+      {
+        "file": "schedule-login-config\\route.ts",
+        "line": 108,
+        "code": "const config = await prisma.scheduleLoginConfiguration.upsert({",
+        "operation": "await prisma.scheduleLoginConfiguration.upsert("
+      },
+      {
+        "file": "settings\\inactivity\\route.ts",
+        "line": 116,
+        "code": "settings = await prisma.inactivitySettings.upsert({",
+        "operation": "await prisma.inactivitySettings.upsert("
+      },
+      {
+        "file": "settings\\sod-rules\\route.ts",
+        "line": 113,
+        "code": "settings = await prisma.businessSODSettings.upsert({",
+        "operation": "await prisma.businessSODSettings.upsert("
+      }
+    ],
+    "approve": []
+  }
+}

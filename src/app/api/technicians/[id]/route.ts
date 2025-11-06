@@ -218,7 +218,9 @@ export async function PUT(
       await tx.technicalServiceEmployee.update({
         where: { id: existing.employeeId },
         data: {
-          ...(employeeCode !== undefined && { employeeCode }),
+          ...(employeeCode !== undefined && { employeeCode }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    }),
           ...(firstName !== undefined && { firstName }),
           ...(lastName !== undefined && { lastName }),
           ...(email !== undefined && { email }),

@@ -233,6 +233,8 @@ export async function POST(
         replacementSale,
         totalQuantity,
       }
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     return NextResponse.json({

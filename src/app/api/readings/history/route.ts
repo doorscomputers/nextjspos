@@ -284,6 +284,8 @@ async function hydrateShiftReadings(businessId: number, locationIds: number[]) {
 
   const flattened = operations.flat()
   if (flattened.length) {
-    await prisma.$transaction(flattened)
+    await prisma.$transaction(flattened, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
   }
 }

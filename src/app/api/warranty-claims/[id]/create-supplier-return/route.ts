@@ -163,7 +163,9 @@ export async function POST(
           notes: `Auto-generated from Warranty Claim: ${warrantyClaim.claimNumber}\nIssue: ${warrantyClaim.issueDescription}\nSerial Number: ${warrantyClaim.serialNumber}`,
           createdBy: parseInt(userId),
         },
-      })
+      }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
       // Create return item
       await tx.supplierReturnItem.create({

@@ -1,0 +1,82 @@
+
+═══════════════════════════════════════════════════════════════
+📊 PLAYWRIGHT TEST - ACTUAL DATA IN SUPABASE DATABASE
+═══════════════════════════════════════════════════════════════
+
+📍 LOCATIONS IN SYSTEM:
+
+   6: Baguio
+   3: Bambang
+   7: Future Location 2
+   10: FutureLocation1
+   9: FutureLocation3
+   8: FutureLocation4
+   2: Main Store
+   1: Main Warehouse
+   5: Santiago
+   4: Tuguegarao
+
+
+🎯 TEST PRODUCTS (3 most recently updated):
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📦 Sample Prod1
+   SKU: SP1
+   Category: SampleCategory1
+   Unit: Bx
+   Last Updated: 11/4/2025, 12:35:17 PM
+
+   📌 Variation: Default
+      Code: undefined
+      Cost: ₱NaN
+      Price: ₱NaN
+      Profit: ₱NaN
+
+      📊 CURRENT STOCK BY LOCATION:
+         Main Warehouse           :      0 units
+         Tuguegarao               :      0 units
+         Baguio                   :      0 units
+         Future Location 2        :      0 units
+         FutureLocation1          :      0 units
+         FutureLocation3          :      0 units
+         FutureLocation4          :      0 units
+         Santiago                 :      0 units
+         Bambang                  :      0 units
+         Main Store               :      0 units
+         -------------------------   ------
+         TOTAL                    :      0 units
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📦 HIKSEMI 1TB 2.5 SSD
+   SKU: 6974202725624
+   Category: SSD 2.5 1TB
+   Unit: PC
+   Last Updated: 11/4/2025, 12:33:29 PM
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📦 BROTHER DS640 PORTABLE SCANNER
+   SKU: 4977766800525
+   Category: SCANNER
+   Unit: PC
+   Last Updated: 11/3/2025, 7:56:05 PM
+
+   📌 Variation: Default
+      Code: undefined
+      Cost: ₱NaN
+      Price: ₱NaN
+      Profit: ₱NaN
+
+      📊 CURRENT STOCK BY LOCATION:
+         Main Warehouse           :      2 units
+         Main Store               :      2 units
+         Bambang                  :      3 units
+         Tuguegarao               :      1 units
+         -------------------------   ------
+         TOTAL                    :      8 units
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+💰 RECENT PURCHASES (Last 5):
+

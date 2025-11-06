@@ -75,7 +75,9 @@ export async function POST(
           },
           warrantyClaim: true
         }
-      })
+      }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
       // Decrement technician job count and update stats
       if (jobOrder.technicianId) {

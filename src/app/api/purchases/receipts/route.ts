@@ -379,7 +379,9 @@ export async function POST(request: NextRequest) {
           receivedBy: userId,
           receivedAt: getManilaDate(),
         },
-      })
+      }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
       // 2. Create Receipt Items (NO inventory updates - that happens on approval)
       for (const item of items) {

@@ -383,7 +383,9 @@ export async function POST(request: NextRequest) {
           notes,
           createdBy: parseInt(userId),
         },
-      })
+      }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
       // Create transfer items
       for (const item of items) {

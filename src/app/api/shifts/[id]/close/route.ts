@@ -328,7 +328,9 @@ export async function POST(
             countType: 'closing',
             countedBy: parseInt(session.user.id),
           },
-        })
+        }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
       }
 
       // Close the shift

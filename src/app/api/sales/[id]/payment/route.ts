@@ -123,43 +123,96 @@ export async function POST(
       )
     }
 
-    // 8. Create payment record
+    // 8 & 9: Create payment record + accounting journal entry in ONE transaction
+    // ✅ ATOMIC: If accounting fails, payment is NOT created (all-or-nothing)
     const paidAt = paymentDate ? new Date(paymentDate) : new Date()
+    const accountingEnabled = await isAccountingEnabled(user.businessId)
 
-    const payment = await prisma.salePayment.create({
-      data: {
-        saleId: sale.id,
-        paymentMethod,
-        amount,
-        referenceNumber: referenceNumber || null,
-        paidAt,
-        // Link to shift if payment collected at POS (AR Payment Collection)
-        shiftId: shiftId ? parseInt(shiftId) : null,
-        collectedBy: shiftId ? user.id : null, // Only set collectedBy if collected during a shift
-      },
+    const payment = await prisma.$transaction(async (tx) => {
+      // Step 1: Create payment record
+      const newPayment = await tx.salePayment.create({
+        data: {
+          saleId: sale.id,
+          paymentMethod,
+          amount,
+          referenceNumber: referenceNumber || null,
+          paidAt,
+          // Link to shift if payment collected at POS (AR Payment Collection)
+          shiftId: shiftId ? parseInt(shiftId) : null,
+          collectedBy: shiftId ? user.id : null,
+        },
+      })
+
+      // Step 2: Create accounting journal entry if enabled
+      if (accountingEnabled) {
+        // Get accounts (Cash and Accounts Receivable)
+        const cashAccount = await tx.chartOfAccounts.findFirst({
+          where: { businessId: user.businessId, accountCode: '1000', isActive: true },
+        })
+        const arAccount = await tx.chartOfAccounts.findFirst({
+          where: { businessId: user.businessId, accountCode: '1100', isActive: true },
+        })
+
+        if (cashAccount && arAccount) {
+          // Create journal entry for payment received
+          const journalEntry = await tx.journalEntry.create({
+            data: {
+              businessId: user.businessId,
+              entryDate: paidAt,
+              description: `Payment Received${referenceNumber ? ` - ${referenceNumber}` : ''}`,
+              referenceNumber: referenceNumber || null,
+              sourceType: 'payment_received',
+              sourceId: newPayment.id,
+              status: 'posted',
+              balanced: true,
+              createdBy: user.id,
+              postedBy: user.id,
+              postedAt: new Date(),
+            },
+          })
+
+          // Debit: Cash (increase asset)
+          await tx.journalEntryLine.create({
+            data: {
+              journalEntryId: journalEntry.id,
+              accountId: cashAccount.id,
+              debit: amount,
+              credit: 0,
+              description: `Payment received from customer`,
+            },
+          })
+
+          // Credit: Accounts Receivable (decrease asset)
+          await tx.journalEntryLine.create({
+            data: {
+              journalEntryId: journalEntry.id,
+              accountId: arAccount.id,
+              debit: 0,
+              credit: amount,
+              description: `Payment received from customer`,
+            },
+          })
+
+          // Update account balances
+          await tx.chartOfAccounts.update({
+            where: { id: cashAccount.id },
+            data: { currentBalance: { increment: amount } },
+          })
+          await tx.chartOfAccounts.update({
+            where: { id: arAccount.id },
+            data: { currentBalance: { decrement: amount } },
+          })
+        }
+      }
+
+      return newPayment
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
-    // 9. Calculate new balance after payment
+    // 10. Calculate new balance after payment
     const newBalance = currentBalance - amount
     const isFullyPaid = newBalance <= 0.01
-
-    // ACCOUNTING INTEGRATION: Create journal entries if accounting is enabled
-    if (await isAccountingEnabled(user.businessId)) {
-      try {
-        await recordCustomerPayment({
-          businessId: user.businessId,
-          userId: user.id,
-          paymentId: payment.id,
-          paymentDate: paidAt,
-          amount,
-          referenceNumber: referenceNumber || undefined,
-          customerId: sale.customerId || undefined
-        })
-      } catch (accountingError) {
-        // Log accounting errors but don't fail the payment
-        console.error('Accounting integration error:', accountingError)
-      }
-    }
 
     // 10. Return success response with updated invoice status
     return NextResponse.json({

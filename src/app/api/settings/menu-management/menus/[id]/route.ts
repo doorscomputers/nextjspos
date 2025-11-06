@@ -91,19 +91,25 @@ export async function DELETE(
       )
     }
 
-    // Delete role menu permissions first
-    await prisma.roleMenuPermission.deleteMany({
-      where: { menuPermissionId: menuId }
-    })
+    // ✅ ATOMIC TRANSACTION: Delete permissions + menu item
+    // All deletions happen together or none at all
+    await prisma.$transaction(async (tx) => {
+      // Delete role menu permissions first
+      await tx.roleMenuPermission.deleteMany({
+        where: { menuPermissionId: menuId }
+      })
 
-    // Delete user menu permissions
-    await prisma.userMenuPermission.deleteMany({
-      where: { menuPermissionId: menuId }
-    })
+      // Delete user menu permissions
+      await tx.userMenuPermission.deleteMany({
+        where: { menuPermissionId: menuId }
+      })
 
-    // Delete menu item
-    await prisma.menuPermission.delete({
-      where: { id: menuId }
+      // Delete menu item
+      await tx.menuPermission.delete({
+        where: { id: menuId }
+      })
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     return NextResponse.json({

@@ -154,7 +154,9 @@ export async function POST(request: NextRequest) {
           userType: 'owner',
           allowLogin: true,
         }
-      })
+      }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
       // Create business
       const business = await tx.business.create({

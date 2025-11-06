@@ -158,7 +158,9 @@ export async function POST(
             ? `${purchase.notes}\n\n[CLOSED] ${reason || 'Manually closed - partial delivery accepted'}`
             : `[CLOSED] ${reason || 'Manually closed - partial delivery accepted'}`,
         },
-      })
+      }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
       // 2. Check if AP entry already exists
       const existingAP = await tx.accountsPayable.findFirst({

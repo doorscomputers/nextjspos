@@ -267,7 +267,9 @@ export async function POST(request: NextRequest) {
             reminderSent: false,
             createdBy: parseInt(userId),
           },
-        })
+        }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
         postDatedChequeId = pdc.id
       }
 

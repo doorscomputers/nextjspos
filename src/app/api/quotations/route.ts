@@ -133,7 +133,9 @@ export async function POST(request: NextRequest) {
           notes: notes || null,
           createdBy: parseInt(user.id),
         },
-      })
+      }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
       // Create quotation items
       for (const item of items) {

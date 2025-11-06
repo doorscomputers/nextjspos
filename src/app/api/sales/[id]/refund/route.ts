@@ -179,7 +179,9 @@ export async function POST(
           authorizedBy: authorizingManager.id,
           authorizedByUsername: authorizingManager.username,
         },
-      })
+      }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
       // Process each refund item
       for (const refundItem of refundItems) {

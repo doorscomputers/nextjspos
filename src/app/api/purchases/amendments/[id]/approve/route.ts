@@ -102,7 +102,9 @@ export async function POST(
           approvedBy: parseInt(userId),
           approvedAt: new Date(),
         },
-      })
+      }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
       // 2. Apply changes to the purchase order
       const changedFields = amendment.changedFields as any

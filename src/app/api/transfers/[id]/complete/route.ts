@@ -183,7 +183,9 @@ export async function POST(
             productVariationId: variationId,
             locationId: transfer.toLocationId,
           },
-        })
+        }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
         if (!destStock) {
           // Create new stock record if doesn't exist

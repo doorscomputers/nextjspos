@@ -95,7 +95,9 @@ export async function POST(
               productVariationId: variationId,
               locationId: transfer.fromLocationId,
             },
-          })
+          }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
           if (!originStock) {
             throw new Error(

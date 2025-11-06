@@ -120,7 +120,9 @@ export async function POST(
           switchTime: now,
           notes: body.notes || null,
         }
-      })
+      }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
       // 2. Update the attendance record to reflect new location
       const updatedAttendance = await tx.attendance.update({

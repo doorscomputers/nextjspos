@@ -126,6 +126,8 @@ export async function POST(
       })
 
       return { correction: updatedCorrection, stockResult, previousQty: currentQty }
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     const actualDifference = result.stockResult.newBalance - result.previousQty

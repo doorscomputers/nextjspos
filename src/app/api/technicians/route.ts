@@ -219,7 +219,9 @@ export async function POST(request: NextRequest) {
           hireDate: hireDate ? new Date(hireDate) : null,
           isActive: isActive !== undefined ? isActive : true
         }
-      })
+      }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
       // Create technician profile
       const technician = await tx.serviceTechnician.create({

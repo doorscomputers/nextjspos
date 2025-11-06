@@ -371,7 +371,9 @@ export async function POST(request: NextRequest) {
           paymentStatus: 'unpaid',
           createdBy: parseInt(userId)
         }
-      })
+      }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
       // If technician assigned, increment their job count
       if (technicianId) {

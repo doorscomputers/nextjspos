@@ -91,74 +91,82 @@ export async function POST(request: NextRequest) {
     const deliveryDays = expectedDeliveryDays || 7
     expectedDelivery.setDate(expectedDelivery.getDate() + deliveryDays)
 
-    const createdPurchaseOrders = []
+    // ✅ ATOMIC TRANSACTION: Create ALL purchase orders or NONE
+    // If ANY PO creation fails, ALL are rolled back (prevents partial creation)
+    const createdPurchaseOrders = await prisma.$transaction(async (tx) => {
+      const poResults = []
 
-    // Create a purchase order for each supplier
-    for (const [supplierId, supplierVariations] of supplierGroups.entries()) {
-      const supplier = supplierVariations[0].supplier
-      if (!supplier) continue
+      // Create a purchase order for each supplier
+      for (const [supplierId, supplierVariations] of supplierGroups.entries()) {
+        const supplier = supplierVariations[0].supplier
+        if (!supplier) continue
 
-      // Calculate total for this supplier
-      let subtotal = 0
-      const items = []
+        // Calculate total for this supplier
+        let subtotal = 0
+        const items = []
 
-      for (const variation of supplierVariations) {
-        // Get suggested order quantity from product reorderQuantity or calculate it
-        const product = variation.product
-        const quantity = product.reorderQuantity
-          ? parseFloat(product.reorderQuantity.toString())
-          : 100 // Default fallback
+        for (const variation of supplierVariations) {
+          // Get suggested order quantity from product reorderQuantity or calculate it
+          const product = variation.product
+          const quantity = product.reorderQuantity
+            ? parseFloat(product.reorderQuantity.toString())
+            : 100 // Default fallback
 
-        const unitCost = parseFloat(variation.purchasePrice?.toString() || '0')
-        const lineTotal = quantity * unitCost
+          const unitCost = parseFloat(variation.purchasePrice?.toString() || '0')
+          const lineTotal = quantity * unitCost
 
-        subtotal += lineTotal
+          subtotal += lineTotal
 
-        items.push({
-          productVariationId: variation.id,
-          productId: product.id,
-          quantity,
-          unitCost,
-          lineTotal,
+          items.push({
+            productVariationId: variation.id,
+            productId: product.id,
+            quantity,
+            unitCost,
+            lineTotal,
+          })
+        }
+
+        // Generate reference number
+        const refNumber = `PO-${Date.now()}-${supplierId}`
+
+        // Create the purchase order (inside transaction)
+        const purchaseOrder = await tx.purchase.create({
+          data: {
+            businessId,
+            supplierId,
+            locationId: parseInt(locationId),
+            refNo: refNumber,
+            status: 'draft',
+            subtotal,
+            totalAmount: subtotal,
+            expectedDelivery,
+            createdBy: userId,
+            purchaseLines: {
+              create: items,
+            },
+          },
+          include: {
+            supplier: {
+              select: { name: true },
+            },
+            purchaseLines: true,
+          },
+        })
+
+        poResults.push({
+          purchaseOrderId: purchaseOrder.id,
+          refNo: purchaseOrder.refNo,
+          supplierId,
+          supplierName: supplier.name,
+          totalAmount: subtotal,
+          itemCount: items.length,
         })
       }
 
-      // Generate reference number
-      const refNumber = `PO-${Date.now()}-${supplierId}`
-
-      // Create the purchase order
-      const purchaseOrder = await prisma.purchase.create({
-        data: {
-          businessId,
-          supplierId,
-          locationId: parseInt(locationId),
-          refNo: refNumber,
-          status: 'draft',
-          subtotal,
-          totalAmount: subtotal,
-          expectedDelivery,
-          createdBy: userId,
-          purchaseLines: {
-            create: items,
-          },
-        },
-        include: {
-          supplier: {
-            select: { name: true },
-          },
-          purchaseLines: true,
-        },
-      })
-
-      createdPurchaseOrders.push({
-        purchaseOrderId: purchaseOrder.id,
-        refNo: purchaseOrder.refNo,
-        supplierId,
-        supplierName: supplier.name,
-        totalAmount: subtotal,
-        itemCount: items.length,
-      })
-    }
+      return poResults
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
     return NextResponse.json({
       success: true,

@@ -331,7 +331,9 @@ export async function PUT(
           prefix: business.skuPrefix || 'PROD',
           format: (business.skuFormat as 'hyphen' | 'no_hyphen') || 'hyphen',
           productId: productId
-        })
+        }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
       }
 
       // Update main product

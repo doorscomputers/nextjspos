@@ -91,7 +91,9 @@ export async function POST(request: NextRequest) {
           description: description?.trim() || null,
           createdBy: userId,
         },
-      })
+      }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
       // Update bank current balance
       await tx.bank.update({

@@ -437,7 +437,9 @@ export async function POST(request: NextRequest) {
       console.log(`Creating ${bulkOpeningStockData.length} opening stock transactions in bulk...`)
       await prisma.$transaction(async (tx) => {
         await createBulkOpeningStock(tx, bulkOpeningStockData)
-      })
+      }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
       console.log(`Bulk opening stock creation complete!`)
     }
 

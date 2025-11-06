@@ -1,0 +1,61 @@
+
+Running 5 tests using 1 worker
+
+
+🔧 Setting up test environment...
+
+🧹 Cleaning up test data...
+✅ Test cleanup complete
+  ✘  1 [chromium] › e2e\customer-return-replacement-issuance.spec.ts:344:7 › Customer Return Replacement Issuance - Complete Workflow › Step 1: Create Customer Return with Replacement Items (0ms)
+  -  2 [chromium] › e2e\customer-return-replacement-issuance.spec.ts:464:7 › Customer Return Replacement Issuance - Complete Workflow › Step 2: Approve Customer Return and Verify Stock Restoration
+  -  3 [chromium] › e2e\customer-return-replacement-issuance.spec.ts:571:7 › Customer Return Replacement Issuance - Complete Workflow › Step 3: Issue Replacement and Verify All Database Changes
+  -  4 [chromium] › e2e\customer-return-replacement-issuance.spec.ts:745:7 › Customer Return Replacement Issuance - Complete Workflow › Step 4: Verify Replacement Cannot Be Issued Twice
+  -  5 [chromium] › e2e\customer-return-replacement-issuance.spec.ts:806:7 › Customer Return Replacement Issuance - Complete Workflow › Step 5: Test Insufficient Stock Handling
+
+
+  1) [chromium] › e2e\customer-return-replacement-issuance.spec.ts:344:7 › Customer Return Replacement Issuance - Complete Workflow › Step 1: Create Customer Return with Replacement Items 
+
+    PrismaClientValidationError: 
+    Invalid `prisma.category.create()` invocation in
+    C:\xampp\htdocs\ultimatepos-modern\e2e\customer-return-replacement-issuance.spec.ts:148:42
+
+      145 })
+      146 
+      147 if (!category) {
+    → 148   category = await prisma.category.create({
+              data: {
+                businessId: 1,
+                name: "Test Category",
+                code: "TEST",
+                ~~~~
+            ?   shortCode?: String | Null,
+            ?   description?: String | Null,
+            ?   createdAt?: DateTime,
+            ?   updatedAt?: DateTime,
+            ?   deletedAt?: DateTime | Null,
+            ?   products?: ProductCreateNestedManyWithoutCategoryInput,
+            ?   parent?: CategoryCreateNestedOneWithoutSubcategoriesInput,
+            ?   subcategories?: CategoryCreateNestedManyWithoutParentInput
+              }
+            })
+
+    Unknown argument `code`. Did you mean `name`? Available options are marked with ?.
+
+      146 |
+      147 |       if (!category) {
+    > 148 |         category = await prisma.category.create({
+          |                                          ^
+      149 |           data: {
+      150 |             businessId: testContext.businessId,
+      151 |             name: 'Test Category',
+        at C:\xampp\htdocs\ultimatepos-modern\e2e\customer-return-replacement-issuance.spec.ts:148:42
+        at throwValidationException (C:\xampp\htdocs\ultimatepos-modern\node_modules\@prisma\client\src\runtime\core\errorRendering\throwValidationException.ts:45:9)
+        at ei.handleRequestError (C:\xampp\htdocs\ultimatepos-modern\node_modules\@prisma\client\src\runtime\RequestHandler.ts:202:7)
+        at ei.handleAndLogRequestError (C:\xampp\htdocs\ultimatepos-modern\node_modules\@prisma\client\src\runtime\RequestHandler.ts:174:12)
+        at ei.request (C:\xampp\htdocs\ultimatepos-modern\node_modules\@prisma\client\src\runtime\RequestHandler.ts:143:12)
+        at a (C:\xampp\htdocs\ultimatepos-modern\node_modules\@prisma\client\src\runtime\getPrismaClient.ts:833:24)
+        at C:\xampp\htdocs\ultimatepos-modern\e2e\customer-return-replacement-issuance.spec.ts:148:20
+
+  1 failed
+    [chromium] › e2e\customer-return-replacement-issuance.spec.ts:344:7 › Customer Return Replacement Issuance - Complete Workflow › Step 1: Create Customer Return with Replacement Items 
+  4 did not run

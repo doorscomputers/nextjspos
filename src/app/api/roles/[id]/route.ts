@@ -65,7 +65,9 @@ export async function PUT(
         await tx.role.update({
           where: { id: roleId },
           data: { name },
-        })
+        }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
       }
 
       // Update permissions if provided

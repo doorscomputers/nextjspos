@@ -142,7 +142,9 @@ export async function POST(
         data: {
           status: 'voided',
         },
-      })
+      }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
       // Create void transaction record
       const voidTransaction = await tx.voidTransaction.create({

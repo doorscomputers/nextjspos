@@ -327,7 +327,9 @@ export async function POST(request: NextRequest) {
           submittedBy: parseInt(userId),
           submittedAt: new Date()
         }
-      })
+      }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
       return newClaim
     })

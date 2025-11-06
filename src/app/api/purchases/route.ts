@@ -332,7 +332,9 @@ export async function POST(request: NextRequest) {
             }
           }
         }
-      })
+      }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
       // ✅ OPTIMIZATION: Bulk insert items (1 query instead of N queries)
       await tx.purchaseItem.createMany({

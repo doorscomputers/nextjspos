@@ -1,0 +1,158 @@
+{
+  "codeIntegrity": {
+    "passed": false,
+    "details": [
+      {
+        "check": "RFID scan requirement for non-admins",
+        "status": "FOUND"
+      },
+      {
+        "check": "Location mismatch blocking",
+        "status": "FOUND"
+      },
+      {
+        "check": "RFID verification API call",
+        "status": "MISSING"
+      },
+      {
+        "check": "selectedLocationId variable",
+        "status": "FOUND"
+      },
+      {
+        "check": "Location mismatch error message",
+        "status": "FOUND"
+      }
+    ]
+  },
+  "database": {
+    "passed": true,
+    "details": [
+      {
+        "location": "Main Warehouse",
+        "code": "WH001",
+        "active": true
+      }
+    ]
+  },
+  "configuration": {
+    "passed": true,
+    "details": [
+      {
+        "username": "EricsonChanTransferReceiverTugue",
+        "roles": "Transfer Approver, Transfer Creator, Transfer Checker, Transfer Sender, Transfer Receiver, Transfer Manager, Price Manager",
+        "locations": [
+          "Tuguegarao"
+        ],
+        "hasLocations": true
+      },
+      {
+        "username": "EricsonChanCashierTugue",
+        "roles": "Sales Cashier",
+        "locations": [
+          "Tuguegarao"
+        ],
+        "hasLocations": true
+      },
+      {
+        "username": "JASMINKATECashierBambang",
+        "roles": "Sales Cashier",
+        "locations": [
+          "Bambang"
+        ],
+        "hasLocations": true
+      },
+      {
+        "username": "JASMINKATETransferReceiverBambang",
+        "roles": "Transfer Approver, Transfer Creator, Transfer Checker, Transfer Sender, Transfer Receiver",
+        "locations": [
+          "Bambang"
+        ],
+        "hasLocations": true
+      },
+      {
+        "username": "JASMINKATETransferReceiverMain",
+        "roles": "Transfer Approver, Transfer Creator, Transfer Checker, Transfer Sender, Transfer Receiver",
+        "locations": [
+          "Main Store"
+        ],
+        "hasLocations": true
+      },
+      {
+        "username": "JOJITKATECashierBambang",
+        "roles": "Sales Cashier",
+        "locations": [
+          "Bambang"
+        ],
+        "hasLocations": true
+      },
+      {
+        "username": "JOJITKATECashierMain",
+        "roles": "Sales Cashier",
+        "locations": [
+          "Main Store"
+        ],
+        "hasLocations": true
+      },
+      {
+        "username": "JOJITKATETransferReceiverBambang",
+        "roles": "Transfer Approver, Transfer Creator, Transfer Checker, Transfer Sender, Transfer Receiver",
+        "locations": [
+          "Bambang"
+        ],
+        "hasLocations": true
+      },
+      {
+        "username": "JOJITKATETransferReceiverMain",
+        "roles": "Transfer Approver, Transfer Creator, Transfer Checker, Transfer Sender, Transfer Receiver",
+        "locations": [
+          "Main Store"
+        ],
+        "hasLocations": true
+      },
+      {
+        "username": "Jheiron",
+        "roles": "Warehouse Manager, Price Manager",
+        "locations": [
+          "Main Warehouse",
+          "Bambang"
+        ],
+        "hasLocations": true
+      },
+      {
+        "username": "PriceMgrMain",
+        "roles": "Price Manager",
+        "locations": [
+          "Main Store"
+        ],
+        "hasLocations": true
+      },
+      {
+        "username": "PriceMgrTugue",
+        "roles": "Price Manager",
+        "locations": [
+          "Tuguegarao"
+        ],
+        "hasLocations": true
+      },
+      {
+        "username": "PriceMgrBambang",
+        "roles": "Price Manager",
+        "locations": [
+          "Bambang"
+        ],
+        "hasLocations": true
+      },
+      {
+        "username": "JASMINKATECashierMain",
+        "roles": "Sales Cashier",
+        "locations": [
+          "Main Store"
+        ],
+        "hasLocations": true
+      }
+    ]
+  },
+  "recommendations": [
+    "CRITICAL: Restore missing validation code in src/lib/auth.ts"
+  ]
+}

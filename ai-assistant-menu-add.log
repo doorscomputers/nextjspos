@@ -1,0 +1,180 @@
+🔧 Populating ALL Sidebar Menus Comprehensively...\n
+📊 Total menus to process: 171\n
+\n📋 Pass 1: Processing level 0 menus...\n
+   ✓ Dashboard
+   ✓ Cashier Reports
+   ✓ Analytics Dashboard V1
+   ✓ Analytics Dashboard V2
+   ✓ Analytics Dashboard V3
+   ✓ Dashboard V4
+   ✓ POS & Sales
+   ✓ Inventory Management
+   ✓ Price Editor
+   ✓ Purchases
+   ✓ Stock Transfers
+   ✓ Returns Management
+   ✓ Customers
+   ✓ Suppliers
+   ✓ Expenses
+   ✓ Reports
+   ✓ HR & Attendance
+   ✓ Technical Services
+   ✓ Accounting
+   ✓ Administration
+   ✓ Settings
+   ✓ AI Assistant
+   ✓ Help Center
+   ✓ Notifications
+   ✓ My Profile
+\n📋 Pass 2: Processing level 1 menus...\n
+   ✓ Sales Today
+   ✓ Point of Sale
+   ✓ Begin Shift
+   ✓ Close Shift
+   ✓ X Reading
+   ✓ Z Reading
+   ✓ Readings History
+   ✓ Sales List
+   ✓ List Products
+   ✓ List Products V2
+   ✓ Add Product
+   ✓ Add Product V2
+   ✓ All Branch Stock
+   ✓ Branch Stock Pivot
+   ✓ Branch Stock Pivot V2
+   ✓ Inventory Corrections
+   ✓ Physical Inventory
+   ✓ Print Labels
+   ✓ Import Products
+   ✓ Import Branch Stock
+   ✓ CSV ID Mapper
+   ✓ Categories
+   ✓ Import Categories
+   ✓ Brands
+   ✓ Import Brands
+   ✓ Units
+   ✓ Warranties
+   ✓ Bulk Reorder Settings
+   ✓ Price Editor
+   ✓ Legacy Bulk Editor
+   ✓ Pricing Settings
+   ✓ Price Comparison
+   ✓ Cost Audit
+   ✓ Purchase Orders
+   ✓ Goods Received (GRN)
+   ✓ Serial Number Lookup
+   ✓ Reorder Suggestions
+   ✓ Accounts Payable
+   ✓ Payments
+   ✓ Banks
+   ✓ Bank Transactions
+   ✓ Post-Dated Cheques
+   ✓ All Transfers
+   ✓ Create Transfer
+   ✓ My Transfers
+   ✓ My Received Transfers
+   ✓ Customer Returns
+   ✓ Purchase Returns
+   ✓ Supplier Returns
+   ✓ All Customers
+   ✓ Import Customers
+   ✓ All Suppliers
+   ✓ Import Suppliers
+   ✓ All Expenses
+   ✓ Expense Categories
+   ✓ All Reports Hub
+   ✓ Sales Reports
+   ✓ Cashier Reports
+   ✓ Purchase Reports
+   ✓ Inventory Reports
+   ✓ Transfer Reports
+   ✓ Financial Reports
+   ✓ Compliance Reports
+   ✓ Security & Audit
+   ✓ HR Reports
+   ✓ Clock In/Out
+   ✓ Employee Schedules
+   ✓ Attendance Records
+   ✓ Leave Requests
+   ✓ Location Change Requests
+   ✓ Dashboard
+   ✓ Warranty Claims
+   ✓ Job Orders
+   ✓ Serial Number Lookup
+   ✓ Technicians
+   ✓ Service Types
+   ✓ Service Payments
+   ✓ Reports
+   ✓ Balance Sheet
+   ✓ Income Statement
+   ✓ Trial Balance
+   ✓ General Ledger
+   ✓ Users
+   ✓ Roles & Permissions
+   ✓ Business Locations
+   ✓ Announcements
+   ✓ Login History
+   ✓ Business Settings
+   ✓ Printers
+   ✓ Invoice Settings
+   ✓ Barcode Settings
+   ✓ Schedule Login Security
+   ✓ SOD Rules (Separation of Duties)
+   ✓ Inactivity Timeout
+   ✓ Tax Rates
+   ✓ Menu Permissions
+   ✓ Menu Management
+\n📋 Pass 3: Processing level 2 menus...\n
+   ✓ Sales Today
+   ✓ Sales History
+   ✓ Sales Invoice Details
+   ✓ Sales Journal
+   ✓ Sales Per Item
+   ✓ Sales Per Cashier
+   ✓ Hourly Sales Breakdown
+   ✓ Discount Analysis
+   ✓ Void & Refund Analysis
+   ✓ Sales Today (Cashier)
+   ✓ Sales History (Cashier)
+   ✓ Sales Invoice Details (Cashier)
+   ✓ Sales Journal (Cashier)
+   ✓ Sales Per Item (Cashier)
+   ✓ Purchase Analytics
+   ✓ Purchase Trends
+   ✓ Purchase Items Report
+   ✓ Products-Suppliers Report
+   ✓ Stock Alert Report
+   ✓ Historical Inventory
+   ✓ Inventory Valuation
+   ✓ Inventory Valuation History
+   ✓ Stock History V2
+   ✓ Stock History V3 (Admin)
+   ✓ Stock Reconciliation
+   ✓ Transfers Report
+   ✓ Transfer Trends
+   ✓ Transfers per Item
+   ✓ Profit / Loss Report
+   ✓ Purchase & Sale Report
+   ✓ Profitability & COGS
+   ✓ Net Profit Report
+   ✓ Cash In/Out Report
+   ✓ Unpaid Invoices
+   ✓ Customer Payments
+   ✓ Product Purchase History
+   ✓ Purchase Returns Report
+   ✓ Returns Analysis
+   ✓ Expense Reports
+   ✓ GL Journal Entries
+   ✓ BIR Daily Sales Summary
+   ✓ Tax Report
+   ✓ Audit Trail Report
+   ✓ Attendance Report
+   ✓ Technician Performance
+   ✓ Service Analytics
+   ✓ Warranty Claims Report
+\n🎉 All menus populated successfully!
+\n📊 Summary:
+   - Created: 0
+   - Updated: 169
+   - Total in database: 199
+

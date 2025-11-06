@@ -243,7 +243,9 @@ export async function POST(request: NextRequest) {
               approvedBy: parseInt(user.id.toString()),
               approvedAt: new Date()
             }
-          })
+          }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
+    })
 
           // 2. Get current inventory
           const inventory = await tx.variationLocationDetails.findFirst({
