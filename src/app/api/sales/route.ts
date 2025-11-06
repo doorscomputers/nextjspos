@@ -341,44 +341,38 @@ export async function POST(request: NextRequest) {
     console.log('DEBUG: Checking for open shift...')
     console.log('- userId:', userIdNumber)
     console.log('- businessId:', businessIdNumber)
+    console.log('- session locationIds:', (session.user as any).locationIds)
 
-    // First check if ANY shift exists for this user
-    const anyShift = await prisma.cashierShift.findFirst({
-      where: {
-        userId: userIdNumber,
-        businessId: businessIdNumber,
-      },
-      orderBy: { openedAt: 'desc' }
-    })
+    // Get user's assigned locations from session
+    const userLocationIds = (session.user as any).locationIds || []
 
-    if (anyShift) {
-      console.log('DEBUG: Most recent shift found:', {
-        id: anyShift.id,
-        shiftNumber: anyShift.shiftNumber,
-        status: anyShift.status,
-        openedAt: anyShift.openedAt
-      })
-    } else {
-      console.log('DEBUG: No shifts found at all for this user')
+    // Build shift query - match by userId AND user's assigned locations
+    const shiftWhereClause: any = {
+      userId: userIdNumber,
+      status: 'open',
+      businessId: businessIdNumber,
+    }
+
+    // If user has specific locations assigned, only find shifts at those locations
+    if (userLocationIds.length > 0) {
+      shiftWhereClause.locationId = { in: userLocationIds }
+      console.log('DEBUG: Filtering shifts by user locations:', userLocationIds)
     }
 
     const currentShift = await prisma.cashierShift.findFirst({
-      where: {
-        userId: userIdNumber,
-        status: 'open',
-        businessId: businessIdNumber,
-      },
+      where: shiftWhereClause,
     })
 
     console.log('DEBUG: Open shift query result:', currentShift ? 'FOUND' : 'NOT FOUND')
     if (currentShift) {
       console.log('- Shift ID:', currentShift.id)
+      console.log('- Shift Number:', currentShift.shiftNumber)
       console.log('- Shift status:', currentShift.status)
       console.log('- Shift locationId:', currentShift.locationId)
     }
 
     if (!currentShift) {
-      console.error('VALIDATION ERROR: No open shift found')
+      console.error('VALIDATION ERROR: No open shift found for this user at their assigned locations')
       return NextResponse.json(
         { error: 'No open shift found. Please start your shift before making sales.' },
         { status: 400 }
