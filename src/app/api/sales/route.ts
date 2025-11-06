@@ -218,6 +218,11 @@ export async function POST(request: NextRequest) {
       }
 
     const body = await request.json()
+
+    // DEBUG: Log incoming request for 400 error debugging
+    console.log('==== SALES API DEBUG ====')
+    console.log('Incoming sale request body:', JSON.stringify(body, null, 2))
+
     const {
       locationId,
       customerId,
@@ -239,13 +244,21 @@ export async function POST(request: NextRequest) {
       vatExempt = false,
     } = body
 
+    console.log('Parsed values:')
+    console.log('- locationId:', locationId, 'type:', typeof locationId)
+    console.log('- customerId:', customerId, 'type:', typeof customerId)
+    console.log('- items count:', items?.length)
+    console.log('- payments count:', payments?.length)
+
     const locationIdNumber = Number(locationId)
     if (Number.isNaN(locationIdNumber)) {
+      console.error('VALIDATION ERROR: Invalid locationId -', locationId)
       return NextResponse.json({ error: 'Invalid locationId' }, { status: 400 })
     }
 
     const customerIdNumber = customerId !== undefined && customerId !== null ? Number(customerId) : null
     if (customerIdNumber !== null && Number.isNaN(customerIdNumber)) {
+      console.error('VALIDATION ERROR: Invalid customerId -', customerId)
       return NextResponse.json({ error: 'Invalid customerId' }, { status: 400 })
     }
 
@@ -254,11 +267,17 @@ export async function POST(request: NextRequest) {
         ? Number(discountApprovedBy)
         : null
     if (discountApprovedByNumber !== null && Number.isNaN(discountApprovedByNumber)) {
+      console.error('VALIDATION ERROR: Invalid discountApprovedBy -', discountApprovedBy)
       return NextResponse.json({ error: 'Invalid discountApprovedBy value' }, { status: 400 })
     }
 
     // Validation
     if (!locationId || !saleDate || !items || items.length === 0) {
+      console.error('VALIDATION ERROR: Missing required fields')
+      console.error('- locationId:', locationId)
+      console.error('- saleDate:', saleDate)
+      console.error('- items:', items)
+      console.error('- items.length:', items?.length)
       return NextResponse.json(
         { error: 'Missing required fields: locationId, saleDate, items' },
         { status: 400 }
