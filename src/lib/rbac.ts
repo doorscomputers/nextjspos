@@ -2688,4 +2688,51 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.SERIAL_NUMBER_VIEW,
     ],
   },
+
+  // ============================================
+  // CATEGORY 12: CROSS-LOCATION OPERATIONS
+  // ============================================
+
+  CROSS_LOCATION_APPROVER: {
+    name: 'Cross-Location Approver',
+    description: 'Approves transfers and Z-Readings across all locations (NO create permissions)',
+    category: 'Operations',
+    permissions: [
+      // Dashboard
+      PERMISSIONS.DASHBOARD_VIEW,
+
+      // View Products (needed to see what\'s being transferred)
+      PERMISSIONS.PRODUCT_VIEW,
+
+      // Stock Transfers - VIEW and APPROVE ONLY (NO CREATE)
+      PERMISSIONS.STOCK_TRANSFER_VIEW,
+      PERMISSIONS.STOCK_TRANSFER_CHECK, // This is the APPROVAL step
+      PERMISSIONS.STOCK_TRANSFER_COMPLETE, // Final completion after check
+
+      // BIR Z-Reading Approval
+      PERMISSIONS.Z_READING,
+
+      // Access all locations (can approve transfers between ANY locations)
+      PERMISSIONS.ACCESS_ALL_LOCATIONS,
+
+      // Reports - View Only
+      PERMISSIONS.REPORT_VIEW,
+      PERMISSIONS.REPORT_TRANSFER_VIEW,
+      PERMISSIONS.REPORT_SALES_VIEW,
+      PERMISSIONS.REPORT_PURCHASE_VIEW,
+      PERMISSIONS.STOCK_REPORT_VIEW,
+      PERMISSIONS.VIEW_INVENTORY_REPORTS,
+
+      // Audit Log - View only (track what they approved)
+      PERMISSIONS.AUDIT_LOG_VIEW,
+
+      // NO CREATE PERMISSIONS:
+      // ❌ NO STOCK_TRANSFER_CREATE
+      // ❌ NO SELL_CREATE
+      // ❌ NO PURCHASE_CREATE
+      // ❌ NO SETTINGS ACCESS
+      // ❌ NO USER MANAGEMENT
+      // ❌ NO ROLE MANAGEMENT
+    ],
+  },
 } as const
