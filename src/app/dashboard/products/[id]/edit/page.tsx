@@ -870,7 +870,9 @@ export default function EditProductPage() {
                     })
                   }}
                   required
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
+                  disabled={true}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-700 bg-gray-100 cursor-not-allowed"
+                  title="Unit cannot be changed after product creation"
                 >
                   <option value="">Please Select</option>
                   {units.map((unit) => (
@@ -880,11 +882,28 @@ export default function EditProductPage() {
                 <button
                   type="button"
                   onClick={() => setShowUnitModal(true)}
-                  className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center"
-                  title="Quick add unit"
+                  disabled={true}
+                  className="px-3 py-2 bg-gray-400 text-white rounded-lg cursor-not-allowed flex items-center"
+                  title="Unit cannot be changed after product creation"
                 >
                   <PlusIcon className="w-5 h-5" />
                 </button>
+              </div>
+
+              {/* Information Box - Why Unit is Disabled */}
+              <div className="mt-2 p-3 bg-amber-50 border-l-4 border-amber-500 rounded-r-lg dark:bg-amber-950 dark:border-amber-600">
+                <div className="flex items-start gap-2">
+                  <span className="text-amber-600 dark:text-amber-400 text-lg mt-0.5">⚠️</span>
+                  <div>
+                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Unit Cannot Be Changed</p>
+                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                      Changing the unit after product creation would corrupt inventory records, stock history, and transaction data across all business locations.
+                    </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                      <strong>To use a different unit:</strong> Mark this product as inactive and create a new product with the desired unit.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 
