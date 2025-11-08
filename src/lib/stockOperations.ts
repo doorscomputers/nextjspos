@@ -603,34 +603,19 @@ export async function processPurchaseReceipt({
   subUnitId?: number // UOM: Track which unit was used in purchase
   tx?: TransactionClient
 }) {
-  // If subUnitId is provided, convert quantity to base unit
-  let baseQuantity = quantity
+  // CRITICAL FIX: Do NOT convert to base unit
+  // Inventory should be stored in the SAME unit as the transaction
+  // Example: Buy 20 Rolls → Store as 20 Rolls (NOT 6000 Meters)
+  // The subUnitId tracks which unit was used, conversion happens during display/reporting
 
-  if (subUnitId && tx) {
-    try {
-      // Fetch the unit to get its multiplier
-      const unit = await tx.unit.findUnique({
-        where: { id: subUnitId },
-        select: { baseUnitMultiplier: true }
-      })
-
-      if (unit && unit.baseUnitMultiplier) {
-        // Convert to base unit: baseQty = qty * multiplier
-        baseQuantity = quantity * Number(unit.baseUnitMultiplier)
-        console.log(`[processPurchaseReceipt] UOM Conversion: ${quantity} units → ${baseQuantity} base units (multiplier: ${unit.baseUnitMultiplier})`)
-      }
-    } catch (error) {
-      console.error('Error converting unit in processPurchaseReceipt:', error)
-      // Fallback to original quantity if conversion fails
-    }
-  }
+  console.log(`[processPurchaseReceipt] Adding ${quantity} units (subUnitId: ${subUnitId || 'none'})`)
 
   return await addStock({
     businessId,
     productId,
     productVariationId,
     locationId,
-    quantity: baseQuantity, // Use converted base quantity for inventory
+    quantity: quantity, // Store in TRANSACTION unit, NOT base unit
     type: StockTransactionType.PURCHASE,
     unitCost,
     referenceType: 'purchase',
@@ -638,7 +623,7 @@ export async function processPurchaseReceipt({
     userId,
     notes: `Purchase Receipt - PO #${purchaseId}, GRN #${receiptId}`,
     userDisplayName,
-    subUnitId, // UOM: Track which unit was used
+    subUnitId, // UOM: Track which unit was used (critical for conversions)
     tx,
   })
 }
