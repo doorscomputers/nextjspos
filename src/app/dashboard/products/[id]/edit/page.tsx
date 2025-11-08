@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeftIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import UnitPricingManager from '@/components/products/UnitPricingManager'
+import { Combobox } from '@/components/ui/combobox'
 
 interface Category {
   id: number
@@ -780,18 +781,23 @@ export default function EditProductPage() {
 
             {/* Category with Quick Add */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category</label>
               <div className="flex gap-2">
-                <select
+                <Combobox
+                  options={[
+                    { value: '', label: 'None' },
+                    ...mainCategories.map((cat) => ({
+                      value: String(cat.id),
+                      label: cat.name
+                    }))
+                  ]}
                   value={formData.categoryId}
-                  onChange={(e) => setFormData({ ...formData, categoryId: e.target.value, subCategoryId: '' })}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
-                >
-                  <option value="">None</option>
-                  {mainCategories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
+                  onValueChange={(value) => setFormData({ ...formData, categoryId: value, subCategoryId: '' })}
+                  placeholder="Select category..."
+                  searchPlaceholder="Search categories..."
+                  emptyText="No category found."
+                  className="flex-1"
+                />
                 <button
                   type="button"
                   onClick={() => setShowCategoryModal(true)}
@@ -832,18 +838,23 @@ export default function EditProductPage() {
 
             {/* Brand with Quick Add */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Brand</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Brand</label>
               <div className="flex gap-2">
-                <select
+                <Combobox
+                  options={[
+                    { value: '', label: 'None' },
+                    ...brands.map((brand) => ({
+                      value: String(brand.id),
+                      label: brand.name
+                    }))
+                  ]}
                   value={formData.brandId}
-                  onChange={(e) => setFormData({ ...formData, brandId: e.target.value })}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
-                >
-                  <option value="">None</option>
-                  {brands.map((brand) => (
-                    <option key={brand.id} value={brand.id}>{brand.name}</option>
-                  ))}
-                </select>
+                  onValueChange={(value) => setFormData({ ...formData, brandId: value })}
+                  placeholder="Select brand..."
+                  searchPlaceholder="Search brands..."
+                  emptyText="No brand found."
+                  className="flex-1"
+                />
                 <button
                   type="button"
                   onClick={() => setShowBrandModal(true)}
