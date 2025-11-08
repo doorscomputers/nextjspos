@@ -479,6 +479,18 @@ export async function POST(
       userAgent: getUserAgent(request),
     })
 
+    // AUTO-REFRESH: Update stock materialized view so inventory reports show changes immediately
+    try {
+      console.log('[Purchase Approval] Refreshing stock materialized view...')
+      const refreshStart = Date.now()
+      await prisma.$queryRaw`SELECT * FROM refresh_stock_pivot_view()`
+      const refreshDuration = Date.now() - refreshStart
+      console.log(`[Purchase Approval] Stock view refreshed in ${refreshDuration}ms`)
+    } catch (refreshError) {
+      // Log but don't fail the approval if refresh fails
+      console.error('[Purchase Approval] Failed to refresh stock view:', refreshError)
+    }
+
     // Return with inventory impact report
     return NextResponse.json({
       ...updatedReceipt,
