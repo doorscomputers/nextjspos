@@ -300,7 +300,7 @@ export default function PurchasesDevExtremePageOptimized() {
                       </Badge>
                     </div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">
-                      Received: {new Date(receipt.receivedAt).toLocaleString()}
+                      Received: {receipt.receiptDate ? new Date(receipt.receiptDate).toLocaleDateString() : 'N/A'}
                     </div>
                     {receipt.notes && (
                       <div className="mt-2 text-sm text-gray-600 dark:text-gray-400 italic">
