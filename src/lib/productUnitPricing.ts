@@ -179,15 +179,25 @@ export async function getProductUnitPrices(
       })
     } else {
       // No explicit prices set, use product default
+      // product.purchasePrice is for the PRIMARY UNIT (product.unit)
       const defaultPurchase = product.purchasePrice || new Decimal(0)
       const defaultSelling = product.sellingPrice || new Decimal(0)
+
+      // Get the PRIMARY unit's multiplier
+      const primaryMultiplier = primaryUnit.baseUnitMultiplier || new Decimal(1)
+
+      // Calculate price ratio relative to primary unit
+      // Formula: unit_price = primary_price × (unit_multiplier / primary_multiplier)
+      // Example: Primary=Roll (×300, price=1500), Target=Meter (×1)
+      //          Meter price = 1500 × (1 / 300) = 5
+      const ratio = multiplier.div(primaryMultiplier)
 
       unitsWithPrices.push({
         unitId: unit.id,
         unitName: unit.name,
         unitShortName: unit.shortName,
-        purchasePrice: defaultPurchase.mul(multiplier),
-        sellingPrice: defaultSelling.mul(multiplier),
+        purchasePrice: defaultPurchase.mul(ratio),
+        sellingPrice: defaultSelling.mul(ratio),
         multiplier,
         isBaseUnit: isBase,
       })
