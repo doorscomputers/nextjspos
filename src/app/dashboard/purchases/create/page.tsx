@@ -216,8 +216,8 @@ export default function CreatePurchaseOrderPage() {
 
     // Fetch unit prices for this product
     let unitPrices: UnitPrice[] = []
-    let baseUnitPrice = variation.defaultPurchasePrice || 0
-    let baseUnitId: number | null = null
+    let primaryUnitPrice = variation.defaultPurchasePrice || 0
+    let primaryUnitId: number | null = null
 
     try {
       const response = await fetch(`/api/products/${product.id}/unit-prices`)
@@ -225,11 +225,12 @@ export default function CreatePurchaseOrderPage() {
         const data = await response.json()
         unitPrices = data.prices || []
 
-        // Find base unit and its price
-        const baseUnit = unitPrices.find(up => up.isBaseUnit)
-        if (baseUnit) {
-          baseUnitId = baseUnit.unitId
-          baseUnitPrice = parseFloat(baseUnit.purchasePrice)
+        // Find PRIMARY unit (Roll, Box, Sack, etc.) - NOT base unit
+        // The first unit in the array is always the primary unit from product configuration
+        if (unitPrices.length > 0) {
+          const primaryUnit = unitPrices[0] // First unit is the primary unit (Roll, Box, Sack)
+          primaryUnitId = primaryUnit.unitId
+          primaryUnitPrice = parseFloat(primaryUnit.purchasePrice)
         }
       }
     } catch (error) {
@@ -244,9 +245,9 @@ export default function CreatePurchaseOrderPage() {
       variationName: variation.name,
       sku: variation.sku,
       quantity: 1,
-      unitCost: baseUnitPrice, // Use base unit price
+      unitCost: primaryUnitPrice, // Use PRIMARY unit price (Roll, Box, Sack)
       requiresSerial: variation.enableSerialNumber || false,
-      subUnitId: baseUnitId, // Will be auto-selected by UnitSelector if product has UOM
+      subUnitId: primaryUnitId, // Default to PRIMARY unit (Roll, Box, Sack)
       unitPrices, // Store fetched unit prices
     }
 
