@@ -19,6 +19,7 @@ interface UnitPricingManagerProps {
   readOnly?: boolean
   defaultPurchasePrice?: string // From product form
   defaultSellingPrice?: string  // From product form
+  subUnitIds?: number[] // Trigger refresh when sub-units change
 }
 
 export default function UnitPricingManager({
@@ -26,7 +27,8 @@ export default function UnitPricingManager({
   onPricesChange,
   readOnly = false,
   defaultPurchasePrice,
-  defaultSellingPrice
+  defaultSellingPrice,
+  subUnitIds = []
 }: UnitPricingManagerProps) {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -34,11 +36,12 @@ export default function UnitPricingManager({
   const [error, setError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
 
+  // Refresh unit prices when productId or subUnitIds change
   useEffect(() => {
     if (productId) {
       fetchUnitPrices()
     }
-  }, [productId])
+  }, [productId, JSON.stringify(subUnitIds)])
 
   // Auto-recalculate when default prices change
   useEffect(() => {

@@ -1004,12 +1004,15 @@ export default function EditProductPage() {
                   </div>
 
                   {formData.subUnitIds.length > 0 && (
-                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <p className="text-xs font-semibold text-green-800">
+                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-950 dark:border-blue-800">
+                      <p className="text-xs font-semibold text-blue-800 dark:text-blue-300">
                         ✓ Selected Sub-Units: {formData.subUnitIds.length}
                       </p>
-                      <p className="text-xs text-green-700 mt-1">
+                      <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
                         This product can now be transacted in multiple units during purchases and sales.
+                      </p>
+                      <p className="text-xs text-blue-700 dark:text-blue-400 mt-2 font-medium">
+                        💡 Click "Save Product" button below to enable unit-specific pricing for each unit.
                       </p>
                     </div>
                   )}
@@ -1233,11 +1236,11 @@ export default function EditProductPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Unit-Specific Pricing</h2>
             <UnitPricingManager
-              key={`${productId}-${formData.unitId}-${formData.subUnitIds.join(',')}`}
               productId={productId ? parseInt(productId) : null}
               readOnly={false}
               defaultPurchasePrice={formData.purchasePrice}
               defaultSellingPrice={formData.sellingPrice}
+              subUnitIds={formData.subUnitIds}
             />
           </div>
         )}
