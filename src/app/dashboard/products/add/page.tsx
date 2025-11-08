@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeftIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import { SelectBox } from 'devextreme-react/select-box'
 
 interface Category {
   id: number
@@ -455,16 +456,21 @@ export default function AddProductPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category</label>
               <div className="flex gap-2">
-                <select
-                  value={formData.categoryId}
-                  onChange={(e) => setFormData({ ...formData, categoryId: e.target.value, subCategoryId: '' })}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
-                >
-                  <option value="">None</option>
-                  {mainCategories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
+                <div className="flex-1">
+                  <SelectBox
+                    dataSource={[{ id: '', name: 'None' }, ...mainCategories]}
+                    value={formData.categoryId || ''}
+                    onValueChanged={(e) => setFormData({ ...formData, categoryId: e.value, subCategoryId: '' })}
+                    displayExpr="name"
+                    valueExpr="id"
+                    searchEnabled={true}
+                    searchMode="contains"
+                    searchExpr="name"
+                    placeholder="Select or search category..."
+                    showClearButton={true}
+                    className="dx-theme-material-typography"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowCategoryModal(true)}
@@ -480,16 +486,19 @@ export default function AddProductPage() {
             {formData.categoryId && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sub Category</label>
-                <select
-                  value={formData.subCategoryId}
-                  onChange={(e) => setFormData({ ...formData, subCategoryId: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                >
-                  <option value="">None</option>
-                  {subCategories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </select>
+                <SelectBox
+                  dataSource={[{ id: '', name: 'None' }, ...subCategories]}
+                  value={formData.subCategoryId || ''}
+                  onValueChanged={(e) => setFormData({ ...formData, subCategoryId: e.value })}
+                  displayExpr="name"
+                  valueExpr="id"
+                  searchEnabled={true}
+                  searchMode="contains"
+                  searchExpr="name"
+                  placeholder="Select or search sub-category..."
+                  showClearButton={true}
+                  className="dx-theme-material-typography"
+                />
               </div>
             )}
 
@@ -497,16 +506,21 @@ export default function AddProductPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Brand</label>
               <div className="flex gap-2">
-                <select
-                  value={formData.brandId}
-                  onChange={(e) => setFormData({ ...formData, brandId: e.target.value })}
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
-                >
-                  <option value="">None</option>
-                  {brands.map((brand) => (
-                    <option key={brand.id} value={brand.id}>{brand.name}</option>
-                  ))}
-                </select>
+                <div className="flex-1">
+                  <SelectBox
+                    dataSource={[{ id: '', name: 'None' }, ...brands]}
+                    value={formData.brandId || ''}
+                    onValueChanged={(e) => setFormData({ ...formData, brandId: e.value })}
+                    displayExpr="name"
+                    valueExpr="id"
+                    searchEnabled={true}
+                    searchMode="contains"
+                    searchExpr="name"
+                    placeholder="Select or search brand..."
+                    showClearButton={true}
+                    className="dx-theme-material-typography"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowBrandModal(true)}

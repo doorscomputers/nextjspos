@@ -507,7 +507,9 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
                       {item.product?.name || item.productName || `Product #${item.productId}`}
                     </td>
                     <td className={`py-1 text-center text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                      {parseFloat(item.quantity).toFixed(2)}
+                      {item.displayQuantity && item.selectedUnitName
+                        ? `${parseFloat(item.displayQuantity).toFixed(2)} ${item.selectedUnitName}`
+                        : parseFloat(item.quantity).toFixed(2)}
                     </td>
                     <td className={`py-1 text-right text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
                       ₱{parseFloat(item.unitPrice).toLocaleString('en-PH', {
@@ -516,7 +518,10 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
                       })}
                     </td>
                     <td className={`py-1 text-right text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                      ₱{(parseFloat(item.quantity) * parseFloat(item.unitPrice)).toLocaleString('en-PH', {
+                      ₱{(item.displayQuantity && item.selectedUnitName
+                        ? parseFloat(item.displayQuantity) * parseFloat(item.unitPrice)
+                        : parseFloat(item.quantity) * parseFloat(item.unitPrice)
+                      ).toLocaleString('en-PH', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
                       })}

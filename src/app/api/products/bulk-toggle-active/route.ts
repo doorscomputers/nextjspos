@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { refreshStockView } from '@/lib/refreshStockView'
 
 /**
  * POST /api/products/bulk-toggle-active
@@ -104,6 +105,11 @@ export async function POST(request: NextRequest) {
     } catch (auditError) {
       console.error('Audit logging failed:', auditError)
     }
+
+    // Auto-refresh materialized view so products appear/disappear from inventory reports immediately
+    refreshStockView({ silent: true }).catch((error) => {
+      console.error('[Bulk Product Toggle] Failed to refresh stock view:', error)
+    })
 
     return NextResponse.json({
       message: `Successfully ${isActive ? 'activated' : 'deactivated'} ${result.count} product(s)`,

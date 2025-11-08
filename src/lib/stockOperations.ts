@@ -2,6 +2,7 @@ import { prisma } from './prisma'
 import { Prisma, type StockTransaction } from '@prisma/client'
 import { validateStockConsistency } from './stockValidation'
 import { convertToBaseUnit, type UnitWithConversion } from './uomConversion'
+import { debouncedRefreshStockView } from './refreshStockView'
 
 type TransactionClient = Prisma.TransactionClient
 
@@ -291,17 +292,31 @@ async function executeStockUpdate(
 /**
  * Update stock and create transaction record
  * This is the ONLY function that should modify stock quantities
+ *
+ * NOTE: Materialized view refresh is handled automatically:
+ * - When called within a transaction (tx provided): No refresh (caller responsible)
+ * - When called standalone: Debounced refresh after 2 seconds
  */
 export async function updateStock(params: UpdateStockParams): Promise<UpdateStockResult> {
   const { tx, ...rest } = params
 
   if (tx) {
+    // Within transaction - don't refresh yet (caller will handle it)
     return executeStockUpdate(tx, rest)
   }
 
-  return prisma.$transaction(async (transaction) =>
+  // Standalone operation - execute and schedule refresh
+  const result = await prisma.$transaction(async (transaction) =>
     executeStockUpdate(transaction, rest)
   )
+
+  // Schedule a debounced refresh (batches multiple rapid operations)
+  // This ensures inventory reports stay up-to-date without excessive DB load
+  debouncedRefreshStockView(2000).catch((error) => {
+    console.error('[Stock Update] Failed to schedule view refresh:', error)
+  })
+
+  return result
 }
 
 /**

@@ -112,6 +112,9 @@ model User {
   // AI Assistant Relations
   savedQuestions               SavedQuestion[]
 
+  // Product Location Pricing Relations
+  locationPriceUpdates         ProductUnitLocationPrice[] @relation("LocationPriceUpdatedBy")
+
   @@index([businessId]) // ✅ NEW: For business user queries
   @@index([username]) // ✅ NEW: For login queries (already unique but explicit index helps)
   @@index([email]) // ✅ NEW: For email lookup
@@ -286,6 +289,7 @@ model BusinessLocation {
   sales                Sale[]
   expenses             Expense[]
   serviceJobOrders     ServiceJobOrder[]
+  unitLocationPrices   ProductUnitLocationPrice[]
 
   // Technical Service & Warranty Management Relations
   serviceWarrantyClaims ServiceWarrantyClaim[]   @relation("LocationServiceWarrantyClaims")
@@ -719,6 +723,7 @@ model Unit {
   products          Product[]
   productVariations ProductVariation[]
   unitPrices        ProductUnitPrice[]
+  locationPrices    ProductUnitLocationPrice[]
 
   @@unique([businessId, name], map: "businessId_name")
   @@index([businessId])
@@ -831,6 +836,7 @@ model Product {
 
   // Multi-Unit Pricing Relations
   unitPrices               ProductUnitPrice[]
+  unitLocationPrices       ProductUnitLocationPrice[]
 
   @@unique([businessId, sku]) // SKU must be unique within each business
   @@index([businessId])
@@ -870,6 +876,40 @@ model ProductUnitPrice {
   @@index([businessId, unitId]) // Composite: Get all products using this unit
   @@index([productId]) // Single: Product lookup
   @@map("product_unit_prices")
+}
+
+// ============================================
+// LOCATION-SPECIFIC UNIT PRICING
+// ============================================
+
+model ProductUnitLocationPrice {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  productId  Int      @map("product_id")
+  locationId Int      @map("location_id")
+  unitId     Int      @map("unit_id")
+
+  // Location-specific pricing per unit
+  purchasePrice Decimal  @map("purchase_price") @db.Decimal(22, 4) // Cost when buying in this unit at this location
+  sellingPrice  Decimal  @map("selling_price") @db.Decimal(22, 4)  // Price when selling in this unit at this location
+
+  // Audit trail
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  lastUpdatedBy     Int?      @map("last_updated_by")
+  lastUpdatedByUser User?     @relation("LocationPriceUpdatedBy", fields: [lastUpdatedBy], references: [id])
+
+  // Relations
+  product  Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  location BusinessLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  unit     Unit             @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, locationId, unitId]) // One price per product-location-unit combination
+  @@index([businessId, productId]) // Get all location prices for a product
+  @@index([businessId, locationId]) // Get all products at a location
+  @@index([productId, locationId]) // Get all units for product at location
+  @@index([lastUpdatedBy]) // Audit trail
+  @@map("product_unit_location_prices")
 }
 
 model ProductVariation {
@@ -1886,8 +1926,10 @@ model SaleItem {
   serialNumbers Json? @map("serial_numbers") // Array of serial numbers sold
 
   // Multi-Unit Support - Track which unit was used in sale and its price
-  subUnitId    Int?     @map("sub_unit_id")
-  subUnitPrice Decimal? @map("sub_unit_price") @db.Decimal(22, 4)
+  subUnitId         Int?     @map("sub_unit_id")
+  subUnitPrice      Decimal? @map("sub_unit_price") @db.Decimal(22, 4)
+  displayQuantity   Decimal? @map("display_quantity") @db.Decimal(22, 4) // Quantity in selected unit (e.g., 10 Meters)
+  selectedUnitName  String?  @map("selected_unit_name") @db.VarChar(50)    // Unit name for display (e.g., "Meter")
 
   createdAt DateTime @default(now()) @map("created_at")
 

@@ -112,7 +112,7 @@ export default function InventoryValuationHistoryPage() {
         year: selectedYear.toString(),
         periodType,
         method: valuationMethod,
-        includeCurrent: 'false'
+        includeCurrent: 'true' // Include current month/quarter/year
       })
 
       if (selectedLocationId && selectedLocationId > 0) {
@@ -124,14 +124,28 @@ export default function InventoryValuationHistoryPage() {
 
       if (result.success) {
         const trend = result.data.trend
+        let allPeriods = [...trend.periods]
+
+        // Include current period if available
+        if (result.data.current) {
+          const currentData = result.data.current
+          // Add current period to the end of the periods array
+          allPeriods.push({
+            period: currentData.period || 'Current',
+            periodEnd: new Date(),
+            totalQuantity: currentData.totalQuantity || 0,
+            totalValue: currentData.totalValue || 0,
+            categoryBreakdown: currentData.categoryBreakdown || []
+          })
+        }
 
         // Calculate changes for each period
-        const periodsWithChanges = trend.periods.map((period: PeriodValuation, index: number) => {
+        const periodsWithChanges = allPeriods.map((period: PeriodValuation, index: number) => {
           if (index === 0) {
             return { ...period, changeValue: 0, changePercent: 0 }
           }
 
-          const prevPeriod = trend.periods[index - 1]
+          const prevPeriod = allPeriods[index - 1]
           const changeValue = period.totalValue - prevPeriod.totalValue
           const changePercent = prevPeriod.totalValue > 0
             ? (changeValue / prevPeriod.totalValue) * 100
@@ -145,7 +159,7 @@ export default function InventoryValuationHistoryPage() {
           periods: periodsWithChanges
         })
 
-        // Auto-select last period
+        // Auto-select last period (current period if available)
         if (periodsWithChanges.length > 0) {
           setSelectedPeriod(periodsWithChanges[periodsWithChanges.length - 1])
         }

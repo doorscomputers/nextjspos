@@ -896,7 +896,13 @@ export default function TransferDetailPage() {
                     variant={action.variant}
                     onClick={action.onClick}
                     disabled={actionLoading}
-                    className={action.variant === 'default' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}
+                    className={
+                      action.variant === 'default'
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : action.variant === 'destructive'
+                        ? 'bg-red-600 hover:bg-red-700 text-white border-red-600 dark:bg-red-700 dark:hover:bg-red-800 dark:border-red-700'
+                        : ''
+                    }
                   >
                     <Icon className="w-4 h-4 mr-2" />
                     {action.label}

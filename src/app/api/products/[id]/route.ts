@@ -7,6 +7,7 @@ import { generateProductSKU, generateVariationSKU, isSkuEmpty } from '@/lib/sku-
 import { sendTelegramProductEditAlert } from '@/lib/telegram'
 import { detectFieldChanges, formatChangesDescription, getCriticalFields } from '@/lib/auditFieldChanges'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { refreshStockView } from '@/lib/refreshStockView'
 
 export async function GET(
   request: NextRequest,
@@ -389,10 +390,46 @@ export async function PUT(
         // Delete removed variations (soft delete)
         const toDelete = existingVariationIds.filter(id => !incomingVariationIds.includes(id))
         if (toDelete.length > 0) {
-          await tx.productVariation.updateMany({
-            where: { id: { in: toDelete } },
-            data: { deletedAt: new Date() }
+          // SAFEGUARD: Check if any variations have stock before soft-deleting
+          const variationsWithStock = await tx.productHistory.findMany({
+            where: {
+              variationId: { in: toDelete },
+              transactionType: { notIn: ['DELETED', 'VARIATION_DELETED'] }
+            },
+            select: { variationId: true },
+            distinct: ['variationId']
           })
+
+          const variationIdsWithStock = variationsWithStock.map(v => v.variationId)
+          const canDelete = toDelete.filter(id => !variationIdsWithStock.includes(id))
+          const cannotDelete = toDelete.filter(id => variationIdsWithStock.includes(id))
+
+          if (cannotDelete.length > 0) {
+            const variationNames = existingProduct.variations
+              .filter(v => cannotDelete.includes(v.id))
+              .map(v => v.name)
+              .join(', ')
+
+            console.warn(`[Product Edit] ⚠️ Cannot soft-delete variations with stock history: ${variationNames}`)
+            throw new Error(
+              `Cannot delete variations that have stock transactions: ${variationNames}. ` +
+              `Please use the inventory adjustment feature to zero out stock first.`
+            )
+          }
+
+          if (canDelete.length > 0) {
+            const deletingVariations = existingProduct.variations
+              .filter(v => canDelete.includes(v.id))
+              .map(v => `${v.name} (ID: ${v.id})`)
+              .join(', ')
+
+            console.log(`[Product Edit] 🗑️ Soft-deleting ${canDelete.length} variation(s): ${deletingVariations}`)
+
+            await tx.productVariation.updateMany({
+              where: { id: { in: canDelete } },
+              data: { deletedAt: new Date() }
+            })
+          }
         }
 
         // Update or create variations
@@ -440,13 +477,11 @@ export async function PUT(
 
           counter++
         }
-      } else if (type !== 'variable') {
-        // If changing from variable to single/combo, soft delete all variations
-        await tx.productVariation.updateMany({
-          where: { productId: productId, deletedAt: null },
-          data: { deletedAt: new Date() }
-        })
       }
+      // NOTE: Removed the "soft delete all variations if type !== variable" block
+      // Single products NEED their default variation for stock tracking
+      // Since type changes are blocked (line 250-255), this code was incorrectly
+      // soft-deleting variations on every single/combo product edit
 
       // Handle combo items for combo products
       if (type === 'combo' && comboItems && Array.isArray(comboItems)) {
@@ -623,6 +658,12 @@ export async function PUT(
         console.error('Failed to create audit log for product update:', auditError)
         // Don't fail the request if audit logging fails
       }
+    })
+
+    // Auto-refresh materialized view if variations were soft-deleted or restored
+    // This ensures the stock view reflects current product/variation state
+    refreshStockView({ silent: true }).catch((error) => {
+      console.error('[Product Update] Failed to refresh stock view:', error)
     })
 
     return NextResponse.json({ product: result, message: 'Product updated successfully' }, { status: 200 })

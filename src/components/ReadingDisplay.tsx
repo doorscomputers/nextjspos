@@ -51,6 +51,7 @@ interface ZReadingData {
     cashier: string
     openedAt: string
     closedAt: string | null
+    status: string
     xReadingCount: number
   }
   sales: {
@@ -451,7 +452,11 @@ export function ReadingDisplay({ xReading, zReading, variance, onClose }: Readin
                 </div>
                 <div className="row">
                   <span className="label">Actual Cash:</span>
-                  <span className="value">₱{formatCurrency(zReading.cash.endingCash)}</span>
+                  <span className="value">
+                    {zReading.shift.status === 'open' && zReading.cash.endingCash === 0
+                      ? '(Not Yet Entered)'
+                      : `₱${formatCurrency(zReading.cash.endingCash)}`}
+                  </span>
                 </div>
                 {zReading.cash.cashOver > 0 && (
                   <div className="row" style={{ color: 'green' }}>

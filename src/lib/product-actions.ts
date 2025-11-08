@@ -5,6 +5,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { ProductDeleteValidation, DuplicateProductResult } from '@/types/product'
+import { refreshStockView } from '@/lib/refreshStockView'
 
 /**
  * Validate if a product can be deleted
@@ -113,6 +114,11 @@ export async function deleteProduct(
   await prisma.product.update({
     where: { id: productId },
     data: { deletedAt: new Date() }
+  })
+
+  // Auto-refresh materialized view so product disappears from inventory reports
+  refreshStockView({ silent: true }).catch((error) => {
+    console.error('[Product Delete] Failed to refresh stock view:', error)
   })
 
   return {
@@ -279,6 +285,11 @@ export async function activateProduct(
   await prisma.product.update({
     where: { id: productId },
     data: { deletedAt: null }
+  })
+
+  // Auto-refresh materialized view so product appears in inventory reports
+  refreshStockView({ silent: true }).catch((error) => {
+    console.error('[Product Activate] Failed to refresh stock view:', error)
   })
 
   return {

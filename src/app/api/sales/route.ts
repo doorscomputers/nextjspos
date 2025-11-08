@@ -301,15 +301,64 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify location belongs to business
-    const location = await prisma.businessLocation.findFirst({
-      where: {
-        id: locationIdNumber,
-        businessId: businessIdNumber,
-        deletedAt: null,
-      },
-    })
+    // PERFORMANCE OPTIMIZATION: Batch all validation queries in parallel (instead of sequential)
+    console.log('DEBUG: Starting parallel validation queries...')
+    console.log('- userId:', userIdNumber)
+    console.log('- businessId:', businessIdNumber)
+    console.log('- session locationIds:', (session.user as any).locationIds)
 
+    const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
+    const userLocationIds = (session.user as any).locationIds || []
+
+    // Build shift query
+    const shiftWhereClause: any = {
+      userId: userIdNumber,
+      status: 'open',
+      businessId: businessIdNumber,
+    }
+    if (userLocationIds.length > 0) {
+      shiftWhereClause.locationId = { in: userLocationIds }
+      console.log('DEBUG: Filtering shifts by user locations:', userLocationIds)
+    }
+
+    // Execute all validation queries in parallel
+    const [location, userLocation, currentShift, customer] = await Promise.all([
+      // Query 1: Verify location belongs to business
+      prisma.businessLocation.findFirst({
+        where: {
+          id: locationIdNumber,
+          businessId: businessIdNumber,
+          deletedAt: null,
+        },
+      }),
+      // Query 2: Check user location access (conditional)
+      hasAccessAllLocations
+        ? Promise.resolve(true) // Skip query if user has access to all locations
+        : prisma.userLocation.findUnique({
+            where: {
+              userId_locationId: {
+                userId: userIdNumber,
+                locationId: locationIdNumber,
+              },
+            },
+          }),
+      // Query 3: Check for open cashier shift
+      prisma.cashierShift.findFirst({
+        where: shiftWhereClause,
+      }),
+      // Query 4: Verify customer (conditional)
+      customerIdNumber !== null
+        ? prisma.customer.findFirst({
+            where: {
+              id: customerIdNumber,
+              businessId: businessIdNumber,
+              deletedAt: null,
+            },
+          })
+        : Promise.resolve(null),
+    ])
+
+    // Validate results
     if (!location) {
       return NextResponse.json(
         { error: 'Location not found or does not belong to your business' },
@@ -317,51 +366,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check location access
-    const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
-    if (!hasAccessAllLocations) {
-      const userLocation = await prisma.userLocation.findUnique({
-        where: {
-          userId_locationId: {
-            userId: userIdNumber,
-            locationId: locationIdNumber,
-          },
-        },
-      })
-
-      if (!userLocation) {
-        return NextResponse.json(
-          { error: 'You do not have access to this location' },
-          { status: 403 }
-        )
-      }
+    if (!hasAccessAllLocations && !userLocation) {
+      return NextResponse.json(
+        { error: 'You do not have access to this location' },
+        { status: 403 }
+      )
     }
-
-    // Check for open cashier shift - REQUIRED FOR POS
-    console.log('DEBUG: Checking for open shift...')
-    console.log('- userId:', userIdNumber)
-    console.log('- businessId:', businessIdNumber)
-    console.log('- session locationIds:', (session.user as any).locationIds)
-
-    // Get user's assigned locations from session
-    const userLocationIds = (session.user as any).locationIds || []
-
-    // Build shift query - match by userId AND user's assigned locations
-    const shiftWhereClause: any = {
-      userId: userIdNumber,
-      status: 'open',
-      businessId: businessIdNumber,
-    }
-
-    // If user has specific locations assigned, only find shifts at those locations
-    if (userLocationIds.length > 0) {
-      shiftWhereClause.locationId = { in: userLocationIds }
-      console.log('DEBUG: Filtering shifts by user locations:', userLocationIds)
-    }
-
-    const currentShift = await prisma.cashierShift.findFirst({
-      where: shiftWhereClause,
-    })
 
     console.log('DEBUG: Open shift query result:', currentShift ? 'FOUND' : 'NOT FOUND')
     if (currentShift) {
@@ -379,26 +389,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Verify customer if provided and get customer name for serial numbers
-    let customerName: string | null = null
-    if (customerIdNumber !== null) {
-      const customer = await prisma.customer.findFirst({
-        where: {
-          id: customerIdNumber,
-          businessId: businessIdNumber,
-          deletedAt: null,
-        },
-      })
-
-      if (!customer) {
-        return NextResponse.json(
-          { error: 'Customer not found or does not belong to your business' },
-          { status: 404 }
-        )
-      }
-
-      customerName = customer.name
+    if (customerIdNumber !== null && !customer) {
+      return NextResponse.json(
+        { error: 'Customer not found or does not belong to your business' },
+        { status: 404 }
+      )
     }
+
+    const customerName = customer ? customer.name : null
 
     // Collect all serial numbers for batch validation (performance optimization)
     const allSerialNumberIds: number[] = []
@@ -408,7 +406,7 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Batch fetch all serial numbers at once (instead of N+1 queries)
+    // PERFORMANCE OPTIMIZATION: Batch fetch all serial numbers at once (instead of N+1 queries)
     let serialNumbersMap = new Map()
     if (allSerialNumberIds.length > 0) {
       const serialNumbers = await prisma.productSerialNumber.findMany({
@@ -422,11 +420,26 @@ export async function POST(request: NextRequest) {
       serialNumbersMap = new Map(serialNumbers.map(sn => [sn.id, sn]))
     }
 
+    // PERFORMANCE OPTIMIZATION: Batch fetch all product variations at once (instead of N+1 queries inside transaction)
+    const variationIdsForBatch = items.map((item: any) => Number(item.productVariationId))
+    const productVariations = await prisma.productVariation.findMany({
+      where: {
+        id: { in: variationIdsForBatch },
+      },
+      select: {
+        id: true,
+        purchasePrice: true,
+      },
+    })
+    const variationsMap = new Map(productVariations.map(v => [v.id, v]))
+
     // Validate items and check stock availability
     let subtotal = 0
     for (const item of items) {
       const quantity = parseFloat(item.quantity)
       const unitPrice = parseFloat(item.unitPrice)
+      // UOM FIX: Use displayQuantity for subtotal calculation (selected unit), not base unit quantity
+      const displayQuantity = item.displayQuantity ? parseFloat(item.displayQuantity) : quantity
 
       if (isNaN(quantity) || quantity <= 0) {
         return NextResponse.json(
@@ -489,7 +502,9 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      subtotal += quantity * unitPrice
+      // UOM FIX: Use displayQuantity (selected unit) * unitPrice (price per selected unit)
+      // Example: 1 Roll * ₱3000/Roll = ₱3000 (NOT 60 meters * ₱3000 = ₱180,000)
+      subtotal += displayQuantity * unitPrice
     }
 
     // Calculate total
@@ -562,33 +577,35 @@ export async function POST(request: NextRequest) {
         const quantityNumber = parseFloat(item.quantity)
         const unitPriceNumber = parseFloat(item.unitPrice)
 
+        // UOM (Unit of Measure) fields - optional
+        const subUnitId = item.subUnitId ? Number(item.subUnitId) : null
+        const subUnitPrice = item.subUnitPrice ? parseFloat(item.subUnitPrice) : null
+        const displayQuantity = item.displayQuantity ? parseFloat(item.displayQuantity) : null
+        const selectedUnitName = item.selectedUnitName || null
+
         if (Number.isNaN(productIdNumber) || Number.isNaN(productVariationIdNumber)) {
           throw new Error('Invalid product identifiers in sale item')
         }
 
-        // Get product variation to fetch purchase price for unitCost
-        const variation = await tx.productVariation.findUnique({
-          where: { id: productVariationIdNumber },
-        })
+        // PERFORMANCE OPTIMIZATION: Use pre-fetched variation data (no DB query needed)
+        const variation = variationsMap.get(productVariationIdNumber)
 
         if (!variation) {
           throw new Error(`Product variation ${item.productVariationId} not found`)
         }
 
-        // Prepare serial numbers data for JSON field
+        // PERFORMANCE OPTIMIZATION: Prepare serial numbers data using pre-fetched map (no DB query needed)
         let serialNumbersData = null
         if (item.requiresSerial && item.serialNumberIds) {
-          // Fetch serial numbers to get their details
-          const serialNumberRecords = await tx.productSerialNumber.findMany({
-            where: {
-              id: { in: item.serialNumberIds.map((id: any) => Number(id)) },
-            },
-          })
-          serialNumbersData = serialNumberRecords.map(sn => ({
-            id: sn.id,
-            serialNumber: sn.serialNumber,
-            imei: sn.imei,
-          }))
+          // Use pre-fetched serial number data from serialNumbersMap
+          serialNumbersData = item.serialNumberIds.map((id: any) => {
+            const sn = serialNumbersMap.get(Number(id))
+            return sn ? {
+              id: sn.id,
+              serialNumber: sn.serialNumber,
+              imei: sn.imei,
+            } : null
+          }).filter(Boolean)
         }
 
         // Create sale item
@@ -601,6 +618,11 @@ export async function POST(request: NextRequest) {
             unitPrice: unitPriceNumber,
             unitCost: parseFloat(variation.purchasePrice.toString()), // Use purchase price as unit cost
             serialNumbers: serialNumbersData, // Store serial numbers as JSON
+            // UOM (Unit of Measure) fields - for display/reporting
+            subUnitId: subUnitId,
+            subUnitPrice: subUnitPrice,
+            displayQuantity: displayQuantity,  // Display quantity in selected unit (e.g., 10)
+            selectedUnitName: selectedUnitName  // Display unit name (e.g., "Meter")
           },
         })
 

@@ -8,6 +8,7 @@ import ProductSearch from '@/components/ProductSearch'
 import ProductReview from '@/components/ProductReview'
 import LocationSelector from '@/components/LocationSelector'
 import PriceUpdateForm from '@/components/PriceUpdateForm'
+import UnitPriceUpdateForm from '@/components/UnitPriceUpdateForm'
 
 interface Product {
   id: number
@@ -232,7 +233,7 @@ export default function SimplePriceEditorPage() {
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
                 <span className="text-2xl">💰</span>
-                Step 4: Update Price
+                Step 4: Update Location Price
               </h2>
               <PriceUpdateForm
                 product={selectedProduct}
@@ -240,6 +241,20 @@ export default function SimplePriceEditorPage() {
                 onPriceUpdate={handlePriceUpdate}
                 updating={updating}
               />
+            </div>
+          )}
+
+          {/* Step 5: Unit Prices (shown only when product is selected) */}
+          {selectedProduct && (
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                <span className="text-2xl">📏</span>
+                Step 5: Update Unit Prices (Sub-Units)
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Set purchase and selling prices for each unit of measure (e.g., Box, Piece, Meter, Roll, Kg, etc.)
+              </p>
+              <UnitPriceUpdateForm product={selectedProduct} />
             </div>
           )}
 

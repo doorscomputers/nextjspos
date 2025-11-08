@@ -16,6 +16,7 @@ import { hasPermission, PERMISSIONS, type RBACUser } from '@/lib/rbac'
 import SalesInvoicePrint from '@/components/SalesInvoicePrint'
 import { apiPost, isConnectionOnline, getOfflineQueueLength } from '@/lib/client/apiClient'
 import ARPaymentCollectionModal from '@/components/ARPaymentCollectionModal'
+import POSUnitSelector from '@/components/POSUnitSelector'
 
 export default function POSEnhancedPage() {
   const { data: session } = useSession()
@@ -79,6 +80,9 @@ export default function POSEnhancedPage() {
   // Serial Number State
   const [showSerialNumberDialog, setShowSerialNumberDialog] = useState(false)
   const [serialNumberCartIndex, setSerialNumberCartIndex] = useState<number | null>(null)
+
+  // UOM (Unit of Measure) State
+  const [showUnitSelector, setShowUnitSelector] = useState<number | null>(null)
 
   // Cash In/Out State
   const [cashIOAmount, setCashIOAmount] = useState('')
@@ -682,9 +686,14 @@ export default function POSEnhancedPage() {
 
     const availableStock = parseFloat(locationStock.qtyAvailable)
 
+    // Get the unit this product will be added with (defaults to primary unit)
+    const addingWithUnitId = product.unitId || null
+
     const existingIndex = cart.findIndex(
       (item) =>
-        item.productVariationId === variation.id && item.isFreebie === isFreebie
+        item.productVariationId === variation.id &&
+        item.isFreebie === isFreebie &&
+        item.selectedUnitId === addingWithUnitId  // Must match EXACT unit
     )
 
     const price = parseFloat(variation.sellingPrice)
@@ -713,6 +722,7 @@ export default function POSEnhancedPage() {
       }
 
       newCart[existingIndex].quantity = newQuantity
+      newCart[existingIndex].displayQuantity = newQuantity  // Same for primary unit
       // Reset serial numbers if quantity changes
       if (newCart[existingIndex].serialNumberIds?.length > 0) {
         newCart[existingIndex].serialNumberIds = []
@@ -727,6 +737,10 @@ export default function POSEnhancedPage() {
         return
       }
 
+      // Get primary unit info for UOM
+      const primaryUnitId = product.unitId || null
+      const primaryUnitName = product.unit?.name || 'Unit'
+
       setCart([
         ...cart,
         {
@@ -737,6 +751,9 @@ export default function POSEnhancedPage() {
           unitPrice: isFreebie ? 0 : price,
           originalPrice: price,
           quantity: qtyToAdd,
+          displayQuantity: qtyToAdd,  // Same for primary unit initially
+          selectedUnitId: primaryUnitId,  // Default to primary unit
+          selectedUnitName: primaryUnitName,
           availableStock: availableStock, // Store available stock
           isFreebie,
           requiresSerial: false, // Default to false, user can add serials manually
@@ -749,6 +766,31 @@ export default function POSEnhancedPage() {
 
   const addFreebieToCart = (product: any) => {
     addToCart(product, true)
+  }
+
+  // Handle UOM (Unit of Measure) change for cart items
+  const handleUnitChange = (cartIndex: number, unitData: {
+    selectedUnitId: number
+    displayQuantity: number
+    baseQuantity: number
+    unitPrice: number
+    unitName: string
+  }) => {
+    const newCart = [...cart]
+
+    newCart[cartIndex] = {
+      ...newCart[cartIndex],
+      quantity: unitData.baseQuantity,  // Store base quantity for inventory
+      displayQuantity: unitData.displayQuantity,  // Display quantity in selected unit
+      selectedUnitId: unitData.selectedUnitId,
+      selectedUnitName: unitData.unitName,
+      unitPrice: unitData.unitPrice,
+      subUnitId: unitData.selectedUnitId,  // For sales API
+      subUnitPrice: unitData.unitPrice,  // For sales API
+    }
+
+    setCart(newCart)
+    setShowUnitSelector(null)  // Close selector
   }
 
   // Handle serial number manual entry - NO database query, just open input dialog
@@ -803,7 +845,12 @@ export default function POSEnhancedPage() {
   }
 
   const calculateSubtotal = () => {
-    return cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
+    return cart.reduce((sum, item) => {
+      // For UOM items, use displayQuantity (e.g., 10 Meters)
+      // For regular items, use quantity (base units)
+      const qty = item.displayQuantity && item.selectedUnitName ? item.displayQuantity : item.quantity
+      return sum + item.unitPrice * qty
+    }, 0)
   }
 
   const calculateDiscount = () => {
@@ -1459,12 +1506,17 @@ export default function POSEnhancedPage() {
         items: cart.map((item) => ({
           productId: item.productId,
           productVariationId: item.productVariationId,
-          quantity: item.quantity,
+          quantity: item.quantity,  // ALWAYS in base unit for inventory
           unitPrice: item.unitPrice,
           isFreebie: item.isFreebie,
           // Only set requiresSerial=true if user actually added serial numbers
           requiresSerial: (item.serialNumberIds && item.serialNumberIds.length > 0) ? true : false,
           serialNumberIds: item.serialNumberIds || [],
+          // UOM fields - for display/reporting
+          subUnitId: item.subUnitId || null,
+          subUnitPrice: item.subUnitPrice || null,
+          displayQuantity: item.displayQuantity || null,  // Display quantity (e.g., 100 Meters)
+          selectedUnitName: item.selectedUnitName || null  // Display unit name (e.g., "Meter")
         })),
         payments,
         discountAmount: discountAmt,
@@ -1790,14 +1842,14 @@ export default function POSEnhancedPage() {
           </div>
 
           {/* Compact Action Buttons */}
-          <Button onClick={() => window.open('/dashboard/readings/x-reading', '_blank')} className="h-12 px-4 bg-indigo-600 hover:bg-indigo-700" title="X Reading">📊 X Read</Button>
-          <Button onClick={() => { setCashIOAmount(''); setCashIORemarks(''); setShowCashInDialog(true); }} className="h-12 px-4 bg-green-600 hover:bg-green-700">💵 Cash In</Button>
-          <Button onClick={() => { setCashIOAmount(''); setCashIORemarks(''); setShowCashOutDialog(true); }} className="h-12 px-4 bg-red-600 hover:bg-red-700">💸 Cash Out</Button>
-          <Button onClick={() => setShowARPaymentDialog(true)} className="h-12 px-4 bg-yellow-600 hover:bg-yellow-700" title="AR Payment">💳 AR Pay</Button>
-          <Button onClick={() => { if (cart.length === 0) { setError('Cart is empty'); setTimeout(() => setError(''), 3000); return; } setShowQuotationDialog(true); }} className="h-12 px-4 bg-purple-600 hover:bg-purple-700">📋 Save</Button>
-          <Button onClick={() => setShowSavedQuotations(true)} className="h-12 px-4 bg-blue-600 hover:bg-blue-700">📂 Load</Button>
-          <Button onClick={() => setShowHoldDialog(true)} className="h-12 px-4 bg-amber-500 hover:bg-amber-600">⏸️ Hold</Button>
-          <Button onClick={() => setShowHeldTransactions(true)} className="h-12 px-4 bg-cyan-600 hover:bg-cyan-700">▶️ Retrieve</Button>
+          <Button onClick={() => window.open('/dashboard/readings/x-reading', '_blank')} className="h-12 px-4 bg-indigo-600 hover:bg-indigo-700 text-white" title="X Reading">📊 X Read</Button>
+          <Button onClick={() => { setCashIOAmount(''); setCashIORemarks(''); setShowCashInDialog(true); }} className="h-12 px-4 bg-green-600 hover:bg-green-700 text-white">💵 Cash In</Button>
+          <Button onClick={() => { setCashIOAmount(''); setCashIORemarks(''); setShowCashOutDialog(true); }} className="h-12 px-4 bg-red-600 hover:bg-red-700 text-white">💸 Cash Out</Button>
+          <Button onClick={() => setShowARPaymentDialog(true)} className="h-12 px-4 bg-yellow-600 hover:bg-yellow-700 text-white" title="AR Payment">💳 AR Pay</Button>
+          <Button onClick={() => { if (cart.length === 0) { setError('Cart is empty'); setTimeout(() => setError(''), 3000); return; } setShowQuotationDialog(true); }} className="h-12 px-4 bg-purple-600 hover:bg-purple-700 text-white">📋 Save</Button>
+          <Button onClick={() => setShowSavedQuotations(true)} className="h-12 px-4 bg-blue-600 hover:bg-blue-700 text-white">📂 Load</Button>
+          <Button onClick={() => setShowHoldDialog(true)} className="h-12 px-4 bg-amber-500 hover:bg-amber-600 text-white">⏸️ Hold</Button>
+          <Button onClick={() => setShowHeldTransactions(true)} className="h-12 px-4 bg-cyan-600 hover:bg-cyan-700 text-white">▶️ Retrieve</Button>
         </div>
       </div>
 
@@ -1860,36 +1912,51 @@ export default function POSEnhancedPage() {
                           )}
                         </p>
                         <p className="text-base font-semibold text-gray-600 mt-1">
-                          ₱{item.unitPrice.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × {item.quantity}
+                          ₱{item.unitPrice.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × {item.displayQuantity || item.quantity} {item.selectedUnitName || ''}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          className="h-10 w-10 p-0 text-xl bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg shadow"
-                          onClick={() => updateQuantity(index, item.quantity - 1)}
-                        >
-                          −
-                        </Button>
-                        <Input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) =>
-                            updateQuantity(index, parseInt(e.target.value) || 1)
-                          }
-                          className="w-20 text-center h-10 text-xl font-black border-2 border-blue-400 rounded-lg bg-white text-gray-900"
-                        />
-                        <Button
-                          size="sm"
-                          className="h-10 w-10 p-0 text-xl bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow"
-                          onClick={() => updateQuantity(index, item.quantity + 1)}
-                        >
-                          +
-                        </Button>
+                        {!item.selectedUnitName || item.displayQuantity === item.quantity ? (
+                          // Show standard +/- controls for non-UOM or primary unit items
+                          <>
+                            <Button
+                              size="sm"
+                              className="h-10 w-10 p-0 text-xl bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg shadow"
+                              onClick={() => updateQuantity(index, item.quantity - 1)}
+                            >
+                              −
+                            </Button>
+                            <Input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) =>
+                                updateQuantity(index, parseInt(e.target.value) || 1)
+                              }
+                              className="w-20 text-center h-10 text-xl font-black border-2 border-blue-400 rounded-lg bg-white text-gray-900"
+                            />
+                            <Button
+                              size="sm"
+                              className="h-10 w-10 p-0 text-xl bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow"
+                              onClick={() => updateQuantity(index, item.quantity + 1)}
+                            >
+                              +
+                            </Button>
+                          </>
+                        ) : (
+                          // Show read-only quantity display for UOM items - user must use UOM selector to change
+                          <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-2 border-amber-400 rounded-lg">
+                            <span className="text-xl font-black text-amber-900">
+                              {item.displayQuantity} {item.selectedUnitName}
+                            </span>
+                            <span className="text-xs text-amber-700">
+                              (Use selector below to change)
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <div className="text-right min-w-[100px]">
                         <p className="font-bold text-xl text-blue-600">
-                          ₱{(item.unitPrice * item.quantity).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          ₱{(item.unitPrice * (item.displayQuantity && item.selectedUnitName ? item.displayQuantity : item.quantity)).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
                       </div>
                       <Button
@@ -1900,6 +1967,31 @@ export default function POSEnhancedPage() {
                       >
                         ×
                       </Button>
+                    </div>
+
+                    {/* UOM (Unit of Measure) Selector - MOVED TO TOP FOR VISIBILITY */}
+                    <div className="mt-2 pt-2 border-t-2 border-amber-300">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full text-sm h-10 bg-gradient-to-r from-amber-100 to-amber-50 border-2 border-amber-500 text-amber-900 hover:from-amber-200 hover:to-amber-100 font-semibold shadow-sm"
+                        onClick={() => setShowUnitSelector(showUnitSelector === index ? null : index)}
+                      >
+                        📏 Selling in: <span className="font-bold ml-1">{item.selectedUnitName || 'Unit'}</span> · Click to Change Unit & Quantity
+                      </Button>
+
+                      {showUnitSelector === index && (
+                        <div className="mt-2">
+                          <POSUnitSelector
+                            productId={item.productId}
+                            productName={item.name}
+                            baseUnitPrice={item.originalPrice}
+                            availableStock={item.availableStock}
+                            currentQuantity={item.quantity}
+                            onUnitChange={(unitData) => handleUnitChange(index, unitData)}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Serial Number Selection - Always show button for manual entry */}

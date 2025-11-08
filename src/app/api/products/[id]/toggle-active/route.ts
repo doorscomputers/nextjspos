@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
+import { refreshStockView } from '@/lib/refreshStockView'
 
 export async function POST(
   request: NextRequest,
@@ -45,6 +46,11 @@ export async function POST(
     const updated = await prisma.product.update({
       where: { id: productId },
       data: { isActive: !product.isActive }
+    })
+
+    // Auto-refresh materialized view so product appears/disappears from inventory reports immediately
+    refreshStockView({ silent: true }).catch((error) => {
+      console.error('[Product Toggle] Failed to refresh stock view:', error)
     })
 
     return NextResponse.json({

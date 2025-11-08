@@ -814,16 +814,21 @@ export default function EditProductPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Sub Category</label>
                 <div className="flex gap-2">
-                  <select
+                  <Combobox
+                    options={[
+                      { value: '', label: 'None' },
+                      ...subCategories.map((cat) => ({
+                        value: String(cat.id),
+                        label: cat.name
+                      }))
+                    ]}
                     value={formData.subCategoryId}
-                    onChange={(e) => setFormData({ ...formData, subCategoryId: e.target.value })}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
-                  >
-                    <option value="">None</option>
-                    {subCategories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                  </select>
+                    onValueChange={(value) => setFormData({ ...formData, subCategoryId: value })}
+                    placeholder="Select sub-category..."
+                    searchPlaceholder="Search sub-categories..."
+                    emptyText="No sub-category found."
+                    className="flex-1"
+                  />
                   <button
                     type="button"
                     onClick={() => setShowSubCategoryModal(true)}

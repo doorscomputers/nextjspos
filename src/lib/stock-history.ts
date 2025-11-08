@@ -428,7 +428,7 @@ export async function getVariationStockHistory(
   // Sort all transactions by date (ascending)
   transactions.sort((a, b) => a.date.getTime() - b.date.getTime())
 
-  // Calculate running balance
+  // Calculate running balance (forward pass - oldest to newest)
   let runningBalance = 0
   const history: StockHistoryEntry[] = []
 
@@ -445,7 +445,7 @@ export async function getVariationStockHistory(
       transactionTypeLabel: txn.typeLabel,
       quantityAdded: txn.quantityAdded,
       quantityRemoved: txn.quantityRemoved,
-      runningBalance,
+      runningBalance, // This will be recalculated below after reversing
       unitCost: null,
       notes: txn.notes,
       createdBy: txn.createdBy
@@ -453,7 +453,26 @@ export async function getVariationStockHistory(
   }
 
   // Reverse so newest appears first
-  return history.reverse()
+  const reversed = history.reverse()
+
+  // ✅ FIX: Recalculate running balance in reverse order (newest to oldest, counting backwards)
+  // Start with the FINAL balance and work backwards
+  const finalBalance = reversed[0].runningBalance // The newest transaction has the final balance
+  let backwardBalance = finalBalance
+
+  for (let i = 0; i < reversed.length; i++) {
+    reversed[i].runningBalance = backwardBalance
+
+    // Move to previous transaction (go backwards in time)
+    if (i < reversed.length - 1) {
+      // Undo the NEXT transaction (which is older in time)
+      const nextTxn = reversed[i + 1]
+      backwardBalance -= nextTxn.quantityAdded
+      backwardBalance += nextTxn.quantityRemoved
+    }
+  }
+
+  return reversed
 }
 
 /**

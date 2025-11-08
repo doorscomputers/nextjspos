@@ -531,7 +531,15 @@ export async function generateZReadingData(
     cash: {
       beginningCash: parseFloat(shift.beginningCash.toString()),
       endingCash: shift.endingCash ? parseFloat(shift.endingCash.toString()) : 0,
-      systemCash: shift.systemCash ? parseFloat(shift.systemCash.toString()) : 0,
+      // FIX: Calculate systemCash dynamically if shift is still open (not yet closed)
+      // System Cash = Beginning Cash + Cash Sales + Cash In - Cash Out + AR Payments (cash)
+      systemCash: shift.systemCash
+        ? parseFloat(shift.systemCash.toString())
+        : parseFloat(shift.beginningCash.toString()) +
+          (paymentBreakdown['cash'] || 0) +
+          cashIn -
+          cashOut +
+          arPaymentsCashZ,
       cashOver: shift.cashOver ? parseFloat(shift.cashOver.toString()) : 0,
       cashShort: shift.cashShort ? parseFloat(shift.cashShort.toString()) : 0,
       cashIn,
