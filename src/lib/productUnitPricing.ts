@@ -94,22 +94,19 @@ export async function getProductUnitPrices(
 
   // FILTER: Only keep units that are explicitly configured for this product
   // Valid units are:
-  // 1. True base unit (smallest unit, e.g., Piece)
-  // 2. Primary unit (selected in Unit dropdown, e.g., Box300pc)
-  // 3. Any units explicitly checked in Additional Sub-Units (from subUnitIds)
+  // 1. Primary unit (selected in Unit dropdown, e.g., Box300pc or Roll)
+  // 2. Any units explicitly checked in Additional Sub-Units (from subUnitIds)
+  // Note: Base unit is ONLY included if it's checked in Additional Sub-Units OR is the primary unit
   const configuredSubUnitIds = product.subUnitIds
     ? (JSON.parse(product.subUnitIds) as number[])
     : []
 
   const validUnits = units.filter(unit => {
-    // Always include TRUE base unit (smallest unit in hierarchy)
-    if (unit.id === trueBaseUnit.id) return true
-
     // Always include primary unit (the one selected in Unit dropdown)
     if (unit.id === primaryUnit.id) return true
 
     // Include any unit that is explicitly checked in Additional Sub-Units
-    // No restrictions - if user checked it, show it
+    // This includes the base unit IF it was checked by the user
     if (configuredSubUnitIds.includes(unit.id)) {
       return true
     }

@@ -199,66 +199,69 @@ export async function getProductUnits(
   console.log(`[getProductUnits] Primary Unit: ${primaryUnit.name} (ID: ${primaryUnit.id})`)
   console.log(`[getProductUnits] True Base Unit: ${trueBaseUnit.name} (ID: ${trueBaseUnit.id})`)
 
-  // ALWAYS add the true base unit first
-  units.push({
-    unitId: trueBaseUnit.id,
-    unitName: trueBaseUnit.name,
-    unitShortName: trueBaseUnit.shortName,
-    isBaseUnit: true,
-    multiplier: new Decimal(1),
-  })
-
-  // Add the primary unit (if different from base unit)
-  if (primaryUnit.id !== trueBaseUnitId) {
-    units.push({
-      unitId: primaryUnit.id,
-      unitName: primaryUnit.name,
-      unitShortName: primaryUnit.shortName,
-      isBaseUnit: false,
-      multiplier: primaryUnit.baseUnitMultiplier || new Decimal(1),
-    })
-  }
-
-  // Add additional sub-units from subUnitIds (if configured)
+  // Parse subUnitIds to check which units are explicitly configured
+  let configuredSubUnitIds: number[] = []
   if (product.subUnitIds) {
     try {
-      const subUnitIds = JSON.parse(product.subUnitIds) as number[]
-      console.log(`[getProductUnits] Additional Sub-Units IDs:`, subUnitIds)
-
-      if (Array.isArray(subUnitIds) && subUnitIds.length > 0) {
-        // Filter out units already added (primary and base)
-        const alreadyAddedIds = units.map(u => u.unitId)
-        const newSubUnitIds = subUnitIds.filter(id => !alreadyAddedIds.includes(id))
-
-        if (newSubUnitIds.length > 0) {
-          const subUnits = await prisma.unit.findMany({
-            where: {
-              id: { in: newSubUnitIds },
-              businessId,
-              deletedAt: null,
-            },
-          })
-
-          for (const subUnit of subUnits) {
-            // Only add units that share the same base unit (same hierarchy)
-            const subUnitBaseId = subUnit.baseUnitId || subUnit.id
-            if (subUnitBaseId === trueBaseUnitId) {
-              units.push({
-                unitId: subUnit.id,
-                unitName: subUnit.name,
-                unitShortName: subUnit.shortName,
-                isBaseUnit: false,
-                multiplier: subUnit.baseUnitMultiplier || new Decimal(1),
-              })
-              console.log(`[getProductUnits] Added sub-unit: ${subUnit.name} (×${subUnit.baseUnitMultiplier})`)
-            } else {
-              console.warn(`[getProductUnits] Skipping ${subUnit.name} - different base unit hierarchy`)
-            }
-          }
-        }
-      }
+      configuredSubUnitIds = JSON.parse(product.subUnitIds) as number[]
+      console.log(`[getProductUnits] Configured Sub-Units IDs:`, configuredSubUnitIds)
     } catch (error) {
       console.error('Error parsing subUnitIds:', error)
+    }
+  }
+
+  // ONLY add the primary unit (the one selected in Unit dropdown)
+  units.push({
+    unitId: primaryUnit.id,
+    unitName: primaryUnit.name,
+    unitShortName: primaryUnit.shortName,
+    isBaseUnit: primaryUnit.id === trueBaseUnitId,
+    multiplier: primaryUnit.baseUnitMultiplier || new Decimal(1),
+  })
+
+  // Add the true base unit ONLY if it's explicitly checked in Additional Sub-Units
+  // (Don't add if it's already added as primary unit)
+  if (primaryUnit.id !== trueBaseUnitId && configuredSubUnitIds.includes(trueBaseUnitId)) {
+    units.push({
+      unitId: trueBaseUnit.id,
+      unitName: trueBaseUnit.name,
+      unitShortName: trueBaseUnit.shortName,
+      isBaseUnit: true,
+      multiplier: new Decimal(1),
+    })
+    console.log(`[getProductUnits] Added base unit (explicitly checked): ${trueBaseUnit.name}`)
+  }
+
+  // Add additional sub-units from subUnitIds (excluding already-added units)
+  if (configuredSubUnitIds.length > 0) {
+    const alreadyAddedIds = units.map(u => u.unitId)
+    const newSubUnitIds = configuredSubUnitIds.filter(id => !alreadyAddedIds.includes(id))
+
+    if (newSubUnitIds.length > 0) {
+      const subUnits = await prisma.unit.findMany({
+        where: {
+          id: { in: newSubUnitIds },
+          businessId,
+          deletedAt: null,
+        },
+      })
+
+      for (const subUnit of subUnits) {
+        // Only add units that share the same base unit (same hierarchy)
+        const subUnitBaseId = subUnit.baseUnitId || subUnit.id
+        if (subUnitBaseId === trueBaseUnitId) {
+          units.push({
+            unitId: subUnit.id,
+            unitName: subUnit.name,
+            unitShortName: subUnit.shortName,
+            isBaseUnit: false,
+            multiplier: subUnit.baseUnitMultiplier || new Decimal(1),
+          })
+          console.log(`[getProductUnits] Added sub-unit: ${subUnit.name} (×${subUnit.baseUnitMultiplier})`)
+        } else {
+          console.warn(`[getProductUnits] Skipping ${subUnit.name} - different base unit hierarchy`)
+        }
+      }
     }
   }
 
