@@ -66,7 +66,7 @@ async function main() {
   })
 
   // Create Business Locations (Branches)
-  // ID 1: Main Warehouse
+  // ID 1: Main Warehouse (Solano)
   const warehouseLocation = await prisma.businessLocation.upsert({
     where: { id: 1 },
     update: {},
@@ -74,15 +74,15 @@ async function main() {
       businessId: business.id,
       name: 'Main Warehouse',
       country: 'Philippines',
-      state: 'Nueva Vizcaya',
+      state: 'NuevaVizcaya',
       city: 'Solano',
-      zipCode: '3709',
-      mobile: '+63-912-555-0001',
-      email: 'warehouse@pcinetstore.com',
+      zipCode: '2601',
+      mobile: '+1234567890',
+      email: 'warehouse@demo.com',
     },
   })
 
-  // ID 2: Main Store
+  // ID 2: Main Store (Solano)
   const mainLocation = await prisma.businessLocation.upsert({
     where: { id: 2 },
     update: {},
@@ -90,11 +90,11 @@ async function main() {
       businessId: business.id,
       name: 'Main Store',
       country: 'Philippines',
-      state: 'Nueva Vizcaya',
+      state: 'Region 2',
       city: 'Solano',
-      zipCode: '3709',
-      mobile: '+63-912-555-0002',
-      email: 'main@pcinetstore.com',
+      zipCode: '3500',
+      mobile: '+63-912-555-0001',
+      email: 'MainStore@pcinetstore.com',
     },
   })
 
@@ -106,7 +106,7 @@ async function main() {
       businessId: business.id,
       name: 'Bambang',
       country: 'Philippines',
-      state: 'Nueva Vizcaya',
+      state: 'Region 2',
       city: 'Bambang',
       zipCode: '3702',
       mobile: '+63-912-555-0003',
@@ -122,11 +122,11 @@ async function main() {
       businessId: business.id,
       name: 'Tuguegarao',
       country: 'Philippines',
-      state: 'Cagayan',
+      state: 'Region 2',
       city: 'Tuguegarao',
       zipCode: '3500',
       mobile: '+63-912-555-0004',
-      email: 'tuguegarao@pcinetstore.com',
+      email: 'Tuguegarao@pcinetstore.com',
     },
   })
   console.log('✅ Business locations created (4 branches)')
