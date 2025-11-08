@@ -66,36 +66,39 @@ async function main() {
   })
 
   // Create Business Locations (Branches)
-  const mainLocation = await prisma.businessLocation.upsert({
+  // ID 1: Main Warehouse
+  const warehouseLocation = await prisma.businessLocation.upsert({
     where: { id: 1 },
+    update: {},
+    create: {
+      businessId: business.id,
+      name: 'Main Warehouse',
+      country: 'Philippines',
+      state: 'Nueva Vizcaya',
+      city: 'Solano',
+      zipCode: '3709',
+      mobile: '+63-912-555-0001',
+      email: 'warehouse@pcinetstore.com',
+    },
+  })
+
+  // ID 2: Main Store
+  const mainLocation = await prisma.businessLocation.upsert({
+    where: { id: 2 },
     update: {},
     create: {
       businessId: business.id,
       name: 'Main Store',
       country: 'Philippines',
-      state: 'Cagayan Valley',
-      city: 'Tuguegarao',
-      zipCode: '3500',
-      mobile: '+63-912-555-0001',
+      state: 'Nueva Vizcaya',
+      city: 'Solano',
+      zipCode: '3709',
+      mobile: '+63-912-555-0002',
       email: 'main@pcinetstore.com',
     },
   })
 
-  const warehouseLocation = await prisma.businessLocation.upsert({
-    where: { id: 2 },
-    update: {},
-    create: {
-      businessId: business.id,
-      name: 'Warehouse',
-      country: 'Philippines',
-      state: 'Cagayan Valley',
-      city: 'Tuguegarao',
-      zipCode: '3500',
-      mobile: '+63-912-555-0002',
-      email: 'warehouse@pcinetstore.com',
-    },
-  })
-
+  // ID 3: Bambang
   const bambangLocation = await prisma.businessLocation.upsert({
     where: { id: 3 },
     update: {},
@@ -111,18 +114,19 @@ async function main() {
     },
   })
 
+  // ID 4: Tuguegarao
   const downtownLocation = await prisma.businessLocation.upsert({
     where: { id: 4 },
     update: {},
     create: {
       businessId: business.id,
-      name: 'Tuguegarao Downtown',
+      name: 'Tuguegarao',
       country: 'Philippines',
-      state: 'Cagayan Valley',
+      state: 'Cagayan',
       city: 'Tuguegarao',
       zipCode: '3500',
       mobile: '+63-912-555-0004',
-      email: 'downtown@pcinetstore.com',
+      email: 'tuguegarao@pcinetstore.com',
     },
   })
   console.log('✅ Business locations created (4 branches)')
@@ -724,13 +728,13 @@ async function main() {
   // This user can see and approve corrections from ALL locations
 
   console.log('✅ User locations assigned:')
-  console.log('  - Branch Manager -> Main Store')
-  console.log('  - Warehouse Manager -> Warehouse')
-  console.log('  - Transfer Creator -> Main Store')
-  console.log('  - Cashier -> Tuguegarao Downtown')
-  console.log('  - Inventory Counter (Main) -> Main Store')
-  console.log('  - Inventory Counter (Bambang) -> Bambang')
-  console.log('  - Inventory Counter (Tugue) -> Tuguegarao Downtown')
+  console.log('  - Branch Manager -> Main Store (ID 2)')
+  console.log('  - Warehouse Manager -> Main Warehouse (ID 1)')
+  console.log('  - Transfer Creator -> Main Store (ID 2)')
+  console.log('  - Cashier -> Tuguegarao (ID 4)')
+  console.log('  - Inventory Counter (Main) -> Main Store (ID 2)')
+  console.log('  - Inventory Counter (Bambang) -> Bambang (ID 3)')
+  console.log('  - Inventory Counter (Tugue) -> Tuguegarao (ID 4)')
   console.log('  - Inventory Correction Approver -> ALL LOCATIONS (via permission)')
 
   // Create Subscription Packages
