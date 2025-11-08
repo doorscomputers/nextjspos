@@ -265,6 +265,7 @@ export async function POST(request: NextRequest) {
       subCategoryId,
       brandId,
       unitId,
+      subUnitIds,
       taxId,
       taxType,
       sku,
@@ -373,6 +374,9 @@ export async function POST(request: NextRequest) {
           categoryId: subCategoryId ? parseInt(subCategoryId) : (categoryId ? parseInt(categoryId) : null),
           brandId: brandId ? parseInt(brandId) : null,
           unitId: unitId ? parseInt(unitId) : null,
+          subUnitIds: subUnitIds && Array.isArray(subUnitIds) && subUnitIds.length > 0
+            ? JSON.stringify(subUnitIds)
+            : null,
           taxId: taxId ? parseInt(taxId) : null,
           taxType,
           sku: sku && !isSkuEmpty(sku) ? sku : ' ', // Temporary placeholder

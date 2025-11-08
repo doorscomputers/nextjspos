@@ -269,23 +269,23 @@ export default function BrandsPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => handleExport("csv")} className="gap-2">
+              <Button variant="outline" size="sm" onClick={() => handleExport("csv")} className="gap-2 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400">
                 <DocumentArrowDownIcon className="h-4 w-4" />
                 CSV
               </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExport("excel")} className="gap-2">
+              <Button variant="outline" size="sm" onClick={() => handleExport("excel")} className="gap-2 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400">
                 <DocumentArrowDownIcon className="h-4 w-4" />
                 Excel
               </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExport("pdf")} className="gap-2">
+              <Button variant="outline" size="sm" onClick={() => handleExport("pdf")} className="gap-2 hover:border-red-500 hover:text-red-700 dark:hover:text-red-400">
                 <DocumentTextIcon className="h-4 w-4" />
                 PDF
               </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExport("print")} className="gap-2">
+              <Button variant="outline" size="sm" onClick={() => handleExport("print")} className="gap-2 hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400">
                 <PrinterIcon className="h-4 w-4" />
                 Print
               </Button>
-              <Button onClick={openCreateDialog} className="gap-2 bg-primary text-primary-foreground">
+              <Button onClick={openCreateDialog} variant="success" size="sm" className="gap-2">
                 <PlusIcon className="h-4 w-4" />
                 Add Brand
               </Button>
@@ -376,18 +376,18 @@ export default function BrandsPage() {
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           <Button
-                            size="icon"
+                            size="icon-sm"
                             variant="outline"
                             onClick={() => openEditDialog(brand)}
-                            className="h-8 w-8"
+                            className="hover:border-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-950"
                             title="Edit brand"
                           >
                             <PencilIcon className="h-4 w-4" />
                           </Button>
                           <Button
-                            size="icon"
+                            size="icon-sm"
                             variant="outline"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            className="hover:border-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-950"
                             onClick={() => handleDelete(brand)}
                             title="Delete brand"
                           >
@@ -481,6 +481,7 @@ export default function BrandsPage() {
           <DialogFooter className="gap-2">
             <Button
               variant="outline"
+              size="default"
               onClick={() => {
                 setDialogOpen(false)
                 setEditingBrand(null)
@@ -489,7 +490,7 @@ export default function BrandsPage() {
             >
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={submitting} className="gap-2">
+            <Button onClick={handleSubmit} disabled={submitting} variant="success" size="default" className="gap-2 min-w-32">
               {submitting && <span className="animate-spin">⏳</span>}
               {editingBrand ? "Update Brand" : "Create Brand"}
             </Button>

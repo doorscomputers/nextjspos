@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
 import UnifiedProductSearch from '@/components/UnifiedProductSearch'
+import UnitSelector from '@/components/UnitSelector'
 
 interface Supplier {
   id: number
@@ -72,6 +73,18 @@ interface POItem {
   quantity: number
   unitCost: number
   requiresSerial: boolean
+  subUnitId: number | null // UOM support
+  unitPrices?: UnitPrice[] // Fetched unit prices for this product
+}
+
+interface UnitPrice {
+  unitId: number
+  unitName: string
+  unitShortName: string
+  purchasePrice: string
+  sellingPrice: string
+  multiplier: string
+  isBaseUnit: boolean
 }
 
 export default function CreatePurchaseOrderPage() {
@@ -193,12 +206,35 @@ export default function CreatePurchaseOrderPage() {
   }
 
   // Handle product selection from autocomplete
-  const handleProductSelect = (product: Product, variation: ProductVariation) => {
+  const handleProductSelect = async (product: Product, variation: ProductVariation) => {
     // Check if item already exists
     const existingItem = items.find(item => item.productVariationId === variation.id)
     if (existingItem) {
       toast.warning('Product already in list. Increase quantity if needed.')
       return
+    }
+
+    // Fetch unit prices for this product
+    let unitPrices: UnitPrice[] = []
+    let baseUnitPrice = variation.defaultPurchasePrice || 0
+    let baseUnitId: number | null = null
+
+    try {
+      const response = await fetch(`/api/products/${product.id}/unit-prices`)
+      if (response.ok) {
+        const data = await response.json()
+        unitPrices = data.prices || []
+
+        // Find base unit and its price
+        const baseUnit = unitPrices.find(up => up.isBaseUnit)
+        if (baseUnit) {
+          baseUnitId = baseUnit.unitId
+          baseUnitPrice = parseFloat(baseUnit.purchasePrice)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching unit prices:', error)
+      // Fallback to default purchase price
     }
 
     const newItem: POItem = {
@@ -208,8 +244,10 @@ export default function CreatePurchaseOrderPage() {
       variationName: variation.name,
       sku: variation.sku,
       quantity: 1,
-      unitCost: variation.defaultPurchasePrice || 0, // Auto-fill with default price
+      unitCost: baseUnitPrice, // Use base unit price
       requiresSerial: variation.enableSerialNumber || false,
+      subUnitId: baseUnitId, // Will be auto-selected by UnitSelector if product has UOM
+      unitPrices, // Store fetched unit prices
     }
 
     setItems([...items, newItem])
@@ -220,12 +258,30 @@ export default function CreatePurchaseOrderPage() {
     setItems(items.filter(item => item.productVariationId !== variationId))
   }
 
-  const handleItemChange = (variationId: number, field: 'quantity' | 'unitCost', value: number) => {
-    setItems(items.map(item =>
-      item.productVariationId === variationId
-        ? { ...item, [field]: Math.max(0, value) }
-        : item
-    ))
+  const handleItemChange = (variationId: number, field: 'quantity' | 'unitCost' | 'subUnitId', value: number | null) => {
+    setItems(items.map(item => {
+      if (item.productVariationId !== variationId) {
+        return item
+      }
+
+      // If changing unit, auto-update unit cost from unitPrices
+      if (field === 'subUnitId' && value && item.unitPrices) {
+        const selectedUnitPrice = item.unitPrices.find(up => up.unitId === value)
+        if (selectedUnitPrice) {
+          return {
+            ...item,
+            subUnitId: value,
+            unitCost: parseFloat(selectedUnitPrice.purchasePrice)
+          }
+        }
+      }
+
+      // For other fields, update normally
+      return {
+        ...item,
+        [field]: field === 'subUnitId' ? value : Math.max(0, value as number)
+      }
+    }))
   }
 
   const calculateSubtotal = () => {
@@ -288,6 +344,7 @@ export default function CreatePurchaseOrderPage() {
           quantity: item.quantity,
           unitCost: item.unitCost,
           requiresSerial: item.requiresSerial,
+          subUnitId: item.subUnitId, // UOM support
         })),
         taxAmount,
         discountAmount,
@@ -523,7 +580,7 @@ export default function CreatePurchaseOrderPage() {
                     </Button>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="space-y-2">
                       <Label className="text-gray-900 dark:text-gray-200">Quantity <span className="text-red-500">*</span></Label>
                       <Input
@@ -532,6 +589,18 @@ export default function CreatePurchaseOrderPage() {
                         value={item.quantity}
                         onChange={(e) => handleItemChange(item.productVariationId, 'quantity', parseFloat(e.target.value) || 0)}
                         required
+                      />
+                    </div>
+
+                    {/* UOM Unit Selector - Auto-hides if product has single unit */}
+                    <div className="space-y-2">
+                      <UnitSelector
+                        productId={item.productId}
+                        businessId={user?.businessId || 0}
+                        value={item.subUnitId}
+                        onChange={(unitId) => handleItemChange(item.productVariationId, 'subUnitId', unitId)}
+                        showLabel={true}
+                        size="default"
                       />
                     </div>
 
@@ -545,6 +614,11 @@ export default function CreatePurchaseOrderPage() {
                         onChange={(e) => handleItemChange(item.productVariationId, 'unitCost', parseFloat(e.target.value) || 0)}
                         required
                       />
+                      {item.unitPrices && item.unitPrices.length > 1 && (
+                        <p className="text-xs text-blue-600 dark:text-blue-400">
+                          💡 Auto-filled from unit pricing
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">

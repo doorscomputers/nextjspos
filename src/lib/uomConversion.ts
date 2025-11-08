@@ -184,43 +184,77 @@ export async function getProductUnits(
     },
   })
 
-  if (!product) {
+  if (!product || !product.unit) {
     return []
   }
 
   const units: UnitOption[] = []
+  const primaryUnit = product.unit
 
-  // Add base unit
-  const baseUnit = product.unit
+  // Determine the TRUE base unit (smallest unit in hierarchy)
+  const trueBaseUnit = primaryUnit.baseUnit || primaryUnit
+  const trueBaseUnitId = trueBaseUnit.id
+
+  console.log(`[getProductUnits] Product: ${product.name}`)
+  console.log(`[getProductUnits] Primary Unit: ${primaryUnit.name} (ID: ${primaryUnit.id})`)
+  console.log(`[getProductUnits] True Base Unit: ${trueBaseUnit.name} (ID: ${trueBaseUnit.id})`)
+
+  // ALWAYS add the true base unit first
   units.push({
-    unitId: baseUnit.id,
-    unitName: baseUnit.name,
-    unitShortName: baseUnit.shortName,
+    unitId: trueBaseUnit.id,
+    unitName: trueBaseUnit.name,
+    unitShortName: trueBaseUnit.shortName,
     isBaseUnit: true,
     multiplier: new Decimal(1),
   })
 
-  // Add sub-units if configured
+  // Add the primary unit (if different from base unit)
+  if (primaryUnit.id !== trueBaseUnitId) {
+    units.push({
+      unitId: primaryUnit.id,
+      unitName: primaryUnit.name,
+      unitShortName: primaryUnit.shortName,
+      isBaseUnit: false,
+      multiplier: primaryUnit.baseUnitMultiplier || new Decimal(1),
+    })
+  }
+
+  // Add additional sub-units from subUnitIds (if configured)
   if (product.subUnitIds) {
     try {
       const subUnitIds = JSON.parse(product.subUnitIds) as number[]
+      console.log(`[getProductUnits] Additional Sub-Units IDs:`, subUnitIds)
 
       if (Array.isArray(subUnitIds) && subUnitIds.length > 0) {
-        const subUnits = await prisma.unit.findMany({
-          where: {
-            id: { in: subUnitIds },
-            businessId,
-          },
-        })
+        // Filter out units already added (primary and base)
+        const alreadyAddedIds = units.map(u => u.unitId)
+        const newSubUnitIds = subUnitIds.filter(id => !alreadyAddedIds.includes(id))
 
-        for (const subUnit of subUnits) {
-          units.push({
-            unitId: subUnit.id,
-            unitName: subUnit.name,
-            unitShortName: subUnit.shortName,
-            isBaseUnit: false,
-            multiplier: subUnit.baseUnitMultiplier || new Decimal(1),
+        if (newSubUnitIds.length > 0) {
+          const subUnits = await prisma.unit.findMany({
+            where: {
+              id: { in: newSubUnitIds },
+              businessId,
+              deletedAt: null,
+            },
           })
+
+          for (const subUnit of subUnits) {
+            // Only add units that share the same base unit (same hierarchy)
+            const subUnitBaseId = subUnit.baseUnitId || subUnit.id
+            if (subUnitBaseId === trueBaseUnitId) {
+              units.push({
+                unitId: subUnit.id,
+                unitName: subUnit.name,
+                unitShortName: subUnit.shortName,
+                isBaseUnit: false,
+                multiplier: subUnit.baseUnitMultiplier || new Decimal(1),
+              })
+              console.log(`[getProductUnits] Added sub-unit: ${subUnit.name} (×${subUnit.baseUnitMultiplier})`)
+            } else {
+              console.warn(`[getProductUnits] Skipping ${subUnit.name} - different base unit hierarchy`)
+            }
+          }
         }
       }
     } catch (error) {
@@ -228,6 +262,7 @@ export async function getProductUnits(
     }
   }
 
+  console.log(`[getProductUnits] Final units:`, units.map(u => `${u.unitName} (${u.isBaseUnit ? 'BASE' : '×' + u.multiplier})`))
   return units
 }
 

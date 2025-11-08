@@ -37,6 +37,13 @@ interface Unit {
   name: string
   shortName: string
   allowDecimal: boolean
+  baseUnitId: number | null
+  baseUnitMultiplier: string | null
+  baseUnit?: {
+    id: number
+    name: string
+    shortName: string
+  } | null
   createdAt: string
   createdAtTimestamp: number
 }
@@ -45,6 +52,8 @@ interface UnitForm {
   name: string
   shortName: string
   allowDecimal: boolean
+  baseUnitId: number | null
+  baseUnitMultiplier: string
 }
 
 type AllowDecimalFilter = "all" | "decimal" | "whole"
@@ -54,6 +63,13 @@ type UnitApiResponse = {
   name: string
   shortName: string
   allowDecimal: boolean
+  baseUnitId: number | null
+  baseUnitMultiplier: any | null
+  baseUnit?: {
+    id: number
+    name: string
+    shortName: string
+  } | null
   createdAt: string
 }
 
@@ -72,6 +88,8 @@ export default function UnitsPage() {
     name: "",
     shortName: "",
     allowDecimal: false,
+    baseUnitId: null,
+    baseUnitMultiplier: "",
   })
   const [submitting, setSubmitting] = useState(false)
 
@@ -99,6 +117,9 @@ export default function UnitsPage() {
         name: unit.name,
         shortName: unit.shortName,
         allowDecimal: unit.allowDecimal,
+        baseUnitId: unit.baseUnitId,
+        baseUnitMultiplier: unit.baseUnitMultiplier ? String(unit.baseUnitMultiplier) : null,
+        baseUnit: unit.baseUnit,
         createdAt: unit.createdAt,
         createdAtTimestamp: new Date(unit.createdAt).getTime(),
       }))
@@ -152,7 +173,13 @@ export default function UnitsPage() {
 
   const openCreateDialog = () => {
     setEditingUnit(null)
-    setFormData({ name: "", shortName: "", allowDecimal: false })
+    setFormData({
+      name: "",
+      shortName: "",
+      allowDecimal: false,
+      baseUnitId: null,
+      baseUnitMultiplier: "",
+    })
     setDialogOpen(true)
   }
 
@@ -162,6 +189,8 @@ export default function UnitsPage() {
       name: unit.name,
       shortName: unit.shortName,
       allowDecimal: unit.allowDecimal,
+      baseUnitId: unit.baseUnitId,
+      baseUnitMultiplier: unit.baseUnitMultiplier || "",
     })
     setDialogOpen(true)
   }
@@ -194,15 +223,34 @@ export default function UnitsPage() {
       return
     }
 
+    // Validate UOM conversion fields
+    if (formData.baseUnitId) {
+      if (!formData.baseUnitMultiplier || parseFloat(formData.baseUnitMultiplier) <= 0) {
+        toast.error("Conversion multiplier is required and must be greater than 0")
+        return
+      }
+    }
+
     setSubmitting(true)
     try {
       const url = editingUnit ? `/api/units/${editingUnit.id}` : "/api/units"
       const method = editingUnit ? "PUT" : "POST"
 
+      // Prepare payload
+      const payload = {
+        name: formData.name,
+        shortName: formData.shortName,
+        allowDecimal: formData.allowDecimal,
+        baseUnitId: formData.baseUnitId || null,
+        baseUnitMultiplier: formData.baseUnitId && formData.baseUnitMultiplier
+          ? parseFloat(formData.baseUnitMultiplier)
+          : null,
+      }
+
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       })
 
       const data = await response.json()
@@ -294,23 +342,23 @@ export default function UnitsPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => handleExport("csv")} className="gap-2">
+              <Button variant="outline" size="sm" onClick={() => handleExport("csv")} className="gap-2 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400">
                 <DocumentArrowDownIcon className="h-4 w-4" />
                 CSV
               </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExport("excel")} className="gap-2">
+              <Button variant="outline" size="sm" onClick={() => handleExport("excel")} className="gap-2 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400">
                 <DocumentArrowDownIcon className="h-4 w-4" />
                 Excel
               </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExport("pdf")} className="gap-2">
+              <Button variant="outline" size="sm" onClick={() => handleExport("pdf")} className="gap-2 hover:border-red-500 hover:text-red-700 dark:hover:text-red-400">
                 <DocumentTextIcon className="h-4 w-4" />
                 PDF
               </Button>
-              <Button variant="outline" size="sm" onClick={() => handleExport("print")} className="gap-2">
+              <Button variant="outline" size="sm" onClick={() => handleExport("print")} className="gap-2 hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400">
                 <PrinterIcon className="h-4 w-4" />
                 Print
               </Button>
-              <Button onClick={openCreateDialog} className="gap-2 bg-primary text-primary-foreground">
+              <Button onClick={openCreateDialog} variant="success" size="sm" className="gap-2">
                 <PlusIcon className="h-4 w-4" />
                 Add Unit
               </Button>
@@ -415,18 +463,18 @@ export default function UnitsPage() {
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
                           <Button
-                            size="icon"
+                            size="icon-sm"
                             variant="outline"
                             onClick={() => openEditDialog(unit)}
-                            className="h-8 w-8"
+                            className="hover:border-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-950"
                             title="Edit unit"
                           >
                             <PencilIcon className="h-4 w-4" />
                           </Button>
                           <Button
-                            size="icon"
+                            size="icon-sm"
                             variant="outline"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            className="hover:border-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-950"
                             onClick={() => handleDelete(unit)}
                             title="Delete unit"
                           >
@@ -512,34 +560,134 @@ export default function UnitsPage() {
                 required
               />
             </div>
-            <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3">
-              <div className="space-y-1">
-                <Label htmlFor="unit-allowDecimal" className="text-sm">
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <div className="flex-1 space-y-1">
+                <Label htmlFor="unit-allowDecimal" className="text-sm font-medium">
                   Allow Decimal Quantities
                 </Label>
                 <p className="text-xs text-muted-foreground">
                   Enable if this unit can be sold or purchased in decimal values (e.g., 1.5 kg).
                 </p>
               </div>
-              <Switch
-                id="unit-allowDecimal"
-                checked={formData.allowDecimal}
-                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, allowDecimal: checked }))}
-              />
+              <div className="flex-shrink-0">
+                <Switch
+                  id="unit-allowDecimal"
+                  checked={formData.allowDecimal}
+                  onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, allowDecimal: checked }))}
+                />
+              </div>
+            </div>
+
+            {/* UOM Conversion Section */}
+            <div className="space-y-4 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🔄</span>
+                <div>
+                  <h4 className="font-semibold text-sm text-gray-900 dark:text-gray-100">
+                    Unit Conversion Setup (Optional)
+                  </h4>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    Configure this unit as a sub-unit of another unit for multi-unit inventory tracking
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="unit-baseUnit" className="text-sm">
+                  Base Unit (Parent Unit)
+                </Label>
+                <Select
+                  value={formData.baseUnitId?.toString() || "none"}
+                  onValueChange={(value) => {
+                    if (value === "none") {
+                      setFormData((prev) => ({ ...prev, baseUnitId: null, baseUnitMultiplier: "" }))
+                    } else {
+                      setFormData((prev) => ({ ...prev, baseUnitId: parseInt(value) }))
+                    }
+                  }}
+                >
+                  <SelectTrigger id="unit-baseUnit">
+                    <SelectValue placeholder="Select base unit (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No conversion (standalone unit)</SelectItem>
+                    {units
+                      .filter((u) => u.id !== editingUnit?.id)
+                      .map((unit) => (
+                        <SelectItem key={unit.id} value={unit.id.toString()}>
+                          {unit.name} ({unit.shortName})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  💡 Example: If creating "Meter" as sub-unit of "Box", select "Box" here
+                </p>
+              </div>
+
+              {formData.baseUnitId && (
+                <div className="space-y-2">
+                  <Label htmlFor="unit-multiplier" className="text-sm">
+                    Conversion Multiplier <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="unit-multiplier"
+                    type="number"
+                    step="0.0001"
+                    min="0"
+                    value={formData.baseUnitMultiplier}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, baseUnitMultiplier: e.target.value }))
+                    }
+                    placeholder="0.01"
+                    required={formData.baseUnitId !== null}
+                  />
+                  <div className="space-y-1">
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      💡 Formula: <strong>1 {formData.shortName || "this unit"} = multiplier × {units.find(u => u.id === formData.baseUnitId)?.shortName || "base unit"}</strong>
+                    </p>
+                    {formData.baseUnitMultiplier && (
+                      <div className="rounded bg-green-50 dark:bg-green-900/20 p-2 border border-green-200 dark:border-green-800">
+                        <p className="text-xs font-semibold text-green-800 dark:text-green-200">
+                          ✓ Example: 1 {formData.shortName || "unit"} = {formData.baseUnitMultiplier} {units.find(u => u.id === formData.baseUnitId)?.shortName}
+                        </p>
+                        <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                          {formData.baseUnitMultiplier && parseFloat(formData.baseUnitMultiplier) > 0
+                            ? `Or: 1 ${units.find(u => u.id === formData.baseUnitId)?.shortName} = ${(1 / parseFloat(formData.baseUnitMultiplier)).toFixed(4)} ${formData.shortName || "units"}`
+                            : ""}
+                        </p>
+                      </div>
+                    )}
+                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-2">
+                      ⚠️ Common examples:
+                      <br />• 1 Box = 100 meters → multiplier = 0.01
+                      <br />• 1 Carton = 24 pieces → multiplier = 0.04167
+                      <br />• 1 Kg = 1000 grams → multiplier = 0.001
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter className="gap-2">
             <Button
               variant="outline"
+              size="default"
               onClick={() => {
                 setDialogOpen(false)
                 setEditingUnit(null)
-                setFormData({ name: "", shortName: "", allowDecimal: false })
+                setFormData({
+                  name: "",
+                  shortName: "",
+                  allowDecimal: false,
+                  baseUnitId: null,
+                  baseUnitMultiplier: "",
+                })
               }}
             >
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={submitting} className="gap-2">
+            <Button onClick={handleSubmit} disabled={submitting} variant="success" size="default" className="gap-2 min-w-32">
               {submitting && <span className="animate-spin">⏳</span>}
               {editingUnit ? "Update Unit" : "Create Unit"}
             </Button>

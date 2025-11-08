@@ -856,9 +856,9 @@ export const DEFAULT_ROLES = {
     ],
   },
 
-  INVENTORY_ADJUSTER: {
-    name: 'Inventory Adjuster',
-    description: 'Creates inventory adjustment requests',
+  INVENTORY_COUNTER: {
+    name: 'Inventory Counter',
+    description: 'Physical stock counter - creates inventory corrections for assigned location only (cannot approve)',
     category: 'Product & Inventory',
     permissions: [
       PERMISSIONS.DASHBOARD_VIEW,
@@ -869,16 +869,19 @@ export const DEFAULT_ROLES = {
     ],
   },
 
-  INVENTORY_APPROVER: {
-    name: 'Inventory Approver',
-    description: 'Approves inventory corrections and adjustments',
+  INVENTORY_CORRECTION_APPROVER: {
+    name: 'Inventory Correction Approver',
+    description: 'Approves inventory corrections from all locations (cannot create)',
     category: 'Product & Inventory',
     permissions: [
       PERMISSIONS.DASHBOARD_VIEW,
       PERMISSIONS.PRODUCT_VIEW,
       PERMISSIONS.INVENTORY_CORRECTION_VIEW,
       PERMISSIONS.INVENTORY_CORRECTION_APPROVE,
+      PERMISSIONS.INVENTORY_CORRECTION_DELETE,
       PERMISSIONS.STOCK_REPORT_VIEW,
+      PERMISSIONS.VIEW_INVENTORY_REPORTS,
+      PERMISSIONS.ACCESS_ALL_LOCATIONS, // Can see corrections from all locations
     ],
   },
 
@@ -2103,10 +2106,11 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.PRODUCT_COST_AUDIT_VIEW,
       PERMISSIONS.PRODUCT_PRICE_COMPARISON_VIEW,
       PERMISSIONS.PRICING_SETTINGS_VIEW,
-      // Full inventory management
+      // Inventory management - CREATE corrections but CANNOT APPROVE (requires invcorApprover)
       PERMISSIONS.INVENTORY_CORRECTION_VIEW,
       PERMISSIONS.INVENTORY_CORRECTION_CREATE,
-      PERMISSIONS.INVENTORY_CORRECTION_APPROVE,
+      PERMISSIONS.INVENTORY_CORRECTION_UPDATE,
+      // PERMISSIONS.INVENTORY_CORRECTION_APPROVE, // REMOVED - Must use invcorApprover or assign that role
       PERMISSIONS.PHYSICAL_INVENTORY_EXPORT,
       // PERMISSIONS.PHYSICAL_INVENTORY_IMPORT, // DISABLED - Too dangerous! Only Super Admin can import
       // Full transfer management

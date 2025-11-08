@@ -18,6 +18,14 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
+    // Validate UOM conversion setup
+    if (body.baseUnitId && !body.baseUnitMultiplier) {
+      return NextResponse.json(
+        { error: 'Conversion multiplier is required when base unit is specified' },
+        { status: 400 }
+      )
+    }
+
     const unit = await prisma.unit.update({
       where: {
         id: parseInt(id),
@@ -26,7 +34,18 @@ export async function PUT(
       data: {
         name: body.name,
         shortName: body.shortName,
-        allowDecimal: body.allowDecimal
+        allowDecimal: body.allowDecimal,
+        baseUnitId: body.baseUnitId ? parseInt(body.baseUnitId) : null,
+        baseUnitMultiplier: body.baseUnitMultiplier ? parseFloat(body.baseUnitMultiplier) : null,
+      },
+      include: {
+        baseUnit: {
+          select: {
+            id: true,
+            name: true,
+            shortName: true
+          }
+        }
       }
     })
 

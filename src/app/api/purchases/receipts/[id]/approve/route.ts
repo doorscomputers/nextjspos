@@ -198,6 +198,7 @@ export async function POST(
             receiptId: receipt.id,
             userId: userIdNumber,
             userDisplayName,
+            subUnitId: purchaseItem.subUnitId || undefined, // UOM support
             tx,
           })
         }

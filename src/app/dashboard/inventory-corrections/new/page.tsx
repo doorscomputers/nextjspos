@@ -38,6 +38,10 @@ interface ProductVariation {
   name: string
   sku: string
   productId: number
+  variationLocationDetails?: Array<{
+    locationId: number
+    qtyAvailable: number
+  }>
 }
 
 interface InventoryDetails {
@@ -194,12 +198,21 @@ export default function NewInventoryCorrectionPage() {
 
   useEffect(() => {
     if (formData.productId) {
-      fetchVariations(parseInt(formData.productId))
+      const productId = parseInt(formData.productId)
+
+      // If the product was selected via the UI, variations are already populated
+      if (selectedProduct && selectedProduct.id === productId) {
+        return
+      }
+
+      fetchVariations(productId).then((vars) => {
+        setVariations(vars)
+      })
     } else {
       setVariations([])
       setFormData((prev) => ({ ...prev, productVariationId: '' }))
     }
-  }, [formData.productId])
+  }, [formData.productId, selectedProduct])
 
   // Auto-select variation if product has only one variation
   useEffect(() => {
@@ -279,32 +292,56 @@ export default function NewInventoryCorrectionPage() {
       const res = await fetch(`/api/products/${productId}/variations`)
       if (res.ok) {
         const data = await res.json()
-        setVariations(data.variations || [])
+        const vars = data.variations || []
+        console.log('[fetchVariations] Found', vars.length, 'variations for product', productId)
+        return vars
+      } else {
+        console.warn('[fetchVariations] Failed with status', res.status, 'for product', productId)
       }
     } catch (error) {
       console.error('Error fetching variations:', error)
     }
+    return []
   }
 
   const fetchSystemCount = async (locationId: number, variationId: number) => {
+    console.log('[fetchSystemCount] Called with locationId:', locationId, 'variationId:', variationId)
     try {
-      const res = await fetch(`/api/products/variations/${variationId}/inventory?locationId=${locationId}`)
+      const url = `/api/products/variations/${variationId}/inventory?locationId=${locationId}`
+      console.log('[fetchSystemCount] Fetching:', url)
+      const res = await fetch(url)
+      console.log('[fetchSystemCount] Response status:', res.status, res.ok ? 'OK' : 'ERROR')
+
       if (res.ok) {
         const data = await res.json()
+        console.log('[fetchSystemCount] Response data:', data)
+
         if (data.inventory) {
-          setSystemCount(parseFloat(data.inventory.qtyAvailable))
+          const count = parseFloat(data.inventory.qtyAvailable)
+          console.log('[fetchSystemCount] Setting systemCount to:', count)
+          setSystemCount(count)
         } else {
+          // Product doesn't exist at this location - set to 0 for beginning inventory
+          console.log('[fetchSystemCount] No inventory found, setting to 0')
           setSystemCount(0)
           toast.info('Product not yet added to this location. System count is 0.')
         }
+      } else {
+        // API error (404, 500, etc.) - still allow correction with 0 count
+        const errorText = await res.text()
+        console.warn('[fetchSystemCount] API error, defaulting to 0. Status:', res.status, 'Error:', errorText)
+        setSystemCount(0)
+        toast.info('Product not yet added to this location. System count is 0.')
       }
     } catch (error) {
-      console.error('Error fetching system count:', error)
+      console.error('[fetchSystemCount] Exception:', error)
       setSystemCount(0)
+      toast.warning('Could not verify current inventory. System count set to 0.')
     }
   }
 
   const handleProductSelect = async (product: Product) => {
+    console.log('[Product Selected]', product.name, 'ID:', product.id)
     setSelectedProduct(product)
     setFormData((prev) => ({
       ...prev,
@@ -312,15 +349,36 @@ export default function NewInventoryCorrectionPage() {
       productVariationId: ''
     }))
 
-    // Fetch variations for this product
-    await fetchVariations(product.id)
+    // Prefer variations already included in the product payload to avoid extra API round-trips
+    const cachedVariations = Array.isArray(product.variations) ? product.variations : []
+    const vars =
+      cachedVariations.length > 0
+        ? cachedVariations
+        : await fetchVariations(product.id)
+
+    setVariations(vars)
 
     // If single variation, auto-select it
-    if (product.variations && product.variations.length === 1) {
+    if (vars && vars.length === 1) {
+      console.log('[Auto-selecting single variation]', vars[0].id)
+      const variationId = vars[0].id
       setFormData((prev) => ({
         ...prev,
-        productVariationId: product.variations![0].id.toString()
+        productVariationId: variationId.toString()
       }))
+
+      // IMMEDIATELY fetch system count after auto-selecting variation
+      if (formData.locationId) {
+        console.log('[Fetching system count immediately] location:', formData.locationId, 'variation:', variationId)
+        await fetchSystemCount(parseInt(formData.locationId), variationId)
+      }
+    } else if (vars && vars.length > 1) {
+      console.log('[Multiple variations] User must manually select')
+    } else {
+      console.warn('[No variations found for product]', product.id)
+      toast.error('No variations found for this product. Please create a variation before recording corrections.')
+      setVariations([])
+      setSystemCount(null)
     }
 
     // Clear search
@@ -639,6 +697,16 @@ export default function NewInventoryCorrectionPage() {
                     readOnly
                     className="mt-1 bg-gray-50 font-medium text-sm"
                   />
+                  {systemCount === 0 && formData.productVariationId && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      ℹ️ New product - no inventory at this location yet
+                    </p>
+                  )}
+                  {systemCount === null && formData.productVariationId && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      ⏳ Loading system count...
+                    </p>
+                  )}
                 </div>
 
                 {/* Physical Count */}
@@ -689,6 +757,7 @@ export default function NewInventoryCorrectionPage() {
                       <SelectValue placeholder="Select reason" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="beginning_inventory">Beginning Inventory</SelectItem>
                       <SelectItem value="expired">Expired</SelectItem>
                       <SelectItem value="damaged">Damaged</SelectItem>
                       <SelectItem value="missing">Missing</SelectItem>

@@ -197,13 +197,17 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    if (!inventory) {
+    // For beginning inventory, allow creating new inventory records
+    // For other reasons, require existing inventory
+    let systemCount = 0
+    if (inventory) {
+      systemCount = parseFloat(inventory.qtyAvailable.toString())
+    } else if (reason !== 'beginning_inventory') {
       return NextResponse.json({
-        error: 'Product variation does not exist at this location. Please add the product to this location first.'
+        error: 'Product variation does not exist at this location. Use "Beginning Inventory" reason to initialize stock.'
       }, { status: 404 })
     }
 
-    const systemCount = parseFloat(inventory.qtyAvailable.toString())
     const difference = physCount - systemCount
 
     // Create inventory correction record

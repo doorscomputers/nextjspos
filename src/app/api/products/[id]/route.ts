@@ -207,6 +207,7 @@ export async function PUT(
       subCategoryId,
       brandId,
       unitId,
+      subUnitIds,
       taxId,
       taxType,
       sku,
@@ -230,12 +231,15 @@ export async function PUT(
       comboItems
     } = body
 
-    // DEBUG: Log category values
-    console.log('=== Category Debug ===')
+    // DEBUG: Log category and sub-unit values
+    console.log('=== Product Update Debug ===')
     console.log('categoryId:', categoryId, 'type:', typeof categoryId)
     console.log('subCategoryId:', subCategoryId, 'type:', typeof subCategoryId)
-    console.log('Final categoryId will be:', subCategoryId ? parseInt(subCategoryId) : (categoryId ? parseInt(categoryId) : null))
-    console.log('======================')
+    console.log('subUnitIds:', subUnitIds, 'type:', typeof subUnitIds, 'isArray:', Array.isArray(subUnitIds))
+    if (subUnitIds) {
+      console.log('subUnitIds content:', JSON.stringify(subUnitIds))
+    }
+    console.log('============================')
 
 
     if (!name) {
@@ -336,6 +340,13 @@ export async function PUT(
     })
       }
 
+      // Prepare subUnitIds for database
+      const subUnitIdsForDb = subUnitIds && Array.isArray(subUnitIds) && subUnitIds.length > 0
+        ? JSON.stringify(subUnitIds)
+        : null
+
+      console.log('💾 Saving subUnitIds to DB:', subUnitIdsForDb)
+
       // Update main product
       const updatedProduct = await tx.product.update({
         where: { id: productId },
@@ -345,6 +356,7 @@ export async function PUT(
           categoryId: subCategoryId ? parseInt(subCategoryId) : (categoryId ? parseInt(categoryId) : null),
           brandId: brandId ? parseInt(brandId) : null,
           unitId: unitId ? parseInt(unitId) : null,
+          subUnitIds: subUnitIdsForDb,
           taxId: taxId ? parseInt(taxId) : null,
           taxType,
           sku: finalSku,
@@ -365,6 +377,8 @@ export async function PUT(
           isActive: isActive !== undefined ? isActive : true,
         }
       })
+
+      console.log('✅ Product updated. subUnitIds in DB:', updatedProduct.subUnitIds)
 
       // Handle variations for variable products
       if (type === 'variable' && variations && Array.isArray(variations)) {

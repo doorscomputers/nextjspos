@@ -362,7 +362,100 @@ async function main() {
     },
   })
 
-  console.log('✅ Demo users created')
+  // ============================================
+  // INVENTORY CORRECTION USERS (Location-Specific Counters)
+  // ============================================
+  const hashedPassword111111 = await bcrypt.hash('111111', 10)
+
+  // Inventory Counter - Main Store
+  const invcorMainUser = await prisma.user.upsert({
+    where: { username: 'invcormain' },
+    update: {
+      email: 'invcormain@pcinetstore.com',
+      surname: 'Inventory',
+      firstName: 'Counter',
+      lastName: 'Main Store',
+    },
+    create: {
+      surname: 'Inventory',
+      firstName: 'Counter',
+      lastName: 'Main Store',
+      username: 'invcormain',
+      email: 'invcormain@pcinetstore.com',
+      password: hashedPassword111111,
+      businessId: business.id,
+      allowLogin: true,
+      userType: 'user',
+    },
+  })
+
+  // Inventory Counter - Bambang
+  const invcorBambangUser = await prisma.user.upsert({
+    where: { username: 'invcorbambang' },
+    update: {
+      email: 'invcorbambang@pcinetstore.com',
+      surname: 'Inventory',
+      firstName: 'Counter',
+      lastName: 'Bambang',
+    },
+    create: {
+      surname: 'Inventory',
+      firstName: 'Counter',
+      lastName: 'Bambang',
+      username: 'invcorbambang',
+      email: 'invcorbambang@pcinetstore.com',
+      password: hashedPassword111111,
+      businessId: business.id,
+      allowLogin: true,
+      userType: 'user',
+    },
+  })
+
+  // Inventory Counter - Tuguegarao Downtown
+  const invcorTugueUser = await prisma.user.upsert({
+    where: { username: 'invcortugue' },
+    update: {
+      email: 'invcortugue@pcinetstore.com',
+      surname: 'Inventory',
+      firstName: 'Counter',
+      lastName: 'Tuguegarao',
+    },
+    create: {
+      surname: 'Inventory',
+      firstName: 'Counter',
+      lastName: 'Tuguegarao',
+      username: 'invcortugue',
+      email: 'invcortugue@pcinetstore.com',
+      password: hashedPassword111111,
+      businessId: business.id,
+      allowLogin: true,
+      userType: 'user',
+    },
+  })
+
+  // Inventory Correction Approver (All Locations)
+  const invcorApproverUser = await prisma.user.upsert({
+    where: { username: 'invcorApprover' },
+    update: {
+      email: 'approver@pcinetstore.com',
+      surname: 'Inventory',
+      firstName: 'Correction',
+      lastName: 'Approver',
+    },
+    create: {
+      surname: 'Inventory',
+      firstName: 'Correction',
+      lastName: 'Approver',
+      username: 'invcorApprover',
+      email: 'approver@pcinetstore.com',
+      password: hashedPassword111111,
+      businessId: business.id,
+      allowLogin: true,
+      userType: 'user',
+    },
+  })
+
+  console.log('✅ Demo users created (including 4 inventory correction users)')
 
   // Assign Roles to Users
   // Super Admin -> System Administrator
@@ -452,7 +545,71 @@ async function main() {
     })
   }
 
-  console.log('✅ Roles assigned to users')
+  // Inventory Counter - Main Store -> Inventory Counter role
+  const inventoryCounterRole = roleMap.get('Inventory Counter')
+  if (inventoryCounterRole) {
+    await prisma.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: invcorMainUser.id,
+          roleId: inventoryCounterRole.id,
+        },
+      },
+      update: {},
+      create: {
+        userId: invcorMainUser.id,
+        roleId: inventoryCounterRole.id,
+      },
+    })
+
+    await prisma.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: invcorBambangUser.id,
+          roleId: inventoryCounterRole.id,
+        },
+      },
+      update: {},
+      create: {
+        userId: invcorBambangUser.id,
+        roleId: inventoryCounterRole.id,
+      },
+    })
+
+    await prisma.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: invcorTugueUser.id,
+          roleId: inventoryCounterRole.id,
+        },
+      },
+      update: {},
+      create: {
+        userId: invcorTugueUser.id,
+        roleId: inventoryCounterRole.id,
+      },
+    })
+  }
+
+  // Inventory Correction Approver -> Inventory Correction Approver role
+  const inventoryCorrectionApproverRole = roleMap.get('Inventory Correction Approver')
+  if (inventoryCorrectionApproverRole) {
+    await prisma.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: invcorApproverUser.id,
+          roleId: inventoryCorrectionApproverRole.id,
+        },
+      },
+      update: {},
+      create: {
+        userId: invcorApproverUser.id,
+        roleId: inventoryCorrectionApproverRole.id,
+      },
+    })
+  }
+
+  console.log('✅ Roles assigned to users (including inventory correction roles)')
 
   // Assign Locations to Users
   // System Admin has ACCESS_ALL_LOCATIONS permission, so they see all branches
@@ -518,11 +675,63 @@ async function main() {
     },
   })
 
+  // Inventory Counter - Main Store -> Assigned to Main Store only
+  await prisma.userLocation.upsert({
+    where: {
+      userId_locationId: {
+        userId: invcorMainUser.id,
+        locationId: mainLocation.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: invcorMainUser.id,
+      locationId: mainLocation.id,
+    },
+  })
+
+  // Inventory Counter - Bambang -> Assigned to Bambang location only
+  await prisma.userLocation.upsert({
+    where: {
+      userId_locationId: {
+        userId: invcorBambangUser.id,
+        locationId: bambangLocation.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: invcorBambangUser.id,
+      locationId: bambangLocation.id,
+    },
+  })
+
+  // Inventory Counter - Tuguegarao -> Assigned to Tuguegarao Downtown only
+  await prisma.userLocation.upsert({
+    where: {
+      userId_locationId: {
+        userId: invcorTugueUser.id,
+        locationId: downtownLocation.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: invcorTugueUser.id,
+      locationId: downtownLocation.id,
+    },
+  })
+
+  // Inventory Correction Approver -> Has ACCESS_ALL_LOCATIONS permission, so NO location assignment needed
+  // This user can see and approve corrections from ALL locations
+
   console.log('✅ User locations assigned:')
   console.log('  - Branch Manager -> Main Store')
   console.log('  - Warehouse Manager -> Warehouse')
   console.log('  - Transfer Creator -> Main Store')
   console.log('  - Cashier -> Tuguegarao Downtown')
+  console.log('  - Inventory Counter (Main) -> Main Store')
+  console.log('  - Inventory Counter (Bambang) -> Bambang')
+  console.log('  - Inventory Counter (Tugue) -> Tuguegarao Downtown')
+  console.log('  - Inventory Correction Approver -> ALL LOCATIONS (via permission)')
 
   // Create Subscription Packages
   const freePackage = await prisma.package.upsert({
@@ -1050,6 +1259,13 @@ async function main() {
   console.log('Warehouse Manager:   warehousemanager / password  (Warehouse only)')
   console.log('Transfer Creator:    transfercreator  / password  (Main Store only)')
   console.log('Sales Cashier:       cashier          / password  (Tuguegarao Downtown only)')
+  console.log('─'.repeat(80))
+  console.log('\n🔢 Inventory Correction Accounts (Location-Specific):')
+  console.log('─'.repeat(80))
+  console.log('Inv Counter (Main):  invcormain       / 111111    (Main Store only)')
+  console.log('Inv Counter (Bambang): invcorbambang  / 111111    (Bambang only)')
+  console.log('Inv Counter (Tugue): invcortugue      / 111111    (Tuguegarao Downtown only)')
+  console.log('Inv Approver:        invcorApprover   / 111111    (All Locations - Approval Only)')
   console.log('─'.repeat(80))
   console.log(`\n✅ ${roleMap.size} task-specific roles created with granular permissions`)
   console.log('   Roles include: Transfer Creator, Transfer Sender, Transfer Receiver,')

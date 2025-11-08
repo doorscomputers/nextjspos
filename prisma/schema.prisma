@@ -718,6 +718,7 @@ model Unit {
   subUnits          Unit[]               @relation("UnitHierarchy")
   products          Product[]
   productVariations ProductVariation[]
+  unitPrices        ProductUnitPrice[]
 
   @@unique([businessId, name], map: "businessId_name")
   @@index([businessId])
@@ -828,6 +829,9 @@ model Product {
   repairJobOrders          RepairJobOrder[]           @relation("ProductRepairJobOrders")
   repairJobOrderParts      RepairJobOrderPart[]       @relation("ProductJobOrderParts")
 
+  // Multi-Unit Pricing Relations
+  unitPrices               ProductUnitPrice[]
+
   @@unique([businessId, sku]) // SKU must be unique within each business
   @@index([businessId])
   @@index([categoryId])
@@ -837,6 +841,35 @@ model Product {
   @@index([businessId, isActive]) // ✅ NEW: For active products queries
   @@index([businessId, name]) // ✅ NEW: Composite index for business product search
   @@map("products")
+}
+
+// ============================================
+// PRODUCT UNIT PRICING
+// ============================================
+
+model ProductUnitPrice {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  productId  Int      @map("product_id")
+  unitId     Int      @map("unit_id")
+
+  // Pricing per unit
+  purchasePrice Decimal  @map("purchase_price") @db.Decimal(22, 4) // Cost when buying in this unit
+  sellingPrice  Decimal  @map("selling_price") @db.Decimal(22, 4)  // Price when selling in this unit
+
+  // Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  unit    Unit    @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, unitId]) // One price per product-unit combination
+  @@index([businessId, productId]) // Composite: Get all prices for product in business
+  @@index([businessId, unitId]) // Composite: Get all products using this unit
+  @@index([productId]) // Single: Product lookup
+  @@map("product_unit_prices")
 }
 
 model ProductVariation {
@@ -2178,7 +2211,7 @@ model InventoryCorrection {
   difference    Decimal @db.Decimal(22, 4) // physicalCount - systemCount (can be negative)
 
   // Reason for correction
-  reason  String  @db.VarChar(50) // expired, damaged, missing, found, count_error
+  reason  String  @db.VarChar(50) // beginning_inventory, expired, damaged, missing, found, count_error
   remarks String? @db.Text // Additional notes
 
   // Stock transaction reference (created after correction is applied)

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeftIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import UnitPricingManager from '@/components/products/UnitPricingManager'
 
 interface Category {
   id: number
@@ -86,6 +87,7 @@ export default function EditProductPage() {
     subCategoryId: '',
     brandId: '',
     unitId: '',
+    subUnitIds: [] as number[], // UOM: Sub-units for multi-unit support
     taxId: '',
     taxType: 'inclusive',
     sku: '',
@@ -268,6 +270,32 @@ export default function EditProductPage() {
         console.log('Will set subCategoryId to:', isSubcategory ? String(product.categoryId || '') : '')
         console.log('=======================================')
 
+        // Clean up stale subUnitIds: only keep units valid for current primary unit
+        let cleanSubUnitIds: number[] = []
+        if (product.subUnitIds) {
+          try {
+            const rawSubUnitIds = JSON.parse(product.subUnitIds) as number[]
+            const selectedUnit = units.find(u => u.id === product.unitId)
+            // @ts-ignore
+            const baseUnitId = selectedUnit?.baseUnitId || product.unitId
+
+            // Filter: only keep units that have the same base unit as the primary unit
+            cleanSubUnitIds = rawSubUnitIds.filter(subId => {
+              const subUnit = units.find(u => u.id === subId)
+              if (!subUnit) return false
+
+              // @ts-ignore
+              const subUnitBaseId = subUnit.baseUnitId || subUnit.id
+              return subUnitBaseId === baseUnitId
+            })
+
+            console.log('[Product Load] Original subUnitIds:', rawSubUnitIds)
+            console.log('[Product Load] Cleaned subUnitIds:', cleanSubUnitIds)
+          } catch (error) {
+            console.error('Error parsing subUnitIds:', error)
+          }
+        }
+
         setFormData({
           name: product.name || '',
           type: product.type || 'single',
@@ -275,6 +303,7 @@ export default function EditProductPage() {
           subCategoryId: isSubcategory ? String(product.categoryId || '') : '',
           brandId: String(product.brandId || ''),
           unitId: String(product.unitId || ''),
+          subUnitIds: cleanSubUnitIds, // UOM: Load cleaned sub-units
           taxId: String(product.taxId || ''),
           taxType: product.taxType || 'inclusive',
           sku: product.sku || '',
@@ -387,8 +416,33 @@ export default function EditProductPage() {
         }
       }
 
+      // Clean up stale subUnitIds before saving
+      // Only keep units that are valid for the current primary unit
+      let cleanedSubUnitIds = formData.subUnitIds
+      const selectedUnit = units.find(u => u.id === parseInt(formData.unitId))
+
+      if (selectedUnit && formData.subUnitIds.length > 0) {
+        // @ts-ignore - baseUnitId exists from API
+        const primaryBaseUnitId = selectedUnit.baseUnitId || parseInt(formData.unitId)
+
+        cleanedSubUnitIds = formData.subUnitIds.filter(subId => {
+          const subUnit = units.find(u => u.id === subId)
+          if (!subUnit) return false
+
+          // @ts-ignore - baseUnitId exists from API
+          const subUnitBaseId = subUnit.baseUnitId || subUnit.id
+
+          // Only keep if it shares the same base unit hierarchy
+          return subUnitBaseId === primaryBaseUnitId
+        })
+
+        console.log('[Save] Original subUnitIds:', formData.subUnitIds)
+        console.log('[Save] Cleaned subUnitIds:', cleanedSubUnitIds)
+      }
+
       const payload = {
         ...formData,
+        subUnitIds: cleanedSubUnitIds, // UOM: Send cleaned array, API will convert to JSON
         variations: formData.type === 'variable' ? variations : undefined,
         variationSkuType: formData.type === 'variable' ? variationSkuType : undefined,
         comboItems: formData.type === 'combo' ? comboItems : undefined
@@ -807,7 +861,14 @@ export default function EditProductPage() {
               <div className="flex gap-2">
                 <select
                   value={formData.unitId}
-                  onChange={(e) => setFormData({ ...formData, unitId: e.target.value })}
+                  onChange={(e) => {
+                    // Clear subUnitIds when primary unit changes
+                    setFormData({
+                      ...formData,
+                      unitId: e.target.value,
+                      subUnitIds: [] // Reset sub-units when primary unit changes
+                    })
+                  }}
                   required
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
                 >
@@ -826,6 +887,105 @@ export default function EditProductPage() {
                 </button>
               </div>
             </div>
+
+            {/* Sub-Units Configuration (UOM Multi-Unit Support) */}
+            {formData.unitId && (() => {
+              const selectedUnitId = parseInt(formData.unitId)
+              const selectedUnit = units.find(unit => unit.id === selectedUnitId)
+              // @ts-ignore - baseUnitId exists from API
+              const isBaseUnit = !selectedUnit?.baseUnitId
+
+              // If selected unit IS the base unit, don't show sub-units section at all
+              if (isBaseUnit) return null
+
+              return (
+                <div className="md:col-span-2 border-2 border-blue-200 bg-blue-50 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-xl">🔄</span>
+                    <div>
+                      <h4 className="font-semibold text-sm text-gray-900">
+                        Multi-Unit Support (Optional)
+                      </h4>
+                      <p className="text-xs text-gray-600">
+                        Allow this product to be bought/sold in different units (e.g., buy in Boxes, sell in Pieces)
+                      </p>
+                    </div>
+                  </div>
+
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Additional Sub-Units (Optional)
+                  </label>
+
+                  <div className="space-y-2">
+                    {units
+                      .filter((u) => {
+                        // NEVER show the primary unit itself
+                        if (u.id === selectedUnitId) return false
+
+                        // ONLY show the base unit (not siblings)
+                        // If the selected unit has a base unit, show ONLY that base unit
+                        // @ts-ignore - baseUnitId exists from API
+                        return selectedUnit?.baseUnitId === u.id
+                      })
+                    .map((unit) => (
+                      <label key={unit.id} className="flex items-center p-3 border border-gray-300 rounded-lg hover:bg-blue-100 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.subUnitIds.includes(unit.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({
+                                ...formData,
+                                subUnitIds: [...formData.subUnitIds, unit.id]
+                              })
+                            } else {
+                              setFormData({
+                                ...formData,
+                                subUnitIds: formData.subUnitIds.filter(id => id !== unit.id)
+                              })
+                            }
+                          }}
+                          className="mr-3 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                        />
+                        <div className="flex-1">
+                          <span className="text-sm font-medium text-gray-900">
+                            {unit.name} ({unit.shortName})
+                          </span>
+                          {/* @ts-ignore - baseUnitMultiplier exists from API */}
+                          {unit.baseUnitMultiplier && (
+                            <span className="ml-2 text-xs text-blue-600">
+                              {/* @ts-ignore */}
+                              ×{unit.baseUnitMultiplier}
+                            </span>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+
+                    {units.filter((u) => {
+                      // @ts-ignore - baseUnitId exists from API
+                      return selectedUnit?.baseUnitId === u.id
+                    }).length === 0 && (
+                      <div className="text-center py-4 text-gray-500 text-sm">
+                        <p>No base unit found for this unit.</p>
+                        <p className="mt-1">Configure unit conversions in <a href="/dashboard/products/units" className="text-indigo-600 hover:underline">Units Management</a>.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {formData.subUnitIds.length > 0 && (
+                    <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <p className="text-xs font-semibold text-green-800">
+                        ✓ Selected Sub-Units: {formData.subUnitIds.length}
+                      </p>
+                      <p className="text-xs text-green-700 mt-1">
+                        This product can now be transacted in multiple units during purchases and sales.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
             {/* Product Description WYSIWYG */}
             <div className="md:col-span-2">
@@ -1035,6 +1195,20 @@ export default function EditProductPage() {
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Unit-Specific Pricing Section */}
+        {formData.type === 'single' && formData.subUnitIds && formData.subUnitIds.length > 0 && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Unit-Specific Pricing</h2>
+            <UnitPricingManager
+              key={`${productId}-${formData.unitId}-${formData.subUnitIds.join(',')}`}
+              productId={productId ? parseInt(productId) : null}
+              readOnly={false}
+              defaultPurchasePrice={formData.purchasePrice}
+              defaultSellingPrice={formData.sellingPrice}
+            />
           </div>
         )}
 

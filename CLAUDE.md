@@ -193,6 +193,101 @@ Import from `src/lib/prisma.ts` (handles singleton pattern for dev/prod)
 6. Loading states must show visual feedback (spinners, disabled states)
 7. Always support dark mode with appropriate color variants
 
+### Button Styling Standards
+
+**IMPORTANT**: All buttons across the application must follow these professional styling guidelines:
+
+#### Button Component (`src/components/ui/button.tsx`)
+- Use the enhanced button variants with shadows, rounded corners, and hover effects
+- Available variants: `default`, `destructive`, `outline`, `secondary`, `ghost`, `link`, `success`
+- Available sizes: `default`, `sm`, `lg`, `icon`, `icon-sm`, `icon-lg`
+- All buttons have subtle press animation (`active:scale-[0.98]`)
+
+#### Export/Action Buttons (CSV, Excel, PDF, Print)
+```tsx
+<Button variant="outline" size="sm" onClick={() => handleExport("csv")}
+  className="gap-2 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400">
+  <DocumentArrowDownIcon className="h-4 w-4" />
+  CSV
+</Button>
+
+<Button variant="outline" size="sm" onClick={() => handleExport("excel")}
+  className="gap-2 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400">
+  <DocumentArrowDownIcon className="h-4 w-4" />
+  Excel
+</Button>
+
+<Button variant="outline" size="sm" onClick={() => handleExport("pdf")}
+  className="gap-2 hover:border-red-500 hover:text-red-700 dark:hover:text-red-400">
+  <DocumentTextIcon className="h-4 w-4" />
+  PDF
+</Button>
+
+<Button variant="outline" size="sm" onClick={() => handleExport("print")}
+  className="gap-2 hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400">
+  <PrinterIcon className="h-4 w-4" />
+  Print
+</Button>
+```
+
+#### Primary Action Buttons (Add, Create, Save)
+```tsx
+<Button variant="success" size="sm" className="gap-2" onClick={handleCreate}>
+  <PlusIcon className="h-4 w-4" />
+  Add Item
+</Button>
+
+// In dialogs/forms
+<Button variant="success" size="default" className="gap-2 min-w-32" onClick={handleSubmit} disabled={submitting}>
+  {submitting && <span className="animate-spin">⏳</span>}
+  {editing ? "Update" : "Create"}
+</Button>
+```
+
+#### Edit and Delete Actions (Table Rows)
+```tsx
+{/* Edit Button */}
+<Button
+  size="icon-sm"
+  variant="outline"
+  onClick={() => openEditDialog(item)}
+  className="hover:border-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-950"
+  title="Edit item"
+>
+  <PencilIcon className="h-4 w-4" />
+</Button>
+
+{/* Delete Button */}
+<Button
+  size="icon-sm"
+  variant="outline"
+  className="hover:border-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-950"
+  onClick={() => handleDelete(item)}
+  title="Delete item"
+>
+  <TrashIcon className="h-4 w-4" />
+</Button>
+```
+
+#### Cancel/Secondary Buttons
+```tsx
+<Button variant="outline" size="default" onClick={handleCancel}>
+  Cancel
+</Button>
+```
+
+#### Button Guidelines Summary
+1. ✅ Use `variant="success"` for primary actions (Add, Create, Save, Submit)
+2. ✅ Use `variant="outline"` for secondary actions (Export, Edit, Delete, Cancel)
+3. ✅ Use `size="sm"` for toolbar buttons, `size="default"` for dialog buttons
+4. ✅ Use `size="icon-sm"` for table action buttons (Edit/Delete)
+5. ✅ Always include contextual hover colors (green for exports, blue for edit, red for delete)
+6. ✅ Add `gap-2` class when buttons contain icons + text
+7. ✅ Include `title` attribute for icon-only buttons (accessibility)
+8. ✅ Add `min-w-32` or `min-w-36` to dialog submit buttons for consistent width
+9. ✅ Show loading state with spinner emoji and `disabled` state during submission
+10. ✅ Support dark mode with `dark:` variants in custom hover classes
+
 ### User Restrictions
 
 On this Project, Only the Main Warehouse will process Purchase orders

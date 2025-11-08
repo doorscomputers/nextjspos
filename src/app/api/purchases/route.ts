@@ -346,6 +346,7 @@ export async function POST(request: NextRequest) {
           unitCost: parseFloat(item.unitCost),
           quantityReceived: 0,
           requiresSerial: item.requiresSerial || false,
+          subUnitId: item.subUnitId ? parseInt(item.subUnitId) : null, // UOM support
         }))
       })
 

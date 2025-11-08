@@ -18,6 +18,15 @@ export async function GET() {
         businessId: parseInt(businessId),
         deletedAt: null
       },
+      include: {
+        baseUnit: {
+          select: {
+            id: true,
+            name: true,
+            shortName: true
+          }
+        }
+      },
       orderBy: { name: 'asc' }
     })
 
@@ -39,12 +48,31 @@ export async function POST(request: NextRequest) {
     const user = session.user as any
     const body = await request.json()
 
+    // Validate UOM conversion setup
+    if (body.baseUnitId && !body.baseUnitMultiplier) {
+      return NextResponse.json(
+        { error: 'Conversion multiplier is required when base unit is specified' },
+        { status: 400 }
+      )
+    }
+
     const unit = await prisma.unit.create({
       data: {
         businessId: parseInt(user.businessId),
         name: body.name,
         shortName: body.shortName,
-        allowDecimal: body.allowDecimal || false
+        allowDecimal: body.allowDecimal || false,
+        baseUnitId: body.baseUnitId ? parseInt(body.baseUnitId) : null,
+        baseUnitMultiplier: body.baseUnitMultiplier ? parseFloat(body.baseUnitMultiplier) : null,
+      },
+      include: {
+        baseUnit: {
+          select: {
+            id: true,
+            name: true,
+            shortName: true
+          }
+        }
       }
     })
 
