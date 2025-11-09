@@ -2235,12 +2235,19 @@ export default function POSEnhancedPage() {
             {/* Complete Sale Button */}
             <div className="p-3">
               <Button
-                className="w-full py-7 text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-xl rounded-xl"
+                className="w-full py-7 text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-xl rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
                 size="lg"
                 onClick={handleCheckout}
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || isSubmitting}
               >
-                ✅ COMPLETE SALE (Ctrl+P)
+                {isSubmitting ? (
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="animate-spin h-6 w-6 border-4 border-white border-t-transparent rounded-full"></div>
+                    <span>Processing Sale...</span>
+                  </div>
+                ) : (
+                  <>✅ COMPLETE SALE (Ctrl+P)</>
+                )}
               </Button>
             </div>
           </div>

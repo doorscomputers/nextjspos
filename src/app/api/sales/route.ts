@@ -218,11 +218,14 @@ export async function POST(request: NextRequest) {
         )
       }
 
+    const startTime = Date.now() // PERFORMANCE TIMING
     const body = await request.json()
 
-    // DEBUG: Log incoming request for 400 error debugging
-    console.log('==== SALES API DEBUG ====')
-    console.log('Incoming sale request body:', JSON.stringify(body, null, 2))
+    // DEBUG: Log incoming request for 400 error debugging (DEVELOPMENT ONLY)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('==== SALES API DEBUG ====')
+      console.log('Incoming sale request body:', JSON.stringify(body, null, 2))
+    }
 
     const {
       locationId,
@@ -245,15 +248,19 @@ export async function POST(request: NextRequest) {
       vatExempt = false,
     } = body
 
-    console.log('Parsed values:')
-    console.log('- locationId:', locationId, 'type:', typeof locationId)
-    console.log('- customerId:', customerId, 'type:', typeof customerId)
-    console.log('- items count:', items?.length)
-    console.log('- payments count:', payments?.length)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Parsed values:')
+      console.log('- locationId:', locationId, 'type:', typeof locationId)
+      console.log('- customerId:', customerId, 'type:', typeof customerId)
+      console.log('- items count:', items?.length)
+      console.log('- payments count:', payments?.length)
+    }
 
     const locationIdNumber = Number(locationId)
     if (Number.isNaN(locationIdNumber)) {
-      console.error('VALIDATION ERROR: Invalid locationId -', locationId)
+      if (process.env.NODE_ENV === 'development') {
+        console.error('VALIDATION ERROR: Invalid locationId -', locationId)
+      }
       return NextResponse.json({ error: 'Invalid locationId' }, { status: 400 })
     }
 
@@ -303,10 +310,7 @@ export async function POST(request: NextRequest) {
     }
 
     // PERFORMANCE OPTIMIZATION: Batch all validation queries in parallel (instead of sequential)
-    console.log('DEBUG: Starting parallel validation queries...')
-    console.log('- userId:', userIdNumber)
-    console.log('- businessId:', businessIdNumber)
-    console.log('- session locationIds:', (session.user as any).locationIds)
+    const validationStart = Date.now() // TIMING
 
     const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
     const userLocationIds = (session.user as any).locationIds || []
@@ -319,7 +323,6 @@ export async function POST(request: NextRequest) {
     }
     if (userLocationIds.length > 0) {
       shiftWhereClause.locationId = { in: userLocationIds }
-      console.log('DEBUG: Filtering shifts by user locations:', userLocationIds)
     }
 
     // Execute all validation queries in parallel
@@ -374,16 +377,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('DEBUG: Open shift query result:', currentShift ? 'FOUND' : 'NOT FOUND')
-    if (currentShift) {
-      console.log('- Shift ID:', currentShift.id)
-      console.log('- Shift Number:', currentShift.shiftNumber)
-      console.log('- Shift status:', currentShift.status)
-      console.log('- Shift locationId:', currentShift.locationId)
-    }
-
     if (!currentShift) {
-      console.error('VALIDATION ERROR: No open shift found for this user at their assigned locations')
       return NextResponse.json(
         { error: 'No open shift found. Please start your shift before making sales.' },
         { status: 400 }
@@ -704,12 +698,15 @@ export async function POST(request: NextRequest) {
       }
 
       // CRITICAL: ACCOUNTING INTEGRATION MOVED INSIDE TRANSACTION FOR ATOMICITY
-      // Create journal entries if accounting is enabled (now part of the atomic transaction)
-      const accountingEnabledCheck = await tx.chartOfAccounts.count({
-        where: { businessId: businessIdNumber }
+      // PERFORMANCE: Check if accounting is enabled (cached in user session would be better)
+      // For now, we check if there are any chart of accounts for this business
+      // This could be cached in Redis or session to avoid COUNT query every time
+      const accountingEnabledCheck = await tx.chartOfAccounts.findFirst({
+        where: { businessId: businessIdNumber },
+        select: { id: true }
       })
 
-      if (accountingEnabledCheck > 0) {
+      if (accountingEnabledCheck) {
         // Calculate COGS (Cost of Goods Sold) from the items we just processed
         // PERFORMANCE: Compute from memory instead of re-fetching from database
         const costOfGoodsSold = items.reduce((sum: number, item: any) => {
@@ -792,6 +789,9 @@ export async function POST(request: NextRequest) {
     }, {
       timeout: 60000, // 60 seconds timeout for network resilience
     })
+
+    const transactionTime = Date.now() - startTime
+    console.log(`[PERFORMANCE] Transaction completed in ${transactionTime}ms`)
 
     // TRANSACTION IMPACT TRACKING: Step 2 - Capture inventory AFTER and generate report
     const inventoryImpact = impactTracker ? await impactTracker.captureAfterAndReport(
@@ -889,10 +889,19 @@ export async function POST(request: NextRequest) {
       }
     })
 
+    // PERFORMANCE TIMING
+    const totalTime = Date.now() - startTime
+    console.log(`[PERFORMANCE] Total sale creation time: ${totalTime}ms (Transaction: ${transactionTime}ms, Post-processing: ${totalTime - transactionTime}ms)`)
+
     // Return with inventory impact report
     return NextResponse.json({
       ...completeSale,
-      inventoryImpact
+      inventoryImpact,
+      _performanceTiming: {
+        total: totalTime,
+        transaction: transactionTime,
+        postProcessing: totalTime - transactionTime
+      }
     }, { status: 201 })
   } catch (error) {
     console.error('Error creating sale:', error)
