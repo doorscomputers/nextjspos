@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
-import { generateZReadingData } from '@/lib/readings'
+import { generateZReadingDataOptimized } from '@/lib/readings-optimized'
 
 /**
  * GET /api/readings/z-reading - Generate Z Reading (end-of-day, BIR-compliant with counter increment)
@@ -101,8 +101,8 @@ export async function GET(request: NextRequest) {
       shiftId = shift.id
     }
 
-    // Use shared library function to generate Z Reading
-    const zReading = await generateZReadingData(
+    // Use OPTIMIZED library function to generate Z Reading
+    const zReading = await generateZReadingDataOptimized(
       shiftId,
       parseInt(businessId),
       session.user.username,
