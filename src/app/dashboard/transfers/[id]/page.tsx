@@ -1008,10 +1008,10 @@ export default function TransferDetailPage() {
 
       {/* Rejection Dialog */}
       {showRejectDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-4">Reject Transfer</h3>
-            <p className="text-sm text-gray-600 mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 dark:bg-black dark:bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Reject Transfer</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
               Please provide a reason for rejecting this transfer. This will be recorded in the audit trail.
             </p>
             <textarea
@@ -1019,14 +1019,26 @@ export default function TransferDetailPage() {
               onChange={(e) => setRejectionReason(e.target.value)}
               placeholder="Enter rejection reason..."
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mb-4"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 mb-4"
             />
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowRejectDialog(false)
+                  setRejectionReason('')
+                }}
+                className="min-w-24"
+              >
                 Cancel
               </Button>
-              <Button variant="destructive" onClick={handleRejectClick} disabled={actionLoading || !rejectionReason.trim()}>
-                OK
+              <Button
+                variant="destructive"
+                onClick={handleRejectClick}
+                disabled={actionLoading || !rejectionReason.trim()}
+                className="min-w-24 bg-red-600 hover:bg-red-700 text-white"
+              >
+                {actionLoading ? 'Processing...' : 'Confirm Reject'}
               </Button>
             </div>
           </div>

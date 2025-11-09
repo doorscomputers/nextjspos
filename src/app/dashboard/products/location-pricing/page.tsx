@@ -100,17 +100,25 @@ export default function LocationPricingPage() {
     try {
       setLoading(true)
 
-      // Fetch products
-      const productsRes = await fetch('/api/products/search?query=')
+      // Fetch products (limit to active products for better performance)
+      const productsRes = await fetch('/api/products?status=active&limit=1000')
       if (!productsRes.ok) throw new Error('Failed to fetch products')
       const productsData = await productsRes.json()
-      setProducts(productsData.products || [])
+      const productsList = productsData.products || productsData.data || []
+      setProducts(productsList)
 
-      // Fetch locations
-      const locationsRes = await fetch('/api/locations')
+      // Fetch all active locations (except Main Warehouse)
+      const locationsRes = await fetch('/api/locations/all-active')
       if (!locationsRes.ok) throw new Error('Failed to fetch locations')
       const locationsData = await locationsRes.json()
-      setLocations(locationsData || [])
+      const locationsList = locationsData.data || locationsData || []
+
+      // Filter out "Main Warehouse" location
+      const filteredLocations = locationsList.filter((loc: Location) =>
+        !loc.name.toLowerCase().includes('main warehouse') &&
+        !loc.name.toLowerCase().includes('warehouse')
+      )
+      setLocations(filteredLocations)
 
       setLoading(false)
     } catch (error) {
