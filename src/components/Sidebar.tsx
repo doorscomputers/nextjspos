@@ -211,8 +211,9 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
     // If permissions not loaded yet, show all menus (fail-open during loading)
     if (!menuPermissionsLoaded) return true
 
-    // If no menu permissions are set, show all menus (fail-open)
-    if (accessibleMenuKeys.size === 0) return true
+    // CRITICAL FIX: If no menu permissions are assigned, HIDE menus (was showing all - security bug)
+    // Users/roles with no menu permissions should see NO menus (not ALL menus)
+    if (accessibleMenuKeys.size === 0) return false
 
     // Check if the menu key is in the accessible list
     return accessibleMenuKeys.has(menuKey)

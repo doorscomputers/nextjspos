@@ -85,35 +85,35 @@ model User {
   collectedARPayments          SalePayment[]              @relation("ARPaymentCollector")
 
   // Accounting Module Relations
-  closedPeriods                FiscalPeriod[]             @relation("PeriodClosedBy")
-  lockedPeriods                FiscalPeriod[]             @relation("PeriodLockedBy")
-  generatedSnapshots           FinancialSnapshot[]        @relation("SnapshotGeneratedBy")
-  approvedBudgets              BudgetAllocation[]         @relation("BudgetApprovedBy")
-  postedJournalEntries         JournalEntry[]             @relation("EntryPostedBy")
-  reversedJournalEntries       JournalEntry[]             @relation("EntryReversedBy")
-  createdJournalEntries        JournalEntry[]             @relation("EntryCreatedBy")
-  accountingAuditLogs          AccountingAuditLog[]       @relation("AccountingAuditUser")
+  closedPeriods          FiscalPeriod[]       @relation("PeriodClosedBy")
+  lockedPeriods          FiscalPeriod[]       @relation("PeriodLockedBy")
+  generatedSnapshots     FinancialSnapshot[]  @relation("SnapshotGeneratedBy")
+  approvedBudgets        BudgetAllocation[]   @relation("BudgetApprovedBy")
+  postedJournalEntries   JournalEntry[]       @relation("EntryPostedBy")
+  reversedJournalEntries JournalEntry[]       @relation("EntryReversedBy")
+  createdJournalEntries  JournalEntry[]       @relation("EntryCreatedBy")
+  accountingAuditLogs    AccountingAuditLog[] @relation("AccountingAuditUser")
 
   // Expense Management Relations
-  createdExpenses              Expense[]                  @relation("ExpenseCreatedBy")
-  approvedExpenses             Expense[]                  @relation("ExpenseApprovedBy")
-  voidedExpenses               Expense[]                  @relation("ExpenseVoidedBy")
+  createdExpenses  Expense[] @relation("ExpenseCreatedBy")
+  approvedExpenses Expense[] @relation("ExpenseApprovedBy")
+  voidedExpenses   Expense[] @relation("ExpenseVoidedBy")
 
   // Service Management Relations
-  technicianJobOrders          ServiceJobOrder[]          @relation("ServiceTechnician")
-  qualityCheckedJobOrders      ServiceJobOrder[]          @relation("ServiceQualityChecker")
-  createdJobOrders             ServiceJobOrder[]          @relation("ServiceJobCreator")
+  technicianJobOrders     ServiceJobOrder[] @relation("ServiceTechnician")
+  qualityCheckedJobOrders ServiceJobOrder[] @relation("ServiceQualityChecker")
+  createdJobOrders        ServiceJobOrder[] @relation("ServiceJobCreator")
 
   // Technical Service & Warranty Management Relations
-  technicalEmployeeProfile     TechnicalServiceEmployee[] @relation("TechnicalEmployeeUser")
-  createdServiceClaims         ServiceWarrantyClaim[]     @relation("ServiceClaimCreatedBy")
-  receivedServicePayments      ServiceRepairPayment[]     @relation("ServicePaymentReceivedBy")
+  technicalEmployeeProfile TechnicalServiceEmployee[] @relation("TechnicalEmployeeUser")
+  createdServiceClaims     ServiceWarrantyClaim[]     @relation("ServiceClaimCreatedBy")
+  receivedServicePayments  ServiceRepairPayment[]     @relation("ServicePaymentReceivedBy")
 
   // AI Assistant Relations
-  savedQuestions               SavedQuestion[]
+  savedQuestions SavedQuestion[]
 
   // Product Location Pricing Relations
-  locationPriceUpdates         ProductUnitLocationPrice[] @relation("LocationPriceUpdatedBy")
+  locationPriceUpdates ProductUnitLocationPrice[] @relation("LocationPriceUpdatedBy")
 
   @@index([businessId]) // ✅ NEW: For business user queries
   @@index([username]) // ✅ NEW: For login queries (already unique but explicit index helps)
@@ -217,30 +217,30 @@ model Business {
   pricingAlerts          PricingAlert[]
 
   // Accounting Module Relations
-  chartOfAccounts        ChartOfAccounts[]
-  fiscalPeriods          FiscalPeriod[]
-  accountBalances        AccountBalance[]
-  financialSnapshots     FinancialSnapshot[]
-  budgetAllocations      BudgetAllocation[]
-  journalEntries         JournalEntry[]
-  accountingAuditLogs    AccountingAuditLog[]
+  chartOfAccounts     ChartOfAccounts[]
+  fiscalPeriods       FiscalPeriod[]
+  accountBalances     AccountBalance[]
+  financialSnapshots  FinancialSnapshot[]
+  budgetAllocations   BudgetAllocation[]
+  journalEntries      JournalEntry[]
+  accountingAuditLogs AccountingAuditLog[]
 
   // Expense Management Relations
-  expenseCategories      ExpenseCategory[]
-  expenses               Expense[]
+  expenseCategories ExpenseCategory[]
+  expenses          Expense[]
 
   // Service Management Relations
-  serviceJobOrders       ServiceJobOrder[]
+  serviceJobOrders ServiceJobOrder[]
 
   // Technical Service & Warranty Management Relations
-  technicalEmployees     TechnicalServiceEmployee[] @relation("BusinessTechnicalEmployees")
-  repairServiceTypes     RepairServiceType[]        @relation("BusinessRepairServiceTypes")
-  serviceWarrantyClaims  ServiceWarrantyClaim[]     @relation("BusinessServiceWarrantyClaims")
-  repairJobOrders        RepairJobOrder[]           @relation("BusinessRepairJobOrders")
-  serviceRepairPayments  ServiceRepairPayment[]     @relation("BusinessServiceRepairPayments")
+  technicalEmployees    TechnicalServiceEmployee[] @relation("BusinessTechnicalEmployees")
+  repairServiceTypes    RepairServiceType[]        @relation("BusinessRepairServiceTypes")
+  serviceWarrantyClaims ServiceWarrantyClaim[]     @relation("BusinessServiceWarrantyClaims")
+  repairJobOrders       RepairJobOrder[]           @relation("BusinessRepairJobOrders")
+  serviceRepairPayments ServiceRepairPayment[]     @relation("BusinessServiceRepairPayments")
 
   // AI Assistant Relations
-  savedQuestions         SavedQuestion[]
+  savedQuestions SavedQuestion[]
 
   @@map("business")
 }
@@ -278,13 +278,13 @@ model BusinessLocation {
   roleLocations        RoleLocation[]
   inventoryCorrections InventoryCorrection[]
   serialNumbers        ProductSerialNumber[]
-  transfersFrom        StockTransfer[]         @relation("TransfersFrom")
-  transfersTo          StockTransfer[]         @relation("TransfersTo")
+  transfersFrom        StockTransfer[]            @relation("TransfersFrom")
+  transfersTo          StockTransfer[]            @relation("TransfersTo")
   employeeSchedules    EmployeeSchedule[]
-  attendances          Attendance[]            @relation("AttendanceLocation")
-  switchedAttendances  Attendance[]            @relation("AttendanceSwitchedLocation")
-  locationChangesFrom  LocationChangeRequest[] @relation("LocationChangeFrom")
-  locationChangesTo    LocationChangeRequest[] @relation("LocationChangeTo")
+  attendances          Attendance[]               @relation("AttendanceLocation")
+  switchedAttendances  Attendance[]               @relation("AttendanceSwitchedLocation")
+  locationChangesFrom  LocationChangeRequest[]    @relation("LocationChangeFrom")
+  locationChangesTo    LocationChangeRequest[]    @relation("LocationChangeTo")
   overtimeAlerts       OvertimeAlert[]
   sales                Sale[]
   expenses             Expense[]
@@ -292,9 +292,9 @@ model BusinessLocation {
   unitLocationPrices   ProductUnitLocationPrice[]
 
   // Technical Service & Warranty Management Relations
-  serviceWarrantyClaims ServiceWarrantyClaim[]   @relation("LocationServiceWarrantyClaims")
-  repairJobOrders       RepairJobOrder[]         @relation("LocationRepairJobOrders")
-  serviceRepairPayments ServiceRepairPayment[]   @relation("LocationServiceRepairPayments")
+  serviceWarrantyClaims ServiceWarrantyClaim[] @relation("LocationServiceWarrantyClaims")
+  repairJobOrders       RepairJobOrder[]       @relation("LocationRepairJobOrders")
+  serviceRepairPayments ServiceRepairPayment[] @relation("LocationServiceRepairPayments")
 
   @@index([businessId])
   @@index([printerId])
@@ -378,10 +378,10 @@ model Role {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  users            UserRole[]
-  permissions      RolePermission[]
-  locations        RoleLocation[]
-  menuPermissions  RoleMenuPermission[]
+  users           UserRole[]
+  permissions     RolePermission[]
+  locations       RoleLocation[]
+  menuPermissions RoleMenuPermission[]
 
   @@map("roles")
 }
@@ -439,7 +439,7 @@ model RoleLocation {
 model MenuPermission {
   id       Int     @id @default(autoincrement())
   key      String  @unique // Unique identifier (e.g., "inventory_management", "inventory_corrections")
-  name     String  // Display name (e.g., "Inventory Management", "Inventory Corrections")
+  name     String // Display name (e.g., "Inventory Management", "Inventory Corrections")
   href     String? // Menu link (null for parent menus)
   icon     String? // Icon name
   parentId Int?    @map("parent_id") // Self-referencing for hierarchy
@@ -570,16 +570,16 @@ model ReturnSequence {
 
 // Idempotency keys for preventing duplicate submissions
 model IdempotencyKey {
-  id              Int      @id @default(autoincrement())
-  key             String   @unique
-  businessId      Int      @map("business_id")
-  userId          Int      @map("user_id")
-  endpoint        String
-  requestBody     String?  @map("request_body") @db.Text
-  responseStatus  Int      @map("response_status")
-  responseBody    String   @map("response_body") @db.Text
-  expiresAt       DateTime @map("expires_at")
-  createdAt       DateTime @default(now()) @map("created_at")
+  id             Int      @id @default(autoincrement())
+  key            String   @unique
+  businessId     Int      @map("business_id")
+  userId         Int      @map("user_id")
+  endpoint       String
+  requestBody    String?  @map("request_body") @db.Text
+  responseStatus Int      @map("response_status")
+  responseBody   String   @map("response_body") @db.Text
+  expiresAt      DateTime @map("expires_at")
+  createdAt      DateTime @default(now()) @map("created_at")
 
   @@index([businessId])
   @@index([userId])
@@ -719,7 +719,7 @@ model Unit {
   deletedAt DateTime? @map("deleted_at")
 
   // Relations
-  subUnits          Unit[]               @relation("UnitHierarchy")
+  subUnits          Unit[]                     @relation("UnitHierarchy")
   products          Product[]
   productVariations ProductVariation[]
   unitPrices        ProductUnitPrice[]
@@ -830,13 +830,13 @@ model Product {
   serviceJobParts          ServiceJobPart[]
 
   // Technical Service & Warranty Management Relations
-  serviceWarrantyClaims    ServiceWarrantyClaim[]     @relation("ProductServiceWarrantyClaims")
-  repairJobOrders          RepairJobOrder[]           @relation("ProductRepairJobOrders")
-  repairJobOrderParts      RepairJobOrderPart[]       @relation("ProductJobOrderParts")
+  serviceWarrantyClaims ServiceWarrantyClaim[] @relation("ProductServiceWarrantyClaims")
+  repairJobOrders       RepairJobOrder[]       @relation("ProductRepairJobOrders")
+  repairJobOrderParts   RepairJobOrderPart[]   @relation("ProductJobOrderParts")
 
   // Multi-Unit Pricing Relations
-  unitPrices               ProductUnitPrice[]
-  unitLocationPrices       ProductUnitLocationPrice[]
+  unitPrices         ProductUnitPrice[]
+  unitLocationPrices ProductUnitLocationPrice[]
 
   @@unique([businessId, sku]) // SKU must be unique within each business
   @@index([businessId])
@@ -854,18 +854,18 @@ model Product {
 // ============================================
 
 model ProductUnitPrice {
-  id         Int      @id @default(autoincrement())
-  businessId Int      @map("business_id")
-  productId  Int      @map("product_id")
-  unitId     Int      @map("unit_id")
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  productId  Int @map("product_id")
+  unitId     Int @map("unit_id")
 
   // Pricing per unit
-  purchasePrice Decimal  @map("purchase_price") @db.Decimal(22, 4) // Cost when buying in this unit
-  sellingPrice  Decimal  @map("selling_price") @db.Decimal(22, 4)  // Price when selling in this unit
+  purchasePrice Decimal @map("purchase_price") @db.Decimal(22, 4) // Cost when buying in this unit
+  sellingPrice  Decimal @map("selling_price") @db.Decimal(22, 4) // Price when selling in this unit
 
   // Timestamps
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -883,21 +883,21 @@ model ProductUnitPrice {
 // ============================================
 
 model ProductUnitLocationPrice {
-  id         Int      @id @default(autoincrement())
-  businessId Int      @map("business_id")
-  productId  Int      @map("product_id")
-  locationId Int      @map("location_id")
-  unitId     Int      @map("unit_id")
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  productId  Int @map("product_id")
+  locationId Int @map("location_id")
+  unitId     Int @map("unit_id")
 
   // Location-specific pricing per unit
-  purchasePrice Decimal  @map("purchase_price") @db.Decimal(22, 4) // Cost when buying in this unit at this location
-  sellingPrice  Decimal  @map("selling_price") @db.Decimal(22, 4)  // Price when selling in this unit at this location
+  purchasePrice Decimal @map("purchase_price") @db.Decimal(22, 4) // Cost when buying in this unit at this location
+  sellingPrice  Decimal @map("selling_price") @db.Decimal(22, 4) // Price when selling in this unit at this location
 
   // Audit trail
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
-  lastUpdatedBy     Int?      @map("last_updated_by")
-  lastUpdatedByUser User?     @relation("LocationPriceUpdatedBy", fields: [lastUpdatedBy], references: [id])
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  lastUpdatedBy     Int?     @map("last_updated_by")
+  lastUpdatedByUser User?    @relation("LocationPriceUpdatedBy", fields: [lastUpdatedBy], references: [id])
 
   // Relations
   product  Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -969,9 +969,9 @@ model ProductVariation {
   serviceJobParts          ServiceJobPart[]
 
   // Technical Service & Warranty Management Relations
-  serviceWarrantyClaims    ServiceWarrantyClaim[]     @relation("VariationServiceWarrantyClaims")
-  repairJobOrders          RepairJobOrder[]           @relation("VariationRepairJobOrders")
-  repairJobOrderParts      RepairJobOrderPart[]       @relation("VariationJobOrderParts")
+  serviceWarrantyClaims ServiceWarrantyClaim[] @relation("VariationServiceWarrantyClaims")
+  repairJobOrders       RepairJobOrder[]       @relation("VariationRepairJobOrders")
+  repairJobOrderParts   RepairJobOrderPart[]   @relation("VariationJobOrderParts")
 
   @@unique([businessId, sku]) // SKU must be unique within each business
   @@index([productId])
@@ -1007,9 +1007,9 @@ model VariationLocationDetails {
   openingStockSetByUser User?     @relation("OpeningStockSetBy", fields: [openingStockSetBy], references: [id])
 
   // Price Audit Trail
-  lastPriceUpdate       DateTime? @map("last_price_update")
-  lastPriceUpdatedBy    Int?      @map("last_price_updated_by")
-  lastPriceUpdatedByUser User?    @relation("LastPriceUpdatedBy", fields: [lastPriceUpdatedBy], references: [id])
+  lastPriceUpdate        DateTime? @map("last_price_update")
+  lastPriceUpdatedBy     Int?      @map("last_price_updated_by")
+  lastPriceUpdatedByUser User?     @relation("LastPriceUpdatedBy", fields: [lastPriceUpdatedBy], references: [id])
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -1219,15 +1219,15 @@ model Customer {
   deletedAt DateTime? @map("deleted_at")
 
   // Relations
-  sales           Sale[]
-  customerReturns CustomerReturn[]
-  quotations      Quotation[]
+  sales            Sale[]
+  customerReturns  CustomerReturn[]
+  quotations       Quotation[]
   serviceJobOrders ServiceJobOrder[]
 
   // Technical Service & Warranty Management Relations
-  serviceWarrantyClaims  ServiceWarrantyClaim[]     @relation("CustomerServiceWarrantyClaims")
-  repairJobOrders        RepairJobOrder[]           @relation("CustomerRepairJobOrders")
-  serviceRepairPayments  ServiceRepairPayment[]     @relation("CustomerServiceRepairPayments")
+  serviceWarrantyClaims ServiceWarrantyClaim[] @relation("CustomerServiceWarrantyClaims")
+  repairJobOrders       RepairJobOrder[]       @relation("CustomerRepairJobOrders")
+  serviceRepairPayments ServiceRepairPayment[] @relation("CustomerServiceRepairPayments")
 
   @@index([businessId])
   @@map("customers")
@@ -1287,7 +1287,7 @@ model ProductSerialNumber {
   movements        SerialNumberMovement[]
 
   // Technical Service & Warranty Management Relations
-  warrantyClaims   ServiceWarrantyClaim[] @relation("SerialNumberWarrantyClaims")
+  warrantyClaims ServiceWarrantyClaim[] @relation("SerialNumberWarrantyClaims")
 
   @@unique([businessId, serialNumber])
   @@index([businessId])
@@ -1831,12 +1831,12 @@ model DebitNote {
 // ============================================
 
 model Sale {
-  id         Int       @id @default(autoincrement())
-  businessId Int       @map("business_id")
-  locationId Int       @map("location_id")
+  id         Int              @id @default(autoincrement())
+  businessId Int              @map("business_id")
+  locationId Int              @map("location_id")
   location   BusinessLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
-  customerId Int?      @map("customer_id")
-  customer   Customer? @relation(fields: [customerId], references: [id])
+  customerId Int?             @map("customer_id")
+  customer   Customer?        @relation(fields: [customerId], references: [id])
 
   invoiceNumber String   @map("invoice_number") @db.VarChar(100)
   saleDate      DateTime @map("sale_date") @db.Date
@@ -1926,10 +1926,10 @@ model SaleItem {
   serialNumbers Json? @map("serial_numbers") // Array of serial numbers sold
 
   // Multi-Unit Support - Track which unit was used in sale and its price
-  subUnitId         Int?     @map("sub_unit_id")
-  subUnitPrice      Decimal? @map("sub_unit_price") @db.Decimal(22, 4)
-  displayQuantity   Decimal? @map("display_quantity") @db.Decimal(22, 4) // Quantity in selected unit (e.g., 10 Meters)
-  selectedUnitName  String?  @map("selected_unit_name") @db.VarChar(50)    // Unit name for display (e.g., "Meter")
+  subUnitId        Int?     @map("sub_unit_id")
+  subUnitPrice     Decimal? @map("sub_unit_price") @db.Decimal(22, 4)
+  displayQuantity  Decimal? @map("display_quantity") @db.Decimal(22, 4) // Quantity in selected unit (e.g., 10 Meters)
+  selectedUnitName String?  @map("selected_unit_name") @db.VarChar(50) // Unit name for display (e.g., "Meter")
 
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -1945,10 +1945,10 @@ model SalePayment {
   sale   Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
   // AR Payment Collection - Link to shift when payment is collected at POS
-  shiftId        Int?          @map("shift_id")
-  cashierShift   CashierShift? @relation(fields: [shiftId], references: [id])
-  collectedBy    Int?          @map("collected_by") // User who collected the AR payment
-  collectedByUser User?        @relation("ARPaymentCollector", fields: [collectedBy], references: [id])
+  shiftId         Int?          @map("shift_id")
+  cashierShift    CashierShift? @relation(fields: [shiftId], references: [id])
+  collectedBy     Int?          @map("collected_by") // User who collected the AR payment
+  collectedByUser User?         @relation("ARPaymentCollector", fields: [collectedBy], references: [id])
 
   paymentMethod String  @map("payment_method") @db.VarChar(50) // cash, card, bank_transfer, cheque, mobile_payment
   amount        Decimal @db.Decimal(22, 4)
@@ -2119,7 +2119,7 @@ model CustomerReturn {
   approvedAt DateTime? @map("approved_at")
 
   // Replacement issuance tracking
-  replacementIssued   Boolean  @default(false) @map("replacement_issued")
+  replacementIssued   Boolean   @default(false) @map("replacement_issued")
   replacementIssuedAt DateTime? @map("replacement_issued_at")
   replacementIssuedBy Int?      @map("replacement_issued_by")
   replacementSaleId   Int?      @unique @map("replacement_sale_id")
@@ -2611,7 +2611,7 @@ model CashierShift {
   cashDenominations      CashDenomination[]
   freebieLogs            FreebieLog[]
   locationChangeRequests LocationChangeRequest[]
-  readings               CashierShiftReading[] @relation("CashierShiftToReadings")
+  readings               CashierShiftReading[]   @relation("CashierShiftToReadings")
   arPayments             SalePayment[]
 
   @@unique([businessId, shiftNumber])
@@ -2638,13 +2638,13 @@ model CashierShiftReading {
   readingNumber Int      @default(1) @map("reading_number")
   readingTime   DateTime @map("reading_time")
 
-  grossSales      Decimal  @default(0) @map("gross_sales") @db.Decimal(22, 4)
-  netSales        Decimal  @default(0) @map("net_sales") @db.Decimal(22, 4)
-  totalDiscounts  Decimal  @default(0) @map("total_discounts") @db.Decimal(22, 4)
-  expectedCash    Decimal? @map("expected_cash") @db.Decimal(22, 4)
-  transactionCount Int     @default(0) @map("transaction_count")
-  reportNumber    String?  @map("report_number") @db.VarChar(100)
-  payload         Json?    @map("payload")
+  grossSales       Decimal  @default(0) @map("gross_sales") @db.Decimal(22, 4)
+  netSales         Decimal  @default(0) @map("net_sales") @db.Decimal(22, 4)
+  totalDiscounts   Decimal  @default(0) @map("total_discounts") @db.Decimal(22, 4)
+  expectedCash     Decimal? @map("expected_cash") @db.Decimal(22, 4)
+  transactionCount Int      @default(0) @map("transaction_count")
+  reportNumber     String?  @map("report_number") @db.VarChar(100)
+  payload          Json?    @map("payload")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -3513,18 +3513,18 @@ model PricingAlert {
   userRole     String? @map("user_role") @db.VarChar(100)
 
   // Product information
-  productId      Int     @map("product_id")
-  productName    String  @map("product_name") @db.VarChar(255)
-  productSku     String? @map("product_sku") @db.VarChar(100)
-  variationId    Int?    @map("variation_id")
-  variationName  String? @map("variation_name") @db.VarChar(255)
-  variationSku   String? @map("variation_sku") @db.VarChar(100)
+  productId     Int     @map("product_id")
+  productName   String  @map("product_name") @db.VarChar(255)
+  productSku    String? @map("product_sku") @db.VarChar(100)
+  variationId   Int?    @map("variation_id")
+  variationName String? @map("variation_name") @db.VarChar(255)
+  variationSku  String? @map("variation_sku") @db.VarChar(100)
 
   // Pricing details
-  costPrice       Decimal @map("cost_price") @db.Decimal(22, 4)
-  retailPrice     Decimal @map("retail_price") @db.Decimal(22, 4)
-  actualPrice     Decimal @map("actual_price") @db.Decimal(22, 4)
-  discrepancyAmount Decimal @map("discrepancy_amount") @db.Decimal(22, 4) // How much below cost/retail
+  costPrice          Decimal @map("cost_price") @db.Decimal(22, 4)
+  retailPrice        Decimal @map("retail_price") @db.Decimal(22, 4)
+  actualPrice        Decimal @map("actual_price") @db.Decimal(22, 4)
+  discrepancyAmount  Decimal @map("discrepancy_amount") @db.Decimal(22, 4) // How much below cost/retail
   discrepancyPercent Decimal @map("discrepancy_percent") @db.Decimal(5, 2) // Percentage below
 
   // Sale reference
@@ -3571,27 +3571,27 @@ model ChartOfAccounts {
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   // Account identification
-  accountCode   String  @map("account_code") @db.VarChar(20) // e.g., "1000", "1100", "4000"
-  accountName   String  @map("account_name") @db.VarChar(255)
-  description   String? @db.Text
-  parentId      Int?    @map("parent_id") // For sub-accounts
-  parent        ChartOfAccounts? @relation("AccountHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
-  subAccounts   ChartOfAccounts[] @relation("AccountHierarchy")
+  accountCode String            @map("account_code") @db.VarChar(20) // e.g., "1000", "1100", "4000"
+  accountName String            @map("account_name") @db.VarChar(255)
+  description String?           @db.Text
+  parentId    Int?              @map("parent_id") // For sub-accounts
+  parent      ChartOfAccounts?  @relation("AccountHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  subAccounts ChartOfAccounts[] @relation("AccountHierarchy")
 
   // Account classification
-  accountType   String @map("account_type") @db.VarChar(50) // asset, liability, equity, revenue, expense
+  accountType    String @map("account_type") @db.VarChar(50) // asset, liability, equity, revenue, expense
   accountSubType String @map("account_sub_type") @db.VarChar(50) // current_asset, fixed_asset, current_liability, etc.
 
   // Account nature & behavior
-  normalBalance String @default("debit") @map("normal_balance") @db.VarChar(10) // debit or credit
-  isActive      Boolean @default(true) @map("is_active")
-  isSystemAccount Boolean @default(false) @map("is_system_account") // Can't be deleted
+  normalBalance    String  @default("debit") @map("normal_balance") @db.VarChar(10) // debit or credit
+  isActive         Boolean @default(true) @map("is_active")
+  isSystemAccount  Boolean @default(false) @map("is_system_account") // Can't be deleted
   allowManualEntry Boolean @default(true) @map("allow_manual_entry") // Allow manual journal entries
 
   // Financial Statement Mapping
-  balanceSheetSection String? @map("balance_sheet_section") @db.VarChar(50) // current_assets, fixed_assets, current_liabilities, etc.
+  balanceSheetSection    String? @map("balance_sheet_section") @db.VarChar(50) // current_assets, fixed_assets, current_liabilities, etc.
   incomeStatementSection String? @map("income_statement_section") @db.VarChar(50) // revenue, cogs, operating_expenses, etc.
-  cashFlowSection String? @map("cash_flow_section") @db.VarChar(50) // operating, investing, financing
+  cashFlowSection        String? @map("cash_flow_section") @db.VarChar(50) // operating, investing, financing
 
   // Balances (cached for performance)
   currentBalance Decimal @default(0) @map("current_balance") @db.Decimal(22, 4)
@@ -3603,11 +3603,11 @@ model ChartOfAccounts {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  balances      AccountBalance[]
+  balances          AccountBalance[]
   journalEntryLines JournalEntryLine[]
-  budgets       BudgetAllocation[]
-  expenseCategories ExpenseCategory[] @relation("ExpenseCategoryGLAccount")
-  expenses      Expense[] @relation("ExpenseGLAccount")
+  budgets           BudgetAllocation[]
+  expenseCategories ExpenseCategory[]  @relation("ExpenseCategoryGLAccount")
+  expenses          Expense[]          @relation("ExpenseGLAccount")
 
   @@unique([businessId, accountCode])
   @@index([businessId])
@@ -3623,26 +3623,26 @@ model FiscalPeriod {
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   // Period identification
-  periodType  String @map("period_type") @db.VarChar(20) // month, quarter, year
-  fiscalYear  Int    @map("fiscal_year") // e.g., 2025
-  periodNumber Int   @map("period_number") // 1-12 for months, 1-4 for quarters, 1 for year
+  periodType   String @map("period_type") @db.VarChar(20) // month, quarter, year
+  fiscalYear   Int    @map("fiscal_year") // e.g., 2025
+  periodNumber Int    @map("period_number") // 1-12 for months, 1-4 for quarters, 1 for year
 
   // Period dates
   startDate DateTime @map("start_date")
   endDate   DateTime @map("end_date")
 
   // Period status
-  status String @default("open") @map("status") @db.VarChar(20) // open, closed, locked
-  closedAt DateTime? @map("closed_at")
-  closedBy Int? @map("closed_by")
-  closedByUser User? @relation("PeriodClosedBy", fields: [closedBy], references: [id])
+  status       String    @default("open") @map("status") @db.VarChar(20) // open, closed, locked
+  closedAt     DateTime? @map("closed_at")
+  closedBy     Int?      @map("closed_by")
+  closedByUser User?     @relation("PeriodClosedBy", fields: [closedBy], references: [id])
 
-  lockedAt DateTime? @map("locked_at")
-  lockedBy Int? @map("locked_by")
-  lockedByUser User? @relation("PeriodLockedBy", fields: [lockedBy], references: [id])
+  lockedAt     DateTime? @map("locked_at")
+  lockedBy     Int?      @map("locked_by")
+  lockedByUser User?     @relation("PeriodLockedBy", fields: [lockedBy], references: [id])
 
   // Closing entries
-  closingNotes String? @map("closing_notes") @db.Text
+  closingNotes     String?  @map("closing_notes") @db.Text
   retainedEarnings Decimal? @map("retained_earnings") @db.Decimal(22, 4) // Net income for the period
 
   // Timestamps
@@ -3676,13 +3676,13 @@ model SavedQuestion {
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   // Question details
-  question   String   @db.Text
-  category   String?  @db.VarChar(50) // Optional: sales, inventory, reports, etc.
-  usageCount Int      @default(0) @map("usage_count") // Track how often it's used
+  question   String  @db.Text
+  category   String? @db.VarChar(50) // Optional: sales, inventory, reports, etc.
+  usageCount Int     @default(0) @map("usage_count") // Track how often it's used
 
   // Timestamps
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
   lastUsedAt DateTime? @map("last_used_at")
 
   @@index([userId])
@@ -3698,10 +3698,10 @@ model AccountBalance {
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   // Account & Period references
-  accountId Int @map("account_id")
+  accountId Int             @map("account_id")
   account   ChartOfAccounts @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  periodId Int @map("period_id")
+  periodId Int          @map("period_id")
   period   FiscalPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
 
   // Balances
@@ -3727,7 +3727,7 @@ model FinancialSnapshot {
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   // Period reference
-  periodId Int @map("period_id")
+  periodId Int          @map("period_id")
   period   FiscalPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
 
   // Snapshot type
@@ -3745,9 +3745,9 @@ model FinancialSnapshot {
   netIncome        Decimal? @map("net_income") @db.Decimal(22, 4)
 
   // Generation metadata
-  generatedAt DateTime @default(now()) @map("generated_at")
-  generatedBy Int @map("generated_by")
-  generatedByUser User @relation("SnapshotGeneratedBy", fields: [generatedBy], references: [id])
+  generatedAt     DateTime @default(now()) @map("generated_at")
+  generatedBy     Int      @map("generated_by")
+  generatedByUser User     @relation("SnapshotGeneratedBy", fields: [generatedBy], references: [id])
 
   isValid Boolean @default(true) @map("is_valid") // Invalidate when data changes
 
@@ -3769,10 +3769,10 @@ model BudgetAllocation {
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   // Account & Period references
-  accountId Int @map("account_id")
+  accountId Int             @map("account_id")
   account   ChartOfAccounts @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  periodId Int @map("period_id")
+  periodId Int          @map("period_id")
   period   FiscalPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
 
   // Budget amounts
@@ -3781,13 +3781,13 @@ model BudgetAllocation {
   variance     Decimal @default(0) @map("variance") @db.Decimal(22, 4) // actual - budget
 
   // Budget metadata
-  notes String? @db.Text
-  status String @default("draft") @map("status") @db.VarChar(20) // draft, approved, active
+  notes  String? @db.Text
+  status String  @default("draft") @map("status") @db.VarChar(20) // draft, approved, active
 
   // Approval tracking
-  approvedBy Int? @map("approved_by")
-  approvedByUser User? @relation("BudgetApprovedBy", fields: [approvedBy], references: [id])
-  approvedAt DateTime? @map("approved_at")
+  approvedBy     Int?      @map("approved_by")
+  approvedByUser User?     @relation("BudgetApprovedBy", fields: [approvedBy], references: [id])
+  approvedAt     DateTime? @map("approved_at")
 
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
@@ -3807,32 +3807,32 @@ model JournalEntry {
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   // Entry identification
-  entryNumber String @map("entry_number") @db.VarChar(50) // e.g., "JE-2025-001"
+  entryNumber String   @map("entry_number") @db.VarChar(50) // e.g., "JE-2025-001"
   entryDate   DateTime @map("entry_date")
-  entryType   String @map("entry_type") @db.VarChar(50) // manual, automated, closing, adjusting, reversing
+  entryType   String   @map("entry_type") @db.VarChar(50) // manual, automated, closing, adjusting, reversing
 
   // Reference to source transaction (for automated entries)
-  referenceType String? @map("reference_type") @db.VarChar(50) // Sale, Purchase, Adjustment, Transfer
-  referenceId   String? @map("reference_id") @db.VarChar(100)
+  referenceType   String? @map("reference_type") @db.VarChar(50) // Sale, Purchase, Adjustment, Transfer
+  referenceId     String? @map("reference_id") @db.VarChar(100)
   referenceNumber String? @map("reference_number") @db.VarChar(100)
 
   // Entry details
-  description String @db.Text
+  description String  @db.Text
   notes       String? @db.Text
 
   // Entry status
-  status String @default("draft") @map("status") @db.VarChar(20) // draft, posted, reversed
-  postedAt DateTime? @map("posted_at")
-  postedBy Int? @map("posted_by")
-  postedByUser User? @relation("EntryPostedBy", fields: [postedBy], references: [id])
+  status       String    @default("draft") @map("status") @db.VarChar(20) // draft, posted, reversed
+  postedAt     DateTime? @map("posted_at")
+  postedBy     Int?      @map("posted_by")
+  postedByUser User?     @relation("EntryPostedBy", fields: [postedBy], references: [id])
 
   // Reversal tracking
-  reversedAt DateTime? @map("reversed_at")
-  reversedBy Int? @map("reversed_by")
-  reversedByUser User? @relation("EntryReversedBy", fields: [reversedBy], references: [id])
-  reversalOfId Int? @map("reversal_of_id") // If this entry reverses another
-  reversalEntry JournalEntry? @relation("ReversalRelation", fields: [reversalOfId], references: [id])
-  reversals JournalEntry[] @relation("ReversalRelation")
+  reversedAt     DateTime?      @map("reversed_at")
+  reversedBy     Int?           @map("reversed_by")
+  reversedByUser User?          @relation("EntryReversedBy", fields: [reversedBy], references: [id])
+  reversalOfId   Int?           @map("reversal_of_id") // If this entry reverses another
+  reversalEntry  JournalEntry?  @relation("ReversalRelation", fields: [reversalOfId], references: [id])
+  reversals      JournalEntry[] @relation("ReversalRelation")
 
   // Totals (must balance)
   totalDebit  Decimal @map("total_debit") @db.Decimal(22, 4)
@@ -3840,7 +3840,7 @@ model JournalEntry {
   balanced    Boolean @default(true) @map("balanced") // totalDebit === totalCredit
 
   // Created by
-  createdBy Int @map("created_by")
+  createdBy     Int  @map("created_by")
   createdByUser User @relation("EntryCreatedBy", fields: [createdBy], references: [id])
 
   // Timestamps
@@ -3848,9 +3848,9 @@ model JournalEntry {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  lines JournalEntryLine[]
+  lines     JournalEntryLine[]
   auditLogs AccountingAuditLog[]
-  expenses Expense[]
+  expenses  Expense[]
 
   @@unique([businessId, entryNumber])
   @@index([businessId])
@@ -3863,18 +3863,18 @@ model JournalEntry {
 
 // Journal Entry Lines - Individual debit/credit lines
 model JournalEntryLine {
-  id         Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
   // Journal Entry reference
-  journalEntryId Int @map("journal_entry_id")
+  journalEntryId Int          @map("journal_entry_id")
   journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
 
   // Account reference
-  accountId Int @map("account_id")
+  accountId Int             @map("account_id")
   account   ChartOfAccounts @relation(fields: [accountId], references: [id], onDelete: Restrict)
 
   // Line details
-  description String @db.Text
+  description String  @db.Text
   debit       Decimal @default(0) @map("debit") @db.Decimal(22, 4)
   credit      Decimal @default(0) @map("credit") @db.Decimal(22, 4)
 
@@ -3898,16 +3898,16 @@ model AccountingAuditLog {
 
   // Entity tracking
   entityType String @map("entity_type") @db.VarChar(100) // JournalEntry, FiscalPeriod, ChartOfAccounts, etc.
-  entityId   Int @map("entity_id")
+  entityId   Int    @map("entity_id")
 
   // Optional references
-  periodId       Int? @map("period_id")
+  periodId       Int?          @map("period_id")
   period         FiscalPeriod? @relation(fields: [periodId], references: [id], onDelete: SetNull)
-  journalEntryId Int? @map("journal_entry_id")
+  journalEntryId Int?          @map("journal_entry_id")
   journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
 
   // Action tracking
-  action String @map("action") @db.VarChar(50) // create, update, delete, post, reverse, close_period, etc.
+  action      String @map("action") @db.VarChar(50) // create, update, delete, post, reverse, close_period, etc.
   description String @db.Text
 
   // Change tracking (JSON for flexibility)
@@ -3915,8 +3915,8 @@ model AccountingAuditLog {
   newValues Json? @map("new_values")
 
   // User tracking
-  userId Int @map("user_id")
-  user   User @relation("AccountingAuditUser", fields: [userId], references: [id])
+  userId    Int     @map("user_id")
+  user      User    @relation("AccountingAuditUser", fields: [userId], references: [id])
   ipAddress String? @map("ip_address") @db.VarChar(50)
   userAgent String? @map("user_agent") @db.Text
 
@@ -3947,7 +3947,7 @@ model ExpenseCategory {
   description String? @db.Text
 
   // Accounting integration
-  glAccountId Int? @map("gl_account_id")
+  glAccountId Int?             @map("gl_account_id")
   glAccount   ChartOfAccounts? @relation("ExpenseCategoryGLAccount", fields: [glAccountId], references: [id], onDelete: Restrict)
 
   // Status
@@ -3972,11 +3972,11 @@ model Expense {
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   // Location reference
-  locationId Int @map("location_id")
+  locationId Int              @map("location_id")
   location   BusinessLocation @relation(fields: [locationId], references: [id], onDelete: Restrict)
 
   // Category reference
-  categoryId Int @map("category_id")
+  categoryId Int             @map("category_id")
   category   ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
   // Expense identification
@@ -3984,34 +3984,34 @@ model Expense {
   expenseDate     DateTime @map("expense_date")
 
   // Expense details
-  amount      Decimal @map("amount") @db.Decimal(22, 4)
-  paymentMethod String @map("payment_method") @db.VarChar(50) // cash, cheque, bank_transfer, credit_card, other
-  payeeName   String  @map("payee_name") @db.VarChar(255) // Who was paid
-  description String  @db.Text
+  amount        Decimal @map("amount") @db.Decimal(22, 4)
+  paymentMethod String  @map("payment_method") @db.VarChar(50) // cash, cheque, bank_transfer, credit_card, other
+  payeeName     String  @map("payee_name") @db.VarChar(255) // Who was paid
+  description   String  @db.Text
   attachmentUrl String? @map("attachment_url") @db.VarChar(500) // Optional receipt/file path
 
   // Accounting integration
-  glAccountId    Int? @map("gl_account_id")
+  glAccountId    Int?             @map("gl_account_id")
   glAccount      ChartOfAccounts? @relation("ExpenseGLAccount", fields: [glAccountId], references: [id], onDelete: Restrict)
-  journalEntryId Int? @map("journal_entry_id")
-  journalEntry   JournalEntry? @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+  journalEntryId Int?             @map("journal_entry_id")
+  journalEntry   JournalEntry?    @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
 
   // Status tracking
   status String @default("draft") @map("status") @db.VarChar(20) // draft, approved, posted, void
 
   // Approval tracking
-  approvedBy   Int? @map("approved_by")
-  approvedByUser User? @relation("ExpenseApprovedBy", fields: [approvedBy], references: [id])
-  approvedAt   DateTime? @map("approved_at")
+  approvedBy     Int?      @map("approved_by")
+  approvedByUser User?     @relation("ExpenseApprovedBy", fields: [approvedBy], references: [id])
+  approvedAt     DateTime? @map("approved_at")
 
   // Void tracking
-  voidedBy   Int? @map("voided_by")
-  voidedByUser User? @relation("ExpenseVoidedBy", fields: [voidedBy], references: [id])
-  voidedAt   DateTime? @map("voided_at")
-  voidReason String? @map("void_reason") @db.Text
+  voidedBy     Int?      @map("voided_by")
+  voidedByUser User?     @relation("ExpenseVoidedBy", fields: [voidedBy], references: [id])
+  voidedAt     DateTime? @map("voided_at")
+  voidReason   String?   @map("void_reason") @db.Text
 
   // Created by
-  createdBy     Int @map("created_by")
+  createdBy     Int  @map("created_by")
   createdByUser User @relation("ExpenseCreatedBy", fields: [createdBy], references: [id])
 
   // Status
@@ -4050,32 +4050,32 @@ model ServiceJobOrder {
   orderDate      DateTime @map("order_date")
 
   // Customer information
-  customerId      Int?     @map("customer_id")
+  customerId      Int?      @map("customer_id")
   customer        Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  customerName    String   @map("customer_name") @db.VarChar(255)
-  customerPhone   String   @map("customer_phone") @db.VarChar(50)
-  customerEmail   String?  @map("customer_email") @db.VarChar(255)
-  customerAddress String?  @map("customer_address") @db.Text
+  customerName    String    @map("customer_name") @db.VarChar(255)
+  customerPhone   String    @map("customer_phone") @db.VarChar(50)
+  customerEmail   String?   @map("customer_email") @db.VarChar(255)
+  customerAddress String?   @map("customer_address") @db.Text
 
   // Product/Device information
-  productName       String    @map("product_name") @db.VarChar(255)
-  serialNumber      String?   @map("serial_number") @db.VarChar(191)
+  productName         String    @map("product_name") @db.VarChar(255)
+  serialNumber        String?   @map("serial_number") @db.VarChar(191)
   productPurchaseDate DateTime? @map("product_purchase_date") @db.Date
   warrantyExpiryDate  DateTime? @map("warranty_expiry_date") @db.Date
 
   // Problem & Diagnosis
-  problemReported    String @map("problem_reported") @db.Text
-  diagnosisFindings  String? @map("diagnosis_findings") @db.Text
-  recommendedAction  String? @map("recommended_action") @db.Text
+  problemReported   String  @map("problem_reported") @db.Text
+  diagnosisFindings String? @map("diagnosis_findings") @db.Text
+  recommendedAction String? @map("recommended_action") @db.Text
 
   // Service details
-  serviceType String @map("service_type") @db.VarChar(100) // Repair, Maintenance, Installation, etc.
-  technicianId Int? @map("technician_id")
-  technician   User? @relation("ServiceTechnician", fields: [technicianId], references: [id])
+  serviceType  String @map("service_type") @db.VarChar(100) // Repair, Maintenance, Installation, etc.
+  technicianId Int?   @map("technician_id")
+  technician   User?  @relation("ServiceTechnician", fields: [technicianId], references: [id])
 
-  dateReceived          DateTime  @map("date_received")
-  estimatedCompletion   DateTime? @map("estimated_completion") @db.Date
-  actualCompletionDate  DateTime? @map("actual_completion_date")
+  dateReceived         DateTime  @map("date_received")
+  estimatedCompletion  DateTime? @map("estimated_completion") @db.Date
+  actualCompletionDate DateTime? @map("actual_completion_date")
 
   // Costs
   laborCost         Decimal @default(0) @map("labor_cost") @db.Decimal(22, 4)
@@ -4087,30 +4087,30 @@ model ServiceJobOrder {
   grandTotal        Decimal @default(0) @map("grand_total") @db.Decimal(22, 4)
 
   // Payment information
-  amountPaid    Decimal @default(0) @map("amount_paid") @db.Decimal(22, 4)
-  balanceDue    Decimal @default(0) @map("balance_due") @db.Decimal(22, 4)
-  paymentMethod String? @map("payment_method") @db.VarChar(50)
+  amountPaid    Decimal   @default(0) @map("amount_paid") @db.Decimal(22, 4)
+  balanceDue    Decimal   @default(0) @map("balance_due") @db.Decimal(22, 4)
+  paymentMethod String?   @map("payment_method") @db.VarChar(50)
   paymentDate   DateTime? @map("payment_date")
-  receivedBy    String? @map("received_by") @db.VarChar(255)
+  receivedBy    String?   @map("received_by") @db.VarChar(255)
 
   // Warranty terms
-  serviceWarrantyPeriod    Int     @default(90) @map("service_warranty_period") // Days
+  serviceWarrantyPeriod     Int     @default(90) @map("service_warranty_period") // Days
   serviceWarrantyConditions String? @map("service_warranty_conditions") @db.Text
-  warrantyCovers           String? @map("warranty_covers") @db.Text
-  warrantyNotCovers        String? @map("warranty_not_covers") @db.Text
+  warrantyCovers            String? @map("warranty_covers") @db.Text
+  warrantyNotCovers         String? @map("warranty_not_covers") @db.Text
 
   // Quality control
-  qualityCheckedBy   Int?      @map("quality_checked_by")
-  qualityChecker     User?     @relation("ServiceQualityChecker", fields: [qualityCheckedBy], references: [id])
-  qualityCheckDate   DateTime? @map("quality_check_date")
-  qualityCheckNotes  String?   @map("quality_check_notes") @db.Text
+  qualityCheckedBy  Int?      @map("quality_checked_by")
+  qualityChecker    User?     @relation("ServiceQualityChecker", fields: [qualityCheckedBy], references: [id])
+  qualityCheckDate  DateTime? @map("quality_check_date")
+  qualityCheckNotes String?   @map("quality_check_notes") @db.Text
 
   // Customer signature
   customerSignatureDate DateTime? @map("customer_signature_date")
   customerReceivedDate  DateTime? @map("customer_received_date")
 
   // Status
-  status String @default("pending") @map("status") @db.VarChar(50) // pending, in_progress, completed, delivered, cancelled
+  status String  @default("pending") @map("status") @db.VarChar(50) // pending, in_progress, completed, delivered, cancelled
   notes  String? @db.Text
 
   // Created by
@@ -4137,14 +4137,14 @@ model ServiceJobOrder {
 
 // Parts used in service job orders
 model ServiceJobPart {
-  id           Int               @id @default(autoincrement())
-  jobOrderId   Int               @map("job_order_id")
-  jobOrder     ServiceJobOrder   @relation(fields: [jobOrderId], references: [id], onDelete: Cascade)
+  id         Int             @id @default(autoincrement())
+  jobOrderId Int             @map("job_order_id")
+  jobOrder   ServiceJobOrder @relation(fields: [jobOrderId], references: [id], onDelete: Cascade)
 
   // Part details (can link to Product or be standalone)
-  productId        Int?             @map("product_id")
-  product          Product?         @relation(fields: [productId], references: [id])
-  variationId      Int?             @map("variation_id")
+  productId        Int?              @map("product_id")
+  product          Product?          @relation(fields: [productId], references: [id])
+  variationId      Int?              @map("variation_id")
   productVariation ProductVariation? @relation(fields: [variationId], references: [id])
 
   partName    String  @map("part_name") @db.VarChar(255)
@@ -4178,47 +4178,47 @@ model ServiceJobPart {
 // ============================================
 
 model TechnicalServiceEmployee {
-  id         Int @id @default(autoincrement())
-  businessId Int @map("business_id")
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
   business   Business @relation("BusinessTechnicalEmployees", fields: [businessId], references: [id], onDelete: Cascade)
 
   // Employee identification
-  employeeCode String  @unique @map("employee_code") @db.VarChar(50) // e.g., "TECH-001"
-  userId       Int?    @map("user_id") // Optional link to User account
-  user         User?   @relation("TechnicalEmployeeUser", fields: [userId], references: [id], onDelete: SetNull)
+  employeeCode String @unique @map("employee_code") @db.VarChar(50) // e.g., "TECH-001"
+  userId       Int?   @map("user_id") // Optional link to User account
+  user         User?  @relation("TechnicalEmployeeUser", fields: [userId], references: [id], onDelete: SetNull)
 
   // Personal details
-  firstName  String  @map("first_name") @db.VarChar(100)
-  lastName   String  @map("last_name") @db.VarChar(100)
-  email      String? @db.VarChar(191)
-  mobile     String? @db.VarChar(50)
-  address    String? @db.Text
-  city       String? @db.VarChar(100)
-  state      String? @db.VarChar(100)
-  country    String? @db.VarChar(100)
-  zipCode    String? @map("zip_code") @db.VarChar(10)
+  firstName String  @map("first_name") @db.VarChar(100)
+  lastName  String  @map("last_name") @db.VarChar(100)
+  email     String? @db.VarChar(191)
+  mobile    String? @db.VarChar(50)
+  address   String? @db.Text
+  city      String? @db.VarChar(100)
+  state     String? @db.VarChar(100)
+  country   String? @db.VarChar(100)
+  zipCode   String? @map("zip_code") @db.VarChar(10)
 
   // Employment details
-  position       String    @db.VarChar(100) // e.g., "Senior Technician", "Service Manager"
-  department     String    @default("Technical Service") @db.VarChar(100)
-  specialization String?   @db.VarChar(255) // e.g., "Mobile Phones, Laptops"
-  certifications String?   @db.Text // e.g., "Apple Certified, Samsung Certified"
-  hireDate       DateTime? @map("hire_date") @db.Date
+  position        String    @db.VarChar(100) // e.g., "Senior Technician", "Service Manager"
+  department      String    @default("Technical Service") @db.VarChar(100)
+  specialization  String?   @db.VarChar(255) // e.g., "Mobile Phones, Laptops"
+  certifications  String?   @db.Text // e.g., "Apple Certified, Samsung Certified"
+  hireDate        DateTime? @map("hire_date") @db.Date
   terminationDate DateTime? @map("termination_date") @db.Date
 
   // Status
-  isActive       Boolean @default(true) @map("is_active")
-  employmentStatus String @default("active") @map("employment_status") @db.VarChar(50) // active, on_leave, suspended, terminated
+  isActive         Boolean @default(true) @map("is_active")
+  employmentStatus String  @default("active") @map("employment_status") @db.VarChar(50) // active, on_leave, suspended, terminated
 
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  technicianProfile     ServiceTechnician?
+  technicianProfile      ServiceTechnician?
   warrantyClaimsAccepted ServiceWarrantyClaim[] @relation("ClaimAcceptedBy")
   warrantyClaimsChecked  ServiceWarrantyClaim[] @relation("ClaimCheckedBy")
-  repairJobOrders        RepairJobOrder[]      @relation("JobOrderTechnician")
+  repairJobOrders        RepairJobOrder[]       @relation("JobOrderTechnician")
 
   @@unique([businessId, employeeCode])
   @@index([businessId])
@@ -4241,7 +4241,7 @@ model ServiceTechnician {
   employee   TechnicalServiceEmployee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   // Technical specialization
-  primarySpecialization String @map("primary_specialization") @db.VarChar(255) // e.g., "Mobile Repair", "Laptop Repair"
+  primarySpecialization    String  @map("primary_specialization") @db.VarChar(255) // e.g., "Mobile Repair", "Laptop Repair"
   secondarySpecializations String? @map("secondary_specializations") @db.Text // JSON array or comma-separated
 
   // Workload management
@@ -4250,7 +4250,7 @@ model ServiceTechnician {
   isAvailable       Boolean @default(true) @map("is_available")
 
   // Performance metrics
-  totalJobsCompleted   Int     @default(0) @map("total_jobs_completed")
+  totalJobsCompleted   Int      @default(0) @map("total_jobs_completed")
   averageRepairTime    Decimal? @map("average_repair_time") @db.Decimal(10, 2) // in hours
   customerSatisfaction Decimal? @map("customer_satisfaction") @db.Decimal(3, 2) // 0.00 - 5.00 rating
 
@@ -4274,8 +4274,8 @@ model ServiceTechnician {
 // ============================================
 
 model RepairServiceType {
-  id         Int @id @default(autoincrement())
-  businessId Int @map("business_id")
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
   business   Business @relation("BusinessRepairServiceTypes", fields: [businessId], references: [id], onDelete: Cascade)
 
   // Service identification
@@ -4287,12 +4287,12 @@ model RepairServiceType {
   category String @db.VarChar(100) // e.g., "Hardware Repair", "Software Service", "Diagnostic"
 
   // Pricing
-  standardPrice     Decimal @default(0) @map("standard_price") @db.Decimal(22, 4)
-  laborCostPerHour  Decimal @default(0) @map("labor_cost_per_hour") @db.Decimal(22, 4)
-  estimatedHours    Decimal @default(1) @map("estimated_hours") @db.Decimal(5, 2)
+  standardPrice    Decimal @default(0) @map("standard_price") @db.Decimal(22, 4)
+  laborCostPerHour Decimal @default(0) @map("labor_cost_per_hour") @db.Decimal(22, 4)
+  estimatedHours   Decimal @default(1) @map("estimated_hours") @db.Decimal(5, 2)
 
   // Warranty coverage
-  warrantyPeriodDays Int     @default(30) @map("warranty_period_days") @db.SmallInt // Service warranty
+  warrantyPeriodDays  Int     @default(30) @map("warranty_period_days") @db.SmallInt // Service warranty
   isCoveredByWarranty Boolean @default(false) @map("is_covered_by_warranty") // If covered by product warranty
 
   // Status
@@ -4317,8 +4317,8 @@ model RepairServiceType {
 // ============================================
 
 model ServiceWarrantyClaim {
-  id         Int @id @default(autoincrement())
-  businessId Int @map("business_id")
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
   business   Business @relation("BusinessServiceWarrantyClaims", fields: [businessId], references: [id], onDelete: Cascade)
 
   locationId Int              @map("location_id")
@@ -4333,45 +4333,45 @@ model ServiceWarrantyClaim {
   serialNumber   ProductSerialNumber? @relation("SerialNumberWarrantyClaims", fields: [serialNumberId], references: [id], onDelete: SetNull)
 
   // Product details (if no serial number)
-  productId          Int?             @map("product_id")
-  product            Product?         @relation("ProductServiceWarrantyClaims", fields: [productId], references: [id], onDelete: SetNull)
-  productVariationId Int?             @map("product_variation_id")
+  productId          Int?              @map("product_id")
+  product            Product?          @relation("ProductServiceWarrantyClaims", fields: [productId], references: [id], onDelete: SetNull)
+  productVariationId Int?              @map("product_variation_id")
   productVariation   ProductVariation? @relation("VariationServiceWarrantyClaims", fields: [productVariationId], references: [id], onDelete: SetNull)
 
   // Customer information
-  customerId   Int?      @map("customer_id")
-  customer     Customer? @relation("CustomerServiceWarrantyClaims", fields: [customerId], references: [id], onDelete: SetNull)
-  customerName String?   @map("customer_name") @db.VarChar(255)
-  customerPhone String?  @map("customer_phone") @db.VarChar(50)
-  customerEmail String?  @map("customer_email") @db.VarChar(191)
+  customerId    Int?      @map("customer_id")
+  customer      Customer? @relation("CustomerServiceWarrantyClaims", fields: [customerId], references: [id], onDelete: SetNull)
+  customerName  String?   @map("customer_name") @db.VarChar(255)
+  customerPhone String?   @map("customer_phone") @db.VarChar(50)
+  customerEmail String?   @map("customer_email") @db.VarChar(191)
 
   // Sale reference (if applicable)
   saleId Int?  @map("sale_id")
   sale   Sale? @relation("SaleServiceWarrantyClaims", fields: [saleId], references: [id], onDelete: SetNull)
 
   // Problem description
-  problemDescription String  @map("problem_description") @db.Text
-  reportedIssues     String? @map("reported_issues") @db.Text // Additional details
+  problemDescription  String  @map("problem_description") @db.Text
+  reportedIssues      String? @map("reported_issues") @db.Text // Additional details
   accessoriesIncluded String? @map("accessories_included") @db.Text // e.g., "Charger, Case, Box"
 
   // Warranty validation
-  warrantyType        String   @map("warranty_type") @db.VarChar(50) // manufacturer, extended, store
-  warrantyStartDate   DateTime? @map("warranty_start_date") @db.Date
-  warrantyEndDate     DateTime? @map("warranty_end_date") @db.Date
-  isUnderWarranty     Boolean  @default(false) @map("is_under_warranty")
+  warrantyType      String    @map("warranty_type") @db.VarChar(50) // manufacturer, extended, store
+  warrantyStartDate DateTime? @map("warranty_start_date") @db.Date
+  warrantyEndDate   DateTime? @map("warranty_end_date") @db.Date
+  isUnderWarranty   Boolean   @default(false) @map("is_under_warranty")
 
   // Claim acceptance workflow
-  acceptedBy   Int?                         @map("accepted_by")
+  acceptedBy         Int?                      @map("accepted_by")
   acceptedByEmployee TechnicalServiceEmployee? @relation("ClaimAcceptedBy", fields: [acceptedBy], references: [id], onDelete: SetNull)
-  dateAccepted DateTime?                    @map("date_accepted")
-  acceptanceNotes String?                   @map("acceptance_notes") @db.Text
+  dateAccepted       DateTime?                 @map("date_accepted")
+  acceptanceNotes    String?                   @map("acceptance_notes") @db.Text
 
   // Technical inspection workflow
-  checkedBy   Int?                         @map("checked_by")
+  checkedBy         Int?                      @map("checked_by")
   checkedByEmployee TechnicalServiceEmployee? @relation("ClaimCheckedBy", fields: [checkedBy], references: [id], onDelete: SetNull)
-  dateChecked DateTime?                    @map("date_checked")
-  diagnosisNotes String?                   @map("diagnosis_notes") @db.Text
-  estimatedCost  Decimal?                  @map("estimated_cost") @db.Decimal(22, 4)
+  dateChecked       DateTime?                 @map("date_checked")
+  diagnosisNotes    String?                   @map("diagnosis_notes") @db.Text
+  estimatedCost     Decimal?                  @map("estimated_cost") @db.Decimal(22, 4)
 
   // Decision
   isUserNegligence Boolean @default(false) @map("is_user_negligence")
@@ -4383,11 +4383,11 @@ model ServiceWarrantyClaim {
   // Status values: pending, accepted, under_inspection, diagnosed, approved, rejected, job_order_created, completed, cancelled
 
   // Resolution tracking
-  resolvedAt DateTime? @map("resolved_at")
-  resolutionNotes String? @map("resolution_notes") @db.Text
+  resolvedAt      DateTime? @map("resolved_at")
+  resolutionNotes String?   @map("resolution_notes") @db.Text
 
   // Created by
-  createdBy Int  @map("created_by")
+  createdBy     Int  @map("created_by")
   createdByUser User @relation("ServiceClaimCreatedBy", fields: [createdBy], references: [id], onDelete: Restrict)
 
   // Timestamps
@@ -4415,8 +4415,8 @@ model ServiceWarrantyClaim {
 // ============================================
 
 model RepairJobOrder {
-  id         Int @id @default(autoincrement())
-  businessId Int @map("business_id")
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
   business   Business @relation("BusinessRepairJobOrders", fields: [businessId], references: [id], onDelete: Cascade)
 
   locationId Int              @map("location_id")
@@ -4431,7 +4431,7 @@ model RepairJobOrder {
   warrantyClaim   ServiceWarrantyClaim? @relation(fields: [warrantyClaimId], references: [id], onDelete: SetNull)
 
   // Service type
-  serviceTypeId Int                @map("service_type_id")
+  serviceTypeId Int               @map("service_type_id")
   serviceType   RepairServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
 
   // Product being repaired
@@ -4454,8 +4454,8 @@ model RepairJobOrder {
   repairNotes        String? @map("repair_notes") @db.Text
 
   // Technician assignment
-  technicianId Int?                         @map("technician_id")
-  technician   TechnicalServiceEmployee?    @relation("JobOrderTechnician", fields: [technicianId], references: [id], onDelete: SetNull)
+  technicianId Int?                      @map("technician_id")
+  technician   TechnicalServiceEmployee? @relation("JobOrderTechnician", fields: [technicianId], references: [id], onDelete: SetNull)
 
   // Work tracking dates
   scheduledStartDate DateTime? @map("scheduled_start_date") @db.Date
@@ -4475,9 +4475,9 @@ model RepairJobOrder {
   totalCost         Decimal @default(0) @map("total_cost") @db.Decimal(22, 4)
 
   // Payment tracking
-  isPaid      Boolean  @default(false) @map("is_paid")
-  paidAmount  Decimal  @default(0) @map("paid_amount") @db.Decimal(22, 4)
-  balanceDue  Decimal  @default(0) @map("balance_due") @db.Decimal(22, 4)
+  isPaid         Boolean   @default(false) @map("is_paid")
+  paidAmount     Decimal   @default(0) @map("paid_amount") @db.Decimal(22, 4)
+  balanceDue     Decimal   @default(0) @map("balance_due") @db.Decimal(22, 4)
   paymentDueDate DateTime? @map("payment_due_date") @db.Date
 
   // Status tracking
@@ -4485,8 +4485,8 @@ model RepairJobOrder {
   // Status values: pending, in_progress, parts_ordered, awaiting_parts, completed, cancelled, on_hold, customer_approved, ready_for_pickup
 
   // Quality assurance
-  qualityCheckStatus String?  @default("pending") @map("quality_check_status") @db.VarChar(50) // pending, passed, failed
-  qualityCheckNotes  String?  @map("quality_check_notes") @db.Text
+  qualityCheckStatus String?   @default("pending") @map("quality_check_status") @db.VarChar(50) // pending, passed, failed
+  qualityCheckNotes  String?   @map("quality_check_notes") @db.Text
   qualityCheckedAt   DateTime? @map("quality_checked_at")
 
   // Customer notification
@@ -4498,8 +4498,8 @@ model RepairJobOrder {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
-  jobOrderParts    RepairJobOrderPart[]
-  repairPayments   ServiceRepairPayment[]
+  jobOrderParts  RepairJobOrderPart[]
+  repairPayments ServiceRepairPayment[]
 
   @@unique([businessId, jobOrderNumber])
   @@index([businessId])
@@ -4525,8 +4525,8 @@ model RepairJobOrderPart {
   businessId Int @map("business_id")
 
   // Link to job order
-  jobOrderId   Int            @map("job_order_id")
-  jobOrder     RepairJobOrder @relation(fields: [jobOrderId], references: [id], onDelete: Cascade)
+  jobOrderId Int            @map("job_order_id")
+  jobOrder   RepairJobOrder @relation(fields: [jobOrderId], references: [id], onDelete: Cascade)
 
   // Part details
   productId          Int              @map("product_id")
@@ -4535,9 +4535,9 @@ model RepairJobOrderPart {
   productVariation   ProductVariation @relation("VariationJobOrderParts", fields: [productVariationId], references: [id], onDelete: Restrict)
 
   // Quantity and pricing
-  quantity   Decimal @map("quantity") @db.Decimal(22, 4)
-  unitPrice  Decimal @map("unit_price") @db.Decimal(22, 4)
-  subtotal   Decimal @map("subtotal") @db.Decimal(22, 4)
+  quantity  Decimal @map("quantity") @db.Decimal(22, 4)
+  unitPrice Decimal @map("unit_price") @db.Decimal(22, 4)
+  subtotal  Decimal @map("subtotal") @db.Decimal(22, 4)
 
   // Additional info
   serialNumber String? @map("serial_number") @db.VarChar(191)
@@ -4559,16 +4559,16 @@ model RepairJobOrderPart {
 // ============================================
 
 model ServiceRepairPayment {
-  id         Int @id @default(autoincrement())
-  businessId Int @map("business_id")
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
   business   Business @relation("BusinessServiceRepairPayments", fields: [businessId], references: [id], onDelete: Cascade)
 
   locationId Int              @map("location_id")
   location   BusinessLocation @relation("LocationServiceRepairPayments", fields: [locationId], references: [id], onDelete: Restrict)
 
   // Link to job order
-  jobOrderId   Int            @map("job_order_id")
-  jobOrder     RepairJobOrder @relation(fields: [jobOrderId], references: [id], onDelete: Cascade)
+  jobOrderId Int            @map("job_order_id")
+  jobOrder   RepairJobOrder @relation(fields: [jobOrderId], references: [id], onDelete: Cascade)
 
   // Link to customer (optional)
   customerId Int?      @map("customer_id")
@@ -4580,7 +4580,7 @@ model ServiceRepairPayment {
   amount        Decimal  @map("amount") @db.Decimal(22, 4)
 
   // Payment method
-  paymentMethod String  @map("payment_method") @db.VarChar(50) // cash, card, bank_transfer, cheque, other
+  paymentMethod   String  @map("payment_method") @db.VarChar(50) // cash, card, bank_transfer, cheque, other
   referenceNumber String? @map("reference_number") @db.VarChar(100) // For card/bank transfers
   chequeNumber    String? @map("cheque_number") @db.VarChar(100)
   bankName        String? @map("bank_name") @db.VarChar(255)

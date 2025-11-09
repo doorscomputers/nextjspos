@@ -45,7 +45,7 @@ export default function MyReceivedTransfersReport() {
   const [products, setProducts] = useState<any[]>([])
   const [productSearch, setProductSearch] = useState('')
   const [productLoading, setProductLoading] = useState(false)
-  const [showPivotView, setShowPivotView] = useState(true)
+  const [showPivotView, setShowPivotView] = useState(false) // Default to Detailed View
 
   const [myLocation, setMyLocation] = useState<{ id: number; name: string } | null>(null)
 
