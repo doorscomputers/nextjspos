@@ -1253,19 +1253,11 @@ export default function TransferDetailPage() {
                             <CheckIcon className="w-3 h-3 mr-1" />
                             Verified
                           </Badge>
-                          {/* Show Edit button for verified items (if not completed yet) */}
-                          {transfer.status !== 'completed' && can(PERMISSIONS.STOCK_TRANSFER_VERIFY) && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleUnverifyItemClick(item.id)}
-                              disabled={actionLoading}
-                              className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border-yellow-300"
-                            >
-                              <PencilIcon className="w-3 h-3 mr-1" />
-                              Edit
-                            </Button>
-                          )}
+                          {/* SECURITY: Edit button HIDDEN to prevent theft
+                              - Users could unverify, change quantity to lower amount, re-verify
+                              - Example: Verify 10 units, edit, change to 5, steal 5 units
+                              - Once verified, quantity is LOCKED until transfer completion
+                          */}
                         </>
                       )}
                     </div>
@@ -1296,58 +1288,37 @@ export default function TransferDetailPage() {
                           <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">Quantity Sent</div>
                           <div className="text-xl font-bold text-gray-900 dark:text-gray-100">{item.quantity}</div>
                         </div>
-                        <div className="bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
-                          <div className="text-gray-500 dark:text-gray-400 text-xs mb-1">Quantity Received</div>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={verificationQuantities[item.id] !== undefined ? verificationQuantities[item.id] : item.quantity}
-                            onChange={(e) => {
-                              const received = parseFloat(e.target.value) || 0
-                              setVerificationQuantities({
-                                ...verificationQuantities,
-                                [item.id]: received
-                              })
-                            }}
-                            className="w-full text-xl font-bold px-2 py-1 border-2 border-blue-500 rounded focus:ring-2 focus:ring-blue-600 dark:bg-gray-700 dark:text-white"
-                          />
+                        <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded border-2 border-green-400 dark:border-green-600">
+                          <div className="text-green-700 dark:text-green-300 text-xs mb-1 font-semibold">
+                            ✓ Quantity To Verify (Locked)
+                          </div>
+                          <div className="text-xl font-bold text-green-900 dark:text-green-100">
+                            {item.quantity}
+                          </div>
+                          <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+                            Full quantity will be verified
+                          </div>
                         </div>
                       </div>
 
-                      {/* Warning for discrepancies */}
-                      {verificationQuantities[item.id] !== undefined &&
-                        verificationQuantities[item.id] !== parseFloat(item.quantity) && (
-                          <div className={`p-3 rounded-lg border-2 ${verificationQuantities[item.id] < parseFloat(item.quantity)
-                            ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700'
-                            : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700'
-                            }`}>
-                            <div className={`font-semibold mb-1 ${verificationQuantities[item.id] < parseFloat(item.quantity)
-                              ? 'text-red-900 dark:text-red-200'
-                              : 'text-yellow-900 dark:text-yellow-200'
-                              }`}>
-                              ⚠️ Quantity Discrepancy Detected
-                            </div>
-                            <div className={`text-sm ${verificationQuantities[item.id] < parseFloat(item.quantity)
-                              ? 'text-red-800 dark:text-red-300'
-                              : 'text-yellow-800 dark:text-yellow-300'
-                              }`}>
-                              {verificationQuantities[item.id] < parseFloat(item.quantity) ? (
-                                <>
-                                  <strong>Missing items:</strong> {parseFloat(item.quantity) - verificationQuantities[item.id]} units short
-                                  <br />
-                                  <strong>Action Required:</strong> Investigate shortage before accepting
-                                </>
-                              ) : (
-                                <>
-                                  <strong>Extra items received:</strong> {verificationQuantities[item.id] - parseFloat(item.quantity)} units over
-                                  <br />
-                                  <strong>Unusual:</strong> Verify this is correct - receiving more than sent?
-                                </>
-                              )}
-                            </div>
+                      {/* SECURITY: Quantity input REMOVED to prevent theft
+                          - Users were able to change received quantity to lower amount
+                          - Example: Sent 10, verify as 5, steal 5 units
+                          - Now users must verify FULL quantity or reject entire transfer
+                      */}
+
+                      {/* SECURITY WARNING */}
+                      <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-400 dark:border-amber-600 rounded-lg p-3">
+                        <div className="flex items-start gap-2">
+                          <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                          </svg>
+                          <div className="text-sm text-amber-900 dark:text-amber-200">
+                            <div className="font-bold mb-1">⚠️ Security Notice</div>
+                            <p>You must verify the <strong>FULL quantity of {item.quantity} units</strong>. If any items are missing or damaged, reject the entire transfer and contact the sender.</p>
                           </div>
-                        )}
+                        </div>
+                      </div>
 
                       <Button
                         onClick={() => handleVerifyItem(item.id)}
@@ -1356,11 +1327,11 @@ export default function TransferDetailPage() {
                         size="lg"
                       >
                         <CheckCircleIcon className="w-6 h-6 mr-2" />
-                        ✓ Verify &amp; Confirm Quantity
+                        ✓ Verify Full Quantity ({item.quantity} units)
                       </Button>
 
-                      <p className="text-xs text-gray-600 dark:text-gray-400 text-center">
-                        Click verify only after physically counting the items
+                      <p className="text-xs text-gray-600 dark:text-gray-400 text-center font-semibold">
+                        🔒 Quantity locked - verify only after physically counting ALL items
                       </p>
                     </div>
                   )}
