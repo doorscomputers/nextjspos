@@ -147,19 +147,106 @@ export default function POSUnitSelector({
   }
 
   if (loading) {
-    return <div className="text-xs text-gray-500">Loading units...</div>
+    return <div className="text-xs text-gray-500 p-3">Loading units...</div>
   }
 
   if (units.length === 0) {
-    return null
-  }
-
-  // If only primary unit, don't show selector
-  if (units.length === 1) {
-    return null
+    return <div className="text-xs text-red-500 p-3">No units found for this product</div>
   }
 
   const selectedUnit = units.find(u => u.id === selectedUnitId)
+
+  // If only primary unit exists, show simplified quantity-only selector
+  if (units.length === 1) {
+    const primaryUnit = units[0]
+
+    return (
+      <div className="space-y-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-md">
+        <Label className="text-xs font-semibold text-blue-900 dark:text-blue-200">
+          📦 Enter Quantity
+        </Label>
+
+        <div>
+          <Label className="text-xs text-gray-600 dark:text-gray-400">
+            Quantity ({primaryUnit.name})
+          </Label>
+          <Input
+            type="number"
+            value={displayQuantity}
+            onChange={(e) => handleQuantityChange(e.target.value)}
+            step={primaryUnit.allowDecimal ? '0.01' : '1'}
+            min="0"
+            className="h-10 text-base font-semibold"
+            placeholder="1"
+            autoFocus
+          />
+        </div>
+
+        <div className="text-xs text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 p-2 rounded border">
+          <div className="flex justify-between">
+            <span>Unit Price:</span>
+            <span className="font-semibold">
+              ₱{baseUnitPrice.toFixed(2)} / {primaryUnit.name}
+            </span>
+          </div>
+          <div className="flex justify-between mt-1">
+            <span>Available Stock:</span>
+            <span className="font-semibold text-green-600 dark:text-green-400">
+              {formatQuantity(availableStock, primaryUnit)} {primaryUnit.name}
+            </span>
+          </div>
+          {displayQuantity && (
+            <div className="flex justify-between mt-1 pt-1 border-t">
+              <span className="font-semibold">Total:</span>
+              <span className="font-bold text-blue-600 dark:text-blue-400">
+                ₱{(parseFloat(displayQuantity || '0') * baseUnitPrice).toFixed(2)}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {error && (
+          <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded border border-red-300 dark:border-red-700">
+            {error}
+          </div>
+        )}
+
+        <Button
+          size="sm"
+          onClick={() => {
+            const qty = parseFloat(displayQuantity)
+            if (isNaN(qty) || qty <= 0) {
+              setError('Please enter a valid quantity')
+              return
+            }
+
+            if (!isValidQuantity(qty, primaryUnit)) {
+              setError(`${primaryUnit.name} does not allow decimal quantities`)
+              return
+            }
+
+            if (qty > availableStock) {
+              setError(`Insufficient stock! Only ${formatQuantity(availableStock, primaryUnit)} ${primaryUnit.name} available`)
+              return
+            }
+
+            onUnitChange({
+              selectedUnitId: primaryUnit.id,
+              displayQuantity: qty,
+              baseQuantity: qty,
+              unitPrice: baseUnitPrice,
+              unitName: primaryUnit.name,
+            })
+
+            setError('')
+          }}
+          className="w-full h-9 text-sm bg-green-600 hover:bg-green-700 text-white font-semibold"
+        >
+          ✓ Apply Quantity
+        </Button>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-md">
