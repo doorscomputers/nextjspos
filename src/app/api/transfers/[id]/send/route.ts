@@ -191,6 +191,9 @@ export async function POST(
       })
 
       return updatedTransfer
+    }, {
+      timeout: 120000, // 2 minutes timeout for slow internet connections
+      maxWait: 10000,  // Wait up to 10 seconds to acquire transaction lock
     })
 
     // TRANSACTION IMPACT TRACKING: Step 2 - Capture inventory AFTER and generate report

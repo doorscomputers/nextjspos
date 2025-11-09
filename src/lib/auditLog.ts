@@ -1,4 +1,7 @@
 import { prisma } from './prisma'
+import { Prisma } from '@prisma/client'
+
+type TransactionClient = Prisma.TransactionClient
 
 export enum AuditAction {
   BULK_DELETE = 'bulk_delete',
@@ -83,14 +86,24 @@ interface AuditLogParams {
   passwordVerified?: boolean
   ipAddress?: string
   userAgent?: string
+  tx?: TransactionClient  // CRITICAL: Transaction client for atomicity
 }
 
 /**
  * Create an audit log entry
+ * CRITICAL: Now supports transaction client to ensure atomic operations
+ * When called with tx parameter, audit log becomes part of the transaction
+ * If transaction rolls back, audit log is also rolled back (proper all-or-nothing behavior)
  */
 export async function createAuditLog(params: AuditLogParams) {
+  const client = params.tx ?? prisma  // Use transaction client if provided
+
+  // CRITICAL: When inside a transaction (tx provided), errors should propagate to rollback
+  // When outside transaction, we catch errors to prevent breaking the main operation
+  const shouldPropagateErrors = !!params.tx
+
   try {
-    const auditLog = await prisma.auditLog.create({
+    const auditLog = await client.auditLog.create({
       data: {
         businessId: params.businessId,
         userId: params.userId,
@@ -110,7 +123,13 @@ export async function createAuditLog(params: AuditLogParams) {
     return auditLog
   } catch (error) {
     console.error('Error creating audit log:', error)
-    // Don't throw - audit logging should not break the main operation
+
+    // CRITICAL: If inside transaction, throw error to trigger rollback
+    if (shouldPropagateErrors) {
+      throw error
+    }
+
+    // Outside transaction, don't break the operation
     return null
   }
 }

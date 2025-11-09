@@ -17,7 +17,10 @@
  */
 
 import { prisma } from './prisma'
-import { getAccountByCode } from './chartOfAccounts'
+import { Prisma } from '@prisma/client'
+import { getAccountByCode, batchGetAccountsByCodes } from './chartOfAccounts'
+
+type TransactionClient = Prisma.TransactionClient
 
 /**
  * Create journal entry for a CASH SALE
@@ -36,21 +39,24 @@ export async function recordCashSale(params: {
   totalAmount: number
   costOfGoodsSold: number
   invoiceNumber: string
+  tx?: TransactionClient  // CRITICAL: Transaction client for atomicity
 }) {
-  const { businessId, userId, saleId, saleDate, totalAmount, costOfGoodsSold, invoiceNumber } = params
+  const { businessId, userId, saleId, saleDate, totalAmount, costOfGoodsSold, invoiceNumber, tx } = params
+  const client = tx ?? prisma  // Use transaction client if provided, otherwise global client
 
-  // Get accounts
-  const cashAccount = await getAccountByCode(businessId, '1000') // Cash
-  const revenueAccount = await getAccountByCode(businessId, '4000') // Sales Revenue
-  const cogsAccount = await getAccountByCode(businessId, '5000') // COGS
-  const inventoryAccount = await getAccountByCode(businessId, '1200') // Inventory
+  // PERFORMANCE: Batch get all accounts in a single query (was 4 sequential queries)
+  const accountsMap = await batchGetAccountsByCodes(businessId, ['1000', '4000', '5000', '1200'], tx)
+  const cashAccount = accountsMap.get('1000') // Cash
+  const revenueAccount = accountsMap.get('4000') // Sales Revenue
+  const cogsAccount = accountsMap.get('5000') // COGS
+  const inventoryAccount = accountsMap.get('1200') // Inventory
 
   if (!cashAccount || !revenueAccount || !cogsAccount || !inventoryAccount) {
     throw new Error('Required accounts not found. Please initialize Chart of Accounts first.')
   }
 
   // Create journal entry
-  const entry = await prisma.journalEntry.create({
+  const entry = await client.journalEntry.create({
     data: {
       businessId,
       entryDate: saleDate,
@@ -97,11 +103,11 @@ export async function recordCashSale(params: {
     include: { lines: true }
   })
 
-  // Update account balances
-  await updateAccountBalance(cashAccount.id, totalAmount, 0) // Cash increases
-  await updateAccountBalance(revenueAccount.id, 0, totalAmount) // Revenue increases
-  await updateAccountBalance(cogsAccount.id, costOfGoodsSold, 0) // COGS increases
-  await updateAccountBalance(inventoryAccount.id, 0, costOfGoodsSold) // Inventory decreases
+  // Update account balances (PERFORMANCE: Pass account object, not just ID)
+  await updateAccountBalance(cashAccount, totalAmount, 0, client) // Cash increases
+  await updateAccountBalance(revenueAccount, 0, totalAmount, client) // Revenue increases
+  await updateAccountBalance(cogsAccount, costOfGoodsSold, 0, client) // COGS increases
+  await updateAccountBalance(inventoryAccount, 0, costOfGoodsSold, client) // Inventory decreases
 
   return entry
 }
@@ -128,21 +134,24 @@ export async function recordCreditSale(params: {
   costOfGoodsSold: number
   invoiceNumber: string
   customerId?: number
+  tx?: TransactionClient  // CRITICAL: Transaction client for atomicity
 }) {
-  const { businessId, userId, saleId, saleDate, totalAmount, costOfGoodsSold, invoiceNumber } = params
+  const { businessId, userId, saleId, saleDate, totalAmount, costOfGoodsSold, invoiceNumber, tx } = params
+  const client = tx ?? prisma  // Use transaction client if provided, otherwise global client
 
-  // Get accounts
-  const arAccount = await getAccountByCode(businessId, '1100') // Accounts Receivable
-  const revenueAccount = await getAccountByCode(businessId, '4000') // Sales Revenue
-  const cogsAccount = await getAccountByCode(businessId, '5000') // COGS
-  const inventoryAccount = await getAccountByCode(businessId, '1200') // Inventory
+  // PERFORMANCE: Batch get all accounts in a single query (was 4 sequential queries)
+  const accountsMap = await batchGetAccountsByCodes(businessId, ['1100', '4000', '5000', '1200'], tx)
+  const arAccount = accountsMap.get('1100') // Accounts Receivable
+  const revenueAccount = accountsMap.get('4000') // Sales Revenue
+  const cogsAccount = accountsMap.get('5000') // COGS
+  const inventoryAccount = accountsMap.get('1200') // Inventory
 
   if (!arAccount || !revenueAccount || !cogsAccount || !inventoryAccount) {
     throw new Error('Required accounts not found. Please initialize Chart of Accounts first.')
   }
 
   // Create journal entry
-  const entry = await prisma.journalEntry.create({
+  const entry = await client.journalEntry.create({
     data: {
       businessId,
       entryDate: saleDate,
@@ -189,11 +198,11 @@ export async function recordCreditSale(params: {
     include: { lines: true }
   })
 
-  // Update account balances
-  await updateAccountBalance(arAccount.id, totalAmount, 0) // AR increases
-  await updateAccountBalance(revenueAccount.id, 0, totalAmount) // Revenue increases
-  await updateAccountBalance(cogsAccount.id, costOfGoodsSold, 0) // COGS increases
-  await updateAccountBalance(inventoryAccount.id, 0, costOfGoodsSold) // Inventory decreases
+  // Update account balances (PERFORMANCE: Pass account object, not just ID)
+  await updateAccountBalance(arAccount, totalAmount, 0, client) // AR increases
+  await updateAccountBalance(revenueAccount, 0, totalAmount, client) // Revenue increases
+  await updateAccountBalance(cogsAccount, costOfGoodsSold, 0, client) // COGS increases
+  await updateAccountBalance(inventoryAccount, 0, costOfGoodsSold, client) // Inventory decreases
 
   return entry
 }
@@ -411,14 +420,15 @@ export async function recordSupplierPayment(params: {
 
 /**
  * Helper function to update account balances
+ * PERFORMANCE: Accepts account object to avoid extra fetch (optimized version)
+ * CRITICAL: Accepts transaction client for atomicity
  */
-async function updateAccountBalance(accountId: number, debitAmount: number, creditAmount: number) {
-  const account = await prisma.chartOfAccounts.findUnique({
-    where: { id: accountId }
-  })
-
-  if (!account) return
-
+async function updateAccountBalance(
+  account: { id: number; normalBalance: string },
+  debitAmount: number,
+  creditAmount: number,
+  client: any = prisma  // Transaction client or global prisma client
+) {
   // Calculate balance change based on account type
   let balanceChange = 0
   if (account.normalBalance === 'debit') {
@@ -429,9 +439,10 @@ async function updateAccountBalance(accountId: number, debitAmount: number, cred
     balanceChange = creditAmount - debitAmount
   }
 
-  // Update account
-  await prisma.chartOfAccounts.update({
-    where: { id: accountId },
+  // PERFORMANCE: Atomic update without prior fetch (saves 1 query per account)
+  // CRITICAL: Uses transaction client for atomicity
+  await client.chartOfAccounts.update({
+    where: { id: account.id },
     data: {
       currentBalance: { increment: balanceChange },
       ytdDebit: { increment: debitAmount },

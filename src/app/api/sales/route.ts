@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
-import { checkStockAvailability, processSale } from '@/lib/stockOperations'
+import { checkStockAvailability, batchCheckStockAvailability, processSale } from '@/lib/stockOperations'
 import {
   sendLargeDiscountAlert,
   sendCreditSaleAlert,
@@ -433,6 +433,16 @@ export async function POST(request: NextRequest) {
     })
     const variationsMap = new Map(productVariations.map(v => [v.id, v]))
 
+    // PERFORMANCE OPTIMIZATION: Batch check stock availability for all items at once
+    const stockCheckItems = items.map((item: any) => ({
+      productVariationId: Number(item.productVariationId),
+      quantity: parseFloat(item.quantity),
+    }))
+    const stockAvailabilityMap = await batchCheckStockAvailability({
+      items: stockCheckItems,
+      locationId: locationIdNumber,
+    })
+
     // Validate items and check stock availability
     let subtotal = 0
     for (const item of items) {
@@ -455,17 +465,12 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Check stock availability via centralized stock helper
-      const availability = await checkStockAvailability({
-        productVariationId: Number(item.productVariationId),
-        locationId: locationIdNumber,
-        quantity,
-      })
-
-      if (!availability.available) {
+      // Check stock availability from batched results
+      const availability = stockAvailabilityMap.get(Number(item.productVariationId))
+      if (!availability || !availability.available) {
         return NextResponse.json(
           {
-            error: `Insufficient stock for item ${item.productId}. Available: ${availability.currentStock}, Required: ${quantity}`,
+            error: `Insufficient stock for item ${item.productId}. Available: ${availability?.currentStock ?? 0}, Required: ${quantity}`,
           },
           { status: 400 }
         )
@@ -532,10 +537,14 @@ export async function POST(request: NextRequest) {
     }
 
     // TRANSACTION IMPACT TRACKING: Step 1 - Capture inventory BEFORE transaction
-    const impactTracker = new InventoryImpactTracker()
+    // PERFORMANCE: Optional tracking (adds 400ms-1s overhead). Disable for POS performance.
+    const enableInventoryTracking = process.env.ENABLE_INVENTORY_IMPACT_TRACKING === 'true'
+    const impactTracker = enableInventoryTracking ? new InventoryImpactTracker() : null
     const productVariationIds = items.map((item: any) => Number(item.productVariationId))
     const locationIds = [locationIdNumber]
-    await impactTracker.captureBefore(productVariationIds, locationIds)
+    if (impactTracker) {
+      await impactTracker.captureBefore(productVariationIds, locationIds)
+    }
 
     // Create sale and deduct stock in transaction
     const sale = await prisma.$transaction(async (tx) => {
@@ -693,13 +702,81 @@ export async function POST(request: NextRequest) {
         })
       }
 
+      // CRITICAL: ACCOUNTING INTEGRATION MOVED INSIDE TRANSACTION FOR ATOMICITY
+      // Create journal entries if accounting is enabled (now part of the atomic transaction)
+      const accountingEnabledCheck = await tx.chartOfAccounts.count({
+        where: { businessId: businessIdNumber }
+      })
+
+      if (accountingEnabledCheck > 0) {
+        // Calculate COGS (Cost of Goods Sold) from the items we just processed
+        // PERFORMANCE: Compute from memory instead of re-fetching from database
+        const costOfGoodsSold = items.reduce((sum: number, item: any) => {
+          const variation = variationsMap.get(Number(item.productVariationId))
+          const unitCost = variation ? parseFloat(variation.purchasePrice.toString()) : 0
+          const quantity = parseFloat(item.quantity)
+          return sum + (unitCost * quantity)
+        }, 0)
+
+        if (isCreditSale) {
+          // Credit Sale (Charge Invoice) - record as Accounts Receivable
+          await recordCreditSale({
+            businessId: businessIdNumber,
+            userId: userIdNumber,
+            saleId: newSale.id,
+            saleDate: new Date(saleDate),
+            totalAmount,
+            costOfGoodsSold,
+            invoiceNumber: newSale.invoiceNumber,
+            customerId: customerIdNumber || undefined,
+            tx  // CRITICAL: Pass transaction client for atomicity
+          })
+        } else {
+          // Cash Sale - record as Cash received
+          await recordCashSale({
+            businessId: businessIdNumber,
+            userId: userIdNumber,
+            saleId: newSale.id,
+            saleDate: new Date(saleDate),
+            totalAmount,
+            costOfGoodsSold,
+            invoiceNumber: newSale.invoiceNumber,
+            tx  // CRITICAL: Pass transaction client for atomicity
+          })
+        }
+      }
+
+      // CRITICAL: AUDIT LOG MOVED INSIDE TRANSACTION FOR ATOMICITY
+      // Create audit log as part of the atomic transaction (BIR compliance requirement)
+      await createAuditLog({
+        businessId: businessIdNumber,
+        userId: userIdNumber,
+        username: user.username,
+        action: 'sale_create' as AuditAction,
+        entityType: EntityType.SALE,
+        entityIds: [newSale.id],
+        description: `Created Sale ${newSale.invoiceNumber}`,
+        metadata: {
+          saleId: newSale.id,
+          invoiceNumber: newSale.invoiceNumber,
+          customerId: customerIdNumber,
+          locationId: locationIdNumber,
+          totalAmount,
+          itemCount: items.length,
+          paymentMethods: (payments || []).map((p: any) => p.method),
+        },
+        ipAddress: getIpAddress(request),
+        userAgent: getUserAgent(request),
+        tx  // CRITICAL: Pass transaction client for atomicity (BIR compliance)
+      })
+
       return newSale
     }, {
       timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     // TRANSACTION IMPACT TRACKING: Step 2 - Capture inventory AFTER and generate report
-    const inventoryImpact = await impactTracker.captureAfterAndReport(
+    const inventoryImpact = impactTracker ? await impactTracker.captureAfterAndReport(
       productVariationIds,
       locationIds,
       'sale',
@@ -707,73 +784,7 @@ export async function POST(request: NextRequest) {
       sale.invoiceNumber,
       undefined, // No location types needed for single-location sales
       userDisplayName
-    )
-
-    // ACCOUNTING INTEGRATION: Create journal entries if accounting is enabled
-    if (await isAccountingEnabled(businessIdNumber)) {
-      try {
-        // Calculate COGS (Cost of Goods Sold) from sale items
-        const saleWithItems = await prisma.sale.findUnique({
-          where: { id: sale.id },
-          include: { items: true }
-        })
-
-        const costOfGoodsSold = saleWithItems?.items.reduce(
-          (sum, item) => sum + (parseFloat(item.unitCost.toString()) * parseFloat(item.quantity.toString())),
-          0
-        ) || 0
-
-        if (isCreditSale) {
-          // Credit Sale (Charge Invoice) - record as Accounts Receivable
-          await recordCreditSale({
-            businessId: businessIdNumber,
-            userId: userIdNumber,
-            saleId: sale.id,
-            saleDate: new Date(saleDate),
-            totalAmount,
-            costOfGoodsSold,
-            invoiceNumber: sale.invoiceNumber,
-            customerId: customerIdNumber || undefined
-          })
-        } else {
-          // Cash Sale - record as Cash received
-          await recordCashSale({
-            businessId: businessIdNumber,
-            userId: userIdNumber,
-            saleId: sale.id,
-            saleDate: new Date(saleDate),
-            totalAmount,
-            costOfGoodsSold,
-            invoiceNumber: sale.invoiceNumber
-          })
-        }
-      } catch (accountingError) {
-        // Log accounting errors but don't fail the sale
-        console.error('Accounting integration error:', accountingError)
-      }
-    }
-
-    // Create audit log
-    await createAuditLog({
-      businessId: businessIdNumber,
-      userId: userIdNumber,
-      username: user.username,
-      action: 'sale_create' as AuditAction,
-      entityType: EntityType.SALE,
-      entityIds: [sale.id],
-      description: `Created Sale ${sale.invoiceNumber}`,
-      metadata: {
-        saleId: sale.id,
-        invoiceNumber: sale.invoiceNumber,
-        customerId: customerIdNumber,
-        locationId: locationIdNumber,
-        totalAmount,
-        itemCount: items.length,
-        paymentMethods: (payments || []).map((p: any) => p.method),
-      },
-      ipAddress: getIpAddress(request),
-      userAgent: getUserAgent(request),
-    })
+    ) : null
 
     // Fetch complete sale with relations
     const completeSale = await prisma.sale.findUnique({

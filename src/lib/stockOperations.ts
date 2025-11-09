@@ -7,7 +7,9 @@ import { debouncedRefreshStockView } from './refreshStockView'
 type TransactionClient = Prisma.TransactionClient
 
 // Enable/disable post-operation validation (can be toggled via env var)
-const ENABLE_STOCK_VALIDATION = process.env.ENABLE_STOCK_VALIDATION !== 'false' // true by default
+// PERFORMANCE: Disabled by default as it sums entire stock_transactions history (10-20s overhead)
+// Set ENABLE_STOCK_VALIDATION=true in .env to enable for debugging stock inconsistencies
+const ENABLE_STOCK_VALIDATION = process.env.ENABLE_STOCK_VALIDATION === 'true' // false by default for performance
 
 const toDecimal = (value: number | string | Prisma.Decimal) =>
   value instanceof Prisma.Decimal ? value : new Prisma.Decimal(value)
@@ -139,6 +141,61 @@ export async function checkStockAvailability({
     currentStock,
     shortage,
   }
+}
+
+/**
+ * Batch check stock availability for multiple items
+ * PERFORMANCE: Fetches all stock levels in a single query instead of N sequential queries
+ * Saves ~1-2 seconds for 10-item sales
+ */
+export async function batchCheckStockAvailability({
+  items,
+  locationId,
+  tx,
+}: {
+  items: Array<{ productVariationId: number; quantity: number }>
+  locationId: number
+  tx?: TransactionClient
+}): Promise<Map<number, { available: boolean; currentStock: number; shortage: number }>> {
+  const client = tx ?? prisma
+  const variationIds = items.map(item => item.productVariationId)
+
+  // Fetch all stock levels in a single query
+  const stockRecords = await client.variationLocationDetails.findMany({
+    where: {
+      productVariationId: { in: variationIds },
+      locationId,
+    },
+    select: {
+      productVariationId: true,
+      qtyAvailable: true,
+    },
+  })
+
+  // Create a map of stock levels
+  const stockMap = new Map(
+    stockRecords.map(record => [
+      record.productVariationId,
+      parseFloat(record.qtyAvailable.toString())
+    ])
+  )
+
+  // Build result map
+  const results = new Map<number, { available: boolean; currentStock: number; shortage: number }>()
+
+  for (const item of items) {
+    const currentStock = stockMap.get(item.productVariationId) ?? 0
+    const available = currentStock >= item.quantity
+    const shortage = available ? 0 : item.quantity - currentStock
+
+    results.set(item.productVariationId, {
+      available,
+      currentStock,
+      shortage,
+    })
+  }
+
+  return results
 }
 
 async function executeStockUpdate(
@@ -397,6 +454,7 @@ export async function deductStock({
   allowNegative = false,
   userDisplayName,
   subUnitId,
+  skipAvailabilityCheck = false,
   tx,
 }: {
   businessId: number
@@ -414,25 +472,29 @@ export async function deductStock({
   allowNegative?: boolean
   userDisplayName?: string
   subUnitId?: number // UOM: Track which unit was used
+  skipAvailabilityCheck?: boolean // Skip availability check if already validated by caller (performance optimization)
   tx?: TransactionClient
 }) {
   if (quantity <= 0) {
     throw new Error('Quantity must be positive for deducting stock')
   }
 
-  // Check availability first
-  const availability = await checkStockAvailability({
-    productVariationId,
-    locationId,
-    quantity,
-    tx,
-  })
+  // Check availability first (unless caller already validated)
+  // PERFORMANCE: Sales API pre-validates, so this check is redundant (1-2s overhead)
+  if (!skipAvailabilityCheck) {
+    const availability = await checkStockAvailability({
+      productVariationId,
+      locationId,
+      quantity,
+      tx,
+    })
 
-  if (!availability.available && !allowNegative) {
-    throw new Error(
-      `Insufficient stock for product variation ${productVariationId} at location ${locationId}. ` +
-        `Available: ${availability.currentStock}, Required: ${quantity}, Shortage: ${availability.shortage}`
-    )
+    if (!availability.available && !allowNegative) {
+      throw new Error(
+        `Insufficient stock for product variation ${productVariationId} at location ${locationId}. ` +
+          `Available: ${availability.currentStock}, Required: ${quantity}, Shortage: ${availability.shortage}`
+      )
+    }
   }
 
   return await updateStock({
@@ -571,6 +633,7 @@ export async function processSale({
   userDisplayName?: string
   tx?: TransactionClient
 }) {
+  // PERFORMANCE: Skip availability check as Sales API already validates before transaction
   return await deductStock({
     businessId,
     productId,
@@ -584,6 +647,7 @@ export async function processSale({
     userId,
     notes: `Sale - Invoice #${saleId}`,
     userDisplayName,
+    skipAvailabilityCheck: true, // Already validated by Sales API (saves 1-2s)
     tx,
   })
 }

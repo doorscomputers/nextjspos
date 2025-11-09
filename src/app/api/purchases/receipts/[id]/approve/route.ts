@@ -104,33 +104,6 @@ export async function POST(
       }
     }
 
-    // Check for duplicate serial numbers before approval
-    for (const item of receipt.items) {
-      const purchaseItem = receipt.purchase.items.find((pi) => pi.id === item.purchaseItemId)
-
-      if (purchaseItem?.requiresSerial && item.serialNumbers) {
-        const serialNumbersInReceipt = (item.serialNumbers as any[]).map((sn: any) => sn.serialNumber)
-
-        for (const serialNumber of serialNumbersInReceipt) {
-          const existing = await prisma.productSerialNumber.findUnique({
-            where: {
-              businessId_serialNumber: {
-                businessId: businessIdNumber,
-                serialNumber: serialNumber,
-              },
-            },
-          })
-
-          if (existing) {
-            return NextResponse.json(
-              { error: `Serial number ${serialNumber} already exists in the system` },
-              { status: 400 }
-            )
-          }
-        }
-      }
-    }
-
     // TRANSACTION IMPACT TRACKING: Step 1 - Capture inventory BEFORE transaction
     const impactTracker = new InventoryImpactTracker()
     const productVariationIds = receipt.items.map(item => item.productVariationId)
@@ -139,6 +112,33 @@ export async function POST(
 
     // Approve receipt and add inventory in transaction
     const updatedReceipt = await prisma.$transaction(async (tx) => {
+      // CRITICAL FIX: Check for duplicate serial numbers INSIDE transaction to prevent race conditions
+      // Collect all serial numbers first
+      const allSerialNumbers: string[] = []
+      for (const item of receipt.items) {
+        const purchaseItem = receipt.purchase.items.find((pi) => pi.id === item.purchaseItemId)
+        if (purchaseItem?.requiresSerial && item.serialNumbers) {
+          const serialsArray = (item.serialNumbers as any[]).map((sn: any) => sn.serialNumber)
+          allSerialNumbers.push(...serialsArray)
+        }
+      }
+
+      // Batch check for existing serials (single query instead of N queries)
+      if (allSerialNumbers.length > 0) {
+        const existingSerials = await tx.productSerialNumber.findMany({
+          where: {
+            businessId: businessIdNumber,
+            serialNumber: { in: allSerialNumbers }
+          },
+          select: { serialNumber: true }
+        })
+
+        if (existingSerials.length > 0) {
+          const duplicates = existingSerials.map(s => s.serialNumber).join(', ')
+          throw new Error(`Serial number(s) already exist in the system: ${duplicates}`)
+        }
+      }
+
       // Process each receipt item - add stock, serial numbers, update costs
       for (const item of receipt.items) {
         const purchaseItem = receipt.purchase.items.find((pi) => pi.id === item.purchaseItemId)
@@ -412,7 +412,8 @@ export async function POST(
 
       return approved
     }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
+      timeout: 120000, // 2 minutes timeout for slow internet connections
+      maxWait: 10000,  // Wait up to 10 seconds to acquire transaction lock
     })
 
     // TRANSACTION IMPACT TRACKING: Step 2 - Capture inventory AFTER and generate report

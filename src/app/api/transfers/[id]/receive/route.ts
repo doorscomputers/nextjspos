@@ -221,7 +221,8 @@ export async function POST(
           )
         }
 
-        // Verify all serial numbers are part of this transfer and in_transit
+        // Verify serial numbers are part of this transfer (basic validation)
+        // CRITICAL: Status validation moved INSIDE transaction to prevent race conditions
         for (const snId of receivedItem.serialNumberIds) {
           const snIdNumber = Number(snId)
           const snInTransfer = serialNumbersSent.find(
@@ -231,20 +232,6 @@ export async function POST(
           if (!snInTransfer) {
             return NextResponse.json(
               { error: `Serial number ${snId} not part of this transfer` },
-              { status: 400 }
-            )
-          }
-
-          const sn = await prisma.productSerialNumber.findFirst({
-            where: {
-              id: snIdNumber,
-              status: 'in_transit',
-            },
-          })
-
-          if (!sn) {
-            return NextResponse.json(
-              { error: `Serial number ${snId} is not in transit` },
               { status: 400 }
             )
           }
@@ -349,34 +336,47 @@ export async function POST(
 
         // STEP 3: Update serial numbers (if applicable)
         if (receivedItem.serialNumberIds && receivedItem.serialNumberIds.length > 0) {
-          for (const snId of receivedItem.serialNumberIds) {
-            // Update serial number status and location
-            const serialNumberRecord = await tx.productSerialNumber.update({
-              where: { id: Number(snId) },
-              data: {
-                status: 'in_stock', // Back to in_stock
-                currentLocationId: transfer.toLocationId, // NOW at destination
-              },
-            })
+          // CRITICAL FIX: Use optimistic locking to prevent double-receive
+          // Update with WHERE condition enforcing 'in_transit' status
+          const updateResult = await tx.productSerialNumber.updateMany({
+            where: {
+              id: { in: receivedItem.serialNumberIds.map(Number) },
+              status: 'in_transit', // CRITICAL: Only update if still in transit
+            },
+            data: {
+              status: 'in_stock', // Back to in_stock
+              currentLocationId: transfer.toLocationId, // NOW at destination
+            },
+          })
 
-            // Create movement record for transfer in
-            await tx.serialNumberMovement.create({
-              data: {
-                serialNumberId: serialNumberRecord.id, // CRITICAL: Use actual ID
-                movementType: 'transfer_in',
-                fromLocationId: transfer.fromLocationId,
-                toLocationId: transfer.toLocationId,
-                referenceType: 'transfer',
-                referenceId: transfer.id,
-                movedBy: userIdNumber,
-                notes: `Transfer ${transfer.transferNumber} received at ${transfer.toLocation.name}`,
-              },
-            })
+          // Verify all serials were updated (prevents partial receives)
+          if (updateResult.count !== receivedItem.serialNumberIds.length) {
+            throw new Error(
+              `Cannot receive transfer - some serial numbers are not in transit. ` +
+              `Expected: ${receivedItem.serialNumberIds.length}, ` +
+              `Updated: ${updateResult.count}. ` +
+              `This transfer may have already been received.`
+            )
           }
+
+          // Batch create movement records (faster than individual creates)
+          await tx.serialNumberMovement.createMany({
+            data: receivedItem.serialNumberIds.map(snId => ({
+              serialNumberId: Number(snId),
+              movementType: 'transfer_in',
+              fromLocationId: transfer.fromLocationId,
+              toLocationId: transfer.toLocationId,
+              referenceType: 'transfer',
+              referenceId: transfer.id,
+              movedBy: userIdNumber,
+              notes: `Transfer ${transfer.transferNumber} received at ${transfer.toLocation.name}`,
+            }))
+          })
         }
       }
     }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
+      timeout: 120000, // 2 minutes timeout for slow internet connections
+      maxWait: 10000,  // Wait up to 10 seconds to acquire transaction lock
     })
 
     // Create audit log
