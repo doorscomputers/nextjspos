@@ -623,12 +623,13 @@ export default function TransferDetailPage() {
     const status = transfer.status
 
     // Draft → Submit for Check
-    // CRITICAL SECURITY: Only show to users ASSIGNED to ORIGIN location (FROM location)
-    // Users at destination should NOT see this button
+    // CRITICAL WORKFLOW: Only show to users ASSIGNED to ORIGIN location (FROM location)
+    // Users at destination should NOT see this button - even with ACCESS_ALL_LOCATIONS
+    // This enforces workflow ownership: only the origin location can submit transfers
     if (status === 'draft' && can(PERMISSIONS.STOCK_TRANSFER_CREATE)) {
-      // Check if user's PRIMARY location matches the FROM location (origin/source)
-      // OR if user has access_all_locations permission (Cross-Location Approver)
-      const isAssignedToOrigin = primaryLocationId === transfer.fromLocationId || can(PERMISSIONS.ACCESS_ALL_LOCATIONS)
+      // CRITICAL FIX: Check ONLY if user's PRIMARY location matches the FROM location (origin/source)
+      // Do NOT show to users at TO location, even if they have ACCESS_ALL_LOCATIONS
+      const isAssignedToOrigin = primaryLocationId === transfer.fromLocationId
 
       if (isAssignedToOrigin) {
         actions.push({
@@ -641,13 +642,13 @@ export default function TransferDetailPage() {
     }
 
     // Pending Check → Approve or Reject
-    // CRITICAL SECURITY: Only show to users ASSIGNED to ORIGIN location (FROM location)
-    // Users at destination should NOT see this button
+    // CRITICAL WORKFLOW: Only show to users ASSIGNED to ORIGIN location (FROM location)
+    // Users at destination should NOT see this button - even with ACCESS_ALL_LOCATIONS
     // Check approval with SOD settings
     if (status === 'pending_check' && can(PERMISSIONS.STOCK_TRANSFER_CHECK)) {
-      // Check if user's PRIMARY location matches the FROM location (origin/source)
-      // OR if user has access_all_locations permission (Cross-Location Approver)
-      const isAssignedToOrigin = primaryLocationId === transfer.fromLocationId || can(PERMISSIONS.ACCESS_ALL_LOCATIONS)
+      // CRITICAL FIX: Check ONLY if user's PRIMARY location matches the FROM location (origin/source)
+      // Do NOT show to users at TO location, even if they have ACCESS_ALL_LOCATIONS
+      const isAssignedToOrigin = primaryLocationId === transfer.fromLocationId
       const isCreator = transfer.createdBy === currentUserId
 
       // Determine if SOD allows creator to approve
@@ -656,7 +657,7 @@ export default function TransferDetailPage() {
       const allowCreatorToCheck = sodSettings?.allowCreatorToCheck ?? false
 
       // Show approve button if:
-      // 1. User is at origin location (or has access_all_locations) AND
+      // 1. User is at origin location AND
       // 2. Either not the creator OR (is creator AND allowed by SOD settings)
       const canApprove = isAssignedToOrigin && (!isCreator || (!enforceSOD || allowCreatorToCheck))
 
@@ -677,13 +678,13 @@ export default function TransferDetailPage() {
     }
 
     // Checked → Send
-    // CRITICAL SECURITY: Only show to users ASSIGNED to ORIGIN location (FROM location)
-    // Users at destination should NOT see this button
-    // Uses primaryLocationId to check user's actual home location, not all accessible locations
+    // CRITICAL WORKFLOW: Only show to users ASSIGNED to ORIGIN location (FROM location)
+    // Users at destination should NOT see this button - even with ACCESS_ALL_LOCATIONS
+    // This enforces workflow ownership: only the origin location can send transfers
     if (status === 'checked' && can(PERMISSIONS.STOCK_TRANSFER_SEND)) {
-      // Check if user's PRIMARY location matches the FROM location (origin/source)
-      // OR if user has access_all_locations permission (Cross-Location Approver)
-      const isAssignedToOrigin = primaryLocationId === transfer.fromLocationId || can(PERMISSIONS.ACCESS_ALL_LOCATIONS)
+      // CRITICAL FIX: Check ONLY if user's PRIMARY location matches the FROM location (origin/source)
+      // Do NOT show to users at TO location, even if they have ACCESS_ALL_LOCATIONS
+      const isAssignedToOrigin = primaryLocationId === transfer.fromLocationId
 
       if (isAssignedToOrigin) {
         actions.push({
@@ -696,13 +697,14 @@ export default function TransferDetailPage() {
     }
 
     // In Transit → Mark Arrived
-    // CRITICAL SECURITY: Only show to users ASSIGNED to DESTINATION location (TO location)
-    // Users at origin should NOT see this button
-    // Uses primaryLocationId to check user's actual home location, not all accessible locations
+    // CRITICAL WORKFLOW: Only show to users ASSIGNED to DESTINATION location (TO location)
+    // Users at origin should NOT see this button - even with ACCESS_ALL_LOCATIONS
+    // This enforces workflow separation: sender cannot mark their own transfer as arrived
     if (status === 'in_transit' && can(PERMISSIONS.STOCK_TRANSFER_RECEIVE)) {
-      // Check if user's PRIMARY location matches the TO location (destination)
-      // OR if user has access_all_locations permission (Cross-Location Approver)
-      const isAssignedToDestination = primaryLocationId === transfer.toLocationId || can(PERMISSIONS.ACCESS_ALL_LOCATIONS)
+      // CRITICAL FIX: Check ONLY if user's PRIMARY location matches the TO location (destination)
+      // Do NOT show to users at FROM location, even if they have ACCESS_ALL_LOCATIONS
+      // This prevents senders from marking their own transfers as arrived
+      const isAssignedToDestination = primaryLocationId === transfer.toLocationId
 
       if (isAssignedToDestination) {
         actions.push({
@@ -715,12 +717,12 @@ export default function TransferDetailPage() {
     }
 
     // Arrived → Start Verification ONLY (enforce verification)
-    // CRITICAL SECURITY: Only show to users ASSIGNED to DESTINATION location
-    // Uses primaryLocationId to check user's actual home location, not all accessible locations
+    // CRITICAL WORKFLOW: Only show to users ASSIGNED to DESTINATION location
+    // Users at origin should NOT see this button - even with ACCESS_ALL_LOCATIONS
     if (status === 'arrived') {
-      // Check if user's PRIMARY location matches the TO location (destination)
-      // OR if user has access_all_locations permission (Cross-Location Approver)
-      const isAssignedToDestination = primaryLocationId === transfer.toLocationId || can(PERMISSIONS.ACCESS_ALL_LOCATIONS)
+      // CRITICAL FIX: Check ONLY if user's PRIMARY location matches the TO location (destination)
+      // Do NOT show to users at FROM location, even if they have ACCESS_ALL_LOCATIONS
+      const isAssignedToDestination = primaryLocationId === transfer.toLocationId
 
       if (can(PERMISSIONS.STOCK_TRANSFER_VERIFY) && isAssignedToDestination) {
         actions.push({
@@ -735,12 +737,12 @@ export default function TransferDetailPage() {
     }
 
     // Verified → Receive Transfer (Complete)
-    // CRITICAL SECURITY: Only show to users ASSIGNED to DESTINATION location
-    // Uses primaryLocationId to check user's actual home location, not all accessible locations
+    // CRITICAL WORKFLOW: Only show to users ASSIGNED to DESTINATION location
+    // Users at origin should NOT see this button - even with ACCESS_ALL_LOCATIONS
     if (status === 'verified' && can(PERMISSIONS.STOCK_TRANSFER_COMPLETE)) {
-      // Check if user's PRIMARY location matches the TO location (destination)
-      // OR if user has access_all_locations permission (Cross-Location Approver)
-      const isAssignedToDestination = primaryLocationId === transfer.toLocationId || can(PERMISSIONS.ACCESS_ALL_LOCATIONS)
+      // CRITICAL FIX: Check ONLY if user's PRIMARY location matches the TO location (destination)
+      // Do NOT show to users at FROM location, even if they have ACCESS_ALL_LOCATIONS
+      const isAssignedToDestination = primaryLocationId === transfer.toLocationId
 
       if (isAssignedToDestination) {
         actions.push({
