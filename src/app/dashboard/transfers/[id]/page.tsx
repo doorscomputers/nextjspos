@@ -102,6 +102,7 @@ export default function TransferDetailPage() {
   // For rejection
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
+  const [showRejectConfirm, setShowRejectConfirm] = useState(false)
 
   // Confirmation dialogs for critical actions
   const [showSendConfirm, setShowSendConfirm] = useState(false)
@@ -249,13 +250,18 @@ export default function TransferDetailPage() {
     handleAction('check-approve', 'Transfer approved')
   }
 
-  const handleReject = async () => {
+  const handleRejectClick = () => {
     if (!rejectionReason.trim()) {
       toast.error('Please provide a rejection reason')
       return
     }
-    await handleAction('check-reject', 'Transfer rejected', { reason: rejectionReason })
+    setShowRejectConfirm(true)
+  }
+
+  const handleRejectConfirmed = async () => {
+    setShowRejectConfirm(false)
     setShowRejectDialog(false)
+    await handleAction('check-reject', 'Transfer rejected', { reason: rejectionReason })
     setRejectionReason('')
   }
 
@@ -1005,6 +1011,9 @@ export default function TransferDetailPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
             <h3 className="text-lg font-semibold mb-4">Reject Transfer</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Please provide a reason for rejecting this transfer. This will be recorded in the audit trail.
+            </p>
             <textarea
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
@@ -1012,17 +1021,58 @@ export default function TransferDetailPage() {
               rows={4}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mb-4"
             />
-            <div className="flex gap-2">
-              <Button variant="destructive" onClick={handleReject} disabled={actionLoading}>
-                Reject Transfer
-              </Button>
+            <div className="flex gap-2 justify-end">
               <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
                 Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleRejectClick} disabled={actionLoading || !rejectionReason.trim()}>
+                OK
               </Button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Reject Transfer Confirmation Dialog */}
+      <AlertDialog open={showRejectConfirm} onOpenChange={setShowRejectConfirm}>
+        <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900 dark:text-white">Confirm Rejection</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-gray-600 dark:text-gray-400">
+                <div className="text-base">
+                  Are you sure you want to reject this transfer?
+                </div>
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4">
+                  <div className="font-semibold text-red-900 dark:text-red-200 mb-2">
+                    ⚠️ This action will reject the transfer
+                  </div>
+                  <div className="text-sm text-red-800 dark:text-red-300">
+                    The transfer will be returned to draft status and the creator will need to make corrections and resubmit.
+                  </div>
+                </div>
+                {rejectionReason && (
+                  <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                    <div className="text-sm font-medium text-gray-900 dark:text-white mb-1">Rejection Reason:</div>
+                    <div className="text-sm text-gray-700 dark:text-gray-300">{rejectionReason}</div>
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="shadow-md hover:shadow-lg transition-all duration-200" onClick={() => setShowRejectConfirm(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRejectConfirmed}
+              className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
+            >
+              Yes, Reject Transfer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Transfer Information */}
