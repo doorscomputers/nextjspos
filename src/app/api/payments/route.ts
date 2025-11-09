@@ -31,6 +31,8 @@ export async function GET(request: NextRequest) {
     const accountsPayableId = searchParams.get('accountsPayableId')
     const paymentMethod = searchParams.get('paymentMethod')
     const status = searchParams.get('status')
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = (page - 1) * limit
@@ -53,6 +55,19 @@ export async function GET(request: NextRequest) {
 
     if (status) {
       where.status = status
+    }
+
+    // Add date filtering
+    if (startDate || endDate) {
+      where.paymentDate = {}
+      if (startDate) {
+        where.paymentDate.gte = new Date(startDate)
+      }
+      if (endDate) {
+        const endDateTime = new Date(endDate)
+        endDateTime.setHours(23, 59, 59, 999)
+        where.paymentDate.lte = endDateTime
+      }
     }
 
     const [payments, total] = await Promise.all([

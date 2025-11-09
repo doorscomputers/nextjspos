@@ -132,7 +132,12 @@ export default function DashboardPageV2() {
   const [loadingSales, setLoadingSales] = useState(false)
 
   // Supplier payments date range filter
-  const [supplierPaymentsDateRange, setSupplierPaymentsDateRange] = useState<'today' | 'week' | 'month' | 'all'>('all')
+  const [supplierPaymentsDateRange, setSupplierPaymentsDateRange] = useState<'today' | 'week' | 'month' | 'quarter' | 'year' | 'all'>('quarter')
+  const [supplierPayments, setSupplierPayments] = useState<any[]>([])
+  const [loadingSupplierPayments, setLoadingSupplierPayments] = useState(false)
+  
+  // Metrics date filter (for the cards at the top)
+  const [metricsDateFilter, setMetricsDateFilter] = useState<'today' | 'week' | 'month' | 'quarter' | 'year' | 'all'>('quarter')
 
   // AUTO-REDIRECT: Cashiers with active shifts should go straight to POS
   useEffect(() => {
@@ -166,7 +171,7 @@ export default function DashboardPageV2() {
 
   useEffect(() => {
     fetchDashboardStats()
-  }, [locationFilter, supplierPaymentsDateRange])
+  }, [locationFilter, metricsDateFilter])
 
   useEffect(() => {
     // Fetch sales by location - API will return empty data if user lacks permission
@@ -174,6 +179,50 @@ export default function DashboardPageV2() {
       fetchSalesByLocation()
     }
   }, [salesPeriod, user])
+
+  useEffect(() => {
+    // Fetch supplier payments separately with its own date filter
+    if (user) {
+      fetchSupplierPayments()
+    }
+  }, [supplierPaymentsDateRange, user])
+
+  // Helper function to calculate date ranges
+  const getDateRange = (filter: 'today' | 'week' | 'month' | 'quarter' | 'year' | 'all') => {
+    const today = new Date()
+    const endDate = today.toISOString().split('T')[0]
+    let startDate = ''
+
+    switch (filter) {
+      case 'today':
+        startDate = endDate
+        break
+      case 'week':
+        const weekAgo = new Date(today)
+        weekAgo.setDate(weekAgo.getDate() - 7)
+        startDate = weekAgo.toISOString().split('T')[0]
+        break
+      case 'month':
+        const monthAgo = new Date(today)
+        monthAgo.setDate(monthAgo.getDate() - 30)
+        startDate = monthAgo.toISOString().split('T')[0]
+        break
+      case 'quarter':
+        const currentMonth = today.getMonth()
+        const currentQuarter = Math.floor(currentMonth / 3)
+        const quarterStart = new Date(today.getFullYear(), currentQuarter * 3, 1)
+        startDate = quarterStart.toISOString().split('T')[0]
+        break
+      case 'year':
+        const yearStart = new Date(today.getFullYear(), 0, 1)
+        startDate = yearStart.toISOString().split('T')[0]
+        break
+      case 'all':
+        return { startDate: '', endDate: '' }
+    }
+
+    return { startDate, endDate }
+  }
 
   const fetchLocations = async () => {
     try {
@@ -208,23 +257,14 @@ export default function DashboardPageV2() {
         params.append("locationId", locationFilter)
       }
 
-      // Add date range filter for supplier payments
-      const today = new Date()
-      if (supplierPaymentsDateRange === 'today') {
-        params.append("startDate", today.toISOString().split('T')[0])
-        params.append("endDate", today.toISOString().split('T')[0])
-      } else if (supplierPaymentsDateRange === 'week') {
-        const weekAgo = new Date(today)
-        weekAgo.setDate(weekAgo.getDate() - 7)
-        params.append("startDate", weekAgo.toISOString().split('T')[0])
-        params.append("endDate", today.toISOString().split('T')[0])
-      } else if (supplierPaymentsDateRange === 'month') {
-        const monthAgo = new Date(today)
-        monthAgo.setDate(monthAgo.getDate() - 30)
-        params.append("startDate", monthAgo.toISOString().split('T')[0])
-        params.append("endDate", today.toISOString().split('T')[0])
+      // Add date range filter for metrics (using metricsDateFilter)
+      const metricsDateRange = getDateRange(metricsDateFilter)
+      if (metricsDateRange.startDate) {
+        params.append("startDate", metricsDateRange.startDate)
       }
-      // 'all' doesn't add date filters
+      if (metricsDateRange.endDate) {
+        params.append("endDate", metricsDateRange.endDate)
+      }
 
       const response = await fetch(`/api/dashboard/stats-cached?${params.toString()}`)
       if (response.ok) {
@@ -254,6 +294,46 @@ export default function DashboardPageV2() {
       toast.error('Failed to load sales by location')
     } finally {
       setLoadingSales(false)
+    }
+  }
+
+  const fetchSupplierPayments = async () => {
+    try {
+      setLoadingSupplierPayments(true)
+      const params = new URLSearchParams()
+      params.append('status', 'completed')
+      params.append('limit', '10')
+      
+      // Add date range filter
+      const dateRange = getDateRange(supplierPaymentsDateRange)
+      if (dateRange.startDate) {
+        params.append('startDate', dateRange.startDate)
+      }
+      if (dateRange.endDate) {
+        params.append('endDate', dateRange.endDate)
+      }
+
+      const response = await fetch(`/api/payments?${params.toString()}`)
+      if (response.ok) {
+        const data = await response.json()
+        // Transform the data to match the expected format
+        const transformedPayments = data.payments.map((payment: any) => ({
+          id: payment.id,
+          paymentNumber: payment.paymentNumber,
+          supplier: payment.supplier?.name || 'Unknown',
+          date: payment.paymentDate.split('T')[0],
+          amount: parseFloat(payment.amount),
+          paymentMethod: payment.paymentMethod,
+          purchaseOrderNumber: payment.accountsPayable?.invoiceNumber || 'N/A',
+        }))
+        setSupplierPayments(transformedPayments)
+      } else {
+        console.error('Failed to load supplier payments')
+      }
+    } catch (error) {
+      console.error("Failed to fetch supplier payments:", error)
+    } finally {
+      setLoadingSupplierPayments(false)
     }
   }
 
@@ -362,7 +442,7 @@ export default function DashboardPageV2() {
 
   return (
     <div className="space-y-6">
-      {/* Header with Location Filter */}
+      {/* Header with Location Filter and Date Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
@@ -373,9 +453,25 @@ export default function DashboardPageV2() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-200">Period:</label>
+            <Select value={metricsDateFilter} onValueChange={(value) => setMetricsDateFilter(value as any)}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="week">This Week</SelectItem>
+                <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="quarter">Current Quarter</SelectItem>
+                <SelectItem value="year">This Year</SelectItem>
+                <SelectItem value="all">All Time</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           {locations.length > 0 && (
-            <>
+            <div className="flex items-center gap-2">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-200">Location:</label>
               <Select value={locationFilter} onValueChange={setLocationFilter}>
                 <SelectTrigger className="w-[200px]">
@@ -392,7 +488,7 @@ export default function DashboardPageV2() {
                   ))}
                 </SelectContent>
               </Select>
-            </>
+            </div>
           )}
           <Button onClick={fetchDashboardStats} variant="outline" size="sm">
             <ArrowPathIcon className="w-4 h-4 mr-2" />
@@ -682,13 +778,15 @@ export default function DashboardPageV2() {
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Period:</label>
                   <Select value={supplierPaymentsDateRange} onValueChange={(value) => setSupplierPaymentsDateRange(value as any)}>
-                    <SelectTrigger className="w-[130px]">
+                    <SelectTrigger className="w-[160px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="today">Today</SelectItem>
                       <SelectItem value="week">This Week</SelectItem>
                       <SelectItem value="month">This Month</SelectItem>
+                      <SelectItem value="quarter">Current Quarter</SelectItem>
+                      <SelectItem value="year">This Year</SelectItem>
                       <SelectItem value="all">All Time</SelectItem>
                     </SelectContent>
                   </Select>
@@ -696,13 +794,18 @@ export default function DashboardPageV2() {
               </div>
             </CardHeader>
             <CardContent>
-              <DataGrid
-                dataSource={stats?.tables.supplierPayments || []}
-                showBorders={true}
-                columnAutoWidth={true}
-                height={300}
-                keyExpr="id"
-              >
+              {loadingSupplierPayments ? (
+                <div className="flex items-center justify-center h-[300px]">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                </div>
+              ) : (
+                <DataGrid
+                  dataSource={supplierPayments}
+                  showBorders={true}
+                  columnAutoWidth={true}
+                  height={300}
+                  keyExpr="id"
+                >
                 <Column dataField="paymentNumber" caption="Payment #" width={120} />
                 <Column dataField="supplier" caption="Supplier" />
                 <Column dataField="purchaseOrderNumber" caption="PO Number" width={120} />
@@ -729,6 +832,7 @@ export default function DashboardPageV2() {
                 </Summary>
                 <Export enabled={true} />
               </DataGrid>
+              )}
             </CardContent>
           </Card>
         )}
