@@ -65,6 +65,49 @@ export default function MyLocationPricingPage() {
   const [pendingChanges, setPendingChanges] = useState<Map<string, any>>(new Map())
   const [hasChanges, setHasChanges] = useState(false)
 
+  // Retry utility for network requests
+  const fetchWithRetry = async (url: string, options: RequestInit = {}, maxRetries = 3): Promise<Response> => {
+    let lastError: Error | null = null
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url, {
+          ...options,
+          headers: {
+            'Content-Type': 'application/json',
+            ...options.headers,
+          },
+          credentials: 'include',
+        })
+
+        // If successful or client error (4xx), return immediately
+        if (response.ok || (response.status >= 400 && response.status < 500)) {
+          return response
+        }
+
+        // Server error (5xx) - retry
+        if (attempt < maxRetries) {
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000) // Exponential backoff, max 5s
+          console.log(`Attempt ${attempt} failed with status ${response.status}, retrying in ${delay}ms...`)
+          await new Promise(resolve => setTimeout(resolve, delay))
+          continue
+        }
+
+        return response
+      } catch (error: any) {
+        lastError = error
+
+        if (attempt < maxRetries) {
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
+          console.log(`Network error on attempt ${attempt}, retrying in ${delay}ms...`, error.message)
+          await new Promise(resolve => setTimeout(resolve, delay))
+        }
+      }
+    }
+
+    throw lastError || new Error('Network request failed after retries')
+  }
+
   // Permission checks
   const canEdit =
     can(PERMISSIONS.PRODUCT_UPDATE) ||
@@ -86,9 +129,14 @@ export default function MyLocationPricingPage() {
     try {
       setLoading(true)
 
-      const res = await fetch('/api/user-locations')
+      const res = await fetchWithRetry('/api/user-locations', {
+        method: 'GET',
+      })
+
       if (!res.ok) {
-        throw new Error('Failed to fetch assigned location')
+        const errorText = await res.text()
+        console.error('User locations fetch error:', res.status, errorText)
+        throw new Error(`Failed to fetch assigned location: ${res.status} ${res.statusText}`)
       }
 
       const data = await res.json()
@@ -104,7 +152,11 @@ export default function MyLocationPricingPage() {
       setLoading(false)
     } catch (error: any) {
       console.error('Error fetching user location:', error)
-      notify(error.message || 'Failed to load user location', 'error', 3000)
+      notify(
+        error.message || 'Failed to load user location. Please refresh the page.',
+        'error',
+        5000
+      )
       setLoading(false)
     }
   }
@@ -113,10 +165,21 @@ export default function MyLocationPricingPage() {
     try {
       setLoading(true)
 
-      const res = await fetch(`/api/locations/${locationId}/prices`)
+      const res = await fetchWithRetry(`/api/locations/${locationId}/prices`, {
+        method: 'GET',
+      })
+
       if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Failed to fetch location prices')
+        let errorMessage = 'Failed to fetch location prices'
+        try {
+          const error = await res.json()
+          errorMessage = error.error || errorMessage
+        } catch (e) {
+          const errorText = await res.text()
+          console.error('Location prices fetch error (non-JSON):', errorText)
+          errorMessage = `Server error: ${res.status} ${res.statusText}`
+        }
+        throw new Error(errorMessage)
       }
 
       const data = await res.json()
@@ -144,7 +207,12 @@ export default function MyLocationPricingPage() {
       setLoading(false)
     } catch (error: any) {
       console.error('Error fetching location prices:', error)
-      notify(error.message || 'Failed to load location prices', 'error', 3000)
+      notify(
+        error.message || 'Failed to load location prices. Please try again.',
+        'error',
+        5000
+      )
+      setFlatPriceData([])
       setLoading(false)
     }
   }
@@ -217,15 +285,22 @@ export default function MyLocationPricingPage() {
         prices,
       }))
 
-      const res = await fetch(`/api/locations/${userLocation.id}/prices`, {
+      const res = await fetchWithRetry(`/api/locations/${userLocation.id}/prices`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ productPrices }),
       })
 
       if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error.error || 'Failed to save prices')
+        let errorMessage = 'Failed to save prices'
+        try {
+          const error = await res.json()
+          errorMessage = error.error || errorMessage
+        } catch (e) {
+          const errorText = await res.text()
+          console.error('Save prices error (non-JSON):', errorText)
+          errorMessage = `Server error: ${res.status} ${res.statusText}`
+        }
+        throw new Error(errorMessage)
       }
 
       // Reload prices
@@ -235,7 +310,11 @@ export default function MyLocationPricingPage() {
       notify(`Saved ${pendingChanges.size} price changes successfully`, 'success', 3000)
     } catch (error: any) {
       console.error('Error saving prices:', error)
-      notify(error.message || 'Failed to save prices', 'error', 3000)
+      notify(
+        error.message || 'Failed to save prices. Please try again.',
+        'error',
+        5000
+      )
       setSaving(false)
     }
   }
