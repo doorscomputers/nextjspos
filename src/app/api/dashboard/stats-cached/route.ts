@@ -123,7 +123,26 @@ export async function GET(request: NextRequest) {
           dateFilter.gte = new Date(startDate)
         }
         if (endDate) {
-          dateFilter.lte = new Date(endDate)
+          const endDateTime = new Date(endDate)
+          endDateTime.setHours(23, 59, 59, 999)
+          dateFilter.lte = endDateTime
+        }
+
+        // Build where clause with date filter for sales
+        const salesWhereClause: any = { ...whereClause }
+        if (Object.keys(dateFilter).length > 0) {
+          salesWhereClause.saleDate = dateFilter
+        }
+
+        // Build where clause for purchases with date filter
+        const purchaseWhereClause: any = {
+          businessId,
+          ...(locationId && locationId !== 'all' ? {
+            purchase: { locationId: parseInt(locationId) }
+          } : {}),
+        }
+        if (Object.keys(dateFilter).length > 0) {
+          purchaseWhereClause.invoiceDate = dateFilter
         }
 
         // Execute all queries in parallel
@@ -146,7 +165,7 @@ export async function GET(request: NextRequest) {
           // Total Sales
           hasPermission(PERMISSIONS.SELL_VIEW)
             ? prisma.sale.aggregate({
-                where: { ...whereClause },
+                where: { ...salesWhereClause },
                 _sum: { totalAmount: true, subtotal: true },
                 _count: true,
               })
@@ -154,12 +173,7 @@ export async function GET(request: NextRequest) {
 
           // Total Purchases
           prisma.accountsPayable.aggregate({
-            where: {
-              businessId,
-              ...(locationId && locationId !== 'all' ? {
-                purchase: { locationId: parseInt(locationId) }
-              } : {}),
-            },
+            where: purchaseWhereClause,
             _sum: { totalAmount: true },
             _count: true,
           }),
@@ -167,7 +181,10 @@ export async function GET(request: NextRequest) {
           // Customer Returns
           hasPermission(PERMISSIONS.CUSTOMER_RETURN_VIEW)
             ? prisma.customerReturn.aggregate({
-                where: { businessId },
+                where: { 
+                  businessId,
+                  ...(Object.keys(dateFilter).length > 0 ? { returnDate: dateFilter } : {})
+                },
                 _sum: { totalRefundAmount: true },
                 _count: true,
               })
@@ -175,12 +192,15 @@ export async function GET(request: NextRequest) {
 
           // Supplier Returns
           prisma.supplierReturn.aggregate({
-            where: { businessId },
+            where: { 
+              businessId,
+              ...(Object.keys(dateFilter).length > 0 ? { returnDate: dateFilter } : {})
+            },
             _sum: { totalAmount: true },
             _count: true,
           }),
 
-          // Invoice Due
+          // Invoice Due (this should still show ALL unpaid invoices regardless of date)
           hasPermission(PERMISSIONS.SELL_VIEW)
             ? prisma.sale.aggregate({
                 where: { ...whereClause, status: { not: 'cancelled' } },
@@ -188,7 +208,7 @@ export async function GET(request: NextRequest) {
               })
             : Promise.resolve({ _sum: { totalAmount: null } }),
 
-          // Purchase Due
+          // Purchase Due (this should still show ALL unpaid purchases regardless of date)
           prisma.accountsPayable.aggregate({
             where: {
               businessId,

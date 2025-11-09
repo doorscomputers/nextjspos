@@ -132,12 +132,12 @@ export default function DashboardPageV2() {
   const [loadingSales, setLoadingSales] = useState(false)
 
   // Supplier payments date range filter
-  const [supplierPaymentsDateRange, setSupplierPaymentsDateRange] = useState<'today' | 'week' | 'month' | 'quarter' | 'year' | 'all'>('quarter')
+  const [supplierPaymentsDateRange, setSupplierPaymentsDateRange] = useState<'today' | 'week' | 'month' | 'quarter' | 'year' | 'all'>('year')
   const [supplierPayments, setSupplierPayments] = useState<any[]>([])
   const [loadingSupplierPayments, setLoadingSupplierPayments] = useState(false)
   
   // Metrics date filter (for the cards at the top)
-  const [metricsDateFilter, setMetricsDateFilter] = useState<'today' | 'week' | 'month' | 'quarter' | 'year' | 'all'>('quarter')
+  const [metricsDateFilter, setMetricsDateFilter] = useState<'today' | 'week' | 'month' | 'quarter' | 'year' | 'all'>('year')
 
   // AUTO-REDIRECT: Cashiers with active shifts should go straight to POS
   useEffect(() => {
