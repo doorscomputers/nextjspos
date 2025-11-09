@@ -67,9 +67,11 @@ export default function LocationPricingPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [priceData, setPriceData] = useState<LocationPrice[]>([])
+  const [filteredPriceData, setFilteredPriceData] = useState<LocationPrice[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [locations, setLocations] = useState<Location[]>([])
   const [selectedProduct, setSelectedProduct] = useState<number | null>(null)
+  const [selectedLocationIds, setSelectedLocationIds] = useState<number[]>([])
   const dataGridRef = useRef<DataGrid>(null)
 
   // Manual change tracking
@@ -87,6 +89,18 @@ export default function LocationPricingPage() {
   const buildRowKey = useCallback((productId: number, locationId: number, unitId: number) => {
     return `${productId}-${locationId}-${unitId}`
   }, [])
+
+  // Filter price data when selected locations change
+  useEffect(() => {
+    if (selectedLocationIds.length === 0) {
+      setFilteredPriceData(priceData)
+    } else {
+      const filtered = priceData.filter(price =>
+        selectedLocationIds.includes(price.locationId)
+      )
+      setFilteredPriceData(filtered)
+    }
+  }, [selectedLocationIds, priceData])
 
   useEffect(() => {
     if (canEdit) {
@@ -119,6 +133,9 @@ export default function LocationPricingPage() {
         !loc.name.toLowerCase().includes('warehouse')
       )
       setLocations(filteredLocations)
+
+      // Auto-select all locations by default
+      setSelectedLocationIds(filteredLocations.map(loc => loc.id))
 
       setLoading(false)
     } catch (error) {
@@ -180,6 +197,24 @@ export default function LocationPricingPage() {
       setHasChanges(false)
     }
   }, [hasChanges])
+
+  const handleLocationToggle = (locationId: number) => {
+    setSelectedLocationIds(prev => {
+      if (prev.includes(locationId)) {
+        return prev.filter(id => id !== locationId)
+      } else {
+        return [...prev, locationId]
+      }
+    })
+  }
+
+  const handleSelectAllLocations = () => {
+    setSelectedLocationIds(locations.map(loc => loc.id))
+  }
+
+  const handleDeselectAllLocations = () => {
+    setSelectedLocationIds([])
+  }
 
   const onRowUpdating = useCallback((e: any) => {
     const key = e.key
@@ -315,7 +350,7 @@ export default function LocationPricingPage() {
   if (!canEdit) {
     return (
       <div className="p-6">
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
+        <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-700 dark:bg-red-900 p-4 text-red-800 dark:text-red-200">
           <p className="font-semibold">Access Denied</p>
           <p className="mt-1 text-sm">
             You do not have permission to edit location pricing.
@@ -337,15 +372,15 @@ export default function LocationPricingPage() {
       />
 
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Location-Specific Pricing
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                Location-Specific Pricing (Admin)
               </h1>
-              <p className="mt-1 text-sm text-gray-500">
-                Set different purchase and selling prices per location and unit
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Set different purchase and selling prices across multiple locations
               </p>
             </div>
           </div>
@@ -353,10 +388,10 @@ export default function LocationPricingPage() {
       </div>
 
       {/* Product Selector */}
-      <div className="bg-white shadow-sm border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-4">
+      <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 lg:px-8 py-4">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center gap-4">
-            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
               Select Product:
             </label>
             <div className="flex-1 max-w-md">
@@ -381,7 +416,7 @@ export default function LocationPricingPage() {
             </div>
             {hasChanges && (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-orange-600 font-medium">
+                <span className="text-sm text-orange-600 dark:text-orange-400 font-medium">
                   {pendingChanges.size} unsaved change(s)
                 </span>
                 <Button
@@ -404,13 +439,65 @@ export default function LocationPricingPage() {
         </div>
       </div>
 
+      {/* Location Filter */}
+      {selectedProduct && (
+        <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 lg:px-8 py-4">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Filter by Location:
+                </label>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    onClick={handleSelectAllLocations}
+                    className="text-xs px-2 py-1 rounded bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800"
+                  >
+                    Select All
+                  </button>
+                  <button
+                    onClick={handleDeselectAllLocations}
+                    className="text-xs px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  >
+                    Clear All
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                  {locations.map((location) => (
+                    <label
+                      key={location.id}
+                      className="flex items-center gap-2 p-2 rounded border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedLocationIds.includes(location.id)}
+                        onChange={() => handleLocationToggle(location.id)}
+                        className="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        {location.name}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                  {selectedLocationIds.length} of {locations.length} location(s) selected
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Data Grid */}
-      <div className="flex-1 overflow-hidden bg-gray-50 px-4 sm:px-6 lg:px-8 py-4">
+      <div className="flex-1 overflow-hidden bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 py-4">
         <div className="max-w-7xl mx-auto h-full">
           {selectedProduct ? (
             <DataGrid
               ref={dataGridRef}
-              dataSource={priceData}
+              dataSource={filteredPriceData}
               keyExpr="compositeKey"
               showBorders={true}
               showRowLines={true}
@@ -525,9 +612,9 @@ export default function LocationPricingPage() {
             </DataGrid>
           ) : (
             <div className="flex items-center justify-center h-full">
-              <div className="text-center text-gray-500">
+              <div className="text-center text-gray-500 dark:text-gray-400">
                 <svg
-                  className="mx-auto h-12 w-12 text-gray-400"
+                  className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -539,10 +626,10 @@ export default function LocationPricingPage() {
                     d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
                   />
                 </svg>
-                <h3 className="mt-2 text-sm font-medium text-gray-900">
+                <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
                   No product selected
                 </h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                   Select a product from the dropdown above to view and edit location-specific pricing.
                 </p>
               </div>
