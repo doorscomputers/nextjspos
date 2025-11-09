@@ -169,6 +169,7 @@ export async function getLocationUnitPrice(
 /**
  * Get all location prices for a specific location
  * Useful for manager view (showing only their assigned location)
+ * OPTIMIZED: Single query with joins instead of N+1 queries
  */
 export async function getLocationPricesForLocation(
   locationId: number,
@@ -182,7 +183,10 @@ export async function getLocationPricesForLocation(
     prices: LocationUnitPrice[]
   }[]
 > {
-  // Get products
+  console.log(`[getLocationPricesForLocation] Fetching prices for location ${locationId}`)
+  const startTime = Date.now()
+
+  // Build where clause for products
   const whereProduct: any = {
     businessId,
     deletedAt: null,
@@ -192,33 +196,118 @@ export async function getLocationPricesForLocation(
     whereProduct.id = { in: productIds }
   }
 
-  const products = await prisma.product.findMany({
+  // OPTIMIZED: Single query with all necessary joins
+  const productsWithUnits = await prisma.product.findMany({
     where: whereProduct,
     select: {
       id: true,
       name: true,
       sku: true,
+      productUnits: {
+        select: {
+          unitId: true,
+          purchasePrice: true,
+          sellingPrice: true,
+          multiplier: true,
+          isBaseUnit: true,
+          unit: {
+            select: {
+              id: true,
+              name: true,
+              shortName: true,
+            },
+          },
+        },
+      },
     },
     orderBy: { name: 'asc' },
   })
 
-  // Get prices for each product
-  const result = []
-
-  for (const product of products) {
-    const prices = await getProductLocationPrices(product.id, businessId, [
+  // Get all location-specific prices for this location in one query
+  const locationSpecificPrices = await prisma.productUnitLocationPrice.findMany({
+    where: {
+      businessId,
       locationId,
-    ])
+      ...(productIds && productIds.length > 0 ? { productId: { in: productIds } } : {}),
+    },
+    select: {
+      productId: true,
+      unitId: true,
+      purchasePrice: true,
+      sellingPrice: true,
+      lastUpdatedBy: true,
+      updatedAt: true,
+    },
+  })
 
-    if (prices.length > 0) {
-      result.push({
+  // Create a map for fast lookup
+  const locationPriceMap = new Map<string, any>()
+  locationSpecificPrices.forEach(price => {
+    const key = `${price.productId}-${price.unitId}`
+    locationPriceMap.set(key, price)
+  })
+
+  // Get location name
+  const location = await prisma.businessLocation.findUnique({
+    where: { id: locationId },
+    select: { name: true },
+  })
+
+  const locationName = location?.name || 'Unknown'
+
+  // Build result
+  const result = productsWithUnits
+    .filter(product => product.productUnits.length > 0)
+    .map(product => {
+      const prices: LocationUnitPrice[] = product.productUnits.map(pu => {
+        const key = `${product.id}-${pu.unitId}`
+        const locationPrice = locationPriceMap.get(key)
+
+        if (locationPrice) {
+          // Use location-specific price
+          return {
+            locationId,
+            locationName,
+            unitId: pu.unitId,
+            unitName: pu.unit.name,
+            unitShortName: pu.unit.shortName,
+            purchasePrice: locationPrice.purchasePrice,
+            sellingPrice: locationPrice.sellingPrice,
+            multiplier: pu.multiplier,
+            isBaseUnit: pu.isBaseUnit,
+            isLocationSpecific: true,
+            lastUpdatedBy: locationPrice.lastUpdatedBy || undefined,
+            lastUpdatedAt: locationPrice.updatedAt,
+          }
+        } else {
+          // Use global price
+          return {
+            locationId,
+            locationName,
+            unitId: pu.unitId,
+            unitName: pu.unit.name,
+            unitShortName: pu.unit.shortName,
+            purchasePrice: pu.purchasePrice,
+            sellingPrice: pu.sellingPrice,
+            multiplier: pu.multiplier,
+            isBaseUnit: pu.isBaseUnit,
+            isLocationSpecific: false,
+          }
+        }
+      })
+
+      return {
         productId: product.id,
         productName: product.name,
         productSKU: product.sku,
         prices,
-      })
-    }
-  }
+      }
+    })
+
+  const elapsed = Date.now() - startTime
+  console.log(
+    `[getLocationPricesForLocation] ✅ Fetched ${result.length} products with prices in ${elapsed}ms`
+  )
 
   return result
 }

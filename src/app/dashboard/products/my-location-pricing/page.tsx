@@ -5,7 +5,6 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import DataGrid, {
   Column,
-  Editing,
   Paging,
   Pager,
   FilterRow,
@@ -20,7 +19,7 @@ import DataGrid, {
   TotalItem,
   Scrolling,
 } from 'devextreme-react/data-grid'
-import { Button, LoadPanel } from 'devextreme-react'
+import { LoadPanel } from 'devextreme-react'
 import notify from 'devextreme/ui/notify'
 import { exportDataGrid } from 'devextreme/excel_exporter'
 import { Workbook } from 'exceljs'
@@ -32,117 +31,52 @@ interface Location {
   name: string
 }
 
-interface ProductPrice {
+interface PriceRow {
+  compositeKey: string
   productId: number
   productName: string
   productSKU: string
-  prices: LocationPrice[]
-}
-
-interface LocationPrice {
-  compositeKey: string
-  locationId: number
-  locationName: string
   unitId: number
   unitName: string
   unitShortName: string
-  purchasePrice: number
   sellingPrice: number
-  isLocationSpecific: boolean
-  multiplier: number
+  profitMargin: number
 }
 
 export default function MyLocationPricingPage() {
   const { can, user } = usePermissions()
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [userLocation, setUserLocation] = useState<Location | null>(null)
-  const [productPrices, setProductPrices] = useState<ProductPrice[]>([])
-  const [flatPriceData, setFlatPriceData] = useState<any[]>([])
+  const [priceData, setPriceData] = useState<PriceRow[]>([])
   const dataGridRef = useRef<DataGrid>(null)
 
-  // Manual change tracking
-  const [pendingChanges, setPendingChanges] = useState<Map<string, any>>(new Map())
-  const [hasChanges, setHasChanges] = useState(false)
-
-  // Retry utility for network requests
-  const fetchWithRetry = async (url: string, options: RequestInit = {}, maxRetries = 3): Promise<Response> => {
-    let lastError: Error | null = null
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        const response = await fetch(url, {
-          ...options,
-          headers: {
-            'Content-Type': 'application/json',
-            ...options.headers,
-          },
-          credentials: 'include',
-        })
-
-        // If successful or client error (4xx), return immediately
-        if (response.ok || (response.status >= 400 && response.status < 500)) {
-          return response
-        }
-
-        // Server error (5xx) - retry
-        if (attempt < maxRetries) {
-          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000) // Exponential backoff, max 5s
-          console.log(`Attempt ${attempt} failed with status ${response.status}, retrying in ${delay}ms...`)
-          await new Promise(resolve => setTimeout(resolve, delay))
-          continue
-        }
-
-        return response
-      } catch (error: any) {
-        lastError = error
-
-        if (attempt < maxRetries) {
-          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000)
-          console.log(`Network error on attempt ${attempt}, retrying in ${delay}ms...`, error.message)
-          await new Promise(resolve => setTimeout(resolve, delay))
-        }
-      }
-    }
-
-    throw lastError || new Error('Network request failed after retries')
-  }
-
   // Permission checks
-  const canEdit =
-    can(PERMISSIONS.PRODUCT_UPDATE) ||
+  const canView =
+    can(PERMISSIONS.PRODUCT_VIEW) ||
     can(PERMISSIONS.PRODUCT_PRICE_EDIT)
 
-  const buildRowKey = useCallback((productId: number, locationId: number, unitId: number) => {
-    return `${productId}-${locationId}-${unitId}`
-  }, [])
-
   useEffect(() => {
-    if (canEdit && user) {
+    if (canView && user) {
       fetchUserLocation()
     } else {
       setLoading(false)
     }
-  }, [canEdit, user])
+  }, [canView, user])
 
   async function fetchUserLocation() {
     try {
       setLoading(true)
 
-      const res = await fetchWithRetry('/api/user-locations', {
-        method: 'GET',
-      })
+      const res = await fetch('/api/user-locations')
 
       if (!res.ok) {
-        const errorText = await res.text()
-        console.error('User locations fetch error:', res.status, errorText)
-        throw new Error(`Failed to fetch assigned location: ${res.status} ${res.statusText}`)
+        throw new Error(`Failed to fetch assigned location: ${res.status}`)
       }
 
       const data = await res.json()
       const allLocations = data.locations || []
 
-      // Filter out "Main Warehouse" locations (not selling locations)
+      // Filter out warehouse locations (not selling locations)
       const sellingLocations = allLocations.filter((loc: any) =>
         !loc.name.toLowerCase().includes('main warehouse') &&
         !loc.name.toLowerCase().includes('warehouse')
@@ -154,15 +88,13 @@ export default function MyLocationPricingPage() {
         setUserLocation(location)
         await fetchLocationPrices(location.id)
       } else {
-        // User only has warehouse locations assigned (not selling locations)
         setUserLocation(null)
+        setLoading(false)
       }
-
-      setLoading(false)
     } catch (error: any) {
       console.error('Error fetching user location:', error)
       notify(
-        error.message || 'Failed to load user location. Please refresh the page.',
+        error.message || 'Failed to load user location',
         'error',
         5000
       )
@@ -174,9 +106,7 @@ export default function MyLocationPricingPage() {
     try {
       setLoading(true)
 
-      const res = await fetchWithRetry(`/api/locations/${locationId}/prices`, {
-        method: 'GET',
-      })
+      const res = await fetch(`/api/locations/${locationId}/prices`)
 
       if (!res.ok) {
         let errorMessage = 'Failed to fetch location prices'
@@ -184,8 +114,6 @@ export default function MyLocationPricingPage() {
           const error = await res.json()
           errorMessage = error.error || errorMessage
         } catch (e) {
-          const errorText = await res.text()
-          console.error('Location prices fetch error (non-JSON):', errorText)
           errorMessage = `Server error: ${res.status} ${res.statusText}`
         }
         throw new Error(errorMessage)
@@ -194,150 +122,41 @@ export default function MyLocationPricingPage() {
       const data = await res.json()
       const products = data.products || []
 
-      setProductPrices(products)
+      // Flatten for DataGrid and calculate profit margin
+      const flatData: PriceRow[] = []
+      products.forEach((product: any) => {
+        product.prices.forEach((price: any) => {
+          const purchasePrice = parseFloat(price.purchasePrice)
+          const sellingPrice = parseFloat(price.sellingPrice)
+          const profitMargin = purchasePrice > 0
+            ? ((sellingPrice - purchasePrice) / purchasePrice) * 100
+            : 0
 
-      // Flatten for DataGrid
-      const flatData: any[] = []
-      products.forEach((product: ProductPrice) => {
-        product.prices.forEach((price: LocationPrice) => {
           flatData.push({
-            ...price,
+            compositeKey: `${product.productId}-${price.unitId}`,
             productId: product.productId,
             productName: product.productName,
             productSKU: product.productSKU,
-            compositeKey: buildRowKey(product.productId, price.locationId, price.unitId),
+            unitId: price.unitId,
+            unitName: price.unitName,
+            unitShortName: price.unitShortName,
+            sellingPrice: sellingPrice,
+            profitMargin: profitMargin,
           })
         })
       })
 
-      setFlatPriceData(flatData)
-      setPendingChanges(new Map())
-      setHasChanges(false)
+      setPriceData(flatData)
       setLoading(false)
     } catch (error: any) {
       console.error('Error fetching location prices:', error)
       notify(
-        error.message || 'Failed to load location prices. Please try again.',
+        error.message || 'Failed to load location prices',
         'error',
         5000
       )
-      setFlatPriceData([])
+      setPriceData([])
       setLoading(false)
-    }
-  }
-
-
-  const onRowUpdating = useCallback((e: any) => {
-    const key = e.key
-    const newData = { ...e.oldData, ...e.newData }
-
-    // Validate prices
-    if (newData.sellingPrice < newData.purchasePrice) {
-      notify('Selling price cannot be less than purchase price', 'error', 3000)
-      e.cancel = true
-      return
-    }
-
-    if (newData.purchasePrice < 0 || newData.sellingPrice < 0) {
-      notify('Prices cannot be negative', 'error', 3000)
-      e.cancel = true
-      return
-    }
-
-    // Track the change
-    setPendingChanges(prev => {
-      const updated = new Map(prev)
-      updated.set(key, newData)
-      return updated
-    })
-    setHasChanges(true)
-  }, [])
-
-  const onRowUpdated = useCallback((e: any) => {
-    // Update local data
-    setFlatPriceData(prev => {
-      return prev.map(row =>
-        row.compositeKey === e.key ? { ...row, ...e.data } : row
-      )
-    })
-  }, [])
-
-  async function handleSave() {
-    if (!userLocation || pendingChanges.size === 0) {
-      notify('No changes to save', 'warning', 2000)
-      return
-    }
-
-    try {
-      setSaving(true)
-
-      // Group changes by product
-      const productChangesMap = new Map<number, any[]>()
-
-      pendingChanges.forEach((change) => {
-        const productId = change.productId
-        if (!productChangesMap.has(productId)) {
-          productChangesMap.set(productId, [])
-        }
-
-        productChangesMap.get(productId)!.push({
-          locationId: change.locationId,
-          unitId: change.unitId,
-          purchasePrice: parseFloat(change.purchasePrice),
-          sellingPrice: parseFloat(change.sellingPrice),
-        })
-      })
-
-      // Build request body
-      const productPrices = Array.from(productChangesMap.entries()).map(([productId, prices]) => ({
-        productId,
-        prices,
-      }))
-
-      const res = await fetchWithRetry(`/api/locations/${userLocation.id}/prices`, {
-        method: 'POST',
-        body: JSON.stringify({ productPrices }),
-      })
-
-      if (!res.ok) {
-        let errorMessage = 'Failed to save prices'
-        try {
-          const error = await res.json()
-          errorMessage = error.error || errorMessage
-        } catch (e) {
-          const errorText = await res.text()
-          console.error('Save prices error (non-JSON):', errorText)
-          errorMessage = `Server error: ${res.status} ${res.statusText}`
-        }
-        throw new Error(errorMessage)
-      }
-
-      // Reload prices
-      await fetchLocationPrices(userLocation.id)
-      setSaving(false)
-
-      notify(`Saved ${pendingChanges.size} price changes successfully`, 'success', 3000)
-    } catch (error: any) {
-      console.error('Error saving prices:', error)
-      notify(
-        error.message || 'Failed to save prices. Please try again.',
-        'error',
-        5000
-      )
-      setSaving(false)
-    }
-  }
-
-  function handleCancel() {
-    if (!hasChanges) {
-      return
-    }
-
-    if (confirm('Discard all unsaved changes?')) {
-      // Reload prices from server
-      if (userLocation) {
-        fetchLocationPrices(userLocation.id)
-      }
     }
   }
 
@@ -353,34 +172,29 @@ export default function MyLocationPricingPage() {
       workbook.xlsx.writeBuffer().then((buffer: any) => {
         saveAs(
           new Blob([buffer], { type: 'application/octet-stream' }),
-          'My_Location_Pricing.xlsx'
+          `${userLocation?.name}_Pricing_List.xlsx`
         )
       })
     })
-  }, [])
-
-  const calculateProfitMargin = useCallback((purchasePrice: number, sellingPrice: number) => {
-    if (purchasePrice === 0) return 0
-    return ((sellingPrice - purchasePrice) / purchasePrice) * 100
-  }, [])
+  }, [userLocation])
 
   const renderProfitMarginCell = useCallback((cellData: any) => {
-    const margin = calculateProfitMargin(cellData.data.purchasePrice, cellData.data.sellingPrice)
+    const margin = cellData.value
     const color = margin < 0 ? 'red' : margin < 10 ? 'orange' : 'green'
     return (
       <span style={{ color, fontWeight: 'bold' }}>
         {margin.toFixed(2)}%
       </span>
     )
-  }, [calculateProfitMargin])
+  }, [])
 
-  if (!canEdit) {
+  if (!canView) {
     return (
       <div className="p-6">
         <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-700 dark:bg-red-900 p-4 text-red-800 dark:text-red-200">
           <p className="font-semibold">Access Denied</p>
           <p className="mt-1 text-sm">
-            You do not have permission to edit location pricing.
+            You do not have permission to view product pricing.
           </p>
         </div>
       </div>
@@ -409,8 +223,8 @@ export default function MyLocationPricingPage() {
   return (
     <div className="flex flex-col h-full">
       <LoadPanel
-        visible={loading || saving}
-        message={saving ? 'Saving changes...' : 'Loading...'}
+        visible={loading}
+        message="Loading pricing data..."
         showIndicator={true}
         showPane={true}
         shading={true}
@@ -426,46 +240,25 @@ export default function MyLocationPricingPage() {
                 My Location Pricing
               </h1>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Edit prices for <span className="font-semibold text-gray-700 dark:text-gray-300">{userLocation?.name}</span>
+                View-only price list for <span className="font-semibold text-gray-700 dark:text-gray-300">{userLocation?.name}</span>
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Action Bar */}
-      <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 lg:px-8 py-4">
+      {/* Info Banner */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 px-4 sm:px-6 lg:px-8 py-3">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Location:
-              </span>
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
-                {userLocation?.name}
-              </span>
-            </div>
-            {hasChanges && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-orange-600 dark:text-orange-400 font-medium">
-                  {pendingChanges.size} unsaved change(s)
-                </span>
-                <Button
-                  text="Save Changes"
-                  type="success"
-                  onClick={handleSave}
-                  disabled={saving}
-                  icon="save"
-                />
-                <Button
-                  text="Cancel"
-                  type="normal"
-                  onClick={handleCancel}
-                  disabled={saving}
-                  icon="revert"
-                />
-              </div>
-            )}
+          <div className="flex items-center gap-2 text-sm text-blue-800 dark:text-blue-200">
+            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            <span>
+              <strong>Location:</strong> {userLocation?.name} |
+              <strong className="ml-2">Total Products:</strong> {priceData.length} |
+              <strong className="ml-2">Tip:</strong> Use the Simple Price Editor to update prices
+            </span>
           </div>
         </div>
       </div>
@@ -475,7 +268,7 @@ export default function MyLocationPricingPage() {
         <div className="max-w-7xl mx-auto h-full">
           <DataGrid
             ref={dataGridRef}
-            dataSource={flatPriceData}
+            dataSource={priceData}
             keyExpr="compositeKey"
             showBorders={true}
             showRowLines={true}
@@ -485,31 +278,23 @@ export default function MyLocationPricingPage() {
             allowColumnReordering={true}
             allowColumnResizing={true}
             columnAutoWidth={true}
-            wordWrapEnabled={true}
+            wordWrapEnabled={false}
             height="100%"
-            onRowUpdating={onRowUpdating}
-            onRowUpdated={onRowUpdated}
             onExporting={onExporting}
           >
             <Grouping contextMenuEnabled={true} />
             <GroupPanel visible={true} />
-            <SearchPanel visible={true} width={240} placeholder="Search..." />
+            <SearchPanel visible={true} width={240} placeholder="Search products..." />
             <FilterRow visible={true} />
             <HeaderFilter visible={true} />
             <Scrolling mode="virtual" rowRenderingMode="virtual" />
-            <Paging defaultPageSize={50} />
+            <Paging defaultPageSize={100} />
             <Pager
               visible={true}
-              allowedPageSizes={[25, 50, 100, 'all']}
+              allowedPageSizes={[50, 100, 200, 'all']}
               showPageSizeSelector={true}
               showInfo={true}
               showNavigationButtons={true}
-            />
-
-            <Editing
-              mode="cell"
-              allowUpdating={true}
-              useIcons={true}
             />
 
             <Export enabled={true} allowExportSelectedData={false} />
@@ -518,29 +303,18 @@ export default function MyLocationPricingPage() {
               dataField="productName"
               caption="Product"
               groupIndex={0}
-              allowEditing={false}
             />
 
             <Column
               dataField="productSKU"
               caption="SKU"
-              width={120}
-              allowEditing={false}
+              width={150}
             />
 
             <Column
               dataField="unitName"
               caption="Unit"
               width={120}
-              allowEditing={false}
-            />
-
-            <Column
-              dataField="purchasePrice"
-              caption="Purchase Price"
-              dataType="number"
-              format={{ type: 'fixedPoint', precision: 2 }}
-              width={140}
             />
 
             <Column
@@ -552,30 +326,18 @@ export default function MyLocationPricingPage() {
             />
 
             <Column
+              dataField="profitMargin"
               caption="Profit Margin"
-              width={120}
-              allowEditing={false}
+              width={130}
               cellRender={renderProfitMarginCell}
-              calculateCellValue={(rowData: any) =>
-                calculateProfitMargin(rowData.purchasePrice, rowData.sellingPrice)
-              }
-            />
-
-            <Column
-              dataField="isLocationSpecific"
-              caption="Custom Price?"
-              dataType="boolean"
-              width={120}
-              allowEditing={false}
-              trueText="Yes"
-              falseText="No (Global)"
+              alignment="center"
             />
 
             <Summary>
               <TotalItem
                 column="productName"
                 summaryType="count"
-                displayFormat="{0} prices"
+                displayFormat="{0} products"
               />
             </Summary>
 
