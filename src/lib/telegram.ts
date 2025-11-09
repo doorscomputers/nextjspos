@@ -951,6 +951,207 @@ export async function sendTelegramSupplierReturnAlert(data: {
 }
 
 /**
+ * Send transfer rejection alert
+ */
+export async function sendTelegramTransferRejectionAlert(data: {
+  transferNumber: string
+  fromLocation: string
+  toLocation: string
+  itemCount: number
+  totalQuantity: number
+  rejectedBy: string
+  rejectionReason: string
+  timestamp: Date
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const message = `
+❌ <b>TRANSFER REJECTED</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>TRN #:</b> ${data.transferNumber}
+<b>From:</b> ${data.fromLocation}
+<b>To:</b> ${data.toLocation}
+<b>Status:</b> REJECTED - Returned to Draft
+
+<b>Items:</b> ${data.itemCount} products
+<b>Total Quantity:</b> ${data.totalQuantity} units
+
+<b>Rejected By:</b> ${data.rejectedBy}
+<b>Rejection Reason:</b> ${data.rejectionReason}
+<b>Time:</b> ${formatDateTime(data.timestamp)}
+
+⚠️ <i>Transfer returned to creator for corrections</i>
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
+ * Send transfer approval alert (origin checker approved)
+ */
+export async function sendTelegramTransferApprovalAlert(data: {
+  transferNumber: string
+  fromLocation: string
+  toLocation: string
+  itemCount: number
+  totalQuantity: number
+  approvedBy: string
+  notes?: string
+  timestamp: Date
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const message = `
+✅ <b>TRANSFER APPROVED</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>TRN #:</b> ${data.transferNumber}
+<b>From:</b> ${data.fromLocation}
+<b>To:</b> ${data.toLocation}
+<b>Status:</b> CHECKED - Ready to Send
+
+<b>Items:</b> ${data.itemCount} products
+<b>Total Quantity:</b> ${data.totalQuantity} units
+
+<b>Approved By:</b> ${data.approvedBy}
+${data.notes ? `<b>Notes:</b> ${data.notes}` : ''}
+<b>Time:</b> ${formatDateTime(data.timestamp)}
+
+✅ <i>Transfer verified and approved - ready for shipment</i>
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
+ * Send transfer acceptance/completion alert (receiving location accepted)
+ */
+export async function sendTelegramTransferAcceptanceAlert(data: {
+  transferNumber: string
+  fromLocation: string
+  toLocation: string
+  itemCount: number
+  totalQuantity: number
+  acceptedBy: string
+  notes?: string
+  timestamp: Date
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const message = `
+📦 <b>TRANSFER COMPLETED</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>TRN #:</b> ${data.transferNumber}
+<b>From:</b> ${data.fromLocation}
+<b>To:</b> ${data.toLocation}
+<b>Status:</b> COMPLETED ✓
+
+<b>Items:</b> ${data.itemCount} products
+<b>Total Quantity:</b> ${data.totalQuantity} units
+
+<b>Accepted By:</b> ${data.acceptedBy}
+${data.notes ? `<b>Notes:</b> ${data.notes}` : ''}
+<b>Time:</b> ${formatDateTime(data.timestamp)}
+
+✅ <i>Transfer completed - stock added to destination</i>
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
+ * Send location-specific price change alert
+ */
+export async function sendTelegramLocationPriceChangeAlert(data: {
+  productName: string
+  productSku: string
+  locationName: string
+  priceType: 'purchase' | 'selling' | 'both'
+  oldPurchasePrice?: number
+  newPurchasePrice?: number
+  oldSellingPrice?: number
+  newSellingPrice?: number
+  changedBy: string
+  timestamp: Date
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  let priceChanges = ''
+
+  if (data.priceType === 'purchase' || data.priceType === 'both') {
+    if (data.oldPurchasePrice !== undefined && data.newPurchasePrice !== undefined) {
+      const change = data.newPurchasePrice - data.oldPurchasePrice
+      const emoji = change > 0 ? '📈' : change < 0 ? '📉' : '➡️'
+      priceChanges += `${emoji} <b>Purchase Price:</b> ${formatCurrency(data.oldPurchasePrice)} → ${formatCurrency(data.newPurchasePrice)}\n`
+    }
+  }
+
+  if (data.priceType === 'selling' || data.priceType === 'both') {
+    if (data.oldSellingPrice !== undefined && data.newSellingPrice !== undefined) {
+      const change = data.newSellingPrice - data.oldSellingPrice
+      const emoji = change > 0 ? '📈' : change < 0 ? '📉' : '➡️'
+      priceChanges += `${emoji} <b>Selling Price:</b> ${formatCurrency(data.oldSellingPrice)} → ${formatCurrency(data.newSellingPrice)}\n`
+    }
+  }
+
+  const message = `
+💵 <b>LOCATION PRICE CHANGE</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Product:</b> ${data.productName}
+<b>SKU:</b> ${data.productSku}
+<b>Location:</b> ${data.locationName}
+
+${priceChanges}
+<b>Changed By:</b> ${data.changedBy}
+<b>Time:</b> ${formatDateTime(data.timestamp)}
+
+ℹ️ <i>Location-specific pricing updated</i>
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
+ * Send bulk location price changes alert
+ */
+export async function sendTelegramBulkLocationPriceChangeAlert(data: {
+  changedBy: string
+  totalChanges: number
+  locations: string[]
+  productName?: string
+  timestamp: Date
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const locationList = data.locations.slice(0, 5).join(', ')
+  const moreLocations = data.locations.length > 5 ? ` +${data.locations.length - 5} more` : ''
+
+  const message = `
+📊 <b>BULK LOCATION PRICE UPDATE</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+${data.productName ? `<b>Product:</b> ${data.productName}\n` : ''}
+<b>Total Changes:</b> ${data.totalChanges}
+<b>Locations:</b> ${locationList}${moreLocations}
+
+<b>Changed By:</b> ${data.changedBy}
+<b>Time:</b> ${formatDateTime(data.timestamp)}
+
+⚠️ <i>Multiple location prices updated</i>
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
  * Get bot information (for testing)
  */
 export async function getTelegramBotInfo(): Promise<any> {

@@ -6,6 +6,7 @@ import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 import { validateSOD, getUserRoles } from '@/lib/sodValidation'
 import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker'
+import { sendTelegramTransferAcceptanceAlert } from '@/lib/telegram'
 
 /**
  * POST /api/transfers/[id]/complete
@@ -45,7 +46,7 @@ export async function POST(
       )
     }
 
-    // Get transfer with all items and business workflow mode
+    // Get transfer with all items, locations, and business workflow mode
     const [transfer, business] = await Promise.all([
       prisma.stockTransfer.findFirst({
         where: {
@@ -55,6 +56,8 @@ export async function POST(
         },
         include: {
           items: true,
+          fromLocation: true,
+          toLocation: true,
         },
       }),
       prisma.business.findUnique({
@@ -320,6 +323,21 @@ export async function POST(
         notes,
       },
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+    })
+
+    // Send Telegram notification (async, don't await)
+    const totalQuantity = transfer.items.reduce((sum, item) => sum + parseFloat(item.quantity.toString()), 0)
+    sendTelegramTransferAcceptanceAlert({
+      transferNumber: transfer.transferNumber,
+      fromLocation: transfer.fromLocation.name,
+      toLocation: transfer.toLocation.name,
+      itemCount: transfer.items.length,
+      totalQuantity,
+      acceptedBy: user.username,
+      notes,
+      timestamp: new Date(),
+    }).catch((error) => {
+      console.error('[Telegram] Failed to send transfer acceptance alert:', error)
     })
 
     return NextResponse.json({

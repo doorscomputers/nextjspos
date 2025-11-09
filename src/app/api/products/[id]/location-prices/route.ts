@@ -7,6 +7,7 @@ import {
   saveProductLocationPrices,
   LocationUnitPriceInput,
 } from '@/lib/productLocationPricing'
+import { sendTelegramLocationPriceChangeAlert, sendTelegramBulkLocationPriceChangeAlert } from '@/lib/telegram'
 
 /**
  * GET /api/products/[id]/location-prices
@@ -198,6 +199,12 @@ export async function POST(
       )
     }
 
+    // Get old prices for comparison (for Telegram notifications)
+    const oldPrices = await getProductLocationPrices(productId, businessId)
+    const oldPricesMap = new Map(
+      oldPrices.map(p => [`${p.locationId}-${p.unitId}`, p])
+    )
+
     // Save location prices
     await saveProductLocationPrices(productId, businessId, prices, user.id)
 
@@ -222,6 +229,87 @@ export async function POST(
       sellingPrice: p.sellingPrice.toString(),
       multiplier: p.multiplier.toString(),
     }))
+
+    // Send Telegram notifications for price changes (async, don't await)
+    const changedLocations = new Set<string>()
+    let changeCount = 0
+
+    prices.forEach((newPrice) => {
+      const key = `${newPrice.locationId}-${newPrice.unitId}`
+      const oldPrice = oldPricesMap.get(key)
+
+      if (oldPrice) {
+        const purchasePriceChanged = parseFloat(oldPrice.purchasePrice.toString()) !== newPrice.purchasePrice
+        const sellingPriceChanged = parseFloat(oldPrice.sellingPrice.toString()) !== newPrice.sellingPrice
+
+        if (purchasePriceChanged || sellingPriceChanged) {
+          changeCount++
+
+          // Get location name from updatedPrices
+          const updatedPrice = updatedPrices.find(p => p.locationId === newPrice.locationId && p.unitId === newPrice.unitId)
+          if (updatedPrice) {
+            changedLocations.add(updatedPrice.locationName)
+
+            // Send individual notification for significant changes
+            if (purchasePriceChanged && sellingPriceChanged) {
+              sendTelegramLocationPriceChangeAlert({
+                productName: product.name,
+                productSku: product.sku,
+                locationName: updatedPrice.locationName,
+                priceType: 'both',
+                oldPurchasePrice: parseFloat(oldPrice.purchasePrice.toString()),
+                newPurchasePrice: newPrice.purchasePrice,
+                oldSellingPrice: parseFloat(oldPrice.sellingPrice.toString()),
+                newSellingPrice: newPrice.sellingPrice,
+                changedBy: user.username,
+                timestamp: new Date(),
+              }).catch((error) => {
+                console.error('[Telegram] Failed to send price change alert:', error)
+              })
+            } else if (purchasePriceChanged) {
+              sendTelegramLocationPriceChangeAlert({
+                productName: product.name,
+                productSku: product.sku,
+                locationName: updatedPrice.locationName,
+                priceType: 'purchase',
+                oldPurchasePrice: parseFloat(oldPrice.purchasePrice.toString()),
+                newPurchasePrice: newPrice.purchasePrice,
+                changedBy: user.username,
+                timestamp: new Date(),
+              }).catch((error) => {
+                console.error('[Telegram] Failed to send price change alert:', error)
+              })
+            } else if (sellingPriceChanged) {
+              sendTelegramLocationPriceChangeAlert({
+                productName: product.name,
+                productSku: product.sku,
+                locationName: updatedPrice.locationName,
+                priceType: 'selling',
+                oldSellingPrice: parseFloat(oldPrice.sellingPrice.toString()),
+                newSellingPrice: newPrice.sellingPrice,
+                changedBy: user.username,
+                timestamp: new Date(),
+              }).catch((error) => {
+                console.error('[Telegram] Failed to send price change alert:', error)
+              })
+            }
+          }
+        }
+      }
+    })
+
+    // Send bulk notification if multiple locations changed
+    if (changeCount > 3) {
+      sendTelegramBulkLocationPriceChangeAlert({
+        changedBy: user.username,
+        totalChanges: changeCount,
+        locations: Array.from(changedLocations),
+        productName: product.name,
+        timestamp: new Date(),
+      }).catch((error) => {
+        console.error('[Telegram] Failed to send bulk price change alert:', error)
+      })
+    }
 
     return NextResponse.json({
       success: true,

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
+import { sendTelegramTransferRejectionAlert } from '@/lib/telegram'
 
 /**
  * POST /api/transfers/[id]/check-reject
@@ -47,12 +48,17 @@ export async function POST(
       )
     }
 
-    // Get transfer
+    // Get transfer with locations and items
     const transfer = await prisma.stockTransfer.findFirst({
       where: {
         id: transferId,
         businessId: parseInt(businessId),
         deletedAt: null,
+      },
+      include: {
+        fromLocation: true,
+        toLocation: true,
+        items: true,
       },
     })
 
@@ -91,6 +97,21 @@ export async function POST(
         rejectionReason: reason,
       },
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+    })
+
+    // Send Telegram notification (async, don't await)
+    const totalQuantity = transfer.items.reduce((sum, item) => sum + parseFloat(item.quantity.toString()), 0)
+    sendTelegramTransferRejectionAlert({
+      transferNumber: transfer.transferNumber,
+      fromLocation: transfer.fromLocation.name,
+      toLocation: transfer.toLocation.name,
+      itemCount: transfer.items.length,
+      totalQuantity,
+      rejectedBy: user.username,
+      rejectionReason: reason,
+      timestamp: new Date(),
+    }).catch((error) => {
+      console.error('[Telegram] Failed to send transfer rejection alert:', error)
     })
 
     return NextResponse.json({
