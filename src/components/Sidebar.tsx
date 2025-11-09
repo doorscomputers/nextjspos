@@ -544,14 +544,14 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
           name: "Location Pricing (Admin)",
           href: "/dashboard/products/location-pricing",
           icon: BuildingStorefrontIcon,
-          permission: PERMISSIONS.PRODUCT_PRICE_EDIT,
+          permission: PERMISSIONS.PRODUCT_PRICE_EDIT_ALL,
         },
         {
           key: "my_location_pricing",
           name: "My Location Pricing",
           href: "/dashboard/products/my-location-pricing",
           icon: BuildingStorefrontIcon,
-          permission: PERMISSIONS.PRODUCT_PRICE_EDIT,
+          permission: PERMISSIONS.PRODUCT_PRICE_EDIT_ALL,
         },
         {
           key: "price_comparison",
