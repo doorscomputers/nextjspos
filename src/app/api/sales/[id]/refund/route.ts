@@ -10,6 +10,7 @@ import { sendRefundTransactionAlert } from '@/lib/email'
 import { sendTelegramRefundTransactionAlert } from '@/lib/telegram'
 import { withIdempotency } from '@/lib/idempotency'
 import { getNextReturnNumber } from '@/lib/atomicNumbers'
+import { incrementShiftTotalsForRefund } from '@/lib/shift-running-totals'
 
 /**
  * POST /api/sales/[id]/refund - Process a refund for a sale
@@ -251,6 +252,16 @@ export async function POST(
             })
           }
         }
+      }
+
+      // Update shift running totals for refund (increment refund counters)
+      // Only if sale has a shiftId (POS sales)
+      if (sale.shiftId) {
+        await incrementShiftTotalsForRefund(
+          sale.shiftId,
+          refundTotal,
+          tx  // CRITICAL: Pass transaction client for atomicity
+        )
       }
 
       return { customerReturn, returnNumber }

@@ -8,6 +8,7 @@ import { addStock, StockTransactionType } from '@/lib/stockOperations'
 import bcrypt from 'bcryptjs'
 import { sendVoidTransactionAlert } from '@/lib/email'
 import { sendTelegramVoidTransactionAlert } from '@/lib/telegram'
+import { decrementShiftTotalsForVoid } from '@/lib/shift-running-totals'
 
 /**
  * POST /api/sales/[id]/void - Void a sale transaction
@@ -100,7 +101,7 @@ export async function POST(
       )
     }
 
-    // Fetch the sale
+    // Fetch the sale with payments for running totals update
     const sale = await prisma.sale.findUnique({
       where: { id: saleId },
       include: {
@@ -109,6 +110,7 @@ export async function POST(
             product: true,
           },
         },
+        payments: true, // Include payments for running totals decrement
       },
     })
 
@@ -217,6 +219,25 @@ export async function POST(
             }
           }
         }
+      }
+
+      // Update shift running totals for voided sale (decrement counters)
+      // Only if sale has a shiftId (POS sales)
+      if (sale.shiftId) {
+        await decrementShiftTotalsForVoid(
+          sale.shiftId,
+          {
+            subtotal: parseFloat(sale.subtotal.toString()),
+            totalAmount: parseFloat(sale.totalAmount.toString()),
+            discountAmount: parseFloat(sale.discountAmount.toString()),
+            discountType: sale.discountType,
+            payments: sale.payments.map((p: any) => ({
+              paymentMethod: p.paymentMethod,
+              amount: parseFloat(p.amount.toString()),
+            })),
+          },
+          tx  // CRITICAL: Pass transaction client for atomicity
+        )
       }
 
       return { voidedSale, voidTransaction }

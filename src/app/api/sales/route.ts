@@ -17,6 +17,7 @@ import { withIdempotency } from '@/lib/idempotency'
 import { getNextInvoiceNumber } from '@/lib/atomicNumbers'
 import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker'
 import { isAccountingEnabled, recordCashSale, recordCreditSale } from '@/lib/accountingIntegration'
+import { incrementShiftTotalsForSale } from '@/lib/shift-running-totals'
 
 // GET - List all sales
 export async function GET(request: NextRequest) {
@@ -769,6 +770,23 @@ export async function POST(request: NextRequest) {
         userAgent: getUserAgent(request),
         tx  // CRITICAL: Pass transaction client for atomicity (BIR compliance)
       })
+
+      // PHASE 2: Update shift running totals for real-time X/Z Reading generation
+      // This is a single UPDATE query with increment operations (~10-50ms overhead)
+      await incrementShiftTotalsForSale(
+        currentShift.id,
+        {
+          subtotal,
+          totalAmount,
+          discountAmount: parseFloat(discountAmount || 0),
+          discountType: discountType || null,
+          payments: isCreditSale ? [] : (payments || []).map((p: any) => ({
+            paymentMethod: p.method,
+            amount: parseFloat(p.amount),
+          })),
+        },
+        tx  // CRITICAL: Pass transaction client for atomicity
+      )
 
       return newSale
     }, {
