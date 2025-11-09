@@ -140,13 +140,22 @@ export default function MyLocationPricingPage() {
       }
 
       const data = await res.json()
-      const locations = data.locations || []
+      const allLocations = data.locations || []
 
-      // Automatically use the first assigned location (branch managers typically have one location)
-      if (locations.length > 0) {
-        const location = locations[0]
+      // Filter out "Main Warehouse" locations (not selling locations)
+      const sellingLocations = allLocations.filter((loc: any) =>
+        !loc.name.toLowerCase().includes('main warehouse') &&
+        !loc.name.toLowerCase().includes('warehouse')
+      )
+
+      // Automatically use the first assigned SELLING location
+      if (sellingLocations.length > 0) {
+        const location = sellingLocations[0]
         setUserLocation(location)
         await fetchLocationPrices(location.id)
+      } else {
+        // User only has warehouse locations assigned (not selling locations)
+        setUserLocation(null)
       }
 
       setLoading(false)
@@ -382,9 +391,15 @@ export default function MyLocationPricingPage() {
     return (
       <div className="p-6">
         <div className="rounded-lg border border-yellow-200 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-900 p-4 text-yellow-800 dark:text-yellow-200">
-          <p className="font-semibold">No Location Assigned</p>
+          <p className="font-semibold">No Selling Location Assigned</p>
           <p className="mt-1 text-sm">
-            You do not have a location assigned to your account. Please contact your administrator to assign a location.
+            You only have warehouse locations assigned. This page is for selling locations only.
+          </p>
+          <p className="mt-2 text-sm font-medium">
+            Please contact your administrator to assign you to a selling location (e.g., Store, Branch, Outlet).
+          </p>
+          <p className="mt-2 text-xs text-yellow-700 dark:text-yellow-300">
+            Note: Warehouses are for inventory storage only and do not sell products directly to customers.
           </p>
         </div>
       </div>
