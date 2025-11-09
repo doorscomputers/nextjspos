@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
-import { generateZReadingDataOptimized } from '@/lib/readings-optimized'
+import { generateZReading } from '@/lib/readings-instant'
 
 /**
  * GET /api/readings/z-reading - Generate Z Reading (end-of-day, BIR-compliant with counter increment)
@@ -101,8 +101,9 @@ export async function GET(request: NextRequest) {
       shiftId = shift.id
     }
 
-    // Use OPTIMIZED library function to generate Z Reading
-    const zReading = await generateZReadingDataOptimized(
+    // Use DUAL-MODE library function (Instant or SQL aggregation fallback)
+    // Automatically uses real-time totals if available, otherwise SQL aggregation
+    const zReading = await generateZReading(
       shiftId,
       parseInt(businessId),
       session.user.username,

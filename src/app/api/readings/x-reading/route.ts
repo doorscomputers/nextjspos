@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
-import { generateXReadingDataOptimized } from '@/lib/readings-optimized'
+import { generateXReading } from '@/lib/readings-instant'
 
 /**
  * GET /api/readings/x-reading - Generate X Reading (mid-shift, non-resetting)
@@ -98,8 +98,9 @@ export async function GET(request: NextRequest) {
       shiftId = shift.id
     }
 
-    // Use OPTIMIZED library function to generate X Reading
-    const xReading = await generateXReadingDataOptimized(
+    // Use DUAL-MODE library function (Instant or SQL aggregation fallback)
+    // Automatically uses real-time totals if available, otherwise SQL aggregation
+    const xReading = await generateXReading(
       shiftId,
       parseInt(session.user.businessId),
       session.user.username,
