@@ -20,7 +20,7 @@ import DataGrid, {
   TotalItem,
   Scrolling,
 } from 'devextreme-react/data-grid'
-import { SelectBox, Button, LoadPanel } from 'devextreme-react'
+import { Button, LoadPanel } from 'devextreme-react'
 import notify from 'devextreme/ui/notify'
 import { exportDataGrid } from 'devextreme/excel_exporter'
 import { Workbook } from 'exceljs'
@@ -56,8 +56,7 @@ export default function MyLocationPricingPage() {
   const { can, user } = usePermissions()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [assignedLocations, setAssignedLocations] = useState<Location[]>([])
-  const [selectedLocation, setSelectedLocation] = useState<number | null>(null)
+  const [userLocation, setUserLocation] = useState<Location | null>(null)
   const [productPrices, setProductPrices] = useState<ProductPrice[]>([])
   const [flatPriceData, setFlatPriceData] = useState<any[]>([])
   const dataGridRef = useRef<DataGrid>(null)
@@ -77,35 +76,35 @@ export default function MyLocationPricingPage() {
 
   useEffect(() => {
     if (canEdit && user) {
-      fetchAssignedLocations()
+      fetchUserLocation()
     } else {
       setLoading(false)
     }
   }, [canEdit, user])
 
-  async function fetchAssignedLocations() {
+  async function fetchUserLocation() {
     try {
       setLoading(true)
 
       const res = await fetch('/api/user-locations')
       if (!res.ok) {
-        throw new Error('Failed to fetch assigned locations')
+        throw new Error('Failed to fetch assigned location')
       }
 
       const data = await res.json()
       const locations = data.locations || []
-      setAssignedLocations(locations)
 
-      // Auto-select first location if available
+      // Automatically use the first assigned location (branch managers typically have one location)
       if (locations.length > 0) {
-        setSelectedLocation(locations[0].id)
-        await fetchLocationPrices(locations[0].id)
+        const location = locations[0]
+        setUserLocation(location)
+        await fetchLocationPrices(location.id)
       }
 
       setLoading(false)
     } catch (error: any) {
-      console.error('Error fetching assigned locations:', error)
-      notify(error.message || 'Failed to load assigned locations', 'error', 3000)
+      console.error('Error fetching user location:', error)
+      notify(error.message || 'Failed to load user location', 'error', 3000)
       setLoading(false)
     }
   }
@@ -150,29 +149,6 @@ export default function MyLocationPricingPage() {
     }
   }
 
-  const handleLocationChange = useCallback((e: any) => {
-    const locationId = e.value
-    setSelectedLocation(locationId)
-
-    if (locationId) {
-      // Clear pending changes when switching locations
-      if (hasChanges) {
-        const confirmSwitch = confirm(
-          'You have unsaved changes. Switching locations will discard these changes. Continue?'
-        )
-        if (!confirmSwitch) {
-          return
-        }
-      }
-
-      fetchLocationPrices(locationId)
-    } else {
-      setProductPrices([])
-      setFlatPriceData([])
-      setPendingChanges(new Map())
-      setHasChanges(false)
-    }
-  }, [hasChanges])
 
   const onRowUpdating = useCallback((e: any) => {
     const key = e.key
@@ -210,7 +186,7 @@ export default function MyLocationPricingPage() {
   }, [])
 
   async function handleSave() {
-    if (!selectedLocation || pendingChanges.size === 0) {
+    if (!userLocation || pendingChanges.size === 0) {
       notify('No changes to save', 'warning', 2000)
       return
     }
@@ -241,7 +217,7 @@ export default function MyLocationPricingPage() {
         prices,
       }))
 
-      const res = await fetch(`/api/locations/${selectedLocation}/prices`, {
+      const res = await fetch(`/api/locations/${userLocation.id}/prices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ productPrices }),
@@ -253,7 +229,7 @@ export default function MyLocationPricingPage() {
       }
 
       // Reload prices
-      await fetchLocationPrices(selectedLocation)
+      await fetchLocationPrices(userLocation.id)
       setSaving(false)
 
       notify(`Saved ${pendingChanges.size} price changes successfully`, 'success', 3000)
@@ -271,8 +247,8 @@ export default function MyLocationPricingPage() {
 
     if (confirm('Discard all unsaved changes?')) {
       // Reload prices from server
-      if (selectedLocation) {
-        fetchLocationPrices(selectedLocation)
+      if (userLocation) {
+        fetchLocationPrices(userLocation.id)
       }
     }
   }
@@ -313,7 +289,7 @@ export default function MyLocationPricingPage() {
   if (!canEdit) {
     return (
       <div className="p-6">
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
+        <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-700 dark:bg-red-900 p-4 text-red-800 dark:text-red-200">
           <p className="font-semibold">Access Denied</p>
           <p className="mt-1 text-sm">
             You do not have permission to edit location pricing.
@@ -323,13 +299,13 @@ export default function MyLocationPricingPage() {
     )
   }
 
-  if (!loading && assignedLocations.length === 0) {
+  if (!loading && !userLocation) {
     return (
       <div className="p-6">
-        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-yellow-800">
-          <p className="font-semibold">No Locations Assigned</p>
+        <div className="rounded-lg border border-yellow-200 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-900 p-4 text-yellow-800 dark:text-yellow-200">
+          <p className="font-semibold">No Location Assigned</p>
           <p className="mt-1 text-sm">
-            You do not have any locations assigned to your account. Please contact your administrator to assign locations.
+            You do not have a location assigned to your account. Please contact your administrator to assign a location.
           </p>
         </div>
       </div>
@@ -348,43 +324,36 @@ export default function MyLocationPricingPage() {
       />
 
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 My Location Pricing
               </h1>
-              <p className="mt-1 text-sm text-gray-500">
-                Edit prices for your assigned location(s)
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Edit prices for <span className="font-semibold text-gray-700 dark:text-gray-300">{userLocation?.name}</span>
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Location Selector */}
-      <div className="bg-white shadow-sm border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-4">
+      {/* Action Bar */}
+      <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 lg:px-8 py-4">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-4">
-            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-              Select Location:
-            </label>
-            <div className="flex-1 max-w-md">
-              <SelectBox
-                dataSource={assignedLocations}
-                displayExpr="name"
-                valueExpr="id"
-                placeholder="Choose a location..."
-                value={selectedLocation}
-                onValueChanged={handleLocationChange}
-                showClearButton={false}
-                disabled={assignedLocations.length === 1}
-              />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Location:
+              </span>
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                {userLocation?.name}
+              </span>
             </div>
             {hasChanges && (
               <div className="flex items-center gap-2">
-                <span className="text-sm text-orange-600 font-medium">
+                <span className="text-sm text-orange-600 dark:text-orange-400 font-medium">
                   {pendingChanges.size} unsaved change(s)
                 </span>
                 <Button
@@ -408,7 +377,7 @@ export default function MyLocationPricingPage() {
       </div>
 
       {/* Data Grid */}
-      <div className="flex-1 overflow-hidden bg-gray-50 px-4 sm:px-6 lg:px-8 py-4">
+      <div className="flex-1 overflow-hidden bg-gray-50 dark:bg-gray-900 px-4 sm:px-6 lg:px-8 py-4">
         <div className="max-w-7xl mx-auto h-full">
           <DataGrid
             ref={dataGridRef}
