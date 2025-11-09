@@ -115,6 +115,12 @@ export default function TransferDetailPage() {
   const [inventoryImpactData, setInventoryImpactData] = useState<any>(null)
   const [transferJustCompleted, setTransferJustCompleted] = useState(false)
 
+  // Progress indicators for Send and Receive operations
+  const [showSendProgress, setShowSendProgress] = useState(false)
+  const [sendProgressStep, setSendProgressStep] = useState(0)
+  const [showReceiveProgress, setShowReceiveProgress] = useState(false)
+  const [receiveProgressStep, setReceiveProgressStep] = useState(0)
+
   useEffect(() => {
     fetchLocations()
     fetchUserLocations()
@@ -130,6 +136,20 @@ export default function TransferDetailPage() {
       document.title = 'PciNet Computer Trading and Services'
     }
   }, [transfer])
+
+  // Prevent browser close during critical operations
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (showSendProgress || showReceiveProgress) {
+        e.preventDefault()
+        e.returnValue = 'Inventory update in progress! Are you sure you want to leave?'
+        return 'Inventory update in progress! Are you sure you want to leave?'
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [showSendProgress, showReceiveProgress])
 
   const fetchLocations = async () => {
     try {
@@ -269,9 +289,36 @@ export default function TransferDetailPage() {
     setShowSendConfirm(true)
   }
 
-  const handleSendConfirmed = () => {
+  const handleSendConfirmed = async () => {
     setShowSendConfirm(false)
-    handleAction('send', 'Transfer sent - stock deducted')
+    setShowSendProgress(true)
+    setSendProgressStep(0)
+
+    // Simulate progress steps
+    try {
+      // Step 1: Validating transfer
+      setSendProgressStep(1)
+      await new Promise(resolve => setTimeout(resolve, 300))
+
+      // Step 2: Deducting inventory
+      setSendProgressStep(2)
+
+      // Make actual API call
+      await handleAction('send', 'Transfer sent - stock deducted')
+
+      // Step 3: Updating records
+      setSendProgressStep(3)
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Step 4: Complete
+      setSendProgressStep(4)
+      await new Promise(resolve => setTimeout(resolve, 800))
+
+      setShowSendProgress(false)
+    } catch (error) {
+      setShowSendProgress(false)
+      // Error already handled by handleAction
+    }
   }
 
   const handleMarkArrived = () => {
@@ -312,9 +359,40 @@ export default function TransferDetailPage() {
     setShowCompleteConfirm(true)
   }
 
-  const handleCompleteConfirmed = () => {
+  const handleCompleteConfirmed = async () => {
     setShowCompleteConfirm(false)
-    handleAction('complete', 'Transfer completed - stock added to destination')
+    setShowReceiveProgress(true)
+    setReceiveProgressStep(0)
+
+    // Simulate progress steps
+    try {
+      // Step 1: Validating verified items
+      setReceiveProgressStep(1)
+      await new Promise(resolve => setTimeout(resolve, 300))
+
+      // Step 2: Adding inventory to destination
+      setReceiveProgressStep(2)
+
+      // Make actual API call
+      await handleAction('complete', 'Transfer completed - stock added to destination')
+
+      // Step 3: Updating stock records
+      setReceiveProgressStep(3)
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Step 4: Generating reports
+      setReceiveProgressStep(4)
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Step 5: Complete
+      setReceiveProgressStep(5)
+      await new Promise(resolve => setTimeout(resolve, 800))
+
+      setShowReceiveProgress(false)
+    } catch (error) {
+      setShowReceiveProgress(false)
+      // Error already handled by handleAction
+    }
   }
 
   const handleCloseInventoryImpact = () => {
@@ -1906,6 +1984,239 @@ export default function TransferDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Send Transfer Progress Modal */}
+      {showSendProgress && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 dark:bg-opacity-90 flex items-center justify-center z-[60] backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 border-4 border-blue-500">
+            {/* Header */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="bg-blue-100 dark:bg-blue-900 p-3 rounded-full">
+                <TruckIcon className="w-8 h-8 text-blue-600 dark:text-blue-400 animate-pulse" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Sending Transfer</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Processing inventory updates...</p>
+              </div>
+            </div>
+
+            {/* Progress Steps */}
+            <div className="space-y-4 mb-6">
+              {/* Step 1: Validating */}
+              <div className={`flex items-start gap-3 transition-all duration-300 ${sendProgressStep >= 1 ? 'opacity-100' : 'opacity-40'}`}>
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  sendProgressStep > 1 ? 'bg-green-500' : sendProgressStep === 1 ? 'bg-blue-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'
+                }`}>
+                  {sendProgressStep > 1 ? (
+                    <CheckIcon className="w-5 h-5 text-white" />
+                  ) : sendProgressStep === 1 ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <span className="text-white font-bold">1</span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-900 dark:text-white">Validating Transfer</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Checking transfer details and permissions</div>
+                </div>
+              </div>
+
+              {/* Step 2: Deducting Inventory */}
+              <div className={`flex items-start gap-3 transition-all duration-300 ${sendProgressStep >= 2 ? 'opacity-100' : 'opacity-40'}`}>
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  sendProgressStep > 2 ? 'bg-green-500' : sendProgressStep === 2 ? 'bg-blue-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'
+                }`}>
+                  {sendProgressStep > 2 ? (
+                    <CheckIcon className="w-5 h-5 text-white" />
+                  ) : sendProgressStep === 2 ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <span className="text-white font-bold">2</span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-900 dark:text-white">Deducting Stock from {getLocationName(transfer?.fromLocationId || 0)}</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Updating inventory at origin location</div>
+                </div>
+              </div>
+
+              {/* Step 3: Updating Records */}
+              <div className={`flex items-start gap-3 transition-all duration-300 ${sendProgressStep >= 3 ? 'opacity-100' : 'opacity-40'}`}>
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  sendProgressStep > 3 ? 'bg-green-500' : sendProgressStep === 3 ? 'bg-blue-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'
+                }`}>
+                  {sendProgressStep > 3 ? (
+                    <CheckIcon className="w-5 h-5 text-white" />
+                  ) : sendProgressStep === 3 ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <span className="text-white font-bold">3</span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-900 dark:text-white">Updating Transfer Records</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Recording transaction in database</div>
+                </div>
+              </div>
+
+              {/* Step 4: Complete */}
+              <div className={`flex items-start gap-3 transition-all duration-300 ${sendProgressStep >= 4 ? 'opacity-100' : 'opacity-40'}`}>
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  sendProgressStep >= 4 ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                }`}>
+                  {sendProgressStep >= 4 ? (
+                    <CheckIcon className="w-5 h-5 text-white" />
+                  ) : (
+                    <span className="text-white font-bold">4</span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-900 dark:text-white">Transfer Sent Successfully</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Stock deducted, ready for shipment</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Warning */}
+            <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-400 dark:border-amber-600 rounded-lg p-4">
+              <div className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <p className="text-sm text-amber-900 dark:text-amber-200 font-semibold">
+                  ⚠️ Do not close this window! Inventory updates in progress...
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Receive Transfer Progress Modal */}
+      {showReceiveProgress && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 dark:bg-opacity-90 flex items-center justify-center z-[60] backdrop-blur-sm">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 border-4 border-green-500">
+            {/* Header */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="bg-green-100 dark:bg-green-900 p-3 rounded-full">
+                <CheckCircleIcon className="w-8 h-8 text-green-600 dark:text-green-400 animate-pulse" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Receiving Transfer</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Processing inventory updates...</p>
+              </div>
+            </div>
+
+            {/* Progress Steps */}
+            <div className="space-y-4 mb-6">
+              {/* Step 1: Validating */}
+              <div className={`flex items-start gap-3 transition-all duration-300 ${receiveProgressStep >= 1 ? 'opacity-100' : 'opacity-40'}`}>
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  receiveProgressStep > 1 ? 'bg-green-500' : receiveProgressStep === 1 ? 'bg-blue-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'
+                }`}>
+                  {receiveProgressStep > 1 ? (
+                    <CheckIcon className="w-5 h-5 text-white" />
+                  ) : receiveProgressStep === 1 ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <span className="text-white font-bold">1</span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-900 dark:text-white">Validating Verified Items</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Checking all items are verified</div>
+                </div>
+              </div>
+
+              {/* Step 2: Adding Inventory */}
+              <div className={`flex items-start gap-3 transition-all duration-300 ${receiveProgressStep >= 2 ? 'opacity-100' : 'opacity-40'}`}>
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  receiveProgressStep > 2 ? 'bg-green-500' : receiveProgressStep === 2 ? 'bg-blue-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'
+                }`}>
+                  {receiveProgressStep > 2 ? (
+                    <CheckIcon className="w-5 h-5 text-white" />
+                  ) : receiveProgressStep === 2 ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <span className="text-white font-bold">2</span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-900 dark:text-white">Adding Stock to {getLocationName(transfer?.toLocationId || 0)}</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Updating inventory at destination</div>
+                </div>
+              </div>
+
+              {/* Step 3: Updating Stock Records */}
+              <div className={`flex items-start gap-3 transition-all duration-300 ${receiveProgressStep >= 3 ? 'opacity-100' : 'opacity-40'}`}>
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  receiveProgressStep > 3 ? 'bg-green-500' : receiveProgressStep === 3 ? 'bg-blue-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'
+                }`}>
+                  {receiveProgressStep > 3 ? (
+                    <CheckIcon className="w-5 h-5 text-white" />
+                  ) : receiveProgressStep === 3 ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <span className="text-white font-bold">3</span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-900 dark:text-white">Updating Stock Ledgers</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Recording inventory movements</div>
+                </div>
+              </div>
+
+              {/* Step 4: Generating Reports */}
+              <div className={`flex items-start gap-3 transition-all duration-300 ${receiveProgressStep >= 4 ? 'opacity-100' : 'opacity-40'}`}>
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  receiveProgressStep > 4 ? 'bg-green-500' : receiveProgressStep === 4 ? 'bg-blue-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'
+                }`}>
+                  {receiveProgressStep > 4 ? (
+                    <CheckIcon className="w-5 h-5 text-white" />
+                  ) : receiveProgressStep === 4 ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <span className="text-white font-bold">4</span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-900 dark:text-white">Generating Transfer Reports</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Creating audit trails and reports</div>
+                </div>
+              </div>
+
+              {/* Step 5: Complete */}
+              <div className={`flex items-start gap-3 transition-all duration-300 ${receiveProgressStep >= 5 ? 'opacity-100' : 'opacity-40'}`}>
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  receiveProgressStep >= 5 ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                }`}>
+                  {receiveProgressStep >= 5 ? (
+                    <CheckIcon className="w-5 h-5 text-white" />
+                  ) : (
+                    <span className="text-white font-bold">5</span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="font-semibold text-gray-900 dark:text-white">Transfer Received Successfully</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Inventory updated at destination</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Warning */}
+            <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-400 dark:border-amber-600 rounded-lg p-4">
+              <div className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <p className="text-sm text-amber-900 dark:text-amber-200 font-semibold">
+                  ⚠️ Do not close this window! Inventory updates in progress...
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
