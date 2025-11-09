@@ -107,10 +107,10 @@ export default function LocationPricingPage() {
       setProducts(productsData.products || [])
 
       // Fetch locations
-      const locationsRes = await fetch('/api/business-locations')
+      const locationsRes = await fetch('/api/locations')
       if (!locationsRes.ok) throw new Error('Failed to fetch locations')
       const locationsData = await locationsRes.json()
-      setLocations(locationsData.locations || [])
+      setLocations(locationsData || [])
 
       setLoading(false)
     } catch (error) {
