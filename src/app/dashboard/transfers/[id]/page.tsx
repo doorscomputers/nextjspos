@@ -774,14 +774,14 @@ export default function TransferDetailPage() {
     }
 
     // In Transit → Mark Arrived
-    // CRITICAL WORKFLOW: Show to users ASSIGNED to DESTINATION location OR users with ACCESS_ALL_LOCATIONS
+    // CRITICAL WORKFLOW: Only show to users at DESTINATION location
+    // NEVER show to sender, even with ACCESS_ALL_LOCATIONS (prevents self-marking)
     if (status === 'in_transit' && can(PERMISSIONS.STOCK_TRANSFER_RECEIVE)) {
-      // Check if user has access to destination location:
-      // 1. Primary location matches TO location, OR
-      // 2. User has ACCESS_ALL_LOCATIONS permission (cross-location approvers)
-      const isAssignedToDestination = primaryLocationId === transfer.toLocationId || can(PERMISSIONS.ACCESS_ALL_LOCATIONS)
+      // Check if user is at destination AND NOT at origin (sender cannot mark arrival)
+      const isAtDestination = primaryLocationId === transfer.toLocationId ||
+                              (can(PERMISSIONS.ACCESS_ALL_LOCATIONS) && primaryLocationId !== transfer.fromLocationId)
 
-      if (isAssignedToDestination) {
+      if (isAtDestination) {
         actions.push({
           label: 'Mark as Arrived',
           icon: CheckCircleIcon,
@@ -792,14 +792,14 @@ export default function TransferDetailPage() {
     }
 
     // Arrived → Start Verification ONLY (enforce verification)
-    // CRITICAL WORKFLOW: Show to users ASSIGNED to DESTINATION location OR users with ACCESS_ALL_LOCATIONS
+    // CRITICAL WORKFLOW: Only show to users at DESTINATION location
+    // NEVER show to sender, even with ACCESS_ALL_LOCATIONS (receiver must verify)
     if (status === 'arrived') {
-      // Check if user has access to destination location:
-      // 1. Primary location matches TO location, OR
-      // 2. User has ACCESS_ALL_LOCATIONS permission (cross-location approvers)
-      const isAssignedToDestination = primaryLocationId === transfer.toLocationId || can(PERMISSIONS.ACCESS_ALL_LOCATIONS)
+      // Check if user is at destination AND NOT at origin
+      const isAtDestination = primaryLocationId === transfer.toLocationId ||
+                              (can(PERMISSIONS.ACCESS_ALL_LOCATIONS) && primaryLocationId !== transfer.fromLocationId)
 
-      if (can(PERMISSIONS.STOCK_TRANSFER_VERIFY) && isAssignedToDestination) {
+      if (can(PERMISSIONS.STOCK_TRANSFER_VERIFY) && isAtDestination) {
         actions.push({
           label: 'Start Verification',
           icon: ClipboardDocumentCheckIcon,
@@ -812,14 +812,14 @@ export default function TransferDetailPage() {
     }
 
     // Verified → Receive Transfer (Complete)
-    // CRITICAL WORKFLOW: Show to users ASSIGNED to DESTINATION location OR users with ACCESS_ALL_LOCATIONS
+    // CRITICAL WORKFLOW: Only show to users at DESTINATION location
+    // NEVER show to sender, even with ACCESS_ALL_LOCATIONS (receiver must complete)
     if (status === 'verified' && can(PERMISSIONS.STOCK_TRANSFER_COMPLETE)) {
-      // Check if user has access to destination location:
-      // 1. Primary location matches TO location, OR
-      // 2. User has ACCESS_ALL_LOCATIONS permission (cross-location approvers)
-      const isAssignedToDestination = primaryLocationId === transfer.toLocationId || can(PERMISSIONS.ACCESS_ALL_LOCATIONS)
+      // Check if user is at destination AND NOT at origin
+      const isAtDestination = primaryLocationId === transfer.toLocationId ||
+                              (can(PERMISSIONS.ACCESS_ALL_LOCATIONS) && primaryLocationId !== transfer.fromLocationId)
 
-      if (isAssignedToDestination) {
+      if (isAtDestination) {
         actions.push({
           label: 'Receive Transfer',
           icon: CheckCircleIcon,
