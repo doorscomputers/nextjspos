@@ -700,6 +700,29 @@ export default function TransferDetailPage() {
     const actions = []
     const status = transfer.status
 
+    // ============================================================================
+    // ⚠️  CRITICAL WORKFLOW LOGIC - DO NOT MODIFY WITHOUT FULL TESTING ⚠️
+    // ============================================================================
+    //
+    // These button visibility rules maintain workflow separation and prevent fraud.
+    // Rules were carefully designed and tested. Changes can break business processes.
+    //
+    // KEY PRINCIPLES:
+    // 1. SENDER cannot mark their own transfer as arrived (prevents fraud)
+    // 2. RECEIVER cannot approve/send transfers they will receive (SOD)
+    // 3. ACCESS_ALL_LOCATIONS users can manage workflows BUT respect separation
+    //
+    // TESTING REQUIRED:
+    // - Run: npx tsx scripts/test-transfer-workflow-rules.ts
+    // - Test with Jheiron (sender at Main Warehouse with ACCESS_ALL_LOCATIONS)
+    // - Test with Jay (no location, ACCESS_ALL_LOCATIONS)
+    // - Test with regular location users
+    //
+    // DOCUMENTATION: See docs/TRANSFER_WORKFLOW_RULES.md
+    //
+    // Last Verified Working: 2025-11-11 by Jay and Jheiron
+    // ============================================================================
+
     // Draft → Submit for Check
     // CRITICAL WORKFLOW: Only show to users ASSIGNED to ORIGIN location (FROM location)
     // Users at destination should NOT see this button - even with ACCESS_ALL_LOCATIONS
@@ -774,10 +797,26 @@ export default function TransferDetailPage() {
     }
 
     // In Transit → Mark Arrived
-    // CRITICAL WORKFLOW: Only show to users at DESTINATION location
-    // NEVER show to sender, even with ACCESS_ALL_LOCATIONS (prevents self-marking)
+    // ⚠️  CRITICAL: This button was previously broken - DO NOT SIMPLIFY THIS LOGIC!
+    //
+    // WORKFLOW RULE: Only show to users at DESTINATION location
+    // SECURITY: NEVER show to sender (prevents fraud - sender marking own delivery)
+    //
+    // CORRECT LOGIC:
+    //   Show if: (user at destination) OR (ACCESS_ALL_LOCATIONS AND user NOT at sender location)
+    //
+    // WRONG LOGIC (DO NOT USE):
+    //   primaryLocationId === toLocationId || ACCESS_ALL_LOCATIONS
+    //   ^^^ This allows sender to mark their own transfer as arrived!
+    //
+    // TEST CASE: Jheiron at Main Warehouse sending to Tuguegarao
+    //   - Jheiron has ACCESS_ALL_LOCATIONS = true
+    //   - Jheiron.primaryLocationId = 1 (Main Warehouse)
+    //   - transfer.fromLocationId = 1 (Main Warehouse)
+    //   - Result: isAtDestination = false (CORRECT - sender cannot mark arrival)
+    //
     if (status === 'in_transit' && can(PERMISSIONS.STOCK_TRANSFER_RECEIVE)) {
-      // Check if user is at destination AND NOT at origin (sender cannot mark arrival)
+      // The "&& primaryLocationId !== transfer.fromLocationId" is MANDATORY!
       const isAtDestination = primaryLocationId === transfer.toLocationId ||
                               (can(PERMISSIONS.ACCESS_ALL_LOCATIONS) && primaryLocationId !== transfer.fromLocationId)
 
