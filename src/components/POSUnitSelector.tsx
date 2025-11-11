@@ -68,7 +68,11 @@ export default function POSUnitSelector({
       console.log('⚠️ POSUnitSelector: Falling back to API call (data not pre-loaded)')
       fetchUnitData()
     }
-  }, [productId, locationId, preloadedUnits, preloadedUnitPrices, preloadedPrimaryUnitId])
+    // ⚠️ IMPORTANT: Only depend on productId/locationId, NOT preloaded props
+    // Preloaded props get new references on every parent re-render (when typing quantity)
+    // which would reset selectedUnitId back to primary unit - that's the bug!
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId, locationId])
 
   const fetchUnitData = async () => {
     try {
