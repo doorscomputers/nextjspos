@@ -20,6 +20,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No business associated with user' }, { status: 400 })
     }
 
+    // Check permissions for field-level access
+    const canViewSupplier = user.permissions?.includes(PERMISSIONS.PRODUCT_VIEW_SUPPLIER)
+    const canViewPurchasePrice = user.permissions?.includes(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE)
+
     // Parse query parameters for filtering
     const { searchParams } = new URL(request.url)
     const activeFilter = searchParams.get('active') // 'true', 'false', or null (all)
@@ -129,6 +133,21 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Build include clause dynamically based on permissions
+    const variationInclude: any = {
+      variationLocationDetails: true
+    }
+
+    // Only include supplier if user has permission (prevents SQL errors for cashiers)
+    if (canViewSupplier) {
+      variationInclude.supplier = {
+        select: {
+          id: true,
+          name: true
+        }
+      }
+    }
+
     let products = await prisma.product.findMany({
       where: whereClause,
       include: {
@@ -138,15 +157,7 @@ export async function GET(request: NextRequest) {
         tax: true,
         variations: {
           where: { deletedAt: null },
-          include: {
-            variationLocationDetails: true,
-            supplier: {
-              select: {
-                id: true,
-                name: true
-              }
-            }
-          }
+          include: variationInclude
         }
       },
       orderBy: { createdAt: 'desc' },
@@ -204,9 +215,7 @@ export async function GET(request: NextRequest) {
     }))
 
     // Field-Level Security: Sanitize response based on user permissions
-    const canViewPurchasePrice = user.permissions?.includes(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE)
-    const canViewSupplier = user.permissions?.includes(PERMISSIONS.PRODUCT_VIEW_SUPPLIER)
-
+    // (Permission checks already done at query level, this is for additional sanitization)
     const sanitizedProducts = serializedProducts.map(product => {
       const sanitized: any = { ...product }
 
