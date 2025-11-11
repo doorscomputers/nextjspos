@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/prisma'
-import { PERMISSIONS } from '@/lib/rbac'
+import { PERMISSIONS, hasPermission } from '@/lib/rbac'
 
 /**
  * GET /api/admin/active-users
@@ -17,9 +17,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check permission
-    const hasPermission = session.user.permissions?.includes(PERMISSIONS.USER_VIEW_ACTIVE_SESSIONS)
-    if (!hasPermission) {
+    // Check permission using RBAC function (handles Super Admin properly)
+    if (!hasPermission(session.user, PERMISSIONS.USER_VIEW_ACTIVE_SESSIONS)) {
       return NextResponse.json({ error: 'Forbidden: You do not have permission to view active users' }, { status: 403 })
     }
 
@@ -27,6 +26,9 @@ export async function GET(request: NextRequest) {
     if (!businessId) {
       return NextResponse.json({ error: 'Business ID not found' }, { status: 400 })
     }
+
+    // Parse businessId as integer (comes as string from session)
+    const businessIdInt = parseInt(businessId.toString(), 10)
 
     // Calculate time threshold (30 minutes ago)
     const thirtyMinutesAgo = new Date()
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest) {
           gte: new Date(), // Session not expired
         },
         user: {
-          businessId: businessId,
+          businessId: businessIdInt,
         },
       },
       include: {
@@ -111,7 +113,7 @@ export async function GET(request: NextRequest) {
     // Format response with location details
     const locations = await prisma.businessLocation.findMany({
       where: {
-        businessId: businessId,
+        businessId: businessIdInt,
         id: {
           in: Object.keys(locationGroups).map(id => parseInt(id)),
         },
