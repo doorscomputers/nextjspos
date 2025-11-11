@@ -56,6 +56,23 @@ export function Combobox({
     }
   }, [open])
 
+  // Focus search input when popover opens
+  React.useEffect(() => {
+    if (open) {
+      // Wait for popover animation to complete
+      const timer = setTimeout(() => {
+        const input = document.querySelector<HTMLInputElement>('[data-slot="command-input"]')
+        if (input) {
+          input.focus()
+          console.log('✅ Customer search input focused')
+        } else {
+          console.log('❌ Could not find customer search input')
+        }
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [open])
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
