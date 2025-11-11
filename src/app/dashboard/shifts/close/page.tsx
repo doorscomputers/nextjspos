@@ -97,6 +97,13 @@ export default function CloseShiftPage() {
         }
       }
 
+      // Check if shift is already closed
+      if (shift.status === 'closed') {
+        setError('This shift is already closed. Please start a new shift to continue.')
+        setLoadingReadings(false)
+        return
+      }
+
       setCurrentShift(shift)
 
       // Declare xReadingData outside try block so it's accessible for fallback
