@@ -45,8 +45,16 @@ export function Combobox({
   disabled = false,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
+  const [search, setSearch] = React.useState("")
 
   const selectedOption = options.find((option) => option.value === value)
+
+  // Reset search when dropdown closes
+  React.useEffect(() => {
+    if (!open) {
+      setSearch("")
+    }
+  }, [open])
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -67,28 +75,37 @@ export function Combobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-        <Command>
-          <CommandInput placeholder={searchPlaceholder} className="h-9" />
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder={searchPlaceholder}
+            className="h-9"
+            value={search}
+            onValueChange={setSearch}
+          />
           <CommandEmpty>{emptyText}</CommandEmpty>
           <CommandGroup className="max-h-[300px] overflow-auto">
-            {options.map((option) => (
-              <CommandItem
-                key={option.value}
-                value={option.label}
-                onSelect={() => {
-                  onValueChange(option.value === value ? "" : option.value)
-                  setOpen(false)
-                }}
-              >
-                {option.label}
-                <Check
-                  className={cn(
-                    "ml-auto h-4 w-4",
-                    value === option.value ? "opacity-100" : "opacity-0"
-                  )}
-                />
-              </CommandItem>
-            ))}
+            {options
+              .filter((option) =>
+                option.label.toLowerCase().includes(search.toLowerCase())
+              )
+              .map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={option.label}
+                  onSelect={() => {
+                    onValueChange(option.value === value ? "" : option.value)
+                    setOpen(false)
+                  }}
+                >
+                  {option.label}
+                  <Check
+                    className={cn(
+                      "ml-auto h-4 w-4",
+                      value === option.value ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                </CommandItem>
+              ))}
           </CommandGroup>
         </Command>
       </PopoverContent>
