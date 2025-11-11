@@ -47,7 +47,7 @@ export default function ProductSearch({ onProductSelect }: ProductSearchProps) {
           if (product.variations && Array.isArray(product.variations)) {
             product.variations.forEach((variation: any) => {
               const transformedProduct = {
-                id: variation.id,
+                id: product.id, // ✅ FIX: Use product.id (actual product ID), not variation.id
                 name: product.name || 'Unknown Product',
                 sku: variation.sku || 'N/A',
                 variationName: variation.name || 'Standard',
@@ -107,7 +107,7 @@ export default function ProductSearch({ onProductSelect }: ProductSearchProps) {
           if (product.variations && Array.isArray(product.variations)) {
             product.variations.forEach((variation: any) => {
               const transformedProduct = {
-                id: variation.id,
+                id: product.id, // ✅ FIX: Use product.id (actual product ID), not variation.id
                 name: product.name || 'Unknown Product',
                 sku: variation.sku || 'N/A',
                 variationName: variation.name || 'Standard',
