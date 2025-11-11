@@ -28,6 +28,8 @@ export default function UnclosedShiftWarning() {
   const [shift, setShift] = useState<UnclosedShift | null>(null)
   const [loading, setLoading] = useState(true)
   const [navigating, setNavigating] = useState(false)
+  const [forceClosing, setForceClosing] = useState(false)
+  const [forceCloseError, setForceCloseError] = useState('')
 
   useEffect(() => {
     checkUnclosedShift()
@@ -63,6 +65,36 @@ export default function UnclosedShiftWarning() {
     // Navigate to close shift page
     // The modal will remain visible as a "barrier" until shift is properly closed
     router.push(`/dashboard/shifts/close?shiftId=${shift?.id}`)
+  }
+
+  const handleForceClose = async () => {
+    if (!shift) return
+
+    setForceClosing(true)
+    setForceCloseError('')
+
+    try {
+      const response = await fetch('/api/shifts/force-close', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shiftId: shift.id,
+          reason: `Shift too old (${shift.daysSinceOpen} days) - readings would timeout`,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to force-close shift')
+      }
+
+      // Success - reload the page to clear the warning
+      window.location.reload()
+    } catch (error: any) {
+      setForceCloseError(error.message || 'Failed to force-close shift')
+      setForceClosing(false)
+    }
   }
 
   // REMOVED: These handlers allowed users to bypass closing the old shift
@@ -204,7 +236,7 @@ export default function UnclosedShiftWarning() {
 
             <Button
               onClick={handleCloseShift}
-              disabled={navigating}
+              disabled={navigating || forceClosing}
               className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-6 text-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               size="lg"
             >
@@ -220,6 +252,53 @@ export default function UnclosedShiftWarning() {
                 <>🔒 Close This Shift Now</>
               )}
             </Button>
+
+            {/* Force-Close Option for Very Old Shifts (1+ days) */}
+            {shift.daysSinceOpen >= 1 && (
+              <>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="bg-white dark:bg-gray-800 px-2 text-gray-500 dark:text-gray-400">
+                      OR (if closing times out)
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleForceClose}
+                  disabled={navigating || forceClosing}
+                  variant="outline"
+                  className="w-full border-2 border-orange-500 text-orange-700 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950 font-bold py-5 text-base shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                  size="lg"
+                >
+                  {forceClosing ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5 mr-3 inline-block" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Force-Closing Shift...
+                    </>
+                  ) : (
+                    <>⚡ Force-Close Shift (Skip Readings)</>
+                  )}
+                </Button>
+
+                <p className="text-xs text-center text-orange-600 dark:text-orange-400 italic">
+                  Force-close skips reading generation for extremely old shifts. Use only if normal close times out.
+                </p>
+              </>
+            )}
+
+            {forceCloseError && (
+              <Alert variant="destructive">
+                <ExclamationTriangleIcon className="h-4 w-4" />
+                <AlertDescription>{forceCloseError}</AlertDescription>
+              </Alert>
+            )}
 
             <p className="text-xs text-center text-gray-600 dark:text-gray-400 mt-2">
               Contact your manager if you need assistance closing this shift.
