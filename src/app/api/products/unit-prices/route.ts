@@ -94,6 +94,13 @@ export async function GET(request: NextRequest) {
       // Fetch location-specific prices for the first location (for simplicity in the editor)
       const locationId = locationIds[0]
 
+      // DEBUG: Log which location we're fetching prices for
+      console.log('🔵 GET /api/products/unit-prices - Fetching for location:', {
+        productId,
+        locationIds,
+        selectedLocationId: locationId,
+      })
+
       const locationSpecificPrices = await prisma.productUnitLocationPrice.findMany({
         where: {
           productId,
@@ -158,6 +165,18 @@ export async function GET(request: NextRequest) {
       })
 
       unitPrices = Array.from(priceMap.values())
+
+      // DEBUG: Log final merged prices
+      console.log('🔵 Final unit prices being returned:', {
+        locationId,
+        count: unitPrices.length,
+        prices: unitPrices.map(p => ({
+          unitId: p.unitId,
+          selling: p.sellingPrice?.toString(),
+          purchase: p.purchasePrice?.toString(),
+          isLocationSpecific: p.isLocationSpecific,
+        })),
+      })
     } else {
       // Fetch global prices only
       unitPrices = await prisma.productUnitPrice.findMany({

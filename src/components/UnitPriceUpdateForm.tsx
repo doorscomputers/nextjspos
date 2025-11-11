@@ -60,8 +60,27 @@ export default function UnitPriceUpdateForm({
         url += `&locationIds=${selectedLocations!.join(',')}`
       }
 
-      const response = await fetch(url)
+      // Add cache buster to force fresh fetch every time
+      url += `&_t=${Date.now()}`
+
+      // DEBUG: Log what we're fetching
+      console.log('🔵 Fetching unit prices:', {
+        productId: product.id,
+        selectedLocations,
+        isLocationSpecific,
+        url,
+      })
+
+      const response = await fetch(url, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      })
       const result = await response.json()
+
+      // DEBUG: Log what we received
+      console.log('🔵 Received unit prices:', result)
 
       if (response.ok && result.success) {
         setUnits(result.data.units || [])
