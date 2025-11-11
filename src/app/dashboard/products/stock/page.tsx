@@ -69,6 +69,11 @@ export default function AllBranchStockPage() {
     'product', 'sku', 'variation', 'category', 'brand'
   ])
 
+  const formatStockValue = useCallback((value: number) => {
+    const numericValue = Number(value) || 0
+    return numericValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  }, [])
+
   const handleFiltersChange = (updatedFilters: StockFilters) => {
     setFilters(updatedFilters)
     setCurrentPage(1)
@@ -889,7 +894,7 @@ const handlePrint = async () => {
                               <span
                                 className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStockColor(row.stockByLocation[location.id] || 0)}`}
                               >
-                                {row.stockByLocation[location.id] || 0}
+                                {formatStockValue(row.stockByLocation[location.id] ?? 0)}
                               </span>
                             </td>
                           ))
@@ -898,7 +903,7 @@ const handlePrint = async () => {
                         {visibleColumns.includes('total') && (
                           <td className="px-3 py-3 whitespace-nowrap text-center bg-indigo-50 dark:bg-indigo-900/30 sticky right-0 z-10 shadow-sm">
                             <span className="px-3 py-1 inline-flex text-sm leading-5 font-bold rounded-full bg-indigo-200 dark:bg-indigo-700 text-indigo-900 dark:text-indigo-100">
-                              {row.totalStock}
+                              {formatStockValue(row.totalStock ?? 0)}
                             </span>
                           </td>
                         )}
@@ -919,13 +924,13 @@ const handlePrint = async () => {
                         .filter(location => visibleColumns.includes(`location-${location.id}`))
                         .map(location => (
                           <td key={location.id} className="px-3 py-4 text-center text-sm font-bold text-gray-900 dark:text-gray-100 bg-blue-100 dark:bg-blue-900/40">
-                            {(columnTotals.byLocation[location.id] || 0).toLocaleString()}
+                            {formatStockValue(columnTotals.byLocation[location.id] ?? 0)}
                           </td>
                         ))
                       }
                       {visibleColumns.includes('total') && (
                         <td className="px-3 py-4 text-center text-base font-bold text-indigo-900 dark:text-indigo-100 bg-indigo-200 dark:bg-indigo-800 sticky right-0 z-10 shadow-sm">
-                          {columnTotals.grandTotal.toLocaleString()}
+                          {formatStockValue(columnTotals.grandTotal ?? 0)}
                         </td>
                       )}
                     </tr>
@@ -1001,7 +1006,7 @@ const handlePrint = async () => {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Grand Total Stock</h3>
             <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400 mt-2">
-              {columnTotals.grandTotal.toLocaleString()}
+              {formatStockValue(columnTotals.grandTotal ?? 0)}
             </p>
           </div>
         </div>
