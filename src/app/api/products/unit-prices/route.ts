@@ -8,6 +8,11 @@ import { PERMISSIONS } from '@/lib/rbac'
  * GET /api/products/unit-prices?productId=123&locationIds=2,3,4
  * Get all unit prices for a product (global or location-specific)
  */
+
+// Disable caching for pricing data - must always be fresh
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -175,7 +180,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: {
         product,
@@ -183,6 +188,13 @@ export async function GET(request: NextRequest) {
         unitPrices,
       },
     })
+
+    // Prevent browser caching of pricing data
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+
+    return response
   } catch (error) {
     console.error('Error fetching unit prices:', error)
     return NextResponse.json(

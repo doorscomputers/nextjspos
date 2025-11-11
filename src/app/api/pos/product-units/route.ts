@@ -8,6 +8,11 @@ import { prisma } from '@/lib/prisma.simple'
  * Get unit information and prices for a product (optimized for POS)
  * Now supports location-specific pricing
  */
+
+// Disable caching for POS pricing - must always be fresh
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -144,7 +149,7 @@ export async function GET(request: NextRequest) {
       baseUnitMultiplier: u.baseUnitMultiplier ? parseFloat(String(u.baseUnitMultiplier)) : null,
     }))
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: {
         primaryUnitId: product.unitId,
@@ -152,6 +157,13 @@ export async function GET(request: NextRequest) {
         unitPrices,
       },
     })
+
+    // Prevent browser caching of pricing data
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+
+    return response
   } catch (error) {
     console.error('Error fetching product units:', error)
     return NextResponse.json(
