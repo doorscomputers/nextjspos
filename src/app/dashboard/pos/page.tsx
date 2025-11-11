@@ -1626,6 +1626,8 @@ export default function POSEnhancedPage() {
         discountAmount: discountAmt,
         status: isCreditSale ? 'pending' : 'completed',
         freebieTotal: freebieTotal,
+        // Cash tendered (for invoice display of change)
+        cashTendered: cashAmount && parseFloat(cashAmount) > 0 ? parseFloat(cashAmount) : null,
       }
 
       // Add discount information
@@ -2093,19 +2095,27 @@ export default function POSEnhancedPage() {
                         let preloadedUnitPrices: any[] | undefined = undefined
                         let preloadedPrimaryUnitId: number | undefined = undefined
 
-                        if (product && product.unitLocationPrices && Array.isArray(product.unitLocationPrices)) {
-                          // Extract unique units from unitLocationPrices (with location filter)
-                          const locationPrices = product.unitLocationPrices.filter(
-                            (ulp: any) => ulp.locationId === currentShift?.locationId
-                          )
-
-                          // Get unique units
+                        if (product) {
+                          // Get unique units - ALWAYS start with primary unit
                           const unitMap = new Map()
-                          locationPrices.forEach((ulp: any) => {
-                            if (ulp.unit && !unitMap.has(ulp.unit.id)) {
-                              unitMap.set(ulp.unit.id, ulp.unit)
-                            }
-                          })
+
+                          // 🔧 FIX: Always add primary unit first (even if no prices configured)
+                          if (product.unit) {
+                            unitMap.set(product.unit.id, product.unit)
+                          }
+
+                          // Extract unique units from unitLocationPrices (with location filter)
+                          if (product.unitLocationPrices && Array.isArray(product.unitLocationPrices)) {
+                            const locationPrices = product.unitLocationPrices.filter(
+                              (ulp: any) => ulp.locationId === currentShift?.locationId
+                            )
+
+                            locationPrices.forEach((ulp: any) => {
+                              if (ulp.unit && !unitMap.has(ulp.unit.id)) {
+                                unitMap.set(ulp.unit.id, ulp.unit)
+                              }
+                            })
+                          }
 
                           // Also add units from global prices if not in location prices
                           if (product.unitPrices && Array.isArray(product.unitPrices)) {
@@ -2120,6 +2130,10 @@ export default function POSEnhancedPage() {
                           preloadedPrimaryUnitId = product.unitId || undefined
 
                           // Prepare unit prices (location-specific takes priority)
+                          const locationPrices = product.unitLocationPrices?.filter(
+                            (ulp: any) => ulp.locationId === currentShift?.locationId
+                          ) || []
+
                           preloadedUnitPrices = Array.from(unitMap.values()).map((unit: any) => {
                             const locationPrice = locationPrices.find((lp: any) => lp.unitId === unit.id)
                             const globalPrice = product.unitPrices?.find((up: any) => up.unitId === unit.id)
@@ -2128,7 +2142,7 @@ export default function POSEnhancedPage() {
                               unitId: unit.id,
                               unit,
                               purchasePrice: locationPrice?.purchasePrice || globalPrice?.purchasePrice || 0,
-                              sellingPrice: locationPrice?.sellingPrice || globalPrice?.sellingPrice || 0,
+                              sellingPrice: locationPrice?.sellingPrice || globalPrice?.sellingPrice || item.originalPrice || 0,
                             }
                           })
 

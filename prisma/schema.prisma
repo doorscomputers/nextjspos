@@ -1867,6 +1867,9 @@ model Sale {
   shippingCost   Decimal @default(0) @map("shipping_cost") @db.Decimal(22, 4)
   totalAmount    Decimal @map("total_amount") @db.Decimal(22, 4)
 
+  // Cash tendered (for invoice display of change)
+  cashTendered   Decimal? @map("cash_tendered") @db.Decimal(22, 4) // Actual cash amount given by customer
+
   // Discount tracking (Philippine BIR)
   discountType       String? @map("discount_type") @db.VarChar(50) // regular, senior, pwd
   seniorCitizenId    String? @map("senior_citizen_id") @db.VarChar(100)

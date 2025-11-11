@@ -246,6 +246,8 @@ export async function POST(request: NextRequest) {
       pwdName,
       discountApprovedBy,
       vatExempt = false,
+      // Cash tendered (for invoice display)
+      cashTendered,
     } = body
 
     if (process.env.NODE_ENV === 'development') {
@@ -561,6 +563,8 @@ export async function POST(request: NextRequest) {
           discountAmount: parseFloat(discountAmount || 0),
           shippingCost: parseFloat(shippingCost || 0),
           totalAmount,
+          // Cash tendered (for invoice display)
+          cashTendered: cashTendered ? parseFloat(cashTendered) : null,
           notes,
           // Philippine BIR discount tracking
           discountType: discountType || null,

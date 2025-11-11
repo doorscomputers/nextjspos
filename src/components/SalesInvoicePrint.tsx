@@ -256,7 +256,11 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
   // Calculate payment totals
   const totalPaid = sale.payments?.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0) || 0
   const totalAmount = parseFloat(sale.totalAmount || 0)
-  const changeAmount = Math.max(0, totalPaid - totalAmount)
+
+  // Calculate cash tendered and change
+  // If cashTendered is stored (new sales), use it; otherwise fall back to totalPaid (old sales)
+  const cashTendered = sale.cashTendered ? parseFloat(sale.cashTendered) : totalPaid
+  const changeAmount = Math.max(0, cashTendered - totalAmount)
 
   // BIR VAT Calculation (12% VAT)
   const isVATExempt = sale.vatExempt || sale.discountType === 'senior' || sale.discountType === 'pwd'
@@ -644,7 +648,7 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
                     Amount Tendered:
                   </span>
                   <span className={`text-blue-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                    ₱{totalPaid.toLocaleString('en-PH', {
+                    ₱{cashTendered.toLocaleString('en-PH', {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2
                     })}
