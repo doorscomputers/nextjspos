@@ -233,6 +233,7 @@ async function generateXReadingFromRunningTotals(
     : ''
 
   // Get first and last invoice numbers for this shift (BIR requirement)
+  // Use secondary sort by ID to handle multiple sales with same timestamp
   const [firstSale, lastSale] = await Promise.all([
     prisma.sale.findFirst({
       where: {
@@ -240,7 +241,10 @@ async function generateXReadingFromRunningTotals(
         status: { in: ['completed', 'partial'] }, // Exclude voided/cancelled
       },
       select: { invoiceNumber: true },
-      orderBy: { saleDate: 'asc' },
+      orderBy: [
+        { saleDate: 'asc' },
+        { id: 'asc' } // Secondary sort by ID for deterministic ordering
+      ],
     }),
     prisma.sale.findFirst({
       where: {
@@ -248,7 +252,10 @@ async function generateXReadingFromRunningTotals(
         status: { in: ['completed', 'partial'] }, // Exclude voided/cancelled
       },
       select: { invoiceNumber: true },
-      orderBy: { saleDate: 'desc' },
+      orderBy: [
+        { saleDate: 'desc' },
+        { id: 'desc' } // Secondary sort by ID for deterministic ordering
+      ],
     }),
   ])
 

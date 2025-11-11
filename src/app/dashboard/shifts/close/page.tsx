@@ -150,12 +150,13 @@ export default function CloseShiftPage() {
         const zData = await zRes.json()
         console.log('Z Reading Response:', zData)
 
-        if (zRes.ok && zData.cash) {
-          // Z Reading succeeded - use Z Reading's system cash
+        if (zRes.ok && !zData.error) {
+          // Z Reading succeeded - use Z Reading data
+          // API returns the ZReadingData object directly
           zReadingData = zData
-          systemCash = zData.cash.systemCash
+          systemCash = zData.expectedCash || parseFloat(shift.beginningCash) || 0
           setZReading(zReadingData)
-          console.log('✅ Using Z Reading system cash:', systemCash)
+          console.log('✅ Z Reading loaded successfully. System cash:', systemCash)
         } else {
           // Z Reading failed (likely permission error) - CRITICAL FALLBACK
           console.warn('⚠️ Z Reading failed, using X Reading expected cash as fallback')
