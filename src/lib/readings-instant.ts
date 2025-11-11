@@ -370,43 +370,62 @@ async function generateZReadingFromRunningTotals(
 
   const zReadingNumber = currentZReadingCount + (incrementCounter ? 1 : 0)
 
-  // Get top items sold (limit to prevent slow query)
-  // Use a shorter timeout for old shifts to prevent hanging
-  const itemsSold = await Promise.race([
-    prisma.$queryRaw<
-      Array<{
-        product_id: number
-        product_name: string
-        category_name: string | null
-        total_quantity: any
-        total_amount: any
-      }>
-    >`
-      SELECT
-        si.product_id,
-        p.name as product_name,
-        c.name as category_name,
-        SUM(si.quantity) as total_quantity,
-        SUM(si.unit_price * si.quantity) as total_amount
-      FROM sale_items si
-      INNER JOIN sales s ON si.sale_id = s.id
-      INNER JOIN products p ON si.product_id = p.id
-      LEFT JOIN categories c ON p.category_id = c.id
-      WHERE s.shift_id = ${shift.id}
-        AND s.status = 'completed'
-        AND s.business_id = ${shift.businessId}
-      GROUP BY si.product_id, p.name, c.name
-      ORDER BY total_quantity DESC
-      LIMIT 50
-    `,
-    // Timeout after 10 seconds for old/large shifts
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Items query timeout')), 10000)
-    )
-  ]).catch(err => {
-    console.warn('[Z Reading] Items query timed out or failed:', err.message)
-    return [] as Array<{ product_id: number; product_name: string; category_name: string | null; total_quantity: any; total_amount: any }>
-  })
+  // Calculate shift age in hours
+  const shiftAgeHours = Math.floor(
+    (Date.now() - new Date(shift.openedAt).getTime()) / (1000 * 60 * 60)
+  )
+
+  // Get top items sold - OPTIONAL feature, skip for old shifts to prevent timeouts
+  // BIR compliance does NOT require item breakdown, only totals
+  let itemsSold: Array<{
+    product_id: number
+    product_name: string
+    category_name: string | null
+    total_quantity: any
+    total_amount: any
+  }> = []
+
+  // Only fetch items for shifts less than 24 hours old to prevent timeouts
+  if (shiftAgeHours < 24 && shift.runningTransactions < 500) {
+    console.log('[Z Reading] Fetching items sold (shift < 24h, transactions < 500)')
+    itemsSold = await Promise.race([
+      prisma.$queryRaw<
+        Array<{
+          product_id: number
+          product_name: string
+          category_name: string | null
+          total_quantity: any
+          total_amount: any
+        }>
+      >`
+        SELECT
+          si.product_id,
+          p.name as product_name,
+          c.name as category_name,
+          SUM(si.quantity) as total_quantity,
+          SUM(si.unit_price * si.quantity) as total_amount
+        FROM sale_items si
+        INNER JOIN sales s ON si.sale_id = s.id
+        INNER JOIN products p ON si.product_id = p.id
+        LEFT JOIN categories c ON p.category_id = c.id
+        WHERE s.shift_id = ${shift.id}
+          AND s.status = 'completed'
+          AND s.business_id = ${shift.businessId}
+        GROUP BY si.product_id, p.name, c.name
+        ORDER BY total_quantity DESC
+        LIMIT 50
+      `,
+      // Timeout after 5 seconds (reduced from 10)
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Items query timeout')), 5000)
+      )
+    ]).catch(err => {
+      console.warn('[Z Reading] Items query timed out or failed:', err.message)
+      return [] as Array<{ product_id: number; product_name: string; category_name: string | null; total_quantity: any; total_amount: any }>
+    })
+  } else {
+    console.log(`[Z Reading] Skipping items sold query (shift age: ${shiftAgeHours}h, transactions: ${shift.runningTransactions})`)
+  }
 
   // Calculate VAT breakdown (Philippines: 12% VAT)
   const grossSales = parseFloat(shift.runningGrossSales.toString())
