@@ -230,6 +230,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { productId, unitPrices, locationIds } = body
 
+    // DEBUG: Log incoming request
+    console.log('🔵 POST /api/products/unit-prices received:', {
+      productId,
+      unitPrices,
+      locationIds,
+      userId
+    })
+
     if (!productId || !Array.isArray(unitPrices)) {
       return NextResponse.json(
         { error: 'productId and unitPrices array are required' },
@@ -239,6 +247,8 @@ export async function POST(request: NextRequest) {
 
     // Determine if this is location-specific pricing
     const isLocationSpecific = locationIds && Array.isArray(locationIds) && locationIds.length > 0
+
+    console.log('🔵 Is location-specific?', isLocationSpecific, 'Locations:', locationIds)
 
     // Verify product belongs to user's business
     const product = await prisma.product.findFirst({

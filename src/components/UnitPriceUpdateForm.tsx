@@ -143,17 +143,29 @@ export default function UnitPriceUpdateForm({
 
       // If location-specific mode, send location-specific prices
       if (isLocationSpecific) {
+        const requestData = {
+          productId: product.id,
+          unitPrices: updates,
+          locationIds: selectedLocations, // NEW: Include location IDs
+        }
+
+        // DEBUG: Log what we're sending
+        console.log('🔵 Saving location-specific prices:', {
+          product: product.name,
+          locations: selectedLocations,
+          updates: updates
+        })
+
         const response = await fetch('/api/products/unit-prices', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            productId: product.id,
-            unitPrices: updates,
-            locationIds: selectedLocations, // NEW: Include location IDs
-          }),
+          body: JSON.stringify(requestData),
         })
 
         const result = await response.json()
+
+        // DEBUG: Log response
+        console.log('🔵 API Response:', result)
 
         if (response.ok && result.success) {
           notify(`✅ Successfully updated prices for ${updates.length} unit(s) across ${selectedLocations!.length} location(s)`, 'success', 4000)
@@ -163,6 +175,7 @@ export default function UnitPriceUpdateForm({
             onPriceUpdate()
           }
         } else {
+          console.error('🔴 Save failed:', result)
           notify(result.error || 'Failed to update prices', 'error', 4000)
         }
       } else {
