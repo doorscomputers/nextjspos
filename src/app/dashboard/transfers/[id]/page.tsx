@@ -108,6 +108,7 @@ export default function TransferDetailPage() {
   const [showSendConfirm, setShowSendConfirm] = useState(false)
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [showVerifyAllConfirm, setShowVerifyAllConfirm] = useState(false)
   const [itemToUnverify, setItemToUnverify] = useState<number | null>(null)
 
   // Inventory Impact Modal
@@ -327,6 +328,23 @@ export default function TransferDetailPage() {
 
   const handleStartVerification = () => {
     handleAction('start-verification', 'Verification started')
+  }
+
+  const handleVerifyAllClick = () => {
+    // Count unverified items
+    const unverifiedCount = transfer?.items.filter(item => !item.verified).length || 0
+
+    if (unverifiedCount === 0) {
+      toast.info('All items are already verified')
+      return
+    }
+
+    setShowVerifyAllConfirm(true)
+  }
+
+  const handleVerifyAllConfirmed = async () => {
+    setShowVerifyAllConfirm(false)
+    await handleAction('verify-all', 'All items verified - transfer ready to complete')
   }
 
   const handleVerifyItem = async (itemId: number) => {
@@ -848,6 +866,27 @@ export default function TransferDetailPage() {
       }
       // REMOVED: Quick Receive button - verification is now mandatory for data integrity
       // Users must verify items before receiving to prevent fraud and inventory discrepancies
+    }
+
+    // Verifying → Verify All (bulk verification)
+    // CRITICAL WORKFLOW: Only show to users at DESTINATION location
+    // NEVER show to sender, even with ACCESS_ALL_LOCATIONS (receiver must verify)
+    if (status === 'verifying') {
+      // Check if user is at destination AND NOT at origin
+      const isAtDestination = primaryLocationId === transfer.toLocationId ||
+                              (can(PERMISSIONS.ACCESS_ALL_LOCATIONS) && primaryLocationId !== transfer.fromLocationId)
+
+      // Only show if there are unverified items
+      const hasUnverifiedItems = transfer.items.some(item => !item.verified)
+
+      if (can(PERMISSIONS.STOCK_TRANSFER_VERIFY) && isAtDestination && hasUnverifiedItems) {
+        actions.push({
+          label: 'Verify All Items',
+          icon: CheckCircleIcon,
+          onClick: handleVerifyAllClick,
+          variant: 'success' as const
+        })
+      }
     }
 
     // Verified → Receive Transfer (Complete)
@@ -1679,6 +1718,63 @@ export default function TransferDetailPage() {
               className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
             >
               Yes, Complete Transfer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Verify All Items Confirmation Dialog */}
+      <AlertDialog open={showVerifyAllConfirm} onOpenChange={setShowVerifyAllConfirm}>
+        <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900 dark:text-white text-xl">
+              Verify All Items
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-gray-600 dark:text-gray-400">
+                <div className="text-base">
+                  This will mark all {transfer?.items.filter(item => !item.verified).length} unverified items as verified at once.
+                </div>
+
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                  <div className="font-semibold text-blue-900 dark:text-blue-200 mb-3">
+                    📋 Before you proceed:
+                  </div>
+                  <ul className="text-sm text-blue-800 dark:text-blue-300 space-y-2">
+                    <li>✓ You have physically checked all items against the printed transfer document</li>
+                    <li>✓ All quantities are correct as sent</li>
+                    <li>✓ No discrepancies found</li>
+                  </ul>
+                </div>
+
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4">
+                  <div className="font-semibold text-green-900 dark:text-green-200 mb-2">
+                    What happens next:
+                  </div>
+                  <div className="text-sm text-green-800 dark:text-green-300">
+                    • All items will be marked as verified with received quantity = sent quantity
+                    <br />
+                    • Transfer status will change to "Verified"
+                    <br />
+                    • You can then click "Receive Transfer" to add inventory
+                  </div>
+                </div>
+
+                <div className="text-sm text-gray-500 dark:text-gray-400 italic mt-3">
+                  💡 Tip: If you find any discrepancies, verify items individually instead to record the correct received quantities.
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="shadow-md hover:shadow-lg transition-all duration-200">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleVerifyAllConfirmed}
+              className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
+            >
+              Yes, Verify All Items
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
