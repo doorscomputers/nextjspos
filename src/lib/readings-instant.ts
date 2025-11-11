@@ -339,6 +339,16 @@ async function generateZReadingFromRunningTotals(
     false // Don't increment X counter when generating Z
   )
 
+  // Fetch business data for Z-Reading specific fields (accumulated sales, counters)
+  const business = await prisma.business.findUnique({
+    where: { id: shift.businessId },
+    select: {
+      zCounter: true,
+      resetCounter: true,
+      accumulatedSales: true,
+    },
+  })
+
   // Calculate cash variance
   const endingCash = shift.endingCash
     ? parseFloat(shift.endingCash.toString())
