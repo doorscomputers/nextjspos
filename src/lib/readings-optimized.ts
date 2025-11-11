@@ -34,6 +34,19 @@ export interface XReadingData {
     pwd: number
     regular: number
   }
+  // BIR Compliance Fields
+  vatRegTin?: string // VAT REG TIN
+  minNumber?: string // Machine Identification Number
+  serialNumber?: string // POS Serial Number
+  permitNumber?: string // Permit to Use
+  operatedBy?: string // Business operator/legal entity
+  businessAddress?: string // Full business address
+  startDateTime: Date // Start Date & Time
+  endDateTime: Date // End Date & Time (reading time)
+  beginningOrNumber?: string // Beginning Official Receipt #
+  endingOrNumber?: string // Ending Official Receipt #
+  refundAmount: number // Total refunds
+  withdrawalAmount: number // Cash withdrawals
 }
 
 export interface ZReadingData extends XReadingData {
@@ -48,6 +61,42 @@ export interface ZReadingData extends XReadingData {
     quantity: number
     totalAmount: number
   }>
+  // BIR Z-Reading Specific Fields
+  beginningSiNumber?: string // Beginning Sales Invoice #
+  endingSiNumber?: string // Ending Sales Invoice #
+  beginningVoidNumber?: string // Beginning VOID #
+  endingVoidNumber?: string // Ending VOID #
+  beginningReturnNumber?: string // Beginning RETURN #
+  endingReturnNumber?: string // Ending RETURN #
+  zCounter: number // Z Counter No.
+  resetCounter: number // Reset Counter No.
+  previousAccumulatedSales: number // Previous Accumulated Sales
+  salesForTheDay: number // Sales for the Day
+  accumulatedSales: number // Present Accumulated Sales
+  // VAT Breakdown
+  vatableSales: number // Vatable Sales
+  vatAmount: number // VAT Amount (12% of vatable sales)
+  vatExemptSales: number // VAT Exempt Sales
+  zeroRatedSales: number // Zero Rated Sales
+  // VAT Adjustments
+  vatAdjustments: {
+    scTransaction: number // SC Transaction VAT adjustment
+    pwdTransaction: number // PWD Transaction VAT adjustment
+    regularDiscountTransaction: number // Regular Discount Transaction VAT adjustment
+    zeroRatedTransaction: number // Zero-Rated Transaction VAT adjustment
+    vatOnReturn: number // VAT on Return
+    otherVatAdjustments: number // Other VAT Adjustments
+  }
+  // Returns/Refunds
+  returnAmount: number // Total returns
+  // Discount Summary (extended from X Reading)
+  discountSummary: {
+    seniorCitizenDiscount: number
+    pwdDiscount: number
+    naacDiscount: number
+    soloParentDiscount: number
+    otherDiscount: number
+  }
 }
 
 /**

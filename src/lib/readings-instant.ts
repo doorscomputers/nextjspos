@@ -152,7 +152,7 @@ async function generateXReadingFromRunningTotals(
   cashierId: string,
   incrementCounter: boolean
 ): Promise<XReadingData> {
-  // Fetch location and business details
+  // Fetch location and business details (including BIR compliance fields)
   const [location, business] = await Promise.all([
     prisma.businessLocation.findUnique({
       where: { id: shift.locationId },
@@ -167,7 +167,18 @@ async function generateXReadingFromRunningTotals(
     }),
     prisma.business.findUnique({
       where: { id: shift.businessId },
-      select: { name: true },
+      select: {
+        name: true,
+        taxNumber1: true, // VAT REG TIN
+        birMinNumber: true, // MIN
+        birSerialNumber: true, // S/N
+        birPermitNumber: true, // Permit to Use
+        operatedBy: true, // Operated by
+        businessAddress: true, // Full address
+        zCounter: true,
+        resetCounter: true,
+        accumulatedSales: true,
+      },
     }),
   ])
 
@@ -274,6 +285,19 @@ async function generateXReadingFromRunningTotals(
         parseFloat(shift.runningVolumeDiscount.toString()) +
         parseFloat(shift.runningOtherDiscount.toString()),
     },
+    // BIR Compliance Fields
+    vatRegTin: business?.taxNumber1 || undefined,
+    minNumber: business?.birMinNumber || undefined,
+    serialNumber: business?.birSerialNumber || undefined,
+    permitNumber: business?.birPermitNumber || undefined,
+    operatedBy: business?.operatedBy || undefined,
+    businessAddress: business?.businessAddress || address,
+    startDateTime: shift.openedAt,
+    endDateTime: readingTimestamp,
+    beginningOrNumber: undefined, // TODO: Get from first sale in shift
+    endingOrNumber: undefined, // TODO: Get from last sale in shift
+    refundAmount: 0, // TODO: Calculate from refund records
+    withdrawalAmount: cashOut,
   }
 
   // Record reading log if incrementing
@@ -364,6 +388,24 @@ async function generateZReadingFromRunningTotals(
     LIMIT 50
   `
 
+  // Calculate VAT breakdown (Philippines: 12% VAT)
+  const grossSales = parseFloat(shift.runningGrossSales.toString())
+  const vatableSales = grossSales / 1.12 // Remove VAT to get vatable amount
+  const vatAmount = vatableSales * 0.12 // 12% VAT
+  const vatExemptSales = 0 // TODO: Track VAT-exempt sales separately
+  const zeroRatedSales = 0 // TODO: Track zero-rated sales separately
+
+  // Calculate VAT adjustments from discounts
+  const seniorDiscount = parseFloat(shift.runningSeniorDiscount.toString())
+  const pwdDiscount = parseFloat(shift.runningPwdDiscount.toString())
+  const regularDiscount = parseFloat(shift.runningEmployeeDiscount.toString()) +
+    parseFloat(shift.runningVolumeDiscount.toString()) +
+    parseFloat(shift.runningOtherDiscount.toString())
+
+  const scVatAdjustment = seniorDiscount * 0.12
+  const pwdVatAdjustment = pwdDiscount * 0.12
+  const regularVatAdjustment = regularDiscount * 0.12
+
   const zReadingData: ZReadingData = {
     ...xReadingData,
     closedAt: shift.closedAt || undefined,
@@ -377,6 +419,42 @@ async function generateZReadingFromRunningTotals(
       quantity: parseFloat(item.total_quantity.toString()),
       totalAmount: parseFloat(item.total_amount.toString()),
     })),
+    // BIR Z-Reading Specific Fields
+    beginningSiNumber: undefined, // TODO: Get from first sale invoice
+    endingSiNumber: undefined, // TODO: Get from last sale invoice
+    beginningVoidNumber: undefined, // TODO: Track void numbers
+    endingVoidNumber: undefined,
+    beginningReturnNumber: undefined, // TODO: Track return numbers
+    endingReturnNumber: undefined,
+    zCounter: business?.zCounter || 0,
+    resetCounter: business?.resetCounter || 1,
+    previousAccumulatedSales: parseFloat(business?.accumulatedSales?.toString() || '0'),
+    salesForTheDay: grossSales,
+    accumulatedSales: parseFloat(business?.accumulatedSales?.toString() || '0') + grossSales,
+    // VAT Breakdown
+    vatableSales,
+    vatAmount,
+    vatExemptSales,
+    zeroRatedSales,
+    // VAT Adjustments
+    vatAdjustments: {
+      scTransaction: scVatAdjustment,
+      pwdTransaction: pwdVatAdjustment,
+      regularDiscountTransaction: regularVatAdjustment,
+      zeroRatedTransaction: 0,
+      vatOnReturn: 0, // TODO: Calculate from returns
+      otherVatAdjustments: 0,
+    },
+    // Returns
+    returnAmount: 0, // TODO: Calculate from return records
+    // Discount Summary
+    discountSummary: {
+      seniorCitizenDiscount: seniorDiscount,
+      pwdDiscount: pwdDiscount,
+      naacDiscount: 0, // TODO: Add NAAC discount tracking
+      soloParentDiscount: 0, // TODO: Add Solo Parent discount tracking
+      otherDiscount: regularDiscount,
+    },
   }
 
   // Record Z reading log if incrementing

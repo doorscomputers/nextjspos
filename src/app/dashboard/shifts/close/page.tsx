@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { ReadingDisplay } from '@/components/ReadingDisplay'
+import { BIRReadingDisplay } from '@/components/BIRReadingDisplay'
 import { CheckCircle, Loader2, FileText, Calculator, CreditCard, Key } from 'lucide-react'
 
 const DENOMINATIONS = [
@@ -398,10 +398,9 @@ export default function CloseShiftPage() {
           </CardContent>
         </Card>
 
-        <ReadingDisplay
+        <BIRReadingDisplay
           xReading={xReading}
           zReading={zReading}
-          variance={variance}
         />
       </div>
     )
@@ -421,10 +420,9 @@ export default function CloseShiftPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ReadingDisplay
+          <BIRReadingDisplay
             xReading={xReading}
             zReading={zReading}
-            variance={null}
           />
         </CardContent>
       </Card>

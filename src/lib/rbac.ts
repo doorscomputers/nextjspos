@@ -85,6 +85,7 @@ export const PERMISSIONS = {
   USER_CREATE: 'user.create',
   USER_UPDATE: 'user.update',
   USER_DELETE: 'user.delete',
+  USER_VIEW_ACTIVE_SESSIONS: 'user.view_active_sessions', // Monitor currently logged in users
 
   // Roles
   ROLE_VIEW: 'role.view',
@@ -728,6 +729,7 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.USER_CREATE,
       PERMISSIONS.USER_UPDATE,
       PERMISSIONS.USER_DELETE,
+      PERMISSIONS.USER_VIEW_ACTIVE_SESSIONS,
       PERMISSIONS.ROLE_VIEW, // Can view roles to assign to users
     ],
   },

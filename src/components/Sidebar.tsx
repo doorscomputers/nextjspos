@@ -1444,6 +1444,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
           permission: PERMISSIONS.AUDIT_LOG_VIEW,
         },
         {
+          name: "Active Users Monitor",
+          href: "/dashboard/admin/active-users",
+          icon: UsersIcon,
+          key: "active_users",
+          permission: PERMISSIONS.USER_VIEW_ACTIVE_SESSIONS,
+        },
+        {
           name: "Fix Soft-Deleted Variations",
           href: "/dashboard/admin/fix-soft-deleted-variations",
           icon: ShieldCheckIcon,

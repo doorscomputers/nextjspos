@@ -186,6 +186,13 @@ model Business {
   accumulatedSales Decimal   @default(0) @map("accumulated_sales") @db.Decimal(22, 4) // Total accumulated sales
   lastZReadingDate DateTime? @map("last_z_reading_date") // Last Z-Reading timestamp
 
+  // BIR Compliance Fields (Philippine Bureau of Internal Revenue)
+  birMinNumber      String? @map("bir_min_number") @db.VarChar(50) // Machine Identification Number
+  birSerialNumber   String? @map("bir_serial_number") @db.VarChar(50) // POS Serial Number
+  birPermitNumber   String? @map("bir_permit_number") @db.VarChar(100) // Permit to Use Number
+  operatedBy        String? @map("operated_by") @db.VarChar(255) // Business operator/legal entity name
+  businessAddress   String? @map("business_address") @db.Text // Full business address for BIR receipts
+
   // Multi-Location Pricing Settings
   pricingStrategy      String  @default("fallback") @map("pricing_strategy") @db.VarChar(20) // "fallback", "required", "percentage"
   bulkPriceSync        Boolean @default(false) @map("bulk_price_sync") // Apply bulk price changes to all locations
@@ -2598,53 +2605,53 @@ model CashierShift {
   // ============================================
 
   // Sales Aggregates (Pre-discount, Pre-VAT)
-  runningGrossSales    Decimal @default(0) @map("running_gross_sales") @db.Decimal(22, 4)    // Total before discounts and VAT
-  runningNetSales      Decimal @default(0) @map("running_net_sales") @db.Decimal(22, 4)      // Total after discounts and VAT
-  runningSubtotal      Decimal @default(0) @map("running_subtotal") @db.Decimal(22, 4)       // Total before VAT (after discounts)
+  runningGrossSales Decimal @default(0) @map("running_gross_sales") @db.Decimal(22, 4) // Total before discounts and VAT
+  runningNetSales   Decimal @default(0) @map("running_net_sales") @db.Decimal(22, 4) // Total after discounts and VAT
+  runningSubtotal   Decimal @default(0) @map("running_subtotal") @db.Decimal(22, 4) // Total before VAT (after discounts)
 
   // Transaction Counts
-  runningTransactions  Int     @default(0) @map("running_transactions")                        // Count of completed sales
-  runningVoidCount     Int     @default(0) @map("running_void_count")                          // Count of voided transactions
-  runningRefundCount   Int     @default(0) @map("running_refund_count")                        // Count of refunds/returns
+  runningTransactions Int @default(0) @map("running_transactions") // Count of completed sales
+  runningVoidCount    Int @default(0) @map("running_void_count") // Count of voided transactions
+  runningRefundCount  Int @default(0) @map("running_refund_count") // Count of refunds/returns
 
   // BIR VAT Calculations (12% VAT in Philippines)
-  runningVatableSales  Decimal @default(0) @map("running_vatable_sales") @db.Decimal(22, 4)   // Sales subject to 12% VAT
-  runningVatAmount     Decimal @default(0) @map("running_vat_amount") @db.Decimal(22, 4)      // 12% VAT collected
-  runningVatExempt     Decimal @default(0) @map("running_vat_exempt") @db.Decimal(22, 4)      // VAT-exempt (Senior, PWD)
-  runningZeroRated     Decimal @default(0) @map("running_zero_rated") @db.Decimal(22, 4)      // Zero-rated sales
-  runningNetOfVat      Decimal @default(0) @map("running_net_of_vat") @db.Decimal(22, 4)      // Amount excluding VAT
+  runningVatableSales Decimal @default(0) @map("running_vatable_sales") @db.Decimal(22, 4) // Sales subject to 12% VAT
+  runningVatAmount    Decimal @default(0) @map("running_vat_amount") @db.Decimal(22, 4) // 12% VAT collected
+  runningVatExempt    Decimal @default(0) @map("running_vat_exempt") @db.Decimal(22, 4) // VAT-exempt (Senior, PWD)
+  runningZeroRated    Decimal @default(0) @map("running_zero_rated") @db.Decimal(22, 4) // Zero-rated sales
+  runningNetOfVat     Decimal @default(0) @map("running_net_of_vat") @db.Decimal(22, 4) // Amount excluding VAT
 
   // Discount Breakdowns (BIR-required)
-  runningSeniorDiscount  Decimal @default(0) @map("running_senior_discount") @db.Decimal(22, 4)  // Senior Citizen (20% + VAT exempt)
-  runningPwdDiscount     Decimal @default(0) @map("running_pwd_discount") @db.Decimal(22, 4)     // PWD (20% + VAT exempt)
+  runningSeniorDiscount   Decimal @default(0) @map("running_senior_discount") @db.Decimal(22, 4) // Senior Citizen (20% + VAT exempt)
+  runningPwdDiscount      Decimal @default(0) @map("running_pwd_discount") @db.Decimal(22, 4) // PWD (20% + VAT exempt)
   runningEmployeeDiscount Decimal @default(0) @map("running_employee_discount") @db.Decimal(22, 4) // Employee discounts
-  runningVolumeDiscount  Decimal @default(0) @map("running_volume_discount") @db.Decimal(22, 4)   // Volume/bulk discounts
-  runningOtherDiscount   Decimal @default(0) @map("running_other_discount") @db.Decimal(22, 4)    // Other discounts
-  runningTotalDiscounts  Decimal @default(0) @map("running_total_discounts") @db.Decimal(22, 4)   // Sum of all discounts
+  runningVolumeDiscount   Decimal @default(0) @map("running_volume_discount") @db.Decimal(22, 4) // Volume/bulk discounts
+  runningOtherDiscount    Decimal @default(0) @map("running_other_discount") @db.Decimal(22, 4) // Other discounts
+  runningTotalDiscounts   Decimal @default(0) @map("running_total_discounts") @db.Decimal(22, 4) // Sum of all discounts
 
   // Payment Method Breakdowns
-  runningCashSales     Decimal @default(0) @map("running_cash_sales") @db.Decimal(22, 4)      // Cash payments
-  runningCardSales     Decimal @default(0) @map("running_card_sales") @db.Decimal(22, 4)      // Credit/Debit card
-  runningGcashSales    Decimal @default(0) @map("running_gcash_sales") @db.Decimal(22, 4)     // GCash payments
-  runningPaymayaSales  Decimal @default(0) @map("running_paymaya_sales") @db.Decimal(22, 4)   // PayMaya payments
-  runningBankSales     Decimal @default(0) @map("running_bank_sales") @db.Decimal(22, 4)      // Bank transfer
-  runningCheckSales    Decimal @default(0) @map("running_check_sales") @db.Decimal(22, 4)     // Check payments
-  runningCreditSales   Decimal @default(0) @map("running_credit_sales") @db.Decimal(22, 4)    // AR/Credit sales
-  runningOtherPayments Decimal @default(0) @map("running_other_payments") @db.Decimal(22, 4)  // Other payment methods
+  runningCashSales     Decimal @default(0) @map("running_cash_sales") @db.Decimal(22, 4) // Cash payments
+  runningCardSales     Decimal @default(0) @map("running_card_sales") @db.Decimal(22, 4) // Credit/Debit card
+  runningGcashSales    Decimal @default(0) @map("running_gcash_sales") @db.Decimal(22, 4) // GCash payments
+  runningPaymayaSales  Decimal @default(0) @map("running_paymaya_sales") @db.Decimal(22, 4) // PayMaya payments
+  runningBankSales     Decimal @default(0) @map("running_bank_sales") @db.Decimal(22, 4) // Bank transfer
+  runningCheckSales    Decimal @default(0) @map("running_check_sales") @db.Decimal(22, 4) // Check payments
+  runningCreditSales   Decimal @default(0) @map("running_credit_sales") @db.Decimal(22, 4) // AR/Credit sales
+  runningOtherPayments Decimal @default(0) @map("running_other_payments") @db.Decimal(22, 4) // Other payment methods
 
   // Void/Refund/Return Tracking
-  runningVoidedSales   Decimal @default(0) @map("running_voided_sales") @db.Decimal(22, 4)    // Total voided amount
-  runningRefundAmount  Decimal @default(0) @map("running_refund_amount") @db.Decimal(22, 4)   // Total refunds
-  runningReturnAmount  Decimal @default(0) @map("running_return_amount") @db.Decimal(22, 4)   // Total returns
+  runningVoidedSales  Decimal @default(0) @map("running_voided_sales") @db.Decimal(22, 4) // Total voided amount
+  runningRefundAmount Decimal @default(0) @map("running_refund_amount") @db.Decimal(22, 4) // Total refunds
+  runningReturnAmount Decimal @default(0) @map("running_return_amount") @db.Decimal(22, 4) // Total returns
 
   // X-Reading and Z-Reading counters
-  xReadingCount Int @default(0) @map("x_reading_count")  // Number of X-Readings generated
-  zReadingCount Int @default(0) @map("z_reading_count")  // Number of Z-Readings generated
+  xReadingCount Int @default(0) @map("x_reading_count") // Number of X-Readings generated
+  zReadingCount Int @default(0) @map("z_reading_count") // Number of Z-Readings generated
 
   // BIR Accumulated Grand Total (for Z-Reading)
-  oldGrandTotal     Decimal? @map("old_grand_total") @db.Decimal(22, 4)     // Previous shift's accumulated total
-  newGrandTotal     Decimal? @map("new_grand_total") @db.Decimal(22, 4)     // Current accumulated total (Old + Net Sales)
-  accumulatedSales  Decimal  @default(0) @map("accumulated_sales") @db.Decimal(22, 4)  // Running total across all shifts
+  oldGrandTotal    Decimal? @map("old_grand_total") @db.Decimal(22, 4) // Previous shift's accumulated total
+  newGrandTotal    Decimal? @map("new_grand_total") @db.Decimal(22, 4) // Current accumulated total (Old + Net Sales)
+  accumulatedSales Decimal  @default(0) @map("accumulated_sales") @db.Decimal(22, 4) // Running total across all shifts
 
   // Status
   status String @default("open") @db.VarChar(20) // open, closed
