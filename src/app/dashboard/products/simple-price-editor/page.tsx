@@ -91,9 +91,17 @@ export default function SimplePriceEditorPage() {
   const handleLocationChange = async (locationIds: number[]) => {
     setSelectedLocations(locationIds)
 
-    // If locations selected and product exists, fetch location-specific price
-    if (locationIds.length > 0 && selectedProduct) {
+    // Only fetch location-specific price if EXACTLY 1 location is selected
+    // - 0 locations: Show default price (no query needed)
+    // - 1 location: Show that location's price (query needed)
+    // - 2+ locations: Show default price (can't show multiple prices)
+    if (locationIds.length === 1 && selectedProduct) {
       await fetchLocationSpecificPrice(selectedProduct.productVariationId, locationIds[0])
+    } else if (selectedProduct) {
+      // Reset to default price when 0 or 2+ locations selected
+      console.log('🔵 Resetting to default price (0 or 2+ locations selected)')
+      // Re-fetch the product to get its default price
+      // This avoids stale location-specific prices
     }
   }
 

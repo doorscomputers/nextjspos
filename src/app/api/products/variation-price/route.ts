@@ -43,8 +43,8 @@ export async function GET(request: NextRequest) {
       },
       select: {
         id: true,
-        defaultSellingPrice: true,
-        defaultPurchasePrice: true,
+        sellingPrice: true,  // ✅ FIX: Correct field name (not defaultSellingPrice)
+        purchasePrice: true, // ✅ FIX: Correct field name (not defaultPurchasePrice)
       },
     })
 
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     console.log('🔵 GET /api/products/variation-price - Query params:', {
       productVariationId,
       locationId,
-      variationDefaultPrice: variation.defaultSellingPrice,
+      variationDefaultPrice: variation.sellingPrice,
     })
 
     // Fetch location-specific price
@@ -83,9 +83,9 @@ export async function GET(request: NextRequest) {
     // Use location-specific price if available, otherwise use default
     const sellingPrice = locationPrice?.sellingPrice
       ? parseFloat(String(locationPrice.sellingPrice))
-      : parseFloat(String(variation.defaultSellingPrice || 0))
+      : parseFloat(String(variation.sellingPrice || 0))
 
-    const purchasePrice = parseFloat(String(variation.defaultPurchasePrice || 0))
+    const purchasePrice = parseFloat(String(variation.purchasePrice || 0))
 
     // DEBUG: Log final response
     console.log('🔵 Returning price:', {
