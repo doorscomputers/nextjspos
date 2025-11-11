@@ -76,10 +76,10 @@ export async function GET(request: NextRequest) {
 
         // Add stock filter for transfer/POS (only products with stock > 0)
         if (withStock && locationId) {
-          whereConditions.variations.some.productHistory = {
+          whereConditions.variations.some.variationLocationDetails = {
             some: {
               locationId: parseInt(locationId),
-              quantity: { gt: 0 },
+              qtyAvailable: { gt: 0 },
             },
           }
         }
@@ -93,12 +93,12 @@ export async function GET(request: NextRequest) {
                 deletedAt: null,
               },
               include: withStock && locationId ? {
-                productHistory: {
+                variationLocationDetails: {
                   where: {
                     locationId: parseInt(locationId),
                   },
                   select: {
-                    quantity: true,
+                    qtyAvailable: true,
                   },
                 },
               } : undefined,
@@ -114,8 +114,9 @@ export async function GET(request: NextRequest) {
             const variations = product.variations
               .filter(v => {
                 // If withStock filter is enabled, only include variations with stock > 0
-                if (withStock && locationId && v.productHistory) {
-                  const stock = v.productHistory.reduce((sum: number, h: any) => sum + Number(h.quantity), 0)
+                if (withStock && locationId && v.variationLocationDetails) {
+                  const stockRecord = v.variationLocationDetails[0]
+                  const stock = stockRecord ? Number(stockRecord.qtyAvailable) : 0
                   return stock > 0
                 }
                 return true
@@ -128,8 +129,8 @@ export async function GET(request: NextRequest) {
                 defaultPurchasePrice: v.purchasePrice ? Number(v.purchasePrice) : 0,
                 defaultSellingPrice: v.sellingPrice ? Number(v.sellingPrice) : 0,
                 // Include stock quantity if requested
-                stock: withStock && locationId && v.productHistory
-                  ? v.productHistory.reduce((sum: number, h: any) => sum + Number(h.quantity), 0)
+                stock: withStock && locationId && v.variationLocationDetails
+                  ? Number(v.variationLocationDetails[0]?.qtyAvailable || 0)
                   : undefined,
               }))
 
@@ -164,10 +165,10 @@ export async function GET(request: NextRequest) {
           whereConditions.variations = {
             some: {
               deletedAt: null,
-              productHistory: {
+              variationLocationDetails: {
                 some: {
                   locationId: parseInt(locationId),
-                  quantity: { gt: 0 },
+                  qtyAvailable: { gt: 0 },
                 },
               },
             },
@@ -180,12 +181,12 @@ export async function GET(request: NextRequest) {
             variations: {
               where: { deletedAt: null },
               include: withStock && locationId ? {
-                productHistory: {
+                variationLocationDetails: {
                   where: {
                     locationId: parseInt(locationId),
                   },
                   select: {
-                    quantity: true,
+                    qtyAvailable: true,
                   },
                 },
               } : undefined,
@@ -202,8 +203,9 @@ export async function GET(request: NextRequest) {
             const variations = product.variations
               .filter(v => {
                 // If withStock filter is enabled, only include variations with stock > 0
-                if (withStock && locationId && v.productHistory) {
-                  const stock = v.productHistory.reduce((sum: number, h: any) => sum + Number(h.quantity), 0)
+                if (withStock && locationId && v.variationLocationDetails) {
+                  const stockRecord = v.variationLocationDetails[0]
+                  const stock = stockRecord ? Number(stockRecord.qtyAvailable) : 0
                   return stock > 0
                 }
                 return true
@@ -216,8 +218,8 @@ export async function GET(request: NextRequest) {
                 defaultPurchasePrice: v.purchasePrice ? Number(v.purchasePrice) : 0,
                 defaultSellingPrice: v.sellingPrice ? Number(v.sellingPrice) : 0,
                 // Include stock quantity if requested
-                stock: withStock && locationId && v.productHistory
-                  ? v.productHistory.reduce((sum: number, h: any) => sum + Number(h.quantity), 0)
+                stock: withStock && locationId && v.variationLocationDetails
+                  ? Number(v.variationLocationDetails[0]?.qtyAvailable || 0)
                   : undefined,
               }))
 

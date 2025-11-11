@@ -35,19 +35,19 @@ async function addSearchIndexes() {
     `
     console.log('   ✅ Index on is_active created\n')
 
-    // Index 4: Product history for stock lookup
-    console.log('4. Adding composite index on product_history...')
+    // Index 4: Variation location stock lookup (for filtering products with stock > 0)
+    console.log('4. Adding composite index on variation_location_details...')
     await prisma.$executeRaw`
-      CREATE INDEX IF NOT EXISTS idx_product_history_location_stock
-      ON product_history (location_id, product_variation_id, quantity)
+      CREATE INDEX IF NOT EXISTS idx_variation_location_stock
+      ON variation_location_details (location_id, product_variation_id, qty_available)
     `
-    console.log('   ✅ Index on product_history created\n')
+    console.log('   ✅ Index on variation_location_details created\n')
 
-    // Index 5: Product history by variation
-    console.log('5. Adding index on product_history.product_variation_id...')
+    // Index 5: Variation ID lookup for stock queries
+    console.log('5. Adding index on variation_location_details.product_variation_id...')
     await prisma.$executeRaw`
-      CREATE INDEX IF NOT EXISTS idx_product_history_variation
-      ON product_history (product_variation_id)
+      CREATE INDEX IF NOT EXISTS idx_variation_location_variation_id
+      ON variation_location_details (product_variation_id)
     `
     console.log('   ✅ Index on product_variation_id created\n')
 
