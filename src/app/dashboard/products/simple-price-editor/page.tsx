@@ -100,24 +100,54 @@ export default function SimplePriceEditorPage() {
   // Fetch location-specific price for the selected location
   const fetchLocationSpecificPrice = async (productVariationId: number, locationId: number) => {
     try {
-      const response = await fetch(
-        `/api/products/variation-price?productVariationId=${productVariationId}&locationId=${locationId}`
-      )
+      // Add cache buster to prevent stale data
+      const url = `/api/products/variation-price?productVariationId=${productVariationId}&locationId=${locationId}&_t=${Date.now()}`
+
+      // DEBUG: Log what we're fetching
+      console.log('🔵 Fetching variation price for single-unit product:', {
+        productVariationId,
+        locationId,
+        url,
+      })
+
+      const response = await fetch(url, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      })
       const result = await response.json()
 
+      // DEBUG: Log what we received
+      console.log('🔵 Received variation price:', result)
+
       if (response.ok && result.success) {
+        const newPrice = result.data.sellingPrice
+
+        // DEBUG: Log price update
+        console.log('🔵 Updating product currentPrice:', {
+          oldPrice: selectedProduct?.currentPrice,
+          newPrice,
+          isLocationSpecific: result.data.isLocationSpecific,
+        })
+
         // Update the selected product with location-specific price
         setSelectedProduct(prev =>
           prev
             ? {
                 ...prev,
-                currentPrice: result.data.sellingPrice || prev.currentPrice,
+                currentPrice: newPrice || prev.currentPrice,
               }
             : null
         )
+
+        // Force re-render by updating a dummy state or notify user
+        console.log('✅ Product price updated to ₱' + newPrice)
+      } else {
+        console.error('🔴 Failed to fetch variation price:', result)
       }
     } catch (error) {
-      console.error('Error fetching location-specific price:', error)
+      console.error('🔴 Error fetching location-specific price:', error)
     }
   }
 
@@ -248,7 +278,11 @@ export default function SimplePriceEditorPage() {
                 <span className="text-2xl">📦</span>
                 Step 2: Product Details
               </h2>
-              <ProductReview product={selectedProduct} />
+              {/* Force re-render when price changes by using key */}
+              <ProductReview
+                key={`${selectedProduct.id}-${selectedProduct.currentPrice}-${selectedLocations.join(',')}`}
+                product={selectedProduct}
+              />
             </div>
           )}
 

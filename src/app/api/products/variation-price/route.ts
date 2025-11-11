@@ -52,6 +52,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Product variation not found' }, { status: 404 })
     }
 
+    // DEBUG: Log query parameters
+    console.log('🔵 GET /api/products/variation-price - Query params:', {
+      productVariationId,
+      locationId,
+      variationDefaultPrice: variation.defaultSellingPrice,
+    })
+
     // Fetch location-specific price
     const locationPrice = await prisma.variationLocationDetails.findUnique({
       where: {
@@ -66,12 +73,25 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    // DEBUG: Log what was found in database
+    console.log('🔵 Location-specific price from DB:', {
+      found: !!locationPrice,
+      sellingPrice: locationPrice?.sellingPrice?.toString(),
+      willUseDefault: !locationPrice,
+    })
+
     // Use location-specific price if available, otherwise use default
     const sellingPrice = locationPrice?.sellingPrice
       ? parseFloat(String(locationPrice.sellingPrice))
       : parseFloat(String(variation.defaultSellingPrice || 0))
 
     const purchasePrice = parseFloat(String(variation.defaultPurchasePrice || 0))
+
+    // DEBUG: Log final response
+    console.log('🔵 Returning price:', {
+      sellingPrice,
+      isLocationSpecific: !!locationPrice,
+    })
 
     const response = NextResponse.json({
       success: true,
