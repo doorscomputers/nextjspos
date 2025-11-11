@@ -1562,31 +1562,44 @@ export default function POSEnhancedPage() {
       const discountAmt = calculateDiscount()
       const total = calculateTotal()
 
-      // Build payments array
+      // Build payments array - IMPORTANT: Send actual payment amounts, not tendered amounts
+      // For cash, we send the payment amount (capped at sale total), not the tendered amount
+      // This ensures runningCashSales tracks actual cash received, not cash+change
       const payments: any[] = []
       if (!isCreditSale) {
+        let remainingBalance = total
+
         if (cashAmount && parseFloat(cashAmount) > 0) {
+          // Cash payment is the LESSER of: (cash tendered) OR (remaining balance)
+          // Example: Sale=2970, Tendered=3000 → Payment=2970, Change=30
+          const cashTendered = parseFloat(cashAmount)
+          const cashPayment = Math.min(cashTendered, remainingBalance)
           payments.push({
             method: 'cash',
-            amount: parseFloat(cashAmount),
+            amount: cashPayment,  // Actual payment received (excludes change)
           })
+          remainingBalance -= cashPayment
         }
         if (digitalAmount && parseFloat(digitalAmount) > 0) {
+          const digitalPayment = Math.min(parseFloat(digitalAmount), remainingBalance)
           payments.push({
             method: digitalMethod,
-            amount: parseFloat(digitalAmount),
+            amount: digitalPayment,
             reference: digitalReference || null,
             photo: digitalPhoto || null,
           })
+          remainingBalance -= digitalPayment
         }
         if (chequeAmount && parseFloat(chequeAmount) > 0) {
+          const chequePayment = Math.min(parseFloat(chequeAmount), remainingBalance)
           payments.push({
             method: 'cheque',
-            amount: parseFloat(chequeAmount),
+            amount: chequePayment,
             reference: chequeNumber || null,
             chequeBank: chequeBank || null,
             chequeDate: chequeDate || null,
           })
+          remainingBalance -= chequePayment
         }
       }
 
