@@ -265,6 +265,17 @@ export default function CloseShiftPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    // Prevent submission if already closed or loading
+    if (shiftClosed) {
+      console.log('[ShiftClose] Shift already closed, ignoring submission')
+      return
+    }
+
+    if (loading) {
+      console.log('[ShiftClose] Already processing, ignoring submission')
+      return
+    }
+
     // Show authorization dialog first
     if (!showPasswordDialog) {
       setShowPasswordDialog(true)
@@ -307,30 +318,42 @@ export default function CloseShiftPage() {
         authData.locationCode = rfidCodeActual // Use actual code, not masked version
       }
 
+      console.log('[ShiftClose] Submitting close request for shift:', currentShift.id)
+      console.log('[ShiftClose] Auth data:', authData)
+
       const res = await fetch(`/api/shifts/${currentShift.id}/close`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(authData),
       })
 
+      console.log('[ShiftClose] Response status:', res.status)
       const data = await res.json()
+      console.log('[ShiftClose] Response data:', data)
 
       if (!res.ok) {
+        console.error('[ShiftClose] Close failed:', data.error)
         throw new Error(data.error || 'Failed to close shift')
       }
 
       // Store variance data (X/Z readings already displayed)
+      console.log('[ShiftClose] ✅ Shift closed successfully')
       setVariance(data.variance)
       setShiftClosed(true)
       setLoading(false)
+      setShowPasswordDialog(false) // Close authorization dialog
 
       // Scroll to top to show success message
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err: any) {
+      console.error('[ShiftClose] ❌ Error during close:', err)
       setError(err.message)
       setLoading(false)
       setShowPasswordDialog(false)
       setManagerPassword('')
+      setRfidCode('')
+      setRfidCodeActual('')
+      setRfidVerified(false)
     }
   }
 
