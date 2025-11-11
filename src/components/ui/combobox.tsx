@@ -81,6 +81,7 @@ export function Combobox({
             className="h-9"
             value={search}
             onValueChange={setSearch}
+            autoFocus
           />
           <CommandEmpty>{emptyText}</CommandEmpty>
           <CommandGroup className="max-h-[300px] overflow-auto">
