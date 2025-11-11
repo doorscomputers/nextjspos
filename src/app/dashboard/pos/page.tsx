@@ -17,6 +17,7 @@ import SalesInvoicePrint from '@/components/SalesInvoicePrint'
 import { apiPost, isConnectionOnline, getOfflineQueueLength } from '@/lib/client/apiClient'
 import ARPaymentCollectionModal from '@/components/ARPaymentCollectionModal'
 import POSUnitSelector from '@/components/POSUnitSelector'
+import { Trash2 } from 'lucide-react'
 
 export default function POSEnhancedPage() {
   const { data: session } = useSession()
@@ -1980,10 +1981,12 @@ export default function POSEnhancedPage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="text-red-500 hover:bg-red-100 h-10 w-10 p-0 text-xl"
+                        className="text-red-500 hover:bg-red-100 h-10 w-10 p-0"
                         onClick={() => removeFromCart(index)}
+                        aria-label="Remove product from cart"
+                        title="Remove product from cart"
                       >
-                        ×
+                        <Trash2 className="h-5 w-5" />
                       </Button>
                     </div>
 

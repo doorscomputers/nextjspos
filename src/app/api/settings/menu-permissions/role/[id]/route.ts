@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
-import { PERMISSIONS } from '@/lib/rbac'
+import { PERMISSIONS, hasPermission } from '@/lib/rbac'
 
 // GET /api/settings/menu-permissions/role/[id]
 // Get menu permissions for a specific role
@@ -17,7 +17,7 @@ export async function GET(
     }
 
     // Check if user has permission to view roles
-    if (!session.user.permissions.includes(PERMISSIONS.ROLE_VIEW)) {
+    if (!hasPermission(session.user, PERMISSIONS.ROLE_VIEW)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -66,13 +66,10 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: {
-        role: {
-          id: role.id,
-          name: role.name,
-          displayName: role.name // Use name as displayName
-        },
-        allMenus,
-        enabledMenuKeys
+        roleId: role.id,
+        roleName: role.name,
+        accessibleMenuKeys: enabledMenuKeys, // Match user endpoint format
+        allMenus
       }
     })
 
@@ -98,7 +95,7 @@ export async function POST(
     }
 
     // Check if user has permission to edit roles
-    if (!session.user.permissions.includes(PERMISSIONS.ROLE_UPDATE)) {
+    if (!hasPermission(session.user, PERMISSIONS.ROLE_UPDATE)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -158,6 +155,86 @@ export async function POST(
         roleId,
         enabledMenuCount: menuPermissions.length
       }
+    })
+
+  } catch (error) {
+    console.error('Error updating role menu permissions:', error)
+    return NextResponse.json(
+      { error: 'Failed to update menu permissions' },
+      { status: 500 }
+    )
+  }
+}
+
+// PUT /api/settings/menu-permissions/role/[id]
+// Update menu permissions for a role (using menu permission IDs)
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check permission using hasPermission helper
+    if (!hasPermission(session.user, PERMISSIONS.ROLE_UPDATE)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const { id } = await params
+    const roleId = parseInt(id)
+    if (isNaN(roleId)) {
+      return NextResponse.json({ error: 'Invalid role ID' }, { status: 400 })
+    }
+
+    const body = await req.json()
+    const { menuPermissionIds } = body
+
+    if (!Array.isArray(menuPermissionIds)) {
+      return NextResponse.json({ error: 'menuPermissionIds must be an array' }, { status: 400 })
+    }
+
+    // Verify role exists and is in same business
+    const role = await prisma.role.findUnique({
+      where: { id: roleId },
+      select: { id: true, businessId: true }
+    })
+
+    if (!role) {
+      return NextResponse.json({ error: 'Role not found' }, { status: 404 })
+    }
+
+    if (role.businessId !== session.user.businessId) {
+      return NextResponse.json({ error: 'Cannot modify roles from other businesses' }, { status: 403 })
+    }
+
+    // ✅ ATOMIC TRANSACTION: Delete old + create new menu permissions
+    await prisma.$transaction(async (tx) => {
+      // Delete existing role menu permissions
+      await tx.roleMenuPermission.deleteMany({
+        where: { roleId }
+      })
+
+      // Create new role menu permissions
+      if (menuPermissionIds.length > 0) {
+        await tx.roleMenuPermission.createMany({
+          data: menuPermissionIds.map((menuPermissionId: number) => ({
+            roleId,
+            menuPermissionId
+          })),
+          skipDuplicates: true
+        })
+      }
+    }, {
+      timeout: 60000
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: 'Role menu permissions updated successfully',
+      count: menuPermissionIds.length
     })
 
   } catch (error) {

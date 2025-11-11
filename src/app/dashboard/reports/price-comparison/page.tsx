@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import DataGrid, {
@@ -54,6 +54,10 @@ export default function PriceComparisonReportPage() {
   const [data, setData] = useState<PriceComparisonData[]>([])
   const [locations, setLocations] = useState<Location[]>([])
   const dataGridRef = useRef<DataGrid>(null)
+  const displayLocations = useMemo(
+    () => locations.filter((location) => location.name?.toLowerCase() !== 'main warehouse'),
+    [locations]
+  )
 
   const hasAccess = can(PERMISSIONS.PRODUCT_PRICE_COMPARISON_VIEW)
 
@@ -268,7 +272,7 @@ export default function PriceComparisonReportPage() {
             />
 
             {/* Dynamic location columns */}
-            {locations.map((location) => (
+            {displayLocations.map((location) => (
               <Column
                 key={location.id}
                 dataField={`location_${location.id}`}
