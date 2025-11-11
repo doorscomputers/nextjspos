@@ -210,10 +210,7 @@ export default function POSEnhancedPage() {
     if (customerSearchTerm.trim() === '') {
       setShowCustomerDropdown(false)
       setCustomerSearchResults([])
-      // Clear selected customer when search is cleared
-      if (customerSearchTerm === '') {
-        setSelectedCustomer(null)
-      }
+      // Don't clear selected customer here - only clear via explicit clear button
       return
     }
 
