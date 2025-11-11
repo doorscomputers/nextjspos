@@ -270,6 +270,15 @@ export async function POST(request: NextRequest) {
         // Save location-specific unit prices
         for (const locationId of locationIds) {
           for (const { unitId, purchasePrice, sellingPrice } of unitPrices) {
+            // DEBUG: Log upsert parameters
+            console.log('🔵 Upserting:', {
+              where: { productId, locationId, unitId },
+              purchasePrice: parseFloat(purchasePrice),
+              sellingPrice: parseFloat(sellingPrice),
+              userId,
+              businessId
+            })
+
             const result = await tx.productUnitLocationPrice.upsert({
               where: {
                 productId_locationId_unitId: {
@@ -293,6 +302,14 @@ export async function POST(request: NextRequest) {
                 sellingPrice: parseFloat(sellingPrice),
                 lastUpdatedBy: userId,
               },
+            })
+
+            // DEBUG: Log upsert result
+            console.log('🔵 Upsert result:', {
+              id: result.id,
+              purchasePrice: result.purchasePrice.toString(),
+              sellingPrice: result.sellingPrice.toString(),
+              updatedAt: result.updatedAt
             })
 
             updates.push(result)
