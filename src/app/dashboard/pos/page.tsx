@@ -2192,10 +2192,13 @@ export default function POSEnhancedPage() {
                   type="text"
                   value={selectedCustomer ? selectedCustomer.name : customerSearchTerm}
                   onChange={(e) => {
-                    setCustomerSearchTerm(e.target.value)
-                    if (!e.target.value) {
-                      setSelectedCustomer(null)
-                      setIsCreditSale(false)
+                    // Only allow typing when no customer is selected
+                    if (!selectedCustomer) {
+                      setCustomerSearchTerm(e.target.value)
+                      if (!e.target.value) {
+                        setSelectedCustomer(null)
+                        setIsCreditSale(false)
+                      }
                     }
                   }}
                   onKeyDown={(e) => {
@@ -2226,8 +2229,13 @@ export default function POSEnhancedPage() {
                       setCustomerSearchTerm('')
                     }
                   }}
-                  placeholder={selectedCustomer ? selectedCustomer.name : "🔍 Search customer (name, email, phone)..."}
-                  className="h-10 text-sm border-2 border-blue-400 focus:border-blue-600"
+                  placeholder="🔍 Search customer (name, email, phone)..."
+                  className={`h-10 text-sm border-2 ${
+                    selectedCustomer
+                      ? 'bg-green-50 border-green-500 font-bold text-green-800'
+                      : 'border-blue-400 focus:border-blue-600'
+                  }`}
+                  readOnly={!!selectedCustomer}
                 />
 
                 {/* Clear button when customer is selected */}
@@ -2238,8 +2246,8 @@ export default function POSEnhancedPage() {
                       setCustomerSearchTerm('')
                       setIsCreditSale(false)
                     }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-600"
-                    title="Clear customer"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 font-bold shadow-lg"
+                    title="Clear customer and search again"
                   >
                     ✕
                   </button>
@@ -2288,9 +2296,26 @@ export default function POSEnhancedPage() {
                 + New
               </Button>
             </div>
-            {selectedCustomer && (
-              <div className="text-xs text-green-600 mt-1 font-semibold">
-                ✓ Selected: {selectedCustomer.name}
+            {selectedCustomer ? (
+              <div className="mt-2 p-2 bg-green-50 border-2 border-green-500 rounded-lg">
+                <div className="text-sm text-green-800 font-bold flex items-center gap-2">
+                  <span className="text-lg">✓</span>
+                  <span>SELECTED CUSTOMER</span>
+                </div>
+                <div className="text-base font-bold text-gray-900 mt-1">{selectedCustomer.name}</div>
+                {selectedCustomer.email && (
+                  <div className="text-xs text-gray-600 mt-1">📧 {selectedCustomer.email}</div>
+                )}
+                {selectedCustomer.phone && (
+                  <div className="text-xs text-gray-600">📱 {selectedCustomer.phone}</div>
+                )}
+              </div>
+            ) : (
+              <div className="mt-2 p-2 bg-gray-50 border-2 border-gray-300 rounded-lg">
+                <div className="text-xs text-gray-600 flex items-center gap-2">
+                  <span>🚶</span>
+                  <span>Walk-in Customer (default)</span>
+                </div>
               </div>
             )}
           </div>
