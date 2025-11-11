@@ -393,6 +393,8 @@ export default function CreateTransferPage() {
                   onProductSelect={handleProductSelect}
                   placeholder="🔍 Scan barcode or search product (SKU, Name)..."
                   autoFocus={true}
+                  locationId={locationId}  // Filter by user's location (only show products at their branch)
+                  withStock={true}  // Only show products with stock > 0 (can't transfer without stock!)
                 />
               </div>
             )}

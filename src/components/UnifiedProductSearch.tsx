@@ -43,6 +43,8 @@ interface UnifiedProductSearchProps {
   disabled?: boolean
   autoFocus?: boolean
   className?: string
+  locationId?: number  // NEW: Filter by specific location
+  withStock?: boolean  // NEW: Only show products with stock > 0
 }
 
 export default function UnifiedProductSearch({
@@ -50,7 +52,9 @@ export default function UnifiedProductSearch({
   placeholder = "🔍 Scan barcode or search product (SKU, Name)...",
   disabled = false,
   autoFocus = true,
-  className = ""
+  className = "",
+  locationId,    // NEW: Optional location filter
+  withStock = false  // NEW: Optional stock filter (default false for backward compatibility)
 }: UnifiedProductSearchProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState<Product[]>([])
@@ -74,9 +78,21 @@ export default function UnifiedProductSearch({
     // Debounce: wait 300ms after user stops typing
     const timer = setTimeout(async () => {
       try {
-        const response = await fetch(
-          `/api/products/search?q=${encodeURIComponent(searchTerm.trim())}&limit=10`
-        )
+        // Build query params with optional location and stock filters
+        const params = new URLSearchParams({
+          q: searchTerm.trim(),
+          limit: '10',
+        })
+
+        // Add location and stock filters for optimized search
+        if (locationId) {
+          params.append('locationId', locationId.toString())
+        }
+        if (withStock) {
+          params.append('withStock', 'true')
+        }
+
+        const response = await fetch(`/api/products/search?${params.toString()}`)
 
         if (response.ok) {
           const data = await response.json()
