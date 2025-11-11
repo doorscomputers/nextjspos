@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Combobox } from '@/components/ui/combobox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
@@ -18,6 +19,7 @@ import { apiPost, isConnectionOnline, getOfflineQueueLength } from '@/lib/client
 import ARPaymentCollectionModal from '@/components/ARPaymentCollectionModal'
 import POSUnitSelector from '@/components/POSUnitSelector'
 import { Trash2 } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 export default function POSEnhancedPage() {
   const { data: session } = useSession()
@@ -2079,10 +2081,17 @@ export default function POSEnhancedPage() {
           <div className="p-2 border-b bg-gradient-to-r from-gray-50 to-gray-100">
             <Label className="text-xs font-medium mb-1 block">Customer</Label>
             <div className="flex gap-2">
-              <Select
-                value={selectedCustomer?.id?.toString()}
+              <Combobox
+                options={[
+                  { value: 'walk-in', label: 'Walk-in Customer' },
+                  ...customers.map((customer) => ({
+                    value: customer.id.toString(),
+                    label: customer.name,
+                  })),
+                ]}
+                value={selectedCustomer?.id?.toString() || 'walk-in'}
                 onValueChange={(value) => {
-                  if (value === 'walk-in') {
+                  if (value === 'walk-in' || value === '') {
                     setSelectedCustomer(null)
                     setIsCreditSale(false) // Uncheck credit sale when Walk-in is selected
                   } else {
@@ -2090,19 +2099,11 @@ export default function POSEnhancedPage() {
                     setSelectedCustomer(customer || null)
                   }
                 }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Walk-in Customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="walk-in">Walk-in Customer</SelectItem>
-                  {customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id.toString()}>
-                      {customer.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Walk-in Customer"
+                searchPlaceholder="Search customer..."
+                emptyText="No customer found."
+                className="flex-1"
+              />
               <Button
                 className="bg-blue-600 hover:bg-blue-700 text-white"
                 size="sm"
