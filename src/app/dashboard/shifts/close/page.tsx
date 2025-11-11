@@ -99,44 +99,91 @@ export default function CloseShiftPage() {
 
       setCurrentShift(shift)
 
+      // Declare xReadingData outside try block so it's accessible for fallback
+      let xReadingData: any = null
+
       // Step 2: Generate X Reading (CRITICAL for cash calculation fallback)
-      const xRes = await fetch(`/api/readings/x-reading?shiftId=${shift.id}`)
-      const xData = await xRes.json()
-      console.log('X Reading Response:', xData)
-      if (!xRes.ok) {
-        throw new Error(xData.error || 'Failed to generate X Reading')
+      // Add timeout to prevent hanging on old/large shifts
+      const xController = new AbortController()
+      const xTimeout = setTimeout(() => xController.abort(), 30000) // 30 second timeout
+
+      try {
+        const xRes = await fetch(`/api/readings/x-reading?shiftId=${shift.id}`, {
+          signal: xController.signal
+        })
+        clearTimeout(xTimeout)
+        const xData = await xRes.json()
+        console.log('X Reading Response:', xData)
+        if (!xRes.ok) {
+          throw new Error(xData.error || 'Failed to generate X Reading')
+        }
+        // Extract xReading from response (API returns { xReading: <data> })
+        xReadingData = xData.xReading
+        setXReading(xReadingData)
+      } catch (err: any) {
+        clearTimeout(xTimeout)
+        if (err.name === 'AbortError') {
+          throw new Error('X Reading timed out. Please try again or contact support.')
+        }
+        throw err
       }
-      // Extract xReading from response (API returns { xReading: <data> })
-      const xReadingData = xData.xReading
-      setXReading(xReadingData)
 
       // Step 3: Generate Z Reading (attempt, but don't fail if user lacks permission)
       let zReadingData = null
       let systemCash = 0
 
-      const zRes = await fetch(`/api/readings/z-reading?shiftId=${shift.id}`)
-      const zData = await zRes.json()
-      console.log('Z Reading Response:', zData)
+      const zController = new AbortController()
+      const zTimeout = setTimeout(() => zController.abort(), 30000) // 30 second timeout
 
-      if (zRes.ok && zData.cash) {
-        // Z Reading succeeded - use Z Reading's system cash
-        zReadingData = zData
-        systemCash = zData.cash.systemCash
-        setZReading(zReadingData)
-        console.log('✅ Using Z Reading system cash:', systemCash)
-      } else {
-        // Z Reading failed (likely permission error) - CRITICAL FALLBACK
-        console.warn('⚠️ Z Reading failed, using X Reading expected cash as fallback')
-        console.warn('Error:', zData.error)
+      try {
+        const zRes = await fetch(`/api/readings/z-reading?shiftId=${shift.id}`, {
+          signal: zController.signal
+        })
+        clearTimeout(zTimeout)
+        const zData = await zRes.json()
+        console.log('Z Reading Response:', zData)
 
-        // Use X Reading's expected cash (Beginning Cash + Cash Sales + Cash In - Cash Out)
-        if (xReadingData && xReadingData.expectedCash !== undefined) {
-          systemCash = xReadingData.expectedCash
-          console.log('✅ Using X Reading expected cash:', systemCash)
+        if (zRes.ok && zData.cash) {
+          // Z Reading succeeded - use Z Reading's system cash
+          zReadingData = zData
+          systemCash = zData.cash.systemCash
+          setZReading(zReadingData)
+          console.log('✅ Using Z Reading system cash:', systemCash)
         } else {
-          // Last resort: calculate from shift beginning cash
-          systemCash = parseFloat(shift.beginningCash) || 0
-          console.warn('⚠️ Using beginning cash as last resort:', systemCash)
+          // Z Reading failed (likely permission error) - CRITICAL FALLBACK
+          console.warn('⚠️ Z Reading failed, using X Reading expected cash as fallback')
+          console.warn('Error:', zData.error)
+
+          // Use X Reading's expected cash (Beginning Cash + Cash Sales + Cash In - Cash Out)
+          if (xReadingData && xReadingData.expectedCash !== undefined) {
+            systemCash = xReadingData.expectedCash
+            console.log('✅ Using X Reading expected cash:', systemCash)
+          } else {
+            // Last resort: calculate from shift beginning cash
+            systemCash = parseFloat(shift.beginningCash) || 0
+            console.warn('⚠️ Using beginning cash as last resort:', systemCash)
+          }
+        }
+      } catch (err: any) {
+        clearTimeout(zTimeout)
+        if (err.name === 'AbortError') {
+          console.warn('⚠️ Z Reading timed out, using X Reading expected cash as fallback')
+          // Use X Reading's expected cash as fallback
+          if (xReadingData && xReadingData.expectedCash !== undefined) {
+            systemCash = xReadingData.expectedCash
+            console.log('✅ Using X Reading expected cash after Z timeout:', systemCash)
+          } else {
+            systemCash = parseFloat(shift.beginningCash) || 0
+            console.warn('⚠️ Using beginning cash as last resort:', systemCash)
+          }
+        } else {
+          // Other errors - still use fallback
+          console.warn('⚠️ Z Reading error:', err.message)
+          if (xReadingData && xReadingData.expectedCash !== undefined) {
+            systemCash = xReadingData.expectedCash
+          } else {
+            systemCash = parseFloat(shift.beginningCash) || 0
+          }
         }
       }
 
