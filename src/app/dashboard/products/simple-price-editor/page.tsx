@@ -138,7 +138,15 @@ export default function SimplePriceEditorPage() {
         pricePercentage: null, // Not using percentage in this simplified version
       }))
 
-      console.log('🚀 Sending price update:', updates)
+      // DEBUG: Log Step 4 price update
+      console.log('🔵 Step 4 - Sending price update to /api/products/bulk-price-update:', {
+        productVariationId: selectedProduct.productVariationId,
+        selectedLocations,
+        newPrice,
+        updates,
+        productName: selectedProduct.name,
+        sku: selectedProduct.sku,
+      })
 
       const response = await fetch('/api/products/bulk-price-update', {
         method: 'POST',
@@ -147,6 +155,9 @@ export default function SimplePriceEditorPage() {
       })
 
       const result = await response.json()
+
+      // DEBUG: Log API response
+      console.log('🔵 Step 4 - API response from /api/products/bulk-price-update:', result)
 
       if (response.ok && result.success) {
         const locationNames = locations
