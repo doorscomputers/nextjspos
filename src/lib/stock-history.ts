@@ -95,6 +95,8 @@ export async function getVariationStockHistory(
     // 2. Sales - Stock Sold
     // OPTIMIZED: Query SaleItem directly instead of loading all sales
     // This prevents loading thousands of sales when we only need items for one product
+    // CRITICAL FIX: Order by createdAt (timestamp) not saleDate (date only)
+    // This ensures correct chronological order within the same day
     prisma.saleItem.findMany({
       where: {
         productId,
@@ -110,14 +112,17 @@ export async function getVariationStockHistory(
       },
       include: {
         sale: {
-          include: {
+          select: {
+            saleDate: true,
+            createdAt: true,  // Include timestamp for proper sorting
+            invoiceNumber: true,
             customer: { select: { name: true } }
           }
         }
       },
       orderBy: {
         sale: {
-          saleDate: 'asc'
+          createdAt: 'asc'  // Use timestamp, not just date
         }
       }
     }),
@@ -291,9 +296,10 @@ export async function getVariationStockHistory(
   }
 
   // Process Sales - Now using optimized saleItems query
+  // CRITICAL FIX: Use createdAt (timestamp) not saleDate (date only)
   for (const item of saleItems) {
     transactions.push({
-      date: item.sale.saleDate,
+      date: item.sale.createdAt,  // Use timestamp for proper chronological order
       type: 'sale',
       typeLabel: 'Sale',
       referenceNumber: item.sale.invoiceNumber,
@@ -425,11 +431,40 @@ export async function getVariationStockHistory(
     })
   }
 
-  // Sort all transactions by date (ascending)
+  // Sort all transactions by timestamp (ascending - oldest first)
+  // This ensures correct chronological order, even for multiple transactions on the same day
   transactions.sort((a, b) => a.date.getTime() - b.date.getTime())
 
-  // Calculate running balance (forward pass - oldest to newest)
+  // CRITICAL FIX: Get the opening balance (balance BEFORE the start date)
+  // This ensures correct running balance calculations when filtering by date
   let runningBalance = 0
+
+  if (startDate) {
+    // Get the most recent productHistory record BEFORE the start date
+    const openingBalanceRecord = await prisma.productHistory.findFirst({
+      where: {
+        businessId,
+        locationId,
+        productId,
+        productVariationId: variationId,
+        transactionDate: {
+          lt: finalStartDate  // Before the start date
+        }
+      },
+      orderBy: {
+        transactionDate: 'desc'  // Most recent
+      },
+      select: {
+        balanceQuantity: true
+      }
+    })
+
+    if (openingBalanceRecord) {
+      runningBalance = parseFloat(openingBalanceRecord.balanceQuantity.toString())
+      console.log(`📊 Opening balance before ${startDate}: ${runningBalance}`)
+    }
+  }
+
   const history: StockHistoryEntry[] = []
 
   for (let i = 0; i < transactions.length; i++) {
@@ -445,7 +480,7 @@ export async function getVariationStockHistory(
       transactionTypeLabel: txn.typeLabel,
       quantityAdded: txn.quantityAdded,
       quantityRemoved: txn.quantityRemoved,
-      runningBalance, // This will be recalculated below after reversing
+      runningBalance,
       unitCost: null,
       notes: txn.notes,
       createdBy: txn.createdBy
@@ -453,26 +488,10 @@ export async function getVariationStockHistory(
   }
 
   // Reverse so newest appears first
-  const reversed = history.reverse()
-
-  // ✅ FIX: Recalculate running balance in reverse order (newest to oldest, counting backwards)
-  // Start with the FINAL balance and work backwards
-  const finalBalance = reversed[0].runningBalance // The newest transaction has the final balance
-  let backwardBalance = finalBalance
-
-  for (let i = 0; i < reversed.length; i++) {
-    reversed[i].runningBalance = backwardBalance
-
-    // Move to previous transaction (go backwards in time)
-    if (i < reversed.length - 1) {
-      // Undo the NEXT transaction (which is older in time)
-      const nextTxn = reversed[i + 1]
-      backwardBalance -= nextTxn.quantityAdded
-      backwardBalance += nextTxn.quantityRemoved
-    }
-  }
-
-  return reversed
+  // The running balance from forward calculation is already correct for each transaction
+  // (it shows the balance AFTER that transaction executed)
+  // No need to recalculate - just reverse the array
+  return history.reverse()
 }
 
 /**
