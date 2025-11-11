@@ -44,6 +44,10 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20')
     const supplierId = searchParams.get('supplierId') // Optional supplier filter
 
+    // NEW PERFORMANCE FILTERS
+    const locationId = searchParams.get('locationId') // Filter by location (for transfer/POS)
+    const withStock = searchParams.get('withStock') === 'true' // Only products with stock > 0
+
     const businessId = parseInt(session.user.businessId)
 
     // ================================================================
@@ -58,24 +62,46 @@ export async function GET(request: NextRequest) {
 
       // TYPE 1: SKU EXACT MATCH (FASTEST)
       if (type === 'sku') {
-        const exactMatch = await prisma.product.findMany({
-          where: {
-            businessId,
-            isActive: true,
-            deletedAt: null,
-            variations: {
-              some: {
-                sku: { equals: searchTrimmed, mode: 'insensitive' },
-                deletedAt: null,
-              },
+        const whereConditions: any = {
+          businessId,
+          isActive: true,
+          deletedAt: null,
+          variations: {
+            some: {
+              sku: { equals: searchTrimmed, mode: 'insensitive' },
+              deletedAt: null,
             },
           },
+        }
+
+        // Add stock filter for transfer/POS (only products with stock > 0)
+        if (withStock && locationId) {
+          whereConditions.variations.some.productHistory = {
+            some: {
+              locationId: parseInt(locationId),
+              quantity: { gt: 0 },
+            },
+          }
+        }
+
+        const exactMatch = await prisma.product.findMany({
+          where: whereConditions,
           include: {
             variations: {
               where: {
                 sku: { equals: searchTrimmed, mode: 'insensitive' },
                 deletedAt: null,
               },
+              include: withStock && locationId ? {
+                productHistory: {
+                  where: {
+                    locationId: parseInt(locationId),
+                  },
+                  select: {
+                    quantity: true,
+                  },
+                },
+              } : undefined,
               orderBy: { name: 'asc' },
             },
           },
@@ -84,20 +110,38 @@ export async function GET(request: NextRequest) {
 
         const results = exactMatch
           .filter(p => p.variations && p.variations.length > 0)
-          .map(product => ({
-            id: product.id,
-            name: product.name,
-            categoryName: null,
-            variations: product.variations.map(v => ({
-              id: v.id,
-              name: v.name,
-              sku: v.sku,
-              enableSerialNumber: Boolean(product.enableProductInfo),
-              defaultPurchasePrice: v.purchasePrice ? Number(v.purchasePrice) : 0,
-              defaultSellingPrice: v.sellingPrice ? Number(v.sellingPrice) : 0,
-            })),
-            matchType: 'exact' as const,
-          }))
+          .map(product => {
+            const variations = product.variations
+              .filter(v => {
+                // If withStock filter is enabled, only include variations with stock > 0
+                if (withStock && locationId && v.productHistory) {
+                  const stock = v.productHistory.reduce((sum: number, h: any) => sum + Number(h.quantity), 0)
+                  return stock > 0
+                }
+                return true
+              })
+              .map((v: any) => ({
+                id: v.id,
+                name: v.name,
+                sku: v.sku,
+                enableSerialNumber: Boolean(product.enableProductInfo),
+                defaultPurchasePrice: v.purchasePrice ? Number(v.purchasePrice) : 0,
+                defaultSellingPrice: v.sellingPrice ? Number(v.sellingPrice) : 0,
+                // Include stock quantity if requested
+                stock: withStock && locationId && v.productHistory
+                  ? v.productHistory.reduce((sum: number, h: any) => sum + Number(h.quantity), 0)
+                  : undefined,
+              }))
+
+            return {
+              id: product.id,
+              name: product.name,
+              categoryName: null,
+              variations,
+              matchType: 'exact' as const,
+            }
+          })
+          .filter(p => p.variations.length > 0) // Remove products with no valid variations
 
         return NextResponse.json({ products: results })
       }
@@ -108,16 +152,43 @@ export async function GET(request: NextRequest) {
           ? { startsWith: searchTrimmed, mode: 'insensitive' as const }
           : { contains: searchTrimmed, mode: 'insensitive' as const }
 
+        const whereConditions: any = {
+          businessId,
+          isActive: true,
+          deletedAt: null,
+          name: searchCondition,
+        }
+
+        // Add stock filter for transfer/POS
+        if (withStock && locationId) {
+          whereConditions.variations = {
+            some: {
+              deletedAt: null,
+              productHistory: {
+                some: {
+                  locationId: parseInt(locationId),
+                  quantity: { gt: 0 },
+                },
+              },
+            },
+          }
+        }
+
         const nameMatches = await prisma.product.findMany({
-          where: {
-            businessId,
-            isActive: true,
-            deletedAt: null,
-            name: searchCondition,
-          },
+          where: whereConditions,
           include: {
             variations: {
               where: { deletedAt: null },
+              include: withStock && locationId ? {
+                productHistory: {
+                  where: {
+                    locationId: parseInt(locationId),
+                  },
+                  select: {
+                    quantity: true,
+                  },
+                },
+              } : undefined,
               orderBy: { name: 'asc' },
             },
           },
@@ -127,20 +198,40 @@ export async function GET(request: NextRequest) {
 
         const results = nameMatches
           .filter(p => p.variations && p.variations.length > 0)
-          .map(product => ({
-            id: product.id,
-            name: product.name,
-            categoryName: null,
-            variations: product.variations.map(v => ({
-              id: v.id,
-              name: v.name,
-              sku: v.sku,
-              enableSerialNumber: Boolean(product.enableProductInfo),
-              defaultPurchasePrice: v.purchasePrice ? Number(v.purchasePrice) : 0,
-              defaultSellingPrice: v.sellingPrice ? Number(v.sellingPrice) : 0,
-            })),
-            matchType: 'fuzzy' as const,
-          }))
+          .map(product => {
+            const variations = product.variations
+              .filter(v => {
+                // If withStock filter is enabled, only include variations with stock > 0
+                if (withStock && locationId && v.productHistory) {
+                  const stock = v.productHistory.reduce((sum: number, h: any) => sum + Number(h.quantity), 0)
+                  return stock > 0
+                }
+                return true
+              })
+              .map((v: any) => ({
+                id: v.id,
+                name: v.name,
+                sku: v.sku,
+                enableSerialNumber: Boolean(product.enableProductInfo),
+                defaultPurchasePrice: v.purchasePrice ? Number(v.purchasePrice) : 0,
+                defaultSellingPrice: v.sellingPrice ? Number(v.sellingPrice) : 0,
+                // Include stock quantity if requested
+                stock: withStock && locationId && v.productHistory
+                  ? v.productHistory.reduce((sum: number, h: any) => sum + Number(h.quantity), 0)
+                  : undefined,
+              }))
+
+            return {
+              id: product.id,
+              name: product.name,
+              categoryName: null,
+              variations,
+              matchType: 'fuzzy' as const,
+            }
+          })
+          .filter(p => p.variations.length > 0) // Remove products with no valid variations
+
+        console.log(`[Product Search] Found ${results.length} products with stock at location ${locationId}`)
 
         return NextResponse.json({ products: results })
       }
