@@ -9,7 +9,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Combobox } from '@/components/ui/combobox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
@@ -135,12 +134,19 @@ export default function POSEnhancedPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage] = useState(20)
 
-  // Search State
+  // Product Search State
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [selectedSearchIndex, setSelectedSearchIndex] = useState(0)
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const searchResultRefs = useRef<(HTMLDivElement | null)[]>([])
+
+  // Customer Search State (same pattern as product search)
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('')
+  const [customerSearchResults, setCustomerSearchResults] = useState<any[]>([])
+  const [selectedCustomerIndex, setSelectedCustomerIndex] = useState(0)
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
+  const customerResultRefs = useRef<(HTMLDivElement | null)[]>([])
 
   // Only run checks when session is ready
   useEffect(() => {
@@ -198,6 +204,49 @@ export default function POSEnhancedPage() {
       })
     }
   }, [selectedSearchIndex, showSearchDropdown])
+
+  // Customer live search: Show dropdown as user types
+  useEffect(() => {
+    if (customerSearchTerm.trim() === '') {
+      setShowCustomerDropdown(false)
+      setCustomerSearchResults([])
+      // Clear selected customer when search is cleared
+      if (customerSearchTerm === '') {
+        setSelectedCustomer(null)
+      }
+      return
+    }
+
+    // Search with debouncing (wait 300ms after user stops typing)
+    const timer = setTimeout(() => {
+      const searchLower = customerSearchTerm.toLowerCase().trim()
+      const matches = customers.filter((customer) =>
+        customer.name?.toLowerCase().includes(searchLower) ||
+        customer.email?.toLowerCase().includes(searchLower) ||
+        customer.phone?.includes(searchLower)
+      )
+
+      if (matches.length > 0) {
+        setCustomerSearchResults(matches)
+        setSelectedCustomerIndex(0)
+        setShowCustomerDropdown(true)
+      } else {
+        setShowCustomerDropdown(false)
+      }
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [customerSearchTerm, customers])
+
+  // Auto-scroll selected customer result into view
+  useEffect(() => {
+    if (showCustomerDropdown && customerResultRefs.current[selectedCustomerIndex]) {
+      customerResultRefs.current[selectedCustomerIndex]?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      })
+    }
+  }, [selectedCustomerIndex, showCustomerDropdown])
 
   // Connection status monitor for API client
   useEffect(() => {
@@ -2134,33 +2183,103 @@ export default function POSEnhancedPage() {
 
         {/* RIGHT SIDE - PAYMENT PANEL (30%) */}
         <div className="flex-[0.3] bg-gradient-to-b from-gray-50 to-white border-l flex flex-col shadow-2xl">
-          {/* Customer Selection */}
-          <div className="p-2 border-b bg-gradient-to-r from-gray-50 to-gray-100">
+          {/* Customer Selection - Autocomplete Style (same as Product Search) */}
+          <div className="p-2 border-b bg-gradient-to-r from-gray-50 to-gray-100 relative">
             <Label className="text-xs font-medium mb-1 block">Customer</Label>
             <div className="flex gap-2">
-              <Combobox
-                options={[
-                  { value: 'walk-in', label: 'Walk-in Customer' },
-                  ...customers.map((customer) => ({
-                    value: customer.id.toString(),
-                    label: customer.name,
-                  })),
-                ]}
-                value={selectedCustomer?.id?.toString() || 'walk-in'}
-                onValueChange={(value) => {
-                  if (value === 'walk-in' || value === '') {
-                    setSelectedCustomer(null)
-                    setIsCreditSale(false) // Uncheck credit sale when Walk-in is selected
-                  } else {
-                    const customer = customers.find((c) => c.id.toString() === value)
-                    setSelectedCustomer(customer || null)
-                  }
-                }}
-                placeholder="Walk-in Customer"
-                searchPlaceholder="Search customer..."
-                emptyText="No customer found."
-                className="flex-1"
-              />
+              <div className="flex-1 relative">
+                <Input
+                  type="text"
+                  value={selectedCustomer ? selectedCustomer.name : customerSearchTerm}
+                  onChange={(e) => {
+                    setCustomerSearchTerm(e.target.value)
+                    if (!e.target.value) {
+                      setSelectedCustomer(null)
+                      setIsCreditSale(false)
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      if (showCustomerDropdown && customerSearchResults.length > 0) {
+                        setSelectedCustomerIndex((prev) =>
+                          prev < customerSearchResults.length - 1 ? prev + 1 : 0
+                        )
+                      }
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault()
+                      if (showCustomerDropdown && customerSearchResults.length > 0) {
+                        setSelectedCustomerIndex((prev) =>
+                          prev > 0 ? prev - 1 : customerSearchResults.length - 1
+                        )
+                      }
+                    } else if (e.key === 'Enter') {
+                      e.preventDefault()
+                      if (showCustomerDropdown && customerSearchResults[selectedCustomerIndex]) {
+                        const customer = customerSearchResults[selectedCustomerIndex]
+                        setSelectedCustomer(customer)
+                        setCustomerSearchTerm('')
+                        setShowCustomerDropdown(false)
+                      }
+                    } else if (e.key === 'Escape') {
+                      setShowCustomerDropdown(false)
+                      setCustomerSearchTerm('')
+                    }
+                  }}
+                  placeholder={selectedCustomer ? selectedCustomer.name : "🔍 Search customer (name, email, phone)..."}
+                  className="h-10 text-sm border-2 border-blue-400 focus:border-blue-600"
+                />
+
+                {/* Clear button when customer is selected */}
+                {selectedCustomer && (
+                  <button
+                    onClick={() => {
+                      setSelectedCustomer(null)
+                      setCustomerSearchTerm('')
+                      setIsCreditSale(false)
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-600"
+                    title="Clear customer"
+                  >
+                    ✕
+                  </button>
+                )}
+
+                {/* Customer Search Dropdown */}
+                {showCustomerDropdown && customerSearchResults.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border-2 border-blue-400 rounded-lg shadow-2xl z-50 max-h-[300px] overflow-y-auto">
+                    <div className="p-2">
+                      <div className="text-xs text-gray-500 mb-2 px-2">
+                        Found {customerSearchResults.length} customer{customerSearchResults.length !== 1 ? 's' : ''} (Use ↑↓ arrows, Enter to select)
+                      </div>
+                      {customerSearchResults.map((customer, index) => (
+                        <div
+                          key={customer.id}
+                          ref={(el) => (customerResultRefs.current[index] = el)}
+                          className={`p-3 rounded-lg cursor-pointer transition-all ${
+                            index === selectedCustomerIndex
+                              ? 'bg-blue-100 border-2 border-blue-500 shadow-md'
+                              : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                          }`}
+                          onClick={() => {
+                            setSelectedCustomer(customer)
+                            setCustomerSearchTerm('')
+                            setShowCustomerDropdown(false)
+                          }}
+                        >
+                          <div className="font-bold text-sm text-gray-800">{customer.name}</div>
+                          {customer.email && (
+                            <div className="text-xs text-gray-600">📧 {customer.email}</div>
+                          )}
+                          {customer.phone && (
+                            <div className="text-xs text-gray-600">📱 {customer.phone}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <Button
                 className="bg-blue-600 hover:bg-blue-700 text-white"
                 size="sm"
@@ -2169,6 +2288,11 @@ export default function POSEnhancedPage() {
                 + New
               </Button>
             </div>
+            {selectedCustomer && (
+              <div className="text-xs text-green-600 mt-1 font-semibold">
+                ✓ Selected: {selectedCustomer.name}
+              </div>
+            )}
           </div>
 
           {/* PAYMENT SECTION - Discount & Payment Methods */}
