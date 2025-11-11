@@ -92,7 +92,15 @@ export default function UnclosedShiftWarning() {
       // Success - reload the page to clear the warning
       window.location.reload()
     } catch (error: any) {
-      setForceCloseError(error.message || 'Failed to force-close shift')
+      const errorMsg = error.message || 'Failed to force-close shift'
+      console.error('[Force-Close Error]:', errorMsg)
+
+      // Show user-friendly error
+      if (errorMsg.includes('Forbidden')) {
+        setForceCloseError('Permission denied. Please contact your manager/admin.')
+      } else {
+        setForceCloseError(`${errorMsg}. Please try normal close instead.`)
+      }
       setForceClosing(false)
     }
   }
@@ -234,6 +242,12 @@ export default function UnclosedShiftWarning() {
               You must close this shift to continue. This is required for BIR compliance and proper cash accountability.
             </h3>
 
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700 rounded-lg p-3 mb-3">
+              <p className="text-xs text-green-800 dark:text-green-200 font-semibold">
+                ✓ Normal close generates X-Reading and Z-Reading for BIR compliance
+              </p>
+            </div>
+
             <Button
               onClick={handleCloseShift}
               disabled={navigating || forceClosing}
@@ -249,12 +263,13 @@ export default function UnclosedShiftWarning() {
                   Opening Close Shift Page...
                 </>
               ) : (
-                <>🔒 Close This Shift Now</>
+                <>🔒 Close Shift with BIR Readings</>
               )}
             </Button>
 
-            {/* Force-Close Option for Very Old Shifts (1+ days) */}
-            {shift.daysSinceOpen >= 1 && (
+            {/* Force-Close Option ONLY for EXTREMELY Old Shifts (2+ days) */}
+            {/* BIR compliance requires readings for all shifts - only use for impossible cases */}
+            {shift.daysSinceOpen >= 2 && (
               <>
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
@@ -287,8 +302,8 @@ export default function UnclosedShiftWarning() {
                   )}
                 </Button>
 
-                <p className="text-xs text-center text-orange-600 dark:text-orange-400 italic">
-                  Force-close skips reading generation for extremely old shifts. Use only if normal close times out.
+                <p className="text-xs text-center text-red-600 dark:text-red-400 italic font-semibold">
+                  ⚠️ WARNING: Force-close skips BIR-required readings. Only use if normal close fails repeatedly after multiple attempts.
                 </p>
               </>
             )}
