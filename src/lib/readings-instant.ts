@@ -375,7 +375,7 @@ async function generateZReadingFromRunningTotals(
       p.name as product_name,
       c.name as category_name,
       SUM(si.quantity) as total_quantity,
-      SUM(si.price * si.quantity) as total_amount
+      SUM(si.unit_price * si.quantity) as total_amount
     FROM sale_items si
     INNER JOIN sales s ON si.sale_id = s.id
     INNER JOIN products p ON si.product_id = p.id
