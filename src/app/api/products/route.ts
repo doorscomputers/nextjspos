@@ -148,18 +148,39 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    let products = await prisma.product.findMany({
-      where: whereClause,
-      include: {
-        category: true,
-        brand: true,
-        unit: true,
-        tax: true,
-        variations: {
-          where: { deletedAt: null },
-          include: variationInclude
+    // ✅ NEW: Pre-load unit information for multi-unit products
+    // This prevents 8-second delay in POS by including all unit data upfront
+    const productInclude: any = {
+      category: true,
+      brand: true,
+      unit: true,
+      tax: true,
+      variations: {
+        where: { deletedAt: null },
+        include: variationInclude
+      },
+      // ✅ Load unit price details for multi-unit products
+      unitPrices: {
+        select: {
+          unitId: true,
+          purchasePrice: true,
+          sellingPrice: true
         }
       },
+      // ✅ Load location-specific unit prices
+      unitLocationPrices: {
+        select: {
+          locationId: true,
+          unitId: true,
+          purchasePrice: true,
+          sellingPrice: true
+        }
+      }
+    }
+
+    let products = await prisma.product.findMany({
+      where: whereClause,
+      include: productInclude,
       orderBy: { createdAt: 'desc' },
       ...(limit && { take: limit })
     })
