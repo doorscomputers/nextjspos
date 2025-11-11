@@ -88,8 +88,37 @@ export default function SimplePriceEditorPage() {
     setSelectedLocations([]) // Reset location selection when product changes
   }
 
-  const handleLocationChange = (locationIds: number[]) => {
+  const handleLocationChange = async (locationIds: number[]) => {
     setSelectedLocations(locationIds)
+
+    // If locations selected and product exists, fetch location-specific price
+    if (locationIds.length > 0 && selectedProduct) {
+      await fetchLocationSpecificPrice(selectedProduct.productVariationId, locationIds[0])
+    }
+  }
+
+  // Fetch location-specific price for the selected location
+  const fetchLocationSpecificPrice = async (productVariationId: number, locationId: number) => {
+    try {
+      const response = await fetch(
+        `/api/products/variation-price?productVariationId=${productVariationId}&locationId=${locationId}`
+      )
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        // Update the selected product with location-specific price
+        setSelectedProduct(prev =>
+          prev
+            ? {
+                ...prev,
+                currentPrice: result.data.sellingPrice || prev.currentPrice,
+              }
+            : null
+        )
+      }
+    } catch (error) {
+      console.error('Error fetching location-specific price:', error)
+    }
   }
 
   const handlePriceUpdate = async (newPrice: number) => {
@@ -249,12 +278,36 @@ export default function SimplePriceEditorPage() {
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
                 <span className="text-2xl">📏</span>
-                Step 5: Update Unit Prices (Sub-Units)
+                Step 5: Update Unit Prices (All Units)
               </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Set purchase and selling prices for each unit of measure (e.g., Box, Piece, Meter, Roll, Kg, etc.)
-              </p>
-              <UnitPriceUpdateForm product={selectedProduct} />
+              {selectedLocations.length > 0 ? (
+                <>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    Set purchase and selling prices for <strong>ALL units</strong> (including primary unit) at the selected location(s).
+                  </p>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded px-3 py-2 mb-4">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      <strong>💡 For Multi-Unit Products:</strong> Use this step to set prices for ALL units (Roll, Meter, etc.).
+                      You can skip Step 4 if you're setting all unit prices here.
+                    </p>
+                    <p className="text-sm text-blue-800 dark:text-blue-200 mt-2">
+                      <strong>Location-Specific Pricing:</strong> Prices will be applied to {selectedLocations.length} selected location(s).
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                    Set purchase and selling prices for each unit of measure (e.g., Box, Piece, Meter, Roll, Kg, etc.)
+                  </p>
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded px-3 py-2 mb-4">
+                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                      <strong>⚠️ No locations selected:</strong> These prices will be set as <strong>global defaults</strong> for all locations.
+                    </p>
+                  </div>
+                </>
+              )}
+              <UnitPriceUpdateForm product={selectedProduct} selectedLocations={selectedLocations} />
             </div>
           )}
 
@@ -263,18 +316,42 @@ export default function SimplePriceEditorPage() {
             <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
               💡 How to Use
             </h3>
-            <ol className="space-y-1 text-sm text-blue-800 dark:text-blue-200 list-decimal list-inside">
-              <li>Search for a product by SKU (exact match) or name (fuzzy search)</li>
-              <li>Review the current product details and pricing</li>
-              <li>Select the location(s) where you want to update the price</li>
-              <li>Enter the new price and confirm the update</li>
+            <ol className="space-y-2 text-sm text-blue-800 dark:text-blue-200 list-decimal list-inside">
+              <li><strong>Step 1-2:</strong> Search for a product and review current details</li>
+              <li><strong>Step 3:</strong> Select location(s) to update (leave unchecked for global pricing)</li>
+              <li>
+                <strong>Step 4:</strong> (Optional) Update primary unit price
+                <ul className="ml-6 mt-1 space-y-1 list-disc">
+                  <li>For single-unit products (e.g., only "Piece")</li>
+                  <li>Or to set the base price before Step 5</li>
+                </ul>
+              </li>
+              <li>
+                <strong>Step 5:</strong> Update ALL unit prices (Roll, Meter, etc.)
+                <ul className="ml-6 mt-1 space-y-1 list-disc">
+                  <li><strong>For multi-unit products:</strong> Set prices for ALL units here</li>
+                  <li>This includes the primary unit (e.g., Roll) AND sub-units (e.g., Meter)</li>
+                  <li><strong>You can skip Step 4</strong> if you're setting all prices here</li>
+                </ul>
+              </li>
             </ol>
+            <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded">
+              <p className="text-sm font-semibold text-green-900 dark:text-green-100">
+                📌 Quick Guide for Multi-Unit Products:
+              </p>
+              <ul className="text-xs text-green-800 dark:text-green-200 mt-2 space-y-1 list-disc list-inside">
+                <li>Check location(s) in <strong>Step 3</strong></li>
+                <li>Skip <strong>Step 4</strong> (or use it for primary unit only)</li>
+                <li>Set ALL unit prices in <strong>Step 5</strong> (Roll, Meter, etc.)</li>
+                <li>Click "Save All Prices"</li>
+              </ul>
+            </div>
             {canManageAllLocations ? (
-              <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-3">
                 As an admin, you can update prices across all locations.
               </p>
             ) : (
-              <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-3">
                 You can only update prices for your assigned location.
               </p>
             )}
