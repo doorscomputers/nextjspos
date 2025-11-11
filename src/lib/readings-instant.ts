@@ -486,8 +486,8 @@ async function generateZReadingFromRunningTotals(
       totalAmount: parseFloat(item.total_amount.toString()),
     })),
     // BIR Z-Reading Specific Fields
-    beginningSiNumber: undefined, // TODO: Get from first sale invoice
-    endingSiNumber: undefined, // TODO: Get from last sale invoice
+    beginningSiNumber: xReadingData.beginningOrNumber, // From X Reading
+    endingSiNumber: xReadingData.endingOrNumber, // From X Reading
     beginningVoidNumber: undefined, // TODO: Track void numbers
     endingVoidNumber: undefined,
     beginningReturnNumber: undefined, // TODO: Track return numbers
