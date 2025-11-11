@@ -21,6 +21,7 @@ interface POSUnitSelectorProps {
   baseUnitPrice: number
   availableStock: number // Stock in base unit
   currentQuantity: number // Current quantity in base unit
+  locationId: number // NEW: Location ID for location-specific pricing
   onUnitChange: (data: {
     selectedUnitId: number
     displayQuantity: number
@@ -36,6 +37,7 @@ export default function POSUnitSelector({
   baseUnitPrice,
   availableStock,
   currentQuantity,
+  locationId,
   onUnitChange,
 }: POSUnitSelectorProps) {
   const [loading, setLoading] = useState(true)
@@ -48,12 +50,12 @@ export default function POSUnitSelector({
 
   useEffect(() => {
     fetchUnitData()
-  }, [productId])
+  }, [productId, locationId])
 
   const fetchUnitData = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/pos/product-units?productId=${productId}`)
+      const response = await fetch(`/api/pos/product-units?productId=${productId}&locationId=${locationId}`)
       const result = await response.json()
 
       if (response.ok && result.success) {

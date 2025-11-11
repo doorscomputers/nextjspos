@@ -696,7 +696,25 @@ export default function POSEnhancedPage() {
         item.selectedUnitId === addingWithUnitId  // Must match EXACT unit
     )
 
-    const price = parseFloat(variation.sellingPrice)
+    // ✅ FIX: Fetch location-specific unit price for primary unit
+    let price = parseFloat(variation.sellingPrice) // Fallback to Step 4 price
+
+    try {
+      // Fetch location-specific unit price from Step 5
+      const response = await fetch(`/api/pos/product-units?productId=${product.id}&locationId=${currentShift?.locationId || 0}`)
+      const result = await response.json()
+
+      if (response.ok && result.success && result.data.unitPrices) {
+        // Find price for the primary unit
+        const primaryUnitPrice = result.data.unitPrices.find((up: any) => up.unitId === addingWithUnitId)
+        if (primaryUnitPrice) {
+          price = primaryUnitPrice.sellingPrice // ✅ Use location-specific unit price
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching unit price:', error)
+      // Continue with fallback price
+    }
 
     // Use quantity multiplier if set, otherwise 1
     const qtyToAdd = quantityMultiplier || 1
@@ -1988,6 +2006,7 @@ export default function POSEnhancedPage() {
                             baseUnitPrice={item.originalPrice}
                             availableStock={item.availableStock}
                             currentQuantity={item.quantity}
+                            locationId={currentShift?.locationId || 0}
                             onUnitChange={(unitData) => handleUnitChange(index, unitData)}
                           />
                         </div>

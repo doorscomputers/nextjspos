@@ -28,11 +28,13 @@ interface Product {
 
 interface UnitPriceUpdateFormProps {
   product: Product
+  selectedLocations?: number[] // NEW: Optional location IDs for location-specific pricing
   onPriceUpdate?: () => void
 }
 
 export default function UnitPriceUpdateForm({
   product,
+  selectedLocations,
   onPriceUpdate,
 }: UnitPriceUpdateFormProps) {
   const [loading, setLoading] = useState(true)
@@ -41,14 +43,24 @@ export default function UnitPriceUpdateForm({
   const [unitPrices, setUnitPrices] = useState<Record<number, UnitPrice>>({})
   const [changes, setChanges] = useState<Record<number, { purchasePrice: string; sellingPrice: string }>>({})
 
+  // Determine if we're in location-specific mode
+  const isLocationSpecific = selectedLocations && selectedLocations.length > 0
+
   useEffect(() => {
     fetchUnitPrices()
-  }, [product.id])
+  }, [product.id, selectedLocations])
 
   const fetchUnitPrices = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/products/unit-prices?productId=${product.id}`)
+
+      // Build URL with location IDs if in location-specific mode
+      let url = `/api/products/unit-prices?productId=${product.id}`
+      if (isLocationSpecific) {
+        url += `&locationIds=${selectedLocations!.join(',')}`
+      }
+
+      const response = await fetch(url)
       const result = await response.json()
 
       if (response.ok && result.success) {
@@ -129,26 +141,53 @@ export default function UnitPriceUpdateForm({
     try {
       setUpdating(true)
 
-      const response = await fetch('/api/products/unit-prices', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId: product.id,
-          unitPrices: updates,
-        }),
-      })
+      // If location-specific mode, send location-specific prices
+      if (isLocationSpecific) {
+        const response = await fetch('/api/products/unit-prices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            productId: product.id,
+            unitPrices: updates,
+            locationIds: selectedLocations, // NEW: Include location IDs
+          }),
+        })
 
-      const result = await response.json()
+        const result = await response.json()
 
-      if (response.ok && result.success) {
-        notify(`✅ Successfully updated prices for ${updates.length} unit(s)`, 'success', 4000)
-        setChanges({})
-        fetchUnitPrices() // Reload prices
-        if (onPriceUpdate) {
-          onPriceUpdate()
+        if (response.ok && result.success) {
+          notify(`✅ Successfully updated prices for ${updates.length} unit(s) across ${selectedLocations!.length} location(s)`, 'success', 4000)
+          setChanges({})
+          fetchUnitPrices() // Reload prices
+          if (onPriceUpdate) {
+            onPriceUpdate()
+          }
+        } else {
+          notify(result.error || 'Failed to update prices', 'error', 4000)
         }
       } else {
-        notify(result.error || 'Failed to update prices', 'error', 4000)
+        // Global unit prices (no location context)
+        const response = await fetch('/api/products/unit-prices', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            productId: product.id,
+            unitPrices: updates,
+          }),
+        })
+
+        const result = await response.json()
+
+        if (response.ok && result.success) {
+          notify(`✅ Successfully updated prices for ${updates.length} unit(s)`, 'success', 4000)
+          setChanges({})
+          fetchUnitPrices() // Reload prices
+          if (onPriceUpdate) {
+            onPriceUpdate()
+          }
+        } else {
+          notify(result.error || 'Failed to update prices', 'error', 4000)
+        }
       }
     } catch (error) {
       console.error('Error updating prices:', error)

@@ -4,8 +4,9 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 
 /**
- * GET /api/pos/product-units?productId=123
+ * GET /api/pos/product-units?productId=123&locationId=2
  * Get unit information and prices for a product (optimized for POS)
+ * Now supports location-specific pricing
  */
 export async function GET(request: NextRequest) {
   try {
@@ -18,9 +19,14 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const productId = parseInt(searchParams.get('productId') || '')
+    const locationId = parseInt(searchParams.get('locationId') || '')
 
     if (!productId) {
       return NextResponse.json({ error: 'productId is required' }, { status: 400 })
+    }
+
+    if (!locationId) {
+      return NextResponse.json({ error: 'locationId is required' }, { status: 400 })
     }
 
     // Get product with unit information
@@ -74,8 +80,22 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Get unit prices
-    const unitPrices = await prisma.productUnitPrice.findMany({
+    // Get location-specific unit prices (NEW: location-specific pricing)
+    const locationUnitPrices = await prisma.productUnitLocationPrice.findMany({
+      where: {
+        productId,
+        locationId,
+        businessId,
+      },
+      select: {
+        unitId: true,
+        purchasePrice: true,
+        sellingPrice: true,
+      },
+    })
+
+    // Get global unit prices as fallback
+    const globalUnitPrices = await prisma.productUnitPrice.findMany({
       where: {
         productId,
         businessId,
@@ -87,6 +107,33 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    // Merge location-specific and global prices (location-specific takes priority)
+    const unitPrices = allUnitIds.map(unitId => {
+      // First try location-specific price
+      const locationPrice = locationUnitPrices.find(up => up.unitId === unitId)
+      if (locationPrice) {
+        return {
+          unitId,
+          purchasePrice: parseFloat(String(locationPrice.purchasePrice)),
+          sellingPrice: parseFloat(String(locationPrice.sellingPrice)),
+          isLocationSpecific: true,
+        }
+      }
+
+      // Fall back to global price
+      const globalPrice = globalUnitPrices.find(up => up.unitId === unitId)
+      if (globalPrice) {
+        return {
+          unitId,
+          purchasePrice: parseFloat(String(globalPrice.purchasePrice)),
+          sellingPrice: parseFloat(String(globalPrice.sellingPrice)),
+          isLocationSpecific: false,
+        }
+      }
+
+      return null
+    }).filter(Boolean) as Array<{ unitId: number; purchasePrice: number; sellingPrice: number; isLocationSpecific: boolean }>
+
     // Convert to plain objects for JSON serialization
     const unitsData = units.map(u => ({
       id: u.id,
@@ -97,18 +144,12 @@ export async function GET(request: NextRequest) {
       baseUnitMultiplier: u.baseUnitMultiplier ? parseFloat(String(u.baseUnitMultiplier)) : null,
     }))
 
-    const unitPricesData = unitPrices.map(up => ({
-      unitId: up.unitId,
-      purchasePrice: parseFloat(String(up.purchasePrice)),
-      sellingPrice: parseFloat(String(up.sellingPrice)),
-    }))
-
     return NextResponse.json({
       success: true,
       data: {
         primaryUnitId: product.unitId,
         units: unitsData,
-        unitPrices: unitPricesData,
+        unitPrices,
       },
     })
   } catch (error) {

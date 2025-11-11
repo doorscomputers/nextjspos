@@ -5,8 +5,8 @@ import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 
 /**
- * GET /api/products/unit-prices?productId=123
- * Get all unit prices for a product
+ * GET /api/products/unit-prices?productId=123&locationIds=2,3,4
+ * Get all unit prices for a product (global or location-specific)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -25,10 +25,16 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const productId = parseInt(searchParams.get('productId') || '')
+    const locationIdsParam = searchParams.get('locationIds')
 
     if (!productId) {
       return NextResponse.json({ error: 'productId is required' }, { status: 400 })
     }
+
+    // Parse location IDs if provided
+    const locationIds = locationIdsParam
+      ? locationIdsParam.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id))
+      : []
 
     // Verify product belongs to user's business
     const product = await prisma.product.findFirst({
@@ -56,26 +62,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 })
     }
 
-    // Get all unit prices
-    const unitPrices = await prisma.productUnitPrice.findMany({
-      where: {
-        productId,
-        businessId,
-      },
-      include: {
-        unit: {
-          select: {
-            id: true,
-            name: true,
-            shortName: true,
-          },
-        },
-      },
-      orderBy: {
-        unitId: 'asc',
-      },
-    })
-
     // Parse sub-unit IDs
     const subUnitIds = product.subUnitIds
       ? (typeof product.subUnitIds === 'string'
@@ -95,6 +81,99 @@ export async function GET(request: NextRequest) {
         shortName: true,
       },
     })
+
+    // Determine which prices to fetch
+    let unitPrices: any[] = []
+
+    if (locationIds.length > 0) {
+      // Fetch location-specific prices for the first location (for simplicity in the editor)
+      const locationId = locationIds[0]
+
+      const locationSpecificPrices = await prisma.productUnitLocationPrice.findMany({
+        where: {
+          productId,
+          locationId,
+          businessId,
+        },
+        include: {
+          unit: {
+            select: {
+              id: true,
+              name: true,
+              shortName: true,
+            },
+          },
+        },
+        orderBy: {
+          unitId: 'asc',
+        },
+      })
+
+      // Fallback to global prices if location-specific not found
+      const globalPrices = await prisma.productUnitPrice.findMany({
+        where: {
+          productId,
+          businessId,
+        },
+        include: {
+          unit: {
+            select: {
+              id: true,
+              name: true,
+              shortName: true,
+            },
+          },
+        },
+        orderBy: {
+          unitId: 'asc',
+        },
+      })
+
+      // Merge: prefer location-specific, fallback to global
+      const priceMap = new Map()
+
+      // First add global prices
+      globalPrices.forEach(gp => {
+        priceMap.set(gp.unitId, {
+          ...gp,
+          isLocationSpecific: false,
+        })
+      })
+
+      // Then override with location-specific prices
+      locationSpecificPrices.forEach(lsp => {
+        priceMap.set(lsp.unitId, {
+          id: lsp.id,
+          unitId: lsp.unitId,
+          unit: lsp.unit,
+          purchasePrice: lsp.purchasePrice,
+          sellingPrice: lsp.sellingPrice,
+          isLocationSpecific: true,
+        })
+      })
+
+      unitPrices = Array.from(priceMap.values())
+    } else {
+      // Fetch global prices only
+      unitPrices = await prisma.productUnitPrice.findMany({
+        where: {
+          productId,
+          businessId,
+        },
+        include: {
+          unit: {
+            select: {
+              id: true,
+              name: true,
+              shortName: true,
+            },
+          },
+        },
+        orderBy: {
+          unitId: 'asc',
+        },
+      })
+    }
 
     return NextResponse.json({
       success: true,
@@ -128,6 +207,7 @@ export async function POST(request: NextRequest) {
     }
 
     const businessId = parseInt(session.user.businessId)
+    const userId = parseInt(session.user.id) // FIX: Add userId
     const user = session.user as any
 
     // Check permissions
@@ -136,7 +216,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { productId, unitPrices } = body
+    const { productId, unitPrices, locationIds } = body
 
     if (!productId || !Array.isArray(unitPrices)) {
       return NextResponse.json(
@@ -144,6 +224,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Determine if this is location-specific pricing
+    const isLocationSpecific = locationIds && Array.isArray(locationIds) && locationIds.length > 0
 
     // Verify product belongs to user's business
     const product = await prisma.product.findFirst({
@@ -161,28 +244,63 @@ export async function POST(request: NextRequest) {
     const results = await prisma.$transaction(async (tx) => {
       const updates = []
 
-      for (const { unitId, purchasePrice, sellingPrice } of unitPrices) {
-        const result = await tx.productUnitPrice.upsert({
-          where: {
-            productId_unitId: {
+      if (isLocationSpecific) {
+        // Save location-specific unit prices
+        for (const locationId of locationIds) {
+          for (const { unitId, purchasePrice, sellingPrice } of unitPrices) {
+            const result = await tx.productUnitLocationPrice.upsert({
+              where: {
+                productId_locationId_unitId: {
+                  productId,
+                  locationId,
+                  unitId,
+                },
+              },
+              update: {
+                purchasePrice: parseFloat(purchasePrice),
+                sellingPrice: parseFloat(sellingPrice),
+                lastUpdatedBy: userId,
+                updatedAt: new Date(),
+              },
+              create: {
+                businessId,
+                productId,
+                locationId,
+                unitId,
+                purchasePrice: parseFloat(purchasePrice),
+                sellingPrice: parseFloat(sellingPrice),
+                lastUpdatedBy: userId,
+              },
+            })
+
+            updates.push(result)
+          }
+        }
+      } else {
+        // Save global unit prices
+        for (const { unitId, purchasePrice, sellingPrice } of unitPrices) {
+          const result = await tx.productUnitPrice.upsert({
+            where: {
+              productId_unitId: {
+                productId,
+                unitId,
+              },
+            },
+            update: {
+              purchasePrice: parseFloat(purchasePrice),
+              sellingPrice: parseFloat(sellingPrice),
+            },
+            create: {
+              businessId,
               productId,
               unitId,
+              purchasePrice: parseFloat(purchasePrice),
+              sellingPrice: parseFloat(sellingPrice),
             },
-          },
-          update: {
-            purchasePrice: parseFloat(purchasePrice),
-            sellingPrice: parseFloat(sellingPrice),
-          },
-          create: {
-            businessId,
-            productId,
-            unitId,
-            purchasePrice: parseFloat(purchasePrice),
-            sellingPrice: parseFloat(sellingPrice),
-          },
-        })
+          })
 
-        updates.push(result)
+          updates.push(result)
+        }
       }
 
       return updates
@@ -190,15 +308,26 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Updated ${results.length} unit price(s)`,
+      message: isLocationSpecific
+        ? `Updated ${results.length} location-specific unit price(s)`
+        : `Updated ${results.length} unit price(s)`,
       data: results,
     })
   } catch (error) {
     console.error('Error updating unit prices:', error)
+
+    // Detailed error logging
+    if (error instanceof Error) {
+      console.error('Error name:', error.name)
+      console.error('Error message:', error.message)
+      console.error('Error stack:', error.stack)
+    }
+
     return NextResponse.json(
       {
         error: 'Failed to update unit prices',
         details: error instanceof Error ? error.message : 'Unknown error',
+        errorType: error instanceof Error ? error.name : typeof error,
       },
       { status: 500 }
     )
