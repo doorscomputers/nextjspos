@@ -232,6 +232,26 @@ async function generateXReadingFromRunningTotals(
         .join(', ')
     : ''
 
+  // Get first and last invoice numbers for this shift (BIR requirement)
+  const [firstSale, lastSale] = await Promise.all([
+    prisma.sale.findFirst({
+      where: {
+        shiftId: shift.id,
+        status: { in: ['completed', 'partial'] }, // Exclude voided/cancelled
+      },
+      select: { invoiceNumber: true },
+      orderBy: { saleDate: 'asc' },
+    }),
+    prisma.sale.findFirst({
+      where: {
+        shiftId: shift.id,
+        status: { in: ['completed', 'partial'] }, // Exclude voided/cancelled
+      },
+      select: { invoiceNumber: true },
+      orderBy: { saleDate: 'desc' },
+    }),
+  ])
+
   // Build payment breakdown from running totals
   const paymentBreakdown: Record<string, number> = {}
   if (parseFloat(shift.runningCashSales.toString()) > 0)
@@ -294,8 +314,8 @@ async function generateXReadingFromRunningTotals(
     businessAddress: business?.businessAddress || address,
     startDateTime: shift.openedAt,
     endDateTime: readingTimestamp,
-    beginningOrNumber: undefined, // TODO: Get from first sale in shift
-    endingOrNumber: undefined, // TODO: Get from last sale in shift
+    beginningOrNumber: firstSale?.invoiceNumber || undefined,
+    endingOrNumber: lastSale?.invoiceNumber || undefined,
     refundAmount: 0, // TODO: Calculate from refund records
     withdrawalAmount: cashOut,
   }

@@ -331,12 +331,12 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                   <span className="line-value">{xReading.cashierName}</span>
                 </div>
                 <div className="line">
-                  <span className="line-label">Beg. OR #:</span>
-                  <span className="line-value">{xReading.beginningOrNumber || '00000000000001'}</span>
+                  <span className="line-label">Beg. SI #:</span>
+                  <span className="line-value">{xReading.beginningOrNumber || 'N/A'}</span>
                 </div>
                 <div className="line">
-                  <span className="line-label">End. OR #:</span>
-                  <span className="line-value">{xReading.endingOrNumber || '00000000000001'}</span>
+                  <span className="line-label">End. SI #:</span>
+                  <span className="line-value">{xReading.endingOrNumber || 'N/A'}</span>
                 </div>
                 <div className="line">
                   <span className="line-label">Opening Fund:</span>
