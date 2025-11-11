@@ -697,65 +697,21 @@ export default function POSEnhancedPage() {
         item.selectedUnitId === addingWithUnitId  // Must match EXACT unit
     )
 
-    // ✅ FIX: Fetch location-specific price (handles BOTH multi-unit and single-unit products)
+    // ⚡ PERFORMANCE FIX: Use location-specific price from variationLocationDetails (already loaded!)
+    // NO API CALLS = INSTANT ADD TO CART (was causing 8-second delay)
     let price = parseFloat(variation.sellingPrice) // Fallback to global default
     let priceSource = 'global-default'
 
-    try {
-      // STEP 1: Try fetching multi-unit product prices (Step 5 - product_unit_location_prices)
-      const unitsResponse = await fetch(`/api/pos/product-units?productId=${product.id}&locationId=${currentShift?.locationId || 0}`)
-      const unitsResult = await unitsResponse.json()
-
-      if (unitsResponse.ok && unitsResult.success && unitsResult.data.unitPrices) {
-        // Find price for the primary unit
-        const primaryUnitPrice = unitsResult.data.unitPrices.find((up: any) => up.unitId === addingWithUnitId)
-        if (primaryUnitPrice) {
-          price = primaryUnitPrice.sellingPrice // ✅ Use location-specific unit price
-          priceSource = 'multi-unit-location-specific'
-          console.log('🔵 POS: Using multi-unit location-specific price:', price, 'for location:', currentShift?.locationId)
-        } else {
-          // No unit price found, try single-unit pricing
-          console.log('🔵 POS: No multi-unit price found, trying single-unit pricing...')
-
-          // STEP 2: Try fetching single-unit product price (Step 4 - variation_location_details)
-          const variationResponse = await fetch(
-            `/api/products/variation-price?productVariationId=${variation.id}&locationId=${currentShift?.locationId || 0}&_t=${Date.now()}`
-          )
-          const variationResult = await variationResponse.json()
-
-          if (variationResponse.ok && variationResult.success && variationResult.data.isLocationSpecific) {
-            price = variationResult.data.sellingPrice // ✅ Use location-specific variation price
-            priceSource = 'single-unit-location-specific'
-            console.log('🔵 POS: Using single-unit location-specific price:', price, 'for location:', currentShift?.locationId)
-          } else {
-            console.log('🔵 POS: No location-specific price found, using global default:', price)
-          }
-        }
-      } else {
-        // No multi-unit data, try single-unit pricing directly
-        console.log('🔵 POS: Product has no multi-unit data, trying single-unit pricing...')
-
-        // STEP 2: Try fetching single-unit product price (Step 4 - variation_location_details)
-        const variationResponse = await fetch(
-          `/api/products/variation-price?productVariationId=${variation.id}&locationId=${currentShift?.locationId || 0}&_t=${Date.now()}`
-        )
-        const variationResult = await variationResponse.json()
-
-        if (variationResponse.ok && variationResult.success && variationResult.data.isLocationSpecific) {
-          price = variationResult.data.sellingPrice // ✅ Use location-specific variation price
-          priceSource = 'single-unit-location-specific'
-          console.log('🔵 POS: Using single-unit location-specific price:', price, 'for location:', currentShift?.locationId)
-        } else {
-          console.log('🔵 POS: No location-specific price found, using global default:', price)
-        }
-      }
-    } catch (error) {
-      console.error('🔴 POS: Error fetching location-specific price:', error)
-      console.log('🔵 POS: Falling back to global default price:', price)
-      // Continue with fallback price
+    // Check if location has custom price (from variationLocationDetails that's already loaded)
+    if (locationStock.sellingPrice) {
+      price = parseFloat(locationStock.sellingPrice)
+      priceSource = 'location-specific'
+      console.log('⚡ POS: Using location-specific price from cached data:', price)
+    } else {
+      console.log('⚡ POS: Using global default price:', price)
     }
 
-    console.log('🔵 POS: Final price for', product.name, '=', price, '| Source:', priceSource, '| Location:', currentShift?.locationId)
+    console.log('⚡ POS: Final price for', product.name, '=', price, '| Source:', priceSource, '| Location:', currentShift?.locationId)
 
     // Use quantity multiplier if set, otherwise 1
     const qtyToAdd = quantityMultiplier || 1
