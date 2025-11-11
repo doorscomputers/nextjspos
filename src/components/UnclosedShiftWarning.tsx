@@ -155,7 +155,7 @@ export default function UnclosedShiftWarning() {
           </Alert>
         )}
 
-        {!shift.isOverdue && shift.hoursSinceOpen >= 9 && (
+        {!shift.isOverdue && shift.hoursSinceOpen >= 12 && (
           <Alert className="mb-4 bg-orange-50 dark:bg-orange-900/20 border-orange-300 dark:border-orange-700">
             <ClockIcon className="h-5 w-5 text-orange-600" />
             <AlertDescription className="font-semibold text-orange-800 dark:text-orange-200">

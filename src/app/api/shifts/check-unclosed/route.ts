@@ -88,8 +88,8 @@ export async function GET(request: NextRequest) {
 
     // Trigger warning only if:
     // 1. Shift was opened yesterday or earlier (different calendar day), OR
-    // 2. Shift has been open for more than 9 hours
-    const shouldShowWarning = isFromDifferentDay || hoursSinceOpen >= 9
+    // 2. Shift has been open for more than 12 hours (allows lunch breaks and no-customer periods)
+    const shouldShowWarning = isFromDifferentDay || hoursSinceOpen >= 12
 
     // IMPORTANT: Always return the unclosed shift if it exists
     // Each component can decide whether to show warnings based on shouldShowWarning flag
