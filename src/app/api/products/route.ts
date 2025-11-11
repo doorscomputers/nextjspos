@@ -149,31 +149,51 @@ export async function GET(request: NextRequest) {
     }
 
     // ✅ NEW: Pre-load unit information for multi-unit products
-    // This prevents 8-second delay in POS by including all unit data upfront
+    // This prevents delays in POS by including all unit data upfront
     const productInclude: any = {
       category: true,
       brand: true,
-      unit: true,
+      unit: true, // Primary unit
       tax: true,
       variations: {
         where: { deletedAt: null },
         include: variationInclude
       },
-      // ✅ Load unit price details for multi-unit products
+      // ✅ Load unit price details for multi-unit products (includes unit relation)
       unitPrices: {
         select: {
           unitId: true,
           purchasePrice: true,
-          sellingPrice: true
+          sellingPrice: true,
+          unit: {
+            select: {
+              id: true,
+              name: true,
+              shortName: true,
+              allowDecimal: true,
+              baseUnitId: true,
+              baseUnitMultiplier: true,
+            }
+          }
         }
       },
-      // ✅ Load location-specific unit prices
+      // ✅ Load location-specific unit prices (includes unit relation)
       unitLocationPrices: {
         select: {
           locationId: true,
           unitId: true,
           purchasePrice: true,
-          sellingPrice: true
+          sellingPrice: true,
+          unit: {
+            select: {
+              id: true,
+              name: true,
+              shortName: true,
+              allowDecimal: true,
+              baseUnitId: true,
+              baseUnitMultiplier: true,
+            }
+          }
         }
       }
     }

@@ -2027,19 +2027,76 @@ export default function POSEnhancedPage() {
                         📏 Selling in: <span className="font-bold ml-1">{item.selectedUnitName || 'Unit'}</span> · Click to Change Unit & Quantity
                       </Button>
 
-                      {showUnitSelector === index && (
-                        <div className="mt-2">
-                          <POSUnitSelector
-                            productId={item.productId}
-                            productName={item.name}
-                            baseUnitPrice={item.originalPrice}
-                            availableStock={item.availableStock}
-                            currentQuantity={item.quantity}
-                            locationId={currentShift?.locationId || 0}
-                            onUnitChange={(unitData) => handleUnitChange(index, unitData)}
-                          />
-                        </div>
-                      )}
+                      {showUnitSelector === index && (() => {
+                        // ⚡ PERFORMANCE: Prepare pre-loaded unit data to avoid API call
+                        const product = products.find(p => p.id === item.productId)
+                        let preloadedUnits: any[] | undefined = undefined
+                        let preloadedUnitPrices: any[] | undefined = undefined
+                        let preloadedPrimaryUnitId: number | undefined = undefined
+
+                        if (product && product.unitLocationPrices && Array.isArray(product.unitLocationPrices)) {
+                          // Extract unique units from unitLocationPrices (with location filter)
+                          const locationPrices = product.unitLocationPrices.filter(
+                            (ulp: any) => ulp.locationId === currentShift?.locationId
+                          )
+
+                          // Get unique units
+                          const unitMap = new Map()
+                          locationPrices.forEach((ulp: any) => {
+                            if (ulp.unit && !unitMap.has(ulp.unit.id)) {
+                              unitMap.set(ulp.unit.id, ulp.unit)
+                            }
+                          })
+
+                          // Also add units from global prices if not in location prices
+                          if (product.unitPrices && Array.isArray(product.unitPrices)) {
+                            product.unitPrices.forEach((up: any) => {
+                              if (up.unit && !unitMap.has(up.unit.id)) {
+                                unitMap.set(up.unit.id, up.unit)
+                              }
+                            })
+                          }
+
+                          preloadedUnits = Array.from(unitMap.values())
+                          preloadedPrimaryUnitId = product.unitId || undefined
+
+                          // Prepare unit prices (location-specific takes priority)
+                          preloadedUnitPrices = Array.from(unitMap.values()).map((unit: any) => {
+                            const locationPrice = locationPrices.find((lp: any) => lp.unitId === unit.id)
+                            const globalPrice = product.unitPrices?.find((up: any) => up.unitId === unit.id)
+
+                            return {
+                              unitId: unit.id,
+                              unit,
+                              purchasePrice: locationPrice?.purchasePrice || globalPrice?.purchasePrice || 0,
+                              sellingPrice: locationPrice?.sellingPrice || globalPrice?.sellingPrice || 0,
+                            }
+                          })
+
+                          console.log('⚡ POS: Prepared pre-loaded unit data:', {
+                            productId: product.id,
+                            unitsCount: preloadedUnits.length,
+                            pricesCount: preloadedUnitPrices.length,
+                          })
+                        }
+
+                        return (
+                          <div className="mt-2">
+                            <POSUnitSelector
+                              productId={item.productId}
+                              productName={item.name}
+                              baseUnitPrice={item.originalPrice}
+                              availableStock={item.availableStock}
+                              currentQuantity={item.quantity}
+                              locationId={currentShift?.locationId || 0}
+                              preloadedUnits={preloadedUnits}
+                              preloadedUnitPrices={preloadedUnitPrices}
+                              preloadedPrimaryUnitId={preloadedPrimaryUnitId}
+                              onUnitChange={(unitData) => handleUnitChange(index, unitData)}
+                            />
+                          </div>
+                        )
+                      })()}
                     </div>
 
                     {/* Serial Number Selection - Always show button for manual entry */}

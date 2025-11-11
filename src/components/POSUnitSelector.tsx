@@ -21,7 +21,11 @@ interface POSUnitSelectorProps {
   baseUnitPrice: number
   availableStock: number // Stock in base unit
   currentQuantity: number // Current quantity in base unit
-  locationId: number // NEW: Location ID for location-specific pricing
+  locationId: number // Location ID for location-specific pricing
+  // ⚡ PERFORMANCE: Pre-loaded data to avoid API calls
+  preloadedUnits?: Unit[]
+  preloadedUnitPrices?: UnitPrice[]
+  preloadedPrimaryUnitId?: number
   onUnitChange: (data: {
     selectedUnitId: number
     displayQuantity: number
@@ -38,6 +42,9 @@ export default function POSUnitSelector({
   availableStock,
   currentQuantity,
   locationId,
+  preloadedUnits,
+  preloadedUnitPrices,
+  preloadedPrimaryUnitId,
   onUnitChange,
 }: POSUnitSelectorProps) {
   const [loading, setLoading] = useState(true)
@@ -49,8 +56,19 @@ export default function POSUnitSelector({
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetchUnitData()
-  }, [productId, locationId])
+    // ⚡ PERFORMANCE: Use pre-loaded data if available (INSTANT!)
+    if (preloadedUnits && preloadedUnitPrices && preloadedPrimaryUnitId) {
+      console.log('⚡ POSUnitSelector: Using CACHED unit data (NO API CALL!)')
+      setUnits(preloadedUnits)
+      setUnitPrices(preloadedUnitPrices)
+      setPrimaryUnitId(preloadedPrimaryUnitId)
+      setSelectedUnitId(preloadedPrimaryUnitId)
+      setLoading(false)
+    } else {
+      console.log('⚠️ POSUnitSelector: Falling back to API call (data not pre-loaded)')
+      fetchUnitData()
+    }
+  }, [productId, locationId, preloadedUnits, preloadedUnitPrices, preloadedPrimaryUnitId])
 
   const fetchUnitData = async () => {
     try {
