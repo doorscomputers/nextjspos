@@ -1,10 +1,299 @@
+/**
+ * ============================================================================
+ * SALES API (src/app/api/sales/route.ts)
+ * ============================================================================
+ *
+ * PURPOSE: Creates sales transactions and DEDUCTS inventory from stock
+ *
+ * CRITICAL: THIS IS WHERE INVENTORY IS DEDUCTED FROM THE SYSTEM!
+ *
+ * WHAT THIS FILE DOES:
+ * 1. GET: Lists all sales with filtering (by date, customer, location, shift, etc.)
+ * 2. POST: Creates new sale and DEDUCTS inventory from stock
+ *
+ * POST METHOD - CREATE SALE FLOW:
+ *
+ * STEP 1 - VALIDATION:
+ *   - Authenticate user
+ *   - Check SELL_CREATE permission
+ *   - Validate customer (if provided)
+ *   - Validate products exist
+ *   - Check stock availability (CRITICAL - prevents overselling)
+ *   - Validate credit limit (if credit sale)
+ *   - Validate discount permissions (if large discount)
+ *
+ * STEP 2 - INVENTORY DEDUCTION (CRITICAL):
+ *   - Calls processSale() for each item
+ *   - Updates VariationLocationDetails.qtyAvailable (DECREASES quantity)
+ *   - Formula: qtyAvailable = qtyAvailable - quantitySold
+ *   - Example: Current stock 15 - Sold 3 = New stock 12
+ *   - Creates StockTransaction record (type: 'sale', quantity: negative)
+ *   - Creates ProductHistory record for audit trail
+ *   - Cannot sell more than available stock (validates first)
+ *
+ * STEP 3 - SALE RECORD CREATION:
+ *   - Generates invoice number (auto-increment)
+ *   - Creates Sale record
+ *   - Creates SaleItem records (each product line)
+ *   - Records payment details
+ *   - Links to customer (if provided)
+ *   - Links to cashier shift (for Z Reading)
+ *
+ * STEP 4 - FINANCIAL PROCESSING:
+ *   - Creates payment record (cash, card, credit, etc.)
+ *   - Updates customer credit balance (if credit sale)
+ *   - Updates shift running totals (for Z Reading accuracy)
+ *   - Creates accounting journal entries (if enabled)
+ *   - Calculates profit (selling price - cost)
+ *
+ * STEP 5 - NOTIFICATIONS & ALERTS:
+ *   - Send email/Telegram for large discounts
+ *   - Send email/Telegram for credit sales
+ *   - Create audit log
+ *   - Return invoice data with inventory impact report
+ *
+ * INVENTORY DEDUCTION EXAMPLE:
+ *
+ * Before Sale:
+ * - Product: "Laptop" (variation: "15-inch")
+ * - Main Store location: 15 units available
+ * - Cost: $493.33 (weighted average)
+ * - Selling price: $700
+ *
+ * Customer Purchase:
+ * - Cashier creates sale for 2 units
+ * - Payment: Cash $1,400
+ *
+ * This API Executes:
+ * 1. Validates stock: 15 units >= 2 units ✓
+ * 2. Generates invoice number: INV-202501-0042
+ * 3. Calls processSale() for each item:
+ *    - Main Store: 15 → 13 units (-2)
+ *    - Creates StockTransaction: type=sale, qty=-2
+ *    - Creates ProductHistory: SALE, qty=2, cost=$986.66, revenue=$1,400
+ * 4. Creates Sale record:
+ *    - Invoice: INV-202501-0042
+ *    - Total: $1,400
+ *    - Status: completed
+ * 5. Creates Payment record:
+ *    - Method: cash
+ *    - Amount: $1,400
+ * 6. Updates shift totals:
+ *    - Cash sales: +$1,400
+ *    - Profit: $1,400 - $986.66 = $413.34
+ * 7. Creates audit log
+ *
+ * Result:
+ * - Inventory DECREASED from 15 to 13 units
+ * - Cash collected: $1,400
+ * - Profit recorded: $413.34
+ * - Invoice generated: INV-202501-0042
+ *
+ * STOCK AVAILABILITY VALIDATION:
+ *
+ * Before processing sale, system checks:
+ * - Is stock tracking enabled for product?
+ * - Does product have sufficient quantity at this location?
+ * - For variable products: Check each variation's stock
+ * - For combo products: Check all component products
+ *
+ * If insufficient stock:
+ * - Sale is BLOCKED
+ * - Error returned: "Insufficient stock for [Product Name]"
+ * - User must:
+ *   * Transfer stock from another location
+ *   * Wait for purchase receipt
+ *   * Adjust quantity to match available stock
+ *
+ * CREDIT LIMIT VALIDATION (Credit Sales):
+ *
+ * For credit sales (paymentStatus = 'credit'):
+ * 1. Get customer credit limit (Customer.creditLimit)
+ * 2. Calculate current outstanding balance (sum of unpaid invoices)
+ * 3. Check if: Current balance + New sale amount <= Credit limit
+ * 4. If exceeds limit:
+ *    - Sale is BLOCKED
+ *    - Error shows: Current balance, Credit limit, Attempted amount
+ *    - Manager can override with CUSTOMER_CREDIT_OVERRIDE permission
+ *
+ * Example:
+ * - Customer credit limit: $10,000
+ * - Current outstanding: $8,500
+ * - New sale: $2,000
+ * - Check: $8,500 + $2,000 = $10,500 > $10,000 ✗
+ * - Result: BLOCKED (needs manager override OR customer payment)
+ *
+ * PAYMENT TYPES:
+ *
+ * 1. CASH SALE:
+ *    - Immediate payment in cash
+ *    - Inventory deducted immediately
+ *    - Added to shift cash totals
+ *    - Status: completed
+ *
+ * 2. CARD SALE:
+ *    - Paid by credit/debit card
+ *    - Inventory deducted immediately
+ *    - Added to shift card totals
+ *    - Status: completed
+ *
+ * 3. CREDIT SALE:
+ *    - Payment deferred (Accounts Receivable)
+ *    - Inventory still deducted immediately
+ *    - Customer balance increases
+ *    - Status: credit
+ *    - Requires SELL_CREDIT permission
+ *    - Sends alert notification
+ *
+ * 4. MIXED PAYMENT:
+ *    - Multiple payment methods (e.g., $500 cash + $500 card)
+ *    - Creates multiple payment records
+ *    - Inventory deducted once
+ *    - Totals split across methods
+ *
+ * DISCOUNT ALERTS:
+ *
+ * Large discounts trigger email/Telegram alerts to management:
+ * - Discount > 20%: Alert threshold
+ * - Shows: Product, Original price, Discounted price, Cashier, Time
+ * - Purpose: Prevent unauthorized discounts/theft
+ * - Manager reviews and investigates if needed
+ *
+ * SHIFT INTEGRATION:
+ *
+ * Every sale updates the cashier's shift running totals:
+ * - Cash sales total
+ * - Card sales total
+ * - Credit sales total
+ * - Total sales count
+ * - Total profit
+ *
+ * These totals are used in:
+ * - X Reading (mid-shift report)
+ * - Z Reading (end-of-day report)
+ * - Cash variance calculation
+ * - Performance tracking
+ *
+ * ACCOUNTING INTEGRATION:
+ *
+ * If accounting module enabled, creates journal entries:
+ *
+ * Cash Sale Journal Entry:
+ *   Debit: Cash (Asset) .................... $1,400
+ *   Credit: Sales Revenue (Income) ......... $1,400
+ *   Debit: Cost of Goods Sold (Expense) .... $986.66
+ *   Credit: Inventory (Asset) .............. $986.66
+ *
+ * Credit Sale Journal Entry:
+ *   Debit: Accounts Receivable (Asset) ..... $1,400
+ *   Credit: Sales Revenue (Income) ......... $1,400
+ *   Debit: Cost of Goods Sold (Expense) .... $986.66
+ *   Credit: Inventory (Asset) .............. $986.66
+ *
+ * INVOICE NUMBER GENERATION:
+ *
+ * Format: INV-YYYYMM-#### (e.g., INV-202501-0042)
+ * - Uses atomic counter per business
+ * - Prevents duplicate invoice numbers
+ * - Auto-resets monthly
+ * - Thread-safe (database-level locking)
+ *
+ * IDEMPOTENCY PROTECTION:
+ *
+ * Wrapped in withIdempotency() to prevent:
+ * - Duplicate sales from double-clicks
+ * - Duplicate inventory deductions
+ * - Duplicate payments
+ * - Uses request fingerprint (headers + body hash)
+ * - Returns existing result if duplicate detected
+ *
+ * DATA FLOW:
+ *
+ * User scans products at POS → Clicks "Complete Sale"
+ *   ↓
+ * POST /api/sales
+ *   ↓
+ * Validate session & permissions
+ *   ↓
+ * Check stock availability (batchCheckStockAvailability)
+ *   ↓
+ * Validate credit limit (if credit sale)
+ *   ↓
+ * Start database transaction
+ *   ↓
+ * Generate invoice number (atomic)
+ *   ↓
+ * Create Sale record
+ *   ↓
+ * For each item:
+ *   → Create SaleItem record
+ *   → Call processSale() → DEDUCTS inventory
+ *   → Record cost & profit
+ *   ↓
+ * Create Payment record(s)
+ *   ↓
+ * Update customer credit balance (if credit)
+ *   ↓
+ * Update shift running totals
+ *   ↓
+ * Commit transaction
+ *   ↓
+ * Create accounting entries (if enabled)
+ *   ↓
+ * Send alerts (if large discount or credit)
+ *   ↓
+ * Refresh materialized view (async)
+ *   ↓
+ * Create audit log
+ *   ↓
+ * Return invoice with inventory impact report
+ *
+ * RELATED FUNCTIONS:
+ *
+ * processSale() (src/lib/stockOperations.ts):
+ * - Core function that DEDUCTS inventory
+ * - Updates VariationLocationDetails.qtyAvailable (DECREASES)
+ * - Creates StockTransaction record (negative quantity)
+ * - Creates ProductHistory record
+ * - Handles multi-unit products (UOM conversions)
+ *
+ * batchCheckStockAvailability():
+ * - Validates all items have sufficient stock
+ * - Returns detailed error if any item oversold
+ * - Prevents negative inventory
+ *
+ * incrementShiftTotalsForSale():
+ * - Updates CashierShift running totals
+ * - Ensures Z Reading accuracy
+ *
+ * PERMISSIONS REQUIRED:
+ * - SELL_CREATE: Create sales (all cashiers)
+ * - SELL_CREDIT: Create credit sales (supervisor+)
+ * - CUSTOMER_CREDIT_OVERRIDE: Override credit limit (manager+)
+ * - ACCESS_ALL_LOCATIONS or assigned to specific location
+ *
+ * ERROR CASES:
+ * - Insufficient stock → 400 Bad Request (prevents overselling)
+ * - Credit limit exceeded → 400 Bad Request (blocks sale)
+ * - Invalid customer → 404 Not Found
+ * - Invalid product → 404 Not Found
+ * - No permission → 403 Forbidden
+ * - Duplicate request → 200 OK (returns existing sale via idempotency)
+ *
+ * RELATED FILES:
+ * - src/lib/stockOperations.ts (processSale function - DEDUCTS inventory)
+ * - src/app/dashboard/pos/page.tsx (POS interface)
+ * - src/app/api/purchases/receipts/[id]/approve/route.ts (ADDS inventory)
+ * - src/lib/shift-running-totals.ts (shift calculations)
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
-import { checkStockAvailability, batchCheckStockAvailability, processSale } from '@/lib/stockOperations'
+import { checkStockAvailability, batchCheckStockAvailability, processSale } from '@/lib/stockOperations' // CRITICAL: processSale DEDUCTS inventory
 import {
   sendLargeDiscountAlert,
   sendCreditSaleAlert,
@@ -13,13 +302,18 @@ import {
   sendTelegramLargeDiscountAlert,
   sendTelegramCreditSaleAlert,
 } from '@/lib/telegram'
-import { withIdempotency } from '@/lib/idempotency'
-import { getNextInvoiceNumber } from '@/lib/atomicNumbers'
-import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker'
+import { withIdempotency } from '@/lib/idempotency' // Prevents duplicate sales
+import { getNextInvoiceNumber } from '@/lib/atomicNumbers' // Thread-safe invoice numbering
+import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker' // Tracks stock changes
 import { isAccountingEnabled, recordCashSale, recordCreditSale } from '@/lib/accountingIntegration'
-import { incrementShiftTotalsForSale } from '@/lib/shift-running-totals'
+import { incrementShiftTotalsForSale } from '@/lib/shift-running-totals' // Z Reading accuracy
 
-// GET - List all sales
+// ============================================================================
+// GET METHOD - List Sales
+// ============================================================================
+// Lists all sales with filtering by date, customer, location, shift, status
+// Respects location-based access control (users only see sales from their locations)
+// Supports pagination for performance with large datasets
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -71,11 +365,8 @@ export async function GET(request: NextRequest) {
 
     // Filter sales by user's assigned locations UNLESS they have ACCESS_ALL_LOCATIONS permission
     if (!hasAccessAllLocations) {
-      const userLocations = await prisma.userLocation.findMany({
-        where: { userId: parseInt(userId) },
-        select: { locationId: true },
-      })
-      const userLocationIds = userLocations.map(ul => ul.locationId)
+      // 🚀 OPTIMIZATION: Use cached locationIds from session instead of database query
+      const userLocationIds = (user as any).locationIds || []
 
       if (userLocationIds.length > 0) {
         where.locationId = { in: userLocationIds }
@@ -411,16 +702,10 @@ export async function POST(request: NextRequest) {
         },
       }),
       // Query 2: Check user location access (conditional)
+      // 🚀 OPTIMIZATION: Use cached locationIds instead of database query
       hasAccessAllLocations
         ? Promise.resolve(true) // Skip query if user has access to all locations
-        : prisma.userLocation.findUnique({
-            where: {
-              userId_locationId: {
-                userId: userIdNumber,
-                locationId: locationIdNumber,
-              },
-            },
-          }),
+        : Promise.resolve(userLocationIds.includes(locationIdNumber)),
       // Query 3: Check for open cashier shift
       prisma.cashierShift.findFirst({
         where: shiftWhereClause,
