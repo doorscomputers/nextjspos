@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { hasPermission, PERMISSIONS, hasAnyRole } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
-import { generateXReadingData, generateZReadingData } from '@/lib/readings'
+import { generateXReading, generateZReading } from '@/lib/readings-instant'
 import bcrypt from 'bcryptjs'
 import { sendTelegramShiftClosingAlert } from '@/lib/telegram'
 
@@ -257,10 +257,10 @@ export async function POST(
 
     const transactionCount = shift.sales.filter(sale => sale.status === 'completed').length
 
-    // STEP 1: Generate X Reading (Before Closing Shift)
+    // STEP 1: Generate X Reading (Before Closing Shift) - INSTANT MODE ⚡
     let xReadingData
     try {
-      xReadingData = await generateXReadingData(
+      xReadingData = await generateXReading(
         shift.id,
         parseInt(session.user.businessId),
         session.user.username,
@@ -275,10 +275,10 @@ export async function POST(
       )
     }
 
-    // STEP 2: Generate Z Reading (Before Closing Shift)
+    // STEP 2: Generate Z Reading (Before Closing Shift) - INSTANT MODE ⚡
     let zReadingData
     try {
-      zReadingData = await generateZReadingData(
+      zReadingData = await generateZReading(
         shift.id,
         parseInt(session.user.businessId),
         session.user.username,
