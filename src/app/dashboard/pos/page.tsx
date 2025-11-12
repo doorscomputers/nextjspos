@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea'
 import { hasPermission, PERMISSIONS, type RBACUser } from '@/lib/rbac'
 import SalesInvoicePrint from '@/components/SalesInvoicePrint'
+import QuotationPrint from '@/components/QuotationPrint'
 import { apiPost, isConnectionOnline, getOfflineQueueLength } from '@/lib/client/apiClient'
 import ARPaymentCollectionModal from '@/components/ARPaymentCollectionModal'
 import POSUnitSelector from '@/components/POSUnitSelector'
@@ -125,6 +126,10 @@ export default function POSEnhancedPage() {
   // Invoice Print State
   const [showInvoice, setShowInvoice] = useState(false)
   const [completedSale, setCompletedSale] = useState<any>(null)
+
+  // Quotation Print State
+  const [showQuotationPrint, setShowQuotationPrint] = useState(false)
+  const [quotationToPrint, setQuotationToPrint] = useState<any>(null)
   const [networkStatus, setNetworkStatus] = useState<'connected' | 'disconnected'>('connected')
   const [printerStatus, setPrinterStatus] = useState<'ready' | 'offline'>('ready')
   const [currentTransaction, setCurrentTransaction] = useState('')
@@ -1353,151 +1358,9 @@ export default function POSEnhancedPage() {
   const handlePrintQuotation = (quotation: any, event: React.MouseEvent) => {
     event.stopPropagation() // Prevent loading the quotation when clicking print
 
-    // Create a new window for printing
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) {
-      alert('Please allow popups to print quotations')
-      return
-    }
-
-    // Build the print content with Philippine header
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Quotation ${quotation.quotationNumber}</title>
-        <style>
-          @media print {
-            @page { margin: 0.5in; }
-          }
-          body {
-            font-family: 'Courier New', monospace;
-            margin: 0;
-            padding: 20px;
-            font-size: 12px;
-          }
-          .header {
-            text-align: center;
-            border-bottom: 2px solid #000;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-          }
-          .header h1 {
-            margin: 0;
-            font-size: 20px;
-            font-weight: bold;
-          }
-          .header p {
-            margin: 2px 0;
-            font-size: 11px;
-          }
-          .quotation-info {
-            margin-bottom: 20px;
-          }
-          .quotation-info div {
-            display: flex;
-            justify-between;
-            margin: 3px 0;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-          }
-          th, td {
-            padding: 8px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-          }
-          th {
-            background-color: #f2f2f2;
-            font-weight: bold;
-          }
-          .total-row {
-            font-weight: bold;
-            font-size: 14px;
-            border-top: 2px solid #000;
-          }
-          .footer {
-            margin-top: 40px;
-            border-top: 1px solid #000;
-            padding-top: 10px;
-          }
-          .signature-line {
-            margin-top: 40px;
-            border-top: 1px solid #000;
-            width: 200px;
-            text-align: center;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>PciNet</h1>
-          <p style="font-weight: bold;">COMPUTER TRADING</p>
-          <p style="font-size: 10px;">CHARLIE G. HIADAN - Prop.</p>
-          <p style="font-size: 10px;">VAT Reg. TIN: 106-638-378-00000</p>
-          <p style="font-size: 10px;">B. Aquino Avenue, Quirino,</p>
-          <p style="font-size: 10px;">Solano, Nueva Vizcaya</p>
-          <p style="font-size: 9px;">E-mail: pcinet_s2016@yahoo.com • pcinet_acctdept@yahoo.com</p>
-          <p style="font-size: 9px;">CP Nos: (078) 326-6008 • 0927 364 0644 • 0922 801 0247</p>
-        </div>
-
-        <div class="quotation-info">
-          <div><span><strong>Quotation #:</strong></span><span>${quotation.quotationNumber}</span></div>
-          <div><span><strong>Date:</strong></span><span>${new Date(quotation.quotationDate || quotation.createdAt).toLocaleDateString('en-PH')}</span></div>
-          <div><span><strong>Customer:</strong></span><span>${quotation.customer?.name || quotation.customerName || 'Walk-in Customer'}</span></div>
-          ${quotation.notes ? `<div><span><strong>Notes:</strong></span><span>${quotation.notes}</span></div>` : ''}
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th style="width: 10%">#</th>
-              <th style="width: 45%">Item Description</th>
-              <th style="width: 15%">Qty</th>
-              <th style="width: 15%">Unit Price</th>
-              <th style="width: 15%">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${quotation.items.map((item: any, index: number) => `
-              <tr>
-                <td>${index + 1}</td>
-                <td>${item.product?.name || 'Unknown Product'}</td>
-                <td>${parseFloat(item.quantity).toFixed(2)}</td>
-                <td>₱${parseFloat(item.unitPrice).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td>₱${(parseFloat(item.quantity) * parseFloat(item.unitPrice)).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              </tr>
-            `).join('')}
-            <tr class="total-row">
-              <td colspan="4" style="text-align: right;">TOTAL:</td>
-              <td>₱${parseFloat(quotation.totalAmount).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div class="footer">
-          <p><strong>Note:</strong> This quotation is valid for 30 days from the date of issue.</p>
-          <p>Thank you for your business!</p>
-        </div>
-
-        <div class="signature-line">
-          <p>Authorized Signature</p>
-        </div>
-
-        <script>
-          window.onload = function() {
-            window.print();
-            // window.close(); // Uncomment to auto-close after printing
-          }
-        </script>
-      </body>
-      </html>
-    `
-
-    printWindow.document.write(printContent)
-    printWindow.document.close()
+    // Set the quotation to print and open the print dialog
+    setQuotationToPrint(quotation)
+    setShowQuotationPrint(true)
   }
 
   const handleCreateCustomer = async () => {
@@ -3121,6 +2984,18 @@ export default function POSEnhancedPage() {
           onClose={() => {
             setShowInvoice(false)
             setCompletedSale(null)
+          }}
+        />
+      )}
+
+      {/* Quotation Print Dialog */}
+      {quotationToPrint && (
+        <QuotationPrint
+          quotation={quotationToPrint}
+          isOpen={showQuotationPrint}
+          onClose={() => {
+            setShowQuotationPrint(false)
+            setQuotationToPrint(null)
           }}
         />
       )}

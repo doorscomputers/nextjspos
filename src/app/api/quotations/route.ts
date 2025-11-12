@@ -26,7 +26,11 @@ export async function GET(request: NextRequest) {
         ...(status ? { status } : {}), // Only filter by status if provided
       },
       include: {
-        items: true,
+        items: {
+          include: {
+            product: true, // Include product details
+          },
+        },
         customer: true,
       },
       orderBy: {
