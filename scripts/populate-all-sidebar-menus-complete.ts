@@ -148,7 +148,7 @@ const COMPLETE_MENU_STRUCTURE = [
   { key: 'roles_permissions', name: 'Roles & Permissions', href: '/dashboard/settings/roles', order: 2, parentKey: 'administration' },
   { key: 'business_locations', name: 'Business Locations', href: '/dashboard/settings/locations', order: 3, parentKey: 'administration' },
   { key: 'announcements', name: 'Announcements', href: '/dashboard/settings/announcements', order: 4, parentKey: 'administration' },
-  { key: 'login_history', name: 'Login History', href: '/dashboard/settings/login-history', order: 5, parentKey: 'administration' },
+  { key: 'login_history', name: 'Login History', href: '/dashboard/admin/login-history', order: 5, parentKey: 'administration' },
   { key: 'active_users', name: 'Active Users Monitor', href: '/dashboard/admin/active-users', order: 6, parentKey: 'administration' },
 
   // Settings Children
