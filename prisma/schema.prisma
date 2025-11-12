@@ -1958,6 +1958,7 @@ model Sale {
   @@index([businessId, locationId, status]) // 🚀 OPTIMIZATION: POS sales filtering
   @@index([shiftId, status]) // 🚀 OPTIMIZATION: Shift operations
   @@index([saleDate, status]) // 🚀 OPTIMIZATION: Date-filtered reports
+  @@index([shiftId, status, saleDate, id]) // 🚀 CRITICAL: First/last invoice queries in readings (NO SORT NEEDED!)
   @@map("sales")
 }
 
