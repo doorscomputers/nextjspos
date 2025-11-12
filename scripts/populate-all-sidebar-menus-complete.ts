@@ -150,6 +150,7 @@ const COMPLETE_MENU_STRUCTURE = [
   { key: 'announcements', name: 'Announcements', href: '/dashboard/settings/announcements', order: 4, parentKey: 'administration' },
   { key: 'login_history', name: 'Login History', href: '/dashboard/admin/login-history', order: 5, parentKey: 'administration' },
   { key: 'active_users', name: 'Active Users Monitor', href: '/dashboard/admin/active-users', order: 6, parentKey: 'administration' },
+  { key: 'open_shifts', name: 'Open Shifts Monitor', href: '/dashboard/admin/open-shifts', order: 7, parentKey: 'administration' },
 
   // Settings Children
   { key: 'business_settings', name: 'Business Settings', href: '/dashboard/settings/business', order: 1, parentKey: 'settings' },

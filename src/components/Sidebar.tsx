@@ -1473,6 +1473,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
           permission: PERMISSIONS.USER_VIEW_ACTIVE_SESSIONS,
         },
         {
+          name: "Open Shifts Monitor",
+          href: "/dashboard/admin/open-shifts",
+          icon: ClockIcon,
+          key: "open_shifts",
+          permission: PERMISSIONS.USER_VIEW_ACTIVE_SESSIONS,
+        },
+        {
           name: "Fix Soft-Deleted Variations",
           href: "/dashboard/admin/fix-soft-deleted-variations",
           icon: ShieldCheckIcon,
