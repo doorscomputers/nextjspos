@@ -1080,6 +1080,8 @@ model StockTransaction {
   @@index([businessId, type]) // ✅ NEW: For transaction type filtering
   @@index([productVariationId, locationId]) // ✅ NEW: For product stock history at location
   @@index([referenceType, referenceId]) // ✅ NEW: For finding related transactions
+  @@index([productVariationId, locationId, createdAt]) // 🚀 OPTIMIZATION: Time-series inventory queries
+  @@index([businessId, createdAt, type]) // 🚀 OPTIMIZATION: Transaction reports with date filter
   @@map("stock_transactions")
 }
 
@@ -1241,6 +1243,7 @@ model Customer {
   serviceRepairPayments ServiceRepairPayment[] @relation("CustomerServiceRepairPayments")
 
   @@index([businessId])
+  @@index([businessId, creditLimit]) // 🚀 OPTIMIZATION: Find customers near/over credit limit
   @@map("customers")
 }
 
@@ -1920,6 +1923,9 @@ model Sale {
   @@index([businessId, status]) // ✅ NEW: For filtered sales list
   @@index([businessId, customerId]) // ✅ NEW: For customer sales history
   @@index([createdAt]) // ✅ NEW: For sorting by creation date
+  @@index([businessId, locationId, status]) // 🚀 OPTIMIZATION: POS sales filtering
+  @@index([shiftId, status]) // 🚀 OPTIMIZATION: Shift operations
+  @@index([saleDate, status]) // 🚀 OPTIMIZATION: Date-filtered reports
   @@map("sales")
 }
 
@@ -1975,6 +1981,7 @@ model SalePayment {
   @@index([shiftId])
   @@index([collectedBy])
   @@index([paymentMethod])
+  @@index([paymentMethod, paidAt]) // 🚀 OPTIMIZATION: Payment method breakdown by date
   @@map("sale_payments")
 }
 
