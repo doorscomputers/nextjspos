@@ -1,103 +1,276 @@
+/**
+ * ============================================================================
+ * LOGIN PAGE (src/app/login/page.tsx)
+ * ============================================================================
+ *
+ * PURPOSE: Entry point for user authentication into the application
+ *
+ * THIS IS WHERE THE USER JOURNEY BEGINS:
+ * 1. User arrives at /login
+ * 2. Enters username and password
+ * 3. Scans RFID card (cashiers/managers only)
+ * 4. Clicks "LOGIN" button
+ * 5. NextAuth validates credentials via src/lib/auth.ts
+ * 6. If successful, redirects to /dashboard
+ *
+ * KEY FEATURES:
+ * - Username/password authentication
+ * - RFID location scanning for non-admin users
+ * - Real-time RFID verification via API
+ * - Error handling and display
+ * - Loading states
+ * - Show/hide password toggle
+ * - Animated background and logo
+ *
+ * SECURITY FEATURES:
+ * - RFID card required for cashiers/managers (prevents remote login)
+ * - Admin users exempt from RFID scanning
+ * - Password field masked by default
+ * - CSRF protection via NextAuth
+ * - HTTP-only cookies for session storage
+ *
+ * FLOW AFTER LOGIN:
+ * Login Success → middleware.ts checks JWT → redirects to /dashboard →
+ * Dashboard layout loads → Sidebar renders with permissions → User sees home page
+ *
+ * RELATED FILES:
+ * - src/lib/auth.ts - Authentication logic (STEP 1: validates credentials)
+ * - middleware.ts - Route protection (STEP 2: checks if authenticated)
+ * - src/app/dashboard/layout.tsx - Dashboard wrapper (STEP 3: loads UI)
+ * - src/components/Sidebar.tsx - Navigation menu (STEP 4: shows menu based on permissions)
+ */
+
+// ============================================================================
+// CLIENT COMPONENT DECLARATION
+// ============================================================================
+// This must be a Client Component (not Server Component) because it:
+// 1. Uses React hooks (useState, useEffect)
+// 2. Handles user interactions (form submission, button clicks)
+// 3. Manages local state (username, password, RFID)
+// 4. Calls NextAuth's signIn() function (client-side only)
 "use client"
 
-import { signIn } from "next-auth/react"
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Eye, EyeOff, MapPin } from "lucide-react"
-import AnimatedLogo from "@/components/AnimatedLogo"
+// ============================================================================
+// IMPORTS
+// ============================================================================
+import { signIn } from "next-auth/react" // NextAuth client function for authentication
+import { useState, useEffect } from "react" // React hooks for state management
+import { useRouter } from "next/navigation" // Next.js router for navigation
+import { Eye, EyeOff, MapPin } from "lucide-react" // Icon components
+import AnimatedLogo from "@/components/AnimatedLogo" // Custom animated logo component
 
+/**
+ * ============================================================================
+ * LOGIN PAGE COMPONENT
+ * ============================================================================
+ *
+ * This is the main login form component that handles user authentication.
+ */
 export default function LoginPage() {
+  // ===========================================================================
+  // ROUTER - For navigation after login
+  // ===========================================================================
   const router = useRouter()
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [locationId, setLocationId] = useState("")
-  const [locationName, setLocationName] = useState("")
-  const [rfidCode, setRfidCode] = useState("")
-  const [rfidCodeActual, setRfidCodeActual] = useState("") // Store actual code for verification
-  const [rfidVerified, setRfidVerified] = useState(false)
-  const [verifyingRfid, setVerifyingRfid] = useState(false)
-  const [error, setError] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
-  const [rememberMe, setRememberMe] = useState(false)
 
-  // Handle RFID card scan (triggered on Enter key)
+  // ===========================================================================
+  // STATE MANAGEMENT - All form fields and UI states
+  // ===========================================================================
+
+  // Authentication Credentials
+  const [username, setUsername] = useState("") // Username input value
+  const [password, setPassword] = useState("") // Password input value
+
+  // RFID Location Scanning (for non-admin users)
+  const [locationId, setLocationId] = useState("") // Selected location ID (sent to auth.ts)
+  const [locationName, setLocationName] = useState("") // Human-readable location name for display
+  const [rfidCode, setRfidCode] = useState("") // RFID card code being typed/scanned
+  const [rfidCodeActual, setRfidCodeActual] = useState("") // Store actual verified code
+  const [rfidVerified, setRfidVerified] = useState(false) // Has RFID been successfully scanned?
+  const [verifyingRfid, setVerifyingRfid] = useState(false) // Is RFID verification in progress?
+
+  // UI State
+  const [error, setError] = useState("") // Error message to display (if login fails)
+  const [loading, setLoading] = useState(false) // Is login request in progress?
+  const [showPassword, setShowPassword] = useState(false) // Should password be visible?
+  const [rememberMe, setRememberMe] = useState(false) // Remember me checkbox (currently not used)
+
+  // ===========================================================================
+  // RFID SCANNING HANDLER
+  // ===========================================================================
+  /**
+   * Handles RFID card scanning and verification
+   *
+   * HOW IT WORKS:
+   * 1. User focuses on RFID input field
+   * 2. User scans RFID card with barcode scanner (or types manually)
+   * 3. Scanner automatically presses Enter after reading code
+   * 4. This function triggers on Enter key press
+   * 5. Calls API to verify RFID code matches a location
+   * 6. If valid, stores location ID and name
+   * 7. Shows green checkmark with location name
+   *
+   * WHY THIS EXISTS:
+   * - Security: Ensures user is physically at the location
+   * - Prevents remote login by cashiers/managers
+   * - Each location has unique RFID card
+   * - Required for non-admin users only
+   *
+   * API ENDPOINT: GET /api/locations/verify-code?code={scannedCode}
+   * RESPONSE: { valid: true, locationId: 1, locationName: "Main Store" }
+   */
   const handleRfidScan = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Only proceed if Enter key pressed and code is not empty
     if (e.key === "Enter" && rfidCode.trim()) {
-      e.preventDefault()
-      setVerifyingRfid(true)
-      setError("")
+      e.preventDefault() // Prevent form submission
+      setVerifyingRfid(true) // Show loading state
+      setError("") // Clear any previous errors
 
-      const scannedCode = rfidCode.trim()
+      const scannedCode = rfidCode.trim() // Remove whitespace
 
       try {
+        // Call API to verify RFID code
         const response = await fetch(`/api/locations/verify-code?code=${scannedCode}`)
         const data = await response.json()
 
         if (data.valid) {
-          setLocationId(data.locationId.toString())
-          setLocationName(data.locationName)
-          setRfidCodeActual(scannedCode) // Store actual code
-          setRfidVerified(true)
+          // ✅ RFID code is valid
+          setLocationId(data.locationId.toString()) // Store location ID (will be sent to auth.ts)
+          setLocationName(data.locationName) // Store location name for display
+          setRfidCodeActual(scannedCode) // Store actual scanned code
+          setRfidVerified(true) // Mark as verified (shows green checkmark)
           console.log(`[Login] ✓ RFID verified: ${data.locationName}`)
         } else {
+          // ❌ RFID code is invalid
           setError(data.error || "Invalid RFID code. Please scan the correct card for this location.")
-          setRfidCode("")
-          setRfidCodeActual("")
-          setRfidVerified(false)
+          setRfidCode("") // Clear input
+          setRfidCodeActual("") // Clear stored code
+          setRfidVerified(false) // Mark as not verified
         }
       } catch (err: any) {
+        // ❌ Network error or API error
         setError("Failed to verify RFID code. Please try again.")
         setRfidCode("")
         setRfidCodeActual("")
         setRfidVerified(false)
       } finally {
-        setVerifyingRfid(false)
+        setVerifyingRfid(false) // Hide loading state
       }
     }
   }
 
+  // ===========================================================================
+  // CLEAR RFID SCAN
+  // ===========================================================================
+  /**
+   * Resets RFID scanning state
+   *
+   * Called when user clicks "Clear" button in verified location display
+   * Allows user to scan a different RFID card
+   */
   const clearRfidScan = () => {
-    setRfidCode("")
-    setRfidCodeActual("")
-    setLocationId("")
-    setLocationName("")
-    setRfidVerified(false)
-    setError("")
+    setRfidCode("") // Clear input field
+    setRfidCodeActual("") // Clear stored code
+    setLocationId("") // Clear location ID
+    setLocationName("") // Clear location name
+    setRfidVerified(false) // Hide green checkmark
+    setError("") // Clear any errors
   }
 
+  // ===========================================================================
+  // FORM SUBMISSION - Main Login Handler
+  // ===========================================================================
+  /**
+   * Handles login form submission
+   *
+   * AUTHENTICATION FLOW:
+   * 1. Form submitted → This function runs
+   * 2. Calls NextAuth signIn("credentials") with username/password/locationId
+   * 3. NextAuth calls authorize() function in src/lib/auth.ts
+   * 4. auth.ts validates credentials and performs security checks:
+   *    - Verifies username exists
+   *    - Checks password with bcrypt
+   *    - Validates RFID location (non-admins only)
+   *    - Checks for shift conflicts
+   *    - Verifies schedule-based login restrictions
+   * 5. If valid, auth.ts returns user object
+   * 6. NextAuth creates JWT token with user data
+   * 7. JWT stored in HTTP-only cookie
+   * 8. This function redirects to /dashboard
+   * 9. middleware.ts checks JWT on /dashboard request
+   * 10. If valid, dashboard loads with user session
+   *
+   * WHAT GETS SENT TO AUTH.TS:
+   * - username: "john_doe"
+   * - password: "securepassword123"
+   * - locationId: "5" (from RFID scan, or empty for admins)
+   *
+   * WHAT HAPPENS ON SUCCESS:
+   * - JWT token created and stored in cookie
+   * - Redirect to /dashboard
+   * - User session available via getServerSession()
+   * - Sidebar menu renders with permissions
+   *
+   * WHAT HAPPENS ON FAILURE:
+   * - Error message displayed (from auth.ts)
+   * - User stays on login page
+   * - Can try again
+   */
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
+    e.preventDefault() // Prevent default form submission (page reload)
+    setError("") // Clear any previous error messages
 
-    // Location is now optional - auth.ts will enforce it only for non-admin roles
-    // Admins can skip RFID scanning entirely
+    // IMPORTANT NOTE:
+    // Location is optional here because auth.ts will enforce it based on user role
+    // - Admins: Can skip RFID scanning entirely
+    // - Cashiers/Managers: MUST have locationId or login will be blocked
 
-    setLoading(true)
+    setLoading(true) // Show loading state on button
 
     try {
+      // =====================================================================
+      // CALL NEXTAUTH SIGNIN
+      // =====================================================================
+      // This calls the authorize() function in src/lib/auth.ts
+      // NextAuth handles the entire authentication flow
       const result = await signIn("credentials", {
-        username,
-        password,
-        locationId,  // Pass location ID to auth
-        redirect: false,
+        username, // Username from form input
+        password, // Password from form input
+        locationId, // Location ID from RFID scan (may be empty for admins)
+        redirect: false, // Don't auto-redirect, we'll handle it manually
       })
 
-      console.log("Login result:", result) // Debug log
+      console.log("Login result:", result) // Debug log for development
 
+      // =====================================================================
+      // HANDLE AUTHENTICATION RESULT
+      // =====================================================================
       if (result?.error) {
+        // ❌ Authentication failed
+        // Error could be:
+        // - "Invalid credentials" (wrong username/password)
+        // - "Location verification required" (RFID not scanned)
+        // - "Location already has an active shift" (shift conflict)
+        // - "Login denied: You are not scheduled to work today" (schedule restriction)
         setError(`Login failed: ${result.error}`)
       } else if (result?.ok) {
-        // Success - redirect to dashboard
+        // ✅ Authentication successful!
+        // JWT token has been created and stored in cookie
+        // Now redirect to dashboard
+        // Using window.location.href instead of router.push to ensure:
+        // 1. Full page reload (clears any client state)
+        // 2. Middleware runs to validate JWT
+        // 3. Server components can access session
         window.location.href = "/dashboard"
       } else {
+        // ⚠️ Unexpected result (shouldn't happen)
         setError("Login failed - please try again")
       }
     } catch (error) {
+      // ❌ Network error or unexpected error
       console.error("Login error:", error)
       setError("An error occurred. Please try again.")
     } finally {
-      setLoading(false)
+      setLoading(false) // Hide loading state
     }
   }
 
