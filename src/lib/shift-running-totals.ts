@@ -373,6 +373,47 @@ export async function calculateRunningTotalsFromSales(
 }
 
 /**
+ * Update shift running totals when an AR PAYMENT is collected
+ * Call this in the same transaction as AR payment creation
+ */
+export async function incrementShiftTotalsForARPayment(
+  shiftId: number,
+  paymentMethod: string,
+  amount: number,
+  tx?: any
+): Promise<void> {
+  const db = tx || prisma
+
+  // Map payment method to correct running total field
+  const fieldMap: Record<string, string> = {
+    cash: 'runningArPaymentsCash',
+    card: 'runningArPaymentsCard',
+    gcash: 'runningArPaymentsGcash',
+    paymaya: 'runningArPaymentsPaymaya',
+    bank_transfer: 'runningArPaymentsBank',
+    check: 'runningArPaymentsCheck',
+    cheque: 'runningArPaymentsCheck', // Handle both spellings
+  }
+
+  const field = fieldMap[paymentMethod.toLowerCase()] || 'runningArPaymentsOther'
+
+  // Build update data
+  const updateData: any = {
+    [field]: { increment: amount },
+  }
+
+  // Update shift running totals
+  await db.cashierShift.update({
+    where: { id: shiftId },
+    data: updateData,
+  })
+
+  console.log(
+    `[ShiftTotals] 💰 AR Payment collected for shift ${shiftId}: +${amount} via ${paymentMethod}`
+  )
+}
+
+/**
  * Verify running totals match actual sales (for testing/audit)
  */
 export async function verifyShiftTotals(shiftId: number): Promise<{

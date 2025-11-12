@@ -191,9 +191,8 @@ async function generateXReadingFromRunningTotals(
     .filter((r: any) => r.type === 'cash_out')
     .reduce((sum: number, r: any) => sum + parseFloat(r.amount.toString()), 0)
 
-  // AR Payments (if any) - would need to be tracked separately or aggregated
-  // For now, assume it's included in payment breakdowns or handle separately
-  const arPaymentsCash = 0 // TODO: Add to running totals if needed
+  // AR Payments collected in cash during this shift
+  const arPaymentsCash = parseFloat(shift.runningArPaymentsCash.toString())
 
   // Expected cash calculation
   const expectedCash =
@@ -259,28 +258,27 @@ async function generateXReadingFromRunningTotals(
     }),
   ])
 
-  // Build payment breakdown from running totals
+  // Build payment breakdown from running totals (includes direct sales + AR collections)
   const paymentBreakdown: Record<string, number> = {}
-  if (parseFloat(shift.runningCashSales.toString()) > 0)
-    paymentBreakdown['cash'] = parseFloat(shift.runningCashSales.toString())
-  if (parseFloat(shift.runningCardSales.toString()) > 0)
-    paymentBreakdown['card'] = parseFloat(shift.runningCardSales.toString())
-  if (parseFloat(shift.runningGcashSales.toString()) > 0)
-    paymentBreakdown['gcash'] = parseFloat(shift.runningGcashSales.toString())
-  if (parseFloat(shift.runningPaymayaSales.toString()) > 0)
-    paymentBreakdown['paymaya'] = parseFloat(
-      shift.runningPaymayaSales.toString()
-    )
-  if (parseFloat(shift.runningBankSales.toString()) > 0)
-    paymentBreakdown['bank_transfer'] = parseFloat(
-      shift.runningBankSales.toString()
-    )
-  if (parseFloat(shift.runningCheckSales.toString()) > 0)
-    paymentBreakdown['check'] = parseFloat(shift.runningCheckSales.toString())
+
+  // Direct sale payments + AR payment collections
+  const totalCash = parseFloat(shift.runningCashSales.toString()) + parseFloat(shift.runningArPaymentsCash.toString())
+  const totalCard = parseFloat(shift.runningCardSales.toString()) + parseFloat(shift.runningArPaymentsCard.toString())
+  const totalGcash = parseFloat(shift.runningGcashSales.toString()) + parseFloat(shift.runningArPaymentsGcash.toString())
+  const totalPaymaya = parseFloat(shift.runningPaymayaSales.toString()) + parseFloat(shift.runningArPaymentsPaymaya.toString())
+  const totalBank = parseFloat(shift.runningBankSales.toString()) + parseFloat(shift.runningArPaymentsBank.toString())
+  const totalCheck = parseFloat(shift.runningCheckSales.toString()) + parseFloat(shift.runningArPaymentsCheck.toString())
+  const totalOther = parseFloat(shift.runningOtherPayments.toString()) + parseFloat(shift.runningArPaymentsOther.toString())
+
+  if (totalCash > 0) paymentBreakdown['cash'] = totalCash
+  if (totalCard > 0) paymentBreakdown['card'] = totalCard
+  if (totalGcash > 0) paymentBreakdown['gcash'] = totalGcash
+  if (totalPaymaya > 0) paymentBreakdown['paymaya'] = totalPaymaya
+  if (totalBank > 0) paymentBreakdown['bank_transfer'] = totalBank
+  if (totalCheck > 0) paymentBreakdown['check'] = totalCheck
   if (parseFloat(shift.runningCreditSales.toString()) > 0)
     paymentBreakdown['credit'] = parseFloat(shift.runningCreditSales.toString())
-  if (parseFloat(shift.runningOtherPayments.toString()) > 0)
-    paymentBreakdown['other'] = parseFloat(shift.runningOtherPayments.toString())
+  if (totalOther > 0) paymentBreakdown['other'] = totalOther
 
   const xReadingData: XReadingData = {
     shiftNumber: shift.shiftNumber,

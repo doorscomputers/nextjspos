@@ -1193,7 +1193,17 @@ export default function POSEnhancedPage() {
         throw new Error(errorData.details || errorData.error || 'Failed to save quotation')
       }
 
-      alert('Quotation saved successfully!')
+      const savedData = await res.json()
+      const savedQuotation = savedData.quotation
+
+      // Store cart items before clearing for potential printing
+      const cartItemsForPrint = [...cart]
+      const customerNameForPrint = quotationCustomerName
+
+      // Ask if user wants to print
+      const shouldPrint = confirm(
+        `✅ Quotation saved successfully!\n\nQuotation #: ${savedQuotation.quotationNumber}\n\nWould you like to print this quotation now?`
+      )
 
       // Clear quotation dialog fields
       setShowQuotationDialog(false)
@@ -1205,7 +1215,28 @@ export default function POSEnhancedPage() {
       setSelectedCustomer(null)
 
       // Refresh quotations list
-      fetchQuotations()
+      await fetchQuotations()
+
+      // If user wants to print, trigger print
+      if (shouldPrint) {
+        // Use the saved data with cart items for printing
+        const quotationToPrint = {
+          ...savedQuotation,
+          items: cartItemsForPrint.map((item) => ({
+            productId: item.productId,
+            productVariationId: item.productVariationId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            product: {
+              name: item.name,
+              sku: item.sku,
+            },
+          })),
+          customerName: customerNameForPrint,
+        }
+        const mockEvent = { stopPropagation: () => {} } as React.MouseEvent
+        handlePrintQuotation(quotationToPrint, mockEvent)
+      }
     } catch (err: any) {
       console.error('Error saving quotation:', err)
       setError(err.message)
@@ -1213,33 +1244,68 @@ export default function POSEnhancedPage() {
     }
   }
 
-  const handleLoadQuotation = (quotation: any) => {
-    const cartItems = quotation.items.map((item: any) => {
-      // Find product from products list to get current details
-      const product = products.find(p => p.id === item.productId)
+  const handleLoadQuotation = async (quotation: any) => {
+    try {
+      // Check stock availability first
+      const res = await fetch(`/api/quotations/${quotation.id}`)
 
-      return {
-        productId: item.productId,
-        productVariationId: item.productVariationId,
-        name: product?.name || 'Product',
-        sku: product?.sku || product?.variations?.[0]?.sku || '',
-        unitPrice: parseFloat(item.unitPrice),
-        originalPrice: parseFloat(item.unitPrice),
-        quantity: parseFloat(item.quantity),
-        isFreebie: false,
-        requiresSerial: false,
-        serialNumberIds: [],
+      if (!res.ok) {
+        throw new Error('Failed to check stock availability')
       }
-    })
 
-    setCart(cartItems)
-    setShowSavedQuotations(false)
+      const data = await res.json()
+      const { stockStatus } = data
 
-    if (quotation.customer) {
-      setSelectedCustomer(quotation.customer)
+      // If some items are out of stock, show warning
+      if (!stockStatus.allItemsAvailable) {
+        const unavailableList = stockStatus.unavailableItems
+          .map((item: any) =>
+            `• ${item.productName} (SKU: ${item.productSku})\n  Requested: ${item.requestedQuantity}, Available: ${item.currentStock}, Short: ${item.shortage}`
+          )
+          .join('\n')
+
+        const message = `⚠️ STOCK AVAILABILITY WARNING\n\n${stockStatus.unavailableCount} item(s) are out of stock or have insufficient quantity:\n\n${unavailableList}\n\nDo you want to load this quotation anyway?\n\nNote: You will need to adjust quantities or remove unavailable items before completing the sale.`
+
+        if (!confirm(message)) {
+          return // User cancelled
+        }
+      }
+
+      // Load the quotation into cart
+      const cartItems = quotation.items.map((item: any) => {
+        // Find product from products list to get current details
+        const product = products.find(p => p.id === item.productId)
+
+        return {
+          productId: item.productId,
+          productVariationId: item.productVariationId,
+          name: product?.name || 'Product',
+          sku: product?.sku || product?.variations?.[0]?.sku || '',
+          unitPrice: parseFloat(item.unitPrice),
+          originalPrice: parseFloat(item.unitPrice),
+          quantity: parseFloat(item.quantity),
+          isFreebie: false,
+          requiresSerial: false,
+          serialNumberIds: [],
+        }
+      })
+
+      setCart(cartItems)
+      setShowSavedQuotations(false)
+
+      if (quotation.customer) {
+        setSelectedCustomer(quotation.customer)
+      }
+
+      const statusMsg = stockStatus.allItemsAvailable
+        ? '✅ All items are available in stock!'
+        : '⚠️ Some items may be out of stock - please verify quantities'
+
+      alert(`Quotation ${quotation.quotationNumber} loaded successfully!\n\n${statusMsg}`)
+    } catch (err: any) {
+      console.error('Error loading quotation:', err)
+      alert(`Error loading quotation: ${err.message}`)
     }
-
-    alert(`Quotation ${quotation.quotationNumber} loaded successfully!`)
   }
 
   const handleDeleteQuotation = async (quotationId: number, event: React.MouseEvent) => {

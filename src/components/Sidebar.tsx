@@ -40,6 +40,7 @@ import {
   WrenchScrewdriverIcon,
   DocumentMagnifyingGlassIcon,
   QuestionMarkCircleIcon,
+  ArrowsRightLeftIcon,
 } from "@heroicons/react/24/outline"
 
 interface MenuItem {
@@ -1111,6 +1112,27 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               key: "customer_payments",
               name: "Customer Payments",
               href: "/dashboard/reports/customer-payments",
+              icon: CreditCardIcon,
+              permission: PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
+            },
+            {
+              key: "payment_collections",
+              name: "Payment Collections",
+              href: "/dashboard/reports/payment-collections",
+              icon: ArrowsRightLeftIcon,
+              permission: PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
+            },
+            {
+              key: "accounts_receivable",
+              name: "Accounts Receivable",
+              href: "/dashboard/reports/accounts-receivable",
+              icon: DocumentTextIcon,
+              permission: PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
+            },
+            {
+              key: "receivable_payments",
+              name: "Receivable Payments",
+              href: "/dashboard/reports/receivable-payments",
               icon: CreditCardIcon,
               permission: PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
             },

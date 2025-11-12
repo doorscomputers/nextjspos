@@ -303,6 +303,79 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // CRITICAL: Credit limit validation for credit sales
+    if (isCreditSale && customerId) {
+      const customer = await prisma.customer.findFirst({
+        where: {
+          id: parseInt(customerId),
+          businessId: businessIdNumber,
+        },
+        include: {
+          sales: {
+            where: {
+              status: 'completed',
+            },
+            include: {
+              payments: true,
+            },
+          },
+        },
+      })
+
+      if (!customer) {
+        return NextResponse.json(
+          { error: 'Customer not found' },
+          { status: 404 }
+        )
+      }
+
+      // Check if customer has credit limit set
+      if (customer.creditLimit && parseFloat(customer.creditLimit.toString()) > 0) {
+        // Calculate current outstanding balance
+        const outstandingBalance = customer.sales.reduce((total, sale) => {
+          const saleTotal = parseFloat(sale.totalAmount.toString())
+          const totalPaid = sale.payments
+            .filter((p) => p.paymentMethod !== 'credit') // Exclude credit marker payments
+            .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0)
+          const balance = saleTotal - totalPaid
+          return total + (balance > 0 ? balance : 0)
+        }, 0)
+
+        // Calculate what total outstanding would be with this new sale
+        const newTotalOutstanding = outstandingBalance + totalAmount
+
+        // Check if new total would exceed credit limit
+        const creditLimit = parseFloat(customer.creditLimit.toString())
+        if (newTotalOutstanding > creditLimit) {
+          // Check if user has override permission
+          const canOverride = user.permissions?.includes(PERMISSIONS.CUSTOMER_CREDIT_OVERRIDE)
+
+          if (!canOverride) {
+            return NextResponse.json(
+              {
+                error: 'Credit limit exceeded',
+                code: 'CREDIT_LIMIT_EXCEEDED',
+                details: {
+                  customerName: `${customer.firstName} ${customer.lastName}`,
+                  creditLimit: creditLimit.toFixed(2),
+                  currentBalance: outstandingBalance.toFixed(2),
+                  saleAmount: totalAmount.toFixed(2),
+                  wouldBe: newTotalOutstanding.toFixed(2),
+                  message: `Customer credit limit: ₱${creditLimit.toFixed(2)}. Current balance: ₱${outstandingBalance.toFixed(2)}. This sale (₱${totalAmount.toFixed(2)}) would bring total to ₱${newTotalOutstanding.toFixed(2)}, exceeding the limit by ₱${(newTotalOutstanding - creditLimit).toFixed(2)}.`,
+                },
+              },
+              { status: 400 }
+            )
+          } else {
+            // Log override for audit trail
+            console.warn(
+              `[CREDIT LIMIT OVERRIDE] User ${user.username} (ID: ${user.id}) overrode credit limit for customer ${customer.firstName} ${customer.lastName} (ID: ${customer.id}). Limit: ₱${creditLimit.toFixed(2)}, New total: ₱${newTotalOutstanding.toFixed(2)}`
+            )
+          }
+        }
+      }
+    }
+
     // For non-credit sales, at least one payment is required
     if (!isCreditSale && (!payments || payments.length === 0)) {
       return NextResponse.json(

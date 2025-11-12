@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth.simple'
 import prisma from '@/lib/prisma.simple'
 import { PERMISSIONS } from "@/lib/rbac"
 import { isAccountingEnabled, recordCustomerPayment } from "@/lib/accountingIntegration"
+import { incrementShiftTotalsForARPayment } from "@/lib/shift-running-totals"
 
 /**
  * POST /api/sales/[id]/payment
@@ -33,10 +34,10 @@ export async function POST(
       )
     }
 
-    // 2. Permission check - user must have permission to record customer payments
-    if (!user.permissions?.includes(PERMISSIONS.REPORT_CUSTOMER_PAYMENTS)) {
+    // 2. Permission check - user must have permission to collect AR payments
+    if (!user.permissions?.includes(PERMISSIONS.PAYMENT_COLLECT_AR)) {
       return NextResponse.json(
-        { success: false, error: "Insufficient permissions to record customer payments" },
+        { success: false, error: "Insufficient permissions to collect customer payments. Contact your administrator." },
         { status: 403 }
       )
     }
@@ -143,7 +144,17 @@ export async function POST(
         },
       })
 
-      // Step 2: Create accounting journal entry if enabled
+      // Step 2: Update shift running totals if payment collected at POS
+      if (shiftId) {
+        await incrementShiftTotalsForARPayment(
+          parseInt(shiftId),
+          paymentMethod,
+          amount,
+          tx
+        )
+      }
+
+      // Step 3: Create accounting journal entry if enabled
       if (accountingEnabled) {
         // Get accounts (Cash and Accounts Receivable)
         const cashAccount = await tx.chartOfAccounts.findFirst({

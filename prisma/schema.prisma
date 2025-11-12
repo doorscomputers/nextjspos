@@ -2642,6 +2642,15 @@ model CashierShift {
   runningCreditSales   Decimal @default(0) @map("running_credit_sales") @db.Decimal(22, 4) // AR/Credit sales
   runningOtherPayments Decimal @default(0) @map("running_other_payments") @db.Decimal(22, 4) // Other payment methods
 
+  // AR Payment Collections (when previous credit sales are paid)
+  runningArPaymentsCash     Decimal @default(0) @map("running_ar_payments_cash") @db.Decimal(22, 4) // AR paid in cash
+  runningArPaymentsCard     Decimal @default(0) @map("running_ar_payments_card") @db.Decimal(22, 4) // AR paid by card
+  runningArPaymentsGcash    Decimal @default(0) @map("running_ar_payments_gcash") @db.Decimal(22, 4) // AR paid via GCash
+  runningArPaymentsPaymaya  Decimal @default(0) @map("running_ar_payments_paymaya") @db.Decimal(22, 4) // AR paid via PayMaya
+  runningArPaymentsBank     Decimal @default(0) @map("running_ar_payments_bank") @db.Decimal(22, 4) // AR paid via bank transfer
+  runningArPaymentsCheck    Decimal @default(0) @map("running_ar_payments_check") @db.Decimal(22, 4) // AR paid by cheque
+  runningArPaymentsOther    Decimal @default(0) @map("running_ar_payments_other") @db.Decimal(22, 4) // AR paid by other methods
+
   // Void/Refund/Return Tracking
   runningVoidedSales  Decimal @default(0) @map("running_voided_sales") @db.Decimal(22, 4) // Total voided amount
   runningRefundAmount Decimal @default(0) @map("running_refund_amount") @db.Decimal(22, 4) // Total refunds

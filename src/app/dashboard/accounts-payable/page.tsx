@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { MagnifyingGlassIcon, EyeIcon, CurrencyDollarIcon, FunnelIcon, XMarkIcon, CheckCircleIcon, PrinterIcon } from '@heroicons/react/24/outline'
+import { EyeIcon, CurrencyDollarIcon, FunnelIcon, XMarkIcon, CheckCircleIcon, PrinterIcon } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
@@ -14,13 +14,29 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import ColumnVisibilityToggle, { Column } from '@/components/ColumnVisibilityToggle'
-import Pagination, { ItemsPerPage, ResultsInfo } from '@/components/Pagination'
-import { exportToCSV, exportToExcel, exportToPDF, ExportColumn } from '@/lib/exportUtils'
-import { DocumentArrowDownIcon, DocumentTextIcon } from '@heroicons/react/24/outline'
-import { useTableSort } from '@/hooks/useTableSort'
-import { SortableTableHead } from '@/components/ui/sortable-table-head'
 import { formatCurrency } from '@/lib/currencyUtils'
+import DataGrid, {
+  Column,
+  Export,
+  FilterRow,
+  Pager,
+  Paging,
+  SearchPanel,
+  Sorting,
+  HeaderFilter,
+  LoadPanel,
+  Selection,
+  Summary,
+  TotalItem,
+  ColumnChooser,
+  StateStoring,
+} from 'devextreme-react/data-grid'
+import { Workbook } from 'exceljs'
+import { saveAs } from 'file-saver'
+import { exportDataGrid as exportToExcel } from 'devextreme/excel_exporter'
+import { exportDataGrid as exportToPDF } from 'devextreme/pdf_exporter'
+import { jsPDF } from 'jspdf'
+import 'devextreme/dist/css/dx.light.css'
 
 interface AccountsPayable {
   id: number
@@ -54,41 +70,22 @@ interface AgingData {
   total: number
 }
 
-const AVAILABLE_COLUMNS: Column[] = [
-  { id: 'invoice', label: 'Invoice #' },
-  { id: 'supplier', label: 'Supplier' },
-  { id: 'invoiceDate', label: 'Invoice Date' },
-  { id: 'dueDate', label: 'Due Date' },
-  { id: 'amount', label: 'Amount' },
-  { id: 'paid', label: 'Paid' },
-  { id: 'balance', label: 'Balance' },
-  { id: 'status', label: 'Status' },
-  { id: 'actions', label: 'Actions' },
-]
-
 export default function AccountsPayablePage() {
   const { can } = usePermissions()
+  const router = useRouter()
+  const dataGridRef = useRef<DataGrid>(null)
+
   const [payables, setPayables] = useState<AccountsPayable[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [dateFilter, setDateFilter] = useState('all')
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
   const [agingData, setAgingData] = useState<AgingData | null>(null)
 
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
-  const [totalPayables, setTotalPayables] = useState(0)
-
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([
-    'invoice', 'supplier', 'invoiceDate', 'dueDate', 'amount', 'paid', 'balance', 'status', 'actions'
-  ])
-
   // Batch payment state
   const [batchMode, setBatchMode] = useState(false)
-  const [selectedPayables, setSelectedPayables] = useState<number[]>([])
-  const router = useRouter()
+  const [selectedPayableIds, setSelectedPayableIds] = useState<number[]>([])
 
   // Payment details dialog state
   const [showPaymentDetails, setShowPaymentDetails] = useState(false)
@@ -98,11 +95,7 @@ export default function AccountsPayablePage() {
 
   useEffect(() => {
     fetchPayables()
-  }, [statusFilter, currentPage, itemsPerPage, dateFilter, customStartDate, customEndDate])
-
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchTerm, statusFilter, dateFilter])
+  }, [statusFilter, dateFilter, customStartDate, customEndDate])
 
   const getDateRange = (filter: string) => {
     const today = new Date()
@@ -196,7 +189,7 @@ export default function AccountsPayablePage() {
     try {
       setLoading(true)
       const params = new URLSearchParams({
-        page: currentPage.toString(),
+        page: '1',
         limit: '100', // Fetch more for client-side filtering
       })
 
@@ -211,8 +204,29 @@ export default function AccountsPayablePage() {
       const data = await response.json()
 
       if (response.ok) {
-        setPayables(data.payables || [])
-        setTotalPayables(data.payables?.length || 0)
+        let fetchedPayables = data.payables || []
+
+        // Apply client-side date filter to fix timezone issues
+        const dateRange = getDateRange(dateFilter)
+        if (dateRange.start || dateRange.end) {
+          fetchedPayables = fetchedPayables.filter((payable: AccountsPayable) => {
+            const invoiceDate = new Date(payable.invoiceDate)
+            const year = invoiceDate.getFullYear()
+            const month = String(invoiceDate.getMonth() + 1).padStart(2, '0')
+            const day = String(invoiceDate.getDate()).padStart(2, '0')
+            const invoiceDateStr = `${year}-${month}-${day}`
+
+            if (dateRange.start && invoiceDateStr < dateRange.start) {
+              return false
+            }
+            if (dateRange.end && invoiceDateStr > dateRange.end) {
+              return false
+            }
+            return true
+          })
+        }
+
+        setPayables(fetchedPayables)
         setAgingData(data.aging || null)
       } else {
         toast.error(data.error || 'Failed to fetch accounts payable')
@@ -225,83 +239,12 @@ export default function AccountsPayablePage() {
     }
   }
 
-  const filteredPayables = payables.filter(payable => {
-    // Apply search filter
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase()
-      const matchesSearch = (
-        payable.invoiceNumber.toLowerCase().includes(searchLower) ||
-        payable.supplier?.name.toLowerCase().includes(searchLower)
-      )
-      if (!matchesSearch) return false
-    }
-
-    // Apply client-side date filter to fix timezone issues
-    const dateRange = getDateRange(dateFilter)
-    if (dateRange.start || dateRange.end) {
-      const invoiceDate = new Date(payable.invoiceDate)
-      const year = invoiceDate.getFullYear()
-      const month = String(invoiceDate.getMonth() + 1).padStart(2, '0')
-      const day = String(invoiceDate.getDate()).padStart(2, '0')
-      const invoiceDateStr = `${year}-${month}-${day}`
-
-      if (dateRange.start && invoiceDateStr < dateRange.start) {
-        return false
-      }
-      if (dateRange.end && invoiceDateStr > dateRange.end) {
-        return false
-      }
-    }
-
-    return true
-  })
-
-  const { sortedData, sortConfig, requestSort } = useTableSort(filteredPayables, { key: 'id', direction: 'desc' })
-
-  const handleExport = (format: 'csv' | 'excel' | 'pdf') => {
-    const columns: ExportColumn[] = [
-      { header: 'Invoice #', key: 'invoiceNumber' },
-      { header: 'Supplier', key: 'supplier', formatter: (val: any) => val?.name || 'N/A' },
-      { header: 'Invoice Date', key: 'invoiceDate' },
-      { header: 'Due Date', key: 'dueDate' },
-      { header: 'Amount', key: 'amount', formatter: (val: number) => `$${val.toFixed(2)}` },
-      { header: 'Paid', key: 'paidAmount', formatter: (val: number) => `$${val.toFixed(2)}` },
-      { header: 'Balance', key: 'balanceAmount', formatter: (val: number) => `$${val.toFixed(2)}` },
-      { header: 'Status', key: 'status' },
-    ]
-
-    const filename = `accounts_payable_${new Date().toISOString().split('T')[0]}`
-
-    switch (format) {
-      case 'csv':
-        exportToCSV(sortedData, columns, filename)
-        break
-      case 'excel':
-        exportToExcel(sortedData, columns, filename)
-        break
-      case 'pdf':
-        exportToPDF(sortedData, columns, filename, 'Accounts Payable Report')
-        break
-    }
-  }
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
     })
-  }
-
-  const getStatusBadge = (status: string) => {
-    const config: { [key: string]: { variant: "default" | "secondary" | "destructive" | "outline", label: string } } = {
-      'unpaid': { variant: 'destructive', label: 'Unpaid' },
-      'partially_paid': { variant: 'secondary', label: 'Partially Paid' },
-      'paid': { variant: 'default', label: 'Paid' },
-      'overdue': { variant: 'destructive', label: 'Overdue' },
-    }
-    const statusConfig = config[status] || { variant: 'outline', label: status }
-    return <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
   }
 
   const getDaysOverdue = (dueDate: string) => {
@@ -317,42 +260,51 @@ export default function AccountsPayablePage() {
     setDateFilter('all')
     setCustomStartDate('')
     setCustomEndDate('')
-    setSearchTerm('')
+    if (dataGridRef.current) {
+      dataGridRef.current.instance.clearFilter()
+    }
   }
 
   // Batch payment functions
   const toggleBatchMode = () => {
-    setBatchMode(!batchMode)
-    setSelectedPayables([])
+    const newBatchMode = !batchMode
+    setBatchMode(newBatchMode)
+    setSelectedPayableIds([])
+
+    if (!newBatchMode && dataGridRef.current) {
+      dataGridRef.current.instance.clearSelection()
+    }
   }
 
-  const togglePayableSelection = (payableId: number) => {
-    setSelectedPayables(prev =>
-      prev.includes(payableId)
-        ? prev.filter(id => id !== payableId)
-        : [...prev, payableId]
-    )
-  }
+  const onSelectionChanged = useCallback((e: any) => {
+    if (batchMode) {
+      const selectedRowsData = e.selectedRowsData as AccountsPayable[]
+      setSelectedPayableIds(selectedRowsData.map(p => p.id))
+    }
+  }, [batchMode])
 
-  const selectAllPayables = () => {
-    const unpaidPayableIds = sortedData
-      .filter(p => p.balanceAmount > 0 && p.status !== 'paid')
-      .map(p => p.id)
-    setSelectedPayables(unpaidPayableIds)
+  const selectAllUnpaid = () => {
+    if (dataGridRef.current) {
+      const unpaidPayables = payables.filter(p => p.balanceAmount > 0 && p.status !== 'paid')
+      dataGridRef.current.instance.selectRows(unpaidPayables.map(p => p.id), false)
+    }
   }
 
   const deselectAll = () => {
-    setSelectedPayables([])
+    if (dataGridRef.current) {
+      dataGridRef.current.instance.clearSelection()
+    }
+    setSelectedPayableIds([])
   }
 
   const proceedWithBatchPayment = () => {
-    if (selectedPayables.length === 0) {
+    if (selectedPayableIds.length === 0) {
       toast.error('Please select at least one invoice to pay')
       return
     }
 
     // Check if all selected payables are from the same supplier
-    const selectedPayableData = sortedData.filter(p => selectedPayables.includes(p.id))
+    const selectedPayableData = payables.filter(p => selectedPayableIds.includes(p.id))
     const supplierIds = [...new Set(selectedPayableData.map(p => p.supplier.id))]
 
     if (supplierIds.length > 1) {
@@ -361,13 +313,13 @@ export default function AccountsPayablePage() {
     }
 
     // Navigate to batch payment page
-    const apIds = selectedPayables.join(',')
+    const apIds = selectedPayableIds.join(',')
     router.push(`/dashboard/payments/batch?apIds=${apIds}`)
   }
 
   const getTotalSelected = () => {
-    return sortedData
-      .filter(p => selectedPayables.includes(p.id))
+    return payables
+      .filter(p => selectedPayableIds.includes(p.id))
       .reduce((sum, p) => sum + p.balanceAmount, 0)
   }
 
@@ -574,29 +526,230 @@ export default function AccountsPayablePage() {
   }
 
   const handleExportPaymentHistoryToPDF = () => {
-    if (!selectedPayableForDetails) return
+    if (!selectedPayableForDetails || paymentHistory.length === 0) return
 
-    const columns: ExportColumn[] = [
-      { header: 'Payment #', key: 'paymentNumber' },
-      { header: 'Date', key: 'paymentDate', formatter: (val: string) => formatDate(val) },
-      { header: 'Method', key: 'paymentMethod', formatter: (val: string) => val.replace('_', ' ').toUpperCase() },
-      { header: 'Amount', key: 'amount', formatter: (val: number) => formatCurrency(val) },
-      { header: 'Reference', key: 'reference', formatter: (val: any, row: any) => row.transactionReference || row.chequeNumber || '-' },
-      { header: 'Notes', key: 'notes', formatter: (val: string) => val || '-' },
-    ]
+    const doc = new jsPDF('l', 'mm', 'a4')
 
-    const filename = `payment_history_${selectedPayableForDetails.invoiceNumber}_${new Date().toISOString().split('T')[0]}`
-    const title = `Payment History - ${selectedPayableForDetails.invoiceNumber}`
-    const subtitle = `Supplier: ${selectedPayableForDetails.supplier.name} | Total: ${formatCurrency(selectedPayableForDetails.amount)} | Paid: ${formatCurrency(selectedPayableForDetails.paidAmount)} | Balance: ${formatCurrency(selectedPayableForDetails.balanceAmount)}`
+    // Add title
+    doc.setFontSize(18)
+    doc.text(`Payment History - ${selectedPayableForDetails.invoiceNumber}`, 14, 20)
 
-    exportToPDF(paymentHistory, columns, filename, title, subtitle)
+    // Add invoice details
+    doc.setFontSize(10)
+    doc.text(`Supplier: ${selectedPayableForDetails.supplier.name}`, 14, 30)
+    doc.text(`Total: ${formatCurrency(selectedPayableForDetails.amount)} | Paid: ${formatCurrency(selectedPayableForDetails.paidAmount)} | Balance: ${formatCurrency(selectedPayableForDetails.balanceAmount)}`, 14, 36)
+
+    // Create table data
+    const tableData = paymentHistory.map((payment: any) => [
+      payment.paymentNumber,
+      formatDate(payment.paymentDate),
+      payment.paymentMethod.replace('_', ' ').toUpperCase(),
+      formatCurrency(payment.amount),
+      payment.transactionReference || payment.chequeNumber || '-',
+      payment.notes || '-'
+    ])
+
+    // Add table using autoTable
+    ;(doc as any).autoTable({
+      head: [['Payment #', 'Date', 'Method', 'Amount', 'Reference', 'Notes']],
+      body: tableData,
+      startY: 42,
+      theme: 'grid',
+      headStyles: { fillColor: [59, 130, 246] },
+      styles: { fontSize: 9 }
+    })
+
+    doc.save(`payment_history_${selectedPayableForDetails.invoiceNumber}_${new Date().toISOString().split('T')[0]}.pdf`)
+  }
+
+  // DevExtreme Export Handlers
+  const onExportingToExcel = (e: any) => {
+    const workbook = new Workbook()
+    const worksheet = workbook.addWorksheet('Accounts Payable')
+
+    exportToExcel({
+      component: e.component,
+      worksheet,
+      autoFilterEnabled: true,
+    }).then(() => {
+      workbook.xlsx.writeBuffer().then((buffer) => {
+        saveAs(
+          new Blob([buffer], { type: 'application/octet-stream' }),
+          `accounts_payable_${new Date().toISOString().split('T')[0]}.xlsx`
+        )
+      })
+    })
+    e.cancel = true
+  }
+
+  const handleExportToPDF = () => {
+    const doc = new jsPDF('l', 'mm', 'a4')
+
+    if (dataGridRef.current) {
+      exportToPDF({
+        jsPDFDocument: doc,
+        component: dataGridRef.current.instance,
+      }).then(() => {
+        doc.save(`accounts_payable_${new Date().toISOString().split('T')[0]}.pdf`)
+      })
+    }
+  }
+
+  const handleExportToCSV = () => {
+    if (dataGridRef.current) {
+      // Use Excel export functionality but save with CSV extension
+      const workbook = new Workbook()
+      const worksheet = workbook.addWorksheet('Accounts Payable')
+
+      exportToExcel({
+        component: dataGridRef.current.instance,
+        worksheet,
+        autoFilterEnabled: false,
+      }).then(() => {
+        workbook.csv.writeBuffer().then((buffer) => {
+          saveAs(
+            new Blob([buffer], { type: 'text/csv' }),
+            `accounts_payable_${new Date().toISOString().split('T')[0]}.csv`
+          )
+        })
+      })
+    }
+  }
+
+  // Custom Cell Renderers
+  const invoiceNumberCellRender = (data: any) => {
+    return (
+      <span className="font-medium text-blue-600 dark:text-blue-400 hover:underline cursor-pointer">
+        {data.value}
+      </span>
+    )
+  }
+
+  const supplierCellRender = (data: any) => {
+    const supplier = data.data.supplier
+    return (
+      <div>
+        <div className="font-medium text-foreground">{supplier.name}</div>
+        {supplier.mobile && (
+          <div className="text-xs text-muted-foreground">{supplier.mobile}</div>
+        )}
+      </div>
+    )
+  }
+
+  const dueDateCellRender = (data: any) => {
+    const daysOverdue = getDaysOverdue(data.value)
+    const isPaid = data.data.status === 'paid'
+
+    return (
+      <div>
+        <div className="text-sm text-muted-foreground">{formatDate(data.value)}</div>
+        {daysOverdue > 0 && !isPaid && (
+          <div className="text-xs font-medium text-red-600 dark:text-red-400">
+            {daysOverdue} days overdue
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const currencyCellRender = (data: any) => {
+    return (
+      <span className="font-semibold text-foreground">
+        {formatCurrency(data.value)}
+      </span>
+    )
+  }
+
+  const paidAmountCellRender = (data: any) => {
+    return (
+      <span className="font-medium text-green-600 dark:text-green-500">
+        {formatCurrency(data.value)}
+      </span>
+    )
+  }
+
+  const balanceCellRender = (data: any) => {
+    return (
+      <span className="font-semibold text-red-600 dark:text-red-400">
+        {formatCurrency(data.value)}
+      </span>
+    )
+  }
+
+  const statusCellRender = (data: any) => {
+    const statusConfig: { [key: string]: { variant: "default" | "secondary" | "destructive" | "outline", label: string } } = {
+      'unpaid': { variant: 'destructive', label: 'Unpaid' },
+      'partially_paid': { variant: 'secondary', label: 'Partially Paid' },
+      'paid': { variant: 'default', label: 'Paid' },
+      'overdue': { variant: 'destructive', label: 'Overdue' },
+    }
+    const config = statusConfig[data.value] || { variant: 'outline', label: data.value }
+
+    return <Badge variant={config.variant}>{config.label}</Badge>
+  }
+
+  const actionsCellRender = (data: any) => {
+    const payable = data.data as AccountsPayable
+
+    if (batchMode) {
+      return (
+        <span className="text-sm text-muted-foreground">
+          {selectedPayableIds.includes(payable.id) ? 'Selected' : ''}
+        </span>
+      )
+    }
+
+    if (payable.status === 'paid' || payable.balanceAmount <= 0) {
+      return (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => viewPaymentDetails(payable)}
+          className="gap-2 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400"
+        >
+          <EyeIcon className="h-4 w-4" />
+          View Payments
+        </Button>
+      )
+    }
+
+    return (
+      <Link href={`/dashboard/payments/new?apId=${payable.id}`}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2 hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
+        >
+          <CurrencyDollarIcon className="h-4 w-4" />
+          Pay
+        </Button>
+      </Link>
+    )
+  }
+
+  // Selection filter - only allow unpaid invoices in batch mode
+  const isRowSelectable = (data: any) => {
+    const payable = data.data as AccountsPayable
+    return payable.balanceAmount > 0 && payable.status !== 'paid'
   }
 
   if (!can(PERMISSIONS.ACCOUNTS_PAYABLE_VIEW)) {
     return (
       <div className="p-8">
-        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
+        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded dark:bg-red-900/20 dark:border-red-800 dark:text-red-400">
           You do not have permission to view accounts payable.
+        </div>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="p-4 sm:p-6">
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin dark:border-blue-900 dark:border-t-blue-400"></div>
+          <p className="mt-4 text-muted-foreground font-medium">Loading accounts payable...</p>
         </div>
       </div>
     )
@@ -604,54 +757,54 @@ export default function AccountsPayablePage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Accounts Payable</h1>
-          <p className="text-muted-foreground mt-1">Monitor and manage supplier payables</p>
+          <p className="text-muted-foreground mt-1">Monitor and manage supplier payables with DevExtreme</p>
         </div>
         {can(PERMISSIONS.PAYMENT_CREATE) && (
           <div className="flex flex-wrap gap-2">
             <Button
               variant={batchMode ? "destructive" : "default"}
               onClick={toggleBatchMode}
-              className={batchMode
-                ? "bg-red-600 hover:bg-red-700 text-white font-bold border-2 border-red-700 shadow-md"
-                : "bg-purple-600 hover:bg-purple-700 text-white font-bold border-2 border-purple-700 shadow-md"
-              }
+              className="gap-2"
             >
               {batchMode ? (
                 <>
-                  <XMarkIcon className="w-5 h-5 mr-2" />
+                  <XMarkIcon className="w-5 h-5" />
                   Cancel Batch
                 </>
               ) : (
                 <>
-                  <CheckCircleIcon className="w-5 h-5 mr-2" />
+                  <CheckCircleIcon className="w-5 h-5" />
                   Batch Payment
                 </>
               )}
             </Button>
             {!batchMode && (
               <Link href="/dashboard/payments/new">
-                <Button className="bg-green-600 hover:bg-green-700 text-white font-bold border-2 border-green-700 shadow-md">
-                  <CurrencyDollarIcon className="w-5 h-5 mr-2" />
+                <Button variant="success" className="gap-2">
+                  <CurrencyDollarIcon className="w-5 h-5" />
                   Make Payment
                 </Button>
               </Link>
             )}
-            {batchMode && selectedPayables.length > 0 && (
+            {batchMode && selectedPayableIds.length > 0 && (
               <Button
                 onClick={proceedWithBatchPayment}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold border-2 border-blue-700 shadow-md"
+                variant="default"
+                className="gap-2"
               >
-                <CurrencyDollarIcon className="w-5 h-5 mr-2" />
-                Pay {selectedPayables.length} Invoice{selectedPayables.length > 1 ? 's' : ''} ({formatCurrency(getTotalSelected())})
+                <CurrencyDollarIcon className="w-5 h-5" />
+                Pay {selectedPayableIds.length} Invoice{selectedPayableIds.length > 1 ? 's' : ''} ({formatCurrency(getTotalSelected())})
               </Button>
             )}
           </div>
         )}
       </div>
 
+      {/* Batch Mode Banner */}
       {batchMode && (
         <Card className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30">
           <CardContent className="pt-6">
@@ -666,29 +819,29 @@ export default function AccountsPayablePage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={selectAllPayables}
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold border-2 border-green-700 shadow-sm"
+                  onClick={selectAllUnpaid}
+                  className="gap-2 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400"
                 >
                   Select All Unpaid
                 </Button>
-                {selectedPayables.length > 0 && (
+                {selectedPayableIds.length > 0 && (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={deselectAll}
-                    className="bg-orange-600 hover:bg-orange-700 text-white font-bold border-2 border-orange-700 shadow-sm"
+                    className="gap-2 hover:border-orange-500 hover:text-orange-700 dark:hover:text-orange-400"
                   >
                     Deselect All
                   </Button>
                 )}
               </div>
             </div>
-            {selectedPayables.length > 0 && (
+            {selectedPayableIds.length > 0 && (
               <div className="mt-4 p-3 bg-white dark:bg-blue-900/50 rounded-lg border border-blue-300 dark:border-blue-700">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">Selected Invoices</p>
-                    <p className="font-bold text-blue-900 dark:text-blue-100">{selectedPayables.length}</p>
+                    <p className="font-bold text-blue-900 dark:text-blue-100">{selectedPayableIds.length}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Total Balance</p>
@@ -697,7 +850,8 @@ export default function AccountsPayablePage() {
                   <div className="col-span-2 flex items-center justify-end">
                     <Button
                       onClick={proceedWithBatchPayment}
-                      className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold border-2 border-blue-700 shadow-md"
+                      variant="default"
+                      className="w-full sm:w-auto gap-2"
                     >
                       Proceed to Payment
                     </Button>
@@ -771,9 +925,9 @@ export default function AccountsPayablePage() {
               <FunnelIcon className="w-5 h-5" />
               Filters
             </CardTitle>
-            {(statusFilter !== 'all' || dateFilter !== 'all' || searchTerm !== '') && (
-              <Button variant="outline" size="sm" onClick={clearFilters}>
-                <XMarkIcon className="w-4 h-4 mr-1" />
+            {(statusFilter !== 'all' || dateFilter !== 'all') && (
+              <Button variant="outline" size="sm" onClick={clearFilters} className="gap-2">
+                <XMarkIcon className="w-4 h-4" />
                 Clear Filters
               </Button>
             )}
@@ -844,289 +998,172 @@ export default function AccountsPayablePage() {
         </CardContent>
       </Card>
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by invoice number or supplier name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-input bg-background text-foreground rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent transition-colors"
-            />
-          </div>
-        </div>
-        <ColumnVisibilityToggle
-          availableColumns={AVAILABLE_COLUMNS}
-          visibleColumns={visibleColumns}
-          onChange={setVisibleColumns}
-        />
-      </div>
-
+      {/* Export Buttons */}
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onClick={() => handleExport('csv')}>
-          <DocumentTextIcon className="w-4 h-4 mr-2" />
-          Export CSV
+        <Button variant="outline" size="sm" onClick={handleExportToCSV} className="gap-2 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400">
+          <PrinterIcon className="h-4 w-4" />
+          CSV
         </Button>
-        <Button variant="outline" size="sm" onClick={() => handleExport('excel')}>
-          <DocumentArrowDownIcon className="w-4 h-4 mr-2" />
-          Export Excel
+        <Button variant="outline" size="sm" onClick={() => dataGridRef.current?.instance.exportToExcel(false)} className="gap-2 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400">
+          <PrinterIcon className="h-4 w-4" />
+          Excel
         </Button>
-        <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
-          <DocumentTextIcon className="w-4 h-4 mr-2" />
-          Export PDF
+        <Button variant="outline" size="sm" onClick={handleExportToPDF} className="gap-2 hover:border-red-500 hover:text-red-700 dark:hover:text-red-400">
+          <PrinterIcon className="h-4 w-4" />
+          PDF
         </Button>
       </div>
 
-      <div className="bg-card rounded-lg shadow overflow-hidden border border-border">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-border">
-            <thead className="bg-muted/50">
-              <tr>
-                {batchMode && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    <input
-                      type="checkbox"
-                      checked={selectedPayables.length > 0 && selectedPayables.length === sortedData.filter(p => p.balanceAmount > 0 && p.status !== 'paid').length}
-                      onChange={(e) => e.target.checked ? selectAllPayables() : deselectAll()}
-                      className="w-4 h-4 text-primary border-input rounded focus:ring-ring"
-                    />
-                  </th>
-                )}
-                {visibleColumns.includes('invoice') && (
-                  <SortableTableHead
-                    sortKey="invoiceNumber"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
-                    className="px-6 py-3 text-xs font-medium uppercase tracking-wider"
-                  >
-                    Invoice #
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('supplier') && (
-                  <SortableTableHead
-                    sortKey="supplier.name"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
-                    className="px-6 py-3 text-xs font-medium uppercase tracking-wider"
-                  >
-                    Supplier
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('invoiceDate') && (
-                  <SortableTableHead
-                    sortKey="invoiceDate"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
-                    className="px-6 py-3 text-xs font-medium uppercase tracking-wider"
-                  >
-                    Invoice Date
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('dueDate') && (
-                  <SortableTableHead
-                    sortKey="dueDate"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
-                    className="px-6 py-3 text-xs font-medium uppercase tracking-wider"
-                  >
-                    Due Date
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('amount') && (
-                  <SortableTableHead
-                    sortKey="amount"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
-                    className="px-6 py-3 text-xs font-medium uppercase tracking-wider"
-                  >
-                    Amount
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('paid') && (
-                  <SortableTableHead
-                    sortKey="paidAmount"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
-                    className="px-6 py-3 text-xs font-medium uppercase tracking-wider"
-                  >
-                    Paid
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('balance') && (
-                  <SortableTableHead
-                    sortKey="balanceAmount"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
-                    className="px-6 py-3 text-xs font-medium uppercase tracking-wider"
-                  >
-                    Balance
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('status') && (
-                  <SortableTableHead
-                    sortKey="status"
-                    currentSortKey={sortConfig?.key as string}
-                    currentSortDirection={sortConfig?.direction}
-                    onSort={requestSort}
-                    className="px-6 py-3 text-xs font-medium uppercase tracking-wider"
-                  >
-                    Status
-                  </SortableTableHead>
-                )}
-                {visibleColumns.includes('actions') && (
-                  <SortableTableHead className="px-6 py-3 text-xs font-medium uppercase tracking-wider">
-                    Actions
-                  </SortableTableHead>
-                )}
-              </tr>
-            </thead>
-            <tbody className="bg-card divide-y divide-border">
-              {loading ? (
-                <tr>
-                  <td colSpan={visibleColumns.length} className="px-6 py-4 text-center text-gray-500">
-                    Loading accounts payable...
-                  </td>
-                </tr>
-              ) : sortedData.length === 0 ? (
-                <tr>
-                  <td colSpan={visibleColumns.length} className="px-6 py-4 text-center text-gray-500">
-                    No accounts payable found
-                  </td>
-                </tr>
-              ) : (
-                sortedData.map((payable) => (
-                  <tr key={payable.id} className={`hover:bg-muted/50 transition-colors ${batchMode && selectedPayables.includes(payable.id) ? 'bg-blue-50 dark:bg-blue-950/20' : ''}`}>
-                    {batchMode && (
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <input
-                          type="checkbox"
-                          checked={selectedPayables.includes(payable.id)}
-                          onChange={() => togglePayableSelection(payable.id)}
-                          disabled={payable.balanceAmount <= 0 || payable.status === 'paid'}
-                          className="w-4 h-4 text-primary border-input rounded focus:ring-ring disabled:opacity-50"
-                        />
-                      </td>
-                    )}
-                    {visibleColumns.includes('invoice') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
-                        {payable.invoiceNumber}
-                      </td>
-                    )}
-                    {visibleColumns.includes('supplier') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                        {payable.supplier ? (
-                          <div>
-                            <div className="font-medium">{payable.supplier.name}</div>
-                            {payable.supplier.mobile && (
-                              <div className="text-muted-foreground text-xs">{payable.supplier.mobile}</div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">N/A</span>
-                        )}
-                      </td>
-                    )}
-                    {visibleColumns.includes('invoiceDate') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                        {formatDate(payable.invoiceDate)}
-                      </td>
-                    )}
-                    {visibleColumns.includes('dueDate') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                        <div>{formatDate(payable.dueDate)}</div>
-                        {getDaysOverdue(payable.dueDate) > 0 && payable.status !== 'paid' && (
-                          <div className="text-red-600 dark:text-red-400 text-xs font-medium">
-                            {getDaysOverdue(payable.dueDate)} days overdue
-                          </div>
-                        )}
-                      </td>
-                    )}
-                    {visibleColumns.includes('amount') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-foreground">
-                        {formatCurrency(payable.amount)}
-                      </td>
-                    )}
-                    {visibleColumns.includes('paid') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 dark:text-green-500 font-medium">
-                        {formatCurrency(payable.paidAmount)}
-                      </td>
-                    )}
-                    {visibleColumns.includes('balance') && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600 dark:text-red-400">
-                        {formatCurrency(payable.balanceAmount)}
-                      </td>
-                    )}
-                    {visibleColumns.includes('status') && (
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {getStatusBadge(payable.status)}
-                      </td>
-                    )}
-                    {visibleColumns.includes('actions') && !batchMode && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                        {payable.status === 'paid' || payable.balanceAmount <= 0 ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => viewPaymentDetails(payable)}
-                            className="bg-green-600 hover:bg-green-700 text-white font-bold border-2 border-green-700 shadow-sm"
-                          >
-                            <EyeIcon className="w-4 h-4 mr-1" />
-                            View Payments
-                          </Button>
-                        ) : (
-                          <Link href={`/dashboard/payments/new?apId=${payable.id}`}>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="bg-blue-600 hover:bg-blue-700 text-white font-bold border-2 border-blue-700 shadow-sm"
-                            >
-                              <CurrencyDollarIcon className="w-4 h-4 mr-1" />
-                              Pay
-                            </Button>
-                          </Link>
-                        )}
-                      </td>
-                    )}
-                    {visibleColumns.includes('actions') && batchMode && (
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                        {selectedPayables.includes(payable.id) ? 'Selected' : ''}
-                      </td>
-                    )}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* DevExtreme DataGrid */}
+      <Card className="shadow-xl border-border overflow-hidden">
+        <CardContent className="p-0">
+          <DataGrid
+            ref={dataGridRef}
+            dataSource={payables}
+            keyExpr="id"
+            showBorders={true}
+            showRowLines={true}
+            showColumnLines={true}
+            rowAlternationEnabled={true}
+            allowColumnReordering={true}
+            allowColumnResizing={true}
+            columnAutoWidth={true}
+            wordWrapEnabled={false}
+            hoverStateEnabled={true}
+            onExporting={onExportingToExcel}
+            onSelectionChanged={onSelectionChanged}
+            className="dx-card"
+            width="100%"
+          >
+            <LoadPanel enabled={true} />
+            <StateStoring enabled={true} type="localStorage" storageKey="accountsPayableGrid" />
 
-      {!loading && sortedData.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <ResultsInfo
-            currentPage={currentPage}
-            itemsPerPage={itemsPerPage}
-            totalItems={totalPayables}
-          />
-          <div className="flex items-center gap-4">
-            <ItemsPerPage value={itemsPerPage} onChange={setItemsPerPage} />
-            <Pagination
-              currentPage={currentPage}
-              totalItems={totalPayables}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
+            <Paging defaultPageSize={20} />
+            <Pager
+              visible={true}
+              showPageSizeSelector={true}
+              allowedPageSizes={[10, 20, 50, 100]}
+              showInfo={true}
+              showNavigationButtons={true}
             />
-          </div>
-        </div>
-      )}
+
+            <FilterRow visible={true} />
+            <HeaderFilter visible={true} />
+            <SearchPanel
+              visible={true}
+              width={300}
+              placeholder="Search invoices, suppliers..."
+            />
+            <Sorting mode="multiple" />
+            <ColumnChooser enabled={true} mode="select" />
+            <Export enabled={true} allowExportSelectedData={false} />
+
+            {batchMode && (
+              <Selection
+                mode="multiple"
+                showCheckBoxesMode="always"
+                selectAllMode="allPages"
+              />
+            )}
+
+            <Column
+              dataField="invoiceNumber"
+              caption="Invoice #"
+              minWidth={150}
+              cellRender={invoiceNumberCellRender}
+            />
+
+            <Column
+              dataField="supplier.name"
+              caption="Supplier"
+              minWidth={200}
+              cellRender={supplierCellRender}
+            />
+
+            <Column
+              dataField="invoiceDate"
+              caption="Invoice Date"
+              dataType="date"
+              format="MMM dd, yyyy"
+              minWidth={130}
+            />
+
+            <Column
+              dataField="dueDate"
+              caption="Due Date"
+              dataType="date"
+              minWidth={150}
+              cellRender={dueDateCellRender}
+            />
+
+            <Column
+              dataField="amount"
+              caption="Amount"
+              dataType="number"
+              format="currency"
+              minWidth={120}
+              cellRender={currencyCellRender}
+            />
+
+            <Column
+              dataField="paidAmount"
+              caption="Paid"
+              dataType="number"
+              format="currency"
+              minWidth={120}
+              cellRender={paidAmountCellRender}
+            />
+
+            <Column
+              dataField="balanceAmount"
+              caption="Balance"
+              dataType="number"
+              format="currency"
+              minWidth={120}
+              cellRender={balanceCellRender}
+            />
+
+            <Column
+              dataField="status"
+              caption="Status"
+              minWidth={130}
+              cellRender={statusCellRender}
+            />
+
+            <Column
+              caption="Actions"
+              minWidth={150}
+              allowFiltering={false}
+              allowSorting={false}
+              cellRender={actionsCellRender}
+            />
+
+            {/* Summary Row */}
+            <Summary>
+              <TotalItem
+                column="invoiceNumber"
+                summaryType="count"
+                displayFormat="{0} invoices"
+              />
+              <TotalItem
+                column="amount"
+                summaryType="sum"
+                valueFormat="currency"
+              />
+              <TotalItem
+                column="paidAmount"
+                summaryType="sum"
+                valueFormat="currency"
+              />
+              <TotalItem
+                column="balanceAmount"
+                summaryType="sum"
+                valueFormat="currency"
+              />
+            </Summary>
+          </DataGrid>
+        </CardContent>
+      </Card>
 
       {/* Payment Details Dialog */}
       <Dialog open={showPaymentDetails} onOpenChange={setShowPaymentDetails}>
@@ -1157,7 +1194,7 @@ export default function AccountsPayablePage() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Status</p>
-                      <div>{getStatusBadge(selectedPayableForDetails.status)}</div>
+                      <div>{statusCellRender({ value: selectedPayableForDetails.status })}</div>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t border-border">
@@ -1234,24 +1271,27 @@ export default function AccountsPayablePage() {
               <div className="flex flex-wrap justify-end gap-2">
                 <Button
                   variant="outline"
+                  size="sm"
                   onClick={handlePrintPaymentHistory}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold border-2 border-blue-700 shadow-md"
+                  className="gap-2 hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
                 >
-                  <PrinterIcon className="w-4 h-4 mr-2" />
+                  <PrinterIcon className="w-4 h-4" />
                   Print
                 </Button>
                 <Button
                   variant="outline"
+                  size="sm"
                   onClick={handleExportPaymentHistoryToPDF}
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold border-2 border-green-700 shadow-md"
+                  disabled={paymentHistory.length === 0}
+                  className="gap-2 hover:border-red-500 hover:text-red-700 dark:hover:text-red-400"
                 >
-                  <DocumentTextIcon className="w-4 h-4 mr-2" />
+                  <PrinterIcon className="w-4 h-4" />
                   Export PDF
                 </Button>
                 <Button
                   variant="outline"
+                  size="sm"
                   onClick={() => setShowPaymentDetails(false)}
-                  className="bg-gray-200 hover:bg-gray-300 text-gray-900 font-bold border-2 border-gray-400 shadow-md dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white dark:border-gray-500"
                 >
                   Close
                 </Button>

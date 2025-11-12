@@ -41,6 +41,7 @@ interface Customer {
   email: string | null
   mobile: string | null
   address: string | null
+  creditLimit: number | null
   isActive: boolean
   createdAt: string
 }
@@ -59,7 +60,8 @@ export default function CustomersPage() {
     name: '',
     email: '',
     mobile: '',
-    address: ''
+    address: '',
+    creditLimit: ''
   })
   const [saving, setSaving] = useState(false)
 
@@ -99,7 +101,8 @@ export default function CustomersPage() {
         name: customer.name,
         email: customer.email || '',
         mobile: customer.mobile || '',
-        address: customer.address || ''
+        address: customer.address || '',
+        creditLimit: customer.creditLimit ? customer.creditLimit.toString() : ''
       })
     } else {
       setEditingCustomer(null)
@@ -107,7 +110,8 @@ export default function CustomersPage() {
         name: '',
         email: '',
         mobile: '',
-        address: ''
+        address: '',
+        creditLimit: ''
       })
     }
     setShowDialog(true)
@@ -120,7 +124,8 @@ export default function CustomersPage() {
       name: '',
       email: '',
       mobile: '',
-      address: ''
+      address: '',
+      creditLimit: ''
     })
   }
 
@@ -360,6 +365,22 @@ export default function CustomersPage() {
                   </span>
                 )}
               />
+
+              {/* Credit Limit Column - Only visible with permission */}
+              {can(PERMISSIONS.CUSTOMER_CREDIT_LIMIT_VIEW) && (
+                <Column
+                  dataField="creditLimit"
+                  caption="Credit Limit"
+                  minWidth={150}
+                  alignment="right"
+                  cellRender={(data) => (
+                    <span className={data.value ? 'text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-400 dark:text-gray-500'}>
+                      {data.value ? `₱${parseFloat(data.value).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Unlimited'}
+                    </span>
+                  )}
+                />
+              )}
+
               <Column
                 dataField="isActive"
                 caption="Status"
@@ -443,6 +464,31 @@ export default function CustomersPage() {
                   className="mt-1.5 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-500 dark:focus:border-blue-400"
                 />
               </div>
+
+              {/* Credit Limit Field - Only visible with proper permissions */}
+              {can(PERMISSIONS.CUSTOMER_CREDIT_LIMIT_VIEW) && (
+                <div>
+                  <Label className="text-gray-900 dark:text-gray-100">
+                    Credit Limit (Optional)
+                    {!can(PERMISSIONS.CUSTOMER_CREDIT_LIMIT_EDIT) && (
+                      <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">(View Only)</span>
+                    )}
+                  </Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="Enter maximum credit limit (e.g., 50000.00)"
+                    value={formData.creditLimit}
+                    onChange={(e) => setFormData({ ...formData, creditLimit: e.target.value })}
+                    disabled={saving || !can(PERMISSIONS.CUSTOMER_CREDIT_LIMIT_EDIT)}
+                    className="mt-1.5 bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:border-blue-500 dark:focus:border-blue-400"
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Maximum outstanding AR balance allowed. Leave empty for unlimited credit.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Dialog Footer */}

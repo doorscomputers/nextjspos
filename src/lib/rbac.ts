@@ -362,6 +362,14 @@ export const PERMISSIONS = {
   CUSTOMER_UPDATE: 'customer.update',
   CUSTOMER_DELETE: 'customer.delete',
 
+  // Customers - Credit Limit Management (Field-Level Security)
+  CUSTOMER_CREDIT_LIMIT_VIEW: 'customer.credit_limit.view', // Can see credit limit field
+  CUSTOMER_CREDIT_LIMIT_EDIT: 'customer.credit_limit.edit', // Can edit credit limit
+  CUSTOMER_CREDIT_OVERRIDE: 'customer.credit_override', // Can override credit limit during sale
+
+  // Customers - AR Payment Collection
+  PAYMENT_COLLECT_AR: 'payment.collect_ar', // Can collect accounts receivable payments
+
   // Suppliers - Basic CRUD
   SUPPLIER_VIEW: 'supplier.view',
   SUPPLIER_CREATE: 'supplier.create',
@@ -1158,6 +1166,7 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.SELL_CREATE,
       PERMISSIONS.CUSTOMER_VIEW,
       PERMISSIONS.CUSTOMER_CREATE,
+      PERMISSIONS.PAYMENT_COLLECT_AR, // Can collect AR payments (but cannot view/edit credit limits)
       PERMISSIONS.SHIFT_OPEN,
       PERMISSIONS.SHIFT_CLOSE,
       PERMISSIONS.SHIFT_VIEW,
@@ -1204,6 +1213,8 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.CUSTOMER_VIEW,
       PERMISSIONS.CUSTOMER_CREATE,
       PERMISSIONS.CUSTOMER_UPDATE,
+      PERMISSIONS.CUSTOMER_CREDIT_LIMIT_VIEW, // Can view customer credit limits
+      PERMISSIONS.PAYMENT_COLLECT_AR, // Can collect AR payments
       PERMISSIONS.VOID_CREATE,
       PERMISSIONS.VOID_APPROVE,
       PERMISSIONS.CUSTOMER_RETURN_CREATE,
@@ -1908,6 +1919,10 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.CUSTOMER_CREATE,
       PERMISSIONS.CUSTOMER_UPDATE,
       PERMISSIONS.CUSTOMER_DELETE,
+      PERMISSIONS.CUSTOMER_CREDIT_LIMIT_VIEW,
+      PERMISSIONS.CUSTOMER_CREDIT_LIMIT_EDIT,
+      PERMISSIONS.CUSTOMER_CREDIT_OVERRIDE,
+      PERMISSIONS.PAYMENT_COLLECT_AR,
       PERMISSIONS.SUPPLIER_VIEW,
       PERMISSIONS.SUPPLIER_CREATE,
       PERMISSIONS.SUPPLIER_UPDATE,
