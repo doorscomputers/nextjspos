@@ -30,10 +30,14 @@ interface ActiveUser {
   surname: string
   roles: string[]
   isCashier: boolean
-  sessionExpires: string
+  lastSeenAt: string
   email: string | null
   locationName?: string
   locationId?: number
+  ipAddress?: string | null
+  deviceType?: string | null
+  browser?: string | null
+  currentUrl?: string | null
 }
 
 interface LocationData {
@@ -66,6 +70,7 @@ export default function ActiveUsersPage() {
   const [error, setError] = useState("")
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [timeWindow, setTimeWindow] = useState(5) // Minutes - default 5 minutes
 
   // Permission check
   useEffect(() => {
@@ -80,7 +85,7 @@ export default function ActiveUsersPage() {
     setError("")
 
     try {
-      const response = await fetch("/api/admin/active-users")
+      const response = await fetch(`/api/admin/active-users-v2?minutesAgo=${timeWindow}`)
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -96,7 +101,7 @@ export default function ActiveUsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [timeWindow])
 
   // Initial fetch
   useEffect(() => {
@@ -231,7 +236,7 @@ export default function ActiveUsersPage() {
             Active Users Monitor
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Real-time monitoring of currently logged-in users by location
+            Real-time monitoring of active users by location and activity time
           </p>
           {lastUpdated && (
             <p className="text-sm text-gray-500 dark:text-gray-500 mt-1">
@@ -253,6 +258,47 @@ export default function ActiveUsersPage() {
             onClick={() => setAutoRefresh(!autoRefresh)}
             type={autoRefresh ? "success" : "normal"}
           />
+        </div>
+      </div>
+
+      {/* Time Window Filter */}
+      <div className="bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg p-4">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+              Activity Time Window
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Show users active within the selected time period
+            </p>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Button
+              text="Last 5 min"
+              onClick={() => setTimeWindow(5)}
+              type={timeWindow === 5 ? "default" : "normal"}
+            />
+            <Button
+              text="Last 15 min"
+              onClick={() => setTimeWindow(15)}
+              type={timeWindow === 15 ? "default" : "normal"}
+            />
+            <Button
+              text="Last 30 min"
+              onClick={() => setTimeWindow(30)}
+              type={timeWindow === 30 ? "default" : "normal"}
+            />
+            <Button
+              text="Last 1 hour"
+              onClick={() => setTimeWindow(60)}
+              type={timeWindow === 60 ? "default" : "normal"}
+            />
+            <Button
+              text="Last 4 hours"
+              onClick={() => setTimeWindow(240)}
+              type={timeWindow === 240 ? "default" : "normal"}
+            />
+          </div>
         </div>
       </div>
 
@@ -455,12 +501,20 @@ export default function ActiveUsersPage() {
           <Column dataField="email" caption="Email" width={200} />
 
           <Column
-            dataField="sessionExpires"
-            caption="Session Expires"
+            dataField="lastSeenAt"
+            caption="Last Seen"
             dataType="datetime"
             format="MMM dd, yyyy hh:mm a"
             width={180}
           />
+
+          <Column dataField="deviceType" caption="Device" width={100} />
+
+          <Column dataField="browser" caption="Browser" width={100} />
+
+          <Column dataField="ipAddress" caption="IP Address" width={140} />
+
+          <Column dataField="currentUrl" caption="Current Page" width={250} />
 
           <Toolbar>
             <Item name="groupPanel" />

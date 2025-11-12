@@ -118,6 +118,9 @@ model User {
   // Audit Trail Relations
   auditLogs AuditLog[]
 
+  // Activity Tracking Relations
+  activityLogs UserActivity[]
+
   @@index([businessId]) // ✅ NEW: For business user queries
   @@index([username]) // ✅ NEW: For login queries (already unique but explicit index helps)
   @@index([email]) // ✅ NEW: For email lookup
@@ -615,6 +618,35 @@ model VerificationToken {
 
   @@id([identifier, token])
   @@map("verification_tokens")
+}
+
+// ============================================
+// USER ACTIVITY TRACKING (for JWT sessions)
+// ============================================
+
+model UserActivity {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Activity tracking
+  lastSeenAt DateTime @default(now()) @map("last_seen_at")
+  currentUrl String?  @map("current_url") @db.Text
+
+  // Location and device info
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  userAgent  String?  @map("user_agent") @db.Text
+  deviceType String?  @map("device_type") @db.VarChar(50) // mobile, tablet, desktop
+  browser    String?  @map("browser") @db.VarChar(100)
+
+  // Timestamps
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId]) // One activity record per user (updated on each activity)
+  @@index([userId, lastSeenAt]) // Fast queries for active users
+  @@index([lastSeenAt]) // Fast queries by activity time
+  @@map("user_activity")
 }
 
 // ============================================
