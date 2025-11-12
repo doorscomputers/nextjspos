@@ -26,7 +26,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const startTime = Date.now() // ⏱️ Track total time
   try {
+    console.log('[ShiftClose] 🚀 Starting shift close process...')
+
     const session = await getServerSession(authOptions)
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -41,12 +44,9 @@ export async function POST(
     const { endingCash, closingNotes, cashDenomination, managerPassword, locationCode } = body
 
     // Debug logging
-    console.log('=== SHIFT CLOSE DEBUG ===')
-    console.log('Shift ID:', shiftId)
-    console.log('Request Body:', JSON.stringify(body, null, 2))
-    console.log('Ending Cash:', endingCash, 'Type:', typeof endingCash)
-    console.log('Manager Password Present:', !!managerPassword)
-    console.log('Location Code Present:', !!locationCode)
+    console.log('[ShiftClose] Shift ID:', shiftId)
+    console.log('[ShiftClose] Ending Cash:', endingCash)
+    console.log('[ShiftClose] Auth Method:', managerPassword ? 'password' : locationCode ? 'rfid' : 'none')
 
     // Validate required fields
     if (endingCash === undefined || endingCash === null || endingCash < 0) {
@@ -63,13 +63,14 @@ export async function POST(
     }
 
     // Authorization verification - either password OR RFID
+    const authStartTime = Date.now()
     let authorizationValid = false
     let authorizingUser = null
     let authMethod = ''
 
     if (managerPassword) {
       // Method 1: Manager Password Verification
-      console.log('[ShiftClose] Verifying manager password...')
+      console.log('[ShiftClose] ⏱️ Verifying manager password...')
       const managerUsers = await prisma.user.findMany({
         where: {
           businessId: parseInt(session.user.businessId),
@@ -154,18 +155,22 @@ export async function POST(
       }
     }
 
-    // Find the shift
+    const authElapsed = Date.now() - authStartTime
+    console.log(`[ShiftClose] ✅ Authorization completed in ${authElapsed}ms`)
+
+    // 🚀 OPTIMIZATION: Fetch only shift data with cash records (NO sales/payments - using running totals)
+    console.log('[ShiftClose] ⏱️ Fetching shift data...')
+    const fetchStartTime = Date.now()
+
     const shift = await prisma.cashierShift.findUnique({
       where: { id: shiftId },
       include: {
-        sales: {
-          include: {
-            payments: true,
-          },
-        },
-        cashInOutRecords: true,
+        cashInOutRecords: true, // Only need cash in/out records
       },
     })
+
+    const fetchElapsed = Date.now() - fetchStartTime
+    console.log(`[ShiftClose] ✅ Shift data fetched in ${fetchElapsed}ms`)
 
     if (!shift) {
       return NextResponse.json({ error: 'Shift not found' }, { status: 404 })
@@ -181,34 +186,11 @@ export async function POST(
       return NextResponse.json({ error: 'Shift is already closed' }, { status: 400 })
     }
 
-    // Calculate system cash (beginning cash + sales cash - cash out + cash in)
+    // 🚀 OPTIMIZATION: Calculate system cash from RUNNING TOTALS (no query needed)
     let systemCash = shift.beginningCash
 
-    // Add cash sales - IMPORTANT: Account for overpayment/change
-    const cashSales = shift.sales
-      .filter(sale => sale.status === 'completed')
-      .reduce((total, sale) => {
-        const saleTotal = parseFloat(sale.totalAmount.toString())
-        const totalPayments = sale.payments
-          .reduce((sum, payment) => sum + parseFloat(payment.amount.toString()), 0)
-
-        const cashPayments = sale.payments
-          .filter(payment => payment.paymentMethod === 'cash')
-          .reduce((sum, payment) => sum + parseFloat(payment.amount.toString()), 0)
-
-        // If overpayment (change given), allocate proportionally
-        // Example: Sale ₱100, paid Cash ₱150 + Digital ₱50 = ₱200 total
-        // Overpayment: ₱100, so we keep only 50% = Cash ₱75 + Digital ₱25
-        let actualCashInDrawer = cashPayments
-        if (totalPayments > saleTotal) {
-          // There was overpayment (change given)
-          const allocationRatio = saleTotal / totalPayments
-          actualCashInDrawer = cashPayments * allocationRatio
-        }
-
-        return total + actualCashInDrawer
-      }, 0)
-
+    // Add cash sales from running totals (already accounts for overpayment/change)
+    const cashSales = parseFloat(shift.runningCashSales.toString())
     systemCash = systemCash.plus(cashSales)
 
     // Add cash in, subtract cash out
@@ -220,19 +202,8 @@ export async function POST(
       }
     }
 
-    // Add AR payments collected during this shift (cash only)
-    const arPayments = await prisma.salePayment.findMany({
-      where: {
-        shiftId: shift.id,
-        paymentMethod: 'cash'
-      }
-    })
-
-    const arPaymentsCash = arPayments.reduce(
-      (sum, payment) => sum + parseFloat(payment.amount.toString()),
-      0
-    )
-
+    // Add AR payments collected during this shift (cash only) - from running totals
+    const arPaymentsCash = parseFloat(shift.runningArPaymentsCash.toString())
     systemCash = systemCash.plus(arPaymentsCash)
 
     // Calculate over/short
@@ -242,58 +213,49 @@ export async function POST(
     const cashOver = variance > 0 ? variance : 0
     const cashShort = variance < 0 ? Math.abs(variance) : 0
 
-    // Calculate totals for the shift
-    const totalSales = shift.sales
-      .filter(sale => sale.status === 'completed')
-      .reduce((sum, sale) => sum + parseFloat(sale.totalAmount.toString()), 0)
+    // 🚀 OPTIMIZATION: Get totals from RUNNING TOTALS (no query needed)
+    const totalSales = parseFloat(shift.runningGrossSales.toString())
+    const totalDiscounts = parseFloat(shift.runningTotalDiscounts.toString())
+    const totalVoid = parseFloat(shift.runningVoidedSales.toString())
+    const transactionCount = shift.runningTransactions
 
-    const totalDiscounts = shift.sales
-      .filter(sale => sale.status === 'completed')
-      .reduce((sum, sale) => sum + parseFloat(sale.discountAmount.toString()), 0)
+    // 🚀 OPTIMIZATION: Generate X and Z readings in PARALLEL (instant mode ⚡)
+    console.log('[ShiftClose] Generating X and Z readings in parallel...')
+    const readingsStartTime = Date.now()
 
-    const totalVoid = shift.sales
-      .filter(sale => sale.status === 'voided')
-      .reduce((sum, sale) => sum + parseFloat(sale.totalAmount.toString()), 0)
-
-    const transactionCount = shift.sales.filter(sale => sale.status === 'completed').length
-
-    // STEP 1: Generate X Reading (Before Closing Shift) - INSTANT MODE ⚡
-    let xReadingData
+    let xReadingData, zReadingData
     try {
-      xReadingData = await generateXReading(
-        shift.id,
-        parseInt(session.user.businessId),
-        session.user.username,
-        session.user.id,
-        true // Increment X counter
-      )
-    } catch (error: any) {
-      console.error('Error generating X Reading:', error)
-      return NextResponse.json(
-        { error: 'Failed to generate X Reading', details: error.message },
-        { status: 500 }
-      )
-    }
+      [xReadingData, zReadingData] = await Promise.all([
+        generateXReading(
+          shift.id,
+          parseInt(session.user.businessId),
+          session.user.username,
+          session.user.id,
+          true // Increment X counter
+        ),
+        generateZReading(
+          shift.id,
+          parseInt(session.user.businessId),
+          session.user.username,
+          session.user.id,
+          true // Increment Z counter
+        ),
+      ])
 
-    // STEP 2: Generate Z Reading (Before Closing Shift) - INSTANT MODE ⚡
-    let zReadingData
-    try {
-      zReadingData = await generateZReading(
-        shift.id,
-        parseInt(session.user.businessId),
-        session.user.username,
-        session.user.id,
-        true // Increment Z counter
-      )
+      const readingsElapsed = Date.now() - readingsStartTime
+      console.log(`[ShiftClose] ✅ X and Z readings generated in ${readingsElapsed}ms`)
     } catch (error: any) {
-      console.error('Error generating Z Reading:', error)
+      console.error('Error generating readings:', error)
       return NextResponse.json(
-        { error: 'Failed to generate Z Reading', details: error.message },
+        { error: 'Failed to generate X/Z Reading', details: error.message },
         { status: 500 }
       )
     }
 
     // STEP 3: Update shift with cash denomination and close
+    console.log('[ShiftClose] ⏱️ Starting database transaction...')
+    const txStartTime = Date.now()
+
     const updatedShift = await prisma.$transaction(async (tx) => {
       // Save cash denomination if provided
       if (cashDenomination) {
@@ -351,6 +313,9 @@ export async function POST(
         },
       })
     })
+
+    const txElapsed = Date.now() - txStartTime
+    console.log(`[ShiftClose] ✅ Transaction completed in ${txElapsed}ms`)
 
     // Log audit trail with authorization info
     const authDescription = authMethod === 'password'
@@ -417,6 +382,9 @@ export async function POST(
     } catch (telegramError) {
       console.error('Telegram notification failed:', telegramError)
     }
+
+    const totalElapsed = Date.now() - startTime
+    console.log(`[ShiftClose] 🎉 SHIFT CLOSED SUCCESSFULLY in ${totalElapsed}ms`)
 
     return NextResponse.json({
       shift: updatedShift,
