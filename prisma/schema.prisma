@@ -115,6 +115,9 @@ model User {
   // Product Location Pricing Relations
   locationPriceUpdates ProductUnitLocationPrice[] @relation("LocationPriceUpdatedBy")
 
+  // Audit Trail Relations
+  auditLogs AuditLog[]
+
   @@index([businessId]) // ✅ NEW: For business user queries
   @@index([username]) // ✅ NEW: For login queries (already unique but explicit index helps)
   @@index([email]) // ✅ NEW: For email lookup
@@ -1127,6 +1130,7 @@ model AuditLog {
   // User who performed the action
   userId   Int    @map("user_id")
   username String @db.VarChar(191)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Action details
   action     String @db.VarChar(100) // bulk_delete, bulk_activate, bulk_deactivate, bulk_add_to_location, bulk_remove_from_location
