@@ -154,9 +154,13 @@ export async function GET(request: NextRequest) {
     const paymentMethodMap: Record<string, { amount: number; count: number }> = {}
 
     sales.forEach((sale) => {
+      const saleTotal = parseFloat(sale.totalAmount.toString())
+      let totalPaid = 0
+
       sale.payments.forEach((payment) => {
         const method = payment.paymentMethod.toLowerCase()
         const amount = parseFloat(payment.amount.toString())
+        totalPaid += amount
 
         if (!paymentMethodMap[method]) {
           paymentMethodMap[method] = { amount: 0, count: 0 }
@@ -182,6 +186,20 @@ export async function GET(request: NextRequest) {
           chequeTotal += amount
         }
       })
+
+      // Handle unpaid/partially paid sales as credit/charge invoice
+      const unpaidAmount = saleTotal - totalPaid
+      if (unpaidAmount > 0.01) {
+        // Add unpaid amount to credit total
+        creditTotal += unpaidAmount
+
+        // Add to payment method map
+        if (!paymentMethodMap['credit']) {
+          paymentMethodMap['credit'] = { amount: 0, count: 0 }
+        }
+        paymentMethodMap['credit'].amount += unpaidAmount
+        paymentMethodMap['credit'].count += 1
+      }
     })
 
     const totalSalesAmount = cashTotal + creditTotal + digitalTotal + chequeTotal
