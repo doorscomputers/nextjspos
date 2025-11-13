@@ -239,12 +239,12 @@ export async function GET(request: NextRequest) {
     })
 
     // Manually fetch users and locations for these shifts
-    const userIds = [...new Set(allOpenShiftsRaw.map(s => s.userId))]
-    const locationIds = [...new Set(allOpenShiftsRaw.map(s => s.locationId))]
+    const shiftUserIds = [...new Set(allOpenShiftsRaw.map(s => s.userId))]
+    const shiftLocationIds = [...new Set(allOpenShiftsRaw.map(s => s.locationId))]
 
     const shiftUsers = await prisma.user.findMany({
       where: {
-        id: { in: userIds }
+        id: { in: shiftUserIds }
       },
       select: {
         id: true,
@@ -267,7 +267,7 @@ export async function GET(request: NextRequest) {
 
     const shiftLocations = await prisma.businessLocation.findMany({
       where: {
-        id: { in: locationIds }
+        id: { in: shiftLocationIds }
       },
       select: {
         id: true,
