@@ -106,18 +106,17 @@ export async function GET(request: NextRequest) {
     const unassignedUsers: any[] = []
 
     // Process all users with async operations
-    await Promise.all(
-      activeUsers.map(async (activity) => {
-        const user = activity.user
-        const roles = user.roles.map((ur) => ur.role.name)
-        const isCashier = roles.some((role) =>
-          role.toLowerCase().includes('cashier') || role.toLowerCase().includes('sale')
-        )
+    for (const activity of activeUsers) {
+      const user = activity.user
+      const roles = user.roles.map((ur) => ur.role.name)
+      const isCashier = roles.some((role) =>
+        role.toLowerCase().includes('cashier') || role.toLowerCase().includes('sale')
+      )
 
-        // Check for open shift (only for cashiers)
-        let openShift = null
-        if (isCashier) {
-          const shift = await prisma.cashierShift.findFirst({
+      // Check for open shift (only for cashiers)
+      let openShift = null
+      if (isCashier) {
+        const shift = await prisma.cashierShift.findFirst({
           where: {
             userId: user.id,
             closedAt: null, // Still open
@@ -194,8 +193,7 @@ export async function GET(request: NextRequest) {
         // User not assigned to any location
         unassignedUsers.push(userData)
       }
-    })
-    )
+    }
 
     // ========================================================================
     // FETCH LOCATION DETAILS
