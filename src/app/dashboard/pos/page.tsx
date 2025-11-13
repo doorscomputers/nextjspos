@@ -225,7 +225,7 @@ export default function POSEnhancedPage() {
       const matches = customers.filter((customer) =>
         customer.name?.toLowerCase().includes(searchLower) ||
         customer.email?.toLowerCase().includes(searchLower) ||
-        customer.phone?.includes(searchLower)
+        customer.mobile?.includes(searchLower)
       )
 
       if (matches.length > 0) {
@@ -2253,8 +2253,8 @@ export default function POSEnhancedPage() {
                           {customer.email && (
                             <div className="text-xs text-gray-600">📧 {customer.email}</div>
                           )}
-                          {customer.phone && (
-                            <div className="text-xs text-gray-600">📱 {customer.phone}</div>
+                          {customer.mobile && (
+                            <div className="text-xs text-gray-600">📱 {customer.mobile}</div>
                           )}
                         </div>
                       ))}
@@ -2281,8 +2281,8 @@ export default function POSEnhancedPage() {
                   {selectedCustomer.email && (
                     <div className="text-xs text-gray-600 mt-1">📧 {selectedCustomer.email}</div>
                   )}
-                  {selectedCustomer.phone && (
-                    <div className="text-xs text-gray-600">📱 {selectedCustomer.phone}</div>
+                  {selectedCustomer.mobile && (
+                    <div className="text-xs text-gray-600">📱 {selectedCustomer.mobile}</div>
                   )}
                 </div>
 
