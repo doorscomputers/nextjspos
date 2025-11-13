@@ -186,7 +186,7 @@ export default function ARPaymentCollectionModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="max-w-[95vw] w-[95vw] max-h-[90vh] overflow-y-auto"
+        className="max-w-[98vw] w-[98vw] max-h-[90vh] overflow-y-auto"
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
@@ -210,8 +210,8 @@ export default function ARPaymentCollectionModal({
           </div>
 
           {/* Invoice List */}
-          <div className="border rounded-lg overflow-hidden">
-            <div className="max-h-64 overflow-y-auto">
+          <div className="border rounded-lg overflow-x-auto">
+            <div className="max-h-64 overflow-y-auto min-w-full">
               {loading ? (
                 <div className="p-8 text-center text-gray-500">Loading invoices...</div>
               ) : filteredInvoices.length === 0 ? (
@@ -219,16 +219,16 @@ export default function ARPaymentCollectionModal({
                   No unpaid invoices found for this customer
                 </div>
               ) : (
-                <Table>
+                <Table className="min-w-[900px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Invoice #</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                      <TableHead className="text-right">Paid</TableHead>
-                      <TableHead className="text-right">Balance</TableHead>
-                      <TableHead></TableHead>
+                      <TableHead className="min-w-[200px]">Invoice #</TableHead>
+                      <TableHead className="min-w-[120px]">Date</TableHead>
+                      <TableHead className="min-w-[180px]">Customer</TableHead>
+                      <TableHead className="text-right min-w-[120px]">Total</TableHead>
+                      <TableHead className="text-right min-w-[120px]">Paid</TableHead>
+                      <TableHead className="text-right min-w-[120px]">Balance</TableHead>
+                      <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
