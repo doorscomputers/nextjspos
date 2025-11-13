@@ -426,12 +426,31 @@ export async function generateZReadingDataOptimized(
     throw new Error('Shift not found')
   }
 
+  // Fetch location data for Z-Reading global counter - BIR COMPLIANCE
+  const location = await prisma.businessLocation.findUnique({
+    where: { id: shift.locationId },
+    select: {
+      zCounter: true,
+      name: true,
+    },
+  })
+
+  if (!location) {
+    throw new Error('Location not found for Z Reading generation')
+  }
+
   // Calculate cash variance
   const endingCash = shift.endingCash ? parseFloat(shift.endingCash.toString()) : 0
   const cashVariance = endingCash - xReadingData.expectedCash
 
-  // Increment Z counter if requested
-  const currentZReadingCount = shift.zReadingCount
+  // BIR COMPLIANCE: Use location's global Z counter (not per-shift counter)
+  // Reading number is globally sequential per location
+  const currentLocationZCounter = location.zCounter
+  const zReadingNumber = currentLocationZCounter + (incrementCounter ? 1 : 0)
+
+  console.log(`[Z Reading SQL Mode] Location: ${location.name}, Current Z Counter: ${currentLocationZCounter}, This Reading #: ${zReadingNumber}`)
+
+  // Legacy per-shift counter update (kept for backward compatibility but not used for reading number)
   if (incrementCounter) {
     await prisma.cashierShift.update({
       where: { id: shift.id },
@@ -442,8 +461,6 @@ export async function generateZReadingDataOptimized(
       },
     })
   }
-
-  const zReadingNumber = currentZReadingCount + (incrementCounter ? 1 : 0)
 
   // Get top items sold (aggregated query)
   const itemsSold = await prisma.$queryRaw<

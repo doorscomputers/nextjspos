@@ -9,7 +9,13 @@ import { generateZReading } from '@/lib/readings-instant'
  * GET /api/readings/z-reading - Generate Z Reading (end-of-day, BIR-compliant with counter increment)
  * Query params: shiftId (optional - uses current open shift if not provided)
  *
- * Z-Reading increments the Z-Counter and updates accumulated sales for BIR compliance
+ * ⚠️ BIR COMPLIANCE: Z-Reading should ONLY be generated when closing a shift
+ * - One shift = One Z Reading (no duplicates)
+ * - Z Reading closes the shift permanently
+ * - Reading numbers are globally sequential per location
+ *
+ * This endpoint is deprecated for manual use. Z Readings are automatically generated during shift closure.
+ * For viewing historical Z readings, use /api/readings/history
  */
 export async function GET(request: NextRequest) {
   try {
@@ -26,6 +32,9 @@ export async function GET(request: NextRequest) {
     const businessId = parseInt(String(user.businessId))
     const { searchParams } = new URL(request.url)
     const shiftIdParam = searchParams.get('shiftId')
+
+    // BIR COMPLIANCE: Check if this is for a closed shift (view-only mode)
+    const viewOnly = searchParams.get('viewOnly') === 'true'
 
     // CRITICAL SECURITY: Get user's assigned locations first
     // EXCEPTION: Super Admin and All Branch Admin can access all locations
@@ -70,7 +79,7 @@ export async function GET(request: NextRequest) {
           businessId: parseInt(businessId),
           locationId: { in: userLocationIds }, // SECURITY: Only shifts from user's locations
         },
-        select: { id: true },
+        select: { id: true, status: true, locationId: true },
       })
 
       if (!shift) {
@@ -80,35 +89,76 @@ export async function GET(request: NextRequest) {
         )
       }
       shiftId = shift.id
-    } else {
-      // Get current open shift for this user at their assigned location(s)
-      const shift = await prisma.cashierShift.findFirst({
+
+      // BIR COMPLIANCE: Check if shift already has a Z reading
+      const existingZReading = await prisma.cashierShiftReading.findFirst({
         where: {
-          userId: parseInt(user.id),
-          businessId: parseInt(businessId),
-          locationId: { in: userLocationIds }, // SECURITY: Only user's locations
-          status: 'open',
+          shiftId: shift.id,
+          type: 'Z',
         },
-        select: { id: true },
       })
 
-      if (!shift) {
+      if (existingZReading && !viewOnly) {
         return NextResponse.json(
-          { error: 'No open shift found for Z Reading at your assigned location' },
+          {
+            error: 'BIR Compliance Error: This shift already has a Z Reading. Z Reading can only be generated once per shift during shift closure.',
+            existingReading: {
+              readingNumber: existingZReading.readingNumber,
+              readingTime: existingZReading.readingTime,
+              reportNumber: existingZReading.reportNumber,
+            }
+          },
+          { status: 400 }
+        )
+      }
+
+      // BIR COMPLIANCE: Prevent Z reading generation for open shifts
+      if (shift.status === 'open' && !viewOnly) {
+        return NextResponse.json(
+          {
+            error: 'BIR Compliance Error: Cannot generate Z Reading for an open shift. Z Reading is automatically generated when you close the shift. Please use the shift close function.',
+          },
+          { status: 400 }
+        )
+      }
+
+    } else {
+      // Prevent automatic Z reading for current shift
+      return NextResponse.json(
+        {
+          error: 'BIR Compliance Error: Manual Z Reading generation is not allowed. Z Readings are automatically generated when closing a shift. Please close your shift to generate the Z Reading.',
+        },
+        { status: 400 }
+      )
+    }
+
+    // If viewOnly mode, just retrieve the existing Z reading data
+    if (viewOnly) {
+      const existingZReading = await prisma.cashierShiftReading.findFirst({
+        where: {
+          shiftId: shiftId,
+          type: 'Z',
+        },
+      })
+
+      if (existingZReading) {
+        return NextResponse.json(existingZReading.payload)
+      } else {
+        return NextResponse.json(
+          { error: 'No Z Reading found for this shift' },
           { status: 404 }
         )
       }
-      shiftId = shift.id
     }
 
-    // Use DUAL-MODE library function (Instant or SQL aggregation fallback)
-    // Automatically uses real-time totals if available, otherwise SQL aggregation
+    // This code should never be reached due to the validations above
+    // But kept for backward compatibility with closed shifts that don't have Z readings yet
     const zReading = await generateZReading(
       shiftId,
       parseInt(businessId),
       session.user.username,
       user.id,
-      true // Increment counter
+      false // Do NOT increment counter (already closed)
     )
 
     return NextResponse.json(zReading)

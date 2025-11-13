@@ -186,6 +186,26 @@ export async function POST(
       return NextResponse.json({ error: 'Shift is already closed' }, { status: 400 })
     }
 
+    // BIR COMPLIANCE: Check if shift already has a Z reading (prevent duplicates)
+    const existingZReading = await prisma.cashierShiftReading.findFirst({
+      where: {
+        shiftId: shift.id,
+        type: 'Z',
+      },
+    })
+
+    if (existingZReading) {
+      console.log('❌ ERROR: Shift already has a Z Reading')
+      return NextResponse.json({
+        error: 'BIR Compliance Error: This shift already has a Z Reading. Cannot generate duplicate Z Readings.',
+        existingReading: {
+          readingNumber: existingZReading.readingNumber,
+          readingTime: existingZReading.readingTime,
+          reportNumber: existingZReading.reportNumber,
+        }
+      }, { status: 400 })
+    }
+
     // 🚀 OPTIMIZATION: Calculate system cash from RUNNING TOTALS (no query needed)
     let systemCash = shift.beginningCash
 

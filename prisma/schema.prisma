@@ -539,9 +539,10 @@ model InvoiceSequence {
   locationId Int @map("location_id") // Location-specific sequences
   year       Int
   month      Int
+  day        Int @default(1) // Daily resets per location
   sequence   Int @default(1)
 
-  @@unique([businessId, locationId, year, month])
+  @@unique([businessId, locationId, year, month, day])
   @@index([businessId])
   @@index([locationId])
   @@map("invoice_sequences")

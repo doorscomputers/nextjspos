@@ -384,8 +384,13 @@ async function generateZReadingFromRunningTotals(
       zCounter: true,
       resetCounter: true,
       accumulatedSales: true,
+      name: true,
     },
   })
+
+  if (!location) {
+    throw new Error('Location not found for Z Reading generation')
+  }
 
   // Calculate cash variance
   const endingCash = shift.endingCash
@@ -393,8 +398,15 @@ async function generateZReadingFromRunningTotals(
     : 0
   const cashVariance = endingCash - xReadingData.expectedCash
 
-  // Increment Z counter if requested
-  const currentZReadingCount = shift.zReadingCount
+  // BIR COMPLIANCE: Use location's global Z counter (not per-shift counter)
+  // Reading number is globally sequential per location
+  // When incrementCounter=true, this will be incremented in the database by shift close
+  const currentLocationZCounter = location.zCounter
+  const zReadingNumber = currentLocationZCounter + (incrementCounter ? 1 : 0)
+
+  console.log(`[Z Reading] Location: ${location.name}, Current Z Counter: ${currentLocationZCounter}, This Reading #: ${zReadingNumber}`)
+
+  // Legacy per-shift counter update (kept for backward compatibility but not used for reading number)
   if (incrementCounter) {
     await prisma.cashierShift.update({
       where: { id: shift.id },
@@ -405,8 +417,6 @@ async function generateZReadingFromRunningTotals(
       },
     })
   }
-
-  const zReadingNumber = currentZReadingCount + (incrementCounter ? 1 : 0)
 
   // Calculate shift age in hours
   const shiftAgeHours = Math.floor(
