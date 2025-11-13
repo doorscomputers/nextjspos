@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { MagnifyingGlassIcon, CheckCircleIcon, XCircleIcon, CreditCardIcon } from '@heroicons/react/24/outline'
+import { CheckCircleIcon, XCircleIcon, CreditCardIcon } from '@heroicons/react/24/outline'
 import { formatCurrency } from '@/lib/currencyUtils'
 import { toast } from 'sonner'
 
@@ -41,7 +41,6 @@ export default function ARPaymentCollectionModal({
   preSelectedCustomerId,
   preSelectedCustomerName
 }: ARPaymentCollectionModalProps) {
-  const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(false)
   const [unpaidInvoices, setUnpaidInvoices] = useState<UnpaidInvoice[]>([])
   const [selectedInvoice, setSelectedInvoice] = useState<UnpaidInvoice | null>(null)
@@ -100,17 +99,14 @@ export default function ARPaymentCollectionModal({
     }
   }, [isOpen])
 
-  // Filter invoices by search term and pre-selected customer
+  // Filter invoices by pre-selected customer
   const filteredInvoices = unpaidInvoices.filter(invoice => {
     // If pre-selected customer, filter to that customer only
     if (preSelectedCustomerId && invoice.customerId !== preSelectedCustomerId) {
       return false
     }
-    // Then apply search filter
-    return (
-      invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      invoice.customerName.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    // Show all invoices for the selected customer
+    return true
   })
 
   // Handle invoice selection
@@ -206,18 +202,9 @@ export default function ARPaymentCollectionModal({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Search Bar */}
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <Input
-                placeholder="Search by invoice number or customer name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Button variant="outline" onClick={fetchUnpaidInvoices}>
+          {/* Refresh Button */}
+          <div className="flex justify-end">
+            <Button variant="outline" size="sm" onClick={fetchUnpaidInvoices}>
               Refresh
             </Button>
           </div>
@@ -229,7 +216,7 @@ export default function ARPaymentCollectionModal({
                 <div className="p-8 text-center text-gray-500">Loading invoices...</div>
               ) : filteredInvoices.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
-                  {searchTerm ? 'No invoices found matching your search' : 'No unpaid invoices found'}
+                  No unpaid invoices found for this customer
                 </div>
               ) : (
                 <Table>
