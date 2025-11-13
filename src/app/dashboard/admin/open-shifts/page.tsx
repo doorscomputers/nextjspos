@@ -80,7 +80,7 @@ interface OpenShiftsResponse {
 }
 
 export default function OpenShiftsPage() {
-  const { can, hasAnyPermission } = usePermissions()
+  const { can, canAny } = usePermissions()
   const router = useRouter()
 
   const [data, setData] = useState<OpenShiftsResponse | null>(null)
@@ -240,7 +240,7 @@ export default function OpenShiftsPage() {
   }
 
   if (
-    !hasAnyPermission([
+    !canAny([
       PERMISSIONS.USER_VIEW,
       PERMISSIONS.USER_VIEW_ACTIVE_SESSIONS,
     ])
