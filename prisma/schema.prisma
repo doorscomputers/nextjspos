@@ -275,6 +275,11 @@ model BusinessLocation {
   locationCode    String? @unique @map("location_code") @db.VarChar(20) // RFID card code for location verification
   isActive        Boolean @default(true) @map("is_active")
 
+  // BIR Z Reading Counters (Per-Location)
+  zCounter          Int     @default(0) @map("z_counter") // Z Reading counter for this location
+  resetCounter      Int     @default(1) @map("reset_counter") // Reset counter (increments when Z counter resets to 0)
+  accumulatedSales  Decimal @default(0) @map("accumulated_sales") @db.Decimal(22, 4) // Running total of all sales for this location
+
   // Timestamps
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -1905,6 +1910,9 @@ model Sale {
   discountAmount Decimal @default(0) @map("discount_amount") @db.Decimal(22, 4)
   shippingCost   Decimal @default(0) @map("shipping_cost") @db.Decimal(22, 4)
   totalAmount    Decimal @map("total_amount") @db.Decimal(22, 4)
+
+  // Accounts Receivable: Track how much has been paid for credit sales
+  paidAmount     Decimal @default(0) @map("paid_amount") @db.Decimal(22, 4) // Total amount paid so far
 
   // Cash tendered (for invoice display of change)
   cashTendered   Decimal? @map("cash_tendered") @db.Decimal(22, 4) // Actual cash amount given by customer

@@ -675,6 +675,24 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Validate payment methods are not empty
+    if (!isCreditSale && payments && payments.length > 0) {
+      for (const payment of payments) {
+        if (!payment.method || payment.method.trim() === '') {
+          return NextResponse.json(
+            { error: 'Payment method cannot be empty. Please select a valid payment method.' },
+            { status: 400 }
+          )
+        }
+        if (!payment.amount || parseFloat(payment.amount) <= 0) {
+          return NextResponse.json(
+            { error: 'Payment amount must be greater than zero' },
+            { status: 400 }
+          )
+        }
+      }
+    }
+
     // PERFORMANCE OPTIMIZATION: Batch all validation queries in parallel (instead of sequential)
     const validationStart = Date.now() // TIMING
 

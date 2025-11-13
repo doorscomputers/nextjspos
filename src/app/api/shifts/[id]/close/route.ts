@@ -293,6 +293,16 @@ export async function POST(
         })
       }
 
+      // Update location BIR counters (per-location tracking)
+      // ⚠️ IMPORTANT: This must be done BEFORE closing the shift to ensure atomicity
+      await tx.businessLocation.update({
+        where: { id: shift.locationId },
+        data: {
+          zCounter: { increment: 1 }, // Increment Z Reading counter
+          accumulatedSales: { increment: totalSales }, // Add today's sales to accumulated
+        },
+      })
+
       // Close the shift
       return await tx.cashierShift.update({
         where: { id: shiftId },

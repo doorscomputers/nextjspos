@@ -46,7 +46,7 @@ export default function POSEnhancedPage() {
   const [paymentModes, setPaymentModes] = useState<Array<{method: string, amount: number, reference?: string, photo?: string}>>([])
   const [cashAmount, setCashAmount] = useState<string>('')
   const [digitalAmount, setDigitalAmount] = useState<string>('')
-  const [digitalMethod, setDigitalMethod] = useState<string>('')
+  const [digitalMethod, setDigitalMethod] = useState<string>('gcash') // Default to GCash to prevent blank payment methods
   const [digitalReference, setDigitalReference] = useState('')
   const [digitalPhoto, setDigitalPhoto] = useState<string>('')
   const [chequeAmount, setChequeAmount] = useState<string>('')
@@ -1462,6 +1462,14 @@ export default function POSEnhancedPage() {
       //   setError('Please capture digital payment receipt photo')
       //   return
       // }
+
+      // Validate digital payment method
+      if (digitalAmount && parseFloat(digitalAmount) > 0) {
+        if (!digitalMethod || digitalMethod.trim() === '') {
+          setError('Please select a payment method for digital payment')
+          return
+        }
+      }
 
       // Validate cheque details if cheque payment exists
       if (chequeAmount && parseFloat(chequeAmount) > 0) {

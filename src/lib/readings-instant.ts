@@ -164,6 +164,9 @@ async function generateXReadingFromRunningTotals(
         state: true,
         country: true,
         zipCode: true,
+        zCounter: true, // Per-location Z counter
+        resetCounter: true, // Per-location reset counter
+        accumulatedSales: true, // Per-location accumulated sales
       },
     }),
     prisma.business.findUnique({
@@ -176,9 +179,6 @@ async function generateXReadingFromRunningTotals(
         birPermitNumber: true, // Permit to Use
         operatedBy: true, // Operated by
         businessAddress: true, // Full address
-        zCounter: true,
-        resetCounter: true,
-        accumulatedSales: true,
       },
     }),
   ])
@@ -377,9 +377,9 @@ async function generateZReadingFromRunningTotals(
     false // Don't increment X counter when generating Z
   )
 
-  // Fetch business data for Z-Reading specific fields (accumulated sales, counters)
-  const business = await prisma.business.findUnique({
-    where: { id: shift.businessId },
+  // Fetch location data for Z-Reading specific fields (accumulated sales, counters) - PER-LOCATION
+  const location = await prisma.businessLocation.findUnique({
+    where: { id: shift.locationId },
     select: {
       zCounter: true,
       resetCounter: true,
@@ -503,11 +503,11 @@ async function generateZReadingFromRunningTotals(
     endingVoidNumber: undefined,
     beginningReturnNumber: undefined, // TODO: Track return numbers
     endingReturnNumber: undefined,
-    zCounter: business?.zCounter || 0,
-    resetCounter: business?.resetCounter || 1,
-    previousAccumulatedSales: parseFloat(business?.accumulatedSales?.toString() || '0'),
+    zCounter: location?.zCounter || 0,
+    resetCounter: location?.resetCounter || 1,
+    previousAccumulatedSales: parseFloat(location?.accumulatedSales?.toString() || '0'),
     salesForTheDay: grossSales,
-    accumulatedSales: parseFloat(business?.accumulatedSales?.toString() || '0') + grossSales,
+    accumulatedSales: parseFloat(location?.accumulatedSales?.toString() || '0') + grossSales,
     // VAT Breakdown
     vatableSales,
     vatAmount,

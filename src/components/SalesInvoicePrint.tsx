@@ -253,6 +253,28 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
 
   if (!sale || !business) return null
 
+  // Helper function to format payment method names
+  const formatPaymentMethod = (method: string | null | undefined): string => {
+    if (!method || method.trim() === '') return 'Digital Payment'
+
+    const methodMap: { [key: string]: string } = {
+      'cash': 'Cash',
+      'card': 'Card',
+      'credit_card': 'Credit Card',
+      'debit_card': 'Debit Card',
+      'bank_transfer': 'Bank Transfer',
+      'cheque': 'Cheque',
+      'check': 'Cheque',
+      'mobile_payment': 'Mobile Payment',
+      'gcash': 'GCash',
+      'paymaya': 'PayMaya',
+      'credit': 'Account Receivable'
+    }
+
+    const normalized = method.toLowerCase().trim()
+    return methodMap[normalized] || method.charAt(0).toUpperCase() + method.slice(1)
+  }
+
   // Calculate payment totals
   const totalPaid = sale.payments?.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0) || 0
   const totalAmount = parseFloat(sale.totalAmount || 0)
@@ -630,8 +652,8 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
                 </p>
                 {sale.payments?.map((payment: any, index: number) => (
                   <div key={index} className="flex justify-between py-0.5">
-                    <span className={`text-gray-700 capitalize ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                      {payment.paymentMethod}:
+                    <span className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                      {formatPaymentMethod(payment.paymentMethod)}:
                     </span>
                     <span className={`text-gray-900 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
                       ₱{parseFloat(payment.amount).toLocaleString('en-PH', {
