@@ -524,8 +524,8 @@ export default function DashboardPageV2() {
         })}
       </div>
 
-      {/* Sales by Location Charts */}
-      {can(PERMISSIONS.SELL_VIEW) && (
+      {/* Sales by Location Charts - Hidden from Cashiers (Admin/Manager only) */}
+      {can(PERMISSIONS.SELL_VIEW) && !hasAnyRole([...CASHIER_ROLES]) && (
         <Card className="shadow-lg">
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

@@ -471,7 +471,7 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
 
               {/* Footer Note */}
               <div className="center text-xs mt-4 italic">
-                Sample Cashier's Accountability Reading<br/>
+                Cashier's Accountability Reading<br/>
                 ANNEX "D-1"
               </div>
             </div>
@@ -833,24 +833,150 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                 </div>
               )}
 
-              {/* Cash Reconciliation / Variance Formula */}
+              {/* Expected Cash Breakdown - Easy to understand! */}
+              <div className="section">
+                <div className="section-title">EXPECTED CASH CALCULATION</div>
+                <div className="text-xs mb-2 text-gray-600">How system calculated expected cash in drawer:</div>
+
+                <div className="line">
+                  <span className="line-label">Beginning Cash (Opening Fund):</span>
+                  <span className="line-value">+{formatCurrency(zReading.beginningCash)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">Cash Sales (from transactions):</span>
+                  <span className="line-value">+{formatCurrency(zReading.paymentBreakdown?.CASH || 0)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">Cash In (added to drawer):</span>
+                  <span className="line-value">+{formatCurrency(zReading.cashIn || 0)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">AR Payments Received (cash):</span>
+                  <span className="line-value">+{formatCurrency(zReading.arPaymentsCash || 0)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">Less: Cash Out (withdrawals):</span>
+                  <span className="line-value">-{formatCurrency(zReading.cashOut || 0)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">Less: GCash Payments:</span>
+                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.GCASH || 0)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">Less: Card Payments:</span>
+                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.CARD || 0)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">Less: Bank Transfer:</span>
+                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.BANK || 0)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">Less: Cheque Payments:</span>
+                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.CHECK || 0)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">Less: Credit/AR Sales (not cash):</span>
+                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.CREDIT || 0)}</span>
+                </div>
+                <div className="line total-line">
+                  <span className="line-label font-bold">= Expected Cash in Drawer:</span>
+                  <span className="line-value font-bold">{formatCurrency(zReading.expectedCash)}</span>
+                </div>
+              </div>
+
+              {/* Cash Denomination Breakdown */}
+              {zReading.cashDenominations && (
+                <div className="section">
+                  <div className="section-title">CASH DENOMINATION BREAKDOWN</div>
+                  <div className="text-xs mb-2 text-gray-600">Actual bills/coins counted by cashier:</div>
+
+                  {zReading.cashDenominations.count1000 > 0 && (
+                    <div className="line">
+                      <span className="line-label">₱1000 Bills × {zReading.cashDenominations.count1000}</span>
+                      <span className="line-value">= {formatCurrency(zReading.cashDenominations.count1000 * 1000)}</span>
+                    </div>
+                  )}
+                  {zReading.cashDenominations.count500 > 0 && (
+                    <div className="line">
+                      <span className="line-label">₱500 Bills × {zReading.cashDenominations.count500}</span>
+                      <span className="line-value">= {formatCurrency(zReading.cashDenominations.count500 * 500)}</span>
+                    </div>
+                  )}
+                  {zReading.cashDenominations.count200 > 0 && (
+                    <div className="line">
+                      <span className="line-label">₱200 Bills × {zReading.cashDenominations.count200}</span>
+                      <span className="line-value">= {formatCurrency(zReading.cashDenominations.count200 * 200)}</span>
+                    </div>
+                  )}
+                  {zReading.cashDenominations.count100 > 0 && (
+                    <div className="line">
+                      <span className="line-label">₱100 Bills × {zReading.cashDenominations.count100}</span>
+                      <span className="line-value">= {formatCurrency(zReading.cashDenominations.count100 * 100)}</span>
+                    </div>
+                  )}
+                  {zReading.cashDenominations.count50 > 0 && (
+                    <div className="line">
+                      <span className="line-label">₱50 Bills × {zReading.cashDenominations.count50}</span>
+                      <span className="line-value">= {formatCurrency(zReading.cashDenominations.count50 * 50)}</span>
+                    </div>
+                  )}
+                  {zReading.cashDenominations.count20 > 0 && (
+                    <div className="line">
+                      <span className="line-label">₱20 Bills × {zReading.cashDenominations.count20}</span>
+                      <span className="line-value">= {formatCurrency(zReading.cashDenominations.count20 * 20)}</span>
+                    </div>
+                  )}
+                  {zReading.cashDenominations.count10 > 0 && (
+                    <div className="line">
+                      <span className="line-label">₱10 Coins × {zReading.cashDenominations.count10}</span>
+                      <span className="line-value">= {formatCurrency(zReading.cashDenominations.count10 * 10)}</span>
+                    </div>
+                  )}
+                  {zReading.cashDenominations.count5 > 0 && (
+                    <div className="line">
+                      <span className="line-label">₱5 Coins × {zReading.cashDenominations.count5}</span>
+                      <span className="line-value">= {formatCurrency(zReading.cashDenominations.count5 * 5)}</span>
+                    </div>
+                  )}
+                  {zReading.cashDenominations.count1 > 0 && (
+                    <div className="line">
+                      <span className="line-label">₱1 Coins × {zReading.cashDenominations.count1}</span>
+                      <span className="line-value">= {formatCurrency(zReading.cashDenominations.count1 * 1)}</span>
+                    </div>
+                  )}
+                  {zReading.cashDenominations.count025 > 0 && (
+                    <div className="line">
+                      <span className="line-label">₱0.25 Coins × {zReading.cashDenominations.count025}</span>
+                      <span className="line-value">= {formatCurrency(zReading.cashDenominations.count025 * 0.25)}</span>
+                    </div>
+                  )}
+                  <div className="line total-line">
+                    <span className="line-label font-bold">= Total Physical Count:</span>
+                    <span className="line-value font-bold">{formatCurrency(zReading.endingCash)}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Final Variance Calculation */}
               <div className="section">
                 <div className="section-title">CASH RECONCILIATION</div>
+                <div className="text-xs mb-2 text-gray-600">Comparison of expected vs actual:</div>
+
                 <div className="line">
-                  <span className="line-label">System Expected:</span>
+                  <span className="line-label">System Expected Cash:</span>
                   <span className="line-value">{formatCurrency(zReading.expectedCash)}</span>
                 </div>
                 <div className="line">
-                  <span className="line-label">Physical Count:</span>
+                  <span className="line-label">Physical Count (Actual):</span>
                   <span className="line-value">{formatCurrency(zReading.endingCash)}</span>
                 </div>
                 <div className="line">
-                  <span className="line-label">Variance:</span>
+                  <span className="line-label">Variance (Difference):</span>
                   <span className="line-value">{formatCurrency(zReading.cashVariance)}</span>
                 </div>
                 <div className="line total-line">
                   <span className="line-label">Status:</span>
-                  <span className="line-value">
+                  <span className="line-value font-bold">
                     {zReading.cashVariance === 0 ? '✓ Balanced' :
                      zReading.cashVariance > 0 ? `₱${Math.abs(zReading.cashVariance).toFixed(2)} Over` :
                      `₱${Math.abs(zReading.cashVariance).toFixed(2)} Short`}
@@ -864,7 +990,7 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
 
               {/* Footer Note */}
               <div className="center text-xs mt-4 italic">
-                Sample End-of-Day (EOD) Reading<br/>
+                End-of-Day (EOD) Reading<br/>
                 ANNEX "D-2"
               </div>
             </div>

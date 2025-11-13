@@ -7,25 +7,35 @@ import { PERMISSIONS } from "@/lib/rbac"
 import { formatCurrency } from "@/lib/currencyUtils"
 import {
   BanknotesIcon,
-  CreditCardIcon,
-  DevicePhoneMobileIcon,
-  DocumentTextIcon,
-  PrinterIcon,
-  ArrowTrendingUpIcon,
-  ArrowDownTrayIcon,
   MapPinIcon,
+  ArrowDownTrayIcon,
+  PrinterIcon,
 } from "@heroicons/react/24/outline"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import DataGrid, {
+  Column,
+  FilterRow,
+  HeaderFilter,
+  SearchPanel,
+  Paging,
+  Pager,
+  Export,
+  Summary,
+  TotalItem,
+  StateStoring,
+  ColumnChooser,
+  Grouping,
+  GroupPanel,
+  Toolbar,
+  Item,
+  MasterDetail,
+} from 'devextreme-react/data-grid'
+import { Workbook } from 'exceljs'
+import { saveAs } from 'file-saver-es'
+import { exportDataGrid } from 'devextreme/excel_exporter'
+import 'devextreme/dist/css/dx.light.css'
 
 interface SalesTodayData {
   summary: {
@@ -103,7 +113,6 @@ export default function CashierSalesTodayPage() {
   const [reportData, setReportData] = useState<SalesTodayData | null>(null)
   const [loading, setLoading] = useState(true)
   const [userLocationName, setUserLocationName] = useState<string>("Loading...")
-  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
 
   useEffect(() => {
     fetchUserLocationAndReport()
@@ -152,49 +161,106 @@ export default function CashierSalesTodayPage() {
     }
   }
 
-  const toggleRowExpansion = (saleId: number) => {
-    setExpandedRows((prev) => {
-      const next = new Set(prev)
-      if (next.has(saleId)) {
-        next.delete(saleId)
-      } else {
-        next.add(saleId)
-      }
-      return next
-    })
-  }
-
   const handlePrint = () => {
     window.print()
   }
 
-  const handleExportExcel = async () => {
-    if (!reportData) return
+  const onExporting = (e: any) => {
+    const workbook = new Workbook()
+    const worksheet = workbook.addWorksheet('Sales Today')
 
-    try {
-      const response = await fetch("/api/reports/sales-today/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data: reportData,
-          format: "excel",
-          locationName: userLocationName,
-        }),
+    exportDataGrid({
+      component: e.component,
+      worksheet,
+      autoFilterEnabled: true,
+      customizeCell: ({ gridCell, excelCell }: any) => {
+        if (gridCell.rowType === 'data') {
+          if (gridCell.column.dataField === 'totalAmount' || gridCell.column.dataField === 'discountAmount') {
+            excelCell.numFmt = '₱#,##0.00'
+          }
+        }
+      }
+    }).then(() => {
+      workbook.xlsx.writeBuffer().then((buffer) => {
+        saveAs(
+          new Blob([buffer], { type: 'application/octet-stream' }),
+          `cashier-sales-today-${userLocationName}-${new Date().toISOString().split("T")[0]}.xlsx`
+        )
       })
+    })
+    e.cancel = true
+  }
 
-      if (!response.ok) throw new Error("Export failed")
+  const renderMasterDetail = (data: any) => {
+    const sale = data.data
+    return (
+      <div className="p-4 bg-gray-50 dark:bg-gray-800">
+        <h4 className="font-semibold mb-3 text-gray-900 dark:text-white">Sale Items:</h4>
+        <DataGrid
+          dataSource={sale.items}
+          showBorders={true}
+          showRowLines={true}
+          columnAutoWidth={true}
+        >
+          <Column dataField="productName" caption="Product" />
+          <Column dataField="variationName" caption="Variation" width={120} />
+          <Column dataField="sku" caption="SKU" width={120} />
+          <Column
+            dataField="quantity"
+            caption="Qty"
+            dataType="number"
+            format="#,##0.##"
+            alignment="right"
+            width={80}
+          />
+          <Column
+            dataField="unitPrice"
+            caption="Unit Price"
+            dataType="number"
+            format="₱#,##0.00"
+            alignment="right"
+            width={120}
+          />
+          <Column
+            dataField="total"
+            caption="Total"
+            dataType="number"
+            format="₱#,##0.00"
+            alignment="right"
+            width={120}
+            cssClass="font-semibold"
+          />
+        </DataGrid>
+      </div>
+    )
+  }
 
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `cashier-sales-today-${new Date().toISOString().split("T")[0]}.xlsx`
-      a.click()
-      window.URL.revokeObjectURL(url)
-    } catch (error) {
-      console.error("Export error:", error)
-      alert("Failed to export report")
+  const renderPaymentMethods = (data: any) => {
+    return (
+      <div className="flex flex-wrap gap-1">
+        {data.value.map((payment: any, idx: number) => (
+          <Badge key={idx} variant="secondary" className="text-xs">
+            {payment.method}
+          </Badge>
+        ))}
+      </div>
+    )
+  }
+
+  const renderDiscountType = (data: any) => {
+    if (!data.value || data.data.discountAmount === 0) {
+      return <span className="text-gray-400 dark:text-gray-600">-</span>
     }
+    return (
+      <span className="text-orange-600 dark:text-orange-400">
+        -{formatCurrency(data.data.discountAmount)}
+        {data.value && (
+          <Badge variant="outline" className="ml-1 text-xs">
+            {data.value}
+          </Badge>
+        )}
+      </span>
+    )
   }
 
   if (loading) {
@@ -237,15 +303,6 @@ export default function CashierSalesTodayPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleExportExcel}
-            className="gap-2 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400"
-          >
-            <ArrowDownTrayIcon className="h-4 w-4" />
-            Excel
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
             onClick={handlePrint}
             className="gap-2 hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
           >
@@ -256,7 +313,7 @@ export default function CashierSalesTodayPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Sales</CardTitle>
@@ -269,28 +326,42 @@ export default function CashierSalesTodayPage() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Cash Payments</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-              {formatCurrency(summary.totalAmount)}
+              {formatCurrency(paymentMethods.cash.amount)}
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-              Subtotal: {formatCurrency(summary.totalSubtotal)}
+              {paymentMethods.cash.percentage.toFixed(1)}% of total
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Gross Profit</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Digital Payments</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-              {formatCurrency(summary.grossProfit)}
+              {formatCurrency(paymentMethods.digital.amount)}
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-              Margin: {summary.grossMargin.toFixed(1)}%
+              {paymentMethods.digital.percentage.toFixed(1)}% of total
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Cheque Payments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+              {formatCurrency(paymentMethods.cheque.amount)}
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+              {paymentMethods.cheque.percentage.toFixed(1)}% of total
             </p>
           </CardContent>
         </Card>
@@ -304,7 +375,7 @@ export default function CashierSalesTodayPage() {
               {formatCurrency(summary.totalDiscount)}
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-              COGS: {formatCurrency(summary.totalCOGS)}
+              {summary.totalSales > 0 ? `Avg: ${formatCurrency(summary.totalDiscount / summary.totalSales)}` : 'No discounts'}
             </p>
           </CardContent>
         </Card>
@@ -372,132 +443,119 @@ export default function CashierSalesTodayPage() {
         </Card>
       )}
 
-      {/* Sales Transactions */}
+      {/* Sales Transactions DataGrid */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <DocumentTextIcon className="h-5 w-5" />
-            Sales Transactions ({sales.length})
+            <span>Sales Transactions</span>
+            <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({sales.length} sales)</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Invoice #</TableHead>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="text-right">Discount</TableHead>
-                  <TableHead>Payment</TableHead>
-                  <TableHead className="text-center">Items</TableHead>
-                  <TableHead className="text-center">Details</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sales.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center text-gray-500 dark:text-gray-500 py-8">
-                      No sales transactions for today
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  sales.map((sale) => (
-                    <>
-                      <TableRow key={sale.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <TableCell className="font-medium">{sale.invoiceNumber}</TableCell>
-                        <TableCell>{new Date(sale.saleDate).toLocaleTimeString()}</TableCell>
-                        <TableCell>{sale.customer}</TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {formatCurrency(sale.totalAmount)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {sale.discountAmount > 0 ? (
-                            <span className="text-orange-600 dark:text-orange-400">
-                              -{formatCurrency(sale.discountAmount)}
-                              {sale.discountType && (
-                                <Badge variant="outline" className="ml-1 text-xs">
-                                  {sale.discountType}
-                                </Badge>
-                              )}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {sale.payments.map((payment, idx) => (
-                              <Badge key={idx} variant="secondary" className="text-xs">
-                                {payment.method}
-                              </Badge>
-                            ))}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline">{sale.itemCount}</Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleRowExpansion(sale.id)}
-                            className="hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                          >
-                            {expandedRows.has(sale.id) ? "Hide" : "View"}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                      {expandedRows.has(sale.id) && (
-                        <TableRow>
-                          <TableCell colSpan={8} className="bg-gray-50 dark:bg-gray-800/50">
-                            <div className="p-4">
-                              <h4 className="font-semibold mb-2 text-gray-900 dark:text-white">Sale Items:</h4>
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead>Product</TableHead>
-                                    <TableHead>SKU</TableHead>
-                                    <TableHead className="text-right">Qty</TableHead>
-                                    <TableHead className="text-right">Unit Price</TableHead>
-                                    <TableHead className="text-right">Total</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {sale.items.map((item, idx) => (
-                                    <TableRow key={idx}>
-                                      <TableCell>
-                                        {item.productName}
-                                        {item.variationName && (
-                                          <span className="text-sm text-gray-500 dark:text-gray-500">
-                                            {" "}
-                                            ({item.variationName})
-                                          </span>
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="text-sm text-gray-600 dark:text-gray-400">
-                                        {item.sku}
-                                      </TableCell>
-                                      <TableCell className="text-right">{item.quantity}</TableCell>
-                                      <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
-                                      <TableCell className="text-right font-semibold">
-                                        {formatCurrency(item.total)}
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          {loading ? (
+            <div className="flex items-center justify-center h-96">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : (
+            <DataGrid
+              dataSource={sales}
+              keyExpr="id"
+              showBorders={true}
+              showRowLines={true}
+              showColumnLines={true}
+              rowAlternationEnabled={true}
+              allowColumnReordering={true}
+              allowColumnResizing={true}
+              columnAutoWidth={true}
+              wordWrapEnabled={false}
+              onExporting={onExporting}
+            >
+              <StateStoring enabled={true} type="localStorage" storageKey="cashier-sales-today-grid" />
+              <SearchPanel visible={true} width={240} placeholder="Search invoice, customer..." />
+              <FilterRow visible={true} />
+              <HeaderFilter visible={true} />
+              <GroupPanel visible={true} />
+              <Grouping autoExpandAll={false} />
+              <ColumnChooser enabled={true} mode="select" />
+
+              <Column
+                dataField="invoiceNumber"
+                caption="Invoice #"
+                width={140}
+              />
+              <Column
+                dataField="saleDate"
+                caption="Time"
+                dataType="datetime"
+                format="shortTime"
+                width={100}
+              />
+              <Column
+                dataField="customer"
+                caption="Customer"
+                minWidth={150}
+              />
+              <Column
+                dataField="totalAmount"
+                caption="Amount"
+                dataType="number"
+                format="₱#,##0.00"
+                alignment="right"
+                width={130}
+                cssClass="font-semibold"
+              />
+              <Column
+                dataField="discountType"
+                caption="Discount"
+                width={140}
+                alignment="right"
+                cellRender={renderDiscountType}
+              />
+              <Column
+                dataField="payments"
+                caption="Payment"
+                width={180}
+                allowFiltering={false}
+                allowSorting={false}
+                cellRender={renderPaymentMethods}
+              />
+              <Column
+                dataField="itemCount"
+                caption="Items"
+                dataType="number"
+                alignment="center"
+                width={80}
+              />
+
+              <MasterDetail
+                enabled={true}
+                render={renderMasterDetail}
+              />
+
+              <Summary>
+                <TotalItem column="totalAmount" summaryType="sum" valueFormat="₱#,##0.00" />
+                <TotalItem column="discountAmount" summaryType="sum" valueFormat="₱#,##0.00" displayFormat="Total Discount: {0}" />
+              </Summary>
+
+              <Paging defaultPageSize={20} />
+              <Pager
+                visible={true}
+                allowedPageSizes={[10, 20, 50, 100]}
+                showPageSizeSelector={true}
+                showInfo={true}
+                showNavigationButtons={true}
+              />
+
+              <Export enabled={true} allowExportSelectedData={false} />
+
+              <Toolbar>
+                <Item name="groupPanel" />
+                <Item name="searchPanel" />
+                <Item name="exportButton" />
+                <Item name="columnChooserButton" />
+              </Toolbar>
+            </DataGrid>
+          )}
         </CardContent>
       </Card>
     </div>

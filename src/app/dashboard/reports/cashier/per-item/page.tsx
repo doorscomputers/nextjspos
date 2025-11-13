@@ -9,7 +9,26 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import DataGrid, {
+  Column,
+  FilterRow,
+  HeaderFilter,
+  SearchPanel,
+  Paging,
+  Pager,
+  Export,
+  Summary,
+  TotalItem,
+  StateStoring,
+  ColumnChooser,
+  Grouping,
+  GroupPanel,
+  Toolbar,
+  Item,
+} from 'devextreme-react/data-grid'
+import { Workbook } from 'exceljs'
+import { saveAs } from 'file-saver-es'
+import { exportDataGrid } from 'devextreme/excel_exporter'
 
 export default function CashierSalesPerItemPage() {
   const { can } = usePermissions()
@@ -24,7 +43,7 @@ export default function CashierSalesPerItemPage() {
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0])
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0])
   const [items, setItems] = useState<any[]>([])
-  const [summary, setSummary] = useState({ totalQuantity: 0, totalRevenue: 0 })
+  const [summary, setSummary] = useState({ totalQuantitySold: 0, totalRevenue: 0 })
 
   useEffect(() => {
     fetchUserLocation()
@@ -48,7 +67,7 @@ export default function CashierSalesPerItemPage() {
       const res = await fetch(`/api/reports/sales-per-item?locationId=${userLocationId}&startDate=${startDate}&endDate=${endDate}`)
       const data = await res.json()
       setItems(data.items || [])
-      setSummary(data.summary || { totalQuantity: 0, totalRevenue: 0 })
+      setSummary(data.summary || { totalQuantitySold: 0, totalRevenue: 0 })
     } catch (error) {
       console.error(error)
     } finally {
@@ -60,29 +79,35 @@ export default function CashierSalesPerItemPage() {
     if (userLocationId) fetchReport()
   }, [userLocationId, startDate, endDate])
 
-  const handleExport = () => {
-    const csv = [
-      ['Product', 'SKU', 'Quantity Sold', 'Unit Price', 'Total Revenue'],
-      ...items.map(item => [
-        item.productName,
-        item.sku,
-        item.quantitySold,
-        item.averagePrice,
-        item.totalRevenue
-      ])
-    ].map(row => row.join(',')).join('\n')
+  const onExporting = (e: any) => {
+    const workbook = new Workbook()
+    const worksheet = workbook.addWorksheet('Sales Per Item')
 
-    const blob = new Blob([csv], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `sales-per-item-${startDate}-to-${endDate}.csv`
-    a.click()
-    window.URL.revokeObjectURL(url)
+    exportDataGrid({
+      component: e.component,
+      worksheet,
+      autoFilterEnabled: true,
+      customizeCell: ({ gridCell, excelCell }: any) => {
+        if (gridCell.rowType === 'data') {
+          if (gridCell.column.dataField === 'totalRevenue' || gridCell.column.dataField === 'averagePrice') {
+            excelCell.numFmt = '₱#,##0.00'
+          }
+          if (gridCell.column.dataField === 'quantitySold') {
+            excelCell.numFmt = '#,##0.##'
+          }
+        }
+      }
+    }).then(() => {
+      workbook.xlsx.writeBuffer().then((buffer) => {
+        saveAs(new Blob([buffer], { type: 'application/octet-stream' }), `sales-per-item-${userLocationName}-${startDate}-to-${endDate}.xlsx`)
+      })
+    })
+    e.cancel = true
   }
 
   return (
     <div className="space-y-6 p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+      {/* Header */}
       <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div>
@@ -101,70 +126,141 @@ export default function CashierSalesPerItemPage() {
               <Label className="text-xs">To</Label>
               <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
-            <div className="flex items-end">
-              <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
-                <ArrowDownTrayIcon className="h-4 w-4" />
-                Export CSV
-              </Button>
-            </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Quantity Sold</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">{summary.totalQuantity}</div>
-            <p className="text-xs text-gray-500 mt-1">Units sold</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Revenue</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatCurrency(summary.totalRevenue)}</div>
-            <p className="text-xs text-gray-500 mt-1">From item sales</p>
-          </CardContent>
-        </Card>
-      </div>
-
+      {/* Summary Card - Revenue Only */}
       <Card>
-        <CardHeader><CardTitle>Items Sold ({items.length})</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Revenue</CardTitle>
+        </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Product Name</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead className="text-right">Qty Sold</TableHead>
-                <TableHead className="text-right">Avg Price</TableHead>
-                <TableHead className="text-right">Total Revenue</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-8">Loading...</TableCell></TableRow>
-              ) : items.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-8 text-gray-500">No items sold</TableCell></TableRow>
-              ) : (
-                items.map((item, idx) => (
-                  <TableRow key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                    <TableCell className="font-medium">{item.productName}</TableCell>
-                    <TableCell className="text-sm text-gray-600 dark:text-gray-400">{item.sku}</TableCell>
-                    <TableCell className="text-right">{item.quantitySold}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.averagePrice)}</TableCell>
-                    <TableCell className="text-right font-semibold text-green-600 dark:text-green-400">
-                      {formatCurrency(item.totalRevenue)}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+          <div className="text-3xl font-bold text-green-600 dark:text-green-400">{formatCurrency(summary.totalRevenue)}</div>
+          <p className="text-xs text-gray-500 mt-1">From {items.length} product(s) sold</p>
+        </CardContent>
+      </Card>
+
+      {/* DevExtreme DataGrid */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <span>Items Sold</span>
+            <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({items.length} products)</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center h-96">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : (
+            <DataGrid
+              dataSource={items}
+              keyExpr="productId"
+              showBorders={true}
+              showRowLines={true}
+              showColumnLines={true}
+              rowAlternationEnabled={true}
+              allowColumnReordering={true}
+              allowColumnResizing={true}
+              columnAutoWidth={true}
+              wordWrapEnabled={false}
+              onExporting={onExporting}
+            >
+              <StateStoring enabled={true} type="localStorage" storageKey="cashier-sales-per-item-grid" />
+              <SearchPanel visible={true} width={240} placeholder="Search product or SKU..." />
+              <FilterRow visible={true} />
+              <HeaderFilter visible={true} />
+              <GroupPanel visible={true} />
+              <Grouping autoExpandAll={false} />
+              <ColumnChooser enabled={true} mode="select" />
+
+              <Column
+                dataField="productName"
+                caption="Product Name"
+                minWidth={200}
+              />
+              <Column
+                dataField="sku"
+                caption="SKU"
+                width={150}
+              />
+              <Column
+                dataField="category"
+                caption="Category"
+                width={120}
+                visible={false}
+              />
+              <Column
+                dataField="quantitySold"
+                caption="Qty Sold"
+                dataType="number"
+                format="#,##0.##"
+                alignment="right"
+                width={100}
+              />
+              <Column
+                dataField="averagePrice"
+                caption="Avg Price"
+                dataType="number"
+                format="₱#,##0.00"
+                alignment="right"
+                width={120}
+              />
+              <Column
+                dataField="totalRevenue"
+                caption="Total Revenue"
+                dataType="number"
+                format="₱#,##0.00"
+                alignment="right"
+                width={130}
+                cssClass="font-semibold"
+              />
+              <Column
+                dataField="totalProfit"
+                caption="Profit"
+                dataType="number"
+                format="₱#,##0.00"
+                alignment="right"
+                width={120}
+                visible={false}
+              />
+              <Column
+                dataField="profitMargin"
+                caption="Margin %"
+                dataType="number"
+                format="#,##0.0"
+                alignment="right"
+                width={100}
+                visible={false}
+              />
+
+              <Summary>
+                <TotalItem column="quantitySold" summaryType="sum" valueFormat="#,##0.##" />
+                <TotalItem column="totalRevenue" summaryType="sum" valueFormat="₱#,##0.00" />
+                <TotalItem column="totalProfit" summaryType="sum" valueFormat="₱#,##0.00" />
+              </Summary>
+
+              <Paging defaultPageSize={20} />
+              <Pager
+                visible={true}
+                allowedPageSizes={[10, 20, 50, 100]}
+                showPageSizeSelector={true}
+                showInfo={true}
+                showNavigationButtons={true}
+              />
+
+              <Export enabled={true} allowExportSelectedData={false} />
+
+              <Toolbar>
+                <Item name="groupPanel" />
+                <Item name="searchPanel" />
+                <Item name="exportButton" />
+                <Item name="columnChooserButton" />
+              </Toolbar>
+            </DataGrid>
+          )}
         </CardContent>
       </Card>
     </div>

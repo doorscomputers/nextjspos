@@ -1880,7 +1880,21 @@ export default function POSEnhancedPage() {
           <Button onClick={() => window.open('/dashboard/readings/x-reading', '_blank')} className="h-12 px-4 bg-indigo-600 hover:bg-indigo-700 text-white" title="X Reading">📊 X Read</Button>
           <Button onClick={() => { setCashIOAmount(''); setCashIORemarks(''); setShowCashInDialog(true); }} className="h-12 px-4 bg-green-600 hover:bg-green-700 text-white">💵 Cash In</Button>
           <Button onClick={() => { setCashIOAmount(''); setCashIORemarks(''); setShowCashOutDialog(true); }} className="h-12 px-4 bg-red-600 hover:bg-red-700 text-white">💸 Cash Out</Button>
-          <Button onClick={() => setShowARPaymentDialog(true)} className="h-12 px-4 bg-yellow-600 hover:bg-yellow-700 text-white" title="AR Payment">💳 AR Pay</Button>
+          <Button
+            onClick={() => setShowARPaymentDialog(true)}
+            className="h-12 px-4 bg-yellow-600 hover:bg-yellow-700 text-white relative"
+            title="Collect AR Payment"
+          >
+            💳 AR Pay
+            {(() => {
+              const customersWithAR = customers.filter(c => c.hasUnpaidInvoices && c.arBalance > 0).length
+              return customersWithAR > 0 ? (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center border-2 border-white">
+                  {customersWithAR}
+                </span>
+              ) : null
+            })()}
+          </Button>
           <Button onClick={() => { if (cart.length === 0) { setError('Cart is empty'); setTimeout(() => setError(''), 3000); return; } setShowQuotationDialog(true); }} className="h-12 px-4 bg-purple-600 hover:bg-purple-700 text-white">📋 Save</Button>
           <Button onClick={() => setShowSavedQuotations(true)} className="h-12 px-4 bg-blue-600 hover:bg-blue-700 text-white">📂 Load</Button>
           <Button onClick={() => setShowHoldDialog(true)} className="h-12 px-4 bg-amber-500 hover:bg-amber-600 text-white">⏸️ Hold</Button>
@@ -2228,7 +2242,14 @@ export default function POSEnhancedPage() {
                             setShowCustomerDropdown(false)
                           }}
                         >
-                          <div className="font-bold text-sm text-gray-800">{customer.name}</div>
+                          <div className="flex items-center justify-between">
+                            <div className="font-bold text-sm text-gray-800">{customer.name}</div>
+                            {customer.hasUnpaidInvoices && (
+                              <div className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-bold rounded border border-red-300">
+                                AR: ₱{customer.arBalance.toFixed(2)}
+                              </div>
+                            )}
+                          </div>
                           {customer.email && (
                             <div className="text-xs text-gray-600">📧 {customer.email}</div>
                           )}
@@ -2250,17 +2271,39 @@ export default function POSEnhancedPage() {
               </Button>
             </div>
             {selectedCustomer ? (
-              <div className="mt-2 p-2 bg-green-50 border-2 border-green-500 rounded-lg">
-                <div className="text-sm text-green-800 font-bold flex items-center gap-2">
-                  <span className="text-lg">✓</span>
-                  <span>SELECTED CUSTOMER</span>
+              <div className="mt-2 space-y-2">
+                <div className="p-2 bg-green-50 border-2 border-green-500 rounded-lg">
+                  <div className="text-sm text-green-800 font-bold flex items-center gap-2">
+                    <span className="text-lg">✓</span>
+                    <span>SELECTED CUSTOMER</span>
+                  </div>
+                  <div className="text-base font-bold text-gray-900 mt-1">{selectedCustomer.name}</div>
+                  {selectedCustomer.email && (
+                    <div className="text-xs text-gray-600 mt-1">📧 {selectedCustomer.email}</div>
+                  )}
+                  {selectedCustomer.phone && (
+                    <div className="text-xs text-gray-600">📱 {selectedCustomer.phone}</div>
+                  )}
                 </div>
-                <div className="text-base font-bold text-gray-900 mt-1">{selectedCustomer.name}</div>
-                {selectedCustomer.email && (
-                  <div className="text-xs text-gray-600 mt-1">📧 {selectedCustomer.email}</div>
-                )}
-                {selectedCustomer.phone && (
-                  <div className="text-xs text-gray-600">📱 {selectedCustomer.phone}</div>
+
+                {/* AR Balance Display & Quick Payment Button */}
+                {selectedCustomer.hasUnpaidInvoices && selectedCustomer.arBalance > 0 && (
+                  <div className="p-3 bg-red-50 border-2 border-red-500 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <div className="text-xs font-semibold text-red-700">Outstanding AR Balance:</div>
+                        <div className="text-2xl font-bold text-red-600">₱{selectedCustomer.arBalance.toFixed(2)}</div>
+                      </div>
+                      <div className="text-4xl">💳</div>
+                    </div>
+                    <Button
+                      onClick={() => setShowARPaymentDialog(true)}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg"
+                      size="sm"
+                    >
+                      💰 Collect Payment Now
+                    </Button>
+                  </div>
                 )}
               </div>
             ) : (
@@ -2792,12 +2835,19 @@ export default function POSEnhancedPage() {
       {currentShift && (
         <ARPaymentCollectionModal
           isOpen={showARPaymentDialog}
-          onClose={() => setShowARPaymentDialog(false)}
+          onClose={() => {
+            setShowARPaymentDialog(false)
+            // Refresh customer data to update AR balance
+            fetchCustomers()
+          }}
           shiftId={currentShift.id}
           onPaymentSuccess={() => {
-            // Refresh today's sales or any other data if needed
+            // Refresh today's sales and customer data
             fetchTodaysSales()
+            fetchCustomers()
           }}
+          preSelectedCustomerId={selectedCustomer?.id}
+          preSelectedCustomerName={selectedCustomer?.name}
         />
       )}
 

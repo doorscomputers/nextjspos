@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -24,6 +24,7 @@ interface UnclosedShift {
 
 export default function UnclosedShiftWarning() {
   const router = useRouter()
+  const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [shift, setShift] = useState<UnclosedShift | null>(null)
   const [loading, setLoading] = useState(true)
@@ -31,21 +32,36 @@ export default function UnclosedShiftWarning() {
   const [forceClosing, setForceClosing] = useState(false)
   const [forceCloseError, setForceCloseError] = useState('')
 
+  // CRITICAL FIX: Don't show this warning on the close shift page itself!
+  // Otherwise it blocks the user from actually closing the shift
+  const isOnClosePage = pathname?.includes('/shifts/close') || pathname?.includes('/shifts/force-close')
+
   useEffect(() => {
     checkUnclosedShift()
   }, [])
+
+  // CRITICAL FIX #2: Close the dialog when user navigates to close page
+  useEffect(() => {
+    if (isOnClosePage && open) {
+      console.log('[UnclosedShiftWarning] User is on close page, hiding dialog')
+      setOpen(false)
+      setNavigating(false)
+    }
+  }, [pathname, isOnClosePage, open])
 
   const checkUnclosedShift = async () => {
     try {
       const response = await fetch('/api/shifts/check-unclosed')
       const data = await response.json()
 
-      // Only show warning if:
-      // 1. There is an unclosed shift AND
-      // 2. The API says we should show a warning (different day OR 9+ hours)
+      // NEW BEHAVIOR: Instead of showing blocking dialog, auto-redirect to close page
+      // The warning will be displayed ON the close page itself (less headache!)
       if (data.hasUnclosedShift && data.shouldShowWarning) {
         setShift(data.shift)
-        setOpen(true)
+
+        // Don't show dialog - just redirect immediately
+        console.log('[UnclosedShiftWarning] Found unclosed shift, redirecting to close page...')
+        router.push(`/dashboard/shifts/close?shiftId=${data.shift.id}`)
       }
     } catch (error) {
       console.error('Error checking unclosed shift:', error)
@@ -115,7 +131,8 @@ export default function UnclosedShiftWarning() {
   //   setOpen(false)
   // }
 
-  if (!shift) return null
+  // Don't render if no shift OR if user is already on the close page
+  if (!shift || isOnClosePage) return null
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString)

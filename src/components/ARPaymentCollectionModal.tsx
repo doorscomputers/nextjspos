@@ -29,13 +29,17 @@ interface ARPaymentCollectionModalProps {
   onClose: () => void
   shiftId: number
   onPaymentSuccess?: () => void
+  preSelectedCustomerId?: number  // Pre-filter to specific customer
+  preSelectedCustomerName?: string  // Display customer name
 }
 
 export default function ARPaymentCollectionModal({
   isOpen,
   onClose,
   shiftId,
-  onPaymentSuccess
+  onPaymentSuccess,
+  preSelectedCustomerId,
+  preSelectedCustomerName
 }: ARPaymentCollectionModalProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(false)
@@ -75,11 +79,18 @@ export default function ARPaymentCollectionModal({
     }
   }, [isOpen])
 
-  // Filter invoices by search term
-  const filteredInvoices = unpaidInvoices.filter(invoice =>
-    invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    invoice.customerName.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Filter invoices by search term and pre-selected customer
+  const filteredInvoices = unpaidInvoices.filter(invoice => {
+    // If pre-selected customer, filter to that customer only
+    if (preSelectedCustomerId && invoice.customerId !== preSelectedCustomerId) {
+      return false
+    }
+    // Then apply search filter
+    return (
+      invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      invoice.customerName.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  })
 
   // Handle invoice selection
   const selectInvoice = (invoice: UnpaidInvoice) => {
@@ -162,6 +173,11 @@ export default function ARPaymentCollectionModal({
           <DialogTitle className="flex items-center gap-2">
             <CreditCardIcon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             Collect AR Payment
+            {preSelectedCustomerName && (
+              <span className="ml-2 px-3 py-1 bg-green-100 text-green-800 text-sm font-semibold rounded-full border border-green-300">
+                Customer: {preSelectedCustomerName}
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
 

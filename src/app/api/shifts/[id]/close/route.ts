@@ -290,9 +290,7 @@ export async function POST(
             countType: 'closing',
             countedBy: parseInt(session.user.id),
           },
-        }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+        })
       }
 
       // Close the shift
@@ -312,6 +310,8 @@ export async function POST(
           status: 'closed',
         },
       })
+    }, {
+      timeout: 120000, // 120 second (2 minute) timeout for network resilience with Supabase
     })
 
     const txElapsed = Date.now() - txStartTime

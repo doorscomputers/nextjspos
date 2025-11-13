@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { BIRReadingDisplay } from '@/components/BIRReadingDisplay'
 import { CheckCircle, Loader2, FileText, Calculator, CreditCard, Key } from 'lucide-react'
+import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 
 const DENOMINATIONS = [
   { value: 1000, label: '₱1000 Bills', field: 'count1000' },
@@ -111,8 +112,9 @@ export default function CloseShiftPage() {
 
       // Step 2: Generate X Reading (CRITICAL for cash calculation fallback)
       // Add timeout to prevent hanging on old/large shifts
+      // INCREASED TIMEOUT: For Supabase/cloud DBs with network latency + old shifts with many transactions
       const xController = new AbortController()
-      const xTimeout = setTimeout(() => xController.abort(), 30000) // 30 second timeout
+      const xTimeout = setTimeout(() => xController.abort(), 120000) // 120 second (2 minute) timeout
 
       try {
         const xRes = await fetch(`/api/readings/x-reading?shiftId=${shift.id}`, {
@@ -130,7 +132,7 @@ export default function CloseShiftPage() {
       } catch (err: any) {
         clearTimeout(xTimeout)
         if (err.name === 'AbortError') {
-          throw new Error('X Reading timed out. Please try again or contact support.')
+          throw new Error('X Reading timed out after 2 minutes. This shift may have too many transactions. Please use Force-Close or contact support.')
         }
         throw err
       }
@@ -140,7 +142,7 @@ export default function CloseShiftPage() {
       let systemCash = 0
 
       const zController = new AbortController()
-      const zTimeout = setTimeout(() => zController.abort(), 30000) // 30 second timeout
+      const zTimeout = setTimeout(() => zController.abort(), 120000) // 120 second (2 minute) timeout
 
       try {
         const zRes = await fetch(`/api/readings/z-reading?shiftId=${shift.id}`, {
@@ -175,7 +177,7 @@ export default function CloseShiftPage() {
       } catch (err: any) {
         clearTimeout(zTimeout)
         if (err.name === 'AbortError') {
-          console.warn('⚠️ Z Reading timed out, using X Reading expected cash as fallback')
+          console.warn('⚠️ Z Reading timed out after 2 minutes, using X Reading expected cash as fallback')
           // Use X Reading's expected cash as fallback
           if (xReadingData && xReadingData.expectedCash !== undefined) {
             systemCash = xReadingData.expectedCash
@@ -337,9 +339,28 @@ export default function CloseShiftPage() {
         throw new Error(data.error || 'Failed to close shift')
       }
 
-      // Store variance data (X/Z readings already displayed)
+      // Store variance data and UPDATE Z Reading with actual cash count
       console.log('[ShiftClose] ✅ Shift closed successfully')
       setVariance(data.variance)
+
+      // CRITICAL FIX: Update Z Reading with actual ending cash, variance, AND denominations
+      if (data.zReading) {
+        // Convert denomination strings to numbers for Z Reading
+        const denominationNumbers = Object.keys(denominations).reduce((acc, key) => {
+          acc[key] = parseInt(denominations[key]) || 0
+          return acc
+        }, {} as any)
+
+        const updatedZReading = {
+          ...data.zReading,
+          endingCash: data.variance.endingCash,
+          cashVariance: data.variance.endingCash - data.variance.systemCash,
+          cashDenominations: denominationNumbers, // Add denomination breakdown
+        }
+        setZReading(updatedZReading)
+        console.log('[ShiftClose] Updated Z Reading with actual cash:', updatedZReading.endingCash, 'Variance:', updatedZReading.cashVariance, 'Denominations:', denominationNumbers)
+      }
+
       setShiftClosed(true)
       setLoading(false)
       setShowPasswordDialog(false) // Close authorization dialog
@@ -440,27 +461,55 @@ export default function CloseShiftPage() {
           </CardHeader>
           <CardContent>
             {variance && (
-              <div className="mb-4 p-4 bg-white rounded-lg border">
-                <h4 className="font-medium mb-2">Cash Reconciliation:</h4>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <div className="text-muted-foreground">System Expected:</div>
-                    <div className="text-lg font-bold">₱{variance.systemCash.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground">Physical Count:</div>
-                    <div className="text-lg font-bold">₱{variance.endingCash.toFixed(2)}</div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground">Variance:</div>
-                    <div className={`text-lg font-bold ${
-                      variance.isBalanced ? 'text-green-600' :
-                      variance.cashOver > 0 ? 'text-yellow-600' : 'text-red-600'
-                    }`}>
-                      {variance.isBalanced ? '✓ Balanced' :
-                       variance.cashOver > 0 ? `+₱${variance.cashOver.toFixed(2)} Over` :
-                       `-₱${variance.cashShort.toFixed(2)} Short`}
+              <div className="space-y-4 mb-4">
+                {/* Cash Reconciliation Summary */}
+                <div className="p-4 bg-white rounded-lg border">
+                  <h4 className="font-medium mb-3">Cash Reconciliation:</h4>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <div className="text-muted-foreground">System Expected:</div>
+                      <div className="text-lg font-bold">₱{variance.systemCash.toFixed(2)}</div>
                     </div>
+                    <div>
+                      <div className="text-muted-foreground">Physical Count:</div>
+                      <div className="text-lg font-bold">₱{variance.endingCash.toFixed(2)}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Variance:</div>
+                      <div className={`text-lg font-bold ${
+                        variance.isBalanced ? 'text-green-600' :
+                        variance.cashOver > 0 ? 'text-yellow-600' : 'text-red-600'
+                      }`}>
+                        {variance.isBalanced ? '✓ Balanced' :
+                         variance.cashOver > 0 ? `+₱${variance.cashOver.toFixed(2)} Over` :
+                         `-₱${variance.cashShort.toFixed(2)} Short`}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cash Denomination Breakdown */}
+                <div className="p-4 bg-white rounded-lg border">
+                  <h4 className="font-medium mb-3">Cash Denomination Breakdown:</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+                    {DENOMINATIONS.map((denom) => {
+                      const count = parseInt(denominations[denom.field]) || 0
+                      const amount = count * denom.value
+                      if (count === 0) return null
+                      return (
+                        <div key={denom.field} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                          <span className="text-muted-foreground">{denom.label}:</span>
+                          <div className="text-right">
+                            <div className="font-semibold">{count}×</div>
+                            <div className="text-xs text-muted-foreground">₱{amount.toFixed(2)}</div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="mt-3 pt-3 border-t flex justify-between items-center">
+                    <span className="font-semibold">Total Counted:</span>
+                    <span className="text-xl font-bold text-green-600">₱{calculateTotal().toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -486,6 +535,32 @@ export default function CloseShiftPage() {
 
   return (
     <div className="container max-w-5xl mx-auto py-8 px-4 space-y-6">
+      {/* Old shift warning - Simple and clean */}
+      {currentShift && (() => {
+        const hoursOpen = Math.floor((Date.now() - new Date(currentShift.openedAt).getTime()) / (1000 * 60 * 60))
+        const daysOpen = Math.floor(hoursOpen / 24)
+        const isOverdue = hoursOpen >= 24
+
+        if (hoursOpen >= 9) {
+          const message = isOverdue
+            ? `⚠️ This shift is ${daysOpen} day${daysOpen > 1 ? 's' : ''} old - BIR requires daily closure`
+            : `⚠️ This shift is ${hoursOpen} hours old - please close soon`
+
+          return (
+            <div className={`px-4 py-3 rounded-lg border-l-4 ${
+              isOverdue
+                ? 'bg-red-50 border-red-500 dark:bg-red-950/50 dark:border-red-500'
+                : 'bg-orange-50 border-orange-500 dark:bg-orange-950/50 dark:border-orange-500'
+            }`}>
+              <p className={`text-sm font-medium ${isOverdue ? 'text-red-900 dark:text-red-200' : 'text-orange-900 dark:text-orange-200'}`}>
+                {message}
+              </p>
+            </div>
+          )
+        }
+        return null
+      })()}
+
       {/* Step 1 & 2: Display X and Z Readings FIRST */}
       <Card className="border-blue-300 bg-blue-50">
         <CardHeader>

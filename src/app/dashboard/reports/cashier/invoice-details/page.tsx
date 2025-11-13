@@ -9,15 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import DataGrid, {
+  Column,
+  Summary,
+  TotalItem,
+} from 'devextreme-react/data-grid'
+import 'devextreme/dist/css/dx.light.css'
 
 interface SaleDetail {
   id: number
@@ -159,7 +157,8 @@ export default function CashierInvoiceDetailsPage() {
               <Button
                 onClick={handleSearch}
                 disabled={loading}
-                className="gap-2"
+                variant="success"
+                className="gap-2 min-w-32"
               >
                 {loading ? (
                   <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
@@ -169,7 +168,12 @@ export default function CashierInvoiceDetailsPage() {
                 Search
               </Button>
               {saleDetail && (
-                <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePrint}
+                  className="gap-2 hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
+                >
                   <PrinterIcon className="h-4 w-4" />
                   Print
                 </Button>
@@ -209,38 +213,70 @@ export default function CashierInvoiceDetailsPage() {
               <p className="text-gray-700 dark:text-gray-300">{saleDetail.customer}</p>
             </div>
 
-            {/* Items Table */}
+            {/* Items Table with DevExtreme DataGrid */}
             <div>
               <h3 className="font-semibold mb-3 text-gray-900 dark:text-white">Sale Items</h3>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead>SKU</TableHead>
-                      <TableHead className="text-right">Qty</TableHead>
-                      <TableHead className="text-right">Unit Price</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {saleDetail.items.map((item, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell>
-                          {item.productName}
-                          {item.variationName && (
-                            <span className="text-sm text-gray-500 dark:text-gray-500"> ({item.variationName})</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm text-gray-600 dark:text-gray-400">{item.sku}</TableCell>
-                        <TableCell className="text-right">{item.quantity}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
-                        <TableCell className="text-right font-semibold">{formatCurrency(item.total)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+              <DataGrid
+                dataSource={saleDetail.items}
+                showBorders={true}
+                showRowLines={true}
+                showColumnLines={true}
+                rowAlternationEnabled={true}
+                columnAutoWidth={true}
+                wordWrapEnabled={false}
+              >
+                <Column
+                  dataField="productName"
+                  caption="Product"
+                  minWidth={200}
+                  cellRender={(data) => (
+                    <div>
+                      {data.value}
+                      {data.data.variationName && (
+                        <span className="text-sm text-gray-500 dark:text-gray-500">
+                          {" "}({data.data.variationName})
+                        </span>
+                      )}
+                    </div>
+                  )}
+                />
+                <Column
+                  dataField="sku"
+                  caption="SKU"
+                  width={120}
+                  cssClass="text-sm text-gray-600 dark:text-gray-400"
+                />
+                <Column
+                  dataField="quantity"
+                  caption="Qty"
+                  dataType="number"
+                  format="#,##0.##"
+                  alignment="right"
+                  width={80}
+                />
+                <Column
+                  dataField="unitPrice"
+                  caption="Unit Price"
+                  dataType="number"
+                  format="₱#,##0.00"
+                  alignment="right"
+                  width={120}
+                />
+                <Column
+                  dataField="total"
+                  caption="Total"
+                  dataType="number"
+                  format="₱#,##0.00"
+                  alignment="right"
+                  width={120}
+                  cssClass="font-semibold"
+                />
+
+                <Summary>
+                  <TotalItem column="quantity" summaryType="sum" valueFormat="#,##0.##" />
+                  <TotalItem column="total" summaryType="sum" valueFormat="₱#,##0.00" />
+                </Summary>
+              </DataGrid>
             </div>
 
             {/* Summary */}

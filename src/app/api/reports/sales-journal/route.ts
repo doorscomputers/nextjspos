@@ -67,16 +67,16 @@ export async function GET(request: NextRequest) {
       where.status = statusFilter
     }
 
-    // Date filtering
+    // Date filtering - use saleDate for journal reports
     if (startDate || endDate) {
-      where.createdAt = {}
+      where.saleDate = {}
       if (startDate) {
-        where.createdAt.gte = new Date(startDate)
+        where.saleDate.gte = new Date(startDate)
       }
       if (endDate) {
         const end = new Date(endDate)
         end.setHours(23, 59, 59, 999)
-        where.createdAt.lte = end
+        where.saleDate.lte = end
       }
     }
 
@@ -332,7 +332,55 @@ export async function GET(request: NextRequest) {
       .filter(s => s.discountType === 'senior' || s.discountType === 'pwd')
       .reduce((sum, sale) => sum + sale.discount, 0)
 
+    // Generate accounting journal entries for each sale
+    const journalEntries: any[] = []
+
+    formattedSales.forEach((sale) => {
+      const saleDate = sale.date
+      const invoiceNumber = sale.invoiceNumber
+      const customer = sale.customer
+      const totalAmount = sale.totalAmount
+      const vatAmount = sale.vatAmount
+      const netAmount = totalAmount - vatAmount
+
+      // Determine if it's cash or credit sale based on payment method
+      const isCashSale = sale.paymentMethod?.toLowerCase().includes('cash')
+
+      // Entry 1: Debit - Cash or Accounts Receivable
+      journalEntries.push({
+        date: saleDate,
+        invoiceNumber: invoiceNumber,
+        customer: customer,
+        account: isCashSale ? 'Cash' : 'Accounts Receivable',
+        debit: totalAmount,
+        credit: 0,
+      })
+
+      // Entry 2: Credit - Sales Revenue (net of VAT)
+      journalEntries.push({
+        date: saleDate,
+        invoiceNumber: invoiceNumber,
+        customer: customer,
+        account: 'Sales Revenue',
+        debit: 0,
+        credit: netAmount,
+      })
+
+      // Entry 3: Credit - VAT Payable (if applicable)
+      if (vatAmount > 0) {
+        journalEntries.push({
+          date: saleDate,
+          invoiceNumber: invoiceNumber,
+          customer: customer,
+          account: 'VAT Payable',
+          debit: 0,
+          credit: vatAmount,
+        })
+      }
+    })
+
     return NextResponse.json({
+      journal: journalEntries,
       sales: formattedSales,
       pagination: {
         page,

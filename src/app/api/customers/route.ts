@@ -44,7 +44,36 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    return NextResponse.json(customers)
+    // Calculate AR balance for each customer (unpaid invoices)
+    const customersWithBalance = await Promise.all(
+      customers.map(async (customer) => {
+        const unpaidInvoices = await prisma.sale.findMany({
+          where: {
+            customerId: customer.id,
+            status: 'pending', // Credit sales not fully paid
+            deletedAt: null,
+          },
+          select: {
+            totalAmount: true,
+            paidAmount: true,
+          },
+        })
+
+        // Calculate total AR balance
+        const arBalance = unpaidInvoices.reduce((total, invoice) => {
+          const balance = parseFloat(invoice.totalAmount.toString()) - parseFloat(invoice.paidAmount.toString())
+          return total + balance
+        }, 0)
+
+        return {
+          ...customer,
+          arBalance: arBalance > 0 ? arBalance : 0,
+          hasUnpaidInvoices: arBalance > 0,
+        }
+      })
+    )
+
+    return NextResponse.json(customersWithBalance)
   } catch (error) {
     console.error('Error fetching customers:', error)
     return NextResponse.json(

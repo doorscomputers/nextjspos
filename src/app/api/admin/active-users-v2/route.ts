@@ -198,12 +198,12 @@ export async function GET(request: NextRequest) {
     // ========================================================================
     // FETCH LOCATION DETAILS
     // ========================================================================
-    const locationIds = Object.keys(locationGroups).map((id) => parseInt(id))
+    const groupedLocationIds = Object.keys(locationGroups).map((id) => parseInt(id))
     const locations = await prisma.businessLocation.findMany({
       where: {
         businessId: businessIdInt,
         id: {
-          in: locationIds
+          in: groupedLocationIds
         }
       },
       select: {

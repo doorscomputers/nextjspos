@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
-import { PERMISSIONS } from '@/lib/rbac'
+import { PERMISSIONS, getUserAccessibleLocationIds } from '@/lib/rbac'
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,10 +32,33 @@ export async function GET(request: NextRequest) {
     const businessId = parseInt(session.user.businessId)
 
     // Build where clause
-    const whereClause: any = { businessId }
+    const whereClause: any = { businessId, deletedAt: null }
 
-    if (locationId && locationId !== 'all') {
-      whereClause.locationId = parseInt(locationId)
+    // Automatic location filtering based on user's assigned locations
+    const accessibleLocationIds = getUserAccessibleLocationIds({
+      id: session.user.id,
+      permissions: session.user.permissions || [],
+      roles: session.user.roles || [],
+      businessId: session.user.businessId,
+      locationIds: session.user.locationIds || []
+    })
+
+    // If user has limited location access, enforce it
+    if (accessibleLocationIds !== null) {
+      if (accessibleLocationIds.length === 0) {
+        // User has no location access - return empty results
+        return NextResponse.json({
+          sales: [],
+          pagination: { page, limit, totalCount: 0, totalPages: 0 },
+          summary: { totalAmount: 0, totalDiscount: 0, netAmount: 0 }
+        })
+      }
+      whereClause.locationId = { in: accessibleLocationIds }
+    } else {
+      // User has access to all locations - still respect specific locationId if provided
+      if (locationId && locationId !== 'all') {
+        whereClause.locationId = parseInt(locationId)
+      }
     }
 
     if (customerId && customerId !== 'all') {
