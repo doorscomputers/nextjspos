@@ -46,17 +46,13 @@ export async function GET(request: NextRequest) {
     const agingPeriodParam = searchParams.get('agingPeriod')
     const searchQuery = searchParams.get('search')
 
-    // Build where clause for sales with credit payments
+    // Build where clause for unpaid/partially paid credit sales
+    // Credit sales have status 'pending' when unpaid or partially paid
     const saleWhere: any = {
       businessId,
       deletedAt: null,
-      status: 'completed',
-      // Only sales with credit payments
-      payments: {
-        some: {
-          paymentMethod: 'credit',
-        },
-      },
+      status: 'pending', // Changed from 'completed' - pending means unpaid/partially paid
+      customerId: { not: null }, // Must have a customer (not walk-in)
     }
 
     // Location access control
@@ -151,18 +147,17 @@ export async function GET(request: NextRequest) {
     const today = new Date()
     const invoices = sales.map((sale) => {
       const totalAmount = parseFloat(sale.totalAmount.toString())
+      const paidAmount = parseFloat(sale.paidAmount?.toString() || '0')
 
-      // Calculate total paid (excluding credit method)
-      const totalPaid = sale.payments
-        .filter((p: any) => p.paymentMethod !== 'credit')
-        .reduce((sum: number, p: any) => sum + parseFloat(p.amount.toString()), 0)
-
-      const balanceDue = totalAmount - totalPaid
+      // Balance due is what's left to pay
+      const balanceDue = totalAmount - paidAmount
 
       // Only include if there's an outstanding balance
       if (balanceDue <= 0.01) {
         return null
       }
+
+      const totalPaid = paidAmount
 
       // Calculate days overdue
       const saleDate = new Date(sale.saleDate)

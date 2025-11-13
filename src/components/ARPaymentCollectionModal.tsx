@@ -56,14 +56,35 @@ export default function ARPaymentCollectionModal({
   const fetchUnpaidInvoices = async () => {
     setLoading(true)
     try {
+      console.log('[AR Modal] Fetching unpaid invoices...')
       const response = await fetch('/api/reports/unpaid-invoices')
-      if (!response.ok) throw new Error('Failed to fetch unpaid invoices')
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('[AR Modal] API Error:', errorData)
+        throw new Error(errorData.error || 'Failed to fetch unpaid invoices')
+      }
 
       const data = await response.json()
-      setUnpaidInvoices(data.invoices || [])
+      console.log('[AR Modal] Received data:', data)
+
+      // Transform API response to match interface
+      const transformedInvoices = (data.invoices || []).map((invoice: any) => ({
+        id: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceDate: invoice.saleDate,
+        totalAmount: invoice.totalAmount,
+        paidAmount: invoice.amountPaid || 0,
+        balance: invoice.balanceDue,
+        customerName: invoice.customer?.name || 'Unknown',
+        customerId: invoice.customer?.id || 0,
+      }))
+
+      console.log('[AR Modal] Transformed invoices:', transformedInvoices.length)
+      setUnpaidInvoices(transformedInvoices)
     } catch (error: any) {
-      console.error('Error fetching unpaid invoices:', error)
-      toast.error('Failed to load unpaid invoices')
+      console.error('[AR Modal] Error fetching unpaid invoices:', error)
+      toast.error(error.message || 'Failed to load unpaid invoices')
     } finally {
       setLoading(false)
     }
