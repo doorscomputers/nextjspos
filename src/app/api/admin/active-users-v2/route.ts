@@ -218,53 +218,78 @@ export async function GET(request: NextRequest) {
     // FETCH ALL OPEN SHIFTS (Independent of activity tracking)
     // ========================================================================
     // This shows ALL cashiers with open shifts, even if they haven't been active recently
-    const allOpenShifts = await prisma.cashierShift.findMany({
+    const allOpenShiftsRaw = await prisma.cashierShift.findMany({
       where: {
         closedAt: null, // Still open
-        user: {
-          businessId: businessIdInt
-        }
+        businessId: businessIdInt
       },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            firstName: true,
-            lastName: true,
-            surname: true,
-            email: true,
-            roles: {
-              include: {
-                role: {
-                  select: {
-                    name: true
-                  }
-                }
-              }
-            }
-          }
-        },
-        location: {
-          select: {
-            id: true,
-            name: true,
-            locationCode: true,
-            isActive: true
-          }
-        }
+      select: {
+        id: true,
+        shiftNumber: true,
+        openedAt: true,
+        beginningCash: true,
+        runningTransactions: true,
+        runningGrossSales: true,
+        userId: true,
+        locationId: true
       },
       orderBy: {
         openedAt: 'asc' // Oldest shifts first (most critical)
       }
     })
 
+    // Manually fetch users and locations for these shifts
+    const userIds = [...new Set(allOpenShiftsRaw.map(s => s.userId))]
+    const locationIds = [...new Set(allOpenShiftsRaw.map(s => s.locationId))]
+
+    const shiftUsers = await prisma.user.findMany({
+      where: {
+        id: { in: userIds }
+      },
+      select: {
+        id: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        surname: true,
+        email: true,
+        roles: {
+          include: {
+            role: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    const shiftLocations = await prisma.businessLocation.findMany({
+      where: {
+        id: { in: locationIds }
+      },
+      select: {
+        id: true,
+        name: true,
+        locationCode: true,
+        isActive: true
+      }
+    })
+
+    // Create lookup maps
+    const userMap = new Map(shiftUsers.map(u => [u.id, u]))
+    const locationMap = new Map(shiftLocations.map(l => [l.id, l]))
+
     // Format open shifts data
-    const formattedOpenShifts = allOpenShifts.map(shift => {
+    const formattedOpenShifts = allOpenShiftsRaw.map(shift => {
       const now = new Date()
       const shiftDurationMs = now.getTime() - shift.openedAt.getTime()
       const shiftDurationHours = shiftDurationMs / (1000 * 60 * 60)
-      const roles = shift.user.roles.map(ur => ur.role.name)
+
+      const user = userMap.get(shift.userId)
+      const location = locationMap.get(shift.locationId)
+      const roles = user?.roles.map(ur => ur.role.name) || []
 
       return {
         shiftId: shift.id,
@@ -276,16 +301,16 @@ export async function GET(request: NextRequest) {
         beginningCash: shift.beginningCash.toString(),
         runningTransactions: shift.runningTransactions,
         runningGrossSales: shift.runningGrossSales.toString(),
-        userId: shift.user.id,
-        username: shift.user.username,
-        fullName: `${shift.user.firstName} ${shift.user.lastName || ''}`.trim(),
-        surname: shift.user.surname,
-        email: shift.user.email,
+        userId: user?.id || shift.userId,
+        username: user?.username || 'Unknown',
+        fullName: user ? `${user.firstName} ${user.lastName || ''}`.trim() : 'Unknown User',
+        surname: user?.surname || null,
+        email: user?.email || null,
         roles: roles,
-        locationId: shift.location.id,
-        locationName: shift.location.name,
-        locationCode: shift.location.locationCode,
-        locationIsActive: shift.location.isActive
+        locationId: location?.id || shift.locationId,
+        locationName: location?.name || 'Unknown Location',
+        locationCode: location?.locationCode || null,
+        locationIsActive: location?.isActive || false
       }
     })
 
