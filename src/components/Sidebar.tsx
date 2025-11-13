@@ -41,6 +41,7 @@ import {
   DocumentMagnifyingGlassIcon,
   QuestionMarkCircleIcon,
   ArrowsRightLeftIcon,
+  BanknotesIcon,
 } from "@heroicons/react/24/outline"
 
 interface MenuItem {
@@ -935,6 +936,28 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               href: "/dashboard/reports/cashier/per-item",
               icon: ChartBarIcon,
               permission: PERMISSIONS.SALES_REPORT_PER_ITEM,
+            },
+            // ========== AR / CUSTOMER PAYMENT REPORTS ==========
+            {
+              key: "cashier_accounts_receivable",
+              name: "Accounts Receivable",
+              href: "/dashboard/reports/accounts-receivable",
+              icon: CurrencyDollarIcon,
+              permission: PERMISSIONS.REPORT_UNPAID_INVOICES,
+            },
+            {
+              key: "cashier_payment_collections",
+              name: "Payment Collections",
+              href: "/dashboard/reports/payment-collections",
+              icon: BanknotesIcon,
+              permission: PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
+            },
+            {
+              key: "cashier_receivable_payments",
+              name: "Receivable Payments",
+              href: "/dashboard/reports/receivable-payments",
+              icon: CreditCardIcon,
+              permission: PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
             },
           ],
         },
