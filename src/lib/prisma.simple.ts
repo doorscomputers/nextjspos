@@ -37,47 +37,56 @@ const prismaClient = createPrismaClient()
 // ⚡ CRITICAL FIX: Auto-reconnect middleware for stale connections
 // Detects connection errors and automatically reconnects
 // This fixes: "Shift close hangs after 12 hours" issue
-prismaClient.$use(async (params, next) => {
-  const maxRetries = 2
-  let attempt = 0
+//
+// Only apply middleware at runtime, not during build
+if (typeof prismaClient.$use === 'function') {
+  try {
+    prismaClient.$use(async (params, next) => {
+      const maxRetries = 2
+      let attempt = 0
 
-  while (attempt < maxRetries) {
-    try {
-      return await next(params)
-    } catch (error: any) {
-      attempt++
+      while (attempt < maxRetries) {
+        try {
+          return await next(params)
+        } catch (error: any) {
+          attempt++
 
-      // Check if error is a connection/timeout issue
-      const isConnectionError =
-        error.message?.includes('Connection') ||
-        error.message?.includes('timeout') ||
-        error.message?.includes('ECONNRESET') ||
-        error.message?.includes('ETIMEDOUT') ||
-        error.code === 'P1001' || // Can't reach database server
-        error.code === 'P1002' || // Database server timeout
-        error.code === 'P1008' || // Operations timed out
-        error.code === 'P2024' // Connection pool timeout
+          // Check if error is a connection/timeout issue
+          const isConnectionError =
+            error.message?.includes('Connection') ||
+            error.message?.includes('timeout') ||
+            error.message?.includes('ECONNRESET') ||
+            error.message?.includes('ETIMEDOUT') ||
+            error.code === 'P1001' || // Can't reach database server
+            error.code === 'P1002' || // Database server timeout
+            error.code === 'P1008' || // Operations timed out
+            error.code === 'P2024' // Connection pool timeout
 
-      if (isConnectionError && attempt < maxRetries) {
-        console.warn(
-          `[Prisma] Connection error detected (attempt ${attempt}/${maxRetries}). Reconnecting...`
-        )
+          if (isConnectionError && attempt < maxRetries) {
+            console.warn(
+              `[Prisma] Connection error detected (attempt ${attempt}/${maxRetries}). Reconnecting...`
+            )
 
-        // Disconnect and let Prisma recreate connection pool
-        await prismaClient.$disconnect()
+            // Disconnect and let Prisma recreate connection pool
+            await prismaClient.$disconnect()
 
-        // Small delay before retry
-        await new Promise((resolve) => setTimeout(resolve, 1000))
+            // Small delay before retry
+            await new Promise((resolve) => setTimeout(resolve, 1000))
 
-        console.log('[Prisma] Reconnected, retrying query...')
-        continue
+            console.log('[Prisma] Reconnected, retrying query...')
+            continue
+          }
+
+          // If not a connection error or max retries reached, throw
+          throw error
+        }
       }
-
-      // If not a connection error or max retries reached, throw
-      throw error
-    }
+    })
+  } catch (middlewareError) {
+    // Middleware setup failed (happens during build) - continue without it
+    console.warn('[Prisma] Middleware setup skipped (build-time or incompatible client)')
   }
-})
+}
 
 // Graceful shutdown handler
 if (process.env.NODE_ENV === 'production') {
