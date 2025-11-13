@@ -186,7 +186,7 @@ export default function ARPaymentCollectionModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="max-w-7xl max-h-[90vh] overflow-y-auto"
+        className="max-w-[95vw] w-[95vw] max-h-[90vh] overflow-y-auto"
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
