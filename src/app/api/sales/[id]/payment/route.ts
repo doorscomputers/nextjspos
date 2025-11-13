@@ -86,7 +86,7 @@ export async function POST(
     const sale = await prisma.sale.findFirst({
       where: {
         id: saleId,
-        businessId: user.businessId,
+        businessId: parseInt(String(user.businessId)),
       },
       include: {
         payments: true,
@@ -174,18 +174,19 @@ export async function POST(
       // Step 3: Create accounting journal entry if enabled
       if (accountingEnabled) {
         // Get accounts (Cash and Accounts Receivable)
+        const businessIdInt = parseInt(String(user.businessId))
         const cashAccount = await tx.chartOfAccounts.findFirst({
-          where: { businessId: user.businessId, accountCode: '1000', isActive: true },
+          where: { businessId: businessIdInt, accountCode: '1000', isActive: true },
         })
         const arAccount = await tx.chartOfAccounts.findFirst({
-          where: { businessId: user.businessId, accountCode: '1100', isActive: true },
+          where: { businessId: businessIdInt, accountCode: '1100', isActive: true },
         })
 
         if (cashAccount && arAccount) {
           // Create journal entry for payment received
           const journalEntry = await tx.journalEntry.create({
             data: {
-              businessId: user.businessId,
+              businessId: businessIdInt,
               entryDate: paidAt,
               description: `Payment Received${referenceNumber ? ` - ${referenceNumber}` : ''}`,
               referenceNumber: referenceNumber || null,
@@ -314,7 +315,7 @@ export async function GET(
     const sale = await prisma.sale.findFirst({
       where: {
         id: saleId,
-        businessId: user.businessId,
+        businessId: parseInt(String(user.businessId)),
       },
       include: {
         payments: {
