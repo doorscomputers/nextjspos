@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 
 // GET - List all customers
+// NOTE: NO permission check - all authenticated users can view customers
+// This is essential for POS functionality where cashiers need to select customers
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -14,7 +16,13 @@ export async function GET(request: NextRequest) {
     }
 
     const user = session.user as any
+    console.log('[API /customers GET] User:', user.username, 'BusinessId:', user.businessId)
     const businessId = parseInt(String(user.businessId))
+
+    if (isNaN(businessId)) {
+      console.error('[API /customers GET] Invalid businessId:', user.businessId)
+      return NextResponse.json({ error: 'Invalid business ID' }, { status: 400 })
+    }
     // Get query parameters for filtering
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search')
@@ -37,43 +45,67 @@ export async function GET(request: NextRequest) {
       ]
     }
 
+    console.log('[API /customers GET] Fetching customers for businessId:', businessId)
     const customers = await prisma.customer.findMany({
       where,
       orderBy: {
         name: 'asc',
       },
     })
+    console.log('[API /customers GET] Found', customers.length, 'customers')
 
     // Calculate AR balance for each customer (unpaid invoices)
-    const customersWithBalance = await Promise.all(
-      customers.map(async (customer) => {
-        const unpaidInvoices = await prisma.sale.findMany({
-          where: {
-            customerId: customer.id,
-            status: 'pending', // Credit sales not fully paid
-            deletedAt: null,
-          },
-          select: {
-            totalAmount: true,
-            paidAmount: true,
-          },
+    try {
+      const customersWithBalance = await Promise.all(
+        customers.map(async (customer) => {
+          try {
+            const unpaidInvoices = await prisma.sale.findMany({
+              where: {
+                customerId: customer.id,
+                status: 'pending', // Credit sales not fully paid
+                deletedAt: null,
+              },
+              select: {
+                totalAmount: true,
+                paidAmount: true,
+              },
+            })
+
+            // Calculate total AR balance
+            const arBalance = unpaidInvoices.reduce((total, invoice) => {
+              const balance = parseFloat(invoice.totalAmount.toString()) - parseFloat(invoice.paidAmount.toString())
+              return total + balance
+            }, 0)
+
+            return {
+              ...customer,
+              arBalance: arBalance > 0 ? arBalance : 0,
+              hasUnpaidInvoices: arBalance > 0,
+            }
+          } catch (customerError) {
+            console.error('[API /customers GET] Error calculating AR for customer', customer.id, ':', customerError)
+            // Return customer without AR balance if there's an error
+            return {
+              ...customer,
+              arBalance: 0,
+              hasUnpaidInvoices: false,
+            }
+          }
         })
+      )
 
-        // Calculate total AR balance
-        const arBalance = unpaidInvoices.reduce((total, invoice) => {
-          const balance = parseFloat(invoice.totalAmount.toString()) - parseFloat(invoice.paidAmount.toString())
-          return total + balance
-        }, 0)
-
-        return {
-          ...customer,
-          arBalance: arBalance > 0 ? arBalance : 0,
-          hasUnpaidInvoices: arBalance > 0,
-        }
-      })
-    )
-
-    return NextResponse.json(customersWithBalance)
+      console.log('[API /customers GET] Returning', customersWithBalance.length, 'customers with AR balances')
+      return NextResponse.json(customersWithBalance)
+    } catch (arError) {
+      console.error('[API /customers GET] Error in AR calculation, returning customers without AR:', arError)
+      // If AR calculation fails, return customers without AR balance
+      const customersBasic = customers.map(c => ({
+        ...c,
+        arBalance: 0,
+        hasUnpaidInvoices: false,
+      }))
+      return NextResponse.json(customersBasic)
+    }
   } catch (error) {
     console.error('Error fetching customers:', error)
     return NextResponse.json(
