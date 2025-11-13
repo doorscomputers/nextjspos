@@ -130,17 +130,6 @@ export default function CashierSalesPerItemPage() {
         </div>
       </div>
 
-      {/* Summary Card - Revenue Only */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Revenue</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-green-600 dark:text-green-400">{formatCurrency(summary.totalRevenue)}</div>
-          <p className="text-xs text-gray-500 mt-1">From {items.length} product(s) sold</p>
-        </CardContent>
-      </Card>
-
       {/* DevExtreme DataGrid */}
       <Card>
         <CardHeader>
