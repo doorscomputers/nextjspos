@@ -447,6 +447,7 @@ export async function GET(request: NextRequest) {
       id: sale.id,
       invoiceNumber: sale.invoiceNumber,
       saleDate: sale.saleDate.toISOString().split('T')[0],
+      saleDateTime: sale.createdAt.toISOString(),
       customer: sale.customer?.name || 'Walk-in Customer',
       customerId: sale.customerId,
       customerEmail: sale.customer?.email || null,

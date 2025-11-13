@@ -51,6 +51,7 @@ interface Sale {
   id: number
   invoiceNumber: string
   saleDate: string
+  saleDateTime: string
   customer: string
   customerId: number | null
   customerEmail: string | null
@@ -346,7 +347,7 @@ export default function SalesHistoryPage() {
 
     const rows = reportData.sales.map((sale) => [
       sale.invoiceNumber,
-      sale.saleDate,
+      formatDateTime(sale.saleDateTime),
       sale.customer,
       sale.location,
       sale.status,
@@ -394,6 +395,19 @@ export default function SalesHistoryPage() {
     ) : (
       <ArrowDownIcon className="h-4 w-4 inline ml-1" />
     )
+  }
+
+  const formatDateTime = (value: string) => {
+    if (!value) return "-"
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return value
+    return date.toLocaleString(undefined, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
   }
 
   return (
@@ -687,9 +701,9 @@ export default function SalesHistoryPage() {
                       </TableHead>
                       <TableHead
                         className="cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort("saleDate")}
+                        onClick={() => handleSort("createdAt")}
                       >
-                        Date <SortIcon column="saleDate" />
+                        Date &amp; Time <SortIcon column="createdAt" />
                       </TableHead>
                       <TableHead>Customer</TableHead>
                       <TableHead>Location</TableHead>
@@ -712,7 +726,7 @@ export default function SalesHistoryPage() {
                           <TableCell className="font-medium">
                             {sale.invoiceNumber}
                           </TableCell>
-                          <TableCell>{sale.saleDate}</TableCell>
+                          <TableCell>{formatDateTime(sale.saleDateTime)}</TableCell>
                           <TableCell>
                             <div className="flex flex-col">
                               <span>{sale.customer}</span>

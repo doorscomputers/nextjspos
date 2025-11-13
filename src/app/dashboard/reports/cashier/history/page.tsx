@@ -38,6 +38,7 @@ interface SalesHistoryData {
     id: number
     invoiceNumber: string
     saleDate: string
+    saleDateTime: string
     customer: string
     totalAmount: number
     discountAmount: number
@@ -372,7 +373,7 @@ export default function CashierSalesHistoryPage() {
                 width={140}
               />
               <Column
-                dataField="saleDate"
+                dataField="saleDateTime"
                 caption="Date & Time"
                 dataType="datetime"
                 format="dd/MM/yyyy HH:mm"
