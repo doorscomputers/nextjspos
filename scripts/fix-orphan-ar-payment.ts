@@ -42,14 +42,15 @@ async function fixOrphanARPayments() {
         return sum + parseFloat(p.amount.toString())
       }, 0)
 
-      const recordedPaidAmount = parseFloat(sale.paidAmount.toString())
+      const recordedPaidAmount = sale.paidAmount ? parseFloat(sale.paidAmount.toString()) : 0
 
       // If there's a mismatch, we found an orphan payment
       if (Math.abs(actualPayments - recordedPaidAmount) > 0.01) {
         console.log('❌ MISMATCH FOUND:')
         console.log(`   Invoice: ${sale.invoiceNumber}`)
         console.log(`   Customer: ${sale.customer?.name || 'Unknown'}`)
-        console.log(`   Total Amount: ₱${parseFloat(sale.totalAmount.toString()).toFixed(2)}`)
+        const totalAmount = sale.totalAmount ? parseFloat(sale.totalAmount.toString()) : 0
+        console.log(`   Total Amount: ₱${totalAmount.toFixed(2)}`)
         console.log(`   Recorded paidAmount: ₱${recordedPaidAmount.toFixed(2)}`)
         console.log(`   Actual payments sum: ₱${actualPayments.toFixed(2)}`)
         console.log(`   Difference: ₱${(actualPayments - recordedPaidAmount).toFixed(2)}`)
@@ -57,8 +58,6 @@ async function fixOrphanARPayments() {
 
         // Fix it
         console.log('   🔧 Fixing...')
-
-        const totalAmount = parseFloat(sale.totalAmount.toString())
         const isFullyPaid = actualPayments >= totalAmount - 0.01
 
         await prisma.sale.update({
