@@ -112,6 +112,50 @@ export async function GET(request: NextRequest) {
         role.toLowerCase().includes('cashier') || role.toLowerCase().includes('sale')
       )
 
+      // Check for open shift (only for cashiers)
+      let openShift = null
+      if (isCashier) {
+        const shift = await prisma.cashierShift.findFirst({
+          where: {
+            userId: user.id,
+            closedAt: null, // Still open
+          },
+          include: {
+            location: {
+              select: {
+                id: true,
+                name: true,
+                locationCode: true,
+              }
+            }
+          },
+          orderBy: {
+            openedAt: 'desc'
+          }
+        })
+
+        if (shift) {
+          const now = new Date()
+          const shiftDurationMs = now.getTime() - shift.openedAt.getTime()
+          const shiftDurationHours = shiftDurationMs / (1000 * 60 * 60)
+
+          openShift = {
+            id: shift.id,
+            shiftNumber: shift.shiftNumber,
+            openedAt: shift.openedAt,
+            beginningCash: shift.beginningCash.toString(),
+            durationHours: Math.floor(shiftDurationHours),
+            durationMinutes: Math.floor((shiftDurationMs / (1000 * 60)) % 60),
+            locationId: shift.locationId,
+            locationName: shift.location.name,
+            locationCode: shift.location.locationCode,
+            runningTransactions: shift.runningTransactions,
+            runningGrossSales: shift.runningGrossSales.toString(),
+            isLongRunning: shiftDurationHours > 12, // Flag shifts open > 12 hours
+          }
+        }
+      }
+
       const userData = {
         id: user.id,
         username: user.username,
@@ -124,7 +168,8 @@ export async function GET(request: NextRequest) {
         ipAddress: activity.ipAddress,
         deviceType: activity.deviceType,
         browser: activity.browser,
-        currentUrl: activity.currentUrl
+        currentUrl: activity.currentUrl,
+        openShift: openShift, // ✅ NEW: Include shift info
       }
 
       // Group by location
@@ -171,10 +216,20 @@ export async function GET(request: NextRequest) {
     // ========================================================================
     // BUILD RESPONSE
     // ========================================================================
+
+    // Calculate open shift statistics
+    const allUsers = [
+      ...Object.values(locationGroups).flat(),
+      ...unassignedUsers
+    ]
+    const cashiersWithOpenShifts = allUsers.filter(u => u.isCashier && u.openShift)
+    const longRunningShifts = cashiersWithOpenShifts.filter(u => u.openShift?.isLongRunning)
+
     const response = {
       locations: locations.map((location) => {
         const users = locationGroups[location.id.toString()] || []
         const cashiers = users.filter((u) => u.isCashier)
+        const openShiftsCount = cashiers.filter(c => c.openShift).length
 
         return {
           locationId: location.id,
@@ -183,6 +238,7 @@ export async function GET(request: NextRequest) {
           isActive: location.isActive,
           totalUsers: users.length,
           totalCashiers: cashiers.length,
+          openShiftsCount: openShiftsCount, // ✅ NEW
           users: users,
           cashiers: cashiers
         }
@@ -192,6 +248,9 @@ export async function GET(request: NextRequest) {
         totalActiveUsers: activeUsers.length,
         totalLocations: locations.length,
         totalUnassignedUsers: unassignedUsers.length,
+        totalCashiers: allUsers.filter(u => u.isCashier).length, // ✅ NEW
+        totalOpenShifts: cashiersWithOpenShifts.length, // ✅ NEW
+        totalLongRunningShifts: longRunningShifts.length, // ✅ NEW
         timeWindow: minutesAgo
       }
     }

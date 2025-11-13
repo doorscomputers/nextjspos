@@ -18,10 +18,25 @@ import DataGrid, {
   Item,
 } from "devextreme-react/data-grid"
 import { Button } from "devextreme-react/button"
-import { AlertCircle, RefreshCw, Users, MapPin, User, UserCheck } from "lucide-react"
+import { AlertCircle, RefreshCw, Users, MapPin, User, UserCheck, Clock, AlertTriangle } from "lucide-react"
 import { Workbook } from "exceljs"
 import { saveAs } from "file-saver-es"
 import { exportDataGrid } from "devextreme/excel_exporter"
+
+interface OpenShift {
+  id: number
+  shiftNumber: string
+  openedAt: string
+  beginningCash: string
+  durationHours: number
+  durationMinutes: number
+  locationId: number
+  locationName: string
+  locationCode: string | null
+  runningTransactions: number
+  runningGrossSales: string
+  isLongRunning: boolean
+}
 
 interface ActiveUser {
   id: number
@@ -38,6 +53,7 @@ interface ActiveUser {
   deviceType?: string | null
   browser?: string | null
   currentUrl?: string | null
+  openShift?: OpenShift | null // ✅ NEW
 }
 
 interface LocationData {
@@ -55,9 +71,12 @@ interface ActiveUsersResponse {
   locations: LocationData[]
   unassignedUsers: ActiveUser[]
   summary: {
-    totalActiveSessions: number
+    totalActiveUsers: number
     totalLocations: number
     totalUnassignedUsers: number
+    totalCashiers: number // ✅ NEW
+    totalOpenShifts: number // ✅ NEW
+    totalLongRunningShifts: number // ✅ NEW
   }
 }
 
@@ -303,7 +322,7 @@ export default function ActiveUsersPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <div className="bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-200 dark:border-blue-800 rounded-lg p-4">
           <div className="flex items-center gap-3">
             <Users className="w-8 h-8 text-blue-600 dark:text-blue-400" />
@@ -320,6 +339,30 @@ export default function ActiveUsersPage() {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Active Cashiers</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">{totalCashiers}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-cyan-50 dark:bg-cyan-900/20 border-2 border-cyan-200 dark:border-cyan-800 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <Clock className="w-8 h-8 text-cyan-600 dark:text-cyan-400" />
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Open Shifts</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {data?.summary.totalOpenShifts || 0}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-8 h-8 text-red-600 dark:text-red-400" />
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Long Shifts (&gt;12h)</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                {data?.summary.totalLongRunningShifts || 0}
+              </p>
             </div>
           </div>
         </div>
@@ -355,6 +398,142 @@ export default function ActiveUsersPage() {
           <div className="flex items-center gap-2 text-red-800 dark:text-red-200">
             <AlertCircle className="w-5 h-5" />
             <p className="font-medium">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Open Shifts Section - CRITICAL FOR MONITORING */}
+      {data && flattenedUsers.filter(u => u.openShift).length > 0 && (
+        <div className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 border-2 border-cyan-300 dark:border-cyan-700 rounded-lg p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Clock className="w-6 h-6 text-cyan-600 dark:text-cyan-400" />
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Cashiers with Open Shifts
+            </h2>
+            <span className="px-3 py-1 bg-cyan-600 text-white rounded-full text-sm font-semibold">
+              {flattenedUsers.filter(u => u.openShift).length} Active
+            </span>
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            Monitor open shifts to prevent closing reading problems. Shifts open &gt; 12 hours are highlighted in red.
+          </p>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            {flattenedUsers
+              .filter(u => u.openShift)
+              .map((user) => {
+                const shift = user.openShift!
+                const isLongRunning = shift.isLongRunning
+                const shiftDate = new Date(shift.openedAt)
+
+                return (
+                  <div
+                    key={user.id}
+                    className={`rounded-lg p-4 border-2 ${
+                      isLongRunning
+                        ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700'
+                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                    }`}
+                  >
+                    {/* Header with warning if long-running */}
+                    {isLongRunning && (
+                      <div className="flex items-center gap-2 mb-3 text-red-600 dark:text-red-400 font-semibold">
+                        <AlertTriangle className="w-5 h-5" />
+                        <span className="text-sm">SHIFT OPEN &gt; 12 HOURS!</span>
+                      </div>
+                    )}
+
+                    {/* Cashier Info */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="font-bold text-lg text-gray-900 dark:text-white">
+                          {user.fullName}
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          @{user.username}
+                        </p>
+                      </div>
+                      <UserCheck className="w-6 h-6 text-green-600 dark:text-green-400" />
+                    </div>
+
+                    {/* Location */}
+                    <div className="flex items-center gap-2 mb-3 text-sm">
+                      <MapPin className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                      <span className="text-gray-700 dark:text-gray-300">
+                        {shift.locationName}
+                        {shift.locationCode && ` (${shift.locationCode})`}
+                      </span>
+                    </div>
+
+                    {/* Shift Details */}
+                    <div className="space-y-2 border-t border-gray-200 dark:border-gray-700 pt-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">Shift Number:</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">
+                          {shift.shiftNumber}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">Opened:</span>
+                        <div className="text-right">
+                          <div className="font-semibold text-gray-900 dark:text-white">
+                            {shiftDate.toLocaleDateString('en-PH', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </div>
+                          <div className="text-xs text-gray-600 dark:text-gray-400">
+                            {shiftDate.toLocaleTimeString('en-PH', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">Duration:</span>
+                        <span className={`font-bold ${
+                          isLongRunning
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-gray-900 dark:text-white'
+                        }`}>
+                          {shift.durationHours}h {shift.durationMinutes}m
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">Beginning Cash:</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">
+                          ₱{parseFloat(shift.beginningCash).toLocaleString('en-PH', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          })}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">Transactions:</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">
+                          {shift.runningTransactions}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">Gross Sales:</span>
+                        <span className="font-semibold text-green-600 dark:text-green-400">
+                          ₱{parseFloat(shift.runningGrossSales).toLocaleString('en-PH', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
           </div>
         </div>
       )}
@@ -513,6 +692,78 @@ export default function ActiveUsersPage() {
           <Column dataField="browser" caption="Browser" width={100} />
 
           <Column dataField="ipAddress" caption="IP Address" width={140} />
+
+          <Column
+            caption="Shift Number"
+            width={150}
+            calculateCellValue={(rowData) => rowData.openShift?.shiftNumber || 'N/A'}
+            cellRender={(cellData) => {
+              if (!cellData.data.openShift) {
+                return <span className="text-gray-400">-</span>
+              }
+              return (
+                <span className="font-semibold text-cyan-600 dark:text-cyan-400">
+                  {cellData.data.openShift.shiftNumber}
+                </span>
+              )
+            }}
+          />
+
+          <Column
+            caption="Shift Opened"
+            width={180}
+            dataType="datetime"
+            format="MMM dd, yyyy hh:mm a"
+            calculateCellValue={(rowData) => rowData.openShift?.openedAt || null}
+            cellRender={(cellData) => {
+              if (!cellData.data.openShift) {
+                return <span className="text-gray-400">-</span>
+              }
+              const openedAt = new Date(cellData.data.openShift.openedAt)
+              return (
+                <div>
+                  <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {openedAt.toLocaleDateString('en-PH', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">
+                    {openedAt.toLocaleTimeString('en-PH', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </div>
+                </div>
+              )
+            }}
+          />
+
+          <Column
+            caption="Shift Duration"
+            width={120}
+            calculateCellValue={(rowData) => {
+              if (!rowData.openShift) return null
+              return `${rowData.openShift.durationHours}h ${rowData.openShift.durationMinutes}m`
+            }}
+            cellRender={(cellData) => {
+              if (!cellData.data.openShift) {
+                return <span className="text-gray-400">-</span>
+              }
+              const isLongRunning = cellData.data.openShift.isLongRunning
+              return (
+                <span className={`font-bold ${
+                  isLongRunning
+                    ? 'text-red-600 dark:text-red-400'
+                    : 'text-gray-900 dark:text-white'
+                }`}>
+                  {cellData.value}
+                  {isLongRunning && ' ⚠️'}
+                </span>
+              )
+            }}
+          />
 
           <Column dataField="currentUrl" caption="Current Page" width={250} />
 

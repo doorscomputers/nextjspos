@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from "@/lib/rbac"
+import { AuditAction } from "@/lib/auditLog"
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: any = {
       businessId: parseInt(String(user.businessId)),
-      action: "USER_LOGIN",
+      action: AuditAction.USER_LOGIN, // Use enum value: 'user_login'
     }
 
     // Date filtering

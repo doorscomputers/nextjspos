@@ -159,10 +159,31 @@ export async function trackUserActivityFromToken(
   token: any,
   request: NextRequest
 ): Promise<void> {
-  if (!token?.userId) return
+  // Debug logging (only in development)
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Activity Tracker] trackUserActivityFromToken called')
+    console.log('[Activity Tracker] Token userId:', token?.userId)
+    console.log('[Activity Tracker] Request path:', request.nextUrl.pathname)
+  }
+
+  if (!token?.userId) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Activity Tracker] ❌ No userId in token, skipping')
+    }
+    return
+  }
 
   const userId = parseInt(token.userId.toString())
-  if (isNaN(userId)) return
+  if (isNaN(userId)) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Activity Tracker] ❌ Invalid userId:', token.userId)
+    }
+    return
+  }
+
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Activity Tracker] ✓ Tracking user ID:', userId)
+  }
 
   await trackUserActivity(userId, request)
 }

@@ -577,7 +577,38 @@ export const authOptions: NextAuthOptions = {
           }
         }
 
-        // Log successful login
+        // Fetch location information for audit log BEFORE creating the log
+        // This will be reused later for login monitoring
+        let selectedLocationName = 'Unknown'
+        let assignedLocationNames: string[] = []
+
+        if (selectedLocationId) {
+          try {
+            const selectedLocation = await prisma.businessLocation.findUnique({
+              where: { id: selectedLocationId },
+              select: { name: true }
+            })
+            selectedLocationName = selectedLocation?.name || 'Unknown'
+          } catch (err) {
+            console.error('[LOGIN] Failed to fetch selected location:', err)
+          }
+        }
+
+        // Get assigned location names (efficient batch query)
+        const userLocationIds = user.userLocations.map(ul => ul.locationId)
+        if (userLocationIds.length > 0) {
+          try {
+            const assignedLocations = await prisma.businessLocation.findMany({
+              where: { id: { in: userLocationIds } },
+              select: { name: true }
+            })
+            assignedLocationNames = assignedLocations.map(l => l.name)
+          } catch (err) {
+            console.error('[LOGIN] Failed to fetch assigned locations:', err)
+          }
+        }
+
+        // Log successful login WITH location metadata
         try {
           await createAuditLog({
             businessId: user.businessId || 0,
@@ -591,6 +622,8 @@ export const authOptions: NextAuthOptions = {
               loginTime: new Date().toISOString(),
               firstName: user.firstName,
               lastName: user.lastName,
+              selectedLocation: selectedLocationName,
+              assignedLocations: assignedLocationNames,
             },
             ipAddress: 'unknown', // Will be updated when we have request context
             userAgent: 'unknown', // Will be updated when we have request context
@@ -640,32 +673,13 @@ export const authOptions: NextAuthOptions = {
                                roleNames.includes('System Administrator') ||
                                roleNames.includes('All Branch Admin')
 
-          // Get selected location details (selectedLocationId already declared at top)
-          let selectedLocationName = 'Unknown'
+          // Reuse location details already fetched earlier (lines 580-609)
+          // selectedLocationName and assignedLocationNames are already populated
+
+          // Check for location mismatch (only for non-admins)
           let isMismatch = false
-
-          if (selectedLocationId) {
-            // Fetch selected location name
-            const selectedLocation = await prisma.businessLocation.findUnique({
-              where: { id: selectedLocationId },
-              select: { name: true }
-            })
-            selectedLocationName = selectedLocation?.name || 'Unknown'
-
-            // Check for location mismatch (only for non-admins)
-            if (!isSuperAdmin) {
-              isMismatch = !locationIds.includes(selectedLocationId)
-            }
-          }
-
-          // Get assigned location names for alert message
-          const assignedLocationNames: string[] = []
-          if (locationIds.length > 0) {
-            const assignedLocations = await prisma.businessLocation.findMany({
-              where: { id: { in: locationIds } },
-              select: { name: true }
-            })
-            assignedLocationNames.push(...assignedLocations.map(l => l.name))
+          if (selectedLocationId && !isSuperAdmin) {
+            isMismatch = !locationIds.includes(selectedLocationId)
           }
 
           // If location mismatch detected, send CRITICAL alert and BLOCK login

@@ -9,7 +9,8 @@
  *
  * PURPOSE OF THIS FILE:
  * 1. AUTHENTICATION: Protect dashboard pages from unauthenticated users
- * 2. PERFORMANCE MONITORING: Log request timing for optimization
+ * 2. ACTIVITY TRACKING: Track user activity for Active Users Monitor
+ * 3. PERFORMANCE MONITORING: Log request timing for optimization
  *
  * EXECUTION ORDER:
  * User makes request → Middleware runs → Page/API route runs
@@ -34,6 +35,7 @@
 import { NextResponse } from 'next/server' // Next.js response utilities
 import type { NextRequest } from 'next/server' // TypeScript type for Next.js requests
 import { getToken } from 'next-auth/jwt' // NextAuth JWT token decoder
+import { trackUserActivityFromToken } from '@/lib/activity-tracker' // Activity tracking for Active Users Monitor
 
 /**
  * MIDDLEWARE FUNCTION
@@ -90,6 +92,27 @@ export async function middleware(request: NextRequest) {
       // After login, NextAuth will redirect them back to callbackUrl
       return NextResponse.redirect(loginUrl)
     }
+
+    // ============================================================================
+    // ACTIVITY TRACKING: Track authenticated user activity
+    // ============================================================================
+    // PURPOSE: Record user's last seen timestamp for Active Users Monitor
+    //
+    // HOW IT WORKS:
+    // 1. User is authenticated (token exists)
+    // 2. Track their activity (IP, browser, device, current page)
+    // 3. Fire-and-forget (don't block request if tracking fails)
+    // 4. Throttled to 1 update per minute per user (performance optimization)
+    //
+    // USED BY: Active Users Monitor (/dashboard/admin/active-users)
+    //
+    // NOTE: Errors are caught and logged - tracking failures won't break the app
+    trackUserActivityFromToken(token, request).catch(err => {
+      // Only log in development to avoid cluttering production logs
+      if (process.env.NODE_ENV === 'development') {
+        console.error('[Middleware] Activity tracking failed:', err)
+      }
+    })
   }
 
   // ============================================================================
