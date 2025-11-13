@@ -92,14 +92,14 @@ export default function OpenShiftsPage() {
   // Permission check
   useEffect(() => {
     if (
-      !hasAnyPermission([
+      !canAny([
         PERMISSIONS.USER_VIEW,
         PERMISSIONS.USER_VIEW_ACTIVE_SESSIONS,
       ])
     ) {
       router.push("/dashboard")
     }
-  }, [hasAnyPermission, router])
+  }, [canAny, router])
 
   // Fetch open shifts
   const fetchOpenShifts = useCallback(async () => {
