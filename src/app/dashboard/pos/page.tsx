@@ -222,17 +222,24 @@ export default function POSEnhancedPage() {
     // Search with debouncing (wait 300ms after user stops typing)
     const timer = setTimeout(() => {
       const searchLower = customerSearchTerm.toLowerCase().trim()
+      console.log('[POS] Searching customers for:', searchLower)
+      console.log('[POS] Total customers loaded:', customers.length)
+
       const matches = customers.filter((customer) =>
         customer.name?.toLowerCase().includes(searchLower) ||
         customer.email?.toLowerCase().includes(searchLower) ||
         customer.mobile?.includes(searchLower)
       )
 
+      console.log('[POS] Search matches found:', matches.length)
+
       if (matches.length > 0) {
+        console.log('[POS] Showing dropdown with', matches.length, 'results')
         setCustomerSearchResults(matches)
         setSelectedCustomerIndex(0)
         setShowCustomerDropdown(true)
       } else {
+        console.log('[POS] No matches - hiding dropdown')
         setShowCustomerDropdown(false)
       }
     }, 300)
@@ -510,14 +517,17 @@ export default function POSEnhancedPage() {
     try {
       const res = await fetch('/api/customers')
       const data = await res.json()
+      console.log('[POS] Fetched customers:', data?.length || 0, 'customers')
       // API returns array directly, not wrapped in { customers: [] }
       if (Array.isArray(data)) {
         setCustomers(data)
+        console.log('[POS] Set customers array:', data.length, 'customers')
       } else if (data.customers) {
         setCustomers(data.customers)
+        console.log('[POS] Set customers from .customers property:', data.customers.length)
       }
     } catch (err) {
-      console.error('Error fetching customers:', err)
+      console.error('[POS] Error fetching customers:', err)
     }
   }
 
