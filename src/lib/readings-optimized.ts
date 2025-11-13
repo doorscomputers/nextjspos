@@ -17,6 +17,7 @@ export interface XReadingData {
   openedAt: Date
   readingTime: Date
   xReadingNumber: number
+  receiptNumber?: string // Location-based receipt number (e.g., InvMain11_13_2025_0001)
   beginningCash: number
   grossSales: number
   totalDiscounts: number

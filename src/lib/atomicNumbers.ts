@@ -4,44 +4,43 @@ import { Prisma } from '@prisma/client'
 type TransactionClient = Prisma.TransactionClient
 
 /**
- * Generate location prefix from location name
+ * Generate location name abbreviation for invoice numbering
  * Examples:
- * - "Tuguegarao" -> "T"
- * - "Main Store" -> "M"
- * - "Manila Branch" -> "MB"
- * - "Quezon City Store" -> "QC"
+ * - "Tuguegarao" -> "Tugue"
+ * - "Main Store" -> "Main"
+ * - "Manila Branch" -> "Manila"
+ * - "Bambang Store" -> "Bambang"
+ * - "Quezon City Store" -> "Quezon"
  */
-function getLocationPrefix(locationName: string): string {
-  // Remove common words and split by spaces
-  const words = locationName
+function getLocationAbbreviation(locationName: string): string {
+  // Remove common words (Store, Branch, Warehouse, Shop, Outlet)
+  const cleanedName = locationName
     .replace(/\b(Store|Branch|Warehouse|Shop|Outlet)\b/gi, '')
     .trim()
-    .split(/\s+/)
-    .filter(word => word.length > 0)
+
+  // Split into words and get the first significant word
+  const words = cleanedName.split(/\s+/).filter(word => word.length > 0)
 
   if (words.length === 0) {
-    return 'X' // Fallback
+    // Fallback to first 5 chars of original name
+    return locationName.substring(0, 5).replace(/\s/g, '')
   }
 
-  if (words.length === 1) {
-    // Single word: take first letter (e.g., "Tuguegarao" -> "T")
-    return words[0][0].toUpperCase()
-  }
-
-  // Multiple words: take first letter of each (e.g., "Manila Branch" -> "MB")
-  return words
-    .map(word => word[0].toUpperCase())
-    .join('')
-    .substring(0, 3) // Max 3 characters
+  // Take first word and limit to 7 characters
+  // Examples: "Tuguegarao" -> "Tugue", "Main" -> "Main", "Bambang" -> "Bambang"
+  const firstWord = words[0]
+  return firstWord.substring(0, 7)
 }
 
 /**
- * Generates atomic, race-condition-free invoice numbers
- * Uses database sequences to ensure uniqueness per location
- * Format: INV{LocationPrefix}-YYYYMM-####
+ * Generates atomic, race-condition-free invoice numbers with DAILY sequences per location
+ * Uses database sequences to ensure uniqueness per location per day
+ * Format: Inv{LocationName}{MM_DD_YYYY}_####
  * Examples:
- * - Tuguegarao: INVT-202510-0001
- * - Main Store: INVM-202510-0001
+ * - Tuguegarao on Nov 13, 2025: InvTugue11_13_2025_0001
+ * - Main Store on Nov 13, 2025: InvMain11_13_2025_0001
+ * - Bambang on Nov 13, 2025: InvBambang11_13_2025_0001
+ * - Tuguegarao on Nov 14, 2025: InvTugue11_14_2025_0001 (resets to 0001)
  */
 export async function getNextInvoiceNumber(
   businessId: number,
@@ -50,23 +49,28 @@ export async function getNextInvoiceNumber(
   tx?: TransactionClient
 ): Promise<string> {
   const client = tx ?? prisma
-  const year = new Date().getFullYear()
-  const month = new Date().getMonth() + 1
-  const prefix = getLocationPrefix(locationName)
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth() + 1
+  const day = now.getDate()
+  const locationAbbrev = getLocationAbbreviation(locationName)
 
-  // Atomic upsert with increment - now includes locationId
+  // Atomic upsert with increment - includes location + date (day level)
   const seq = await client.$queryRaw<{ sequence: number }[]>(
     Prisma.sql`
-      INSERT INTO invoice_sequences (business_id, location_id, year, month, sequence)
-      VALUES (${businessId}, ${locationId}, ${year}, ${month}, 1)
-      ON CONFLICT (business_id, location_id, year, month)
+      INSERT INTO invoice_sequences (business_id, location_id, year, month, day, sequence)
+      VALUES (${businessId}, ${locationId}, ${year}, ${month}, ${day}, 1)
+      ON CONFLICT (business_id, location_id, year, month, day)
       DO UPDATE SET sequence = invoice_sequences.sequence + 1
       RETURNING sequence
     `
   )
 
   const sequence = seq[0]?.sequence ?? 1
-  return `INV${prefix}-${year}${String(month).padStart(2, '0')}-${String(sequence).padStart(4, '0')}`
+
+  // Format: Inv{LocationName}{MM_DD_YYYY}_####
+  // Example: InvTugue11_13_2025_0001
+  return `Inv${locationAbbrev}${String(month).padStart(2, '0')}_${String(day).padStart(2, '0')}_${year}_${String(sequence).padStart(4, '0')}`
 }
 
 /**
@@ -142,4 +146,24 @@ export async function getNextReturnNumber(
 
   const sequence = seq[0]?.sequence ?? 1
   return `RET-${year}${String(month).padStart(2, '0')}-${String(sequence).padStart(4, '0')}`
+}
+
+/**
+ * Generates location-based X/Z Reading receipt numbers
+ * Format: Inv{LocationName}{MM_DD_YYYY}_####
+ * These use the SAME sequence as regular invoices (shared counter per location per day)
+ * Examples:
+ * - X Reading at Tuguegarao: InvTugue11_13_2025_0001
+ * - Z Reading at Tuguegarao: InvTugue11_13_2025_0002
+ * - Sale at Tuguegarao: InvTugue11_13_2025_0003
+ */
+export async function getNextReadingReceiptNumber(
+  businessId: number,
+  locationId: number,
+  locationName: string,
+  tx?: TransactionClient
+): Promise<string> {
+  // X and Z Readings share the same sequence as sales invoices
+  // This ensures continuous numbering and BIR compliance
+  return getNextInvoiceNumber(businessId, locationId, locationName, tx)
 }

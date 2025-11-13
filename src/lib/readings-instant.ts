@@ -11,6 +11,7 @@ import {
   type XReadingData,
   type ZReadingData,
 } from './readings-optimized'
+import { getNextReadingReceiptNumber } from './atomicNumbers'
 
 /**
  * Generate X Reading - Dual Mode (Instant or Fallback)
@@ -218,6 +219,17 @@ async function generateXReadingFromRunningTotals(
   const readingTimestamp = new Date()
   const readingNumber = currentXReadingCount + (incrementCounter ? 1 : 0)
 
+  // Generate location-based receipt number for X Reading
+  // Format: Inv{LocationName}{MM_DD_YYYY}_####
+  const receiptNumber = incrementCounter
+    ? await getNextReadingReceiptNumber(
+        shift.businessId,
+        shift.locationId,
+        location?.name || 'Unknown',
+        undefined
+      )
+    : undefined
+
   // Construct address
   const address = location
     ? [
@@ -290,6 +302,7 @@ async function generateXReadingFromRunningTotals(
     openedAt: shift.openedAt,
     readingTime: readingTimestamp,
     xReadingNumber: readingNumber,
+    receiptNumber: receiptNumber, // Location-based receipt number
     beginningCash: parseFloat(shift.beginningCash.toString()),
     grossSales: parseFloat(shift.runningGrossSales.toString()),
     totalDiscounts: parseFloat(shift.runningTotalDiscounts.toString()),
