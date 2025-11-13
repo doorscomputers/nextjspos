@@ -215,6 +215,81 @@ export async function GET(request: NextRequest) {
     })
 
     // ========================================================================
+    // FETCH ALL OPEN SHIFTS (Independent of activity tracking)
+    // ========================================================================
+    // This shows ALL cashiers with open shifts, even if they haven't been active recently
+    const allOpenShifts = await prisma.cashierShift.findMany({
+      where: {
+        closedAt: null, // Still open
+        user: {
+          businessId: businessIdInt
+        }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            surname: true,
+            email: true,
+            roles: {
+              include: {
+                role: {
+                  select: {
+                    name: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        location: {
+          select: {
+            id: true,
+            name: true,
+            locationCode: true,
+            isActive: true
+          }
+        }
+      },
+      orderBy: {
+        openedAt: 'asc' // Oldest shifts first (most critical)
+      }
+    })
+
+    // Format open shifts data
+    const formattedOpenShifts = allOpenShifts.map(shift => {
+      const now = new Date()
+      const shiftDurationMs = now.getTime() - shift.openedAt.getTime()
+      const shiftDurationHours = shiftDurationMs / (1000 * 60 * 60)
+      const roles = shift.user.roles.map(ur => ur.role.name)
+
+      return {
+        shiftId: shift.id,
+        shiftNumber: shift.shiftNumber,
+        openedAt: shift.openedAt,
+        durationHours: Math.floor(shiftDurationHours),
+        durationMinutes: Math.floor((shiftDurationMs / (1000 * 60)) % 60),
+        isLongRunning: shiftDurationHours > 12,
+        beginningCash: shift.beginningCash.toString(),
+        runningTransactions: shift.runningTransactions,
+        runningGrossSales: shift.runningGrossSales.toString(),
+        userId: shift.user.id,
+        username: shift.user.username,
+        fullName: `${shift.user.firstName} ${shift.user.lastName || ''}`.trim(),
+        surname: shift.user.surname,
+        email: shift.user.email,
+        roles: roles,
+        locationId: shift.location.id,
+        locationName: shift.location.name,
+        locationCode: shift.location.locationCode,
+        locationIsActive: shift.location.isActive
+      }
+    })
+
+    // ========================================================================
     // BUILD RESPONSE
     // ========================================================================
 
@@ -239,19 +314,22 @@ export async function GET(request: NextRequest) {
           isActive: location.isActive,
           totalUsers: users.length,
           totalCashiers: cashiers.length,
-          openShiftsCount: openShiftsCount, // ✅ NEW
+          openShiftsCount: openShiftsCount,
           users: users,
           cashiers: cashiers
         }
       }),
       unassignedUsers: unassignedUsers,
+      allOpenShifts: formattedOpenShifts, // ✅ NEW: All open shifts regardless of activity
       summary: {
         totalActiveUsers: activeUsers.length,
         totalLocations: locations.length,
         totalUnassignedUsers: unassignedUsers.length,
-        totalCashiers: allUsers.filter(u => u.isCashier).length, // ✅ NEW
-        totalOpenShifts: cashiersWithOpenShifts.length, // ✅ NEW
-        totalLongRunningShifts: longRunningShifts.length, // ✅ NEW
+        totalCashiers: allUsers.filter(u => u.isCashier).length,
+        totalOpenShifts: cashiersWithOpenShifts.length,
+        totalAllOpenShifts: formattedOpenShifts.length, // ✅ NEW: Total open shifts (active or not)
+        totalLongRunningShifts: longRunningShifts.length,
+        totalAllLongRunningShifts: formattedOpenShifts.filter(s => s.isLongRunning).length, // ✅ NEW
         timeWindow: minutesAgo
       }
     }

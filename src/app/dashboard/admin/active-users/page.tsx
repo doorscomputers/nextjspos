@@ -67,16 +67,42 @@ interface LocationData {
   cashiers: ActiveUser[]
 }
 
+interface AllOpenShift {
+  shiftId: number
+  shiftNumber: string
+  openedAt: string
+  durationHours: number
+  durationMinutes: number
+  isLongRunning: boolean
+  beginningCash: string
+  runningTransactions: number
+  runningGrossSales: string
+  userId: number
+  username: string
+  fullName: string
+  surname: string | null
+  email: string | null
+  roles: string[]
+  locationId: number
+  locationName: string
+  locationCode: string | null
+  locationIsActive: boolean
+}
+
 interface ActiveUsersResponse {
   locations: LocationData[]
   unassignedUsers: ActiveUser[]
+  allOpenShifts: AllOpenShift[] // ✅ NEW
   summary: {
     totalActiveUsers: number
     totalLocations: number
     totalUnassignedUsers: number
-    totalCashiers: number // ✅ NEW
-    totalOpenShifts: number // ✅ NEW
-    totalLongRunningShifts: number // ✅ NEW
+    totalCashiers: number
+    totalOpenShifts: number
+    totalAllOpenShifts: number // ✅ NEW
+    totalLongRunningShifts: number
+    totalAllLongRunningShifts: number // ✅ NEW
+    timeWindow: number
   }
 }
 
@@ -347,9 +373,12 @@ export default function ActiveUsersPage() {
           <div className="flex items-center gap-3">
             <Clock className="w-8 h-8 text-cyan-600 dark:text-cyan-400" />
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Open Shifts</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">All Open Shifts</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {data?.summary.totalOpenShifts || 0}
+                {data?.summary.totalAllOpenShifts || 0}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {data?.summary.totalOpenShifts || 0} currently active
               </p>
             </div>
           </div>
@@ -361,7 +390,10 @@ export default function ActiveUsersPage() {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Long Shifts (&gt;12h)</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {data?.summary.totalLongRunningShifts || 0}
+                {data?.summary.totalAllLongRunningShifts || 0}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Needs immediate attention
               </p>
             </div>
           </div>
@@ -402,7 +434,167 @@ export default function ActiveUsersPage() {
         </div>
       )}
 
-      {/* Open Shifts Section - CRITICAL FOR MONITORING */}
+      {/* ⚡ ALL OPEN SHIFTS - PRIMARY MONITORING SECTION */}
+      {data && data.allOpenShifts && data.allOpenShifts.length > 0 && (
+        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-2 border-orange-300 dark:border-orange-700 rounded-lg p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <AlertTriangle className="w-6 h-6 text-orange-600 dark:text-orange-400" />
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              🔥 ALL Open Shifts (Active + Inactive)
+            </h2>
+            <span className="px-3 py-1 bg-orange-600 text-white rounded-full text-sm font-semibold">
+              {data.allOpenShifts.length} Total
+            </span>
+            {data.allOpenShifts.filter(s => s.isLongRunning).length > 0 && (
+              <span className="px-3 py-1 bg-red-600 text-white rounded-full text-sm font-semibold animate-pulse">
+                {data.allOpenShifts.filter(s => s.isLongRunning).length} Long Running
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-700 dark:text-gray-300 mb-4 font-semibold">
+            ⚠️ This shows ALL cashiers with open shifts, even if they haven't been active recently.
+            Long-running shifts (&gt;12h) appear first and are highlighted in red.
+          </p>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+            {/* Sort: Long-running first, then by duration */}
+            {data.allOpenShifts
+              .sort((a, b) => {
+                // Long-running shifts first
+                if (a.isLongRunning && !b.isLongRunning) return -1
+                if (!a.isLongRunning && b.isLongRunning) return 1
+                // Then by duration (oldest first)
+                return new Date(a.openedAt).getTime() - new Date(b.openedAt).getTime()
+              })
+              .map((shift) => {
+                const shiftDate = new Date(shift.openedAt)
+
+                return (
+                  <div
+                    key={shift.shiftId}
+                    className={`rounded-lg p-4 border-2 ${
+                      shift.isLongRunning
+                        ? 'bg-red-100 dark:bg-red-900/30 border-red-400 dark:border-red-600'
+                        : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600'
+                    }`}
+                  >
+                    {/* Header with warning if long-running */}
+                    {shift.isLongRunning && (
+                      <div className="flex items-center gap-2 mb-3 text-red-700 dark:text-red-300 font-bold">
+                        <AlertTriangle className="w-5 h-5 animate-bounce" />
+                        <span className="text-sm">⚠️ OPEN &gt; 12 HOURS!</span>
+                      </div>
+                    )}
+
+                    {/* Cashier Info */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="font-bold text-lg text-gray-900 dark:text-white">
+                          {shift.fullName}
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          @{shift.username}
+                        </p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {shift.roles.map((role, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 text-xs rounded"
+                            >
+                              {role}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <UserCheck className="w-6 h-6 text-green-600 dark:text-green-400" />
+                    </div>
+
+                    {/* Location */}
+                    <div className="flex items-center gap-2 mb-3 text-sm">
+                      <MapPin className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                      <span className="font-semibold text-gray-900 dark:text-white">
+                        {shift.locationName}
+                        {shift.locationCode && ` (${shift.locationCode})`}
+                      </span>
+                      {!shift.locationIsActive && (
+                        <span className="text-xs text-red-600 dark:text-red-400">(Inactive)</span>
+                      )}
+                    </div>
+
+                    {/* Shift Details */}
+                    <div className="space-y-2 border-t-2 border-gray-300 dark:border-gray-600 pt-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">Shift #:</span>
+                        <span className="font-bold text-gray-900 dark:text-white">
+                          {shift.shiftNumber}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">Opened:</span>
+                        <div className="text-right">
+                          <div className="font-bold text-gray-900 dark:text-white">
+                            📅 {shiftDate.toLocaleDateString('en-PH', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </div>
+                          <div className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                            🕐 {shiftDate.toLocaleTimeString('en-PH', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">Duration:</span>
+                        <span className={`font-bold text-lg ${
+                          shift.isLongRunning
+                            ? 'text-red-700 dark:text-red-300'
+                            : 'text-gray-900 dark:text-white'
+                        }`}>
+                          ⏰ {shift.durationHours}h {shift.durationMinutes}m
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">Beginning Cash:</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">
+                          ₱{parseFloat(shift.beginningCash).toLocaleString('en-PH', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          })}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">Transactions:</span>
+                        <span className="font-semibold text-blue-600 dark:text-blue-400">
+                          {shift.runningTransactions}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600 dark:text-gray-400">Gross Sales:</span>
+                        <span className="font-semibold text-green-600 dark:text-green-400">
+                          ₱{parseFloat(shift.runningGrossSales).toLocaleString('en-PH', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* Active Users with Open Shifts Section */}
       {data && flattenedUsers.filter(u => u.openShift).length > 0 && (
         <div className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 border-2 border-cyan-300 dark:border-cyan-700 rounded-lg p-6">
           <div className="flex items-center gap-3 mb-4">
