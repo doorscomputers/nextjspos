@@ -136,7 +136,8 @@ export async function POST(
     // 8 & 9: Create payment record + accounting journal entry in ONE transaction
     // ✅ ATOMIC: If accounting fails, payment is NOT created (all-or-nothing)
     const paidAt = paymentDate ? new Date(paymentDate) : new Date()
-    const accountingEnabled = await isAccountingEnabled(user.businessId)
+    const businessIdInt = parseInt(String(user.businessId))
+    const accountingEnabled = await isAccountingEnabled(businessIdInt)
     console.log('[AR Payment API] Accounting enabled:', accountingEnabled)
     console.log('[AR Payment API] Starting transaction...')
 
@@ -174,7 +175,6 @@ export async function POST(
       // Step 3: Create accounting journal entry if enabled
       if (accountingEnabled) {
         // Get accounts (Cash and Accounts Receivable)
-        const businessIdInt = parseInt(String(user.businessId))
         const cashAccount = await tx.chartOfAccounts.findFirst({
           where: { businessId: businessIdInt, accountCode: '1000', isActive: true },
         })
