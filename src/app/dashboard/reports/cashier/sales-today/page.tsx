@@ -313,7 +313,7 @@ export default function CashierSalesTodayPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Sales</CardTitle>
@@ -362,6 +362,20 @@ export default function CashierSalesTodayPage() {
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
               {paymentMethods.cheque.percentage.toFixed(1)}% of total
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">Credit / Charge Invoice</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+              {formatCurrency(paymentMethods.credit.amount)}
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+              {paymentMethods.credit.percentage.toFixed(1)}% of total
             </p>
           </CardContent>
         </Card>
