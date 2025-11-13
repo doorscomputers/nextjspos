@@ -36,16 +36,33 @@ async function updateCashierPermissions() {
 
       console.log(`  ✅ Found Sales Cashier role (ID: ${cashierRole.id})`)
 
-      // Check if PAYMENT_COLLECT_AR permission already exists
-      const existingPermission = await prisma.rolePermission.findFirst({
+      // Find the PAYMENT_COLLECT_AR permission record
+      const permission = await prisma.permission.findUnique({
         where: {
-          roleId: cashierRole.id,
-          permission: 'payment.collect_ar',
+          name: 'payment.collect_ar',
         },
       })
 
-      if (existingPermission) {
-        console.log(`  ℹ️ PAYMENT_COLLECT_AR permission already exists`)
+      if (!permission) {
+        console.log(`  ❌ ERROR: Permission 'payment.collect_ar' not found in database`)
+        console.log(`  💡 Run: npx prisma db seed to create default permissions`)
+        continue
+      }
+
+      console.log(`  ✅ Found permission record (ID: ${permission.id})`)
+
+      // Check if this role already has the permission
+      const existingRolePermission = await prisma.rolePermission.findUnique({
+        where: {
+          roleId_permissionId: {
+            roleId: cashierRole.id,
+            permissionId: permission.id,
+          },
+        },
+      })
+
+      if (existingRolePermission) {
+        console.log(`  ℹ️ Role already has PAYMENT_COLLECT_AR permission`)
         continue
       }
 
@@ -53,7 +70,7 @@ async function updateCashierPermissions() {
       await prisma.rolePermission.create({
         data: {
           roleId: cashierRole.id,
-          permission: 'payment.collect_ar',
+          permissionId: permission.id,
         },
       })
 

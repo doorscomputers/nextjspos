@@ -44,13 +44,26 @@ async function checkCashierPermissions() {
       // Get ALL current permissions for this role
       const allPermissions = await prisma.rolePermission.findMany({
         where: { roleId: cashierRole.id },
-        select: { permission: true },
+        include: { permission: true },
       })
 
       console.log(`  📝 Current permissions count: ${allPermissions.length}`)
 
+      // Find the PAYMENT_COLLECT_AR permission record
+      const paymentCollectArPermission = await prisma.permission.findUnique({
+        where: { name: 'payment.collect_ar' },
+      })
+
+      if (!paymentCollectArPermission) {
+        console.log(`  ❌ ERROR: Permission 'payment.collect_ar' not found in database`)
+        console.log(`  💡 Run: npx prisma db seed to create default permissions`)
+        continue
+      }
+
       // Check if PAYMENT_COLLECT_AR permission exists
-      const hasPermission = allPermissions.some(p => p.permission === 'payment.collect_ar')
+      const hasPermission = allPermissions.some(
+        rp => rp.permission.name === 'payment.collect_ar'
+      )
 
       if (hasPermission) {
         console.log(`  ✅ PAYMENT_COLLECT_AR permission: EXISTS (no action needed)`)
@@ -93,13 +106,15 @@ async function checkCashierPermissions() {
       console.log('   npx tsx scripts/update-cashier-permissions.ts')
       console.log('\n💡 Or manually run this SQL:')
       console.log(`
-   INSERT INTO role_permissions (role_id, permission)
-   SELECT r.id, 'payment.collect_ar'
+   INSERT INTO role_permissions (role_id, permission_id)
+   SELECT r.id, p.id
    FROM roles r
+   CROSS JOIN permissions p
    WHERE r.name = 'Sales Cashier'
+   AND p.name = 'payment.collect_ar'
    AND NOT EXISTS (
      SELECT 1 FROM role_permissions rp
-     WHERE rp.role_id = r.id AND rp.permission = 'payment.collect_ar'
+     WHERE rp.role_id = r.id AND rp.permission_id = p.id
    );
       `)
     } else {
