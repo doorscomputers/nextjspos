@@ -15,9 +15,12 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    console.log('[AR Payment API] ========== START ==========')
+
     // 1. Authentication check
     const session = await getServerSession(authOptions)
     if (!session?.user) {
+      console.log('[AR Payment API] ERROR: No session')
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 }
@@ -26,8 +29,10 @@ export async function POST(
 
     const user = session.user
     const saleId = parseInt(params.id)
+    console.log('[AR Payment API] User:', user.username, 'BusinessId:', user.businessId, 'SaleId:', saleId)
 
     if (isNaN(saleId)) {
+      console.log('[AR Payment API] ERROR: Invalid sale ID')
       return NextResponse.json(
         { success: false, error: "Invalid sale ID" },
         { status: 400 }
@@ -35,16 +40,20 @@ export async function POST(
     }
 
     // 2. Permission check - user must have permission to collect AR payments
+    console.log('[AR Payment API] Checking permissions:', user.permissions)
     if (!user.permissions?.includes(PERMISSIONS.PAYMENT_COLLECT_AR)) {
+      console.log('[AR Payment API] ERROR: Missing PAYMENT_COLLECT_AR permission')
       return NextResponse.json(
         { success: false, error: "Insufficient permissions to collect customer payments. Contact your administrator." },
         { status: 403 }
       )
     }
+    console.log('[AR Payment API] ✅ Permission check passed')
 
     // 3. Parse request body
     const body = await request.json()
     const { amount, paymentMethod, referenceNumber, paymentDate, shiftId } = body
+    console.log('[AR Payment API] Request body:', { amount, paymentMethod, referenceNumber, paymentDate, shiftId })
 
     // 4. Validation
     if (!amount || amount <= 0) {
@@ -128,8 +137,11 @@ export async function POST(
     // ✅ ATOMIC: If accounting fails, payment is NOT created (all-or-nothing)
     const paidAt = paymentDate ? new Date(paymentDate) : new Date()
     const accountingEnabled = await isAccountingEnabled(user.businessId)
+    console.log('[AR Payment API] Accounting enabled:', accountingEnabled)
+    console.log('[AR Payment API] Starting transaction...')
 
     const payment = await prisma.$transaction(async (tx) => {
+      console.log('[AR Payment API] Inside transaction - Step 1: Creating payment record...')
       // Step 1: Create payment record
       const newPayment = await tx.salePayment.create({
         data: {
@@ -143,15 +155,20 @@ export async function POST(
           collectedBy: shiftId ? user.id : null,
         },
       })
+      console.log('[AR Payment API] ✅ Payment record created, ID:', newPayment.id)
 
       // Step 2: Update shift running totals if payment collected at POS
       if (shiftId) {
+        console.log('[AR Payment API] Step 2: Updating shift running totals for shift:', shiftId)
         await incrementShiftTotalsForARPayment(
           parseInt(shiftId),
           paymentMethod,
           amount,
           tx
         )
+        console.log('[AR Payment API] ✅ Shift totals updated')
+      } else {
+        console.log('[AR Payment API] Step 2: Skipped (no shiftId)')
       }
 
       // Step 3: Create accounting journal entry if enabled
@@ -248,12 +265,17 @@ export async function POST(
       },
     })
   } catch (error: any) {
-    console.error("Error recording customer payment:", error)
+    console.error("[AR Payment API] ========== ERROR ==========")
+    console.error("[AR Payment API] Error type:", error.constructor.name)
+    console.error("[AR Payment API] Error message:", error.message)
+    console.error("[AR Payment API] Error stack:", error.stack)
+    console.error("[AR Payment API] Full error:", JSON.stringify(error, null, 2))
     return NextResponse.json(
       {
         success: false,
         error: "Failed to record payment",
         details: error.message,
+        errorType: error.constructor.name,
       },
       { status: 500 }
     )
