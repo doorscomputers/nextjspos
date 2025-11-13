@@ -158,6 +158,21 @@ export async function POST(
       })
       console.log('[AR Payment API] ✅ Payment record created, ID:', newPayment.id)
 
+      // Step 1.5: Update sale's paidAmount field (CRITICAL!)
+      console.log('[AR Payment API] Step 1.5: Updating sale paidAmount...')
+      const newTotalPaid = parseFloat(sale.paidAmount.toString()) + amount
+      const totalAmount = parseFloat(sale.totalAmount.toString())
+      const isFullyPaid = newTotalPaid >= totalAmount - 0.01 // Allow 1 cent tolerance
+
+      await tx.sale.update({
+        where: { id: sale.id },
+        data: {
+          paidAmount: { increment: amount },
+          status: isFullyPaid ? 'completed' : 'pending', // Mark as completed when fully paid
+        },
+      })
+      console.log('[AR Payment API] ✅ Sale paidAmount updated. New total paid:', newTotalPaid, 'Fully paid:', isFullyPaid)
+
       // Step 2: Update shift running totals if payment collected at POS
       if (shiftId) {
         console.log('[AR Payment API] Step 2: Updating shift running totals for shift:', shiftId)
