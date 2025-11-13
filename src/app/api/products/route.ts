@@ -1,11 +1,91 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth.simple'
-import { prisma } from '@/lib/prisma.simple'
-import { PERMISSIONS } from '@/lib/rbac'
-import { generateProductSKU, generateVariationSKU, isSkuEmpty } from '@/lib/sku-generator'
+/**
+ * ============================================================================
+ * PRODUCTS API (src/app/api/products/route.ts)
+ * ============================================================================
+ *
+ * PURPOSE: Handles product CRUD operations (Create and Read in this file)
+ *
+ * WHAT THIS FILE DOES:
+ * 1. GET: Fetches list of products for user's business
+ * 2. POST: Creates new products (single, variable, or combo types)
+ *
+ * BUSINESS LOGIC:
+ * - Multi-tenant: Only shows products from user's business
+ * - Field-level security: Hides sensitive data based on permissions
+ * - Auto-generates SKUs if not provided
+ * - Creates default variations for single products
+ * - Initializes inventory at zero for all locations
+ * - Validates pricing (selling price must >= purchase price)
+ *
+ * DATABASE TABLES AFFECTED:
+ * - Product (main product data)
+ * - ProductVariation (variations/SKUs)
+ * - VariationLocationDetails (inventory by location)
+ * - ComboProduct (for combo product items)
+ *
+ * RELATED FILES:
+ * - src/app/api/products/[id]/route.ts (GET, PUT, DELETE single product)
+ * - src/app/dashboard/products/page.tsx (products list page)
+ * - src/app/dashboard/products/add/page.tsx (create product form)
+ * - src/lib/sku-generator.ts (SKU generation logic)
+ *
+ * PERMISSIONS REQUIRED:
+ * - GET: User must be authenticated (no specific permission, but field-level security applies)
+ * - POST: PERMISSIONS.PRODUCT_CREATE
+ */
 
-// GET - Fetch all products for user's business
+// ============================================================================
+// IMPORTS
+// ============================================================================
+import { NextRequest, NextResponse } from 'next/server' // Next.js types for API routes
+import { getServerSession } from 'next-auth' // Get current user session
+import { authOptions } from '@/lib/auth.simple' // NextAuth configuration
+import { prisma } from '@/lib/prisma.simple' // Database client
+import { PERMISSIONS } from '@/lib/rbac' // Permission constants
+import { generateProductSKU, generateVariationSKU, isSkuEmpty } from '@/lib/sku-generator' // SKU utilities
+
+// ============================================================================
+// GET METHOD - Fetch Products List
+// ============================================================================
+/**
+ * Retrieves all products for the user's business with filtering capabilities
+ *
+ * WHAT HAPPENS HERE:
+ * 1. Validates user session (authentication)
+ * 2. Checks user's business ID (multi-tenant isolation)
+ * 3. Checks user's field-level permissions
+ * 4. Parses query parameters for filtering
+ * 5. Builds database query with filters
+ * 6. Fetches products with related data (variations, categories, stock)
+ * 7. Sanitizes response based on permissions
+ * 8. Returns JSON response
+ *
+ * QUERY PARAMETERS SUPPORTED:
+ * - active: Filter by active status (true/false)
+ * - forTransaction: Only show active products for POS
+ * - stockEnabled: Only show products with stock tracking
+ * - search: Search in name/description
+ * - sku: Filter by SKU
+ * - categoryName, brandName, unitName: Filter by related entities
+ * - stockMin, stockMax: Filter by stock quantity
+ * - purchasePriceMin/Max, sellingPriceMin/Max: Filter by price ranges
+ * - limit: Limit number of results
+ *
+ * RESPONSE FORMAT:
+ * {
+ *   products: [
+ *     {
+ *       id, name, sku, type, purchasePrice, sellingPrice,
+ *       category: {...}, brand: {...}, unit: {...},
+ *       variations: [{ id, name, sku, purchasePrice, sellingPrice, variationLocationDetails: [...] }]
+ *     }
+ *   ]
+ * }
+ *
+ * FIELD-LEVEL SECURITY:
+ * - purchasePrice: Hidden if user lacks PRODUCT_VIEW_PURCHASE_PRICE permission
+ * - supplier info: Hidden if user lacks PRODUCT_VIEW_SUPPLIER permission
+ */
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -288,21 +368,105 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create new product
+// ============================================================================
+// POST METHOD - Create New Product
+// ============================================================================
+/**
+ * Creates a new product in the database
+ *
+ * COMPLETE FLOW:
+ * 1. Authenticate user
+ * 2. Check PRODUCT_CREATE permission
+ * 3. Validate request body (name, pricing, etc.)
+ * 4. Check SKU uniqueness
+ * 5. Generate SKU if not provided
+ * 6. Create product record
+ * 7. Create variations (for variable products) OR default variation (for single products)
+ * 8. Create combo items (if combo product)
+ * 9. Initialize inventory at ZERO for ALL locations
+ * 10. Return success response
+ *
+ * PRODUCT TYPES:
+ * - "single": Regular product (e.g., "Laptop") - Creates 1 default variation
+ * - "variable": Product with variations (e.g., "T-Shirt" with sizes S/M/L) - Creates N variations
+ * - "combo": Bundle of products (e.g., "Meal Deal") - Creates combo items
+ *
+ * INVENTORY INITIALIZATION:
+ * When a product is created, the system automatically:
+ * 1. Gets all active locations for the business
+ * 2. Gets all variations for the product
+ * 3. Creates VariationLocationDetails record for EACH variation at EACH location
+ * 4. Sets qtyAvailable = 0 (zero inventory)
+ * 5. This prevents "location not found" errors when receiving stock
+ *
+ * WHY ZERO INVENTORY?
+ * - Prevents negative stock issues
+ * - Establishes tracking baseline
+ * - Stock is added later via:
+ *   * Purchase Receipts (receiving from suppliers)
+ *   * Inventory Corrections (manual adjustments)
+ *   * Transfers (from other locations)
+ *
+ * DATABASE TRANSACTION:
+ * All operations wrapped in $transaction to ensure:
+ * - Atomicity: All operations succeed or none do
+ * - Consistency: No partial product creation
+ * - Rollback on any error
+ *
+ * PRICING VALIDATION:
+ * - Purchase price (cost) must be > 0
+ * - Selling price must be > 0
+ * - Selling price must be >= purchase price
+ * - Prevents selling products at a loss
+ *
+ * SKU GENERATION:
+ * - If SKU provided: Use it (after uniqueness check)
+ * - If SKU empty: Auto-generate using format: {PREFIX}-{PRODUCT_ID}
+ * - Example: PROD-001, PROD-002, etc.
+ * - Variation SKUs: Append variation name or counter
+ *
+ * REQUEST BODY EXAMPLE:
+ * {
+ *   "name": "Laptop",
+ *   "type": "single",
+ *   "categoryId": 5,
+ *   "brandId": 3,
+ *   "unitId": 1,
+ *   "purchasePrice": 500,
+ *   "sellingPrice": 700,
+ *   "enableStock": true,
+ *   "isActive": true
+ * }
+ *
+ * RESPONSE:
+ * {
+ *   "product": { id, sku, name, ... },
+ *   "message": "Product created successfully"
+ * }
+ */
 export async function POST(request: NextRequest) {
   try {
+    // =========================================================================
+    // STEP 1: AUTHENTICATION - Verify user is logged in
+    // =========================================================================
     const session = await getServerSession(authOptions)
 
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // =========================================================================
+    // STEP 2: MULTI-TENANT ISOLATION - Get user's business ID
+    // =========================================================================
     const user = session.user as any
     const businessId = parseInt(String(user.businessId))
     if (!businessId) {
       return NextResponse.json({ error: 'No business associated with user' }, { status: 400 })
     }
 
+    // =========================================================================
+    // STEP 3: AUTHORIZATION - Check permission to create products
+    // =========================================================================
     if (!user.permissions?.includes(PERMISSIONS.PRODUCT_CREATE)) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
@@ -527,11 +691,62 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Auto-create zero inventory for all existing locations
+      // ========================================================================
+      // STEP 9: INVENTORY INITIALIZATION - Create zero inventory for all locations
+      // ========================================================================
+      /**
+       * CRITICAL: This is where inventory tracking begins!
+       *
+       * WHY WE DO THIS:
+       * When a new product is created, it doesn't have any inventory yet.
+       * But we need to establish a "baseline" record at each location so that:
+       * 1. The system knows this product exists at all locations
+       * 2. We can track stock movements (purchases, sales, transfers)
+       * 3. Reports show the product even if stock is zero
+       * 4. Prevents errors when trying to receive/sell at a location
+       *
+       * WHAT HAPPENS HERE:
+       * 1. Query all active locations for this business
+       * 2. Query all variations for this product (created above)
+       * 3. Create VariationLocationDetails record for EACH combination:
+       *    - Variation 1 × Location A = Record (qty: 0)
+       *    - Variation 1 × Location B = Record (qty: 0)
+       *    - Variation 2 × Location A = Record (qty: 0)
+       *    - Variation 2 × Location B = Record (qty: 0)
+       *    ... and so on
+       *
+       * EXAMPLE SCENARIO:
+       * - Product: "T-Shirt" (variable product)
+       * - Variations: Small, Medium, Large (3 variations)
+       * - Locations: Store A, Store B, Warehouse (3 locations)
+       * - Result: 3 × 3 = 9 inventory records created, all with qty = 0
+       *
+       * DATABASE TABLE: VariationLocationDetails
+       * Fields:
+       * - productId: Links to Product
+       * - productVariationId: Links to specific variation (e.g., "Small")
+       * - locationId: Links to BusinessLocation (e.g., "Store A")
+       * - qtyAvailable: Current stock quantity (starts at 0)
+       * - sellingPrice: Price at this location
+       *
+       * WHEN STOCK IS ADDED (qtyAvailable increased):
+       * - Purchase Receipt: +100 units received
+       * - Inventory Correction: Manual adjustment
+       * - Transfer In: +50 units from another location
+       *
+       * WHEN STOCK IS REDUCED (qtyAvailable decreased):
+       * - Sale: -1 unit sold
+       * - Transfer Out: -50 units sent to another location
+       * - Inventory Correction: Manual adjustment
+       *
+       * WHY skipDuplicates: true?
+       * In rare cases, records might already exist (e.g., from a failed transaction).
+       * skipDuplicates prevents errors and only creates missing records.
+       */
       const locations = await tx.businessLocation.findMany({
         where: {
           businessId: parseInt(businessId),
-          deletedAt: null
+          deletedAt: null // Only active locations
         }
       })
 
@@ -545,29 +760,33 @@ export async function POST(request: NextRequest) {
         })
 
         // Create zero inventory records for each variation at each location
+        // This is a CARTESIAN PRODUCT: variations × locations
         const inventoryRecords = []
         for (const location of locations) {
           for (const variation of productVariations) {
             inventoryRecords.push({
-              productId: product.id,
-              productVariationId: variation.id,
-              locationId: location.id,
-              qtyAvailable: 0,
-              sellingPrice: variation.sellingPrice
+              productId: product.id, // Link to main product
+              productVariationId: variation.id, // Link to specific variation
+              locationId: location.id, // Link to location
+              qtyAvailable: 0, // START AT ZERO - stock added later via purchases
+              sellingPrice: variation.sellingPrice // Default price (can be overridden per location)
             })
           }
         }
 
         if (inventoryRecords.length > 0) {
+          // Bulk insert all inventory records in one query (faster than loop)
           await tx.variationLocationDetails.createMany({
             data: inventoryRecords,
-            skipDuplicates: true
+            skipDuplicates: true // Ignore if record already exists
           })
 
-          console.log(`Created ${inventoryRecords.length} zero-inventory records for product: ${product.name} across ${locations.length} location(s)`)
+          console.log(`✅ Created ${inventoryRecords.length} zero-inventory records for product: ${product.name} across ${locations.length} location(s)`)
         }
       } else {
-        console.log(`No locations exist yet. Zero-inventory records will be created when locations are added.`)
+        // Edge case: Business has no locations yet
+        // Inventory records will be created automatically when first location is added
+        console.log(`⚠️ No locations exist yet. Zero-inventory records will be created when locations are added.`)
       }
 
       return { ...product, sku: finalSku }

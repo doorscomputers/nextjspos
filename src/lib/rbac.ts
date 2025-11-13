@@ -1,16 +1,112 @@
 /**
- * RBAC (Role-Based Access Control) Utilities
- * Handles permission checking for users and roles
+ * ============================================================================
+ * RBAC - ROLE-BASED ACCESS CONTROL SYSTEM (src/lib/rbac.ts)
+ * ============================================================================
+ *
+ * PURPOSE: Defines all permissions and provides functions to check user access
+ *
+ * THIS FILE IS THE HEART OF THE APPLICATION'S SECURITY:
+ * - Defines 200+ permissions for every feature
+ * - Provides helper functions to check permissions
+ * - Used by EVERY protected page and API route
+ * - Enforces who can do what in the system
+ *
+ * HOW RBAC WORKS IN THIS APPLICATION:
+ *
+ * 1. PERMISSIONS (What actions exist)
+ *    - Granular: "product.create", "sale.view", "report.financial"
+ *    - Defined in PERMISSIONS object below
+ *    - Format: "module.action" (e.g., "product.create")
+ *
+ * 2. ROLES (Collections of permissions)
+ *    - Super Admin: ALL permissions (platform owner)
+ *    - Admin: Most permissions (business owner)
+ *    - Manager: Operational permissions (store manager)
+ *    - Cashier: Basic POS permissions (frontline staff)
+ *
+ * 3. USERS (People with roles)
+ *    - User → Has Roles → Roles have Permissions
+ *    - User can also have direct permissions (overrides)
+ *    - Loaded during login (src/lib/auth.ts)
+ *    - Stored in JWT token
+ *    - Available in session object
+ *
+ * USAGE FLOW:
+ *
+ * 1. USER LOGS IN:
+ *    src/lib/auth.ts loads user + roles + permissions → stores in JWT
+ *
+ * 2. API ROUTE PROTECTION:
+ *    ```typescript
+ *    const session = await getServerSession(authOptions);
+ *    if (!hasPermission(session.user, PERMISSIONS.PRODUCT_CREATE)) {
+ *      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+ *    }
+ *    ```
+ *
+ * 3. UI ELEMENT VISIBILITY:
+ *    ```typescript
+ *    const { can } = usePermissions();
+ *    {can(PERMISSIONS.PRODUCT_CREATE) && <Button>Create Product</Button>}
+ *    ```
+ *
+ * 4. MENU ITEM VISIBILITY:
+ *    ```typescript
+ *    // src/components/Sidebar.tsx
+ *    {can(PERMISSIONS.PRODUCT_VIEW) && <Link>Products</Link>}
+ *    ```
+ *
+ * KEY FUNCTIONS:
+ * - hasPermission(user, permission) - Check single permission
+ * - hasRole(user, roleName) - Check if user has role
+ * - isSuperAdmin(user) - Check if Super Admin (has ALL permissions)
+ * - hasAnyPermission(user, [...]) - Check multiple (OR logic)
+ * - hasAllPermissions(user, [...]) - Check multiple (AND logic)
+ *
+ * PERMISSION CATEGORIES:
+ * - Dashboard (home page access)
+ * - Users & Roles (user management)
+ * - Products (catalog management)
+ * - Sales (POS transactions)
+ * - Purchases (procurement)
+ * - Customers & Suppliers (contacts)
+ * - Inventory (stock management, transfers, corrections)
+ * - Reports (sales, purchases, financial, inventory)
+ * - Accounting (chart of accounts, financial statements)
+ * - Expenses (expense tracking)
+ * - HR (attendance, schedules)
+ * - Settings (business settings, tax rates, locations)
+ *
+ * RELATED FILES:
+ * - src/lib/auth.ts - Loads permissions during login
+ * - src/hooks/usePermissions.ts - React hook for checking permissions
+ * - src/components/Sidebar.tsx - Uses permissions for menu visibility
+ * - src/app/api/*\/route.ts - All API routes check permissions
+ * - prisma/schema.prisma - Permission database models
  */
 
+// ============================================================================
+// TYPE DEFINITIONS
+// ============================================================================
+
+/**
+ * Permission Type
+ * A permission is just a string like "product.create" or "sale.view"
+ */
 export type Permission = string
 
+/**
+ * RBAC User Interface
+ *
+ * This interface defines what user data is needed for permission checks.
+ * Comes from NextAuth session object.
+ */
 export interface RBACUser {
-  id: string
-  permissions: Permission[]
-  roles: string[]
-  businessId?: string
-  locationIds?: number[]
+  id: string // User ID
+  permissions: Permission[] // Array of permission strings ["product.view", "sale.create"]
+  roles: string[] // Array of role names ["Manager", "Cashier"]
+  businessId?: string // Multi-tenant: which business user belongs to
+  locationIds?: number[] // Which locations user has access to
 }
 
 /**

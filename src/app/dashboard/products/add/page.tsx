@@ -1,3 +1,280 @@
+/**
+ * ============================================================================
+ * ADD PRODUCT PAGE (src/app/dashboard/products/add/page.tsx)
+ * ============================================================================
+ *
+ * PURPOSE: Form page for creating new products (single, variable, or combo)
+ *
+ * WHAT THIS PAGE DOES:
+ * 1. Displays comprehensive product creation form
+ * 2. Handles three product types: Single, Variable, Combo
+ * 3. Validates all inputs (pricing, required fields, SKU uniqueness)
+ * 4. Supports quick-add for categories, brands, and units
+ * 5. Auto-calculates margin percentage and selling price
+ * 6. Allows image and brochure uploads
+ * 7. Creates product with zero inventory at all locations
+ * 8. Provides three save options: Save, Save & Add Another, Save & Add Stock
+ *
+ * USER JOURNEY:
+ * User clicks "Add Product" button on products list page
+ *   ↓
+ * This form page loads
+ *   ↓
+ * User fills in product details:
+ *   - Basic info (name, type, category, brand, unit)
+ *   - Pricing (purchase price, selling price, tax)
+ *   - Stock settings (enable stock, alert quantity)
+ *   - For Variable: Add variations with individual prices
+ *   - For Combo: Select component products and quantities
+ *   ↓
+ * User clicks "Save" (or "Save & Add Another" or "Save & Add Stock")
+ *   ↓
+ * Form validates all fields
+ *   ↓
+ * POST /api/products (sends product data)
+ *   ↓
+ * API creates product record
+ *   ↓
+ * API creates variations (1 default for single, N for variable)
+ *   ↓
+ * API initializes ZERO inventory at ALL locations
+ *   ↓
+ * Success toast notification
+ *   ↓
+ * Redirect based on save action:
+ *   - "Save" → /dashboard/products (list page)
+ *   - "Save & Add Another" → Stay on form (reset fields)
+ *   - "Save & Add Stock" → /dashboard/products/[id]/add-stock (initial stock entry)
+ *
+ * PRODUCT TYPES:
+ *
+ * 1. SINGLE PRODUCT:
+ *    - Regular product without variations (e.g., "Laptop", "Keyboard")
+ *    - Has ONE default variation created automatically
+ *    - Single set of prices (purchase price, selling price)
+ *    - Use case: Most common products
+ *
+ * 2. VARIABLE PRODUCT:
+ *    - Product with multiple variations (e.g., "T-Shirt" with sizes S/M/L/XL)
+ *    - Each variation has its own SKU, purchase price, selling price
+ *    - Can mark one variation as default
+ *    - Inventory tracked per variation per location
+ *    - Use case: Clothing, shoes, products with sizes/colors/options
+ *
+ * 3. COMBO PRODUCT:
+ *    - Bundle of multiple products (e.g., "Meal Deal" = Burger + Fries + Drink)
+ *    - Select component products and specify quantities
+ *    - Has bundle price (different from sum of individual prices)
+ *    - Stock auto-calculated based on component availability
+ *    - Use case: Meal combos, bundle deals, product kits
+ *
+ * FORM SECTIONS:
+ *
+ * 1. BASIC INFORMATION:
+ *    - Product Name * (required)
+ *    - Product Type * (single/variable/combo)
+ *    - Category (optional, with quick-add button)
+ *    - Sub-Category (if parent category selected)
+ *    - Brand (optional, with quick-add button)
+ *    - Unit of Measurement * (required, with quick-add button)
+ *    - SKU (auto-generated if empty)
+ *    - Barcode Type (Code128, Code39, EAN13, etc.)
+ *
+ * 2. PRICING (for Single products):
+ *    - Purchase Price * (cost from supplier)
+ *    - Selling Price * (price to customer)
+ *    - Margin % (auto-calculated: (selling - purchase) / purchase × 100)
+ *    - Tax Rate (optional, select from list)
+ *    - Tax Type (inclusive or exclusive)
+ *
+ * 3. VARIATIONS (for Variable products):
+ *    - Variation Name (e.g., "Small", "Medium", "Large")
+ *    - SKU (auto-generated or manual)
+ *    - Purchase Price (cost for this variation)
+ *    - Selling Price (price for this variation)
+ *    - Default (mark one as default)
+ *    - Add/Remove variation buttons
+ *
+ * 4. COMBO ITEMS (for Combo products):
+ *    - Select Product (from existing products)
+ *    - Quantity (how many units in combo)
+ *    - Add/Remove item buttons
+ *    - Shows product name, price, available stock
+ *
+ * 5. STOCK MANAGEMENT:
+ *    - Enable Stock Tracking (checkbox)
+ *    - Alert Quantity (reorder level threshold)
+ *    - Note: Initial stock is zero, added via:
+ *      * Purchase receipts
+ *      * Initial stock entry (if "Save & Add Stock" clicked)
+ *      * Inventory adjustments
+ *
+ * 6. ADDITIONAL DETAILS:
+ *    - Description (short text)
+ *    - Product Description (long text, shown to customers)
+ *    - Image Upload (product photo)
+ *    - Brochure Upload (PDF/document)
+ *    - Weight (for shipping calculations)
+ *    - Preparation Time (for food/kitchen items)
+ *    - Enable Product Info (show details to customers)
+ *    - Not For Selling (internal use only)
+ *
+ * VALIDATION RULES:
+ *
+ * 1. Required Fields:
+ *    - Product name cannot be empty
+ *    - Unit must be selected
+ *    - Purchase price > 0 (must have cost)
+ *    - Selling price > 0 (must have price)
+ *    - Selling price >= Purchase price (prevent selling at loss)
+ *
+ * 2. Variable Products:
+ *    - At least one variation required
+ *    - Each variation must have name
+ *    - Each variation must have valid prices
+ *    - Variation SKUs must be unique
+ *
+ * 3. Combo Products:
+ *    - At least one component product required
+ *    - Quantity must be > 0
+ *    - Cannot add same product twice
+ *
+ * 4. SKU Validation:
+ *    - Must be unique within business
+ *    - If empty, auto-generated from business settings
+ *    - Format: {PREFIX}-{COUNTER} (e.g., PROD-001)
+ *
+ * AUTO-CALCULATIONS:
+ *
+ * 1. Margin Percentage:
+ *    - Formula: ((sellingPrice - purchasePrice) / purchasePrice) × 100
+ *    - Example: Cost $50, Price $75 → Margin = 50%
+ *    - Updates automatically when prices change
+ *
+ * 2. Selling Price from Margin:
+ *    - User can enter margin % instead of selling price
+ *    - Formula: sellingPrice = purchasePrice × (1 + margin/100)
+ *    - Example: Cost $50, Margin 50% → Price = $75
+ *
+ * QUICK-ADD MODALS:
+ *
+ * Instead of navigating away to create categories/brands/units,
+ * user can create them inline with quick-add modals:
+ *
+ * 1. Quick Add Category:
+ *    - Opens modal overlay
+ *    - Fields: Name, Short Code, Description
+ *    - POST /api/categories
+ *    - New category immediately available in dropdown
+ *
+ * 2. Quick Add Brand:
+ *    - Opens modal overlay
+ *    - Fields: Name, Description
+ *    - POST /api/brands
+ *    - New brand immediately available in dropdown
+ *
+ * 3. Quick Add Unit:
+ *    - Opens modal overlay
+ *    - Fields: Name, Short Name, Allow Decimal
+ *    - POST /api/units
+ *    - New unit immediately available in dropdown
+ *
+ * SAVE ACTIONS:
+ *
+ * 1. Save:
+ *    - Creates product
+ *    - Shows success toast
+ *    - Redirects to products list page
+ *    - Use case: One-time product addition
+ *
+ * 2. Save & Add Another:
+ *    - Creates product
+ *    - Shows success toast
+ *    - Clears form
+ *    - Stays on add page
+ *    - Use case: Bulk product entry (adding many products)
+ *
+ * 3. Save & Add Stock:
+ *    - Creates product
+ *    - Shows success toast
+ *    - Redirects to initial stock entry page
+ *    - Use case: New product that needs immediate inventory
+ *    - Next page: /dashboard/products/[id]/add-stock
+ *
+ * INVENTORY INITIALIZATION:
+ *
+ * When product is created (via POST /api/products):
+ * 1. API gets all active business locations
+ * 2. API creates variations:
+ *    - Single product: 1 default variation
+ *    - Variable product: N variations (as specified)
+ * 3. API creates VariationLocationDetails for each variation × location:
+ *    - qtyAvailable = 0 (zero inventory)
+ *    - Establishes tracking baseline
+ * 4. Stock can then be added via:
+ *    - Purchase receipts (receiving from suppliers)
+ *    - Initial stock entry (if "Save & Add Stock" clicked)
+ *    - Inventory adjustments (manual corrections)
+ *    - Transfers (from other locations)
+ *
+ * WHY ZERO INVENTORY?
+ * - Prevents negative stock issues
+ * - Requires explicit stock addition (audit trail)
+ * - Matches accounting best practices
+ * - Ensures proper cost tracking (FIFO/LIFO)
+ *
+ * DATA FLOW:
+ *
+ * 1. Page Load:
+ *    - Fetch categories: GET /api/categories
+ *    - Fetch brands: GET /api/brands
+ *    - Fetch units: GET /api/units
+ *    - Fetch tax rates: GET /api/tax-rates
+ *    - For combo: Fetch products: GET /api/products
+ *
+ * 2. Form Submission:
+ *    - Validate all fields locally
+ *    - Build request body based on product type
+ *    - POST /api/products { name, type, prices, variations, comboItems, ... }
+ *    - Handle response:
+ *      * Success: Show toast, redirect/reset
+ *      * Error: Show validation errors in form
+ *
+ * 3. Quick-Add:
+ *    - User clicks "+ Category"
+ *    - Modal opens with form
+ *    - User enters name
+ *    - POST /api/categories { name, ... }
+ *    - New category added to dropdown
+ *    - Modal closes
+ *
+ * ERROR HANDLING:
+ * - Required field empty → Red border + error message below field
+ * - Invalid pricing → Alert toast + error message
+ * - Duplicate SKU → API error → Toast notification
+ * - Network error → Retry button + error message
+ *
+ * RELATED COMPONENTS:
+ * - DevExtreme SelectBox: Dropdown selects with search
+ * - Image upload component (not shown in snippet)
+ * - Quick-add modal dialogs
+ *
+ * RELATED API ENDPOINTS:
+ * - POST /api/products - Create new product
+ * - GET /api/categories - Fetch categories for dropdown
+ * - GET /api/brands - Fetch brands for dropdown
+ * - GET /api/units - Fetch units for dropdown
+ * - GET /api/tax-rates - Fetch tax rates for dropdown
+ * - POST /api/categories - Quick-add category
+ * - POST /api/brands - Quick-add brand
+ * - POST /api/units - Quick-add unit
+ *
+ * RELATED PAGES:
+ * - /dashboard/products - Products list (redirect after save)
+ * - /dashboard/products/[id]/add-stock - Initial stock entry
+ * - /dashboard/products/[id]/edit - Edit product form
+ */
+
 "use client"
 
 import { useState, useEffect } from 'react'

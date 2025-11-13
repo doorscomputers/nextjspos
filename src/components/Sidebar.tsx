@@ -212,13 +212,24 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
     // If permissions not loaded yet, show all menus (fail-open during loading)
     if (!menuPermissionsLoaded) return true
 
-    // CRITICAL FIX: If no menu permissions are assigned, HIDE menus (was showing all - security bug)
-    // Users/roles with no menu permissions should see NO menus (not ALL menus)
+    // CRITICAL FIX: Check if user has admin roles that should bypass menu permissions
+    // Super Admin, Admin, All Branch Admin, and System Administrator get ALL menus by default
+    const isSuperUser = user?.roles?.some((role: string) =>
+      role === 'Super Admin' ||
+      role === 'System Administrator' ||
+      role === 'Admin' ||
+      role === 'All Branch Admin'
+    )
+
+    // If user is a super user, they get access to ALL menus regardless of menu permissions
+    if (isSuperUser) return true
+
+    // For non-admin users: if no menu permissions assigned, hide all menus
     if (accessibleMenuKeys.size === 0) return false
 
     // Check if the menu key is in the accessible list
     return accessibleMenuKeys.has(menuKey)
-  }, [accessibleMenuKeys, menuPermissionsLoaded])
+  }, [accessibleMenuKeys, menuPermissionsLoaded, user?.roles])
 
   // Auto-expand menus when search changes
   useEffect(() => {

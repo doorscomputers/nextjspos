@@ -1,3 +1,194 @@
+/**
+ * ============================================================================
+ * PRODUCTS LIST PAGE (src/app/dashboard/products/page.tsx)
+ * ============================================================================
+ *
+ * PURPOSE: Main product management page showing all products in a data table
+ *
+ * WHAT THIS PAGE DOES:
+ * 1. Displays all products for the user's business in a paginated table
+ * 2. Provides advanced filtering (name, SKU, category, brand, type, stock, etc.)
+ * 3. Allows sorting by any column (name, SKU, stock, price, etc.)
+ * 4. Supports bulk actions (add/remove products from locations)
+ * 5. Shows real-time stock quantities across all locations
+ * 6. Enables/disables products with toggle switches
+ * 7. Export products to CSV, Excel, PDF, or Print
+ * 8. Column visibility customization (show/hide columns)
+ * 9. Quick search across product name and description
+ * 10. Links to edit page, product history, and product details
+ *
+ * USER JOURNEY:
+ * User clicks "Products" in sidebar
+ *   ↓
+ * This page loads (GET /api/products/list)
+ *   ↓
+ * Displays products in table with filters
+ *   ↓
+ * User can:
+ *   - Search products by name
+ *   - Filter by category, brand, type, stock level
+ *   - Sort by any column
+ *   - Toggle active/inactive status
+ *   - Select multiple products for bulk actions
+ *   - Export data to various formats
+ *   - Click "Add Product" → /dashboard/products/add
+ *   - Click "Edit" → /dashboard/products/[id]/edit
+ *   - Click "History" → /dashboard/products/[id]/history
+ *   - Click product name → /dashboard/products/[id] (details)
+ *
+ * KEY FEATURES:
+ *
+ * 1. ADVANCED FILTERING:
+ *    - Multi-column filters (search, SKU, category, brand, unit, type, stock range)
+ *    - Real-time filtering as user types (with debounce)
+ *    - Persistent filter state during session
+ *    - Clear all filters button
+ *
+ * 2. PAGINATION:
+ *    - Server-side pagination (only loads current page from API)
+ *    - Configurable items per page (10, 25, 50, 100)
+ *    - Shows total count and page info
+ *    - Automatic page adjustment when filters change
+ *
+ * 3. COLUMN MANAGEMENT:
+ *    - Show/hide columns dynamically
+ *    - Default columns: Product, Actions, SKU, Status, Category, Brand, Unit, Type, Tax
+ *    - Optional columns: Stock, Purchase Price, Selling Price, Created Date
+ *    - State persisted in browser localStorage
+ *
+ * 4. SORTING:
+ *    - Click any column header to sort
+ *    - Toggle ascending/descending
+ *    - Visual indicators (↑ ↓)
+ *    - Server-side sorting for performance
+ *
+ * 5. BULK ACTIONS:
+ *    - Select multiple products with checkboxes
+ *    - "Select All" checkbox in header
+ *    - Actions:
+ *      * Add selected products to a location
+ *      * Remove selected products from a location
+ *    - Validation: Cannot remove if product has stock at location
+ *
+ * 6. ACTIVE/INACTIVE TOGGLE:
+ *    - Switch component to enable/disable products
+ *    - Green = Active (can be sold)
+ *    - Gray = Inactive (hidden from POS)
+ *    - Immediate API call on toggle
+ *    - Permission required: PRODUCT_ACTIVATE
+ *
+ * 7. EXPORT FUNCTIONALITY:
+ *    - CSV: Comma-separated values for Excel/spreadsheets
+ *    - Excel: .xlsx file with formatting
+ *    - PDF: Printable PDF with table layout
+ *    - Print: Browser print dialog
+ *    - Exports current filtered/sorted data
+ *
+ * 8. STOCK DISPLAY:
+ *    - Shows total stock across all locations
+ *    - Calculated from variations' qtyAvailable
+ *    - Color coding: Red if below alert quantity
+ *    - Supports single and variable products
+ *    - Only shown for products with enableStock = true
+ *
+ * DATA FLOW:
+ *
+ * 1. PAGE LOAD:
+ *    Browser → GET /api/products/list
+ *    API fetches products with filters/pagination
+ *    Returns: { products: [...], pagination: {...} }
+ *    Page displays products in table
+ *
+ * 2. FILTER CHANGE:
+ *    User types in filter → Debounced (500ms)
+ *    Updates filter state
+ *    Triggers fetchProducts() with new filters
+ *    API returns filtered results
+ *    Table updates
+ *
+ * 3. TOGGLE ACTIVE/INACTIVE:
+ *    User clicks switch
+ *    PUT /api/products/[id]/activate { isActive: true/false }
+ *    API updates product.isActive
+ *    Page refreshes product list
+ *    Toast notification shows success
+ *
+ * 4. BULK ADD TO LOCATION:
+ *    User selects products
+ *    Clicks "Add to Location"
+ *    Selects location from dropdown
+ *    POST /api/products/bulk-add-location { productIds: [...], locationId: X }
+ *    API creates VariationLocationDetails records with qty=0
+ *    Toast shows success
+ *    Page refreshes
+ *
+ * 5. BULK REMOVE FROM LOCATION:
+ *    User selects products
+ *    Clicks "Remove from Location"
+ *    Selects location from dropdown
+ *    POST /api/products/bulk-remove-location { productIds: [...], locationId: X }
+ *    API validates no stock exists
+ *    Soft-deletes VariationLocationDetails records
+ *    Toast shows success/errors
+ *    Page refreshes
+ *
+ * PERMISSION CHECKS:
+ * - PRODUCT_VIEW: Required to view this page (checked in Sidebar)
+ * - PRODUCT_CREATE: Show "Add Product" button
+ * - PRODUCT_UPDATE: Show "Edit" button in actions dropdown
+ * - PRODUCT_ACTIVATE: Show active/inactive toggle switch
+ * - PRODUCT_DELETE: Show "Delete" option in actions dropdown
+ * - PRODUCT_VIEW_PURCHASE_PRICE: Show purchase price column
+ *
+ * STATE MANAGEMENT:
+ * - products: Array of products (current page)
+ * - loading: Boolean for loading spinner
+ * - searchTerm: Global search text
+ * - activeFilter: "all" | "active" | "inactive"
+ * - filters: Multi-column filter object
+ * - sortState: { key, direction } for current sort
+ * - currentPage: Current pagination page
+ * - itemsPerPage: Number of items per page
+ * - totalCount: Total products matching filters
+ * - totalPages: Total pages for pagination
+ * - selectedProductIds: Array of selected product IDs for bulk actions
+ * - visibleColumns: Array of column keys to display
+ *
+ * API ENDPOINTS USED:
+ * - GET /api/products/list - Fetch products with filters/pagination
+ * - PUT /api/products/[id]/activate - Toggle active status
+ * - POST /api/products/bulk-add-location - Add products to location
+ * - POST /api/products/bulk-remove-location - Remove products from location
+ * - GET /api/locations - Fetch business locations for bulk actions
+ *
+ * RELATED COMPONENTS:
+ * - ProductFiltersPanel: Advanced filter UI
+ * - ProductActionsDropdown: Per-product action menu (Edit, Delete, History)
+ * - ColumnVisibilityToggle: Show/hide columns
+ * - Pagination: Pagination controls
+ * - AddToLocationModal: Bulk add to location dialog
+ * - RemoveFromLocationModal: Bulk remove from location dialog
+ * - SortableTableHead: Sortable column headers
+ *
+ * RELATED PAGES:
+ * - /dashboard/products/add - Create new product
+ * - /dashboard/products/[id]/edit - Edit existing product
+ * - /dashboard/products/[id] - View product details with stock report
+ * - /dashboard/products/[id]/history - View product transaction history
+ *
+ * PERFORMANCE OPTIMIZATIONS:
+ * - Server-side pagination (only loads current page)
+ * - Debounced search (prevents API spam)
+ * - useCallback for memoized functions
+ * - Lazy loading of product images
+ * - Column visibility reduces render time
+ *
+ * RESPONSIVE DESIGN:
+ * - Mobile: Stacked cards instead of table
+ * - Tablet: Reduced columns, horizontal scroll
+ * - Desktop: Full table with all columns
+ */
+
 "use client"
 
 import { useState, useEffect, useCallback } from 'react'

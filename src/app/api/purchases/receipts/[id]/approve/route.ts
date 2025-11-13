@@ -1,13 +1,201 @@
+/**
+ * ============================================================================
+ * PURCHASE RECEIPT APPROVAL API (src/app/api/purchases/receipts/[id]/approve/route.ts)
+ * ============================================================================
+ *
+ * PURPOSE: Approves a pending GRN (Goods Received Note) and ADDS inventory to stock
+ *
+ * CRITICAL: THIS IS WHERE INVENTORY IS ACTUALLY ADDED TO THE SYSTEM!
+ *
+ * TWO-STEP PURCHASE WORKFLOW:
+ *
+ * STEP 1 - CREATE GRN (Purchase Receipt):
+ *   - Encoder records what goods were physically received
+ *   - Creates GRN with status = "pending"
+ *   - Inventory is NOT added yet
+ *   - Allows reviewing before affecting stock
+ *   - See: /api/purchases/[id]/receive/route.ts
+ *
+ * STEP 2 - APPROVE GRN (THIS FILE):
+ *   - Approver reviews the GRN
+ *   - If approved: Inventory is ADDED to stock
+ *   - Updates VariationLocationDetails.qtyAvailable (INCREASES quantity)
+ *   - Creates stock transaction records
+ *   - Updates product costs (weighted average)
+ *   - Records serial numbers (if applicable)
+ *   - Creates accounts payable entry
+ *   - Cannot be undone (use Purchase Returns instead)
+ *
+ * WHY TWO-STEP WORKFLOW?
+ * - Separation of duties (encoder vs approver)
+ * - Prevents inventory manipulation
+ * - Allows for quality checks before adding stock
+ * - Audit trail of who received vs who approved
+ * - Matches accounting best practices
+ *
+ * WHAT HAPPENS WHEN GRN IS APPROVED:
+ *
+ * 1. INVENTORY ADDITION (CRITICAL):
+ *    - Calls processPurchaseReceipt() for each item
+ *    - Updates VariationLocationDetails.qtyAvailable
+ *    - Formula: qtyAvailable = qtyAvailable + quantityReceived
+ *    - Example: Current stock 10 + Received 5 = New stock 15
+ *    - Creates StockTransaction record (type: 'purchase')
+ *    - Creates ProductHistory record for audit trail
+ *
+ * 2. SERIAL NUMBER TRACKING (if applicable):
+ *    - Creates ProductSerialNumber records
+ *    - Links serial numbers to supplier
+ *    - Sets warranty start/end dates
+ *    - Tracks purchase cost per unit
+ *    - Records initial location
+ *    - Creates movement history
+ *
+ * 3. COST ACCOUNTING (Weighted Average):
+ *    - Updates ProductVariation.purchasePrice
+ *    - Formula: (oldQty × oldCost + newQty × newCost) / totalQty
+ *    - Example:
+ *      * Current stock: 10 units @ $50 = $500
+ *      * New receipt: 5 units @ $60 = $300
+ *      * New average: ($500 + $300) / 15 = $53.33
+ *    - Ensures accurate profit margins
+ *    - Affects COGS calculations in reports
+ *
+ * 4. ACCOUNTS PAYABLE (if fully received):
+ *    - Creates AccountsPayable entry
+ *    - Links to supplier and purchase order
+ *    - Sets due date based on payment terms
+ *    - Status: "unpaid"
+ *    - Amount: Purchase total amount
+ *    - Auto-created only on final receipt
+ *
+ * 5. PURCHASE ORDER STATUS UPDATE:
+ *    - Checks if all items fully received
+ *    - If yes: Status = "received"
+ *    - If partially: Status = "partially_received"
+ *    - If pending: Status = "pending" (no change)
+ *
+ * 6. MATERIALIZED VIEW REFRESH:
+ *    - Refreshes stock_pivot_view
+ *    - Ensures reports show updated inventory immediately
+ *    - Runs asynchronously (doesn't block response)
+ *
+ * 7. INVENTORY IMPACT TRACKING:
+ *    - Captures stock levels before and after
+ *    - Generates detailed change report
+ *    - Shows exact quantity changes per location
+ *    - Used for audit and reconciliation
+ *
+ * EXAMPLE SCENARIO:
+ *
+ * Initial State:
+ * - Product: "Laptop" (variation: "15-inch")
+ * - Main Warehouse: 10 units @ $500 each
+ * - Purchase Order: 5 units @ $480 each from Supplier A
+ * - GRN created (status: pending)
+ *
+ * User Action:
+ * - Manager approves GRN
+ *
+ * This API Executes:
+ * 1. Validates GRN is pending (not already approved)
+ * 2. Checks user has PURCHASE_RECEIPT_APPROVE permission
+ * 3. Calls processPurchaseReceipt():
+ *    - Main Warehouse: 10 → 15 units (+5)
+ *    - Creates StockTransaction: type=purchase, qty=+5
+ *    - Creates ProductHistory: PURCHASE_RECEIPT, qty=5
+ * 4. Updates weighted average cost:
+ *    - Old: 10 units @ $500 = $5,000
+ *    - New: 5 units @ $480 = $2,400
+ *    - Average: ($5,000 + $2,400) / 15 = $493.33
+ *    - ProductVariation.purchasePrice = $493.33
+ * 5. Creates AccountsPayable:
+ *    - Supplier: Supplier A
+ *    - Amount: 5 × $480 = $2,400
+ *    - Due Date: Receipt date + 30 days (payment terms)
+ *    - Status: unpaid
+ * 6. Updates Purchase status to "received"
+ * 7. Updates GRN status to "approved"
+ *
+ * Result:
+ * - Inventory INCREASED from 10 to 15 units
+ * - Average cost updated to $493.33
+ * - AP entry created for $2,400
+ * - Audit trail recorded
+ *
+ * DATA FLOW:
+ *
+ * User clicks "Approve" on GRN
+ *   ↓
+ * POST /api/purchases/receipts/[id]/approve
+ *   ↓
+ * Validate permissions and GRN status
+ *   ↓
+ * Start database transaction
+ *   ↓
+ * For each GRN item:
+ *   → Call processPurchaseReceipt() → ADDS inventory
+ *   → Create serial numbers (if applicable)
+ *   → Update weighted average cost
+ *   → Update purchase item received quantity
+ *   ↓
+ * Update purchase order status
+ *   ↓
+ * Create accounts payable entry (if fully received)
+ *   ↓
+ * Update GRN status to "approved"
+ *   ↓
+ * Commit transaction
+ *   ↓
+ * Refresh materialized view (async)
+ *   ↓
+ * Create audit log
+ *   ↓
+ * Return success with inventory impact report
+ *
+ * RELATED FUNCTIONS:
+ *
+ * processPurchaseReceipt() (src/lib/stockOperations.ts):
+ * - Core function that ADDS inventory
+ * - Updates VariationLocationDetails.qtyAvailable
+ * - Creates StockTransaction record
+ * - Creates ProductHistory record
+ * - Handles multi-unit products (UOM conversions)
+ *
+ * PERMISSIONS REQUIRED:
+ * - PURCHASE_RECEIPT_APPROVE (typically Manager or Admin only)
+ * - ACCESS_ALL_LOCATIONS or assigned to specific location
+ *
+ * ERROR CASES:
+ * - GRN not found → 404 Not Found
+ * - Already approved → 400 Bad Request (cannot approve twice)
+ * - Already rejected → 400 Bad Request (cannot approve rejected GRN)
+ * - Duplicate serial numbers → 400 Bad Request (serial already exists)
+ * - No permission → 403 Forbidden
+ * - Transaction timeout → 500 Internal Server Error (retry)
+ *
+ * IDEMPOTENCY:
+ * - Wrapped in withIdempotency() to prevent duplicate approvals
+ * - If same request sent twice, returns existing result
+ * - Prevents accidental double inventory addition
+ *
+ * RELATED FILES:
+ * - src/app/api/purchases/[id]/receive/route.ts (Step 1: Create GRN)
+ * - src/lib/stockOperations.ts (processPurchaseReceipt function)
+ * - src/app/dashboard/purchases/receipts/[id]/page.tsx (GRN details page)
+ * - src/app/api/purchases/returns/[id]/approve/route.ts (Reverse operation - REMOVES inventory)
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
-import { processPurchaseReceipt } from '@/lib/stockOperations'
+import { processPurchaseReceipt } from '@/lib/stockOperations' // CRITICAL: This function ADDS inventory
 import { SerialNumberCondition } from '@/lib/serialNumber'
-import { withIdempotency } from '@/lib/idempotency'
-import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker'
+import { withIdempotency } from '@/lib/idempotency' // Prevents duplicate approvals
+import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker' // Tracks stock changes
 import { isAccountingEnabled, recordPurchase } from '@/lib/accountingIntegration'
 
 /**
