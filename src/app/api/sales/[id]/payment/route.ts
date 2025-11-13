@@ -153,7 +153,7 @@ export async function POST(
           paidAt,
           // Link to shift if payment collected at POS (AR Payment Collection)
           shiftId: shiftId ? parseInt(shiftId) : null,
-          collectedBy: shiftId ? user.id : null,
+          collectedBy: shiftId ? parseInt(String(user.id)) : null,
         },
       })
       console.log('[AR Payment API] ✅ Payment record created, ID:', newPayment.id)
@@ -184,6 +184,7 @@ export async function POST(
 
         if (cashAccount && arAccount) {
           // Create journal entry for payment received
+          const userIdInt = parseInt(String(user.id))
           const journalEntry = await tx.journalEntry.create({
             data: {
               businessId: businessIdInt,
@@ -194,8 +195,8 @@ export async function POST(
               sourceId: newPayment.id,
               status: 'posted',
               balanced: true,
-              createdBy: user.id,
-              postedBy: user.id,
+              createdBy: userIdInt,
+              postedBy: userIdInt,
               postedAt: new Date(),
             },
           })
