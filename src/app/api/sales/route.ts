@@ -1132,6 +1132,7 @@ export async function POST(request: NextRequest) {
 
       // PHASE 2: Update shift running totals for real-time X/Z Reading generation
       // This is a single UPDATE query with increment operations (~10-50ms overhead)
+      // IMPORTANT: Even for credit sales, we must count any payments that were made (partial payments)
       await incrementShiftTotalsForSale(
         currentShift.id,
         {
@@ -1139,7 +1140,7 @@ export async function POST(request: NextRequest) {
           totalAmount,
           discountAmount: parseFloat(discountAmount || 0),
           discountType: discountType || null,
-          payments: isCreditSale ? [] : (payments || []).map((p: any) => ({
+          payments: (payments || []).map((p: any) => ({
             paymentMethod: p.method,
             amount: parseFloat(p.amount),
           })),
