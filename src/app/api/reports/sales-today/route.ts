@@ -139,9 +139,11 @@ export async function GET(request: NextRequest) {
       include: {
         sale: {
           select: {
+            id: true,
             invoiceNumber: true,
             saleDate: true,
             status: true,
+            customerId: true,
           },
         },
       },
@@ -152,11 +154,41 @@ export async function GET(request: NextRequest) {
       return sum + parseFloat(payment.amount.toString())
     }, 0)
 
+    // Fetch sales that have AR payments today (but were not created today)
+    // Get unique sale IDs from AR payments
+    const arPaymentSaleIds = arPaymentsToday
+      .map((p) => p.sale.id)
+      .filter((id) => !sales.find((s) => s.id === id)) // Exclude sales already in today's sales
+
+    // Fetch these AR payment sales to include in transactions
+    const arPaymentSales = arPaymentSaleIds.length > 0
+      ? await prisma.sale.findMany({
+          where: {
+            id: { in: arPaymentSaleIds },
+          },
+          include: {
+            customer: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            items: true,
+            payments: true,
+          },
+        })
+      : []
+
+    // Combine today's sales with AR payment sales
+    const allSales = [...sales, ...arPaymentSales].sort((a, b) => {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
+
     // Get unique product and variation IDs from sale items
     const productIds = new Set<number>()
     const variationIds = new Set<number>()
 
-    sales.forEach((sale) => {
+    allSales.forEach((sale) => {
       sale.items.forEach((item) => {
         productIds.add(item.productId)
         variationIds.add(item.productVariationId)
@@ -358,33 +390,40 @@ export async function GET(request: NextRequest) {
       },
       paymentBreakdown,
       discountBreakdown,
-      sales: sales.map((sale) => ({
-        id: sale.id,
-        invoiceNumber: sale.invoiceNumber,
-        saleDate: sale.saleDate.toISOString().split('T')[0],
-        customer: sale.customer?.name || 'Walk-in Customer',
-        customerId: sale.customerId,
-        totalAmount: parseFloat(sale.totalAmount.toString()),
-        discountAmount: parseFloat(sale.discountAmount.toString()),
-        discountType: sale.discountType,
-        payments: sale.payments.map((p) => ({
-          method: p.paymentMethod,
-          amount: parseFloat(p.amount.toString()),
-        })),
-        itemCount: sale.items.length,
-        items: sale.items.map((item) => {
-          const product = productMap.get(item.productId)
-          const variation = variationMap.get(item.productVariationId)
-          return {
-            productName: product?.name || 'Unknown Product',
-            variationName: variation?.name || 'Unknown Variation',
-            sku: variation?.sku || 'N/A',
-            quantity: parseFloat(item.quantity.toString()),
-            unitPrice: parseFloat(item.unitPrice.toString()),
-            total: parseFloat(item.quantity.toString()) * parseFloat(item.unitPrice.toString()),
-          }
-        }),
-      })),
+      sales: allSales.map((sale) => {
+        // Check if this is an AR payment transaction (payment made today, but sale is from previous day)
+        const saleDate = new Date(sale.saleDate)
+        const isARPayment = saleDate < startOfDay
+
+        return {
+          id: sale.id,
+          invoiceNumber: sale.invoiceNumber,
+          saleDate: sale.saleDate.toISOString().split('T')[0],
+          customer: sale.customer?.name || 'Walk-in Customer',
+          customerId: sale.customerId,
+          totalAmount: parseFloat(sale.totalAmount.toString()),
+          discountAmount: parseFloat(sale.discountAmount.toString()),
+          discountType: sale.discountType,
+          isARPayment, // Flag to indicate this is an AR payment transaction
+          payments: sale.payments.map((p) => ({
+            method: p.paymentMethod,
+            amount: parseFloat(p.amount.toString()),
+          })),
+          itemCount: sale.items.length,
+          items: sale.items.map((item) => {
+            const product = productMap.get(item.productId)
+            const variation = variationMap.get(item.productVariationId)
+            return {
+              productName: product?.name || 'Unknown Product',
+              variationName: variation?.name || 'Unknown Variation',
+              sku: variation?.sku || 'N/A',
+              quantity: parseFloat(item.quantity.toString()),
+              unitPrice: parseFloat(item.unitPrice.toString()),
+              total: parseFloat(item.quantity.toString()) * parseFloat(item.unitPrice.toString()),
+            }
+          }),
+        }
+      }),
     })
   } catch (error) {
     console.error('Error fetching sales today report:', error)

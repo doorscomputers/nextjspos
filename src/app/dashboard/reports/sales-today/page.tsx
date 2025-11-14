@@ -82,6 +82,7 @@ interface SalesTodayData {
     totalAmount: number
     discountAmount: number
     discountType: string | null
+    isARPayment: boolean
     payments: Array<{ method: string; amount: number }>
     itemCount: number
     items: Array<{
@@ -643,7 +644,12 @@ export default function SalesTodayPage() {
       {reportData && (
         <Card>
           <CardHeader>
-            <CardTitle>Today's Transactions ({reportData.sales.length})</CardTitle>
+            <CardTitle>
+              Today's Transactions ({reportData.sales.length})
+              <span className="text-sm font-normal text-gray-600 dark:text-gray-400 ml-2">
+                - Includes sales created today + AR payments received today
+              </span>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {reportData.sales.length === 0 ? (
@@ -665,7 +671,16 @@ export default function SalesTodayPage() {
                     {reportData.sales.map((sale) => (
                       <>
                         <TableRow key={sale.id} className="hover:bg-gray-50">
-                          <TableCell className="font-medium">{sale.invoiceNumber}</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {sale.invoiceNumber}
+                              {sale.isARPayment && (
+                                <Badge variant="outline" className="text-xs bg-teal-50 text-teal-700 border-teal-300">
+                                  AR Payment
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>{sale.customer}</TableCell>
                           <TableCell>{sale.itemCount}</TableCell>
                           <TableCell>
