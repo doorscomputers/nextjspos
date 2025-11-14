@@ -155,30 +155,27 @@ export async function GET(request: NextRequest) {
 
     sales.forEach((sale) => {
       const saleTotal = parseFloat(sale.totalAmount.toString())
-      let totalPaid = 0
+
+      // CRITICAL: Use sale.paidAmount from database (excludes credit placeholders automatically)
+      const totalPaid = parseFloat(sale.paidAmount?.toString() || '0')
 
       sale.payments.forEach((payment) => {
         const method = payment.paymentMethod.toLowerCase()
         const amount = parseFloat(payment.amount.toString())
 
-        // CRITICAL: Skip 'credit' payments when calculating totalPaid
-        // Credit payments are AR placeholders, not actual payments received
-        if (method !== 'credit') {
-          totalPaid += amount
+        // IMPORTANT: Don't add credit placeholder payments to totals or breakdown
+        // Credit sales will be counted via unpaidAmount logic below
+        if (method === 'credit') {
+          return // Skip credit placeholders entirely
         }
 
         if (!paymentMethodMap[method]) {
           paymentMethodMap[method] = { amount: 0, count: 0 }
         }
+        paymentMethodMap[method].amount += amount
+        paymentMethodMap[method].count += 1
 
-        // IMPORTANT: Don't add credit placeholder payments to totals or breakdown
-        // Credit sales will be counted via unpaidAmount logic below
-        if (method !== 'credit') {
-          paymentMethodMap[method].amount += amount
-          paymentMethodMap[method].count += 1
-        }
-
-        // Categorize into main groups (excluding credit placeholders)
+        // Categorize into main groups
         if (method === 'cash') {
           cashTotal += amount
         } else if (method === 'card' || method === 'debit_card' || method === 'credit_card') {
@@ -201,12 +198,12 @@ export async function GET(request: NextRequest) {
         // Add unpaid amount to credit total
         creditTotal += unpaidAmount
 
-        // Add to payment method map
-        if (!paymentMethodMap['credit']) {
-          paymentMethodMap['credit'] = { amount: 0, count: 0 }
+        // Add to payment method map for breakdown
+        if (!paymentMethodMap['Charge Invoice']) {
+          paymentMethodMap['Charge Invoice'] = { amount: 0, count: 0 }
         }
-        paymentMethodMap['credit'].amount += unpaidAmount
-        paymentMethodMap['credit'].count += 1
+        paymentMethodMap['Charge Invoice'].amount += unpaidAmount
+        paymentMethodMap['Charge Invoice'].count += 1
       }
     })
 

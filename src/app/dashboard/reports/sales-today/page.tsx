@@ -159,12 +159,9 @@ export default function SalesTodayPage() {
       setLocations(list)
       setHasAccessToAll(accessAll)
 
-      if (!accessAll) {
-        const resolved = primary || (list[0]?.id ? String(list[0].id) : 'all')
-        setLocationId(resolved)
-      } else {
-        setLocationId('all')
-      }
+      // CHANGED: Always default to a specific location (never "all") since Sales Today is location-specific
+      const resolved = primary || (list[0]?.id ? String(list[0].id) : 'all')
+      setLocationId(resolved)
     } catch (error) {
       console.error("Failed to fetch user locations:", error)
       setLocations([])
@@ -262,8 +259,8 @@ export default function SalesTodayPage() {
         <div className="flex items-center gap-3">
           {locations.length > 0 && (
             <>
-              {/* Show location selector only if user has multiple locations or can access all */}
-              {(hasAccessToAll || locations.length > 1) && (
+              {/* Show location selector only if user has multiple locations */}
+              {locations.length > 1 && (
                 <>
                   <label className="text-sm font-medium text-gray-700">Location:</label>
                   <Select value={locationId} onValueChange={setLocationId}>
@@ -271,8 +268,7 @@ export default function SalesTodayPage() {
                       <SelectValue placeholder="Select location" />
                     </SelectTrigger>
                     <SelectContent>
-                      {/* Only show "All Locations" if user has access to all */}
-                      {hasAccessToAll && <SelectItem value="all">All Locations</SelectItem>}
+                      {/* REMOVED "All Locations" option - Sales Today should be location-specific */}
                       {locations.map((location) => (
                         <SelectItem key={location.id} value={location.id.toString()}>
                           {location.name}
@@ -282,8 +278,8 @@ export default function SalesTodayPage() {
                   </Select>
                 </>
               )}
-              {/* For cashiers with only one location, show the location name as static text */}
-              {!hasAccessToAll && locations.length === 1 && (
+              {/* For users with only one location, show the location name as static text */}
+              {locations.length === 1 && (
                 <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-md border border-blue-200">
                   <span className="text-sm font-medium text-gray-700">Location:</span>
                   <span className="text-sm font-semibold text-blue-900">{locations[0].name}</span>
@@ -381,6 +377,23 @@ export default function SalesTodayPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Total Cheque Payment */}
+          {reportData.paymentMethods.cheque.amount > 0 && (
+            <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-gray-600">Total Cheque</div>
+                    <div className="text-3xl font-bold text-gray-900">
+                      {formatCurrency(reportData.paymentMethods.cheque.amount)}
+                    </div>
+                  </div>
+                  <DocumentTextIcon className="h-10 w-10 text-yellow-600" />
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="bg-gradient-to-br from-red-50 to-red-100">
             <CardContent className="pt-6">
