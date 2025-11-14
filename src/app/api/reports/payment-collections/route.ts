@@ -39,10 +39,13 @@ export async function GET(request: NextRequest) {
     const where: Prisma.SalePaymentWhereInput = {
       sale: {
         businessId: user.businessId,
-        status: "completed",
+        // Don't filter by status - include payments on both 'pending' and 'completed' sales
+        // (Partial payments keep sale status as 'pending' until fully paid)
       },
       // Only include AR payments that were collected at POS (have shiftId)
       shiftId: { not: null },
+      // Exclude 'credit' payment method (that's just the initial marker, not an actual payment)
+      paymentMethod: { not: 'credit' },
     };
 
     // Date range filter (payment collection date)
