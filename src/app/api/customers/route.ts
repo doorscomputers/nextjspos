@@ -59,12 +59,14 @@ export async function GET(request: NextRequest) {
       const customersWithBalance = await Promise.all(
         customers.map(async (customer) => {
           try {
-            // Fetch all completed sales for this customer (credit sales are marked 'completed')
+            // Fetch ALL sales for this customer (regardless of status)
+            // Credit sales can have status='pending' OR status='completed'
+            // We filter by balance calculation, not by status
             const salesWithBalance = await prisma.sale.findMany({
               where: {
                 customerId: customer.id,
-                status: 'completed', // Credit sales are 'completed', not 'pending'
                 deletedAt: null,
+                // Don't filter by status - include ALL sales, filter by balance instead
               },
               select: {
                 totalAmount: true,
