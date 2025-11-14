@@ -46,6 +46,9 @@ export async function GET(request: NextRequest) {
     const agingPeriodParam = searchParams.get('agingPeriod')
     const searchQuery = searchParams.get('search')
 
+    // For AR collection: When specific customer is selected, show ALL their invoices regardless of location
+    const isARCollectionMode = customerIdParam && customerIdParam !== 'all'
+
     // Build where clause for unpaid/partially paid credit sales
     // Find all sales with customers - we'll filter by balance later
     const saleWhere: any = {
@@ -56,43 +59,45 @@ export async function GET(request: NextRequest) {
       // Filter by balance calculation happens after fetching (lines 152-158)
     }
 
-    // Location access control
-    let accessibleLocationIds = getUserAccessibleLocationIds(user)
+    // Location access control (skip for AR collection mode)
+    if (!isARCollectionMode) {
+      let accessibleLocationIds = getUserAccessibleLocationIds(user)
 
-    if (accessibleLocationIds !== null && accessibleLocationIds.length === 0) {
-      const assignments = await prisma.userLocation.findMany({
-        where: { userId },
-        select: {
-          locationId: true,
-          location: {
-            select: {
-              deletedAt: true,
-              isActive: true,
+      if (accessibleLocationIds !== null && accessibleLocationIds.length === 0) {
+        const assignments = await prisma.userLocation.findMany({
+          where: { userId },
+          select: {
+            locationId: true,
+            location: {
+              select: {
+                deletedAt: true,
+                isActive: true,
+              },
             },
           },
-        },
-      })
+        })
 
-      accessibleLocationIds = assignments
-        .filter((assignment) => assignment.location && assignment.location.deletedAt === null && assignment.location.isActive !== false)
-        .map((assignment) => assignment.locationId)
-    }
-
-    if (locationIdParam && locationIdParam !== 'all') {
-      const requestedLocationId = parseInt(locationIdParam)
-
-      // Verify user has access to requested location
-      if (accessibleLocationIds !== null && !accessibleLocationIds.includes(requestedLocationId)) {
-        return NextResponse.json(
-          { error: 'You do not have access to this location' },
-          { status: 403 }
-        )
+        accessibleLocationIds = assignments
+          .filter((assignment) => assignment.location && assignment.location.deletedAt === null && assignment.location.isActive !== false)
+          .map((assignment) => assignment.locationId)
       }
 
-      saleWhere.locationId = requestedLocationId
-    } else if (accessibleLocationIds !== null) {
-      // User doesn't have access to all locations, restrict to their locations
-      saleWhere.locationId = { in: accessibleLocationIds }
+      if (locationIdParam && locationIdParam !== 'all') {
+        const requestedLocationId = parseInt(locationIdParam)
+
+        // Verify user has access to requested location
+        if (accessibleLocationIds !== null && !accessibleLocationIds.includes(requestedLocationId)) {
+          return NextResponse.json(
+            { error: 'You do not have access to this location' },
+            { status: 403 }
+          )
+        }
+
+        saleWhere.locationId = requestedLocationId
+      } else if (accessibleLocationIds !== null) {
+        // User doesn't have access to all locations, restrict to their locations
+        saleWhere.locationId = { in: accessibleLocationIds }
+      }
     }
 
     // Customer filter

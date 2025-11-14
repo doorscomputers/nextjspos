@@ -56,7 +56,17 @@ export default function ARPaymentCollectionModal({
     setLoading(true)
     try {
       console.log('[AR Modal] Fetching unpaid invoices...')
-      const response = await fetch('/api/reports/unpaid-invoices')
+
+      // Build query params - pass customerId to bypass location filtering for AR collection
+      const params = new URLSearchParams()
+      if (preSelectedCustomerId) {
+        params.append('customerId', preSelectedCustomerId.toString())
+      }
+
+      const url = `/api/reports/unpaid-invoices${params.toString() ? `?${params.toString()}` : ''}`
+      console.log('[AR Modal] Fetching from:', url)
+
+      const response = await fetch(url)
 
       if (!response.ok) {
         const errorData = await response.json()
