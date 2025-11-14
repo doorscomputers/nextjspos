@@ -28,12 +28,23 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
+    const startDateParam = searchParams.get("startDate");
+    const endDateParam = searchParams.get("endDate");
     const paymentMethod = searchParams.get("paymentMethod");
     const collectionLocationId = searchParams.get("collectionLocationId");
     const saleLocationId = searchParams.get("saleLocationId");
     const cashierId = searchParams.get("cashierId");
+
+    // Default to current month if no dates provided
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1, 0, 0, 0);
+    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    let startDate = startDateParam ? new Date(startDateParam) : firstDayOfMonth;
+    let endDate = endDateParam ? new Date(endDateParam) : lastDayOfMonth;
+    if (endDateParam) {
+      endDate.setHours(23, 59, 59, 999);
+    }
 
     // Build where clause for sale payments
     const where: Prisma.SalePaymentWhereInput = {
@@ -42,24 +53,15 @@ export async function GET(request: NextRequest) {
         // Don't filter by status - include payments on both 'pending' and 'completed' sales
         // (Partial payments keep sale status as 'pending' until fully paid)
       },
-      // Only include AR payments that were collected at POS (have shiftId)
-      shiftId: { not: null },
+      // REMOVED shiftId filter - show ALL AR payments (collected at POS or elsewhere)
       // Exclude 'credit' payment method (that's just the initial marker, not an actual payment)
       paymentMethod: { not: 'credit' },
+      // Always filter by date range (defaults to current month)
+      paidAt: {
+        gte: startDate,
+        lte: endDate,
+      },
     };
-
-    // Date range filter (payment collection date)
-    if (startDate || endDate) {
-      where.paidAt = {};
-      if (startDate) {
-        where.paidAt.gte = new Date(startDate);
-      }
-      if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        where.paidAt.lte = end;
-      }
-    }
 
     // Payment method filter
     if (paymentMethod && paymentMethod !== "all") {
@@ -96,8 +98,6 @@ export async function GET(request: NextRequest) {
               select: {
                 id: true,
                 name: true,
-                firstName: true,
-                lastName: true,
               },
             },
             location: {
@@ -139,8 +139,7 @@ export async function GET(request: NextRequest) {
       const isCrossLocation = saleLocationId !== collectionLocationId;
 
       const customerName = payment.sale.customer
-        ? payment.sale.customer.name ||
-          `${payment.sale.customer.firstName} ${payment.sale.customer.lastName}`
+        ? payment.sale.customer.name || "Walk-in Customer"
         : "Walk-in Customer";
 
       const collectorName = payment.collectedByUser

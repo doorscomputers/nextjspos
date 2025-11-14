@@ -27,8 +27,8 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
+    const startDateParam = searchParams.get("startDate");
+    const endDateParam = searchParams.get("endDate");
     const customerId = searchParams.get("customerId");
     const paymentMethod = searchParams.get("paymentMethod");
     const locationId = searchParams.get("locationId");
@@ -36,6 +36,17 @@ export async function GET(request: NextRequest) {
 
     // Convert businessId to integer
     const businessId = parseInt(String(user.businessId));
+
+    // Default to current month if no dates provided
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1, 0, 0, 0);
+    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    let startDate = startDateParam ? new Date(startDateParam) : firstDayOfMonth;
+    let endDate = endDateParam ? new Date(endDateParam) : lastDayOfMonth;
+    if (endDateParam) {
+      endDate.setHours(23, 59, 59, 999);
+    }
 
     // Build where clause for sale payments
     const where: Prisma.SalePaymentWhereInput = {
@@ -48,20 +59,12 @@ export async function GET(request: NextRequest) {
       paymentMethod: {
         not: "credit",
       },
+      // Always filter by date range (defaults to current month)
+      paidAt: {
+        gte: startDate,
+        lte: endDate,
+      },
     };
-
-    // Date range filter
-    if (startDate || endDate) {
-      where.paidAt = {};
-      if (startDate) {
-        where.paidAt.gte = new Date(startDate);
-      }
-      if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        where.paidAt.lte = end;
-      }
-    }
 
     // Customer filter
     if (customerId && customerId !== "all") {
@@ -99,8 +102,6 @@ export async function GET(request: NextRequest) {
               select: {
                 id: true,
                 name: true,
-                firstName: true,
-                lastName: true,
               },
             },
             location: {
@@ -138,8 +139,7 @@ export async function GET(request: NextRequest) {
     // Transform payment data
     const paymentList = payments.map((payment) => {
       const customerName = payment.sale.customer
-        ? payment.sale.customer.name ||
-          `${payment.sale.customer.firstName} ${payment.sale.customer.lastName}`
+        ? payment.sale.customer.name || "Walk-in Customer"
         : "Walk-in Customer";
 
       const collectorName = payment.collectedByUser

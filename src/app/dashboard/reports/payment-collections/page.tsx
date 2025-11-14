@@ -50,9 +50,30 @@ export default function PaymentCollectionsPage() {
   const { data: session } = useSession();
   const printRef = useRef<HTMLDivElement>(null);
 
+  // Helper to format date as YYYY-MM-DD
+  const formatDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  // Default to current month
+  const getDefaultDates = () => {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    return {
+      start: formatDate(firstDay),
+      end: formatDate(lastDay),
+    };
+  };
+
+  const defaultDates = getDefaultDates();
+
   // Filter states
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(defaultDates.start);
+  const [endDate, setEndDate] = useState(defaultDates.end);
   const [paymentMethod, setPaymentMethod] = useState("all");
   const [collectionLocationId, setCollectionLocationId] = useState("all");
   const [saleLocationId, setSaleLocationId] = useState("all");
