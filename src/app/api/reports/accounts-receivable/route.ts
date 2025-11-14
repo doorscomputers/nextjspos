@@ -187,11 +187,11 @@ export async function GET(request: NextRequest) {
         customerEntry.oldestInvoiceDate = sale.saleDate;
       }
 
-      // Add invoice details
+      // Add invoice details (convert Date to ISO string for JSON serialization)
       customerEntry.invoices.push({
         id: sale.id,
         invoiceNumber: sale.invoiceNumber,
-        saleDate: sale.saleDate,
+        saleDate: sale.saleDate.toISOString(),
         locationName: sale.location.name,
         totalAmount,
         totalPaid,
@@ -212,6 +212,14 @@ export async function GET(request: NextRequest) {
     console.log(`[AR Report API] Skipped (below min balance): ${skippedMinBalance}`);
     console.log(`[AR Report API] Customers with outstanding balance: ${customerList.length}`);
     console.log(`[AR Report API] Customer names: ${customerList.map(c => c.customerName).join(', ')}`);
+
+    // DEBUG: Check invoices array for each customer
+    customerList.forEach(customer => {
+      console.log(`[AR Report API] Customer "${customer.customerName}" has ${customer.invoices?.length || 0} invoices`);
+      if (customer.invoices && customer.invoices.length > 0) {
+        console.log(`[AR Report API]   Invoice numbers: ${customer.invoices.map(inv => inv.invoiceNumber).join(', ')}`);
+      }
+    });
     console.log(`[AR Report API] ==========================================`);
 
     // Calculate aging buckets for each customer
@@ -240,8 +248,10 @@ export async function GET(request: NextRequest) {
           (1000 * 60 * 60 * 24)
       );
 
+      // Convert Date objects to ISO strings for proper JSON serialization
       return {
         ...customer,
+        oldestInvoiceDate: new Date(customer.oldestInvoiceDate).toISOString(),
         oldestInvoiceDays: oldestDays,
         aging,
       };
