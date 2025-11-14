@@ -18,6 +18,9 @@ export async function GET(request: NextRequest) {
 
     const user = session.user;
 
+    // Convert businessId to integer (session stores it as string)
+    const businessId = parseInt(String(user.businessId));
+
     // Permission check
     if (!user.permissions?.includes(PERMISSIONS.REPORT_CUSTOMER_PAYMENTS)) {
       return NextResponse.json(
@@ -33,16 +36,14 @@ export async function GET(request: NextRequest) {
     const showZeroBalances = searchParams.get("showZeroBalances") === "true";
 
     // Build where clause for sales
-    // NOTE: We fetch all sales with customers (regardless of status), then filter by balance
-    // Credit sales have status="pending", cash sales have status="completed"
-    // We need both to calculate AR correctly
+    // NOTE: We fetch all completed sales with customers, then filter by balance in processing
+    // because the Sale model doesn't have a paymentStatus column - it uses paidAmount instead
     const where: Prisma.SaleWhereInput = {
-      businessId: user.businessId,
-      deletedAt: null,
+      businessId: businessId,
+      status: "completed",
       customerId: {
         not: null, // Only get sales with customers (not walk-in)
       },
-      // Don't filter by status - include both "pending" (credit) and "completed" (paid) sales
     };
 
     // Customer filter
@@ -84,7 +85,7 @@ export async function GET(request: NextRequest) {
     });
 
     // DEBUG: Log sales found
-    console.log(`[AR Report] Found ${sales.length} sales for business ${user.businessId}`);
+    console.log(`[AR Report] Found ${sales.length} sales for business ${businessId}`);
 
     // Calculate balances per customer
     const customerBalances = new Map<
