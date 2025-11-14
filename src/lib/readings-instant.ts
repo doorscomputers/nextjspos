@@ -293,6 +293,11 @@ async function generateXReadingFromRunningTotals(
     paymentBreakdown['credit'] = parseFloat(shift.runningCreditSales.toString())
   if (totalOther > 0) paymentBreakdown['other'] = totalOther
 
+  // Calculate clearer breakdown fields
+  const cashFromSales = parseFloat(shift.runningCashSales.toString()) // Cash collected from direct sales only
+  const totalNonCashPayments = totalGcash + totalPaymaya + totalCheck + totalCard + totalBank + parseFloat(shift.runningCreditSales.toString()) + totalOther
+  const totalPaymentsReceived = expectedCash + totalNonCashPayments
+
   const xReadingData: XReadingData = {
     shiftNumber: shift.shiftNumber,
     cashierName: cashierName,
@@ -305,6 +310,7 @@ async function generateXReadingFromRunningTotals(
     xReadingNumber: readingNumber,
     receiptNumber: receiptNumber, // Location-based receipt number
     beginningCash: parseFloat(shift.beginningCash.toString()),
+    cashFromSales, // NEW: Clearer field showing only cash from direct sales
     grossSales: parseFloat(shift.runningGrossSales.toString()),
     totalDiscounts: parseFloat(shift.runningTotalDiscounts.toString()),
     netSales: parseFloat(shift.runningNetSales.toString()),
@@ -312,6 +318,8 @@ async function generateXReadingFromRunningTotals(
     transactionCount: shift.runningTransactions,
     voidCount: shift.runningVoidCount,
     paymentBreakdown,
+    totalNonCashPayments, // NEW: Sum of all non-cash payment methods
+    totalPaymentsReceived, // NEW: Grand total of all payments (expected cash + non-cash)
     cashIn,
     cashOut,
     arPaymentsCash,

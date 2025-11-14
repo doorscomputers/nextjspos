@@ -18,23 +18,34 @@ export interface XReadingData {
   readingTime: Date
   xReadingNumber: number
   receiptNumber?: string // Location-based receipt number (e.g., InvMain11_13_2025_0001)
-  beginningCash: number
+
+  // CLEAR CASH BREAKDOWN (Human-readable)
+  beginningCash: number // Starting cash (opening fund)
+  cashFromSales: number // Cash collected from sales
+  cashIn: number // Additional cash added from outside (bank/owner)
+  cashOut: number // Cash removed (withdrawals/expenses)
+  arPaymentsCash: number // Cash from AR payments (old debts paid)
+  expectedCash: number // = beginning + cashFromSales + cashIn + arPayments - cashOut
+
+  // Sales totals
   grossSales: number
   totalDiscounts: number
   netSales: number
   voidAmount: number
   transactionCount: number
   voidCount: number
-  paymentBreakdown: Record<string, number>
-  cashIn: number
-  cashOut: number
-  arPaymentsCash: number
-  expectedCash: number
+
+  // Complete payment breakdown (all methods)
+  paymentBreakdown: Record<string, number> // cash, gcash, paymaya, check, credit, etc.
+  totalNonCashPayments: number // GCash + Maya + Cheque + Card + Bank + Credit
+  totalPaymentsReceived: number // Expected Cash + Non-Cash Payments
+
   discountBreakdown: {
     senior: number
     pwd: number
     regular: number
   }
+
   // BIR Compliance Fields
   vatRegTin?: string // VAT REG TIN
   minNumber?: string // Machine Identification Number
@@ -306,6 +317,18 @@ export async function generateXReadingDataOptimized(
     cashOut +
     arPaymentsCash
 
+  // Calculate clearer breakdown fields
+  const cashFromSales = paymentBreakdown['cash'] || 0 // Cash collected from direct sales only
+  const totalNonCashPayments =
+    (paymentBreakdown['gcash'] || 0) +
+    (paymentBreakdown['paymaya'] || 0) +
+    (paymentBreakdown['check'] || 0) +
+    (paymentBreakdown['card'] || 0) +
+    (paymentBreakdown['bank_transfer'] || 0) +
+    (paymentBreakdown['credit'] || 0) +
+    (paymentBreakdown['other'] || 0)
+  const totalPaymentsReceived = expectedCash + totalNonCashPayments
+
   // Increment counter if requested
   const currentXReadingCount = shift.xReadingCount
   if (incrementCounter) {
@@ -340,6 +363,7 @@ export async function generateXReadingDataOptimized(
     readingTime: readingTimestamp,
     xReadingNumber: readingNumber,
     beginningCash: parseFloat(shift.beginningCash.toString()),
+    cashFromSales, // NEW: Clearer field showing only cash from direct sales
     grossSales,
     totalDiscounts,
     netSales,
@@ -347,6 +371,8 @@ export async function generateXReadingDataOptimized(
     transactionCount,
     voidCount,
     paymentBreakdown,
+    totalNonCashPayments, // NEW: Sum of all non-cash payment methods
+    totalPaymentsReceived, // NEW: Grand total of all payments (expected cash + non-cash)
     cashIn,
     cashOut,
     arPaymentsCash,
