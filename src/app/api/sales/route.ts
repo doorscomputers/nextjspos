@@ -1066,12 +1066,12 @@ export async function POST(request: NextRequest) {
           })
         }
       } else if (isCreditSale) {
-        // For credit sales, create a placeholder payment entry
+        // For credit sales, create AR placeholder showing total unpaid amount
         await tx.salePayment.create({
           data: {
             saleId: newSale.id,
             paymentMethod: 'credit',
-            amount: 0, // No payment yet
+            amount: totalAmount, // Show total unpaid balance on invoice
             referenceNumber: 'Pending Payment',
           },
         })
