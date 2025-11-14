@@ -624,7 +624,7 @@ export default function SalesTodayPage() {
                       <TableHead>Items</TableHead>
                       <TableHead>Payment Methods</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
-                      <TableHead></TableHead>
+                      <TableHead className="text-center">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -646,10 +646,10 @@ export default function SalesTodayPage() {
                           <TableCell className="text-right font-semibold">
                             {formatCurrency(sale.totalAmount)}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="text-center">
                             <Button
-                              variant="ghost"
                               size="sm"
+                              className="bg-green-600 text-white hover:bg-green-700 px-4 py-1 rounded-full transition-colors"
                               onClick={() => toggleRowExpansion(sale.id)}
                             >
                               {expandedRows.has(sale.id) ? "Hide" : "Show"}
