@@ -320,9 +320,14 @@ export default function POSEnhancedPage() {
         return
       }
 
-      // F6 - Retrieve Held Transaction
+      // F6 - Retrieve Held Transaction (blocked if cart has items)
       if (e.key === 'F6') {
         e.preventDefault()
+        if (cart.length > 0) {
+          setError('Complete or clear current sale first')
+          setTimeout(() => setError(''), 3000)
+          return
+        }
         setShowHeldTransactions(true)
         return
       }
@@ -361,25 +366,40 @@ export default function POSEnhancedPage() {
         return
       }
 
-      // F3 - Load Quotation
+      // F3 - Load Quotation (blocked if cart has items)
       if (e.key === 'F3') {
         e.preventDefault()
+        if (cart.length > 0) {
+          setError('Complete or clear current sale first')
+          setTimeout(() => setError(''), 3000)
+          return
+        }
         setShowSavedQuotations(true)
         return
       }
 
-      // Alt+I - Cash In
+      // Alt+I - Cash In (blocked if cart has items)
       if (e.altKey && (e.key === 'i' || e.key === 'I')) {
         e.preventDefault()
+        if (cart.length > 0) {
+          setError('Complete or clear current sale first')
+          setTimeout(() => setError(''), 3000)
+          return
+        }
         setCashIOAmount('')
         setCashIORemarks('')
         setShowCashInDialog(true)
         return
       }
 
-      // Alt+O - Cash Out
+      // Alt+O - Cash Out (blocked if cart has items)
       if (e.altKey && (e.key === 'o' || e.key === 'O')) {
         e.preventDefault()
+        if (cart.length > 0) {
+          setError('Complete or clear current sale first')
+          setTimeout(() => setError(''), 3000)
+          return
+        }
         setCashIOAmount('')
         setCashIORemarks('')
         setShowCashOutDialog(true)
@@ -1895,13 +1915,35 @@ export default function POSEnhancedPage() {
           </div>
 
           {/* Compact Action Buttons */}
-          <Button onClick={() => window.open('/dashboard/readings/x-reading', '_blank')} className="h-12 px-4 bg-indigo-600 hover:bg-indigo-700 text-white" title="X Reading">📊 X Read</Button>
-          <Button onClick={() => { setCashIOAmount(''); setCashIORemarks(''); setShowCashInDialog(true); }} className="h-12 px-4 bg-green-600 hover:bg-green-700 text-white">💵 Cash In</Button>
-          <Button onClick={() => { setCashIOAmount(''); setCashIORemarks(''); setShowCashOutDialog(true); }} className="h-12 px-4 bg-red-600 hover:bg-red-700 text-white">💸 Cash Out</Button>
+          <Button
+            onClick={() => window.open('/dashboard/readings/x-reading', '_blank')}
+            className="h-12 px-4 bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            title={cart.length > 0 ? "Complete or clear current sale first" : "X Reading"}
+            disabled={cart.length > 0}
+          >
+            📊 X Read
+          </Button>
+          <Button
+            onClick={() => { setCashIOAmount(''); setCashIORemarks(''); setShowCashInDialog(true); }}
+            className="h-12 px-4 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            title={cart.length > 0 ? "Complete or clear current sale first" : "Cash In"}
+            disabled={cart.length > 0}
+          >
+            💵 Cash In
+          </Button>
+          <Button
+            onClick={() => { setCashIOAmount(''); setCashIORemarks(''); setShowCashOutDialog(true); }}
+            className="h-12 px-4 bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            title={cart.length > 0 ? "Complete or clear current sale first" : "Cash Out"}
+            disabled={cart.length > 0}
+          >
+            💸 Cash Out
+          </Button>
           <Button
             onClick={() => setShowARPaymentDialog(true)}
-            className="h-12 px-4 bg-yellow-600 hover:bg-yellow-700 text-white relative"
-            title="Collect AR Payment"
+            className="h-12 px-4 bg-yellow-600 hover:bg-yellow-700 text-white relative disabled:opacity-50 disabled:cursor-not-allowed"
+            title={cart.length > 0 ? "Complete or clear current sale first" : "Collect AR Payment"}
+            disabled={cart.length > 0}
           >
             💳 AR Pay
             {(() => {
@@ -1914,9 +1956,23 @@ export default function POSEnhancedPage() {
             })()}
           </Button>
           <Button onClick={() => { if (cart.length === 0) { setError('Cart is empty'); setTimeout(() => setError(''), 3000); return; } setShowQuotationDialog(true); }} className="h-12 px-4 bg-purple-600 hover:bg-purple-700 text-white">📋 Save</Button>
-          <Button onClick={() => setShowSavedQuotations(true)} className="h-12 px-4 bg-blue-600 hover:bg-blue-700 text-white">📂 Load</Button>
+          <Button
+            onClick={() => setShowSavedQuotations(true)}
+            className="h-12 px-4 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            title={cart.length > 0 ? "Complete or clear current sale first" : "Load Quotation"}
+            disabled={cart.length > 0}
+          >
+            📂 Load
+          </Button>
           <Button onClick={() => setShowHoldDialog(true)} className="h-12 px-4 bg-amber-500 hover:bg-amber-600 text-white">⏸️ Hold</Button>
-          <Button onClick={() => setShowHeldTransactions(true)} className="h-12 px-4 bg-cyan-600 hover:bg-cyan-700 text-white">▶️ Retrieve</Button>
+          <Button
+            onClick={() => setShowHeldTransactions(true)}
+            className="h-12 px-4 bg-cyan-600 hover:bg-cyan-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            title={cart.length > 0 ? "Complete or clear current sale first" : "Retrieve Held Transaction"}
+            disabled={cart.length > 0}
+          >
+            ▶️ Retrieve
+          </Button>
         </div>
       </div>
 

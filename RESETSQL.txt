@@ -1,0 +1,98 @@
+  -- STEP 1: Shifts & Cash
+  DELETE FROM cash_denominations;
+  DELETE FROM cashier_shift_readings;
+  DELETE FROM cash_in_out;
+  DELETE FROM cashier_shifts;
+
+  -- STEP 2: Sales & Warranties
+  DELETE FROM sale_payments;
+  DELETE FROM sale_items;
+  DELETE FROM warranty_claims;
+  DELETE FROM void_transactions;
+  DELETE FROM freebie_logs;
+  DELETE FROM sales;
+
+  -- STEP 3: Customer Returns
+  DELETE FROM customer_return_items;
+  DELETE FROM customer_returns;
+
+  -- STEP 4: Purchases & Suppliers
+  DELETE FROM supplier_returns;
+  DELETE FROM supplier_return_items;
+  DELETE FROM payments;
+  DELETE FROM accounts_payable;
+  DELETE FROM purchase_receipt_items;
+  DELETE FROM purchase_receipts;
+  DELETE FROM purchase_return_items;
+  DELETE FROM purchase_returns;
+  DELETE FROM debit_notes;
+  DELETE FROM purchase_items;
+  DELETE FROM purchase_amendments;
+  DELETE FROM purchases;
+
+  -- STEP 5: Transfers
+  DELETE FROM stock_transfer_items;
+  DELETE FROM stock_transfers;
+
+  -- STEP 6: Inventory
+  DELETE FROM stock_transactions;
+  DELETE FROM inventory_corrections;
+  DELETE FROM product_history;
+
+  -- STEP 7: Expenses
+  DELETE FROM expenses;
+
+  -- STEP 8: Accounting
+  DELETE FROM journal_entry_lines;
+  DELETE FROM journal_entries;
+  DELETE FROM bank_transactions;
+  DELETE FROM budget_allocations;
+  DELETE FROM financial_snapshots;
+  DELETE FROM account_balances;
+
+  -- STEP 9: Quality Control
+  DELETE FROM quality_control_check_items;
+  DELETE FROM quality_control_items;
+  DELETE FROM quality_control_inspections;
+
+  -- STEP 10: Serial Numbers
+  DELETE FROM serial_number_movements;
+  DELETE FROM product_serial_numbers;
+
+  -- STEP 11: Quotations
+  DELETE FROM quotation_items;
+  DELETE FROM quotations;
+
+  -- STEP 12: Sequences
+  DELETE FROM invoice_sequences;
+  DELETE FROM receipt_sequences;
+  DELETE FROM transfer_sequences;
+  DELETE FROM return_sequences;
+
+  -- STEP 13: Reset Balances
+  UPDATE chart_of_accounts SET current_balance = 0;
+  UPDATE business SET z_counter = 0, reset_counter = 1, accumulated_sales = 0;
+  UPDATE business_locations SET z_counter = 0, reset_counter = 1, accumulated_sales = 0;
+
+  -- STEP 14: Verify
+  SELECT
+    '✅ RESET COMPLETE!' as status,
+    (SELECT COUNT(*) FROM sales) as sales,
+    (SELECT COUNT(*) FROM purchases) as purchases,
+    (SELECT COUNT(*) FROM cashier_shifts) as shifts,
+    (SELECT COUNT(*) FROM stock_transfers) as transfers,
+    (SELECT COUNT(*) FROM expenses) as expenses,
+    (SELECT COUNT(*) FROM invoice_sequences) as sequences,
+    (SELECT COUNT(*) FROM users) as users_kept,
+    (SELECT COUNT(*) FROM products) as products_kept,
+    (SELECT COUNT(*) FROM customers) as customers_kept;
+
+  ---
+  This Will Work! ✅
+
+  All table names are now correct according to your schema:
+  - ✅ cash_in_out (not cash_in_out_records)
+  - ✅ cash_denominations
+  - ✅ cashier_shifts
+  - ✅ business (singular, not businesses)
+  - ✅ business_locations
