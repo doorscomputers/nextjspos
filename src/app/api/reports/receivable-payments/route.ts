@@ -34,11 +34,18 @@ export async function GET(request: NextRequest) {
     const locationId = searchParams.get("locationId");
     const cashierId = searchParams.get("cashierId");
 
+    // Convert businessId to integer
+    const businessId = parseInt(String(user.businessId));
+
     // Build where clause for sale payments
     const where: Prisma.SalePaymentWhereInput = {
       sale: {
-        businessId: user.businessId,
-        status: "completed",
+        businessId: businessId,
+        // FIXED: Include both completed and pending sales
+        // Pending sales are credit invoices that may have AR payments
+        status: {
+          in: ["completed", "pending"],
+        },
       },
       // Exclude the initial "credit" marker payment
       paymentMethod: {

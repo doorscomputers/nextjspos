@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     const searchQuery = searchParams.get('search')
 
     // Build where clause for sales
-    // IMPORTANT: Filter by PAYMENT date, not sale date!
+    // IMPORTANT: Filter by PAYMENT date (paidAt), not sale date!
     // Sales can be old, but we want payments made during this date range
     const saleWhere: any = {
       businessId,
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       payments: {
         some: {
           paymentMethod: { not: 'credit' }, // Has real payments (cash, card, etc.)
-          createdAt: {
+          paidAt: {  // Use paidAt, not createdAt!
             gte: startDate,
             lte: endDate,
           },

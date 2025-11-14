@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
             grossProfit: 0,
             grossMargin: 0,
           },
-          paymentMethods: { cash: { amount: 0, percentage: 0 }, credit: { amount: 0, percentage: 0 }, digital: { amount: 0, percentage: 0, breakdown: { card: 0, mobilePayment: 0, bankTransfer: 0 } }, cheque: { amount: 0, percentage: 0 }, total: 0 },
+          paymentMethods: { cash: { amount: 0, percentage: 0 }, credit: { amount: 0, percentage: 0 }, digital: { amount: 0, percentage: 0, breakdown: { card: 0, mobilePayment: 0, bankTransfer: 0 } }, cheque: { amount: 0, percentage: 0 }, arPaymentReceived: { amount: 0, count: 0 }, total: 0 },
           paymentBreakdown: [],
           discountBreakdown: { senior: 0, pwd: 0, regular: 0, total: 0 },
           sales: [],
@@ -107,6 +107,50 @@ export async function GET(request: NextRequest) {
         createdAt: 'desc',
       },
     })
+
+    // Fetch AR payments received today (payments made today, including on old credit invoices)
+    // This tracks actual cash flow for accounts receivable
+    const arPaymentWhere: any = {
+      sale: {
+        businessId: parseInt(businessId),
+        status: {
+          in: ['completed', 'pending'], // Include both to capture all payment scenarios
+        },
+      },
+      paymentMethod: {
+        not: 'credit', // Exclude credit placeholders
+      },
+      paidAt: {
+        gte: startOfDay,
+        lte: endOfDay,
+      },
+    }
+
+    // Apply same location filter for AR payments
+    if (where.locationId) {
+      arPaymentWhere.sale = {
+        ...arPaymentWhere.sale,
+        locationId: where.locationId,
+      }
+    }
+
+    const arPaymentsToday = await prisma.salePayment.findMany({
+      where: arPaymentWhere,
+      include: {
+        sale: {
+          select: {
+            invoiceNumber: true,
+            saleDate: true,
+            status: true,
+          },
+        },
+      },
+    })
+
+    // Calculate total AR payments received today
+    const totalARPaymentsReceived = arPaymentsToday.reduce((sum, payment) => {
+      return sum + parseFloat(payment.amount.toString())
+    }, 0)
 
     // Get unique product and variation IDs from sale items
     const productIds = new Set<number>()
@@ -305,6 +349,10 @@ export async function GET(request: NextRequest) {
         cheque: {
           amount: chequeTotal,
           percentage: totalSalesAmount > 0 ? (chequeTotal / totalSalesAmount) * 100 : 0,
+        },
+        arPaymentReceived: {
+          amount: totalARPaymentsReceived,
+          count: arPaymentsToday.length,
         },
         total: totalSalesAmount,
       },

@@ -58,6 +58,7 @@ interface SalesTodayData {
       }
     }
     cheque: { amount: number; percentage: number }
+    arPaymentReceived: { amount: number; count: number }
     total: number
   }
   paymentBreakdown: Array<{
@@ -390,6 +391,26 @@ export default function SalesTodayPage() {
                     </div>
                   </div>
                   <DocumentTextIcon className="h-10 w-10 text-yellow-600" />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* AR Payment Received Today */}
+          {reportData.paymentMethods.arPaymentReceived.amount > 0 && (
+            <Card className="bg-gradient-to-br from-teal-50 to-teal-100">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-gray-600">AR Payment Received</div>
+                    <div className="text-3xl font-bold text-gray-900">
+                      {formatCurrency(reportData.paymentMethods.arPaymentReceived.amount)}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {reportData.paymentMethods.arPaymentReceived.count} payment(s)
+                    </div>
+                  </div>
+                  <BanknotesIcon className="h-10 w-10 text-teal-600" />
                 </div>
               </CardContent>
             </Card>
