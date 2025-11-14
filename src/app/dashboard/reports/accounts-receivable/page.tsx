@@ -225,19 +225,35 @@ export default function AccountsReceivablePage() {
 
   // Master detail template - shows invoices for each customer
   const MasterDetailTemplate = (props: any) => {
-    const customer = props.data;
+    // Debug: Log entire props to see structure
+    console.log('[AR Report Master Detail] Props:', props);
+    console.log('[AR Report Master Detail] Props.data:', props.data);
+    console.log('[AR Report Master Detail] Props.data.data:', props.data?.data);
+
+    // DevExtreme might wrap data in props.data.data
+    const customer = props.data?.data || props.data;
 
     // Debug logging
-    console.log('[AR Report Master Detail] Customer:', customer.customerName);
-    console.log('[AR Report Master Detail] Has invoices?', !!customer.invoices);
-    console.log('[AR Report Master Detail] Invoice count:', customer.invoices?.length || 0);
+    console.log('[AR Report Master Detail] Customer:', customer?.customerName || 'undefined');
+    console.log('[AR Report Master Detail] Has invoices?', !!customer?.invoices);
+    console.log('[AR Report Master Detail] Invoice count:', customer?.invoices?.length || 0);
 
-    // Safety check - ensure invoices array exists
+    // Safety check - ensure customer exists and has invoices array
+    if (!customer) {
+      return (
+        <div className="p-4 bg-red-50 dark:bg-red-900 border border-red-300 dark:border-red-700 rounded">
+          <p className="text-red-800 dark:text-red-200">
+            Error: Customer data is undefined. Check console logs for props structure.
+          </p>
+        </div>
+      );
+    }
+
     if (!customer.invoices || !Array.isArray(customer.invoices)) {
       return (
         <div className="p-4 bg-yellow-50 dark:bg-yellow-900 border border-yellow-300 dark:border-yellow-700 rounded">
           <p className="text-yellow-800 dark:text-yellow-200">
-            No invoice details available for this customer.
+            No invoice details available for {customer.customerName || 'this customer'}.
           </p>
         </div>
       );
