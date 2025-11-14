@@ -244,12 +244,13 @@ async function generateXReadingFromRunningTotals(
     : ''
 
   // Get first and last invoice numbers for this shift (BIR requirement)
+  // INCLUDE ALL INVOICES: cash sales, charge invoices (pending), and partial payments
   // Use secondary sort by ID to handle multiple sales with same timestamp
   const [firstSale, lastSale] = await Promise.all([
     prisma.sale.findFirst({
       where: {
         shiftId: shift.id,
-        status: { in: ['completed', 'partial'] }, // Exclude voided/cancelled
+        status: { in: ['completed', 'partial', 'pending'] }, // Include credit sales (charge invoices)
       },
       select: { invoiceNumber: true },
       orderBy: [
@@ -260,7 +261,7 @@ async function generateXReadingFromRunningTotals(
     prisma.sale.findFirst({
       where: {
         shiftId: shift.id,
-        status: { in: ['completed', 'partial'] }, // Exclude voided/cancelled
+        status: { in: ['completed', 'partial', 'pending'] }, // Include credit sales (charge invoices)
       },
       select: { invoiceNumber: true },
       orderBy: [

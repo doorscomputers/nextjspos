@@ -12,6 +12,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircleIcon, XCircleIcon, CreditCardIcon } from '@heroicons/react/24/outline'
 import { formatCurrency } from '@/lib/currencyUtils'
 import { toast } from 'sonner'
+import PaymentReceipt from '@/components/PaymentReceipt'
+import { useSession } from 'next-auth/react'
 
 interface UnpaidInvoice {
   id: number
@@ -41,6 +43,7 @@ export default function ARPaymentCollectionModal({
   preSelectedCustomerId,
   preSelectedCustomerName
 }: ARPaymentCollectionModalProps) {
+  const { data: session } = useSession()
   const [loading, setLoading] = useState(false)
   const [unpaidInvoices, setUnpaidInvoices] = useState<UnpaidInvoice[]>([])
   const [selectedInvoice, setSelectedInvoice] = useState<UnpaidInvoice | null>(null)
@@ -50,6 +53,10 @@ export default function ARPaymentCollectionModal({
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [referenceNumber, setReferenceNumber] = useState('')
   const [processing, setProcessing] = useState(false)
+
+  // Payment receipt state
+  const [showPaymentReceipt, setShowPaymentReceipt] = useState(false)
+  const [paymentReceiptData, setPaymentReceiptData] = useState<any>(null)
 
   // Fetch unpaid invoices
   const fetchUnpaidInvoices = async () => {
@@ -171,6 +178,23 @@ export default function ARPaymentCollectionModal({
         description: `Invoice ${selectedInvoice.invoiceNumber} - Remaining balance: ${formatCurrency(data.invoice.newBalance)}`
       })
 
+      // Prepare payment receipt data
+      const receiptData = {
+        customerName: selectedInvoice.customerName,
+        invoiceNumber: selectedInvoice.invoiceNumber,
+        paymentAmount: amount,
+        paymentMethod: paymentMethod,
+        referenceNumber: referenceNumber || undefined,
+        newBalance: data.invoice.newBalance || 0,
+        paymentDate: new Date().toISOString(),
+        cashierName: session?.user?.username || session?.user?.firstName || 'Cashier',
+        locationName: data.invoice.locationName || undefined
+      }
+
+      // Show payment receipt
+      setPaymentReceiptData(receiptData)
+      setShowPaymentReceipt(true)
+
       // Refresh invoice list
       await fetchUnpaidInvoices()
 
@@ -180,10 +204,14 @@ export default function ARPaymentCollectionModal({
       setPaymentMethod('cash')
       setReferenceNumber('')
 
-      // Notify parent
-      if (onPaymentSuccess) {
-        onPaymentSuccess()
-      }
+      // Close AR modal after showing receipt
+      setTimeout(() => {
+        onClose()
+        // Notify parent
+        if (onPaymentSuccess) {
+          onPaymentSuccess()
+        }
+      }, 100)
 
     } catch (error: any) {
       console.error('Error recording payment:', error)
@@ -277,7 +305,8 @@ export default function ARPaymentCollectionModal({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
         className="overflow-hidden flex flex-col p-4"
         style={{
@@ -464,6 +493,16 @@ export default function ARPaymentCollectionModal({
           </Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+
+      {/* Payment Receipt */}
+      {showPaymentReceipt && paymentReceiptData && (
+        <PaymentReceipt
+          paymentData={paymentReceiptData}
+          isOpen={showPaymentReceipt}
+          onClose={() => setShowPaymentReceipt(false)}
+        />
+      )}
+    </>
   )
 }

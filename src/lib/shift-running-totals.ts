@@ -8,6 +8,33 @@ import { prisma } from './prisma.simple'
 import type { Prisma } from '@prisma/client'
 
 /**
+ * Normalize payment method names to standard values
+ * Handles variations: maya→paymaya, cheque→check, etc.
+ */
+function normalizePaymentMethod(method: string): string {
+  const normalized = method.toLowerCase().trim()
+
+  // Map common variations to standard values
+  const methodMap: Record<string, string> = {
+    'maya': 'paymaya',
+    'paymaya': 'paymaya',
+    'cheque': 'check',
+    'check': 'check',
+    'gcash': 'gcash',
+    'cash': 'cash',
+    'card': 'card',
+    'credit_card': 'card',
+    'debit_card': 'card',
+    'bank_transfer': 'bank_transfer',
+    'bank': 'bank_transfer',
+    'credit': 'credit',
+    'other': 'other',
+  }
+
+  return methodMap[normalized] || normalized
+}
+
+/**
  * Calculate VAT breakdown for a sale amount
  * Philippines: 12% VAT
  */
@@ -70,10 +97,10 @@ export async function incrementShiftTotalsForSale(
   // Calculate VAT breakdown
   const vatBreakdown = calculateVATBreakdown(saleData.subtotal, isVatExempt)
 
-  // Calculate payment method breakdowns
+  // Calculate payment method breakdowns (with normalization)
   const paymentBreakdown: Record<string, number> = {}
   saleData.payments.forEach(payment => {
-    const method = payment.paymentMethod.toLowerCase()
+    const method = normalizePaymentMethod(payment.paymentMethod)
     paymentBreakdown[method] = (paymentBreakdown[method] || 0) + payment.amount
   })
 
@@ -163,10 +190,10 @@ export async function decrementShiftTotalsForVoid(
   // Calculate VAT breakdown
   const vatBreakdown = calculateVATBreakdown(saleData.subtotal, isVatExempt)
 
-  // Calculate payment method breakdowns
+  // Calculate payment method breakdowns (with normalization)
   const paymentBreakdown: Record<string, number> = {}
   saleData.payments.forEach(payment => {
-    const method = payment.paymentMethod.toLowerCase()
+    const method = normalizePaymentMethod(payment.paymentMethod)
     paymentBreakdown[method] = (paymentBreakdown[method] || 0) + payment.amount
   })
 
@@ -340,10 +367,10 @@ export async function calculateRunningTotalsFromSales(
         totals.runningOtherDiscount += discountAmount
       }
 
-      // Payment methods
+      // Payment methods (with normalization)
       sale.payments.forEach(payment => {
         const amount = parseFloat(payment.amount.toString())
-        const method = payment.paymentMethod.toLowerCase()
+        const method = normalizePaymentMethod(payment.paymentMethod)
 
         if (method === 'cash') totals.runningCashSales += amount
         else if (method === 'card') totals.runningCardSales += amount
@@ -384,6 +411,9 @@ export async function incrementShiftTotalsForARPayment(
 ): Promise<void> {
   const db = tx || prisma
 
+  // Normalize payment method first (handles maya→paymaya, cheque→check, etc.)
+  const normalizedMethod = normalizePaymentMethod(paymentMethod)
+
   // Map payment method to correct running total field
   const fieldMap: Record<string, string> = {
     cash: 'runningArPaymentsCash',
@@ -392,10 +422,9 @@ export async function incrementShiftTotalsForARPayment(
     paymaya: 'runningArPaymentsPaymaya',
     bank_transfer: 'runningArPaymentsBank',
     check: 'runningArPaymentsCheck',
-    cheque: 'runningArPaymentsCheck', // Handle both spellings
   }
 
-  const field = fieldMap[paymentMethod.toLowerCase()] || 'runningArPaymentsOther'
+  const field = fieldMap[normalizedMethod] || 'runningArPaymentsOther'
 
   // Build update data
   const updateData: any = {

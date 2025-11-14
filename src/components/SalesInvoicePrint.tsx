@@ -70,13 +70,6 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
       return
     }
 
-    try {
-      const invoicePath = `/print/sales-invoice/${sale.invoiceNumber || 'receipt'}`
-      printWindow.history.replaceState(null, '', invoicePath)
-    } catch (error) {
-      console.warn('[Print] Unable to adjust print window URL', error)
-    }
-
     const invoiceContent = document.getElementById('invoice-content')
     if (!invoiceContent) return
 
@@ -249,6 +242,13 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
 
     printWindow.document.close()
 
+    try {
+      const invoicePath = `/print/sales-invoice/${sale.invoiceNumber || 'receipt'}`
+      printWindow.history.replaceState(null, '', invoicePath)
+    } catch (error) {
+      console.warn('[Print] Unable to adjust print window URL', error)
+    }
+
     // Wait for content to load, then print
     setTimeout(() => {
       printWindow.print()
@@ -369,6 +369,17 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
         : cashier.username || 'Unknown')
     : 'Loading...'
   const branchName = location?.name || (sale.locationId ? 'Loading...' : 'N/A')
+
+  const renderCustomerField = (label: string, value: string) => (
+    <div className="flex py-0.5">
+      <span className={`text-gray-700 font-semibold ${paperSize === '80mm' ? 'text-xs w-24' : 'text-sm w-28'}`}>
+        {label}
+      </span>
+      <span className={`text-gray-900 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'} flex-1`}>
+        {value}
+      </span>
+    </div>
+  )
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -694,38 +705,25 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
 
                 {/* Customer Information */}
                 <div className="mt-2 pt-2 border-t border-gray-300 space-y-1">
-                  <div className="flex py-0.5">
-                    <span className={`text-gray-700 font-semibold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'} w-24`}>
-                      Sold to:
-                    </span>
-                    <span className={`text-gray-900 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'} flex-1`}>
-                      {sale.customer?.name || 'Walk-in Customer'}
-                    </span>
-                  </div>
-                  <div className="flex py-0.5">
-                    <span className={`text-gray-700 font-semibold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'} w-24`}>
-                      Address:
-                    </span>
-                    <span className={`text-gray-900 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'} flex-1`}>
-                      {sale.customer?.address || '_______________________________'}
-                    </span>
-                  </div>
-                  <div className="flex py-0.5">
-                    <span className={`text-gray-700 font-semibold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'} w-24`}>
-                      TIN:
-                    </span>
-                    <span className={`text-gray-900 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'} flex-1`}>
-                      {sale.customer?.taxNumber || '_______________________________'}
-                    </span>
-                  </div>
-                  <div className="flex py-0.5">
-                    <span className={`text-gray-700 font-semibold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'} w-24`}>
-                      Bus. Style:
-                    </span>
-                    <span className={`text-gray-900 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'} flex-1`}>
-                      {sale.customer?.businessStyle || '_______________________________'}
-                    </span>
-                  </div>
+                  {paperSize === '80mm' ? (
+                    <>
+                      {renderCustomerField('Sold to:', sale.customer?.name || 'Walk-in Customer')}
+                      {renderCustomerField('Address:', sale.customer?.address || '_______________________________')}
+                      {renderCustomerField('TIN:', sale.customer?.taxNumber || '_______________________________')}
+                      {renderCustomerField('Bus. Style:', sale.customer?.businessStyle || '_______________________________')}
+                    </>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                        {renderCustomerField('Sold to:', sale.customer?.name || 'Walk-in Customer')}
+                        {renderCustomerField('TIN:', sale.customer?.taxNumber || '_______________________________')}
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                        {renderCustomerField('Address:', sale.customer?.address || '_______________________________')}
+                        {renderCustomerField('Bus. Style:', sale.customer?.businessStyle || '_______________________________')}
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Change */}
