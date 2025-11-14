@@ -88,9 +88,9 @@ export default function UnpaidInvoicesReport() {
       inv.invoiceNumber,
       inv.customer.name,
       inv.saleDate,
-      inv.totalAmount.toFixed(2),
-      inv.amountPaid.toFixed(2),
-      inv.balanceDue.toFixed(2),
+      inv.totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      inv.amountPaid.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      inv.balanceDue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
       inv.daysOutstanding,
       inv.agingPeriod,
       inv.status
@@ -131,8 +131,8 @@ export default function UnpaidInvoicesReport() {
       inv.invoiceNumber,
       inv.customer.name,
       inv.saleDate,
-      `₱${inv.totalAmount.toFixed(2)}`,
-      `₱${inv.balanceDue.toFixed(2)}`,
+      `₱${inv.totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      `₱${inv.balanceDue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       inv.daysOutstanding,
       inv.agingPeriod,
       inv.status
@@ -403,9 +403,9 @@ export default function UnpaidInvoicesReport() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{inv.saleDate}</td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">₱{inv.totalAmount.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-sm text-right text-green-600 dark:text-green-400">₱{inv.amountPaid.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-sm text-right font-bold text-red-600 dark:text-red-400">₱{inv.balanceDue.toFixed(2)}</td>
+                    <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">₱{inv.totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-3 text-sm text-right text-green-600 dark:text-green-400">₱{inv.amountPaid.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-3 text-sm text-right font-bold text-red-600 dark:text-red-400">₱{inv.balanceDue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                     <td className="px-4 py-3 text-sm text-center">
                       <span className={`font-semibold ${inv.daysOutstanding > 30 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'}`}>
                         {inv.daysOutstanding}
