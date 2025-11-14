@@ -49,13 +49,21 @@ export async function GET(request: NextRequest) {
     }
 
     // Build where clause for sale payments
+    // IMPORTANT: Only show AR payments (payments on credit sales)
+    // Credit sales have an initial payment with paymentMethod='credit' as a marker
+    // Then actual AR payments are recorded with real payment methods (cash, card, etc.)
     const where: Prisma.SalePaymentWhereInput = {
       sale: {
         businessId: businessId,
-        // Don't filter by status - include payments on ALL sales
-        // (Partial payments keep sale status as 'pending' until fully paid)
+        // CRITICAL: Only include payments on credit sales
+        // A credit sale MUST have at least one payment with paymentMethod='credit'
+        payments: {
+          some: {
+            paymentMethod: "credit",
+          },
+        },
       },
-      // Exclude the initial "credit" marker payment
+      // Exclude the initial "credit" marker payment (we only want actual AR collections)
       paymentMethod: {
         not: "credit",
       },

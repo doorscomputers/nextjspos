@@ -69,21 +69,35 @@ export async function GET(request: NextRequest) {
     // Build where clause for sales
     // IMPORTANT: Filter by PAYMENT date (paidAt), not sale date!
     // Sales can be old, but we want payments made during this date range
+    // CRITICAL: Only show AR payments (payments on credit sales)
     const saleWhere: any = {
       businessId,
       deletedAt: null,
       // Don't filter by status - credit sales can be 'pending' OR 'completed'
       // Don't filter by saleDate - we filter by payment date instead
-      // Only sales that have actual payments (not just credit markers)
-      payments: {
-        some: {
-          paymentMethod: { not: 'credit' }, // Has real payments (cash, card, etc.)
-          paidAt: {  // Use paidAt, not createdAt!
-            gte: startDate,
-            lte: endDate,
+      // Only sales that are credit sales AND have actual AR payment collections
+      AND: [
+        {
+          // Must be a credit sale (has 'credit' payment marker)
+          payments: {
+            some: {
+              paymentMethod: 'credit',
+            },
           },
         },
-      },
+        {
+          // Must have actual AR payments (non-credit) within date range
+          payments: {
+            some: {
+              paymentMethod: { not: 'credit' },
+              paidAt: {  // Use paidAt, not createdAt!
+                gte: startDate,
+                lte: endDate,
+              },
+            },
+          },
+        },
+      ],
     }
 
     // Location access control
