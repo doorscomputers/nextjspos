@@ -59,10 +59,11 @@ export async function GET(request: NextRequest) {
       const customersWithBalance = await Promise.all(
         customers.map(async (customer) => {
           try {
-            const unpaidInvoices = await prisma.sale.findMany({
+            // Fetch all completed sales for this customer (credit sales are marked 'completed')
+            const salesWithBalance = await prisma.sale.findMany({
               where: {
                 customerId: customer.id,
-                status: 'pending', // Credit sales not fully paid
+                status: 'completed', // Credit sales are 'completed', not 'pending'
                 deletedAt: null,
               },
               select: {
@@ -71,10 +72,13 @@ export async function GET(request: NextRequest) {
               },
             })
 
-            // Calculate total AR balance
-            const arBalance = unpaidInvoices.reduce((total, invoice) => {
-              const balance = parseFloat(invoice.totalAmount.toString()) - parseFloat(invoice.paidAmount.toString())
-              return total + balance
+            // Calculate total AR balance (only include invoices with outstanding balance)
+            const arBalance = salesWithBalance.reduce((total, invoice) => {
+              const totalAmount = parseFloat(invoice.totalAmount.toString())
+              const paidAmount = parseFloat(invoice.paidAmount?.toString() || '0')
+              const balance = totalAmount - paidAmount
+              // Only add if there's an outstanding balance (more than 1 cent)
+              return balance > 0.01 ? total + balance : total
             }, 0)
 
             return {
