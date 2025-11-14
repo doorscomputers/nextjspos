@@ -67,18 +67,21 @@ export async function GET(request: NextRequest) {
     const searchQuery = searchParams.get('search')
 
     // Build where clause for sales
+    // IMPORTANT: Filter by PAYMENT date, not sale date!
+    // Sales can be old, but we want payments made during this date range
     const saleWhere: any = {
       businessId,
       deletedAt: null,
-      status: 'completed',
-      saleDate: {
-        gte: startDate,
-        lte: endDate,
-      },
-      // Only sales with credit payment method (had outstanding balance)
+      // Don't filter by status - credit sales can be 'pending' OR 'completed'
+      // Don't filter by saleDate - we filter by payment date instead
+      // Only sales that have actual payments (not just credit markers)
       payments: {
         some: {
-          paymentMethod: 'credit',
+          paymentMethod: { not: 'credit' }, // Has real payments (cash, card, etc.)
+          createdAt: {
+            gte: startDate,
+            lte: endDate,
+          },
         },
       },
     }
@@ -161,8 +164,12 @@ export async function GET(request: NextRequest) {
       const totalAmount = parseFloat(sale.totalAmount.toString())
       let runningBalance = totalAmount
 
-      // Get payments excluding credit (these are actual payments reducing balance)
-      const actualPayments = sale.payments.filter(p => p.paymentMethod !== 'credit')
+      // Get payments excluding credit AND within date range (these are actual payments reducing balance)
+      const actualPayments = sale.payments.filter(p => {
+        if (p.paymentMethod === 'credit') return false // Exclude credit markers
+        const paymentDate = new Date(p.createdAt)
+        return paymentDate >= startDate && paymentDate <= endDate // Only payments in date range
+      })
 
       actualPayments.forEach((payment, index) => {
         const paymentAmount = parseFloat(payment.amount.toString())
