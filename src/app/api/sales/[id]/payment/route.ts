@@ -112,13 +112,17 @@ export async function POST(
       )
     }
 
-    // 6. Calculate current balance
+    // 6. Calculate current balance using sale.paidAmount field (source of truth)
     const totalAmount = parseFloat(sale.totalAmount.toString())
-    const totalPaid = sale.payments
-      .filter((p) => p.paymentMethod !== "credit") // Exclude credit marker
-      .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0)
-
+    const totalPaid = parseFloat(sale.paidAmount.toString())
     const currentBalance = totalAmount - totalPaid
+
+    console.log('[AR Payment API] Balance calculation:', {
+      totalAmount,
+      paidAmount: totalPaid,
+      currentBalance,
+      paymentsCount: sale.payments.length
+    })
 
     // 7. Validate payment amount doesn't exceed balance
     if (amount > currentBalance + 0.01) {
@@ -355,11 +359,9 @@ export async function GET(
       )
     }
 
-    // 3. Calculate balance
+    // 3. Calculate balance using sale.paidAmount field (source of truth)
     const totalAmount = parseFloat(sale.totalAmount.toString())
-    const totalPaid = sale.payments
-      .filter((p) => p.paymentMethod !== "credit")
-      .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0)
+    const totalPaid = parseFloat(sale.paidAmount.toString())
     const balance = totalAmount - totalPaid
 
     // 4. Return payment history
