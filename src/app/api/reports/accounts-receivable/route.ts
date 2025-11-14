@@ -36,11 +36,13 @@ export async function GET(request: NextRequest) {
     const showZeroBalances = searchParams.get("showZeroBalances") === "true";
 
     // Build where clause for sales
-    // NOTE: We fetch all completed sales with customers, then filter by balance in processing
-    // because the Sale model doesn't have a paymentStatus column - it uses paidAmount instead
+    // NOTE: Credit sales have status='pending', partially paid sales have status='completed'
+    // We need to fetch BOTH and then filter by outstanding balance
     const where: Prisma.SaleWhereInput = {
       businessId: businessId,
-      status: "completed",
+      status: {
+        in: ["pending", "completed"], // Include BOTH credit sales (pending) and regular sales (completed)
+      },
       customerId: {
         not: null, // Only get sales with customers (not walk-in)
       },
