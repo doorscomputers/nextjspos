@@ -113,13 +113,10 @@ export async function GET(request: NextRequest) {
           },
         },
         cashierShift: {
-          include: {
-            location: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
+          select: {
+            id: true,
+            shiftNumber: true,
+            locationId: true,
           },
         },
         collectedByUser: {
@@ -146,9 +143,11 @@ export async function GET(request: NextRequest) {
         ? `${payment.collectedByUser.firstName} ${payment.collectedByUser.lastName}`
         : "System";
 
+      // For collection location: if collected at POS (has shiftId), use sale location
+      // Otherwise it was collected online/manually
       const collectionLocation = payment.cashierShift
-        ? payment.cashierShift.location.name
-        : "Online/System";
+        ? payment.sale.location.name  // Use sale location when collected at POS
+        : "Online/Manual";
 
       return {
         id: payment.id,
