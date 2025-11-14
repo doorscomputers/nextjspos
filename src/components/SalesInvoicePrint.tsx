@@ -70,6 +70,13 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
       return
     }
 
+    try {
+      const invoicePath = `/print/sales-invoice/${sale.invoiceNumber || 'receipt'}`
+      printWindow.history.replaceState(null, '', invoicePath)
+    } catch (error) {
+      console.warn('[Print] Unable to adjust print window URL', error)
+    }
+
     const invoiceContent = document.getElementById('invoice-content')
     if (!invoiceContent) return
 
@@ -345,8 +352,23 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
   const uniquePhones = Array.from(new Set(phoneCandidates as string[]))
   const phoneLine =
     uniquePhones.length > 0
-      ? `CP Nos: ${uniquePhones.join(' • ')}`
-      : 'CP Nos: (078) 326-6008 • 0927 364 0644 • 0922 891 0427'
+      ? `Mobile #: ${uniquePhones.join(' • ')}`
+      : 'Mobile #: (078) 326-6008 • 0927 364 0644 • 0922 891 0427'
+
+  const saleDateValue = sale?.saleDate ? new Date(sale.saleDate) : new Date()
+  const saleCreatedValue = sale?.createdAt ? new Date(sale.createdAt) : saleDateValue
+  const invoiceDate = saleDateValue.toLocaleDateString('en-PH', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+  const invoiceTime = saleCreatedValue.toLocaleTimeString('en-PH')
+  const formattedCashierName = cashier
+    ? (cashier.firstName && cashier.lastName
+        ? `${cashier.firstName} ${cashier.lastName}`
+        : cashier.username || 'Unknown')
+    : 'Loading...'
+  const branchName = location?.name || (sale.locationId ? 'Loading...' : 'N/A')
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -452,14 +474,11 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
               <p className={`text-gray-600 ${paperSize === '80mm' ? 'text-[10px]' : 'text-xs'}`}>
                 {phoneLine}
               </p>
-              <p className={`text-gray-500 mt-1 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                {location.name}
-              </p>
             </div>
 
             {/* Invoice Info */}
-            <div className={`mb-3 ${paperSize === '80mm' ? 'text-center' : 'grid grid-cols-2 gap-4'}`}>
-              <div>
+            <div className={`mb-3 ${paperSize === '80mm' ? 'text-center space-y-1' : 'grid grid-cols-2 gap-4 items-start'}`}>
+              <div className={paperSize === '80mm' ? '' : 'space-y-1'}>
                 <h2 className={`font-bold text-gray-900 mb-1 ${paperSize === '80mm' ? 'text-sm' : 'text-lg'}`}>
                   {(() => {
                     // Determine invoice type based on payment method
@@ -481,31 +500,27 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
                 <p className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
                   <span className="font-semibold">Invoice #:</span> {sale.invoiceNumber}
                 </p>
-                <p className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                  <span className="font-semibold">Date:</span>{' '}
-                  {new Date(sale.saleDate).toLocaleDateString('en-PH', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </p>
-                <p className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                  <span className="font-semibold">Time:</span>{' '}
-                  {new Date(sale.createdAt).toLocaleTimeString('en-PH')}
-                </p>
-                <p className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                  <span className="font-semibold">Cashier:</span>{' '}
-                  {cashier
-                    ? (cashier.firstName && cashier.lastName
-                      ? `${cashier.firstName} ${cashier.lastName}`
-                      : cashier.username || 'Unknown')
-                    : 'Loading...'}
-                </p>
-                <p className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                  <span className="font-semibold">Location:</span>{' '}
-                  {location?.name || (sale.locationId ? 'Loading...' : 'N/A')}
-                </p>
+                {paperSize === '80mm' && (
+                  <>
+                    <p className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                      <span className="font-semibold">Date & Time:</span> {invoiceDate} • {invoiceTime}
+                    </p>
+                    <p className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                      <span className="font-semibold">Cashier:</span> {formattedCashierName} • <span className="font-semibold">Branch:</span> {branchName}
+                    </p>
+                  </>
+                )}
               </div>
+              {paperSize !== '80mm' && (
+                <div className="space-y-1 text-right">
+                  <p className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                    <span className="font-semibold">Date & Time:</span> {invoiceDate} • {invoiceTime}
+                  </p>
+                  <p className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                    <span className="font-semibold">Cashier:</span> {formattedCashierName} • <span className="font-semibold">Branch:</span> {branchName}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Items Table */}
@@ -758,9 +773,6 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
               </p>
               <p className={`text-gray-500 ${paperSize === '80mm' ? 'text-[10px]' : 'text-xs'}`}>
                 This serves as your Warranty Slip. Please keep for your records.
-              </p>
-              <p className={`text-gray-500 mt-1 ${paperSize === '80mm' ? 'text-[10px]' : 'text-xs'}`}>
-                Generated by: {business.name} POS System
               </p>
             </div>
           </div>
