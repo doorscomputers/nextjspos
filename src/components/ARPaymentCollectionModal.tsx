@@ -279,7 +279,15 @@ export default function ARPaymentCollectionModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="max-w-[95vw] w-[95vw] max-h-[95vh] overflow-y-auto"
+        className="overflow-hidden flex flex-col p-4"
+        style={{
+          maxWidth: '1600px',
+          width: '95vw',
+          minWidth: '95vw',
+          height: '90vh',
+          maxHeight: '90vh',
+          minHeight: '90vh'
+        }}
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
@@ -294,7 +302,7 @@ export default function ARPaymentCollectionModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto space-y-4 px-1">
           {/* Action Buttons */}
           <div className="flex justify-between items-center">
             <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -327,8 +335,8 @@ export default function ARPaymentCollectionModal({
           </div>
 
           {/* Invoice List */}
-          <div className="border rounded-lg overflow-x-auto">
-            <div className="max-h-[500px] overflow-y-auto min-w-full">
+          <div className="border rounded-lg">
+            <div className="max-h-[600px] overflow-y-auto">
               {loading ? (
                 <div className="p-8 text-center text-gray-500">Loading invoices...</div>
               ) : filteredInvoices.length === 0 ? (
@@ -336,16 +344,16 @@ export default function ARPaymentCollectionModal({
                   No unpaid invoices found for this customer
                 </div>
               ) : (
-                <Table className="min-w-[900px]">
+                <Table className="w-full">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="min-w-[200px]">Invoice #</TableHead>
-                      <TableHead className="min-w-[120px]">Date</TableHead>
-                      <TableHead className="min-w-[180px]">Customer</TableHead>
-                      <TableHead className="text-right min-w-[120px]">Total</TableHead>
-                      <TableHead className="text-right min-w-[120px]">Paid</TableHead>
-                      <TableHead className="text-right min-w-[120px]">Balance</TableHead>
-                      <TableHead className="w-12"></TableHead>
+                      <TableHead className="w-[25%]">Invoice #</TableHead>
+                      <TableHead className="w-[12%]">Date</TableHead>
+                      <TableHead className="w-[20%]">Customer</TableHead>
+                      <TableHead className="text-right w-[13%]">Total</TableHead>
+                      <TableHead className="text-right w-[13%]">Paid</TableHead>
+                      <TableHead className="text-right w-[14%]">Balance</TableHead>
+                      <TableHead className="w-[3%]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
