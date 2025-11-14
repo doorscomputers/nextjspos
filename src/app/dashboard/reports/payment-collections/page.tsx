@@ -256,6 +256,76 @@ export default function PaymentCollectionsPage() {
     doc.save(`Payment_Collections_${new Date().toLocaleDateString()}.pdf`);
   };
 
+  // Quick date filter handlers
+  const setQuickDateFilter = (filter: string) => {
+    const today = new Date();
+    let start = new Date();
+    let end = new Date();
+
+    switch (filter) {
+      case "today":
+        start = new Date(today.setHours(0, 0, 0, 0));
+        end = new Date(today.setHours(23, 59, 59, 999));
+        break;
+      case "yesterday":
+        start = new Date(today.setDate(today.getDate() - 1));
+        start.setHours(0, 0, 0, 0);
+        end = new Date(start);
+        end.setHours(23, 59, 59, 999);
+        break;
+      case "last7days":
+        start = new Date(today.setDate(today.getDate() - 7));
+        start.setHours(0, 0, 0, 0);
+        end = new Date();
+        end.setHours(23, 59, 59, 999);
+        break;
+      case "last30days":
+        start = new Date(today.setDate(today.getDate() - 30));
+        start.setHours(0, 0, 0, 0);
+        end = new Date();
+        end.setHours(23, 59, 59, 999);
+        break;
+      case "thisweek":
+        const dayOfWeek = today.getDay();
+        start = new Date(today.setDate(today.getDate() - dayOfWeek));
+        start.setHours(0, 0, 0, 0);
+        end = new Date();
+        end.setHours(23, 59, 59, 999);
+        break;
+      case "lastweek":
+        const lastWeekStart = new Date(today.setDate(today.getDate() - today.getDay() - 7));
+        lastWeekStart.setHours(0, 0, 0, 0);
+        const lastWeekEnd = new Date(lastWeekStart);
+        lastWeekEnd.setDate(lastWeekEnd.getDate() + 6);
+        lastWeekEnd.setHours(23, 59, 59, 999);
+        start = lastWeekStart;
+        end = lastWeekEnd;
+        break;
+      case "thismonth":
+        start = new Date(today.getFullYear(), today.getMonth(), 1);
+        start.setHours(0, 0, 0, 0);
+        end = new Date();
+        end.setHours(23, 59, 59, 999);
+        break;
+      case "lastmonth":
+        start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        start.setHours(0, 0, 0, 0);
+        end = new Date(today.getFullYear(), today.getMonth(), 0);
+        end.setHours(23, 59, 59, 999);
+        break;
+    }
+
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    setStartDate(formatDate(start));
+    setEndDate(formatDate(end));
+  };
+
   // Clear filters
   const clearFilters = () => {
     setStartDate("");
@@ -282,6 +352,79 @@ export default function PaymentCollectionsPage() {
 
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        {/* Quick Date Filters */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Quick Date Filters
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickDateFilter("today")}
+              className="hover:bg-green-50 dark:hover:bg-green-950"
+            >
+              Today
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickDateFilter("yesterday")}
+              className="hover:bg-green-50 dark:hover:bg-green-950"
+            >
+              Yesterday
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickDateFilter("last7days")}
+              className="hover:bg-green-50 dark:hover:bg-green-950"
+            >
+              Last 7 Days
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickDateFilter("last30days")}
+              className="hover:bg-green-50 dark:hover:bg-green-950"
+            >
+              Last 30 Days
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickDateFilter("thisweek")}
+              className="hover:bg-green-50 dark:hover:bg-green-950"
+            >
+              This Week
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickDateFilter("lastweek")}
+              className="hover:bg-green-50 dark:hover:bg-green-950"
+            >
+              Last Week
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickDateFilter("thismonth")}
+              className="hover:bg-green-50 dark:hover:bg-green-950"
+            >
+              This Month
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickDateFilter("lastmonth")}
+              className="hover:bg-green-50 dark:hover:bg-green-950"
+            >
+              Last Month
+            </Button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

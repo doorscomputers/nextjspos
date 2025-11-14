@@ -41,11 +41,8 @@ export async function GET(request: NextRequest) {
     const where: Prisma.SalePaymentWhereInput = {
       sale: {
         businessId: businessId,
-        // FIXED: Include both completed and pending sales
-        // Pending sales are credit invoices that may have AR payments
-        status: {
-          in: ["completed", "pending"],
-        },
+        // Don't filter by status - include payments on ALL sales
+        // (Partial payments keep sale status as 'pending' until fully paid)
       },
       // Exclude the initial "credit" marker payment
       paymentMethod: {
