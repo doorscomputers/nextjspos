@@ -148,6 +148,15 @@ export default function AccountsReceivablePage() {
 
       if (data.success) {
         console.log('[AR Report Page] Setting customers:', data.data.customers);
+
+        // DEBUG: Check invoices array for each customer
+        data.data.customers.forEach((customer: any) => {
+          console.log(`[AR Report Page] Customer "${customer.customerName}" has ${customer.invoices?.length || 'UNDEFINED'} invoices`);
+          if (customer.invoices && customer.invoices.length > 0) {
+            console.log(`[AR Report Page] First invoice:`, customer.invoices[0]);
+          }
+        });
+
         setCustomers(data.data.customers);
         setSummary(data.data.summary);
         toast.success(`Report loaded: ${data.data.customers.length} customer(s) with outstanding balance`);
