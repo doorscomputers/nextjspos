@@ -295,13 +295,13 @@ import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 import { checkStockAvailability, batchCheckStockAvailability, processSale } from '@/lib/stockOperations' // CRITICAL: processSale DEDUCTS inventory
 import {
-  sendLargeDiscountAlert,
-  sendCreditSaleAlert,
+  sendLargeDiscountAlert as sendLargeDiscountEmail,
+  sendCreditSaleAlert as sendCreditSaleEmail,
 } from '@/lib/email'
 import {
-  sendTelegramLargeDiscountAlert,
-  sendTelegramCreditSaleAlert,
-} from '@/lib/telegram'
+  sendLargeDiscountAlert,
+  sendCreditSaleAlert,
+} from '@/lib/alert-service'
 import { withIdempotency } from '@/lib/idempotency' // Prevents duplicate sales
 import { getNextInvoiceNumber } from '@/lib/atomicNumbers' // Thread-safe invoice numbering
 import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker' // Tracks stock changes
@@ -1219,8 +1219,10 @@ export async function POST(request: NextRequest) {
       try {
         // Alert for large discounts
         if (discountAmount && parseFloat(discountAmount) > 0) {
+          const discountPercent = totalAmount > 0 ? (parseFloat(discountAmount) / totalAmount) * 100 : 0
+
           await Promise.all([
-            sendLargeDiscountAlert({
+            sendLargeDiscountEmail({
               saleNumber: sale.invoiceNumber,
               discountAmount: parseFloat(discountAmount),
               discountType: discountType || 'Regular Discount',
@@ -1230,15 +1232,14 @@ export async function POST(request: NextRequest) {
               timestamp: new Date(saleDate),
               reason: notes || undefined,
             }),
-            sendTelegramLargeDiscountAlert({
-              saleNumber: sale.invoiceNumber,
+            sendLargeDiscountAlert({
+              invoiceNumber: sale.invoiceNumber,
               discountAmount: parseFloat(discountAmount),
-              discountType: discountType || 'Regular Discount',
+              discountPercent,
               totalAmount,
               cashierName: user.username || user.name || 'Unknown',
               locationName: location.name,
               timestamp: new Date(saleDate),
-              reason: notes || undefined,
             }),
           ])
         }
@@ -1246,7 +1247,7 @@ export async function POST(request: NextRequest) {
         // Alert for credit sales
         if (isCreditSale && customerName) {
           await Promise.all([
-            sendCreditSaleAlert({
+            sendCreditSaleEmail({
               saleNumber: sale.invoiceNumber,
               creditAmount: totalAmount,
               customerName,
@@ -1254,9 +1255,9 @@ export async function POST(request: NextRequest) {
               locationName: location.name,
               timestamp: new Date(saleDate),
             }),
-            sendTelegramCreditSaleAlert({
-              saleNumber: sale.invoiceNumber,
-              creditAmount: totalAmount,
+            sendCreditSaleAlert({
+              invoiceNumber: sale.invoiceNumber,
+              totalAmount,
               customerName,
               cashierName: user.username || user.name || 'Unknown',
               locationName: location.name,

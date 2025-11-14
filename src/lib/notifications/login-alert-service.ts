@@ -3,7 +3,7 @@
  * Unified service to send login notifications via Telegram, Email, and SMS
  */
 
-import { sendSMSToAdmins, formatLoginSMS, formatLocationMismatchSMS } from './sms-semaphore'
+import { sendLocationMismatchAlert } from '@/lib/alert-service'
 
 interface LoginAlertData {
   username: string
@@ -17,59 +17,28 @@ interface LoginAlertData {
 }
 
 /**
- * Send Telegram login alert
+ * Send Telegram & SMS alerts for location mismatch using unified alert service
  * ONLY sends for location mismatches (cost saving + reduce noise)
  */
-async function sendTelegramLoginAlert(data: LoginAlertData): Promise<void> {
+async function sendLocationMismatchNotification(data: LoginAlertData): Promise<void> {
   try {
-    // ONLY send Telegram alerts for location mismatches
+    // ONLY send alerts for location mismatches
     if (!data.isMismatch) {
-      console.log('[Telegram] Skipping - successful login (only mismatches sent)')
+      console.log('[AlertService] Skipping - successful login (only mismatches sent)')
       return
     }
 
-    const botToken = process.env.TELEGRAM_BOT_TOKEN
-    const chatIds = process.env.TELEGRAM_CHAT_IDS?.split(',').filter(Boolean) || []
+    await sendLocationMismatchAlert({
+      username: data.username,
+      userLocation: data.assignedLocations[0] || 'Unknown',
+      loginLocation: data.selectedLocation,
+      ipAddress: data.ipAddress || 'Unknown',
+      timestamp: data.timestamp,
+    })
 
-    if (!botToken || chatIds.length === 0) {
-      console.log('[Telegram] Not configured, skipping')
-      return
-    }
-
-    if (process.env.TELEGRAM_NOTIFICATIONS_ENABLED !== 'true') {
-      console.log('[Telegram] Disabled, skipping')
-      return
-    }
-
-    // Build mismatch alert message
-    let message = `🚨 CRITICAL: LOCATION MISMATCH\n\n`
-    message += `👤 User: ${data.username} (${data.fullName})\n`
-    message += `🎭 Role: ${data.role}\n`
-    message += `❌ Logged in at: ${data.selectedLocation}\n`
-    message += `✅ Assigned to: ${data.assignedLocations.join(', ')}\n`
-    message += `\n⚠️ ACTION REQUIRED: Verify immediately!\n`
-    message += `⏰ Time: ${data.timestamp.toLocaleString('en-PH')}\n`
-    if (data.ipAddress) {
-      message += `📍 IP: ${data.ipAddress}\n`
-    }
-
-    // Send to all chat IDs
-    for (const chatId of chatIds) {
-      const url = `https://api.telegram.org/bot${botToken}/sendMessage`
-      await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId.trim(),
-          text: message,
-          parse_mode: 'HTML',
-        }),
-      })
-    }
-
-    console.log('[Telegram] ✓ Location mismatch alert sent')
+    console.log('[AlertService] ✓ Location mismatch alert sent via Telegram & SMS')
   } catch (error: any) {
-    console.error('[Telegram] Failed to send location mismatch alert:', error.message)
+    console.error('[AlertService] Failed to send location mismatch alert:', error.message)
   }
 }
 
@@ -195,54 +164,6 @@ async function sendEmailLoginAlert(data: LoginAlertData): Promise<void> {
   }
 }
 
-/**
- * Send SMS login alert (only for non-admin logins or critical mismatches)
- */
-async function sendSMSLoginAlert(data: LoginAlertData, isAdmin: boolean): Promise<void> {
-  try {
-    // Skip SMS for admin logins unless it's a mismatch
-    if (isAdmin && !data.isMismatch) {
-      if (process.env.SEND_SMS_FOR_ADMIN_LOGINS === 'false') {
-        console.log('[SMS] Skipping SMS for admin login (cost saving)')
-        return
-      }
-    }
-
-    // Check if SMS is enabled for cashier logins
-    if (!isAdmin && process.env.SEND_SMS_FOR_CASHIER_LOGINS !== 'true') {
-      console.log('[SMS] SMS for cashier logins is disabled')
-      return
-    }
-
-    // Always send SMS for location mismatch regardless of role
-    if (data.isMismatch && process.env.SEND_SMS_FOR_LOCATION_MISMATCH !== 'true') {
-      console.log('[SMS] SMS for location mismatch is disabled')
-      return
-    }
-
-    const time = data.timestamp.toLocaleTimeString('en-PH', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    })
-
-    let message: string
-    if (data.isMismatch) {
-      message = formatLocationMismatchSMS(
-        data.username,
-        data.selectedLocation,
-        data.assignedLocations[0] || 'Unknown'
-      )
-    } else {
-      message = formatLoginSMS(data.username, data.selectedLocation, time)
-    }
-
-    const result = await sendSMSToAdmins(message)
-    console.log(`[SMS] ✓ Sent to ${result.sent} admin(s), ${result.failed} failed`)
-  } catch (error: any) {
-    console.error('[SMS] Failed to send login alert:', error.message)
-  }
-}
 
 /**
  * Main function to send login alerts via all channels
@@ -264,9 +185,8 @@ export async function sendLoginAlerts(
 
   // Send all notifications in parallel (non-blocking)
   await Promise.allSettled([
-    sendTelegramLoginAlert(data),
+    sendLocationMismatchNotification(data),
     sendEmailLoginAlert(data),
-    sendSMSLoginAlert(data, isAdmin),
   ])
 
   console.log('[LoginAlert] ✓ All notifications processed')

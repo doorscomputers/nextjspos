@@ -6,7 +6,7 @@ import { hasPermission, PERMISSIONS, hasAnyRole } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 import { generateXReading, generateZReading } from '@/lib/readings-instant'
 import bcrypt from 'bcryptjs'
-import { sendTelegramShiftClosingAlert } from '@/lib/telegram'
+import { sendShiftClosingAlert } from '@/lib/alert-service'
 
 /**
  * POST /api/shifts/[id]/close - Close a cashier shift
@@ -396,21 +396,19 @@ export async function POST(
         ? [authorizingUser.firstName, authorizingUser.lastName].filter(Boolean).join(' ') || authorizingUser.username
         : session.user.username
 
-      await sendTelegramShiftClosingAlert({
+      await sendShiftClosingAlert({
         shiftNumber: shift.shiftNumber,
         cashierName,
         locationName: location?.name || `Location#${shift.locationId}`,
-        openingCash: parseFloat(shift.openingCash.toString()),
         expectedCash: parseFloat(systemCash.toString()),
         actualCash: endingCashDecimal,
         discrepancy: variance,
         totalSales,
-        totalTransactions: transactionCount,
         closedBy: closedByName,
         timestamp: new Date()
       })
-    } catch (telegramError) {
-      console.error('Telegram notification failed:', telegramError)
+    } catch (alertError) {
+      console.error('Alert notification failed (Telegram/SMS):', alertError)
     }
 
     const totalElapsed = Date.now() - startTime

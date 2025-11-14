@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 import { validateSOD, getUserRoles } from '@/lib/sodValidation'
-import { sendTelegramTransferApprovalAlert } from '@/lib/telegram'
+import { sendTransferApprovalAlert } from '@/lib/alert-service'
 
 /**
  * POST /api/transfers/[id]/check-approve
@@ -150,19 +150,15 @@ export async function POST(
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
     })
 
-    // Send Telegram notification (async, don't await)
-    const totalQuantity = transfer.items.reduce((sum, item) => sum + parseFloat(item.quantity.toString()), 0)
-    sendTelegramTransferApprovalAlert({
+    // Send alert notifications (async, don't await)
+    sendTransferApprovalAlert({
       transferNumber: transfer.transferNumber,
       fromLocation: transfer.fromLocation.name,
       toLocation: transfer.toLocation.name,
-      itemCount: transfer.items.length,
-      totalQuantity,
       approvedBy: user.username,
-      notes,
       timestamp: new Date(),
     }).catch((error) => {
-      console.error('[Telegram] Failed to send transfer approval alert:', error)
+      console.error('[AlertService] Failed to send transfer approval alert:', error)
     })
 
     return NextResponse.json({

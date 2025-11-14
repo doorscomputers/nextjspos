@@ -6,7 +6,7 @@ import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 import { validateSOD, getUserRoles } from '@/lib/sodValidation'
 import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker'
-import { sendTelegramTransferAcceptanceAlert } from '@/lib/telegram'
+import { sendTransferAcceptanceAlert } from '@/lib/alert-service'
 
 /**
  * POST /api/transfers/[id]/complete
@@ -325,19 +325,15 @@ export async function POST(
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
     })
 
-    // Send Telegram notification (async, don't await)
-    const totalQuantity = transfer.items.reduce((sum, item) => sum + parseFloat(item.quantity.toString()), 0)
-    sendTelegramTransferAcceptanceAlert({
+    // Send alert notifications (async, don't await)
+    sendTransferAcceptanceAlert({
       transferNumber: transfer.transferNumber,
       fromLocation: transfer.fromLocation.name,
       toLocation: transfer.toLocation.name,
-      itemCount: transfer.items.length,
-      totalQuantity,
       acceptedBy: user.username,
-      notes,
       timestamp: new Date(),
     }).catch((error) => {
-      console.error('[Telegram] Failed to send transfer acceptance alert:', error)
+      console.error('[AlertService] Failed to send transfer acceptance alert:', error)
     })
 
     return NextResponse.json({
