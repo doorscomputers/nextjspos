@@ -249,10 +249,20 @@ export async function GET(request: NextRequest) {
       );
 
       // Convert Date objects to ISO strings for proper JSON serialization
+      // Explicitly include all fields to ensure invoices array is preserved
       return {
-        ...customer,
+        customerId: customer.customerId,
+        customerName: customer.customerName,
+        email: customer.email,
+        mobile: customer.mobile,
+        creditLimit: customer.creditLimit,
+        totalInvoices: customer.totalInvoices,
+        totalAmount: customer.totalAmount,
+        totalPaid: customer.totalPaid,
+        outstandingBalance: customer.outstandingBalance,
         oldestInvoiceDate: new Date(customer.oldestInvoiceDate).toISOString(),
         oldestInvoiceDays: oldestDays,
+        invoices: customer.invoices, // Explicitly include invoices array
         aging,
       };
     });
@@ -284,6 +294,12 @@ export async function GET(request: NextRequest) {
         over90: customersWithAging.reduce((sum, c) => sum + c.aging.over90, 0),
       },
     };
+
+    // DEBUG: Log final response structure before returning
+    console.log(`[AR Report API] Final response - ${customersWithAging.length} customers`);
+    customersWithAging.forEach(customer => {
+      console.log(`[AR Report API] Customer "${customer.customerName}" invoices in response: ${customer.invoices?.length || 'UNDEFINED'}`);
+    });
 
     return NextResponse.json({
       success: true,
