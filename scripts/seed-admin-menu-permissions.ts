@@ -1,8 +1,9 @@
 /**
- * Seed Menu Permissions for Admin Roles
+ * Seed Menu Permissions for Super Admin Only
  *
- * This script ensures that Super Admin, Admin, All Branch Admin, and System Administrator
- * roles have access to ALL menu items in the system.
+ * This script ensures that ONLY the Super Admin role has access to ALL menu items.
+ * All other roles (Admin, All Branch Admin, Warehouse Manager, etc.) must be
+ * configured manually via the Menu Permissions page.
  *
  * Run with: npx tsx scripts/seed-admin-menu-permissions.ts
  */
@@ -264,18 +265,16 @@ async function main() {
   for (const business of businesses) {
     console.log(`\n📦 Processing business: ${business.name} (ID: ${business.id})`)
 
-    // Get admin roles for this business
+    // Get ONLY Super Admin role for this business
     const adminRoles = await prisma.role.findMany({
       where: {
         businessId: business.id,
-        name: {
-          in: ['Super Admin', 'System Administrator', 'Admin', 'All Branch Admin']
-        }
+        name: 'Super Admin'
       },
       select: { id: true, name: true }
     })
 
-    console.log(`  Found ${adminRoles.length} admin role(s)`)
+    console.log(`  Found ${adminRoles.length} Super Admin role(s)`)
 
     if (adminRoles.length === 0) {
       console.log(`  ⚠️  No admin roles found for business ${business.name}`)
@@ -345,11 +344,11 @@ async function main() {
     }
   }
 
-  console.log('\n🎉 Admin menu permissions seeded successfully!')
+  console.log('\n🎉 Super Admin menu permissions seeded successfully!')
   console.log('\n📝 Summary:')
-  console.log(`  - Admin roles now have access to ALL ${ALL_MENU_KEYS.length} menu items`)
-  console.log(`  - Roles updated: Super Admin, System Administrator, Admin, All Branch Admin`)
-  console.log(`  - These roles will bypass menu permission checks in the UI`)
+  console.log(`  - ONLY Super Admin now has access to ALL ${ALL_MENU_KEYS.length} menu items`)
+  console.log(`  - All other roles (Admin, All Branch Admin, etc.) must be configured in Menu Permissions`)
+  console.log(`  - Only Super Admin bypasses menu permission checks in the UI`)
 }
 
 main()

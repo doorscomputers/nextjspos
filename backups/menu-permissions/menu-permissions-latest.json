@@ -1,0 +1,7105 @@
+{
+  "timestamp": "2025-11-14T08:26:18.769Z",
+  "version": "1.0",
+  "roleMenuPermissions": [
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "inventory_valuation_history",
+      "menuName": "Inventory Valuation History"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "inventory_valuation_history",
+      "menuName": "Inventory Valuation History"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "dashboard",
+      "menuName": "Dashboard"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "reports",
+      "menuName": "Reports"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "contacts",
+      "menuName": "Contacts"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "transfers",
+      "menuName": "Stock Transfers"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "begin_shift",
+      "menuName": "Begin Shift"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "products_list",
+      "menuName": "List Products"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "products_add",
+      "menuName": "Add Product"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "products_simple_price_editor",
+      "menuName": "Simple Price Editor"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "products_print_labels",
+      "menuName": "Print Labels"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "dashboard",
+      "menuName": "Dashboard"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "purchases_list",
+      "menuName": "List Purchases"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "purchases_add",
+      "menuName": "Add Purchase"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "sales_pos",
+      "menuName": "POS"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "transfers_list",
+      "menuName": "List Transfers"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "transfers_create",
+      "menuName": "Create Transfer"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "reports_stock_pivot",
+      "menuName": "Stock Pivot"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "reports_purchase_items",
+      "menuName": "Purchase Items Report"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "reports_transfer_export",
+      "menuName": "Transfer Export"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "contacts_suppliers",
+      "menuName": "Suppliers"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "settings_product",
+      "menuName": "Product Settings"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "settings_product_brands",
+      "menuName": "Brands"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "settings_product_units",
+      "menuName": "Units"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "purchases",
+      "menuName": "Purchases"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "products",
+      "menuName": "Products"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "close_shift",
+      "menuName": "Close Shift"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "x_reading",
+      "menuName": "X Reading"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "z_reading",
+      "menuName": "Z Reading"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "readings_history",
+      "menuName": "Readings History"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "sales_list",
+      "menuName": "Sales List"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "list_products_v2",
+      "menuName": "List Products V2"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "add_product",
+      "menuName": "Add Product"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "add_product_v2",
+      "menuName": "Add Product V2"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "all_branch_stock",
+      "menuName": "All Branch Stock"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "branch_stock_pivot",
+      "menuName": "Branch Stock Pivot"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "branch_stock_pivot_v2",
+      "menuName": "Branch Stock Pivot V2"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "inventory_corrections",
+      "menuName": "Inventory Corrections"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "physical_inventory",
+      "menuName": "Physical Inventory"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "print_labels",
+      "menuName": "Print Labels"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "categories",
+      "menuName": "Categories"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "brands",
+      "menuName": "Brands"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "units",
+      "menuName": "Units"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "settings_product_categories",
+      "menuName": "Categories"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "inventory_management",
+      "menuName": "Inventory Management"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "pricing_management",
+      "menuName": "Price Editor"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "stock_transfers",
+      "menuName": "Stock Transfers"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "returns_management",
+      "menuName": "Returns Management"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "customers",
+      "menuName": "Customers"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "suppliers",
+      "menuName": "Suppliers"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "expenses",
+      "menuName": "Expenses"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "my_profile",
+      "menuName": "My Profile"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "point_of_sale",
+      "menuName": "Point of Sale"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "list_products",
+      "menuName": "List Products"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "simple_price_editor",
+      "menuName": "Price Editor"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "price_comparison",
+      "menuName": "Price Comparison"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "purchase_orders",
+      "menuName": "Purchase Orders"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "goods_received",
+      "menuName": "Goods Received (GRN)"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "serial_number_lookup",
+      "menuName": "Serial Number Lookup"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "accounts_payable",
+      "menuName": "Accounts Payable"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "payments",
+      "menuName": "Payments"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "banks",
+      "menuName": "Banks"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "bank_transactions",
+      "menuName": "Bank Transactions"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "post_dated_cheques",
+      "menuName": "Post-Dated Cheques"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "all_transfers",
+      "menuName": "All Transfers"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "create_transfer",
+      "menuName": "Create Transfer"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "my_transfers_report",
+      "menuName": "My Transfers"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "my_received_transfers_report",
+      "menuName": "My Received Transfers"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "purchase_returns",
+      "menuName": "Purchase Returns"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "supplier_returns",
+      "menuName": "Supplier Returns"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "all_customers",
+      "menuName": "All Customers"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "all_suppliers",
+      "menuName": "All Suppliers"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "all_expenses",
+      "menuName": "All Expenses"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "expense_categories",
+      "menuName": "Expense Categories"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "all_reports_hub",
+      "menuName": "All Reports Hub"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "purchase_reports",
+      "menuName": "Purchase Reports"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "inventory_reports",
+      "menuName": "Inventory Reports"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "transfer_reports",
+      "menuName": "Transfer Reports"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "security_audit",
+      "menuName": "Security & Audit"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "purchase_analytics",
+      "menuName": "Purchase Analytics"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "purchase_trends",
+      "menuName": "Purchase Trends"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "purchase_items_report",
+      "menuName": "Purchase Items Report"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "products_suppliers_report",
+      "menuName": "Products-Suppliers Report"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "stock_alert_report",
+      "menuName": "Stock Alert Report"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "historical_inventory",
+      "menuName": "Historical Inventory"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "inventory_valuation",
+      "menuName": "Inventory Valuation"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "inventory_valuation_history",
+      "menuName": "Inventory Valuation History"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "stock_history_v3_admin",
+      "menuName": "Stock History V3 (Admin)"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "transfers_report",
+      "menuName": "Transfers Report"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "transfer_trends",
+      "menuName": "Transfer Trends"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "transfers_per_item",
+      "menuName": "Transfers per Item"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "schedule_login_security",
+      "menuName": "Schedule Login Security"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "audit_trail_report",
+      "menuName": "Audit Trail Report"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "attendance_report",
+      "menuName": "Attendance Report"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "purchase_reports_hub",
+      "menuName": "Purchase Report Hub"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "stock_history_v3",
+      "menuName": "Stock History V3 (Admin)"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "expense_analytics",
+      "menuName": "Expense Analytics"
+    },
+    {
+      "roleId": 7,
+      "roleName": "Warehouse Manager",
+      "businessId": 1,
+      "menuKey": "all_expenses_report",
+      "menuName": "All Expenses Report"
+    },
+    {
+      "roleId": 88,
+      "roleName": "Price Manager",
+      "businessId": 1,
+      "menuKey": "pricing_management",
+      "menuName": "Price Editor"
+    },
+    {
+      "roleId": 88,
+      "roleName": "Price Manager",
+      "businessId": 1,
+      "menuKey": "simple_price_editor",
+      "menuName": "Price Editor"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "dashboard",
+      "menuName": "Dashboard"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "analytics_dashboard_v1",
+      "menuName": "Analytics Dashboard V1"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "add_product_v2",
+      "menuName": "Add Product V2"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "import_categories",
+      "menuName": "Import Categories"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "clock_in_out",
+      "menuName": "Clock In/Out"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "balance_sheet",
+      "menuName": "Balance Sheet"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "schedule_login_security",
+      "menuName": "Schedule Login Security"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "cashier_reports_root",
+      "menuName": "Cashier Reports"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "pos_sales",
+      "menuName": "POS & Sales"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "inventory_management",
+      "menuName": "Inventory Management"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "pricing_management",
+      "menuName": "Price Editor"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "stock_transfers",
+      "menuName": "Stock Transfers"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "customers",
+      "menuName": "Customers"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "employee_schedules",
+      "menuName": "Employee Schedules"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "attendance_records",
+      "menuName": "Attendance Records"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "leave_requests",
+      "menuName": "Leave Requests"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "open_shifts",
+      "menuName": "Open Shifts Monitor"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "inactivity_timeout",
+      "menuName": "Inactivity Timeout"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "menu_permissions",
+      "menuName": "Menu Permissions"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "sales_journal",
+      "menuName": "Sales Journal"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "cashier_sales_journal",
+      "menuName": "Sales Journal (Cashier)"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "fix_soft_deleted_variations",
+      "menuName": "Fix Soft Deleted Variations"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "analytics_dashboard_v2",
+      "menuName": "Analytics Dashboard V2"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "analytics_dashboard_v3",
+      "menuName": "Analytics Dashboard V3"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "dashboard_v4",
+      "menuName": "Dashboard V4"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "ai_assistant",
+      "menuName": "AI Assistant"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "help_center",
+      "menuName": "Help Center"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "notifications",
+      "menuName": "Notifications"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "my_profile",
+      "menuName": "My Profile"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "cashier_sales_today",
+      "menuName": "Sales Today"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "point_of_sale",
+      "menuName": "Point of Sale"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "begin_shift",
+      "menuName": "Begin Shift"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "close_shift",
+      "menuName": "Close Shift"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "x_reading",
+      "menuName": "X Reading"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "z_reading",
+      "menuName": "Z Reading"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "readings_history",
+      "menuName": "Readings History"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "sales_list",
+      "menuName": "Sales List"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "list_products",
+      "menuName": "List Products"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "list_products_v2",
+      "menuName": "List Products V2"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "purchases",
+      "menuName": "Purchases"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "returns_management",
+      "menuName": "Returns Management"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "suppliers",
+      "menuName": "Suppliers"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "expenses",
+      "menuName": "Expenses"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "reports",
+      "menuName": "Reports"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "hr_attendance",
+      "menuName": "HR & Attendance"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "technical_services",
+      "menuName": "Technical Services"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "accounting",
+      "menuName": "Accounting"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "administration",
+      "menuName": "Administration"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "settings",
+      "menuName": "Settings"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "add_product",
+      "menuName": "Add Product"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "serial_number_import",
+      "menuName": "Serial Number Import"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "payment_collections",
+      "menuName": "Payment Collections"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "purchase_reports_hub",
+      "menuName": "Purchase Report Hub"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "sales_today",
+      "menuName": "Sales Today"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "sales_report",
+      "menuName": "Sales Invoice Details"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "stock_history_v3",
+      "menuName": "Stock History V3 (Admin)"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "expense_analytics",
+      "menuName": "Expense Analytics"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "all_expenses_report",
+      "menuName": "All Expenses Report"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "location_pricing",
+      "menuName": "Location Pricing (Admin)"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "my_location_pricing",
+      "menuName": "My Location Pricing"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "accounts_receivable",
+      "menuName": "Accounts Receivable"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "analytics_dashboard_v1",
+      "menuName": "Analytics Dashboard V1"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "add_product_v2",
+      "menuName": "Add Product V2"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "clock_in_out",
+      "menuName": "Clock In/Out"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "receivable_payments",
+      "menuName": "Receivable Payments"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "contacts",
+      "menuName": "Contacts"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "branch_stock_pivot_v2",
+      "menuName": "Branch Stock Pivot V2"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "transfers",
+      "menuName": "Stock Transfers"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "products_list",
+      "menuName": "List Products"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "products_add",
+      "menuName": "Add Product"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "products_simple_price_editor",
+      "menuName": "Simple Price Editor"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "products_print_labels",
+      "menuName": "Print Labels"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "purchases_list",
+      "menuName": "List Purchases"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "sales_pos",
+      "menuName": "POS"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "inventory_corrections",
+      "menuName": "Inventory Corrections"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "transfers_list",
+      "menuName": "List Transfers"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "physical_inventory",
+      "menuName": "Physical Inventory"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "transfers_create",
+      "menuName": "Create Transfer"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "print_labels",
+      "menuName": "Print Labels"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "reports_stock_history",
+      "menuName": "Stock History V2"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "reports_stock_pivot",
+      "menuName": "Stock Pivot"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "reports_purchase_items",
+      "menuName": "Purchase Items Report"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "import_products",
+      "menuName": "Import Products"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "reports_transfer_export",
+      "menuName": "Transfer Export"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "contacts_suppliers",
+      "menuName": "Suppliers"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "contacts_customers",
+      "menuName": "Customers"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "settings_product",
+      "menuName": "Product Settings"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "import_branch_stock",
+      "menuName": "Import Branch Stock"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "settings_product_brands",
+      "menuName": "Brands"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "settings_product_units",
+      "menuName": "Units"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "csv_id_mapper",
+      "menuName": "CSV ID Mapper"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "sales",
+      "menuName": "Sales"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "categories",
+      "menuName": "Categories"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "products",
+      "menuName": "Products"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "brands",
+      "menuName": "Brands"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "cashier_reports_root",
+      "menuName": "Cashier Reports"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "import_brands",
+      "menuName": "Import Brands"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "units",
+      "menuName": "Units"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "settings_product_categories",
+      "menuName": "Categories"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "warranties",
+      "menuName": "Warranties"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "bulk_reorder_settings",
+      "menuName": "Bulk Reorder Settings"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "inventory_management",
+      "menuName": "Inventory Management"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "simple_price_editor",
+      "menuName": "Price Editor"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "pricing_management",
+      "menuName": "Price Editor"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "bulk_price_editor",
+      "menuName": "Legacy Bulk Editor"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "stock_transfers",
+      "menuName": "Stock Transfers"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "customers",
+      "menuName": "Customers"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "sales_today_report",
+      "menuName": "Sales Today"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "employee_schedules",
+      "menuName": "Employee Schedules"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "attendance_records",
+      "menuName": "Attendance Records"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "leave_requests",
+      "menuName": "Leave Requests"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "analytics_dashboard_v2",
+      "menuName": "Analytics Dashboard V2"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "analytics_dashboard_v3",
+      "menuName": "Analytics Dashboard V3"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "dashboard_v4",
+      "menuName": "Dashboard V4"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "my_profile",
+      "menuName": "My Profile"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "pricing_settings",
+      "menuName": "Pricing Settings"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "cashier_sales_today",
+      "menuName": "Sales Today"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "price_comparison",
+      "menuName": "Price Comparison"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "cost_audit",
+      "menuName": "Cost Audit"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "list_products",
+      "menuName": "List Products"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "purchase_orders",
+      "menuName": "Purchase Orders"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "list_products_v2",
+      "menuName": "List Products V2"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "goods_received",
+      "menuName": "Goods Received (GRN)"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "serial_number_lookup",
+      "menuName": "Serial Number Lookup"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "purchases",
+      "menuName": "Purchases"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "reorder_suggestions",
+      "menuName": "Reorder Suggestions"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "accounts_payable",
+      "menuName": "Accounts Payable"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "returns_management",
+      "menuName": "Returns Management"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "payments",
+      "menuName": "Payments"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "suppliers",
+      "menuName": "Suppliers"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "banks",
+      "menuName": "Banks"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "expenses",
+      "menuName": "Expenses"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "bank_transactions",
+      "menuName": "Bank Transactions"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "reports",
+      "menuName": "Reports"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "post_dated_cheques",
+      "menuName": "Post-Dated Cheques"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "settings",
+      "menuName": "Settings"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "all_transfers",
+      "menuName": "All Transfers"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "add_product",
+      "menuName": "Add Product"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "create_transfer",
+      "menuName": "Create Transfer"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "my_transfers_report",
+      "menuName": "My Transfers"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "my_received_transfers_report",
+      "menuName": "My Received Transfers"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "customer_returns",
+      "menuName": "Customer Returns"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "purchase_returns",
+      "menuName": "Purchase Returns"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "supplier_returns",
+      "menuName": "Supplier Returns"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "all_customers",
+      "menuName": "All Customers"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "import_customers",
+      "menuName": "Import Customers"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "all_suppliers",
+      "menuName": "All Suppliers"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "import_suppliers",
+      "menuName": "Import Suppliers"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "all_expenses",
+      "menuName": "All Expenses"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "expense_categories",
+      "menuName": "Expense Categories"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "all_reports_hub",
+      "menuName": "All Reports Hub"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "sales_reports",
+      "menuName": "Sales Reports"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "cashier_reports",
+      "menuName": "Cashier Reports"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "purchase_reports",
+      "menuName": "Purchase Reports"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "inventory_reports",
+      "menuName": "Inventory Reports"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "transfer_reports",
+      "menuName": "Transfer Reports"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "financial_reports",
+      "menuName": "Financial Reports"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "compliance_reports",
+      "menuName": "Compliance Reports"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "security_audit",
+      "menuName": "Security & Audit"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "hr_reports",
+      "menuName": "HR Reports"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "location_change_requests",
+      "menuName": "Location Change Requests"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "technical_dashboard",
+      "menuName": "Dashboard"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "warranty_claims",
+      "menuName": "Warranty Claims"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "job_orders",
+      "menuName": "Job Orders"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "technical_serial_lookup",
+      "menuName": "Serial Number Lookup"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "technicians",
+      "menuName": "Technicians"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "service_types",
+      "menuName": "Service Types"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "service_payments",
+      "menuName": "Service Payments"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "technical_reports",
+      "menuName": "Reports"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "all_branch_stock",
+      "menuName": "All Branch Stock"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "branch_stock_pivot",
+      "menuName": "Branch Stock Pivot"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "roles_permissions",
+      "menuName": "Roles & Permissions"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "business_locations",
+      "menuName": "Business Locations"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "announcements",
+      "menuName": "Announcements"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "login_history",
+      "menuName": "Login History"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "active_users",
+      "menuName": "Active Users Monitor"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "business_settings",
+      "menuName": "Business Settings"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "printers",
+      "menuName": "Printers"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "invoice_settings",
+      "menuName": "Invoice Settings"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "barcode_settings",
+      "menuName": "Barcode Settings"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "sod_rules",
+      "menuName": "SOD Rules (Separation of Duties)"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "tax_rates",
+      "menuName": "Tax Rates"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "menu_management",
+      "menuName": "Menu Management"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "sales_history",
+      "menuName": "Sales History"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "sales_per_item",
+      "menuName": "Sales Per Item"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "sales_per_cashier",
+      "menuName": "Sales Per Cashier"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "hourly_sales_breakdown",
+      "menuName": "Hourly Sales Breakdown"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "discount_analysis",
+      "menuName": "Discount Analysis"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "void_refund_analysis",
+      "menuName": "Void & Refund Analysis"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "cashier_sales_today_report",
+      "menuName": "Sales Today (Cashier)"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "cashier_sales_history",
+      "menuName": "Sales History (Cashier)"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "cashier_invoice_details",
+      "menuName": "Sales Invoice Details (Cashier)"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "cashier_sales_per_item",
+      "menuName": "Sales Per Item (Cashier)"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "purchase_analytics",
+      "menuName": "Purchase Analytics"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "purchase_trends",
+      "menuName": "Purchase Trends"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "purchase_items_report",
+      "menuName": "Purchase Items Report"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "products_suppliers_report",
+      "menuName": "Products-Suppliers Report"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "stock_alert_report",
+      "menuName": "Stock Alert Report"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "historical_inventory",
+      "menuName": "Historical Inventory"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "inventory_valuation",
+      "menuName": "Inventory Valuation"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "stock_history_v2",
+      "menuName": "Stock History V2"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "stock_reconciliation",
+      "menuName": "Stock Reconciliation"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "transfers_report",
+      "menuName": "Transfers Report"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "transfer_trends",
+      "menuName": "Transfer Trends"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "transfers_per_item",
+      "menuName": "Transfers per Item"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "profit_loss_report",
+      "menuName": "Profit / Loss Report"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "purchase_sale_report",
+      "menuName": "Purchase & Sale Report"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "profitability_cogs",
+      "menuName": "Profitability & COGS"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "net_profit_report",
+      "menuName": "Net Profit Report"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "cash_in_out_report",
+      "menuName": "Cash In/Out Report"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "unpaid_invoices",
+      "menuName": "Unpaid Invoices"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "reports",
+      "menuName": "Reports"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "contacts",
+      "menuName": "Contacts"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "transfers",
+      "menuName": "Stock Transfers"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "products_list",
+      "menuName": "List Products"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "products_add",
+      "menuName": "Add Product"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "products_print_labels",
+      "menuName": "Print Labels"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "dashboard",
+      "menuName": "Dashboard"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "purchases_list",
+      "menuName": "List Purchases"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "sales_pos",
+      "menuName": "POS"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "transfers_list",
+      "menuName": "List Transfers"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "reports_stock_history",
+      "menuName": "Stock History V2"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "reports_stock_pivot",
+      "menuName": "Stock Pivot"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "reports_purchase_items",
+      "menuName": "Purchase Items Report"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "reports_transfer_export",
+      "menuName": "Transfer Export"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "contacts_suppliers",
+      "menuName": "Suppliers"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "contacts_customers",
+      "menuName": "Customers"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "settings_business",
+      "menuName": "Business Settings"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "settings_locations",
+      "menuName": "Business Locations"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "settings_tax_rates",
+      "menuName": "Tax Rates"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "settings_product",
+      "menuName": "Product Settings"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "settings_product_brands",
+      "menuName": "Brands"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "settings_product_units",
+      "menuName": "Units"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "settings_user_management",
+      "menuName": "User Management"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "settings_users",
+      "menuName": "Users"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "settings_roles",
+      "menuName": "Roles"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "settings_menu_permissions",
+      "menuName": "Menu Permissions"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "purchases",
+      "menuName": "Purchases"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "products",
+      "menuName": "Products"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "list_products_v2",
+      "menuName": "List Products V2"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "add_product",
+      "menuName": "Add Product"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "add_product_v2",
+      "menuName": "Add Product V2"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "all_branch_stock",
+      "menuName": "All Branch Stock"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "branch_stock_pivot",
+      "menuName": "Branch Stock Pivot"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "branch_stock_pivot_v2",
+      "menuName": "Branch Stock Pivot V2"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "inventory_corrections",
+      "menuName": "Inventory Corrections"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "print_labels",
+      "menuName": "Print Labels"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "categories",
+      "menuName": "Categories"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "brands",
+      "menuName": "Brands"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "units",
+      "menuName": "Units"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "settings_product_categories",
+      "menuName": "Categories"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "customer_payments",
+      "menuName": "Customer Payments"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "product_purchase_history",
+      "menuName": "Product Purchase History"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "purchase_returns_report",
+      "menuName": "Purchase Returns Report"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "returns_analysis",
+      "menuName": "Returns Analysis"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "expense_reports_parent",
+      "menuName": "Expense Reports"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "income_statement",
+      "menuName": "Income Statement"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "trial_balance",
+      "menuName": "Trial Balance"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "general_ledger",
+      "menuName": "General Ledger"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "users",
+      "menuName": "Users"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "gl_journal_entries",
+      "menuName": "GL Journal Entries"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "bir_daily_sales_summary",
+      "menuName": "BIR Daily Sales Summary"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "tax_report",
+      "menuName": "Tax Report"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "audit_trail_report",
+      "menuName": "Audit Trail Report"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "attendance_report",
+      "menuName": "Attendance Report"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "technician_performance",
+      "menuName": "Technician Performance"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "service_analytics",
+      "menuName": "Service Analytics"
+    },
+    {
+      "roleId": 1,
+      "roleName": "Super Admin",
+      "businessId": 1,
+      "menuKey": "warranty_claims_report",
+      "menuName": "Warranty Claims Report"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "inventory_valuation_history",
+      "menuName": "Inventory Valuation History"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "dashboard",
+      "menuName": "Dashboard"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "analytics_dashboard_v1",
+      "menuName": "Analytics Dashboard V1"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "add_product_v2",
+      "menuName": "Add Product V2"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "import_categories",
+      "menuName": "Import Categories"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "clock_in_out",
+      "menuName": "Clock In/Out"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "balance_sheet",
+      "menuName": "Balance Sheet"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "schedule_login_security",
+      "menuName": "Schedule Login Security"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "cashier_reports_root",
+      "menuName": "Cashier Reports"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "pos_sales",
+      "menuName": "POS & Sales"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "inventory_management",
+      "menuName": "Inventory Management"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "pricing_management",
+      "menuName": "Price Editor"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "stock_transfers",
+      "menuName": "Stock Transfers"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "customers",
+      "menuName": "Customers"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "employee_schedules",
+      "menuName": "Employee Schedules"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "attendance_records",
+      "menuName": "Attendance Records"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "leave_requests",
+      "menuName": "Leave Requests"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "open_shifts",
+      "menuName": "Open Shifts Monitor"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "inactivity_timeout",
+      "menuName": "Inactivity Timeout"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "menu_permissions",
+      "menuName": "Menu Permissions"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "sales_journal",
+      "menuName": "Sales Journal"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "cashier_sales_journal",
+      "menuName": "Sales Journal (Cashier)"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "fix_soft_deleted_variations",
+      "menuName": "Fix Soft Deleted Variations"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "analytics_dashboard_v2",
+      "menuName": "Analytics Dashboard V2"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "analytics_dashboard_v3",
+      "menuName": "Analytics Dashboard V3"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "dashboard_v4",
+      "menuName": "Dashboard V4"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "ai_assistant",
+      "menuName": "AI Assistant"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "help_center",
+      "menuName": "Help Center"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "notifications",
+      "menuName": "Notifications"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "my_profile",
+      "menuName": "My Profile"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "cashier_sales_today",
+      "menuName": "Sales Today"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "point_of_sale",
+      "menuName": "Point of Sale"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "begin_shift",
+      "menuName": "Begin Shift"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "close_shift",
+      "menuName": "Close Shift"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "x_reading",
+      "menuName": "X Reading"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "z_reading",
+      "menuName": "Z Reading"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "readings_history",
+      "menuName": "Readings History"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "sales_list",
+      "menuName": "Sales List"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "list_products",
+      "menuName": "List Products"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "list_products_v2",
+      "menuName": "List Products V2"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "purchases",
+      "menuName": "Purchases"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "returns_management",
+      "menuName": "Returns Management"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "suppliers",
+      "menuName": "Suppliers"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "expenses",
+      "menuName": "Expenses"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "reports",
+      "menuName": "Reports"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "hr_attendance",
+      "menuName": "HR & Attendance"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "technical_services",
+      "menuName": "Technical Services"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "accounting",
+      "menuName": "Accounting"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "administration",
+      "menuName": "Administration"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "settings",
+      "menuName": "Settings"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "add_product",
+      "menuName": "Add Product"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "serial_number_import",
+      "menuName": "Serial Number Import"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "payment_collections",
+      "menuName": "Payment Collections"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "purchase_reports_hub",
+      "menuName": "Purchase Report Hub"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "sales_today",
+      "menuName": "Sales Today"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "sales_report",
+      "menuName": "Sales Invoice Details"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "stock_history_v3",
+      "menuName": "Stock History V3 (Admin)"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "expense_analytics",
+      "menuName": "Expense Analytics"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "all_expenses_report",
+      "menuName": "All Expenses Report"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "location_pricing",
+      "menuName": "Location Pricing (Admin)"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "my_location_pricing",
+      "menuName": "My Location Pricing"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "accounts_receivable",
+      "menuName": "Accounts Receivable"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "receivable_payments",
+      "menuName": "Receivable Payments"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "branch_stock_pivot_v2",
+      "menuName": "Branch Stock Pivot V2"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "inventory_corrections",
+      "menuName": "Inventory Corrections"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "physical_inventory",
+      "menuName": "Physical Inventory"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "print_labels",
+      "menuName": "Print Labels"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "import_products",
+      "menuName": "Import Products"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "import_branch_stock",
+      "menuName": "Import Branch Stock"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "csv_id_mapper",
+      "menuName": "CSV ID Mapper"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "categories",
+      "menuName": "Categories"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "brands",
+      "menuName": "Brands"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "import_brands",
+      "menuName": "Import Brands"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "units",
+      "menuName": "Units"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "warranties",
+      "menuName": "Warranties"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "bulk_reorder_settings",
+      "menuName": "Bulk Reorder Settings"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "simple_price_editor",
+      "menuName": "Price Editor"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "bulk_price_editor",
+      "menuName": "Legacy Bulk Editor"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "pricing_settings",
+      "menuName": "Pricing Settings"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "price_comparison",
+      "menuName": "Price Comparison"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "cost_audit",
+      "menuName": "Cost Audit"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "purchase_orders",
+      "menuName": "Purchase Orders"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "goods_received",
+      "menuName": "Goods Received (GRN)"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "serial_number_lookup",
+      "menuName": "Serial Number Lookup"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "reorder_suggestions",
+      "menuName": "Reorder Suggestions"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "accounts_payable",
+      "menuName": "Accounts Payable"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "payments",
+      "menuName": "Payments"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "banks",
+      "menuName": "Banks"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "bank_transactions",
+      "menuName": "Bank Transactions"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "post_dated_cheques",
+      "menuName": "Post-Dated Cheques"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "all_transfers",
+      "menuName": "All Transfers"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "create_transfer",
+      "menuName": "Create Transfer"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "my_transfers_report",
+      "menuName": "My Transfers"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "my_received_transfers_report",
+      "menuName": "My Received Transfers"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "customer_returns",
+      "menuName": "Customer Returns"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "purchase_returns",
+      "menuName": "Purchase Returns"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "supplier_returns",
+      "menuName": "Supplier Returns"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "all_customers",
+      "menuName": "All Customers"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "import_customers",
+      "menuName": "Import Customers"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "all_suppliers",
+      "menuName": "All Suppliers"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "import_suppliers",
+      "menuName": "Import Suppliers"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "all_expenses",
+      "menuName": "All Expenses"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "expense_categories",
+      "menuName": "Expense Categories"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "all_reports_hub",
+      "menuName": "All Reports Hub"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "sales_reports",
+      "menuName": "Sales Reports"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "cashier_reports",
+      "menuName": "Cashier Reports"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "purchase_reports",
+      "menuName": "Purchase Reports"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "inventory_reports",
+      "menuName": "Inventory Reports"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "transfer_reports",
+      "menuName": "Transfer Reports"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "financial_reports",
+      "menuName": "Financial Reports"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "compliance_reports",
+      "menuName": "Compliance Reports"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "security_audit",
+      "menuName": "Security & Audit"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "hr_reports",
+      "menuName": "HR Reports"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "location_change_requests",
+      "menuName": "Location Change Requests"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "technical_dashboard",
+      "menuName": "Dashboard"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "warranty_claims",
+      "menuName": "Warranty Claims"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "job_orders",
+      "menuName": "Job Orders"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "technical_serial_lookup",
+      "menuName": "Serial Number Lookup"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "technicians",
+      "menuName": "Technicians"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "service_types",
+      "menuName": "Service Types"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "service_payments",
+      "menuName": "Service Payments"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "technical_reports",
+      "menuName": "Reports"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "all_branch_stock",
+      "menuName": "All Branch Stock"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "branch_stock_pivot",
+      "menuName": "Branch Stock Pivot"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "roles_permissions",
+      "menuName": "Roles & Permissions"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "business_locations",
+      "menuName": "Business Locations"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "announcements",
+      "menuName": "Announcements"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "login_history",
+      "menuName": "Login History"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "active_users",
+      "menuName": "Active Users Monitor"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "business_settings",
+      "menuName": "Business Settings"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "printers",
+      "menuName": "Printers"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "invoice_settings",
+      "menuName": "Invoice Settings"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "barcode_settings",
+      "menuName": "Barcode Settings"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "sod_rules",
+      "menuName": "SOD Rules (Separation of Duties)"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "tax_rates",
+      "menuName": "Tax Rates"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "menu_management",
+      "menuName": "Menu Management"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "sales_history",
+      "menuName": "Sales History"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "sales_per_item",
+      "menuName": "Sales Per Item"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "sales_per_cashier",
+      "menuName": "Sales Per Cashier"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "hourly_sales_breakdown",
+      "menuName": "Hourly Sales Breakdown"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "discount_analysis",
+      "menuName": "Discount Analysis"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "void_refund_analysis",
+      "menuName": "Void & Refund Analysis"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "cashier_sales_today_report",
+      "menuName": "Sales Today (Cashier)"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "cashier_sales_history",
+      "menuName": "Sales History (Cashier)"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "cashier_invoice_details",
+      "menuName": "Sales Invoice Details (Cashier)"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "cashier_sales_per_item",
+      "menuName": "Sales Per Item (Cashier)"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "purchase_analytics",
+      "menuName": "Purchase Analytics"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "purchase_trends",
+      "menuName": "Purchase Trends"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "purchase_items_report",
+      "menuName": "Purchase Items Report"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "products_suppliers_report",
+      "menuName": "Products-Suppliers Report"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "stock_alert_report",
+      "menuName": "Stock Alert Report"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "historical_inventory",
+      "menuName": "Historical Inventory"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "inventory_valuation",
+      "menuName": "Inventory Valuation"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "stock_history_v2",
+      "menuName": "Stock History V2"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "stock_reconciliation",
+      "menuName": "Stock Reconciliation"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "transfers_report",
+      "menuName": "Transfers Report"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "transfer_trends",
+      "menuName": "Transfer Trends"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "transfers_per_item",
+      "menuName": "Transfers per Item"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "profit_loss_report",
+      "menuName": "Profit / Loss Report"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "purchase_sale_report",
+      "menuName": "Purchase & Sale Report"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "profitability_cogs",
+      "menuName": "Profitability & COGS"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "net_profit_report",
+      "menuName": "Net Profit Report"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "cash_in_out_report",
+      "menuName": "Cash In/Out Report"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "unpaid_invoices",
+      "menuName": "Unpaid Invoices"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "customer_payments",
+      "menuName": "Customer Payments"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "product_purchase_history",
+      "menuName": "Product Purchase History"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "purchase_returns_report",
+      "menuName": "Purchase Returns Report"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "returns_analysis",
+      "menuName": "Returns Analysis"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "expense_reports_parent",
+      "menuName": "Expense Reports"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "income_statement",
+      "menuName": "Income Statement"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "trial_balance",
+      "menuName": "Trial Balance"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "general_ledger",
+      "menuName": "General Ledger"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "users",
+      "menuName": "Users"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "gl_journal_entries",
+      "menuName": "GL Journal Entries"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "bir_daily_sales_summary",
+      "menuName": "BIR Daily Sales Summary"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "tax_report",
+      "menuName": "Tax Report"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "audit_trail_report",
+      "menuName": "Audit Trail Report"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "attendance_report",
+      "menuName": "Attendance Report"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "technician_performance",
+      "menuName": "Technician Performance"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "service_analytics",
+      "menuName": "Service Analytics"
+    },
+    {
+      "roleId": 24,
+      "roleName": "System Administrator",
+      "businessId": 1,
+      "menuKey": "warranty_claims_report",
+      "menuName": "Warranty Claims Report"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "inventory_valuation_history",
+      "menuName": "Inventory Valuation History"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "dashboard",
+      "menuName": "Dashboard"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "analytics_dashboard_v1",
+      "menuName": "Analytics Dashboard V1"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "add_product_v2",
+      "menuName": "Add Product V2"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "import_categories",
+      "menuName": "Import Categories"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "clock_in_out",
+      "menuName": "Clock In/Out"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "balance_sheet",
+      "menuName": "Balance Sheet"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "schedule_login_security",
+      "menuName": "Schedule Login Security"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "cashier_reports_root",
+      "menuName": "Cashier Reports"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "pos_sales",
+      "menuName": "POS & Sales"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "inventory_management",
+      "menuName": "Inventory Management"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "pricing_management",
+      "menuName": "Price Editor"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "stock_transfers",
+      "menuName": "Stock Transfers"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "customers",
+      "menuName": "Customers"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "employee_schedules",
+      "menuName": "Employee Schedules"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "attendance_records",
+      "menuName": "Attendance Records"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "leave_requests",
+      "menuName": "Leave Requests"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "open_shifts",
+      "menuName": "Open Shifts Monitor"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "inactivity_timeout",
+      "menuName": "Inactivity Timeout"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "menu_permissions",
+      "menuName": "Menu Permissions"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "sales_journal",
+      "menuName": "Sales Journal"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "cashier_sales_journal",
+      "menuName": "Sales Journal (Cashier)"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "fix_soft_deleted_variations",
+      "menuName": "Fix Soft Deleted Variations"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "analytics_dashboard_v2",
+      "menuName": "Analytics Dashboard V2"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "analytics_dashboard_v3",
+      "menuName": "Analytics Dashboard V3"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "dashboard_v4",
+      "menuName": "Dashboard V4"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "ai_assistant",
+      "menuName": "AI Assistant"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "help_center",
+      "menuName": "Help Center"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "notifications",
+      "menuName": "Notifications"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "my_profile",
+      "menuName": "My Profile"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "cashier_sales_today",
+      "menuName": "Sales Today"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "point_of_sale",
+      "menuName": "Point of Sale"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "begin_shift",
+      "menuName": "Begin Shift"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "close_shift",
+      "menuName": "Close Shift"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "x_reading",
+      "menuName": "X Reading"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "z_reading",
+      "menuName": "Z Reading"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "readings_history",
+      "menuName": "Readings History"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "sales_list",
+      "menuName": "Sales List"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "list_products",
+      "menuName": "List Products"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "list_products_v2",
+      "menuName": "List Products V2"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "purchases",
+      "menuName": "Purchases"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "returns_management",
+      "menuName": "Returns Management"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "suppliers",
+      "menuName": "Suppliers"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "expenses",
+      "menuName": "Expenses"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "reports",
+      "menuName": "Reports"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "hr_attendance",
+      "menuName": "HR & Attendance"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "technical_services",
+      "menuName": "Technical Services"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "accounting",
+      "menuName": "Accounting"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "administration",
+      "menuName": "Administration"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "settings",
+      "menuName": "Settings"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "add_product",
+      "menuName": "Add Product"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "serial_number_import",
+      "menuName": "Serial Number Import"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "payment_collections",
+      "menuName": "Payment Collections"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "purchase_reports_hub",
+      "menuName": "Purchase Report Hub"
+    },
+    {
+      "roleId": 69,
+      "roleName": "Branch Manager",
+      "businessId": 1,
+      "menuKey": "location_pricing",
+      "menuName": "Location Pricing (Admin)"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "sales_today",
+      "menuName": "Sales Today"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "sales_report",
+      "menuName": "Sales Invoice Details"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "stock_history_v3",
+      "menuName": "Stock History V3 (Admin)"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "expense_analytics",
+      "menuName": "Expense Analytics"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "all_expenses_report",
+      "menuName": "All Expenses Report"
+    },
+    {
+      "roleId": 69,
+      "roleName": "Branch Manager",
+      "businessId": 1,
+      "menuKey": "my_location_pricing",
+      "menuName": "My Location Pricing"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "location_pricing",
+      "menuName": "Location Pricing (Admin)"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "my_location_pricing",
+      "menuName": "My Location Pricing"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "accounts_receivable",
+      "menuName": "Accounts Receivable"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "receivable_payments",
+      "menuName": "Receivable Payments"
+    },
+    {
+      "roleId": 91,
+      "roleName": "Multi-Location Price Operator",
+      "businessId": 1,
+      "menuKey": "location_pricing",
+      "menuName": "Location Pricing (Admin)"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "branch_stock_pivot_v2",
+      "menuName": "Branch Stock Pivot V2"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "inventory_corrections",
+      "menuName": "Inventory Corrections"
+    },
+    {
+      "roleId": 91,
+      "roleName": "Multi-Location Price Operator",
+      "businessId": 1,
+      "menuKey": "my_location_pricing",
+      "menuName": "My Location Pricing"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "physical_inventory",
+      "menuName": "Physical Inventory"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "print_labels",
+      "menuName": "Print Labels"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "import_products",
+      "menuName": "Import Products"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "import_branch_stock",
+      "menuName": "Import Branch Stock"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "csv_id_mapper",
+      "menuName": "CSV ID Mapper"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "categories",
+      "menuName": "Categories"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "brands",
+      "menuName": "Brands"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "inventory_management",
+      "menuName": "Inventory Management"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "import_brands",
+      "menuName": "Import Brands"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "units",
+      "menuName": "Units"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "pricing_management",
+      "menuName": "Price Editor"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "warranties",
+      "menuName": "Warranties"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "bulk_reorder_settings",
+      "menuName": "Bulk Reorder Settings"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "simple_price_editor",
+      "menuName": "Price Editor"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "bulk_price_editor",
+      "menuName": "Legacy Bulk Editor"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "pricing_settings",
+      "menuName": "Pricing Settings"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "price_comparison",
+      "menuName": "Price Comparison"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "cost_audit",
+      "menuName": "Cost Audit"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "dashboard",
+      "menuName": "Dashboard"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "products",
+      "menuName": "Products"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "purchases",
+      "menuName": "Purchases"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "reports",
+      "menuName": "Reports"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "purchase_orders",
+      "menuName": "Purchase Orders"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "z_reading",
+      "menuName": "Z Reading"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "sales_reports",
+      "menuName": "Sales Reports"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "goods_received",
+      "menuName": "Goods Received (GRN)"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "pos_sales",
+      "menuName": "POS & Sales"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "stock_transfers",
+      "menuName": "Stock Transfers"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "purchase_reports",
+      "menuName": "Purchase Reports"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "inventory_reports",
+      "menuName": "Inventory Reports"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "transfer_reports",
+      "menuName": "Transfer Reports"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "purchase_items_report",
+      "menuName": "Purchase Items Report"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "serial_number_lookup",
+      "menuName": "Serial Number Lookup"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "reorder_suggestions",
+      "menuName": "Reorder Suggestions"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "accounts_payable",
+      "menuName": "Accounts Payable"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "payments",
+      "menuName": "Payments"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "banks",
+      "menuName": "Banks"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "bank_transactions",
+      "menuName": "Bank Transactions"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "post_dated_cheques",
+      "menuName": "Post-Dated Cheques"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "all_transfers",
+      "menuName": "All Transfers"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "create_transfer",
+      "menuName": "Create Transfer"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "my_transfers_report",
+      "menuName": "My Transfers"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "my_received_transfers_report",
+      "menuName": "My Received Transfers"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "customer_returns",
+      "menuName": "Customer Returns"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "purchase_returns",
+      "menuName": "Purchase Returns"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "supplier_returns",
+      "menuName": "Supplier Returns"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "all_customers",
+      "menuName": "All Customers"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "import_customers",
+      "menuName": "Import Customers"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "all_suppliers",
+      "menuName": "All Suppliers"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "import_suppliers",
+      "menuName": "Import Suppliers"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "all_expenses",
+      "menuName": "All Expenses"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "expense_categories",
+      "menuName": "Expense Categories"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "all_reports_hub",
+      "menuName": "All Reports Hub"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "sales_reports",
+      "menuName": "Sales Reports"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "cashier_reports",
+      "menuName": "Cashier Reports"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "purchase_reports",
+      "menuName": "Purchase Reports"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "inventory_reports",
+      "menuName": "Inventory Reports"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "transfer_reports",
+      "menuName": "Transfer Reports"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "financial_reports",
+      "menuName": "Financial Reports"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "compliance_reports",
+      "menuName": "Compliance Reports"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "security_audit",
+      "menuName": "Security & Audit"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "hr_reports",
+      "menuName": "HR Reports"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "location_change_requests",
+      "menuName": "Location Change Requests"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "technical_dashboard",
+      "menuName": "Dashboard"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "warranty_claims",
+      "menuName": "Warranty Claims"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "job_orders",
+      "menuName": "Job Orders"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "technical_serial_lookup",
+      "menuName": "Serial Number Lookup"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "technicians",
+      "menuName": "Technicians"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "service_types",
+      "menuName": "Service Types"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "service_payments",
+      "menuName": "Service Payments"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "technical_reports",
+      "menuName": "Reports"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "all_branch_stock",
+      "menuName": "All Branch Stock"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "branch_stock_pivot",
+      "menuName": "Branch Stock Pivot"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "roles_permissions",
+      "menuName": "Roles & Permissions"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "business_locations",
+      "menuName": "Business Locations"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "announcements",
+      "menuName": "Announcements"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "login_history",
+      "menuName": "Login History"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "active_users",
+      "menuName": "Active Users Monitor"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "business_settings",
+      "menuName": "Business Settings"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "printers",
+      "menuName": "Printers"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "invoice_settings",
+      "menuName": "Invoice Settings"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "barcode_settings",
+      "menuName": "Barcode Settings"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "sod_rules",
+      "menuName": "SOD Rules (Separation of Duties)"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "tax_rates",
+      "menuName": "Tax Rates"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "menu_management",
+      "menuName": "Menu Management"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "sales_history",
+      "menuName": "Sales History"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "sales_per_item",
+      "menuName": "Sales Per Item"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "sales_per_cashier",
+      "menuName": "Sales Per Cashier"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "hourly_sales_breakdown",
+      "menuName": "Hourly Sales Breakdown"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "discount_analysis",
+      "menuName": "Discount Analysis"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "void_refund_analysis",
+      "menuName": "Void & Refund Analysis"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "cashier_sales_today_report",
+      "menuName": "Sales Today (Cashier)"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "cashier_sales_history",
+      "menuName": "Sales History (Cashier)"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "cashier_invoice_details",
+      "menuName": "Sales Invoice Details (Cashier)"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "cashier_sales_per_item",
+      "menuName": "Sales Per Item (Cashier)"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "purchase_analytics",
+      "menuName": "Purchase Analytics"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "purchase_trends",
+      "menuName": "Purchase Trends"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "purchase_items_report",
+      "menuName": "Purchase Items Report"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "products_suppliers_report",
+      "menuName": "Products-Suppliers Report"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "stock_alert_report",
+      "menuName": "Stock Alert Report"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "historical_inventory",
+      "menuName": "Historical Inventory"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "inventory_valuation",
+      "menuName": "Inventory Valuation"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "stock_history_v2",
+      "menuName": "Stock History V2"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "stock_reconciliation",
+      "menuName": "Stock Reconciliation"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "transfers_report",
+      "menuName": "Transfers Report"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "transfer_trends",
+      "menuName": "Transfer Trends"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "transfers_per_item",
+      "menuName": "Transfers per Item"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "profit_loss_report",
+      "menuName": "Profit / Loss Report"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "purchase_sale_report",
+      "menuName": "Purchase & Sale Report"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "profitability_cogs",
+      "menuName": "Profitability & COGS"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "net_profit_report",
+      "menuName": "Net Profit Report"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "cash_in_out_report",
+      "menuName": "Cash In/Out Report"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "unpaid_invoices",
+      "menuName": "Unpaid Invoices"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "customer_payments",
+      "menuName": "Customer Payments"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "dashboard",
+      "menuName": "Dashboard"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "payment_collections",
+      "menuName": "Payment Collections"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "stock_transfers",
+      "menuName": "Stock Transfers"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "purchase_reports_hub",
+      "menuName": "Purchase Report Hub"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "products",
+      "menuName": "Products"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "sales_today",
+      "menuName": "Sales Today"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "returns_management",
+      "menuName": "Returns Management"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "transfers",
+      "menuName": "Stock Transfers"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "customers",
+      "menuName": "Customers"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "suppliers",
+      "menuName": "Suppliers"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "expenses",
+      "menuName": "Expenses"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "my_profile",
+      "menuName": "My Profile"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "cashier_sales_today",
+      "menuName": "Sales Today"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "list_products",
+      "menuName": "List Products"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "simple_price_editor",
+      "menuName": "Price Editor"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "price_comparison",
+      "menuName": "Price Comparison"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "purchase_orders",
+      "menuName": "Purchase Orders"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "goods_received",
+      "menuName": "Goods Received (GRN)"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "serial_number_lookup",
+      "menuName": "Serial Number Lookup"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "accounts_payable",
+      "menuName": "Accounts Payable"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "payments",
+      "menuName": "Payments"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "banks",
+      "menuName": "Banks"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "all_transfers",
+      "menuName": "All Transfers"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "purchase_returns",
+      "menuName": "Purchase Returns"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "supplier_returns",
+      "menuName": "Supplier Returns"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "all_customers",
+      "menuName": "All Customers"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "all_suppliers",
+      "menuName": "All Suppliers"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "all_expenses",
+      "menuName": "All Expenses"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "expense_categories",
+      "menuName": "Expense Categories"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "all_reports_hub",
+      "menuName": "All Reports Hub"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "sales_reports",
+      "menuName": "Sales Reports"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "purchase_reports",
+      "menuName": "Purchase Reports"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "inventory_reports",
+      "menuName": "Inventory Reports"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "transfer_reports",
+      "menuName": "Transfer Reports"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "security_audit",
+      "menuName": "Security & Audit"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "clock_in_out",
+      "menuName": "Clock In/Out"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "attendance_records",
+      "menuName": "Attendance Records"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "leave_requests",
+      "menuName": "Leave Requests"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "location_change_requests",
+      "menuName": "Location Change Requests"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "technical_dashboard",
+      "menuName": "Dashboard"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "warranty_claims",
+      "menuName": "Warranty Claims"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "job_orders",
+      "menuName": "Job Orders"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "technical_serial_lookup",
+      "menuName": "Serial Number Lookup"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "technicians",
+      "menuName": "Technicians"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "service_types",
+      "menuName": "Service Types"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "service_payments",
+      "menuName": "Service Payments"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "technical_reports",
+      "menuName": "Reports"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "balance_sheet",
+      "menuName": "Balance Sheet"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "income_statement",
+      "menuName": "Income Statement"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "trial_balance",
+      "menuName": "Trial Balance"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "general_ledger",
+      "menuName": "General Ledger"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "users",
+      "menuName": "Users"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "roles_permissions",
+      "menuName": "Roles & Permissions"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "business_locations",
+      "menuName": "Business Locations"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "announcements",
+      "menuName": "Announcements"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "login_history",
+      "menuName": "Login History"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "business_settings",
+      "menuName": "Business Settings"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "printers",
+      "menuName": "Printers"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "invoice_settings",
+      "menuName": "Invoice Settings"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "barcode_settings",
+      "menuName": "Barcode Settings"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "sod_rules",
+      "menuName": "SOD Rules (Separation of Duties)"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "inactivity_timeout",
+      "menuName": "Inactivity Timeout"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "tax_rates",
+      "menuName": "Tax Rates"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "menu_permissions",
+      "menuName": "Menu Permissions"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "menu_management",
+      "menuName": "Menu Management"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "sales_today_report",
+      "menuName": "Sales Today"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "sales_history",
+      "menuName": "Sales History"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "sales_invoice_details",
+      "menuName": "Sales Invoice Details"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "sales_journal",
+      "menuName": "Sales Journal"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "sales_per_item",
+      "menuName": "Sales Per Item"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "purchase_analytics",
+      "menuName": "Purchase Analytics"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "purchase_trends",
+      "menuName": "Purchase Trends"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "purchase_items_report",
+      "menuName": "Purchase Items Report"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "products_suppliers_report",
+      "menuName": "Products-Suppliers Report"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "stock_alert_report",
+      "menuName": "Stock Alert Report"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "historical_inventory",
+      "menuName": "Historical Inventory"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "inventory_valuation",
+      "menuName": "Inventory Valuation"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "inventory_valuation_history",
+      "menuName": "Inventory Valuation History"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "stock_history_v3_admin",
+      "menuName": "Stock History V3 (Admin)"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "transfers_report",
+      "menuName": "Transfers Report"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "transfer_trends",
+      "menuName": "Transfer Trends"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "transfers_per_item",
+      "menuName": "Transfers per Item"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "profit_loss_report",
+      "menuName": "Profit / Loss Report"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "employee_schedules",
+      "menuName": "Employee Schedules"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "schedule_login_security",
+      "menuName": "Schedule Login Security"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "purchase_sale_report",
+      "menuName": "Purchase & Sale Report"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "profitability_cogs",
+      "menuName": "Profitability & COGS"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "net_profit_report",
+      "menuName": "Net Profit Report"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "cash_in_out_report",
+      "menuName": "Cash In/Out Report"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "unpaid_invoices",
+      "menuName": "Unpaid Invoices"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "customer_payments",
+      "menuName": "Customer Payments"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "product_purchase_history",
+      "menuName": "Product Purchase History"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "purchase_returns_report",
+      "menuName": "Purchase Returns Report"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "expense_reports_parent",
+      "menuName": "Expense Reports"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "audit_trail_report",
+      "menuName": "Audit Trail Report"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "technician_performance",
+      "menuName": "Technician Performance"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "service_analytics",
+      "menuName": "Service Analytics"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "warranty_claims_report",
+      "menuName": "Warranty Claims Report"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "purchase_reports_hub",
+      "menuName": "Purchase Report Hub"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "sales_today",
+      "menuName": "Sales Today"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "sales_report",
+      "menuName": "Sales Invoice Details"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "stock_history_v3",
+      "menuName": "Stock History V3 (Admin)"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "expense_analytics",
+      "menuName": "Expense Analytics"
+    },
+    {
+      "roleId": 94,
+      "roleName": "\"Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "all_expenses_report",
+      "menuName": "All Expenses Report"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "reports",
+      "menuName": "Reports"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "products_list",
+      "menuName": "List Products"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "transfers_list",
+      "menuName": "List Transfers"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "transfers_create",
+      "menuName": "Create Transfer"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "my_transfers_report",
+      "menuName": "My Transfers"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "my_received_transfers_report",
+      "menuName": "My Received Transfers"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "inventory_management",
+      "menuName": "Inventory Management"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "pricing_management",
+      "menuName": "Price Editor"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "stock_transfers",
+      "menuName": "Stock Transfers"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "my_profile",
+      "menuName": "My Profile"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "list_products",
+      "menuName": "List Products"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "price_comparison",
+      "menuName": "Price Comparison"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "all_transfers",
+      "menuName": "All Transfers"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "create_transfer",
+      "menuName": "Create Transfer"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "transfer_reports",
+      "menuName": "Transfer Reports"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "transfers_report",
+      "menuName": "Transfers Report"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "transfer_trends",
+      "menuName": "Transfer Trends"
+    },
+    {
+      "roleId": 36,
+      "roleName": "Transfer Manager",
+      "businessId": 1,
+      "menuKey": "transfers_per_item",
+      "menuName": "Transfers per Item"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "purchases_list",
+      "menuName": "List Purchases"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "purchase_orders",
+      "menuName": "Purchase Orders"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "purchases_add",
+      "menuName": "Add Purchase"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "goods_received",
+      "menuName": "Goods Received (GRN)"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "serial_number_lookup",
+      "menuName": "Serial Number Lookup"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "reorder_suggestions",
+      "menuName": "Reorder Suggestions"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "accounts_payable",
+      "menuName": "Accounts Payable"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "payments",
+      "menuName": "Payments"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "banks",
+      "menuName": "Banks"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "bank_transactions",
+      "menuName": "Bank Transactions"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "post_dated_cheques",
+      "menuName": "Post-Dated Cheques"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "all_transfers",
+      "menuName": "All Transfers"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "create_transfer",
+      "menuName": "Create Transfer"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "my_transfers_report",
+      "menuName": "My Transfers"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "my_received_transfers_report",
+      "menuName": "My Received Transfers"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "point_of_sale",
+      "menuName": "Point of Sale"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "begin_shift",
+      "menuName": "Begin Shift"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "close_shift",
+      "menuName": "Close Shift"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "x_reading",
+      "menuName": "X Reading"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "readings_history",
+      "menuName": "Readings History"
+    },
+    {
+      "roleId": 95,
+      "roleName": "Cross-Location Approver",
+      "businessId": 1,
+      "menuKey": "sales_list",
+      "menuName": "Sales List"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "product_purchase_history",
+      "menuName": "Product Purchase History"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "purchase_returns_report",
+      "menuName": "Purchase Returns Report"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "returns_analysis",
+      "menuName": "Returns Analysis"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "expense_reports_parent",
+      "menuName": "Expense Reports"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "income_statement",
+      "menuName": "Income Statement"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "trial_balance",
+      "menuName": "Trial Balance"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "general_ledger",
+      "menuName": "General Ledger"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "users",
+      "menuName": "Users"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "gl_journal_entries",
+      "menuName": "GL Journal Entries"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "bir_daily_sales_summary",
+      "menuName": "BIR Daily Sales Summary"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "tax_report",
+      "menuName": "Tax Report"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "audit_trail_report",
+      "menuName": "Audit Trail Report"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "attendance_report",
+      "menuName": "Attendance Report"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "technician_performance",
+      "menuName": "Technician Performance"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "service_analytics",
+      "menuName": "Service Analytics"
+    },
+    {
+      "roleId": 93,
+      "roleName": "Admin",
+      "businessId": 1,
+      "menuKey": "warranty_claims_report",
+      "menuName": "Warranty Claims Report"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "sales_report",
+      "menuName": "Sales Invoice Details"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "cashier_sales_today_menu",
+      "menuName": "Sales Today (Cashier)"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "cashier_sales_history_menu",
+      "menuName": "Sales History (Cashier)"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "cashier_sales_report_menu",
+      "menuName": "Sales Invoice Details (Cashier)"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "stock_history_v3",
+      "menuName": "Stock History V3 (Admin)"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "expense_analytics",
+      "menuName": "Expense Analytics"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "all_expenses_report",
+      "menuName": "All Expenses Report"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "accounts_receivable",
+      "menuName": "Accounts Receivable"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "receivable_payments",
+      "menuName": "Receivable Payments"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "branch_stock_pivot_v2",
+      "menuName": "Branch Stock Pivot V2"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "inventory_corrections",
+      "menuName": "Inventory Corrections"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "print_labels",
+      "menuName": "Print Labels"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "categories",
+      "menuName": "Categories"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "brands",
+      "menuName": "Brands"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "units",
+      "menuName": "Units"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "warranties",
+      "menuName": "Warranties"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "simple_price_editor",
+      "menuName": "Price Editor"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "price_comparison",
+      "menuName": "Price Comparison"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "purchase_orders",
+      "menuName": "Purchase Orders"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "goods_received",
+      "menuName": "Goods Received (GRN)"
+    },
+    {
+      "roleId": 2,
+      "roleName": "Branch Admin",
+      "businessId": 1,
+      "menuKey": "login_history",
+      "menuName": "Login History"
+    },
+    {
+      "roleId": 2,
+      "roleName": "Branch Admin",
+      "businessId": 1,
+      "menuKey": "active_users",
+      "menuName": "Active Users Monitor"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "serial_number_lookup",
+      "menuName": "Serial Number Lookup"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "accounts_payable",
+      "menuName": "Accounts Payable"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "payments",
+      "menuName": "Payments"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "banks",
+      "menuName": "Banks"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "all_transfers",
+      "menuName": "All Transfers"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "customer_returns",
+      "menuName": "Customer Returns"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "purchase_returns",
+      "menuName": "Purchase Returns"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "supplier_returns",
+      "menuName": "Supplier Returns"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "all_customers",
+      "menuName": "All Customers"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "all_suppliers",
+      "menuName": "All Suppliers"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "all_expenses",
+      "menuName": "All Expenses"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "expense_categories",
+      "menuName": "Expense Categories"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "all_reports_hub",
+      "menuName": "All Reports Hub"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "sales_reports",
+      "menuName": "Sales Reports"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "cashier_reports",
+      "menuName": "Cashier Reports"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "purchase_reports",
+      "menuName": "Purchase Reports"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "inventory_reports",
+      "menuName": "Inventory Reports"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "transfer_reports",
+      "menuName": "Transfer Reports"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "financial_reports",
+      "menuName": "Financial Reports"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "compliance_reports",
+      "menuName": "Compliance Reports"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "security_audit",
+      "menuName": "Security & Audit"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "hr_reports",
+      "menuName": "HR Reports"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "location_change_requests",
+      "menuName": "Location Change Requests"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "technical_dashboard",
+      "menuName": "Dashboard"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "warranty_claims",
+      "menuName": "Warranty Claims"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "job_orders",
+      "menuName": "Job Orders"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "technical_serial_lookup",
+      "menuName": "Serial Number Lookup"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "technicians",
+      "menuName": "Technicians"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "service_types",
+      "menuName": "Service Types"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "service_payments",
+      "menuName": "Service Payments"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "technical_reports",
+      "menuName": "Reports"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "all_branch_stock",
+      "menuName": "All Branch Stock"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "branch_stock_pivot",
+      "menuName": "Branch Stock Pivot"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "sales_history",
+      "menuName": "Sales History"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "sales_invoice_details",
+      "menuName": "Sales Invoice Details"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "sales_per_item",
+      "menuName": "Sales Per Item"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "sales_per_cashier",
+      "menuName": "Sales Per Cashier"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "purchase_analytics",
+      "menuName": "Purchase Analytics"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "purchase_trends",
+      "menuName": "Purchase Trends"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "purchase_items_report",
+      "menuName": "Purchase Items Report"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "products_suppliers_report",
+      "menuName": "Products-Suppliers Report"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "stock_alert_report",
+      "menuName": "Stock Alert Report"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "historical_inventory",
+      "menuName": "Historical Inventory"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "inventory_valuation",
+      "menuName": "Inventory Valuation"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "stock_history_v2",
+      "menuName": "Stock History V2"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "stock_history_v3_admin",
+      "menuName": "Stock History V3 (Admin)"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "stock_reconciliation",
+      "menuName": "Stock Reconciliation"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "transfers_report",
+      "menuName": "Transfers Report"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "transfer_trends",
+      "menuName": "Transfer Trends"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "transfers_per_item",
+      "menuName": "Transfers per Item"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "profit_loss_report",
+      "menuName": "Profit / Loss Report"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "purchase_sale_report",
+      "menuName": "Purchase & Sale Report"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "profitability_cogs",
+      "menuName": "Profitability & COGS"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "net_profit_report",
+      "menuName": "Net Profit Report"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "cash_in_out_report",
+      "menuName": "Cash In/Out Report"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "unpaid_invoices",
+      "menuName": "Unpaid Invoices"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "customer_payments",
+      "menuName": "Customer Payments"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "product_purchase_history",
+      "menuName": "Product Purchase History"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "purchase_returns_report",
+      "menuName": "Purchase Returns Report"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "returns_analysis",
+      "menuName": "Returns Analysis"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "expense_reports_parent",
+      "menuName": "Expense Reports"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "gl_journal_entries",
+      "menuName": "GL Journal Entries"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "bir_daily_sales_summary",
+      "menuName": "BIR Daily Sales Summary"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "tax_report",
+      "menuName": "Tax Report"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "audit_trail_report",
+      "menuName": "Audit Trail Report"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "attendance_report",
+      "menuName": "Attendance Report"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "technician_performance",
+      "menuName": "Technician Performance"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "service_analytics",
+      "menuName": "Service Analytics"
+    },
+    {
+      "roleId": 8,
+      "roleName": "All Branch Admin",
+      "businessId": 1,
+      "menuKey": "warranty_claims_report",
+      "menuName": "Warranty Claims Report"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "dashboard",
+      "menuName": "Dashboard"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "products",
+      "menuName": "Products"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "sales",
+      "menuName": "Sales"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "reports",
+      "menuName": "Reports"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "contacts",
+      "menuName": "Contacts"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "products_list",
+      "menuName": "List Products"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "contacts_customers",
+      "menuName": "Customers"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "begin_shift",
+      "menuName": "Begin Shift"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "close_shift",
+      "menuName": "Close Shift"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "x_reading",
+      "menuName": "X Reading"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "z_reading",
+      "menuName": "Z Reading"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "readings_history",
+      "menuName": "Readings History"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "all_branch_stock",
+      "menuName": "All Branch Stock"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "all_customers",
+      "menuName": "All Customers"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "all_expenses",
+      "menuName": "All Expenses"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "cashier_reports_root",
+      "menuName": "Cashier Reports"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "pos_sales",
+      "menuName": "POS & Sales"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "inventory_management",
+      "menuName": "Inventory Management"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "pricing_management",
+      "menuName": "Price Editor"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "customers",
+      "menuName": "Customers"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "expenses",
+      "menuName": "Expenses"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "my_profile",
+      "menuName": "My Profile"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "cashier_sales_today",
+      "menuName": "Sales Today"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "point_of_sale",
+      "menuName": "Point of Sale"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "list_products",
+      "menuName": "List Products"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "cashier_reports",
+      "menuName": "Cashier Reports"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "cashier_sales_today_report",
+      "menuName": "Sales Today (Cashier)"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "cashier_sales_history",
+      "menuName": "Sales History (Cashier)"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "cashier_invoice_details",
+      "menuName": "Sales Invoice Details (Cashier)"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "cashier_sales_journal",
+      "menuName": "Sales Journal (Cashier)"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "cashier_sales_per_item",
+      "menuName": "Sales Per Item (Cashier)"
+    },
+    {
+      "roleId": 44,
+      "roleName": "Sales Cashier",
+      "businessId": 1,
+      "menuKey": "my_location_pricing",
+      "menuName": "My Location Pricing"
+    }
+  ],
+  "userMenuPermissions": []
+}

@@ -213,19 +213,11 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
     // If permissions not loaded yet, show all menus (fail-open during loading)
     if (!menuPermissionsLoaded) return true
 
-    // CRITICAL FIX: Check if user has admin roles that should bypass menu permissions
-    // Super Admin, Admin, All Branch Admin, and System Administrator get ALL menus by default
-    const isSuperUser = user?.roles?.some((role: string) =>
-      role === 'Super Admin' ||
-      role === 'System Administrator' ||
-      role === 'Admin' ||
-      role === 'All Branch Admin'
-    )
+    // ONLY Super Admin bypasses menu permissions and gets access to ALL menus
+    const isSuperAdmin = user?.roles?.some((role: string) => role === 'Super Admin')
+    if (isSuperAdmin) return true
 
-    // If user is a super user, they get access to ALL menus regardless of menu permissions
-    if (isSuperUser) return true
-
-    // For non-admin users: if no menu permissions assigned, hide all menus
+    // For all other roles (Admin, All Branch Admin, etc.): if no menu permissions assigned, hide all menus
     if (accessibleMenuKeys.size === 0) return false
 
     // Check if the menu key is in the accessible list

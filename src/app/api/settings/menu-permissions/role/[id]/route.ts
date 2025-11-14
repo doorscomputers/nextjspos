@@ -68,7 +68,8 @@ export async function GET(
       data: {
         roleId: role.id,
         roleName: role.name,
-        accessibleMenuKeys: enabledMenuKeys, // Match user endpoint format
+        enabledMenuKeys: enabledMenuKeys, // Renamed to match UI expectations
+        accessibleMenuKeys: enabledMenuKeys, // Also keep this for backward compatibility
         allMenus
       }
     })
