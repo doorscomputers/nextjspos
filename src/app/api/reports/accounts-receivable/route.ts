@@ -64,8 +64,6 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             name: true,
-            firstName: true,
-            lastName: true,
             email: true,
             mobile: true,
             creditLimit: true,
@@ -141,10 +139,7 @@ export async function GET(request: NextRequest) {
       const customerId = sale.customerId;
       if (!customerId) return; // Skip walk-in sales without customer
 
-      const customerName =
-        sale.customer?.name ||
-        `${sale.customer?.firstName || ""} ${sale.customer?.lastName || ""}`.trim() ||
-        "Unknown Customer";
+      const customerName = sale.customer?.name || "Unknown Customer";
 
       const daysOverdue = Math.floor(
         (new Date().getTime() - new Date(sale.saleDate).getTime()) /
