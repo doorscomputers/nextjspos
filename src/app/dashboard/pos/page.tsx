@@ -1940,10 +1940,23 @@ export default function POSEnhancedPage() {
             💸 Cash Out
           </Button>
           <Button
-            onClick={() => setShowARPaymentDialog(true)}
+            onClick={() => {
+              if (!selectedCustomer) {
+                setError('Please select a customer first')
+                setTimeout(() => setError(''), 3000)
+                return
+              }
+              setShowARPaymentDialog(true)
+            }}
             className="h-12 px-4 bg-yellow-600 hover:bg-yellow-700 text-white relative disabled:opacity-50 disabled:cursor-not-allowed"
-            title={cart.length > 0 ? "Complete or clear current sale first" : "Collect AR Payment"}
-            disabled={cart.length > 0}
+            title={
+              cart.length > 0
+                ? "Complete or clear current sale first"
+                : !selectedCustomer
+                  ? "Select a customer first to collect AR payment"
+                  : `Collect AR Payment from ${selectedCustomer.name}`
+            }
+            disabled={cart.length > 0 || !selectedCustomer}
           >
             💳 AR Pay
             {(() => {
@@ -1954,8 +1967,7 @@ export default function POSEnhancedPage() {
                 </span>
               ) : null
             })()}
-          </Button>
-          <Button onClick={() => { if (cart.length === 0) { setError('Cart is empty'); setTimeout(() => setError(''), 3000); return; } setShowQuotationDialog(true); }} className="h-12 px-4 bg-purple-600 hover:bg-purple-700 text-white">📋 Save</Button>
+          </Button>          <Button onClick={() => { if (cart.length === 0) { setError('Cart is empty'); setTimeout(() => setError(''), 3000); return; } setShowQuotationDialog(true); }} className="h-12 px-4 bg-purple-600 hover:bg-purple-700 text-white">📋 Save</Button>
           <Button
             onClick={() => setShowSavedQuotations(true)}
             className="h-12 px-4 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
@@ -2915,13 +2927,13 @@ export default function POSEnhancedPage() {
             fetchCustomers()
           }}
           shiftId={currentShift.id}
+          preSelectedCustomerId={selectedCustomer?.id}
+          preSelectedCustomerName={selectedCustomer?.name}
           onPaymentSuccess={() => {
             // Refresh today's sales and customer data
             fetchTodaysSales()
             fetchCustomers()
           }}
-          preSelectedCustomerId={selectedCustomer?.id}
-          preSelectedCustomerName={selectedCustomer?.name}
         />
       )}
 

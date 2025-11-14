@@ -183,10 +183,93 @@ export default function ARPaymentCollectionModal({
     }
   }
 
+  // Handle Pay All Invoices
+  const handlePayAllInvoices = async () => {
+    if (filteredInvoices.length === 0) {
+      toast.error('No unpaid invoices to pay')
+      return
+    }
+
+    if (!paymentMethod) {
+      toast.error('Please select a payment method')
+      return
+    }
+
+    const totalBalance = filteredInvoices.reduce((sum, inv) => sum + inv.balance, 0)
+
+    const confirmed = window.confirm(
+      `Pay ALL ${filteredInvoices.length} invoice(s) totaling ${formatCurrency(totalBalance)}?\n\nThis will create ${filteredInvoices.length} payment transaction(s).`
+    )
+
+    if (!confirmed) return
+
+    setProcessing(true)
+    let successCount = 0
+    let failCount = 0
+
+    try {
+      // Process each invoice payment
+      for (const invoice of filteredInvoices) {
+        try {
+          const response = await fetch(`/api/sales/${invoice.id}/payment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              amount: invoice.balance, // Pay full balance
+              paymentMethod,
+              referenceNumber: referenceNumber || null,
+              shiftId,
+            })
+          })
+
+          if (!response.ok) {
+            const data = await response.json()
+            throw new Error(data.error || 'Failed to record payment')
+          }
+
+          successCount++
+        } catch (error) {
+          console.error(`Failed to pay invoice ${invoice.invoiceNumber}:`, error)
+          failCount++
+        }
+      }
+
+      // Show result
+      if (successCount > 0) {
+        toast.success(`Successfully paid ${successCount} invoice(s)!`, {
+          description: failCount > 0 ? `${failCount} payment(s) failed` : `Total: ${formatCurrency(totalBalance)}`
+        })
+      }
+
+      if (failCount > 0 && successCount === 0) {
+        toast.error(`Failed to pay all ${failCount} invoice(s)`)
+      }
+
+      // Refresh invoice list
+      await fetchUnpaidInvoices()
+
+      // Reset form
+      setSelectedInvoice(null)
+      setPaymentAmount('')
+      setReferenceNumber('')
+
+      // Notify parent
+      if (onPaymentSuccess) {
+        onPaymentSuccess()
+      }
+
+    } catch (error: any) {
+      console.error('Error in Pay All:', error)
+      toast.error('Failed to process bulk payment')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className="max-w-[98vw] w-[98vw] max-h-[90vh] overflow-y-auto"
+        className="max-w-[95vw] w-[95vw] max-h-[95vh] overflow-y-auto"
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
@@ -202,16 +285,40 @@ export default function ARPaymentCollectionModal({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Refresh Button */}
-          <div className="flex justify-end">
-            <Button variant="outline" size="sm" onClick={fetchUnpaidInvoices}>
-              Refresh
-            </Button>
+          {/* Action Buttons */}
+          <div className="flex justify-between items-center">
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              {filteredInvoices.length > 0 && (
+                <>
+                  <span className="font-semibold">{filteredInvoices.length}</span> unpaid invoice(s) |{' '}
+                  <span className="font-semibold text-red-600 dark:text-red-400">
+                    {formatCurrency(filteredInvoices.reduce((sum, inv) => sum + inv.balance, 0))}
+                  </span>{' '}
+                  total balance
+                </>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={fetchUnpaidInvoices} disabled={loading || processing}>
+                Refresh
+              </Button>
+              {filteredInvoices.length > 1 && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handlePayAllInvoices}
+                  disabled={loading || processing || !paymentMethod}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  💳 Pay All ({filteredInvoices.length})
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Invoice List */}
           <div className="border rounded-lg overflow-x-auto">
-            <div className="max-h-64 overflow-y-auto min-w-full">
+            <div className="max-h-[500px] overflow-y-auto min-w-full">
               {loading ? (
                 <div className="p-8 text-center text-gray-500">Loading invoices...</div>
               ) : filteredInvoices.length === 0 ? (

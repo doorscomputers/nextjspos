@@ -47,12 +47,12 @@ export async function GET(request: NextRequest) {
     const searchQuery = searchParams.get('search')
 
     // Build where clause for unpaid/partially paid credit sales
-    // Credit sales have status 'pending' when unpaid or partially paid
+    // Include all credit sales (pending or completed) - we'll filter by balance later
     const saleWhere: any = {
       businessId,
       deletedAt: null,
-      status: 'pending', // Changed from 'completed' - pending means unpaid/partially paid
       customerId: { not: null }, // Must have a customer (not walk-in)
+      paymentStatus: 'credit', // Only credit sales (not cash/card sales)
     }
 
     // Location access control
