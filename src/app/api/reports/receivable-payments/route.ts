@@ -59,6 +59,15 @@ export async function GET(request: NextRequest) {
         customerId: {
           not: null, // Must have a customer assigned
         },
+        // Exclude walk-in customers (they don't have credit accounts)
+        customer: {
+          name: {
+            not: {
+              contains: "Walk-in",
+              mode: "insensitive"
+            }
+          }
+        },
         // A credit sale MUST have at least one payment with paymentMethod='credit'
         payments: {
           some: {
