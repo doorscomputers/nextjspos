@@ -35,6 +35,9 @@ export async function GET(request: NextRequest) {
     const saleLocationId = searchParams.get("saleLocationId");
     const cashierId = searchParams.get("cashierId");
 
+    // Convert businessId to integer
+    const businessId = parseInt(String(user.businessId));
+
     // Default to current month if no dates provided
     const today = new Date();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1, 0, 0, 0);
@@ -49,7 +52,7 @@ export async function GET(request: NextRequest) {
     // Build where clause for sale payments
     const where: Prisma.SalePaymentWhereInput = {
       sale: {
-        businessId: user.businessId,
+        businessId: businessId,
         // Don't filter by status - include payments on both 'pending' and 'completed' sales
         // (Partial payments keep sale status as 'pending' until fully paid)
       },
