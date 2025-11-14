@@ -113,9 +113,8 @@ export async function GET(request: NextRequest) {
     // Process each sale
     sales.forEach((sale) => {
       const totalAmount = parseFloat(sale.totalAmount.toString());
-      const totalPaid = sale.payments
-        .filter((p) => p.paymentMethod !== "credit")
-        .reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0);
+      // Use paidAmount from Sale model (already tracks total paid, excluding credit method)
+      const totalPaid = parseFloat(sale.paidAmount?.toString() || "0");
       const balance = totalAmount - totalPaid;
 
       // Skip if balance is zero and not showing zero balances
