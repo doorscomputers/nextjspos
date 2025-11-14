@@ -740,7 +740,7 @@ export default function CloseShiftPage() {
                       <>
                         <Input
                           id="rfidAuth"
-                          type="text"
+                          type="password"
                           className="font-mono text-lg border-red-300 focus:border-red-500"
                           placeholder="Scan RFID card here..."
                           value={rfidCode}
