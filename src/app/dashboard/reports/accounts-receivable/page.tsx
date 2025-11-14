@@ -176,9 +176,9 @@ export default function AccountsReceivablePage() {
     fetchReport();
   };
 
-  // Format currency
+  // Format currency with comma separators
   const formatCurrency = (value: number) => {
-    return `₱${value.toFixed(2)}`;
+    return `₱${value.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   // Cell render for credit limit
