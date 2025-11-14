@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
       // Get payments excluding credit AND within date range (these are actual payments reducing balance)
       const actualPayments = sale.payments.filter(p => {
         if (p.paymentMethod === 'credit') return false // Exclude credit markers
-        const paymentDate = new Date(p.createdAt)
+        const paymentDate = new Date(p.paidAt)  // Use paidAt, not createdAt!
         return paymentDate >= startDate && paymentDate <= endDate // Only payments in date range
       })
 
@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
 
         paymentHistory.push({
           id: payment.id,
-          paymentDate: payment.createdAt.toISOString(),
+          paymentDate: payment.paidAt.toISOString(),  // Use paidAt, not createdAt!
           invoice: {
             id: sale.id,
             invoiceNumber: sale.invoiceNumber,
