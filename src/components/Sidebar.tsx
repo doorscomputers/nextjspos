@@ -1637,11 +1637,14 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
       return items.reduce<MenuItem[]>((acc, item) => {
         const matchesItem = item.name.toLowerCase().includes(lowercaseQuery)
 
-        // Filter children first and check their permissions AND menu permissions
+        // Recursively filter children at ALL levels (supports infinite nesting)
         let filteredChildren: MenuItem[] | undefined = undefined
         if (item.children) {
-          filteredChildren = item.children
-            .filter(child => child.name.toLowerCase().includes(lowercaseQuery))
+          // First, recursively filter the children
+          const recursivelyFilteredChildren = filterMenuItems(item.children, query)
+
+          // Then apply permission checks
+          filteredChildren = recursivelyFilteredChildren
             .filter(child => !child.permission || can(child.permission))
             .filter(child => hasMenuPermissionAccess(child.key))
         }
