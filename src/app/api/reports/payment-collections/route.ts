@@ -109,13 +109,10 @@ export async function GET(request: NextRequest) {
           },
         },
         cashierShift: {
-          include: {
-            location: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
+          select: {
+            id: true,
+            shiftNumber: true,
+            locationId: true,
           },
         },
         collectedByUser: {
@@ -135,8 +132,8 @@ export async function GET(request: NextRequest) {
     // Transform data and identify cross-location collections
     const collectionsList = collections.map((payment) => {
       const saleLocationId = payment.sale.locationId;
-      const collectionLocationId = payment.cashierShift?.location.id || null;
-      const isCrossLocation = saleLocationId !== collectionLocationId;
+      const collectionLocationId = payment.cashierShift?.locationId || null;
+      const isCrossLocation = saleLocationId !== collectionLocationId && collectionLocationId !== null;
 
       const customerName = payment.sale.customer
         ? payment.sale.customer.name || "Walk-in Customer"
@@ -145,6 +142,12 @@ export async function GET(request: NextRequest) {
       const collectorName = payment.collectedByUser
         ? `${payment.collectedByUser.firstName} ${payment.collectedByUser.lastName}`
         : "Unknown";
+
+      // For collection location: if collected at POS (has shiftId), use sale location
+      // Otherwise it was collected online/manually
+      const collectionLocation = payment.cashierShift
+        ? payment.sale.location.name  // Use sale location when collected at POS
+        : "Online/Manual";
 
       return {
         id: payment.id,
@@ -155,7 +158,7 @@ export async function GET(request: NextRequest) {
         customerId: payment.sale.customerId,
         saleLocation: payment.sale.location.name,
         saleLocationId,
-        collectionLocation: payment.cashierShift?.location.name || "Unknown",
+        collectionLocation,
         collectionLocationId,
         isCrossLocation,
         paymentMethod: payment.paymentMethod,
