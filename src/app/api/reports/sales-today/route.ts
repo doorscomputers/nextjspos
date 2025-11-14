@@ -160,19 +160,27 @@ export async function GET(request: NextRequest) {
       sale.payments.forEach((payment) => {
         const method = payment.paymentMethod.toLowerCase()
         const amount = parseFloat(payment.amount.toString())
-        totalPaid += amount
+
+        // CRITICAL: Skip 'credit' payments when calculating totalPaid
+        // Credit payments are AR placeholders, not actual payments received
+        if (method !== 'credit') {
+          totalPaid += amount
+        }
 
         if (!paymentMethodMap[method]) {
           paymentMethodMap[method] = { amount: 0, count: 0 }
         }
-        paymentMethodMap[method].amount += amount
-        paymentMethodMap[method].count += 1
 
-        // Categorize into main groups
+        // IMPORTANT: Don't add credit placeholder payments to totals or breakdown
+        // Credit sales will be counted via unpaidAmount logic below
+        if (method !== 'credit') {
+          paymentMethodMap[method].amount += amount
+          paymentMethodMap[method].count += 1
+        }
+
+        // Categorize into main groups (excluding credit placeholders)
         if (method === 'cash') {
           cashTotal += amount
-        } else if (method === 'credit') {
-          creditTotal += amount
         } else if (method === 'card' || method === 'debit_card' || method === 'credit_card') {
           digitalTotal += amount
           cardTotal += amount
