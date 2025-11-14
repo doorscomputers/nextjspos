@@ -83,6 +83,9 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // DEBUG: Log sales found
+    console.log(`[AR Report] Found ${sales.length} sales for business ${user.businessId}`);
+
     // Calculate balances per customer
     const customerBalances = new Map<
       number,
@@ -117,13 +120,20 @@ export async function GET(request: NextRequest) {
       const totalPaid = parseFloat(sale.paidAmount?.toString() || "0");
       const balance = totalAmount - totalPaid;
 
+      // DEBUG: Log balance calculation
+      if (sales.length <= 10) { // Only log if there aren't too many sales
+        console.log(`[AR Report] Sale ${sale.invoiceNumber}: total=${totalAmount}, paid=${totalPaid}, balance=${balance}`);
+      }
+
       // Skip if balance is zero and not showing zero balances
       if (balance <= 0.01 && !showZeroBalances) {
+        console.log(`[AR Report] Skipping ${sale.invoiceNumber} - balance too low (${balance})`);
         return;
       }
 
       // Skip if below minimum balance threshold
       if (minBalance && balance < parseFloat(minBalance)) {
+        console.log(`[AR Report] Skipping ${sale.invoiceNumber} - below min balance (${balance} < ${minBalance})`);
         return;
       }
 
@@ -189,6 +199,9 @@ export async function GET(request: NextRequest) {
     const customerList = Array.from(customerBalances.values()).sort(
       (a, b) => b.outstandingBalance - a.outstandingBalance
     );
+
+    // DEBUG: Log customers found
+    console.log(`[AR Report] Found ${customerList.length} customers with outstanding balances`);
 
     // Calculate aging buckets for each customer
     const customersWithAging = customerList.map((customer) => {
