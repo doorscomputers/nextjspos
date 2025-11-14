@@ -937,13 +937,14 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               icon: CurrencyDollarIcon,
               permission: PERMISSIONS.REPORT_UNPAID_INVOICES,
             },
-            {
-              key: "cashier_payment_collections",
-              name: "Payment Collections",
-              href: "/dashboard/reports/payment-collections",
-              icon: BanknotesIcon,
-              permission: PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
-            },
+            // Hidden: Payment Collections report (redundant with Receivable Payments)
+            // {
+            //   key: "cashier_payment_collections",
+            //   name: "Payment Collections",
+            //   href: "/dashboard/reports/payment-collections",
+            //   icon: BanknotesIcon,
+            //   permission: PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
+            // },
             {
               key: "cashier_receivable_payments",
               name: "Receivable Payments",
@@ -1141,13 +1142,14 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               icon: CreditCardIcon,
               permission: PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
             },
-            {
-              key: "payment_collections",
-              name: "Payment Collections",
-              href: "/dashboard/reports/payment-collections",
-              icon: ArrowsRightLeftIcon,
-              permission: PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
-            },
+            // Hidden: Payment Collections report (redundant with Receivable Payments)
+            // {
+            //   key: "payment_collections",
+            //   name: "Payment Collections",
+            //   href: "/dashboard/reports/payment-collections",
+            //   icon: ArrowsRightLeftIcon,
+            //   permission: PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
+            // },
             {
               key: "accounts_receivable",
               name: "Accounts Receivable",
