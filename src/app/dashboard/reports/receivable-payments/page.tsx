@@ -68,9 +68,18 @@ export default function ReceivablePaymentsPage() {
   const { data: session } = useSession();
   const dataGridRef = useRef<DataGrid>(null);
 
+  // Helper to format date as YYYY-MM-DD
+  const formatDateForInput = (date: Date) => {
+    return date.toISOString().split('T')[0];
+  };
+
+  // Default to today's date
+  const today = new Date();
+  const todayStr = formatDateForInput(today);
+
   // Filter states
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(todayStr);
+  const [endDate, setEndDate] = useState(todayStr);
   const [customerId, setCustomerId] = useState("all");
   const [locationId, setLocationId] = useState("all");
   const [paymentMethod, setPaymentMethod] = useState("all");
@@ -107,8 +116,15 @@ export default function ReceivablePaymentsPage() {
       try {
         const response = await fetch("/api/customers");
         const data = await response.json();
-        if (data.success) {
+        // Customers API returns array directly (not wrapped in success/data)
+        if (Array.isArray(data)) {
+          setCustomers(data);
+        } else if (data.success && data.data) {
           setCustomers(data.data);
+        } else if (data.success === false && Array.isArray(data)) {
+          setCustomers(data);
+        } else {
+          setCustomers(data);
         }
       } catch (error) {
         console.error("Failed to fetch customers:", error);
@@ -123,8 +139,13 @@ export default function ReceivablePaymentsPage() {
       try {
         const response = await fetch("/api/users");
         const data = await response.json();
-        if (data.success) {
+        // Handle different response formats
+        if (Array.isArray(data)) {
+          setCashiers(data);
+        } else if (data.success && Array.isArray(data.data)) {
           setCashiers(data.data);
+        } else if (data.users && Array.isArray(data.users)) {
+          setCashiers(data.users);
         }
       } catch (error) {
         console.error("Failed to fetch cashiers:", error);
@@ -168,16 +189,70 @@ export default function ReceivablePaymentsPage() {
     fetchReport();
   }, []);
 
+  // Quick date filters
+  const setQuickDateFilter = (range: string) => {
+    const now = new Date();
+    let start: Date;
+    let end: Date = now;
+
+    switch (range) {
+      case 'today':
+        start = now;
+        end = now;
+        break;
+      case 'yesterday':
+        start = new Date(now);
+        start.setDate(start.getDate() - 1);
+        end = new Date(now);
+        end.setDate(end.getDate() - 1);
+        break;
+      case 'thisWeek':
+        start = new Date(now);
+        start.setDate(start.getDate() - start.getDay()); // Start of week (Sunday)
+        end = now;
+        break;
+      case 'lastWeek':
+        start = new Date(now);
+        start.setDate(start.getDate() - start.getDay() - 7); // Start of last week
+        end = new Date(now);
+        end.setDate(end.getDate() - end.getDay() - 1); // End of last week (Saturday)
+        break;
+      case 'thisMonth':
+        start = new Date(now.getFullYear(), now.getMonth(), 1);
+        end = now;
+        break;
+      case 'lastMonth':
+        start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        end = new Date(now.getFullYear(), now.getMonth(), 0); // Last day of previous month
+        break;
+      case 'last7Days':
+        start = new Date(now);
+        start.setDate(start.getDate() - 6);
+        end = now;
+        break;
+      case 'last30Days':
+        start = new Date(now);
+        start.setDate(start.getDate() - 29);
+        end = now;
+        break;
+      default:
+        start = now;
+        end = now;
+    }
+
+    setStartDate(formatDateForInput(start));
+    setEndDate(formatDateForInput(end));
+  };
+
   // Clear filters
   const clearFilters = () => {
-    setStartDate("");
-    setEndDate("");
+    setStartDate(todayStr);
+    setEndDate(todayStr);
     setCustomerId("all");
     setLocationId("all");
     setPaymentMethod("all");
     setCashierId("all");
     setGroupByCustomer(false);
-    fetchReport();
   };
 
   // Format currency
@@ -373,6 +448,79 @@ export default function ReceivablePaymentsPage() {
 
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+        {/* Quick Date Filters */}
+        <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Quick Date Filters
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickDateFilter('today')}
+              className="text-xs"
+            >
+              Today
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickDateFilter('yesterday')}
+              className="text-xs"
+            >
+              Yesterday
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickDateFilter('last7Days')}
+              className="text-xs"
+            >
+              Last 7 Days
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickDateFilter('last30Days')}
+              className="text-xs"
+            >
+              Last 30 Days
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickDateFilter('thisWeek')}
+              className="text-xs"
+            >
+              This Week
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickDateFilter('lastWeek')}
+              className="text-xs"
+            >
+              Last Week
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickDateFilter('thisMonth')}
+              className="text-xs"
+            >
+              This Month
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickDateFilter('lastMonth')}
+              className="text-xs"
+            >
+              Last Month
+            </Button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Date Range */}
           <div>
@@ -412,7 +560,7 @@ export default function ReceivablePaymentsPage() {
               <option value="all">All Customers</option>
               {customers.map((cust) => (
                 <option key={cust.id} value={cust.id}>
-                  {cust.firstName} {cust.lastName}
+                  {cust.name || `${cust.firstName || ''} ${cust.lastName || ''}`.trim()}
                 </option>
               ))}
             </select>
@@ -470,7 +618,9 @@ export default function ReceivablePaymentsPage() {
               <option value="all">All Cashiers</option>
               {cashiers.map((user) => (
                 <option key={user.id} value={user.id}>
-                  {user.firstName} {user.lastName}
+                  {user.firstName && user.lastName
+                    ? `${user.firstName} ${user.lastName}`
+                    : user.username || 'Unknown User'}
                 </option>
               ))}
             </select>
