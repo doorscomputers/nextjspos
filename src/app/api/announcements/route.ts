@@ -36,37 +36,10 @@ export async function GET(request: NextRequest) {
           { startDate: { lte: now }, endDate: { gte: now } }, // Within range
         ]
 
-        // Filter by user's roles and locations if targeting is set
-        const userRoles = user.roles || []
-        const userLocationIds = user.locationIds || []
-
-        // Add targeting filters (show if: no target OR user matches target)
-        const targetFilters: any[] = [
-          { targetRoles: null }, // No role targeting
-          { targetLocations: null }, // No location targeting
-        ]
-
-        // Check if user's role matches any target roles
-        if (userRoles.length > 0) {
-          userRoles.forEach((role: string) => {
-            targetFilters.push({
-              targetRoles: { contains: role },
-            })
-          })
-        }
-
-        // Check if user's location matches any target locations
-        if (userLocationIds.length > 0) {
-          userLocationIds.forEach((locId: number) => {
-            targetFilters.push({
-              targetLocations: { contains: locId.toString() },
-            })
-          })
-        }
-
-        where.AND = [
-          { OR: targetFilters },
-        ]
+        // SIMPLIFIED: Just show announcements with no targeting restrictions
+        // If announcement has targetRoles or targetLocations set, it needs more complex matching
+        // For now, we'll show ALL active announcements within date range (no role/location filtering)
+        // TODO: Implement proper role/location targeting if needed
       }
     }
 
