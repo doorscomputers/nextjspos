@@ -83,7 +83,8 @@ export async function GET(request: NextRequest) {
     });
 
     // DEBUG: Log sales found
-    console.log(`[AR Report] Found ${sales.length} sales for business ${businessId}`);
+    console.log(`[AR Report API] Found ${sales.length} sales for business ${businessId}`);
+    console.log(`[AR Report API] Filters - customerId: ${customerId}, locationId: ${locationId}, minBalance: ${minBalance}, showZeroBalances: ${showZeroBalances}`);
 
     // Calculate balances per customer
     const customerBalances = new Map<
@@ -113,28 +114,34 @@ export async function GET(request: NextRequest) {
     >();
 
     // Process each sale
+    console.log(`[AR Report API] Processing ${sales.length} sales...`);
+    let skippedLowBalance = 0;
+    let skippedMinBalance = 0;
+
     sales.forEach((sale) => {
       const totalAmount = parseFloat(sale.totalAmount.toString());
       // Use paidAmount from Sale model (already tracks total paid, excluding credit method)
       const totalPaid = parseFloat(sale.paidAmount?.toString() || "0");
       const balance = totalAmount - totalPaid;
 
-      // DEBUG: Log balance calculation
-      if (sales.length <= 10) { // Only log if there aren't too many sales
-        console.log(`[AR Report] Sale ${sale.invoiceNumber}: total=${totalAmount}, paid=${totalPaid}, balance=${balance}`);
-      }
+      // DEBUG: Log balance calculation for all sales
+      console.log(`[AR Report API] Sale ${sale.invoiceNumber} (Customer: ${sale.customer?.name}): total=${totalAmount}, paid=${totalPaid}, balance=${balance}`);
 
       // Skip if balance is zero and not showing zero balances
       if (balance <= 0.01 && !showZeroBalances) {
-        console.log(`[AR Report] Skipping ${sale.invoiceNumber} - balance too low (${balance})`);
+        console.log(`[AR Report API] ❌ SKIPPED ${sale.invoiceNumber} - balance too low (${balance})`);
+        skippedLowBalance++;
         return;
       }
 
       // Skip if below minimum balance threshold
       if (minBalance && balance < parseFloat(minBalance)) {
-        console.log(`[AR Report] Skipping ${sale.invoiceNumber} - below min balance (${balance} < ${minBalance})`);
+        console.log(`[AR Report API] ❌ SKIPPED ${sale.invoiceNumber} - below min balance (${balance} < ${minBalance})`);
+        skippedMinBalance++;
         return;
       }
+
+      console.log(`[AR Report API] ✅ INCLUDED ${sale.invoiceNumber} - balance ${balance}`);
 
       const customerId = sale.customerId;
       if (!customerId) return; // Skip walk-in sales without customer
@@ -196,8 +203,14 @@ export async function GET(request: NextRequest) {
       (a, b) => b.outstandingBalance - a.outstandingBalance
     );
 
-    // DEBUG: Log customers found
-    console.log(`[AR Report] Found ${customerList.length} customers with outstanding balances`);
+    // DEBUG: Log processing summary
+    console.log(`[AR Report API] ========== PROCESSING SUMMARY ==========`);
+    console.log(`[AR Report API] Total sales found: ${sales.length}`);
+    console.log(`[AR Report API] Skipped (low/zero balance): ${skippedLowBalance}`);
+    console.log(`[AR Report API] Skipped (below min balance): ${skippedMinBalance}`);
+    console.log(`[AR Report API] Customers with outstanding balance: ${customerList.length}`);
+    console.log(`[AR Report API] Customer names: ${customerList.map(c => c.customerName).join(', ')}`);
+    console.log(`[AR Report API] ==========================================`);
 
     // Calculate aging buckets for each customer
     const customersWithAging = customerList.map((customer) => {

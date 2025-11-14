@@ -138,13 +138,19 @@ export default function AccountsReceivablePage() {
       if (minBalance) params.append("minBalance", minBalance);
       if (showZeroBalances) params.append("showZeroBalances", "true");
 
+      console.log('[AR Report Page] Fetching with params:', params.toString());
+
       const response = await fetch(`/api/reports/accounts-receivable?${params.toString()}`);
       const data = await response.json();
 
+      console.log('[AR Report Page] API Response:', data);
+      console.log('[AR Report Page] Customer count:', data.data?.customers?.length || 0);
+
       if (data.success) {
+        console.log('[AR Report Page] Setting customers:', data.data.customers);
         setCustomers(data.data.customers);
         setSummary(data.data.summary);
-        toast.success("Report loaded successfully");
+        toast.success(`Report loaded: ${data.data.customers.length} customer(s) with outstanding balance`);
       } else {
         toast.error(data.error || "Failed to load report");
       }
@@ -212,10 +218,26 @@ export default function AccountsReceivablePage() {
   const MasterDetailTemplate = (props: any) => {
     const customer = props.data;
 
+    // Debug logging
+    console.log('[AR Report Master Detail] Customer:', customer.customerName);
+    console.log('[AR Report Master Detail] Has invoices?', !!customer.invoices);
+    console.log('[AR Report Master Detail] Invoice count:', customer.invoices?.length || 0);
+
+    // Safety check - ensure invoices array exists
+    if (!customer.invoices || !Array.isArray(customer.invoices)) {
+      return (
+        <div className="p-4 bg-yellow-50 dark:bg-yellow-900 border border-yellow-300 dark:border-yellow-700 rounded">
+          <p className="text-yellow-800 dark:text-yellow-200">
+            No invoice details available for this customer.
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div className="p-4 bg-gray-50 dark:bg-gray-900">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Invoice Details for {customer.customerName}
+          Invoice Details for {customer.customerName} ({customer.invoices.length} invoice{customer.invoices.length !== 1 ? 's' : ''})
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm border border-gray-200 dark:border-gray-700">
