@@ -648,21 +648,21 @@ export default function AccountsReceivablePage() {
             dataField="totalAmount"
             caption="Total Amount"
             dataType="number"
-            format="currency"
+            format={{ type: 'currency', currency: 'PHP', precision: 2 }}
             width={140}
           />
           <Column
             dataField="totalPaid"
             caption="Total Paid"
             dataType="number"
-            format="currency"
+            format={{ type: 'currency', currency: 'PHP', precision: 2 }}
             width={140}
           />
           <Column
             dataField="outstandingBalance"
             caption="Outstanding Balance"
             dataType="number"
-            format="currency"
+            format={{ type: 'currency', currency: 'PHP', precision: 2 }}
             width={160}
             cssClass="font-bold"
           />
@@ -677,7 +677,7 @@ export default function AccountsReceivablePage() {
             dataField="aging.current"
             caption="0-30 Days"
             dataType="number"
-            format="currency"
+            format={{ type: 'currency', currency: 'PHP', precision: 2 }}
             width={120}
             cellRender={(cellData) => renderAgingCell(cellData, "current")}
           />
@@ -685,7 +685,7 @@ export default function AccountsReceivablePage() {
             dataField="aging.days31_60"
             caption="31-60 Days"
             dataType="number"
-            format="currency"
+            format={{ type: 'currency', currency: 'PHP', precision: 2 }}
             width={120}
             cellRender={(cellData) => renderAgingCell(cellData, "days31_60")}
           />
@@ -693,7 +693,7 @@ export default function AccountsReceivablePage() {
             dataField="aging.days61_90"
             caption="61-90 Days"
             dataType="number"
-            format="currency"
+            format={{ type: 'currency', currency: 'PHP', precision: 2 }}
             width={120}
             cellRender={(cellData) => renderAgingCell(cellData, "days61_90")}
           />
@@ -701,7 +701,7 @@ export default function AccountsReceivablePage() {
             dataField="aging.over90"
             caption="Over 90 Days"
             dataType="number"
-            format="currency"
+            format={{ type: 'currency', currency: 'PHP', precision: 2 }}
             width={120}
             cellRender={(cellData) => renderAgingCell(cellData, "over90")}
           />
@@ -709,13 +709,13 @@ export default function AccountsReceivablePage() {
           <Summary>
             <TotalItem column="customerName" summaryType="count" displayFormat="Total: {0}" />
             <TotalItem column="totalInvoices" summaryType="sum" valueFormat="decimal" />
-            <TotalItem column="totalAmount" summaryType="sum" valueFormat="currency" />
-            <TotalItem column="totalPaid" summaryType="sum" valueFormat="currency" />
-            <TotalItem column="outstandingBalance" summaryType="sum" valueFormat="currency" />
-            <TotalItem column="aging.current" summaryType="sum" valueFormat="currency" />
-            <TotalItem column="aging.days31_60" summaryType="sum" valueFormat="currency" />
-            <TotalItem column="aging.days61_90" summaryType="sum" valueFormat="currency" />
-            <TotalItem column="aging.over90" summaryType="sum" valueFormat="currency" />
+            <TotalItem column="totalAmount" summaryType="sum" valueFormat={{ type: 'currency', currency: 'PHP', precision: 2 }} />
+            <TotalItem column="totalPaid" summaryType="sum" valueFormat={{ type: 'currency', currency: 'PHP', precision: 2 }} />
+            <TotalItem column="outstandingBalance" summaryType="sum" valueFormat={{ type: 'currency', currency: 'PHP', precision: 2 }} />
+            <TotalItem column="aging.current" summaryType="sum" valueFormat={{ type: 'currency', currency: 'PHP', precision: 2 }} />
+            <TotalItem column="aging.days31_60" summaryType="sum" valueFormat={{ type: 'currency', currency: 'PHP', precision: 2 }} />
+            <TotalItem column="aging.days61_90" summaryType="sum" valueFormat={{ type: 'currency', currency: 'PHP', precision: 2 }} />
+            <TotalItem column="aging.over90" summaryType="sum" valueFormat={{ type: 'currency', currency: 'PHP', precision: 2 }} />
           </Summary>
 
           <MasterDetail enabled={true} component={MasterDetailTemplate} />
