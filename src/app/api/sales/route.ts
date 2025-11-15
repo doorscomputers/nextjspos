@@ -924,6 +924,12 @@ export async function POST(request: NextRequest) {
       // Generate location-specific invoice number atomically inside transaction
       const invoiceNumber = await getNextInvoiceNumber(businessIdNumber, locationIdNumber, location.name, tx)
 
+      // Calculate paidAmount for initial sale creation
+      // CRITICAL: This field is used by reports to distinguish paid vs unpaid sales
+      const paidAmount = isCreditSale
+        ? 0 // Credit sales start with 0 paid (payments added later)
+        : paymentsTotal // Regular sales are fully paid at creation
+
       // Create sale
       const newSale = await tx.sale.create({
         data: {
@@ -939,6 +945,7 @@ export async function POST(request: NextRequest) {
           discountAmount: parseFloat(discountAmount || 0),
           shippingCost: parseFloat(shippingCost || 0),
           totalAmount,
+          paidAmount, // CRITICAL FIX: Set paidAmount at creation time
           // Cash tendered (for invoice display)
           cashTendered: cashTendered ? parseFloat(cashTendered) : null,
           notes,
