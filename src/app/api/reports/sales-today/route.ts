@@ -257,7 +257,7 @@ export async function GET(request: NextRequest) {
         } else if (method === 'card' || method === 'debit_card' || method === 'credit_card') {
           digitalTotal += amount
           cardTotal += amount
-        } else if (method === 'mobile_payment' || method === 'gcash' || method === 'paymaya') {
+        } else if (method === 'mobile_payment' || method === 'gcash' || method === 'paymaya' || method === 'maya') {
           digitalTotal += amount
           mobilePaymentTotal += amount
         } else if (method === 'bank_transfer') {
