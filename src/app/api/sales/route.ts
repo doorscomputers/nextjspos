@@ -892,13 +892,14 @@ export async function POST(request: NextRequest) {
       parseFloat(shippingCost || 0) -
       parseFloat(discountAmount || 0)
 
+    // Calculate total payments (needed for validation and paidAmount field)
+    const paymentsTotal = payments.reduce(
+      (sum: number, payment: any) => sum + parseFloat(payment.amount),
+      0
+    )
+
     // For non-credit sales, validate payments total is sufficient (allow overpayment for change)
     if (!isCreditSale) {
-      const paymentsTotal = payments.reduce(
-        (sum: number, payment: any) => sum + parseFloat(payment.amount),
-        0
-      )
-
       if (paymentsTotal < totalAmount - 0.01) {
         return NextResponse.json(
           {
