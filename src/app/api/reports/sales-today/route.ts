@@ -33,7 +33,10 @@ export async function GET(request: NextRequest) {
     const where: any = {
       businessId: parseInt(businessId),
       deletedAt: null,
-      status: 'completed', // Only completed sales
+      // CRITICAL FIX: Include BOTH completed sales AND pending credit sales
+      status: {
+        in: ['completed', 'pending'], // Include regular sales (completed) and credit sales (pending)
+      },
       saleDate: {
         gte: startOfDay,
         lte: endOfDay,
