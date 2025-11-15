@@ -108,13 +108,18 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Fetch AR payments received today (payments made today, including on old credit invoices)
-    // This tracks actual cash flow for accounts receivable
+    // Fetch AR payments received today (payments made today on OLD credit invoices ONLY)
+    // CRITICAL: Only count payments on sales created BEFORE today
+    // This tracks actual AR collections, not regular sales payments
     const arPaymentWhere: any = {
       sale: {
         businessId: parseInt(businessId),
         status: {
           in: ['completed', 'pending'], // Include both to capture all payment scenarios
+        },
+        // CRITICAL FIX: Only include payments on sales created BEFORE today
+        saleDate: {
+          lt: startOfDay, // Sale date must be before today (old invoices only)
         },
       },
       paymentMethod: {
