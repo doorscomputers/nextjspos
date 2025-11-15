@@ -942,7 +942,7 @@ export default function POSEnhancedPage() {
     setCart(cart.filter((_, i) => i !== index))
   }
 
-  const updateQuantity = (index: number, quantity: number) => {
+  const updateQuantity = (index: number, quantity: number, unitName?: string) => {
     if (quantity <= 0) {
       removeFromCart(index)
       return
@@ -951,23 +951,104 @@ export default function POSEnhancedPage() {
     const item = cart[index]
     const availableStock = item.availableStock || 0
 
-    // Validate against available stock
-    if (quantity > availableStock) {
-      setError(`⚠️ Insufficient stock! Only ${availableStock} units available at this branch for "${item.name}".`)
-      setTimeout(() => setError(''), 5000)
-      return
+    // If sub-unit is selected, handle conversion
+    if (unitName && item.selectedUnitId) {
+      const product = products.find(p => p.id === item.productId)
+
+      if (!product) {
+        setError(`Product not found for "${item.name}". Cannot update quantity.`)
+        setTimeout(() => setError(''), 5000)
+        return
+      }
+
+      // Build units array from product (same logic as UnitSelector)
+      const unitMap = new Map()
+
+      if (product.unit) {
+        unitMap.set(product.unit.id, product.unit)
+      }
+
+      if (product.unitLocationPrices && Array.isArray(product.unitLocationPrices)) {
+        const locationPrices = product.unitLocationPrices.filter(
+          (ulp: any) => ulp.locationId === currentShift?.locationId
+        )
+        locationPrices.forEach((ulp: any) => {
+          if (ulp.unit && !unitMap.has(ulp.unit.id)) {
+            unitMap.set(ulp.unit.id, ulp.unit)
+          }
+        })
+      }
+
+      if (product.unitPrices && Array.isArray(product.unitPrices)) {
+        product.unitPrices.forEach((up: any) => {
+          if (up.unit && !unitMap.has(up.unit.id)) {
+            unitMap.set(up.unit.id, up.unit)
+          }
+        })
+      }
+
+      const allUnits = Array.from(unitMap.values())
+      const selectedUnit = allUnits.find(u => u.id === item.selectedUnitId)
+
+      if (!selectedUnit) {
+        setError(`Selected unit not found for "${item.name}". Cannot update quantity.`)
+        setTimeout(() => setError(''), 5000)
+        return
+      }
+
+      // Convert display quantity to base quantity for stock validation
+      let baseQuantity = quantity
+
+      if (selectedUnit.baseUnitId && selectedUnit.baseUnitMultiplier) {
+        // Sub-unit conversion
+        const multiplier = parseFloat(String(selectedUnit.baseUnitMultiplier))
+        baseQuantity = quantity / multiplier
+      }
+
+      // Validate against available stock (in base units)
+      if (baseQuantity > availableStock) {
+        const maxAllowedInUnit = selectedUnit.baseUnitId && selectedUnit.baseUnitMultiplier
+          ? availableStock * parseFloat(String(selectedUnit.baseUnitMultiplier))
+          : availableStock
+
+        setError(`⚠️ Insufficient stock! Only ${maxAllowedInUnit.toFixed(2)} ${unitName} available at this branch for "${item.name}".`)
+        setTimeout(() => setError(''), 5000)
+        return
+      }
+
+      // Update cart with both base and display quantities
+      const newCart = [...cart]
+      newCart[index].quantity = baseQuantity
+      newCart[index].displayQuantity = quantity
+
+      // Reset serial numbers if quantity changes and product requires serials
+      if (item.requiresSerial && item.serialNumberIds.length !== baseQuantity) {
+        newCart[index].serialNumberIds = []
+        newCart[index].serialNumbers = []
+      }
+
+      setCart(newCart)
+    } else {
+      // Primary unit - use existing logic
+      // Validate against available stock
+      if (quantity > availableStock) {
+        setError(`⚠️ Insufficient stock! Only ${availableStock} units available at this branch for "${item.name}".`)
+        setTimeout(() => setError(''), 5000)
+        return
+      }
+
+      const newCart = [...cart]
+      newCart[index].quantity = quantity
+      newCart[index].displayQuantity = quantity  // Same for primary unit
+
+      // Reset serial numbers if quantity changes and product requires serials
+      if (item.requiresSerial && item.serialNumberIds.length !== quantity) {
+        newCart[index].serialNumberIds = []
+        newCart[index].serialNumbers = []
+      }
+
+      setCart(newCart)
     }
-
-    const newCart = [...cart]
-    newCart[index].quantity = quantity
-
-    // Reset serial numbers if quantity changes and product requires serials
-    if (item.requiresSerial && item.serialNumberIds.length !== quantity) {
-      newCart[index].serialNumberIds = []
-      newCart[index].serialNumbers = []
-    }
-
-    setCart(newCart)
   }
 
   const calculateSubtotal = () => {
@@ -2051,42 +2132,33 @@ export default function POSEnhancedPage() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        {!item.selectedUnitName || item.displayQuantity === item.quantity ? (
-                          // Show standard +/- controls for non-UOM or primary unit items
-                          <>
-                            <Button
-                              size="sm"
-                              className="h-10 w-10 p-0 text-xl bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg shadow"
-                              onClick={() => updateQuantity(index, item.quantity - 1)}
-                            >
-                              −
-                            </Button>
-                            <Input
-                              type="number"
-                              value={item.quantity}
-                              onChange={(e) =>
-                                updateQuantity(index, parseInt(e.target.value) || 1)
-                              }
-                              className="w-20 text-center h-10 text-xl font-black border-2 border-blue-400 rounded-lg bg-white text-gray-900"
-                            />
-                            <Button
-                              size="sm"
-                              className="h-10 w-10 p-0 text-xl bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow"
-                              onClick={() => updateQuantity(index, item.quantity + 1)}
-                            >
-                              +
-                            </Button>
-                          </>
-                        ) : (
-                          // Show read-only quantity display for UOM items - user must use UOM selector to change
-                          <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-2 border-amber-400 rounded-lg">
-                            <span className="text-xl font-black text-amber-900">
-                              {item.displayQuantity} {item.selectedUnitName}
-                            </span>
-                            <span className="text-xs text-amber-700">
-                              (Use selector below to change)
-                            </span>
-                          </div>
+                        {/* ALWAYS show +/- controls - they now work for both primary and sub-units */}
+                        <Button
+                          size="sm"
+                          className="h-10 w-10 p-0 text-xl bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg shadow"
+                          onClick={() => updateQuantity(index, item.selectedUnitName ? item.displayQuantity - 1 : item.quantity - 1, item.selectedUnitName)}
+                        >
+                          −
+                        </Button>
+                        <Input
+                          type="number"
+                          value={item.selectedUnitName ? item.displayQuantity : item.quantity}
+                          onChange={(e) =>
+                            updateQuantity(index, parseInt(e.target.value) || 1, item.selectedUnitName)
+                          }
+                          className="w-20 text-center h-10 text-xl font-black border-2 border-blue-400 rounded-lg bg-white text-gray-900"
+                        />
+                        <Button
+                          size="sm"
+                          className="h-10 w-10 p-0 text-xl bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg shadow"
+                          onClick={() => updateQuantity(index, item.selectedUnitName ? item.displayQuantity + 1 : item.quantity + 1, item.selectedUnitName)}
+                        >
+                          +
+                        </Button>
+                        {item.selectedUnitName && (
+                          <span className="text-sm font-semibold text-amber-700 ml-2">
+                            {item.selectedUnitName}
+                          </span>
                         )}
                       </div>
                       <div className="text-right min-w-[100px]">
