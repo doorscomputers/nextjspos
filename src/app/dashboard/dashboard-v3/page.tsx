@@ -196,11 +196,8 @@ export default function DashboardV3Page() {
       <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
         <div>
           <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Business Intelligence Command Center
+            Sales Dashboard V3
           </h1>
-          <p className="text-sm md:text-base text-gray-600 dark:text-gray-400 mt-2">
-            Real-time insights and actionable intelligence for data-driven decisions
-          </p>
         </div>
         <button
           onClick={fetchDashboardData}
