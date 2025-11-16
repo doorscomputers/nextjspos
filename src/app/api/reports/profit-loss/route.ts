@@ -5,6 +5,26 @@ import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 
 /**
+ * Helper function to process array items in batches to avoid connection pool exhaustion
+ * Processes items sequentially in chunks to limit concurrent database connections
+ */
+async function processBatches<T, R>(
+  items: T[],
+  batchSize: number,
+  processor: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = []
+
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize)
+    const batchResults = await Promise.all(batch.map(processor))
+    results.push(...batchResults)
+  }
+
+  return results
+}
+
+/**
  * GET /api/reports/profit-loss
  * Comprehensive Profit & Loss Report
  *
@@ -89,8 +109,11 @@ export async function GET(request: NextRequest) {
     let openingStockPurchase = 0
     let openingStockSale = 0
 
-    await Promise.all(
-      openingStockItems.map(async (item) => {
+    // Process in batches of 10 to avoid connection pool exhaustion
+    await processBatches(
+      openingStockItems,
+      10,
+      async (item) => {
         // Find last transaction on or before opening date
         const lastTx = await prisma.stockTransaction.findFirst({
           where: {
@@ -121,7 +144,7 @@ export async function GET(request: NextRequest) {
           openingStockPurchase += historicalQty * historicalCost
           openingStockSale += historicalQty * salePrice
         }
-      })
+      }
     )
 
     // ============================================
@@ -162,8 +185,11 @@ export async function GET(request: NextRequest) {
     let closingStockPurchase = 0
     let closingStockSale = 0
 
-    await Promise.all(
-      closingStockItems.map(async (item) => {
+    // Process in batches of 10 to avoid connection pool exhaustion
+    await processBatches(
+      closingStockItems,
+      10,
+      async (item) => {
         // Find last transaction on or before closing date
         const lastTx = await prisma.stockTransaction.findFirst({
           where: {
@@ -194,7 +220,7 @@ export async function GET(request: NextRequest) {
           closingStockPurchase += historicalQty * historicalCost
           closingStockSale += historicalQty * salePrice
         }
-      })
+      }
     )
 
     // ============================================
