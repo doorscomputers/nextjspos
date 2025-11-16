@@ -1124,7 +1124,7 @@ export default function AuditTrailPage() {
                       <div className="flex justify-between">
                         <span className="text-sm">Off-Hours Percentage</span>
                         <span className="font-bold text-orange-600">
-                          {securityAnalysis.timePatterns.offHoursActivityPercent.toFixed(1)}%
+                          {(securityAnalysis.timePatterns.offHoursActivityPercent ?? 0).toFixed(1)}%
                         </span>
                       </div>
                       <div className="flex justify-between">
