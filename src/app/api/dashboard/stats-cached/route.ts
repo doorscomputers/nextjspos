@@ -315,9 +315,9 @@ export async function GET(request: NextRequest) {
           status: { notIn: ['voided', 'cancelled'] },
           // CRITICAL: Only include sales with customers (exclude walk-in)
           customerId: { not: null },
-          customer: {
-            name: {
-              not: {
+          NOT: {
+            customer: {
+              name: {
                 contains: "Walk-in",
                 mode: "insensitive"
               }

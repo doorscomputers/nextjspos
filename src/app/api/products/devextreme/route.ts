@@ -281,7 +281,8 @@ function applyFilter(whereClause: any, field: string, operation: string, value: 
       whereClause[field] = { contains: value, mode: 'insensitive' }
       break
     case 'notcontains':
-      whereClause[field] = { not: { contains: value, mode: 'insensitive' } }
+      // Note: Prisma doesn't support mode with not, so case-sensitive for NOT contains
+      whereClause[field] = { not: { contains: value } }
       break
     case 'startswith':
       whereClause[field] = { startsWith: value, mode: 'insensitive' }
