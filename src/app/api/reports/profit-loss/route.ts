@@ -53,22 +53,27 @@ export async function GET(request: NextRequest) {
 
     // ============================================
     // OPENING STOCK (at start date)
-    // Note: Using current stock snapshot as baseline
-    // For historical accuracy, would need productHistory table
+    // Uses Historical Stock Reconstruction from stockTransaction table
+    // Same technique as Historical Inventory report
     // ============================================
+
+    // Set opening date to start of day (beginning of period)
+    const openingDate = new Date(start)
+    openingDate.setHours(0, 0, 0, 0)
+
+    // Get all variation-location combinations for this business
     const openingStockWhere: any = {
       product: {
         businessId: parseInt(businessId),
         deletedAt: null,
       },
-      // Removed updatedAt filter - get current stock snapshot
     }
 
     if (locationId && locationId !== 'all') {
       openingStockWhere.locationId = parseInt(locationId)
     }
 
-    const openingStockData = await prisma.variationLocationDetails.findMany({
+    const openingStockItems = await prisma.variationLocationDetails.findMany({
       where: openingStockWhere,
       include: {
         productVariation: {
@@ -77,49 +82,71 @@ export async function GET(request: NextRequest) {
             sellingPrice: true,
           },
         },
-        product: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
       },
     })
 
+    // Calculate historical stock value for each item at opening date
     let openingStockPurchase = 0
     let openingStockSale = 0
 
-    openingStockData.forEach((stock) => {
-      const qty = stock.qtyAvailable ? parseFloat(stock.qtyAvailable.toString()) : 0
-      const purchasePrice = stock.productVariation?.purchasePrice
-        ? parseFloat(stock.productVariation.purchasePrice.toString())
-        : 0
-      const salePrice = stock.productVariation?.sellingPrice
-        ? parseFloat(stock.productVariation.sellingPrice.toString())
-        : 0
+    await Promise.all(
+      openingStockItems.map(async (item) => {
+        // Find last transaction on or before opening date
+        const lastTx = await prisma.stockTransaction.findFirst({
+          where: {
+            businessId: parseInt(businessId),
+            productId: item.productId,
+            productVariationId: item.productVariationId,
+            locationId: item.locationId,
+            createdAt: { lte: openingDate },
+          },
+          orderBy: [
+            { createdAt: 'desc' },
+            { id: 'desc' },
+          ],
+          select: {
+            balanceQty: true,
+            unitCost: true,
+          },
+        })
 
-      openingStockPurchase += qty * purchasePrice
-      openingStockSale += qty * salePrice
-    })
+        if (lastTx && lastTx.balanceQty) {
+          const historicalQty = parseFloat(lastTx.balanceQty.toString())
+          const historicalCost = lastTx.unitCost
+            ? parseFloat(lastTx.unitCost.toString())
+            : parseFloat(item.productVariation.purchasePrice?.toString() || '0')
+
+          const salePrice = parseFloat(item.productVariation.sellingPrice?.toString() || '0')
+
+          openingStockPurchase += historicalQty * historicalCost
+          openingStockSale += historicalQty * salePrice
+        }
+      })
+    )
 
     // ============================================
     // CLOSING STOCK (at end date)
-    // Note: Using current stock snapshot
-    // For historical accuracy, would need productHistory table
+    // Uses Historical Stock Reconstruction from stockTransaction table
+    // Same technique as Historical Inventory report
     // ============================================
+
+    // Set closing date to end of day (end of period)
+    const closingDate = new Date(end)
+    closingDate.setHours(23, 59, 59, 999)
+
+    // Get all variation-location combinations for this business
     const closingStockWhere: any = {
       product: {
         businessId: parseInt(businessId),
         deletedAt: null,
       },
-      // Removed updatedAt filter - get current stock snapshot
     }
 
     if (locationId && locationId !== 'all') {
       closingStockWhere.locationId = parseInt(locationId)
     }
 
-    const closingStockData = await prisma.variationLocationDetails.findMany({
+    const closingStockItems = await prisma.variationLocationDetails.findMany({
       where: closingStockWhere,
       include: {
         productVariation: {
@@ -128,30 +155,47 @@ export async function GET(request: NextRequest) {
             sellingPrice: true,
           },
         },
-        product: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
       },
     })
 
+    // Calculate historical stock value for each item at closing date
     let closingStockPurchase = 0
     let closingStockSale = 0
 
-    closingStockData.forEach((stock) => {
-      const qty = stock.qtyAvailable ? parseFloat(stock.qtyAvailable.toString()) : 0
-      const purchasePrice = stock.productVariation?.purchasePrice
-        ? parseFloat(stock.productVariation.purchasePrice.toString())
-        : 0
-      const salePrice = stock.productVariation?.sellingPrice
-        ? parseFloat(stock.productVariation.sellingPrice.toString())
-        : 0
+    await Promise.all(
+      closingStockItems.map(async (item) => {
+        // Find last transaction on or before closing date
+        const lastTx = await prisma.stockTransaction.findFirst({
+          where: {
+            businessId: parseInt(businessId),
+            productId: item.productId,
+            productVariationId: item.productVariationId,
+            locationId: item.locationId,
+            createdAt: { lte: closingDate },
+          },
+          orderBy: [
+            { createdAt: 'desc' },
+            { id: 'desc' },
+          ],
+          select: {
+            balanceQty: true,
+            unitCost: true,
+          },
+        })
 
-      closingStockPurchase += qty * purchasePrice
-      closingStockSale += qty * salePrice
-    })
+        if (lastTx && lastTx.balanceQty) {
+          const historicalQty = parseFloat(lastTx.balanceQty.toString())
+          const historicalCost = lastTx.unitCost
+            ? parseFloat(lastTx.unitCost.toString())
+            : parseFloat(item.productVariation.purchasePrice?.toString() || '0')
+
+          const salePrice = parseFloat(item.productVariation.sellingPrice?.toString() || '0')
+
+          closingStockPurchase += historicalQty * historicalCost
+          closingStockSale += historicalQty * salePrice
+        }
+      })
+    )
 
     // ============================================
     // PURCHASES
@@ -345,10 +389,18 @@ export async function GET(request: NextRequest) {
     // ============================================
     // CALCULATIONS
     // ============================================
-    // COGS = Actual cost of goods sold (from sale items)
-    // This is more accurate than Opening Stock + Purchases - Closing Stock
-    // because it reflects the actual cost of items that were sold
+
+    // PRIMARY COGS: Actual cost of goods sold (from sale items)
+    // This is the most accurate method - directly from sale transactions
     const cogs = actualCOGS
+
+    // TRADITIONAL COGS FORMULA (for validation and cross-check)
+    // COGS = Opening Stock + Purchases + Adjustments - Closing Stock - Purchase Returns
+    const traditionalCOGS = openingStockPurchase + totalPurchase + totalStockAdjustment - closingStockPurchase - totalPurchaseReturn
+
+    // Calculate variance between methods (helps identify discrepancies)
+    const cogsVariance = Math.abs(cogs - traditionalCOGS)
+    const cogsVariancePercent = traditionalCOGS > 0 ? (cogsVariance / traditionalCOGS) * 100 : 0
 
     // Gross Profit = Total Sales - COGS
     const grossProfit = totalSales - cogs
@@ -397,6 +449,11 @@ export async function GET(request: NextRequest) {
       cogs,
       grossProfit,
       netProfit,
+
+      // COGS Validation (for transparency and debugging)
+      traditionalCOGS,
+      cogsVariance,
+      cogsVariancePercent,
 
       // Metadata
       period: {
