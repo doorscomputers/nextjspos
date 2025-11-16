@@ -101,12 +101,20 @@ export default function ProfitabilityReportPage() {
       const response = await fetch('/api/locations')
       const resData = await response.json()
       if (response.ok) {
-        const locData = Array.isArray(resData?.locations)
+        const locData = Array.isArray(resData?.data)
+          ? resData.data
+          : Array.isArray(resData?.locations)
           ? resData.locations
           : Array.isArray(resData)
           ? resData
           : []
-        setLocations(locData)
+
+        // Filter out Main Warehouse (non-selling location) and only show active locations
+        const activeLocations = locData.filter((location: Location) =>
+          location.name && !location.name.toLowerCase().includes('main warehouse')
+        )
+
+        setLocations(activeLocations)
       } else {
         setLocations([])
       }
@@ -165,7 +173,7 @@ export default function ProfitabilityReportPage() {
   }, [startDate, endDate, defaultStartDate, defaultEndDate, locationId, groupBy])
 
   const formatCurrency = (amount: number) => {
-    return `$${amount.toFixed(2)}`
+    return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
 
   const formatPercent = (percent: number) => {
