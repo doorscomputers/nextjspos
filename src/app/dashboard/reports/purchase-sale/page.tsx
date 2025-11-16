@@ -69,13 +69,22 @@ export default function PurchaseSaleReportPage() {
       try {
         const res = await fetch('/api/locations')
         if (res.ok) {
-          const data = await res.json()
-          const locData = Array.isArray(data?.locations)
-            ? data.locations
-            : Array.isArray(data)
-            ? data
+          const resData = await res.json()
+          // Handle multiple response formats from the API
+          const locData = Array.isArray(resData?.data)
+            ? resData.data
+            : Array.isArray(resData?.locations)
+            ? resData.locations
+            : Array.isArray(resData)
+            ? resData
             : []
-          setLocations(locData)
+
+          // Filter out Main Warehouse (non-selling location) and only show active locations
+          const activeLocations = locData.filter((location: Location) =>
+            location.name && !location.name.toLowerCase().includes('main warehouse')
+          )
+
+          setLocations(activeLocations)
         } else {
           setLocations([])
         }
