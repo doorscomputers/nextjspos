@@ -447,7 +447,7 @@ export default function DashboardV2Page() {
 
       {/* Summary Cards */}
       {metadata && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-4 md:p-6 rounded-lg text-white shadow-lg">
             <div className="text-xs md:text-sm opacity-90">Total Sales</div>
             <div className="text-xl md:text-3xl font-bold">{metadata.totalSales.toLocaleString()}</div>
@@ -466,10 +466,6 @@ export default function DashboardV2Page() {
               </div>
             </div>
           )}
-          <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-4 md:p-6 rounded-lg text-white shadow-lg">
-            <div className="text-xs md:text-sm opacity-90">Items Sold</div>
-            <div className="text-xl md:text-3xl font-bold">{metadata.totalQuantity.toLocaleString()}</div>
-          </div>
           <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 p-4 md:p-6 rounded-lg text-white shadow-lg">
             <div className="text-xs md:text-sm opacity-90">Stock Value</div>
             <div className="text-lg md:text-2xl font-bold">
