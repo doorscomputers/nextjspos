@@ -461,48 +461,51 @@ export default function DashboardPageV2() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-200">Period:</label>
-            <Select value={metricsDateFilter} onValueChange={(value) => setMetricsDateFilter(value as any)}>
-              <SelectTrigger className="w-[160px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
-                <SelectItem value="quarter">Current Quarter</SelectItem>
-                <SelectItem value="year">This Year</SelectItem>
-                <SelectItem value="all">All Time</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {locations.length > 0 && (
+        {/* Filters - Hidden from Cashiers (no data to filter) */}
+        {!hasAnyRole([...CASHIER_ROLES]) && (
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-200">Location:</label>
-              <Select value={locationFilter} onValueChange={setLocationFilter}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Select location" />
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-200">Period:</label>
+              <Select value={metricsDateFilter} onValueChange={(value) => setMetricsDateFilter(value as any)}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {showAllLocationsOption && (
-                    <SelectItem value="all">All Locations</SelectItem>
-                  )}
-                  {locations.map((location) => (
-                    <SelectItem key={location.id} value={location.id.toString()}>
-                      {location.name}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="week">This Week</SelectItem>
+                  <SelectItem value="month">This Month</SelectItem>
+                  <SelectItem value="quarter">Current Quarter</SelectItem>
+                  <SelectItem value="year">This Year</SelectItem>
+                  <SelectItem value="all">All Time</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-          )}
-          <Button onClick={fetchDashboardStats} variant="outline" size="sm">
-            <ArrowPathIcon className="w-4 h-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
+            {locations.length > 0 && (
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-200">Location:</label>
+                <Select value={locationFilter} onValueChange={setLocationFilter}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Select location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {showAllLocationsOption && (
+                      <SelectItem value="all">All Locations</SelectItem>
+                    )}
+                    {locations.map((location) => (
+                      <SelectItem key={location.id} value={location.id.toString()}>
+                        {location.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <Button onClick={fetchDashboardStats} variant="outline" size="sm">
+              <ArrowPathIcon className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Current Shift Widget - only show to cashier roles who open shifts */}
@@ -510,27 +513,29 @@ export default function DashboardPageV2() {
         <CurrentShiftWidget />
       )}
 
-      {/* Metric Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {filteredMetrics.map((metric) => {
-          const Icon = metric.icon
-          return (
-            <div key={metric.name} className={`relative overflow-hidden rounded-lg shadow-lg bg-gradient-to-br ${metric.color} p-6 text-white hover:shadow-xl transition-all duration-200 hover:scale-105`}>
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-medium opacity-90">{metric.name}</p>
-                  <p className="text-2xl sm:text-3xl font-bold mt-2">
-                    {formatAmount(metric.value)}
-                  </p>
-                </div>
-                <div className="p-3 bg-white/20 rounded-full backdrop-blur-sm">
-                  <Icon className="h-8 w-8" />
+      {/* Metric Cards Grid - Hidden from Cashiers (management data only) */}
+      {!hasAnyRole([...CASHIER_ROLES]) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {filteredMetrics.map((metric) => {
+            const Icon = metric.icon
+            return (
+              <div key={metric.name} className={`relative overflow-hidden rounded-lg shadow-lg bg-gradient-to-br ${metric.color} p-6 text-white hover:shadow-xl transition-all duration-200 hover:scale-105`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium opacity-90">{metric.name}</p>
+                    <p className="text-2xl sm:text-3xl font-bold mt-2">
+                      {formatAmount(metric.value)}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white/20 rounded-full backdrop-blur-sm">
+                    <Icon className="h-8 w-8" />
+                  </div>
                 </div>
               </div>
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Sales by Location Charts - Hidden from Cashiers (Admin/Manager only) */}
       {can(PERMISSIONS.SELL_VIEW) && !hasAnyRole([...CASHIER_ROLES]) && (
@@ -633,8 +638,8 @@ export default function DashboardPageV2() {
         </Card>
       )}
 
-      {/* Original Charts Section with DevExtreme */}
-      {can(PERMISSIONS.SELL_VIEW) && (
+      {/* Original Charts Section with DevExtreme - Hidden from Cashiers */}
+      {can(PERMISSIONS.SELL_VIEW) && !hasAnyRole([...CASHIER_ROLES]) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Sales Last 30 Days */}
           <Card className="shadow-lg">
@@ -708,10 +713,11 @@ export default function DashboardPageV2() {
         </div>
       )}
 
-      {/* Tables Section with DevExtreme DataGrid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Sales Payment Due - Hidden from Cashiers (AR tracking is for Admins/Managers only) */}
-        {can(PERMISSIONS.SELL_VIEW) && !hasAnyRole([...CASHIER_ROLES]) && (
+      {/* Tables Section with DevExtreme DataGrid - Hidden from Cashiers (management data only) */}
+      {!hasAnyRole([...CASHIER_ROLES]) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Sales Payment Due */}
+          {can(PERMISSIONS.SELL_VIEW) && (
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Sales Payment Due</CardTitle>
@@ -922,7 +928,8 @@ export default function DashboardPageV2() {
         {can(PERMISSIONS.REPORT_VIEW) && (
           <StockHealthWidget />
         )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
