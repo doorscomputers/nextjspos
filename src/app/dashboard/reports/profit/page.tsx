@@ -89,13 +89,21 @@ export default function ProfitReportPage() {
       try {
         const res = await fetch('/api/locations')
         if (res.ok) {
-          const data = await res.json()
-          const locData = Array.isArray(data?.locations)
-            ? data.locations
-            : Array.isArray(data)
-            ? data
+          const response = await res.json()
+          // API returns { success: true, data: locations }
+          const locData = Array.isArray(response?.data)
+            ? response.data
+            : Array.isArray(response?.locations)
+            ? response.locations
+            : Array.isArray(response)
+            ? response
             : []
-          setLocations(locData)
+
+          // Filter out Main Warehouse
+          const filteredLocations = locData.filter(
+            (loc: { id: number; name: string }) => loc.name?.toLowerCase() !== 'main warehouse'
+          )
+          setLocations(filteredLocations)
         } else {
           setLocations([])
         }
