@@ -173,7 +173,7 @@ export async function GET(request: NextRequest) {
           COUNT(*) as totalActivities,
           COUNT(DISTINCT DATE("created_at")) as activeDays,
           COUNT(DISTINCT "action") as uniqueActionTypes,
-          COUNT(DISTINCT "entityType") as uniqueEntityTypes,
+          COUNT(DISTINCT "entity_type") as uniqueEntityTypes,
           MAX("created_at") as lastActivity,
           MIN("created_at") as firstActivity
         FROM "audit_logs"
