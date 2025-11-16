@@ -197,7 +197,7 @@ export async function GET(request: NextRequest) {
     })
 
     // ============================================
-    // SALES
+    // SALES (with items for COGS calculation)
     // ============================================
     const salesWhere = {
       ...baseWhere,
@@ -207,6 +207,9 @@ export async function GET(request: NextRequest) {
 
     const sales = await prisma.sale.findMany({
       where: salesWhere,
+      include: {
+        saleItems: true, // Include sale items to calculate COGS
+      },
     })
 
     let totalSales = 0
@@ -214,6 +217,7 @@ export async function GET(request: NextRequest) {
     let sellAdditionalExpenses = 0
     let totalSellDiscount = 0
     let totalSellRoundOff = 0
+    let actualCOGS = 0 // Calculate COGS from actual items sold
 
     sales.forEach((sale) => {
       totalSales += sale.totalAmount ? parseFloat(sale.totalAmount.toString()) : 0
@@ -221,6 +225,15 @@ export async function GET(request: NextRequest) {
       // sellAdditionalExpenses += sale.additionalExpense ? parseFloat(sale.additionalExpense.toString()) : 0 // Field doesn't exist in schema
       totalSellDiscount += sale.discountAmount ? parseFloat(sale.discountAmount.toString()) : 0
       // totalSellRoundOff += sale.roundOffAmount ? parseFloat(sale.roundOffAmount.toString()) : 0 // Field doesn't exist in schema
+
+      // Calculate COGS from sale items
+      if (sale.saleItems && Array.isArray(sale.saleItems)) {
+        sale.saleItems.forEach((item: any) => {
+          const quantity = item.quantity ? parseFloat(item.quantity.toString()) : 0
+          const unitCost = item.unitCost ? parseFloat(item.unitCost.toString()) : 0
+          actualCOGS += quantity * unitCost
+        })
+      }
     })
 
     // ============================================
@@ -332,8 +345,10 @@ export async function GET(request: NextRequest) {
     // ============================================
     // CALCULATIONS
     // ============================================
-    // COGS = Opening Stock + Purchases + Adjustments - Closing Stock - Purchase Returns
-    const cogs = openingStockPurchase + totalPurchase + totalStockAdjustment - closingStockPurchase - totalPurchaseReturn
+    // COGS = Actual cost of goods sold (from sale items)
+    // This is more accurate than Opening Stock + Purchases - Closing Stock
+    // because it reflects the actual cost of items that were sold
+    const cogs = actualCOGS
 
     // Gross Profit = Total Sales - COGS
     const grossProfit = totalSales - cogs
