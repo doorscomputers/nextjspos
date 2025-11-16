@@ -108,9 +108,9 @@ export default function BIRDailySalesSummaryPage() {
   const fetchLocations = async () => {
     try {
       const response = await fetch('/api/locations')
-      const data = await response.json()
-      if (response.ok && data.locations) {
-        setLocations(data.locations)
+      const result = await response.json()
+      if (response.ok && result.data) {
+        setLocations(result.data)
       }
     } catch (error) {
       console.error('Error fetching locations:', error)
@@ -121,9 +121,17 @@ export default function BIRDailySalesSummaryPage() {
   const fetchUsers = async () => {
     try {
       const response = await fetch('/api/users')
-      const data = await response.json()
-      if (response.ok && data.users) {
-        setUsers(data.users)
+      const result = await response.json()
+      if (response.ok && result.data) {
+        // Filter users to show only those with cashier-related roles
+        const cashiers = result.data.filter((user: any) => {
+          // Check if user has any cashier-related role
+          return user.roles && user.roles.some((role: string) =>
+            role.toLowerCase().includes('cashier') ||
+            role.toLowerCase().includes('sales')
+          )
+        })
+        setUsers(cashiers)
       }
     } catch (error) {
       console.error('Error fetching users:', error)
