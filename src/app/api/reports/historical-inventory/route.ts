@@ -5,6 +5,26 @@ import { prisma } from '@/lib/prisma.simple';
 import { hasPermission } from '@/lib/rbac';
 import { PERMISSIONS } from '@/lib/rbac';
 
+/**
+ * Helper function to process array items in batches to avoid connection pool exhaustion
+ * Processes items sequentially in chunks to limit concurrent database connections
+ */
+async function processBatches<T, R>(
+  items: T[],
+  batchSize: number,
+  processor: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = []
+
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize)
+    const batchResults = await Promise.all(batch.map(processor))
+    results.push(...batchResults)
+  }
+
+  return results
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -144,8 +164,13 @@ export async function GET(request: NextRequest) {
     const isToday = nowLocal.getFullYear() === exactDateTime.getFullYear() &&
       nowLocal.getMonth() === exactDateTime.getMonth() &&
       nowLocal.getDate() === exactDateTime.getDate();
-    const inventoryWithHistoricalQty = await Promise.all(
-      inventoryData.map(async (item) => {
+
+    // Process in batches of 10 to avoid connection pool exhaustion
+    // Each item makes 2-3 database queries (lastTx, afterSum, and conditionally firstTx)
+    const inventoryWithHistoricalQty = await processBatches(
+      inventoryData,
+      10,
+      async (item) => {
         // Determine historical quantity as of exactDateTime by taking the running balance
         // of the latest stock transaction on or before the cutoff.
         const lastTx = await prisma.stockTransaction.findFirst({
@@ -254,7 +279,7 @@ export async function GET(request: NextRequest) {
           currency: '₱', // Fixed currency symbol for now
           lastUpdated: item.updatedAt
         };
-      })
+      }
     );
     // Do not filter out zero-quantity items; users expect search to return
     // matching products even if historical quantity is zero on that date
