@@ -67,4 +67,8 @@ kendo-license.txt
 # Claude Code settings (contains local configuration and potentially sensitive data)
 .claude/settings.local.json
 
+# optimization results (backup/test files - should not be deployed)
+/optimization-results/
+optimization-results/
+
 .vercel
