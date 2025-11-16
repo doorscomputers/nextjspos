@@ -115,15 +115,17 @@ export async function reconcileLedgerVsSystem(
             }
           }
         }
-      },
-      location: {
-        select: {
-          id: true,
-          name: true
-        }
       }
     }
   })
+
+  // Get locations for all records
+  const locationIds = [...new Set(stockRecords.map(r => r.locationId))]
+  const locations = await prisma.businessLocation.findMany({
+    where: { id: { in: locationIds } },
+    select: { id: true, name: true }
+  })
+  const locationMap = new Map(locations.map(l => [l.id, l]))
 
   const variances: VarianceDetection[] = []
 
@@ -198,7 +200,7 @@ export async function reconcileLedgerVsSystem(
       productName: record.productVariation.product.name,
       productSku: record.productVariation.product.sku || 'N/A',
       variationName: record.productVariation.name || 'Default',
-      locationName: record.location.name,
+      locationName: locationMap.get(record.locationId)?.name || 'Unknown Location',
 
       ledgerBalance,
       systemBalance,
@@ -556,22 +558,24 @@ export async function getReconciliationHistory(
           id: true,
           name: true
         }
-      },
-      location: {
-        select: {
-          id: true,
-          name: true
-        }
       }
     }
   })
+
+  // Get locations for all transactions
+  const transLocationIds = [...new Set(reconciliations.map(r => r.locationId))]
+  const transLocations = await prisma.businessLocation.findMany({
+    where: { id: { in: transLocationIds } },
+    select: { id: true, name: true }
+  })
+  const transLocationMap = new Map(transLocations.map(l => [l.id, l]))
 
   return reconciliations.map(recon => ({
     id: recon.id,
     date: recon.createdAt,
     productName: recon.product.name,
     variationName: recon.productVariation?.name || 'Default',
-    locationName: recon.location.name,
+    locationName: transLocationMap.get(recon.locationId)?.name || 'Unknown Location',
     quantity: recon.quantity,
     balance: recon.balance,
     notes: recon.notes,
