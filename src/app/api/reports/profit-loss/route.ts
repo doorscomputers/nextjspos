@@ -141,8 +141,8 @@ export async function GET(request: NextRequest) {
 
     purchases.forEach((purchase) => {
       totalPurchase += purchase.totalAmount ? parseFloat(purchase.totalAmount.toString()) : 0
-      totalPurchaseShipping += purchase.shippingCharges ? parseFloat(purchase.shippingCharges.toString()) : 0
-      purchaseAdditionalExpenses += purchase.additionalExpense ? parseFloat(purchase.additionalExpense.toString()) : 0
+      totalPurchaseShipping += purchase.shippingCost ? parseFloat(purchase.shippingCost.toString()) : 0
+      // purchaseAdditionalExpenses += purchase.additionalExpense ? parseFloat(purchase.additionalExpense.toString()) : 0 // Field doesn't exist in schema
       totalPurchaseDiscount += purchase.discountAmount ? parseFloat(purchase.discountAmount.toString()) : 0
     })
 
@@ -185,10 +185,10 @@ export async function GET(request: NextRequest) {
 
     sales.forEach((sale) => {
       totalSales += sale.totalAmount ? parseFloat(sale.totalAmount.toString()) : 0
-      totalSellShipping += sale.shippingCharges ? parseFloat(sale.shippingCharges.toString()) : 0
-      sellAdditionalExpenses += sale.additionalExpense ? parseFloat(sale.additionalExpense.toString()) : 0
+      totalSellShipping += sale.shippingCost ? parseFloat(sale.shippingCost.toString()) : 0
+      // sellAdditionalExpenses += sale.additionalExpense ? parseFloat(sale.additionalExpense.toString()) : 0 // Field doesn't exist in schema
       totalSellDiscount += sale.discountAmount ? parseFloat(sale.discountAmount.toString()) : 0
-      totalSellRoundOff += sale.roundOffAmount ? parseFloat(sale.roundOffAmount.toString()) : 0
+      // totalSellRoundOff += sale.roundOffAmount ? parseFloat(sale.roundOffAmount.toString()) : 0 // Field doesn't exist in schema
     })
 
     // ============================================
@@ -276,19 +276,20 @@ export async function GET(request: NextRequest) {
     // ============================================
     // TRANSFER SHIPPING
     // ============================================
-    const transfersWhere = {
-      businessId: parseInt(businessId),
-      createdAt: { gte: start, lte: end },
-    }
-
-    const transfers = await prisma.stockTransfer.findMany({
-      where: transfersWhere,
-    })
-
+    // Note: StockTransfer model doesn't have shippingCharge field in current schema
     let totalTransferShipping = 0
-    transfers.forEach((transfer) => {
-      totalTransferShipping += transfer.shippingCharge ? parseFloat(transfer.shippingCharge.toString()) : 0
-    })
+
+    // Uncomment if shippingCharge field is added to StockTransfer schema
+    // const transfersWhere = {
+    //   businessId: parseInt(businessId),
+    //   createdAt: { gte: start, lte: end },
+    // }
+    // const transfers = await prisma.stockTransfer.findMany({
+    //   where: transfersWhere,
+    // })
+    // transfers.forEach((transfer) => {
+    //   totalTransferShipping += transfer.shippingCharge ? parseFloat(transfer.shippingCharge.toString()) : 0
+    // })
 
     // ============================================
     // CUSTOMER REWARDS (if you track them separately)

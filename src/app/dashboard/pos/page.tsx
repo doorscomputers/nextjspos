@@ -2534,7 +2534,7 @@ export default function POSEnhancedPage() {
 
                 {/* Cash Payment */}
                 <div>
-                  <Label className="text-xs font-medium mb-1 block">Cash Amount</Label>
+                  <Label className="text-base font-bold mb-1 block text-green-700">Cash Amount</Label>
                   <Input
                     type="number"
                     value={cashAmount}
@@ -2546,7 +2546,7 @@ export default function POSEnhancedPage() {
 
                 {/* Digital Payment */}
                 <div>
-                  <Label className="text-xs font-medium mb-1 block">Digital Payment</Label>
+                  <Label className="text-base font-bold mb-1 block text-blue-700">Digital Payment</Label>
                   <Select value={digitalMethod} onValueChange={(value) => setDigitalMethod(value)}>
                     <SelectTrigger className="h-10 text-base border-2 border-gray-400 mb-2">
                       <SelectValue placeholder="Select payment method" />
@@ -2577,7 +2577,7 @@ export default function POSEnhancedPage() {
 
                 {/* Cheque Payment */}
                 <div>
-                  <Label className="text-xs font-medium mb-1 block">Cheque Payment</Label>
+                  <Label className="text-base font-bold mb-1 block text-amber-700">Cheque Payment</Label>
                   <Input
                     type="number"
                     value={chequeAmount}
