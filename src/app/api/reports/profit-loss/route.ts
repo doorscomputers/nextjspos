@@ -71,8 +71,8 @@ export async function GET(request: NextRequest) {
       include: {
         productVariation: {
           select: {
-            defaultPurchasePrice: true,
-            defaultSellPrice: true,
+            purchasePrice: true,
+            sellingPrice: true,
           },
         },
         product: {
@@ -89,11 +89,11 @@ export async function GET(request: NextRequest) {
 
     openingStockData.forEach((stock) => {
       const qty = stock.qtyAvailable ? parseFloat(stock.qtyAvailable.toString()) : 0
-      const purchasePrice = stock.productVariation?.defaultPurchasePrice
-        ? parseFloat(stock.productVariation.defaultPurchasePrice.toString())
+      const purchasePrice = stock.productVariation?.purchasePrice
+        ? parseFloat(stock.productVariation.purchasePrice.toString())
         : 0
-      const salePrice = stock.productVariation?.defaultSellPrice
-        ? parseFloat(stock.productVariation.defaultSellPrice.toString())
+      const salePrice = stock.productVariation?.sellingPrice
+        ? parseFloat(stock.productVariation.sellingPrice.toString())
         : 0
 
       openingStockPurchase += qty * purchasePrice
@@ -120,8 +120,8 @@ export async function GET(request: NextRequest) {
       include: {
         productVariation: {
           select: {
-            defaultPurchasePrice: true,
-            defaultSellPrice: true,
+            purchasePrice: true,
+            sellingPrice: true,
           },
         },
         product: {
@@ -138,11 +138,11 @@ export async function GET(request: NextRequest) {
 
     closingStockData.forEach((stock) => {
       const qty = stock.qtyAvailable ? parseFloat(stock.qtyAvailable.toString()) : 0
-      const purchasePrice = stock.productVariation?.defaultPurchasePrice
-        ? parseFloat(stock.productVariation.defaultPurchasePrice.toString())
+      const purchasePrice = stock.productVariation?.purchasePrice
+        ? parseFloat(stock.productVariation.purchasePrice.toString())
         : 0
-      const salePrice = stock.productVariation?.defaultSellPrice
-        ? parseFloat(stock.productVariation.defaultSellPrice.toString())
+      const salePrice = stock.productVariation?.sellingPrice
+        ? parseFloat(stock.productVariation.sellingPrice.toString())
         : 0
 
       closingStockPurchase += qty * purchasePrice
