@@ -54,17 +54,31 @@ export async function GET(request: NextRequest) {
     // ============================================
     // OPENING STOCK (at start date)
     // ============================================
-    const openingStockWhere = {
-      ...baseWhere,
-      createdAt: { lt: start },
+    const openingStockWhere: any = {
+      product: {
+        businessId: parseInt(businessId),
+        deletedAt: null,
+      },
+      updatedAt: { lt: start },
+    }
+
+    if (locationId && locationId !== 'all') {
+      openingStockWhere.locationId = parseInt(locationId)
     }
 
     const openingStockData = await prisma.variationLocationDetails.findMany({
       where: openingStockWhere,
       include: {
-        variation: {
-          include: {
-            product: true,
+        productVariation: {
+          select: {
+            defaultPurchasePrice: true,
+            defaultSellPrice: true,
+          },
+        },
+        product: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },
@@ -75,11 +89,11 @@ export async function GET(request: NextRequest) {
 
     openingStockData.forEach((stock) => {
       const qty = stock.qtyAvailable ? parseFloat(stock.qtyAvailable.toString()) : 0
-      const purchasePrice = stock.variation?.defaultPurchasePrice
-        ? parseFloat(stock.variation.defaultPurchasePrice.toString())
+      const purchasePrice = stock.productVariation?.defaultPurchasePrice
+        ? parseFloat(stock.productVariation.defaultPurchasePrice.toString())
         : 0
-      const salePrice = stock.variation?.defaultSellPrice
-        ? parseFloat(stock.variation.defaultSellPrice.toString())
+      const salePrice = stock.productVariation?.defaultSellPrice
+        ? parseFloat(stock.productVariation.defaultSellPrice.toString())
         : 0
 
       openingStockPurchase += qty * purchasePrice
@@ -89,17 +103,31 @@ export async function GET(request: NextRequest) {
     // ============================================
     // CLOSING STOCK (at end date)
     // ============================================
-    const closingStockWhere = {
-      ...baseWhere,
-      createdAt: { lte: end },
+    const closingStockWhere: any = {
+      product: {
+        businessId: parseInt(businessId),
+        deletedAt: null,
+      },
+      updatedAt: { lte: end },
+    }
+
+    if (locationId && locationId !== 'all') {
+      closingStockWhere.locationId = parseInt(locationId)
     }
 
     const closingStockData = await prisma.variationLocationDetails.findMany({
       where: closingStockWhere,
       include: {
-        variation: {
-          include: {
-            product: true,
+        productVariation: {
+          select: {
+            defaultPurchasePrice: true,
+            defaultSellPrice: true,
+          },
+        },
+        product: {
+          select: {
+            id: true,
+            name: true,
           },
         },
       },
@@ -110,11 +138,11 @@ export async function GET(request: NextRequest) {
 
     closingStockData.forEach((stock) => {
       const qty = stock.qtyAvailable ? parseFloat(stock.qtyAvailable.toString()) : 0
-      const purchasePrice = stock.variation?.defaultPurchasePrice
-        ? parseFloat(stock.variation.defaultPurchasePrice.toString())
+      const purchasePrice = stock.productVariation?.defaultPurchasePrice
+        ? parseFloat(stock.productVariation.defaultPurchasePrice.toString())
         : 0
-      const salePrice = stock.variation?.defaultSellPrice
-        ? parseFloat(stock.variation.defaultSellPrice.toString())
+      const salePrice = stock.productVariation?.defaultSellPrice
+        ? parseFloat(stock.productVariation.defaultSellPrice.toString())
         : 0
 
       closingStockPurchase += qty * purchasePrice
