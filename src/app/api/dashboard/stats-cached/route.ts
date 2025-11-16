@@ -200,13 +200,30 @@ export async function GET(request: NextRequest) {
             _count: true,
           }),
 
-          // Invoice Due (this should still show ALL unpaid invoices regardless of date)
+          // Invoice Due - Calculate BALANCE DUE (not total sales amount)
+          // CRITICAL FIX: Sum of unpaid balances, not total sales
           hasPermission(PERMISSIONS.SELL_VIEW)
-            ? prisma.sale.aggregate({
-                where: { ...whereClause, status: { not: 'cancelled' } },
-                _sum: { totalAmount: true },
+            ? prisma.sale.findMany({
+                where: {
+                  ...whereClause,
+                  status: { notIn: ['cancelled', 'voided'] },
+                  // Only include sales with customers (exclude walk-in)
+                  customerId: { not: null },
+                  customer: {
+                    name: {
+                      not: {
+                        contains: "Walk-in",
+                        mode: "insensitive"
+                      }
+                    }
+                  }
+                },
+                select: {
+                  totalAmount: true,
+                  paidAmount: true,
+                },
               })
-            : Promise.resolve({ _sum: { totalAmount: null } }),
+            : Promise.resolve([]),
 
           // Purchase Due (this should still show ALL unpaid purchases regardless of date)
           prisma.accountsPayable.aggregate({
@@ -292,9 +309,20 @@ export async function GET(request: NextRequest) {
           }
         }
 
+        // CRITICAL FIX: Sales Payment Due - Only show credit sales with actual customers
         const salesPaymentDueWhereClause: any = {
           businessId,
-          status: { notIn: ['voided', 'cancelled'] }
+          status: { notIn: ['voided', 'cancelled'] },
+          // CRITICAL: Only include sales with customers (exclude walk-in)
+          customerId: { not: null },
+          customer: {
+            name: {
+              not: {
+                contains: "Walk-in",
+                mode: "insensitive"
+              }
+            }
+          }
         }
 
         if (accessibleLocationIds !== null) {
@@ -330,9 +358,13 @@ export async function GET(request: NextRequest) {
 
           prisma.sale.findMany({
             where: salesPaymentDueWhereClause,
-            include: {
+            select: {
+              id: true,
+              invoiceNumber: true,
+              saleDate: true,
+              totalAmount: true,
+              paidAmount: true,
               customer: { select: { name: true } },
-              payments: { select: { amount: true } },
               location: { select: { name: true } },
             },
             orderBy: { saleDate: 'desc' },
@@ -371,12 +403,12 @@ export async function GET(request: NextRequest) {
         ])
 
         // Process sales payment due
+        // CRITICAL FIX: Use paidAmount from database (it excludes credit placeholders automatically)
         const salesPaymentDue = salesPaymentDueRaw
           .map((sale) => {
             const totalAmount = parseFloat(sale.totalAmount.toString())
-            const paidAmount = sale.payments.reduce((sum, payment) => {
-              return sum + parseFloat(payment.amount.toString())
-            }, 0)
+            // Use paidAmount field from database (already excludes credit placeholders)
+            const paidAmount = parseFloat(sale.paidAmount?.toString() || '0')
             const balance = Math.max(0, parseFloat((totalAmount - paidAmount).toFixed(2)))
 
             return {
@@ -393,11 +425,21 @@ export async function GET(request: NextRequest) {
           .filter((sale) => sale.amount > 0)
           .slice(0, 10)
 
+        // CRITICAL FIX: Calculate invoiceDue as sum of unpaid balances
+        const totalInvoiceDue = Array.isArray(invoiceDue)
+          ? invoiceDue.reduce((sum, sale) => {
+              const total = parseFloat(sale.totalAmount?.toString() || '0')
+              const paid = parseFloat(sale.paidAmount?.toString() || '0')
+              const balance = Math.max(0, total - paid)
+              return sum + balance
+            }, 0)
+          : 0
+
         const result = {
           metrics: {
             totalSales: parseFloat(salesData._sum.totalAmount?.toString() || '0'),
             netAmount: parseFloat(salesData._sum.subtotal?.toString() || '0'),
-            invoiceDue: parseFloat(invoiceDue._sum.totalAmount?.toString() || '0'),
+            invoiceDue: totalInvoiceDue,
             totalSellReturn: parseFloat(customerReturnData._sum.totalRefundAmount?.toString() || '0'),
             totalPurchase: parseFloat(purchaseData._sum.totalAmount?.toString() || '0'),
             purchaseDue: parseFloat(purchaseDue._sum.balanceAmount?.toString() || '0'),
