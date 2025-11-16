@@ -53,13 +53,15 @@ export async function GET(request: NextRequest) {
 
     // ============================================
     // OPENING STOCK (at start date)
+    // Note: Using current stock snapshot as baseline
+    // For historical accuracy, would need productHistory table
     // ============================================
     const openingStockWhere: any = {
       product: {
         businessId: parseInt(businessId),
         deletedAt: null,
       },
-      updatedAt: { lt: start },
+      // Removed updatedAt filter - get current stock snapshot
     }
 
     if (locationId && locationId !== 'all') {
@@ -102,13 +104,15 @@ export async function GET(request: NextRequest) {
 
     // ============================================
     // CLOSING STOCK (at end date)
+    // Note: Using current stock snapshot
+    // For historical accuracy, would need productHistory table
     // ============================================
     const closingStockWhere: any = {
       product: {
         businessId: parseInt(businessId),
         deletedAt: null,
       },
-      updatedAt: { lte: end },
+      // Removed updatedAt filter - get current stock snapshot
     }
 
     if (locationId && locationId !== 'all') {
