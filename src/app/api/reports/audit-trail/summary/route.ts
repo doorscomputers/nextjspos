@@ -227,7 +227,7 @@ export async function GET(request: NextRequest) {
       // Daily activities for chart (PostgreSQL)
       prisma.$queryRaw(Prisma.sql`
         SELECT
-          DATE_TRUNC(${Prisma.raw(groupBy)}, "created_at") as date,
+          DATE_TRUNC(${Prisma.raw(`'${groupBy}'`)}, "created_at") as date,
           COUNT(*) as count,
           COUNT(DISTINCT "user_id") as "uniqueUsers",
           COUNT(DISTINCT "business_id") as "uniqueBusinesses",
@@ -239,7 +239,7 @@ export async function GET(request: NextRequest) {
           AND "created_at" <= ${end}
           ${!isSuperAdmin(user) ? Prisma.sql`AND "business_id" = ${parseInt(businessId)}` : Prisma.empty}
           ${filterBusinessId && isSuperAdmin(user) ? Prisma.sql`AND "business_id" = ${parseInt(filterBusinessId)}` : Prisma.empty}
-        GROUP BY DATE_TRUNC(${Prisma.raw(groupBy)}, "created_at")
+        GROUP BY DATE_TRUNC(${Prisma.raw(`'${groupBy}'`)}, "created_at")
         ORDER BY date ASC
       `)
     ])
