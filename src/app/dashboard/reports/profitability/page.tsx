@@ -261,8 +261,24 @@ export default function ProfitabilityReportPage() {
         </div>
 
         <div className="mt-4">
-          <Button onClick={fetchReport} disabled={loading}>
-            {loading ? 'Loading...' : 'Generate Report'}
+          <Button
+            variant="success"
+            size="default"
+            onClick={fetchReport}
+            disabled={loading}
+            className="gap-2 min-w-48"
+          >
+            {loading ? (
+              <>
+                <span className="animate-spin">⏳</span>
+                Loading...
+              </>
+            ) : (
+              <>
+                <ChartBarIcon className="h-5 w-5" />
+                Generate Report
+              </>
+            )}
           </Button>
         </div>
       </ReportFilterPanel>
