@@ -92,7 +92,7 @@ export async function reconcileLedgerVsSystem(
 ): Promise<VarianceDetection[]> {
 
   const where: any = {
-    variation: {
+    productVariation: {
       product: { businessId }
     }
   }
@@ -105,7 +105,7 @@ export async function reconcileLedgerVsSystem(
   const stockRecords = await prisma.variationLocationDetails.findMany({
     where,
     include: {
-      variation: {
+      productVariation: {
         include: {
           product: {
             select: {
@@ -194,10 +194,10 @@ export async function reconcileLedgerVsSystem(
     variances.push({
       variationId: record.productVariationId,
       locationId: record.locationId,
-      productId: record.variation.product.id,
-      productName: record.variation.product.name,
-      productSku: record.variation.product.sku || 'N/A',
-      variationName: record.variation.name || 'Default',
+      productId: record.productVariation.product.id,
+      productName: record.productVariation.product.name,
+      productSku: record.productVariation.product.sku || 'N/A',
+      variationName: record.productVariation.name || 'Default',
       locationName: record.location.name,
 
       ledgerBalance,
@@ -551,7 +551,7 @@ export async function getReconciliationHistory(
           sku: true
         }
       },
-      variation: {
+      productVariation: {
         select: {
           id: true,
           name: true
@@ -570,7 +570,7 @@ export async function getReconciliationHistory(
     id: recon.id,
     date: recon.createdAt,
     productName: recon.product.name,
-    variationName: recon.variation?.name || 'Default',
+    variationName: recon.productVariation?.name || 'Default',
     locationName: recon.location.name,
     quantity: recon.quantity,
     balance: recon.balance,
