@@ -18,6 +18,7 @@ import {
 } from "@heroicons/react/24/outline"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import CurrentShiftWidget from "@/components/CurrentShiftWidget"
+import { StockHealthWidget } from "@/components/dashboard/StockHealthWidget"
 import {
   Select,
   SelectContent,
@@ -365,6 +366,7 @@ export default function DashboardPageV2() {
       color: "from-orange-500 to-orange-600",
       textColor: "text-orange-600",
       permission: PERMISSIONS.SELL_VIEW,
+      hideFromCashier: true, // Hide AR tracking from cashiers
     },
     {
       name: "Total Sell Return",
@@ -408,9 +410,15 @@ export default function DashboardPageV2() {
     },
   ]
 
-  const filteredMetrics = metricCards.filter(
-    (metric) => !metric.permission || can(metric.permission)
-  )
+  const filteredMetrics = metricCards.filter((metric) => {
+    // Check permission
+    if (metric.permission && !can(metric.permission)) return false
+
+    // Hide AR tracking cards from cashiers
+    if (metric.hideFromCashier && hasAnyRole([...CASHIER_ROLES])) return false
+
+    return true
+  })
 
   // Transform data for bar chart
   const getChartData = () => {
@@ -702,8 +710,8 @@ export default function DashboardPageV2() {
 
       {/* Tables Section with DevExtreme DataGrid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Sales Payment Due */}
-        {can(PERMISSIONS.SELL_VIEW) && (
+        {/* Sales Payment Due - Hidden from Cashiers (AR tracking is for Admins/Managers only) */}
+        {can(PERMISSIONS.SELL_VIEW) && !hasAnyRole([...CASHIER_ROLES]) && (
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Sales Payment Due</CardTitle>
@@ -908,6 +916,11 @@ export default function DashboardPageV2() {
               </DataGrid>
             </CardContent>
           </Card>
+        )}
+
+        {/* Stock Health Widget - Inventory Reconciliation Status */}
+        {can(PERMISSIONS.REPORT_VIEW) && (
+          <StockHealthWidget />
         )}
       </div>
     </div>
