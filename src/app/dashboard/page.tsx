@@ -18,7 +18,6 @@ import {
 } from "@heroicons/react/24/outline"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import CurrentShiftWidget from "@/components/CurrentShiftWidget"
-import { StockHealthWidget } from "@/components/dashboard/StockHealthWidget"
 import {
   Select,
   SelectContent,
@@ -922,11 +921,6 @@ export default function DashboardPageV2() {
               </DataGrid>
             </CardContent>
           </Card>
-        )}
-
-        {/* Stock Health Widget - Inventory Reconciliation Status */}
-        {can(PERMISSIONS.REPORT_VIEW) && (
-          <StockHealthWidget />
         )}
         </div>
       )}
