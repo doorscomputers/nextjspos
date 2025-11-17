@@ -16,6 +16,15 @@
     }
   },
   "functions": {
+    "src/app/api/purchases/receipts/*/approve/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/purchases/*/receive/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/purchases/route.ts": {
+      "maxDuration": 60
+    },
     "src/app/api/**/*.ts": {
       "maxDuration": 30
     },

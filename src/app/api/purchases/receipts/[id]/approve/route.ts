@@ -197,6 +197,7 @@ import { SerialNumberCondition } from '@/lib/serialNumber'
 import { withIdempotency } from '@/lib/idempotency' // Prevents duplicate approvals
 import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker' // Tracks stock changes
 import { isAccountingEnabled, recordPurchase } from '@/lib/accountingIntegration'
+import { sendSemaphorePurchaseApprovalAlert } from '@/lib/semaphore' // SMS notifications
 
 /**
  * POST /api/purchases/receipts/[id]/approve
@@ -668,17 +669,50 @@ export async function POST(
       userAgent: getUserAgent(request),
     })
 
-    // AUTO-REFRESH: Update stock materialized view so inventory reports show changes immediately
-    try {
-      console.log('[Purchase Approval] Refreshing stock materialized view...')
-      const refreshStart = Date.now()
-      await prisma.$queryRaw`SELECT * FROM refresh_stock_pivot_view()`
-      const refreshDuration = Date.now() - refreshStart
-      console.log(`[Purchase Approval] Stock view refreshed in ${refreshDuration}ms`)
-    } catch (refreshError) {
-      // Log but don't fail the approval if refresh fails
-      console.error('[Purchase Approval] Failed to refresh stock view:', refreshError)
-    }
+    // AUTO-REFRESH: Update stock materialized view (NON-BLOCKING - Fire and forget)
+    // This runs in background to avoid blocking the response
+    prisma.$queryRaw`SELECT * FROM refresh_stock_pivot_view()`
+      .then(() => {
+        console.log('[Purchase Approval] Stock view refreshed successfully')
+      })
+      .catch((refreshError) => {
+        console.error('[Purchase Approval] Failed to refresh stock view:', refreshError)
+      })
+
+    // SMS NOTIFICATION: Send Semaphore SMS alert (NON-BLOCKING - Fire and forget)
+    // This runs in background to avoid blocking the response
+    Promise.resolve().then(async () => {
+      try {
+        // Get location name
+        const location = await prisma.businessLocation.findUnique({
+          where: { id: receipt.locationId },
+          select: { name: true },
+        })
+
+        // Calculate total quantity received
+        const totalQuantityReceived = receipt.items.reduce(
+          (sum, item) => sum + parseFloat(item.quantityReceived.toString()),
+          0
+        )
+
+        // Send SMS notification
+        await sendSemaphorePurchaseApprovalAlert({
+          poNumber: receipt.purchase.purchaseOrderNumber,
+          grnNumber: receipt.receiptNumber,
+          supplierName: receipt.purchase.supplier.name,
+          totalAmount: parseFloat(receipt.purchase.totalAmount.toString()),
+          itemCount: receipt.items.length,
+          quantityReceived: totalQuantityReceived,
+          locationName: location?.name || 'Unknown',
+          approvedBy: userDisplayName,
+          timestamp: new Date(),
+        })
+
+        console.log('[Purchase Approval] SMS notification sent successfully')
+      } catch (smsError) {
+        console.error('[Purchase Approval] Failed to send SMS notification:', smsError)
+      }
+    })
 
     // Return with inventory impact report
     return NextResponse.json({
