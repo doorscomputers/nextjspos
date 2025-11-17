@@ -1,89 +1,107 @@
-import { Suspense, cache } from 'react'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+"use client"
+
+import { useState, useEffect, Suspense } from 'react'
+import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
-import { redirect } from 'next/navigation'
-import { cookies } from 'next/headers'
 import { LoadingSkeleton } from '@/components/reports/profit-loss/LoadingSkeleton'
 import { FilterPanel } from '@/components/reports/profit-loss/FilterPanel'
-import { ReportDisplay } from '@/components/reports/profit-loss/ReportDisplay'
+import dynamic from 'next/dynamic'
 
-// Cache the session fetch using React's cache function to prevent redundant calls
-const getSession = cache(async () => {
-  return await getServerSession(authOptions)
-})
-
-// Server component for fetching data
-async function ProfitLossReport({
-  startDate,
-  endDate,
-  locationId,
-}: {
-  startDate: string
-  endDate: string
-  locationId: string
-}) {
-  const session = await getSession()
-
-  if (!session?.user) {
-    redirect('/login')
+// Lazy load the heavy ReportDisplay component
+const ReportDisplay = dynamic(
+  () => import('@/components/reports/profit-loss/ReportDisplay').then(mod => ({ default: mod.ReportDisplay })),
+  {
+    loading: () => <LoadingSkeleton />,
+    ssr: false, // Disable SSR for this component to reduce initial bundle
   }
+)
 
-  // Build query params
-  const params = new URLSearchParams({
-    startDate,
-    endDate,
-  })
+interface ProfitLossData {
+  // Left Column - Costs
+  openingStockPurchase: number
+  openingStockSale: number
+  totalPurchase: number
+  totalStockAdjustment: number
+  totalExpense: number
+  totalPurchaseShipping: number
+  purchaseAdditionalExpenses: number
+  totalTransferShipping: number
+  totalSellDiscount: number
+  totalCustomerReward: number
+  totalSellReturn: number
 
-  if (locationId !== 'all') {
-    params.append('locationId', locationId)
-  }
+  // Right Column - Revenue
+  closingStockPurchase: number
+  closingStockSale: number
+  totalSales: number
+  totalSellShipping: number
+  sellAdditionalExpenses: number
+  totalStockRecovered: number
+  totalPurchaseReturn: number
+  totalPurchaseDiscount: number
+  totalSellRoundOff: number
 
-  // Get all cookies to pass to API request
-  const cookieStore = cookies()
-  const cookieHeader = cookieStore.getAll()
-    .map(cookie => `${cookie.name}=${cookie.value}`)
-    .join('; ')
-
-  // Fetch from API (server-side)
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-  const res = await fetch(`${baseUrl}/api/reports/profit-loss?${params.toString()}`, {
-    headers: {
-      cookie: cookieHeader, // Pass all cookies including session
-    },
-    // Add cache configuration for optimal performance
-    next: {
-      revalidate: 60, // Revalidate every 60 seconds
-    },
-  })
-
-  if (!res.ok) {
-    const error = await res.json()
-    throw new Error(error.error || 'Failed to fetch report data')
-  }
-
-  const data = await res.json()
-
-  return <ReportDisplay data={data} startDate={startDate} endDate={endDate} />
+  // Calculated Fields
+  cogs: number
+  grossProfit: number
+  netProfit: number
 }
 
-// Main page component (Server Component)
-export default async function ProfitLossReportPage({
-  searchParams,
-}: {
-  searchParams: { startDate?: string; endDate?: string; locationId?: string }
-}) {
-  // Check session and permissions on server-side
-  const session = await getSession()
+export default function ProfitLossReportPage() {
+  const { can } = usePermissions()
+  const [data, setData] = useState<ProfitLossData | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [locationId, setLocationId] = useState('all')
 
-  if (!session?.user) {
-    redirect('/login')
+  // Initialize from URL params if available
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const urlStartDate = params.get('startDate')
+      const urlEndDate = params.get('endDate')
+      const urlLocationId = params.get('locationId')
+
+      if (urlStartDate) setStartDate(urlStartDate)
+      if (urlEndDate) setEndDate(urlEndDate)
+      if (urlLocationId) setLocationId(urlLocationId)
+
+      // Auto-fetch if params are present
+      if (urlStartDate && urlEndDate) {
+        fetchReport(urlStartDate, urlEndDate, urlLocationId || 'all')
+      }
+    }
+  }, [])
+
+  const fetchReport = async (start: string, end: string, location: string) => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({
+        startDate: start,
+        endDate: end,
+      })
+
+      if (location !== 'all') {
+        params.append('locationId', location)
+      }
+
+      const res = await fetch(`/api/reports/profit-loss?${params.toString()}`)
+
+      if (!res.ok) {
+        throw new Error('Failed to fetch report')
+      }
+
+      const reportData = await res.json()
+      setData(reportData)
+    } catch (error: any) {
+      console.error('Error fetching profit/loss report:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const user = session.user as any
-
-  // Check permissions server-side
-  if (!user.permissions?.includes(PERMISSIONS.REPORT_VIEW)) {
+  if (!can(PERMISSIONS.REPORT_VIEW)) {
     return (
       <div className="p-8">
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-200 px-4 py-3 rounded">
@@ -93,24 +111,9 @@ export default async function ProfitLossReportPage({
     )
   }
 
-  // Default dates
-  const getDefaultStartDate = () => {
-    const date = new Date()
-    date.setDate(date.getDate() - 30)
-    return date.toISOString().split('T')[0]
-  }
-
-  const getDefaultEndDate = () => {
-    return new Date().toISOString().split('T')[0]
-  }
-
-  const startDate = searchParams.startDate || getDefaultStartDate()
-  const endDate = searchParams.endDate || getDefaultEndDate()
-  const locationId = searchParams.locationId || 'all'
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 print:p-0 print:bg-white">
-      {/* Screen Header - Static, rendered immediately */}
+      {/* Screen Header - Renders immediately */}
       <div className="print:hidden mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Profit / Loss Report</h1>
         <p className="text-gray-600 dark:text-gray-300 mt-1">
@@ -121,18 +124,24 @@ export default async function ProfitLossReportPage({
       {/* Filter Panel - Client Component for interactivity */}
       <FilterPanel />
 
-      {/* Report Data - Wrapped in Suspense for streaming */}
-      <Suspense fallback={<LoadingSkeleton />}>
-        <ProfitLossReport
-          startDate={startDate}
-          endDate={endDate}
-          locationId={locationId}
-        />
-      </Suspense>
+      {/* Report Display - Lazy loaded with Suspense */}
+      {loading && <LoadingSkeleton />}
+
+      {!loading && data && (
+        <Suspense fallback={<LoadingSkeleton />}>
+          <ReportDisplay data={data} startDate={startDate} endDate={endDate} />
+        </Suspense>
+      )}
+
+      {!loading && !data && (
+        <div className="flex flex-col items-center justify-center h-96 text-gray-500 dark:text-gray-400">
+          <svg className="w-24 h-24 mb-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <p className="text-lg font-medium">No report generated yet</p>
+          <p className="text-sm mt-2">Select dates and click "Generate Report" to view your profit & loss statement</p>
+        </div>
+      )}
     </div>
   )
 }
-
-// Enable static optimization where possible
-export const dynamic = 'force-dynamic' // Required for searchParams
-export const revalidate = 60 // Revalidate every 60 seconds
