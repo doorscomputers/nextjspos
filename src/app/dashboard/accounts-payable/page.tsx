@@ -194,7 +194,7 @@ export default function AccountsPayablePage() {
       })
 
       if (statusFilter && statusFilter !== 'all') {
-        params.append('status', statusFilter)
+        params.append('paymentStatus', statusFilter)
       }
 
       // NOTE: Date filtering is done client-side to avoid timezone issues
@@ -1148,17 +1148,20 @@ export default function AccountsPayablePage() {
               <TotalItem
                 column="amount"
                 summaryType="sum"
-                valueFormat="currency"
+                valueFormat="#,##0.00"
+                displayFormat="Sum: {0}"
               />
               <TotalItem
                 column="paidAmount"
                 summaryType="sum"
-                valueFormat="currency"
+                valueFormat="#,##0.00"
+                displayFormat="Sum: {0}"
               />
               <TotalItem
                 column="balanceAmount"
                 summaryType="sum"
-                valueFormat="currency"
+                valueFormat="#,##0.00"
+                displayFormat="Sum: {0}"
               />
             </Summary>
           </DataGrid>
