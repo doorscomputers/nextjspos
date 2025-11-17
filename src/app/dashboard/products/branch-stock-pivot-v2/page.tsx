@@ -266,24 +266,6 @@ export default function BranchStockPivotV2Page() {
         </Button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-lg text-white shadow-lg">
-          <div className="text-sm opacity-90">Total Products</div>
-          <div className="text-3xl font-bold">{dataSource.length.toLocaleString()}</div>
-        </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-lg text-white shadow-lg">
-          <div className="text-sm opacity-90">Total Locations</div>
-          <div className="text-3xl font-bold">{locations.length}</div>
-        </div>
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-lg text-white shadow-lg">
-          <div className="text-sm opacity-90">Total Stock</div>
-          <div className="text-3xl font-bold">
-            {dataSource.reduce((sum, row) => sum + (row.totalStock || 0), 0).toLocaleString()}
-          </div>
-        </div>
-      </div>
-
       {/* DevExtreme DataGrid */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
         <DataGrid
