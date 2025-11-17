@@ -73,27 +73,23 @@ export async function GET(request: NextRequest) {
         select: { id: true, name: true }
       })
 
-      // OPTIMIZED: Process all locations in parallel instead of sequentially
-      const locationResults = await Promise.all(
-        locations.map(async (location) => {
-          const locationValuations = await getLocationInventoryValuation(
-            location.id,
-            parseInt(businessId),
-            method
-          )
+      valuations = []
+      for (const location of locations) {
+        const locationValuations = await getLocationInventoryValuation(
+          location.id,
+          parseInt(businessId),
+          method
+        )
 
-          const enriched = await enrichValuations(locationValuations, includeLayers)
+        const enriched = await enrichValuations(locationValuations, includeLayers)
 
-          // Add location name to each valuation
-          return enriched.map(v => ({
-            ...v,
-            locationName: location.name
-          }))
+        // Add location name to each valuation
+        enriched.forEach(v => {
+          v.locationName = location.name
         })
-      )
 
-      // Flatten all location results into single array
-      valuations = locationResults.flat()
+        valuations.push(...enriched)
+      }
     }
 
     // Calculate summary statistics
@@ -124,45 +120,34 @@ export async function GET(request: NextRequest) {
 
 /**
  * Enrich valuations with product details
- * OPTIMIZED: Batch fetch all variations instead of one-by-one queries
  */
 async function enrichValuations(valuations: any[], includeLayers: boolean) {
-  if (valuations.length === 0) return []
+  const enriched = []
 
-  // Extract all unique variation IDs
-  const variationIds = [...new Set(valuations.map(v => v.productVariationId))]
-
-  // OPTIMIZED: Batch fetch all variations in a single query
-  const variations = await prisma.productVariation.findMany({
-    where: { id: { in: variationIds } },
-    select: {
-      id: true,
-      name: true,
-      sku: true,
-      product: {
-        select: {
-          id: true,
-          name: true,
-          sku: true,
-          categoryId: true,
-          category: {
-            select: {
-              id: true,
-              name: true
+  for (const valuation of valuations) {
+    // Get product and variation details
+    const variation = await prisma.productVariation.findUnique({
+      where: { id: valuation.productVariationId },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        product: {
+          select: {
+            id: true,
+            name: true,
+            sku: true,
+            categoryId: true,
+            category: {
+              select: {
+                id: true,
+                name: true
+              }
             }
           }
         }
       }
-    }
-  })
-
-  // Create a lookup map for O(1) access
-  const variationMap = new Map(variations.map(v => [v.id, v]))
-
-  // Enrich valuations in memory (no DB queries)
-  const enriched = []
-  for (const valuation of valuations) {
-    const variation = variationMap.get(valuation.productVariationId)
+    })
 
     if (!variation) continue
 

@@ -137,31 +137,23 @@ export async function GET(request: NextRequest) {
       itemWhere.productId = { in: matchingIds }
     }
 
-    // OPTIMIZED: Fetch sale items, products, and locations in parallel
-    const [saleItems, locations] = await Promise.all([
-      prisma.saleItem.findMany({
-        where: itemWhere,
-        include: {
-          sale: {
-            select: {
-              createdAt: true,
-              locationId: true,
-            },
+    // Get sale items grouped by product
+    const saleItems = await prisma.saleItem.findMany({
+      where: itemWhere,
+      include: {
+        sale: {
+          select: {
+            createdAt: true,
+            locationId: true,
           },
         },
-      }),
-      // Fetch locations in parallel
-      prisma.businessLocation.findMany({
-        where: { businessId },
-        select: { id: true, name: true }
-      })
-    ])
+      },
+    })
 
     if (saleItems.length === 0) {
       return buildEmptyResponse()
     }
 
-    // Batch fetch products for all sale items
     const productIds = Array.from(new Set(saleItems.map((item) => item.productId)))
     const products = productIds.length
       ? await prisma.product.findMany({
@@ -182,6 +174,12 @@ export async function GET(request: NextRequest) {
         })
       : []
     const productDetails = new Map(products.map((product) => [product.id, product]))
+
+    // Fetch all business locations for lookup
+    const locations = await prisma.businessLocation.findMany({
+      where: { businessId },
+      select: { id: true, name: true }
+    })
     const locationMap = new Map(locations.map(loc => [loc.id, loc.name]))
 
     // Group by product and calculate metrics

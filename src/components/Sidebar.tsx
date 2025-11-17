@@ -945,13 +945,14 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
             //   icon: BanknotesIcon,
             //   permission: PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
             // },
-            {
-              key: "cashier_receivable_payments",
-              name: "Receivable Payments",
-              href: "/dashboard/reports/receivable-payments",
-              icon: CreditCardIcon,
-              permission: PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
-            },
+            // REMOVED: Duplicate of Customer Payments report
+            // {
+            //   key: "cashier_receivable_payments",
+            //   name: "Receivable Payments",
+            //   href: "/dashboard/reports/receivable-payments",
+            //   icon: CreditCardIcon,
+            //   permission: PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
+            // },
           ],
         },
         {
@@ -1157,13 +1158,14 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               icon: DocumentTextIcon,
               permission: PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
             },
-            {
-              key: "receivable_payments",
-              name: "Receivable Payments",
-              href: "/dashboard/reports/receivable-payments",
-              icon: CreditCardIcon,
-              permission: PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
-            },
+            // REMOVED: Duplicate of Customer Payments report (was showing blank)
+            // {
+            //   key: "receivable_payments",
+            //   name: "Receivable Payments",
+            //   href: "/dashboard/reports/receivable-payments",
+            //   icon: CreditCardIcon,
+            //   permission: PERMISSIONS.REPORT_CUSTOMER_PAYMENTS,
+            // },
             {
               key: "product_purchase_history",
               name: "Product Purchase History",

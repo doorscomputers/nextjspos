@@ -894,7 +894,6 @@ model Product {
   @@index([name]) // ✅ NEW: For product name search optimization
   @@index([businessId, isActive]) // ✅ NEW: For active products queries
   @@index([businessId, name]) // ✅ NEW: Composite index for business product search
-  @@index([businessId, alertQuantity]) // 🚀 OPTIMIZATION: For stock alert queries
   @@map("products")
 }
 
@@ -1072,8 +1071,6 @@ model VariationLocationDetails {
   @@index([productId, locationId])
   // Composite index for variation queries
   @@index([productVariationId, locationId])
-  // 🚀 OPTIMIZATION: Reverse composite for location-first queries
-  @@index([locationId, productId])
   @@map("variation_location_details")
 }
 
@@ -1971,8 +1968,6 @@ model Sale {
   @@index([shiftId, status]) // 🚀 OPTIMIZATION: Shift operations
   @@index([saleDate, status]) // 🚀 OPTIMIZATION: Date-filtered reports
   @@index([shiftId, status, saleDate, id]) // 🚀 CRITICAL: First/last invoice queries in readings (NO SORT NEEDED!)
-  @@index([businessId, status, saleDate]) // 🚀 OPTIMIZATION: Filtered reports with date ranges
-  @@index([locationId, saleDate, status]) // 🚀 OPTIMIZATION: Location-filtered date-range reports
   @@map("sales")
 }
 
@@ -2003,8 +1998,6 @@ model SaleItem {
   @@index([saleId])
   @@index([productId])
   @@index([productVariationId])
-  @@index([saleId, productId]) // 🚀 OPTIMIZATION: For product analysis per sale
-  @@index([productVariationId, saleId]) // 🚀 OPTIMIZATION: For variation reports
   @@map("sale_items")
 }
 

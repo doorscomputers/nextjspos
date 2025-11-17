@@ -228,8 +228,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ✅ OPTIMIZED: Pre-load unit information only when needed for transactions
-    // This prevents over-fetching for non-POS queries
+    // ✅ NEW: Pre-load unit information for multi-unit products
+    // This prevents delays in POS by including all unit data upfront
     const productInclude: any = {
       category: true,
       brand: true,
@@ -238,13 +238,9 @@ export async function GET(request: NextRequest) {
       variations: {
         where: { deletedAt: null },
         include: variationInclude
-      }
-    }
-
-    // OPTIMIZED: Only load unit prices for transaction forms (POS, purchases, etc.)
-    // This reduces data transfer by 30-50% for product list queries
-    if (forTransaction) {
-      productInclude.unitPrices = {
+      },
+      // ✅ Load unit price details for multi-unit products (includes unit relation)
+      unitPrices: {
         select: {
           unitId: true,
           purchasePrice: true,
@@ -260,8 +256,9 @@ export async function GET(request: NextRequest) {
             }
           }
         }
-      }
-      productInclude.unitLocationPrices = {
+      },
+      // ✅ Load location-specific unit prices (includes unit relation)
+      unitLocationPrices: {
         select: {
           locationId: true,
           unitId: true,

@@ -152,14 +152,18 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // OPTIMIZED: Assign roles using createMany instead of individual creates
-    if (roleIds && Array.isArray(roleIds) && roleIds.length > 0) {
-      await prisma.userRole.createMany({
-        data: roleIds.map((roleId: number) => ({
-          userId: newUser.id,
-          roleId,
-        })),
-      })
+    // Assign roles
+    if (roleIds && Array.isArray(roleIds)) {
+      await Promise.all(
+        roleIds.map((roleId: number) =>
+          prisma.userRole.create({
+            data: {
+              userId: newUser.id,
+              roleId,
+            },
+          })
+        )
+      )
     }
 
     // Assign single location

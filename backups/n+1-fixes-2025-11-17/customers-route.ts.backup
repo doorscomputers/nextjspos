@@ -46,21 +46,8 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('[API /customers GET] Fetching customers for businessId:', businessId)
-    // OPTIMIZED: Fetch customers with their sales in a single query (fixes N+1 problem)
     const customers = await prisma.customer.findMany({
       where,
-      include: {
-        sales: {
-          where: {
-            deletedAt: null,
-            // Include ALL sales (regardless of status) - filter by balance instead
-          },
-          select: {
-            totalAmount: true,
-            paidAmount: true,
-          },
-        },
-      },
       orderBy: {
         name: 'asc',
       },
@@ -69,37 +56,49 @@ export async function GET(request: NextRequest) {
 
     // Calculate AR balance for each customer (unpaid invoices)
     try {
-      // OPTIMIZED: Calculate AR balances in memory (no additional DB queries)
-      const customersWithBalance = customers.map((customer) => {
-        try {
-          // Calculate total AR balance (only include invoices with outstanding balance)
-          const arBalance = customer.sales.reduce((total, invoice) => {
-            const totalAmount = parseFloat(invoice.totalAmount.toString())
-            const paidAmount = parseFloat(invoice.paidAmount?.toString() || '0')
-            const balance = totalAmount - paidAmount
-            // Only add if there's an outstanding balance (more than 1 cent)
-            return balance > 0.01 ? total + balance : total
-          }, 0)
+      const customersWithBalance = await Promise.all(
+        customers.map(async (customer) => {
+          try {
+            // Fetch ALL sales for this customer (regardless of status)
+            // Credit sales can have status='pending' OR status='completed'
+            // We filter by balance calculation, not by status
+            const salesWithBalance = await prisma.sale.findMany({
+              where: {
+                customerId: customer.id,
+                deletedAt: null,
+                // Don't filter by status - include ALL sales, filter by balance instead
+              },
+              select: {
+                totalAmount: true,
+                paidAmount: true,
+              },
+            })
 
-          // Remove sales array from response (not needed in client)
-          const { sales, ...customerData } = customer
+            // Calculate total AR balance (only include invoices with outstanding balance)
+            const arBalance = salesWithBalance.reduce((total, invoice) => {
+              const totalAmount = parseFloat(invoice.totalAmount.toString())
+              const paidAmount = parseFloat(invoice.paidAmount?.toString() || '0')
+              const balance = totalAmount - paidAmount
+              // Only add if there's an outstanding balance (more than 1 cent)
+              return balance > 0.01 ? total + balance : total
+            }, 0)
 
-          return {
-            ...customerData,
-            arBalance: arBalance > 0 ? arBalance : 0,
-            hasUnpaidInvoices: arBalance > 0,
+            return {
+              ...customer,
+              arBalance: arBalance > 0 ? arBalance : 0,
+              hasUnpaidInvoices: arBalance > 0,
+            }
+          } catch (customerError) {
+            console.error('[API /customers GET] Error calculating AR for customer', customer.id, ':', customerError)
+            // Return customer without AR balance if there's an error
+            return {
+              ...customer,
+              arBalance: 0,
+              hasUnpaidInvoices: false,
+            }
           }
-        } catch (customerError) {
-          console.error('[API /customers GET] Error calculating AR for customer', customer.id, ':', customerError)
-          // Return customer without AR balance if there's an error
-          const { sales, ...customerData } = customer
-          return {
-            ...customerData,
-            arBalance: 0,
-            hasUnpaidInvoices: false,
-          }
-        }
-      })
+        })
+      )
 
       console.log('[API /customers GET] Returning', customersWithBalance.length, 'customers with AR balances')
       return NextResponse.json(customersWithBalance)
