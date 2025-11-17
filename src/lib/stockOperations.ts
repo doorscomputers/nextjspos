@@ -60,6 +60,7 @@ export type UpdateStockParams = {
   notes?: string
   allowNegative?: boolean
   subUnitId?: number // UOM: Track which unit was used in transaction
+  createdByName?: string // Optional: For purchase (supplier name), sale (customer name), etc.
   tx?: TransactionClient
 }
 
@@ -218,6 +219,7 @@ async function executeStockUpdate(
     notes,
     allowNegative = false,
     subUnitId, // UOM: Track which unit was used
+    createdByName: providedCreatedByName, // Optional supplier/customer name
   } = params
 
   const quantityDecimal = toDecimal(quantity)
@@ -283,7 +285,8 @@ async function executeStockUpdate(
     },
   })
 
-  const createdByName = await resolveUserDisplayName(tx, userId, userDisplayName)
+  // Use provided createdByName (e.g., supplier/customer) if available, otherwise resolve from user
+  const createdByName = providedCreatedByName || await resolveUserDisplayName(tx, userId, userDisplayName)
   const unitCostDecimal = unitCost !== undefined ? toDecimal(unitCost) : null
   const historyReferenceId = referenceId ?? transaction.id
   const historyReferenceType = referenceType ?? 'stock_transaction'
@@ -394,6 +397,7 @@ export async function addStock({
   userDisplayName,
   notes,
   subUnitId,
+  createdByName,
   tx,
 }: {
   businessId: number
@@ -410,6 +414,7 @@ export async function addStock({
   userDisplayName?: string
   notes?: string
   subUnitId?: number // UOM: Track which unit was used
+  createdByName?: string // Supplier/Customer name for stock history display
   tx?: TransactionClient
 }) {
   if (quantity <= 0) {
@@ -429,6 +434,7 @@ export async function addStock({
     referenceNumber,
     userId,
     userDisplayName,
+    createdByName,
     notes,
     subUnitId, // UOM: Pass unit tracking
     tx,
@@ -667,6 +673,7 @@ export async function processPurchaseReceipt({
   userId,
   userDisplayName,
   subUnitId, // UOM support
+  supplierName, // Supplier name for stock history display
   tx,
 }: {
   businessId: number
@@ -680,6 +687,7 @@ export async function processPurchaseReceipt({
   userId: number
   userDisplayName?: string
   subUnitId?: number // UOM: Track which unit was used in purchase
+  supplierName?: string // Supplier name for stock history display
   tx?: TransactionClient
 }) {
   // CRITICAL FIX: Do NOT convert to base unit
@@ -703,6 +711,7 @@ export async function processPurchaseReceipt({
     notes: `Purchase Receipt - PO #${purchaseId}, GRN #${receiptId}`,
     userDisplayName,
     subUnitId, // UOM: Track which unit was used (critical for conversions)
+    createdByName: supplierName, // Show supplier name in stock history, not user who approved
     tx,
   })
 }

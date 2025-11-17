@@ -249,6 +249,7 @@ export async function POST(
             items: true,
           },
         },
+        supplier: true, // Direct supplier relation (for receipts without PO)
         items: {
           include: {
             purchaseItem: true,
@@ -388,6 +389,7 @@ export async function POST(
             userId: userIdNumber,
             userDisplayName,
             subUnitId: purchaseItem.subUnitId || undefined, // UOM support
+            supplierName: receipt.purchase?.supplier?.name || receipt.supplier?.name, // Display supplier name in stock history
             tx,
           })
         }
