@@ -4,24 +4,37 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 
-/**
- * Helper function to process array items in batches to avoid connection pool exhaustion
- * Processes items sequentially in chunks to limit concurrent database connections
- */
-async function processBatches<T, R>(
-  items: T[],
-  batchSize: number,
-  processor: (item: T) => Promise<R>
-): Promise<R[]> {
-  const results: R[] = []
+// In-memory cache for report results (60 second TTL)
+const reportCache = new Map<string, { data: any; timestamp: number }>()
+const CACHE_TTL = 60 * 1000 // 60 seconds
 
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize)
-    const batchResults = await Promise.all(batch.map(processor))
-    results.push(...batchResults)
+function getCacheKey(businessId: number, startDate: string, endDate: string, locationId: string): string {
+  return `pl_${businessId}_${startDate}_${endDate}_${locationId}`
+}
+
+function getFromCache(key: string): any | null {
+  const cached = reportCache.get(key)
+  if (!cached) return null
+
+  const now = Date.now()
+  if (now - cached.timestamp > CACHE_TTL) {
+    reportCache.delete(key)
+    return null
   }
 
-  return results
+  return cached.data
+}
+
+function setCache(key: string, data: any): void {
+  reportCache.set(key, { data, timestamp: Date.now() })
+
+  // Clean old cache entries (older than 5 minutes)
+  const fiveMinutesAgo = Date.now() - (5 * 60 * 1000)
+  for (const [k, v] of reportCache.entries()) {
+    if (v.timestamp < fiveMinutesAgo) {
+      reportCache.delete(k)
+    }
+  }
 }
 
 /**
@@ -62,6 +75,14 @@ export async function GET(request: NextRequest) {
     const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     start.setHours(0, 0, 0, 0)
 
+    // Check cache first
+    const cacheKey = getCacheKey(businessId, start.toISOString(), end.toISOString(), locationId?.toString() || 'all')
+    const cachedResult = getFromCache(cacheKey)
+    if (cachedResult) {
+      console.log('[Profit/Loss] Returning cached result')
+      return NextResponse.json(cachedResult)
+    }
+
     // Build base where clause
     const baseWhere: any = {
       businessId: parseInt(businessId),
@@ -93,59 +114,41 @@ export async function GET(request: NextRequest) {
       openingStockWhere.locationId = parseInt(locationId)
     }
 
-    const openingStockItems = await prisma.variationLocationDetails.findMany({
-      where: openingStockWhere,
-      include: {
-        productVariation: {
-          select: {
-            purchasePrice: true,
-            sellingPrice: true,
-          },
-        },
-      },
-    })
+    // OPTIMIZED: Get latest stock transactions in a single query using raw SQL
+    const openingStockQuery = `
+      WITH LatestTransactions AS (
+        SELECT DISTINCT ON (st.productId, st.productVariationId, st.locationId)
+          st.productId,
+          st.productVariationId,
+          st.locationId,
+          st.balanceQty,
+          st.unitCost,
+          pv.purchasePrice,
+          pv.sellingPrice
+        FROM "StockTransaction" st
+        INNER JOIN "ProductVariation" pv ON st.productVariationId = pv.id
+        INNER JOIN "Product" p ON st.productId = p.id
+        WHERE st.businessId = $1
+          AND p.deletedAt IS NULL
+          AND st.createdAt <= $2
+          ${locationId && locationId !== 'all' ? 'AND st.locationId = $3' : ''}
+        ORDER BY st.productId, st.productVariationId, st.locationId, st.createdAt DESC, st.id DESC
+      )
+      SELECT
+        COALESCE(SUM(balanceQty * COALESCE(unitCost, purchasePrice, 0)), 0) as openingStockPurchase,
+        COALESCE(SUM(balanceQty * COALESCE(sellingPrice, 0)), 0) as openingStockSale
+      FROM LatestTransactions
+      WHERE balanceQty > 0
+    `
 
-    // Calculate historical stock value for each item at opening date
-    let openingStockPurchase = 0
-    let openingStockSale = 0
+    const openingStockParams = locationId && locationId !== 'all'
+      ? [businessId, openingDate, locationId]
+      : [businessId, openingDate]
 
-    // Process in batches of 10 to avoid connection pool exhaustion
-    await processBatches(
-      openingStockItems,
-      10,
-      async (item) => {
-        // Find last transaction on or before opening date
-        const lastTx = await prisma.stockTransaction.findFirst({
-          where: {
-            businessId: parseInt(businessId),
-            productId: item.productId,
-            productVariationId: item.productVariationId,
-            locationId: item.locationId,
-            createdAt: { lte: openingDate },
-          },
-          orderBy: [
-            { createdAt: 'desc' },
-            { id: 'desc' },
-          ],
-          select: {
-            balanceQty: true,
-            unitCost: true,
-          },
-        })
+    const openingStockResult: any = await prisma.$queryRawUnsafe(openingStockQuery, ...openingStockParams)
 
-        if (lastTx && lastTx.balanceQty) {
-          const historicalQty = parseFloat(lastTx.balanceQty.toString())
-          const historicalCost = lastTx.unitCost
-            ? parseFloat(lastTx.unitCost.toString())
-            : parseFloat(item.productVariation.purchasePrice?.toString() || '0')
-
-          const salePrice = parseFloat(item.productVariation.sellingPrice?.toString() || '0')
-
-          openingStockPurchase += historicalQty * historicalCost
-          openingStockSale += historicalQty * salePrice
-        }
-      }
-    )
+    const openingStockPurchase = parseFloat(openingStockResult[0]?.openingstockpurchase || '0')
+    const openingStockSale = parseFloat(openingStockResult[0]?.openingstocksale || '0')
 
     // ============================================
     // CLOSING STOCK (at end date)
@@ -157,71 +160,41 @@ export async function GET(request: NextRequest) {
     const closingDate = new Date(end)
     closingDate.setHours(23, 59, 59, 999)
 
-    // Get all variation-location combinations for this business
-    const closingStockWhere: any = {
-      product: {
-        businessId: parseInt(businessId),
-        deletedAt: null,
-      },
-    }
+    // OPTIMIZED: Get latest stock transactions in a single query using raw SQL
+    const closingStockQuery = `
+      WITH LatestTransactions AS (
+        SELECT DISTINCT ON (st.productId, st.productVariationId, st.locationId)
+          st.productId,
+          st.productVariationId,
+          st.locationId,
+          st.balanceQty,
+          st.unitCost,
+          pv.purchasePrice,
+          pv.sellingPrice
+        FROM "StockTransaction" st
+        INNER JOIN "ProductVariation" pv ON st.productVariationId = pv.id
+        INNER JOIN "Product" p ON st.productId = p.id
+        WHERE st.businessId = $1
+          AND p.deletedAt IS NULL
+          AND st.createdAt <= $2
+          ${locationId && locationId !== 'all' ? 'AND st.locationId = $3' : ''}
+        ORDER BY st.productId, st.productVariationId, st.locationId, st.createdAt DESC, st.id DESC
+      )
+      SELECT
+        COALESCE(SUM(balanceQty * COALESCE(unitCost, purchasePrice, 0)), 0) as closingStockPurchase,
+        COALESCE(SUM(balanceQty * COALESCE(sellingPrice, 0)), 0) as closingStockSale
+      FROM LatestTransactions
+      WHERE balanceQty > 0
+    `
 
-    if (locationId && locationId !== 'all') {
-      closingStockWhere.locationId = parseInt(locationId)
-    }
+    const closingStockParams = locationId && locationId !== 'all'
+      ? [businessId, closingDate, locationId]
+      : [businessId, closingDate]
 
-    const closingStockItems = await prisma.variationLocationDetails.findMany({
-      where: closingStockWhere,
-      include: {
-        productVariation: {
-          select: {
-            purchasePrice: true,
-            sellingPrice: true,
-          },
-        },
-      },
-    })
+    const closingStockResult: any = await prisma.$queryRawUnsafe(closingStockQuery, ...closingStockParams)
 
-    // Calculate historical stock value for each item at closing date
-    let closingStockPurchase = 0
-    let closingStockSale = 0
-
-    // Process in batches of 10 to avoid connection pool exhaustion
-    await processBatches(
-      closingStockItems,
-      10,
-      async (item) => {
-        // Find last transaction on or before closing date
-        const lastTx = await prisma.stockTransaction.findFirst({
-          where: {
-            businessId: parseInt(businessId),
-            productId: item.productId,
-            productVariationId: item.productVariationId,
-            locationId: item.locationId,
-            createdAt: { lte: closingDate },
-          },
-          orderBy: [
-            { createdAt: 'desc' },
-            { id: 'desc' },
-          ],
-          select: {
-            balanceQty: true,
-            unitCost: true,
-          },
-        })
-
-        if (lastTx && lastTx.balanceQty) {
-          const historicalQty = parseFloat(lastTx.balanceQty.toString())
-          const historicalCost = lastTx.unitCost
-            ? parseFloat(lastTx.unitCost.toString())
-            : parseFloat(item.productVariation.purchasePrice?.toString() || '0')
-
-          const salePrice = parseFloat(item.productVariation.sellingPrice?.toString() || '0')
-
-          closingStockPurchase += historicalQty * historicalCost
-          closingStockSale += historicalQty * salePrice
-        }
-      }
-    )
+    const closingStockPurchase = parseFloat(closingStockResult[0]?.closingstockpurchase || '0')
+    const closingStockSale = parseFloat(closingStockResult[0]?.closingstocksale || '0')
 
     // ============================================
     // PURCHASES
@@ -487,6 +460,9 @@ export async function GET(request: NextRequest) {
         endDate: end.toISOString(),
       },
     }
+
+    // Cache the result for 60 seconds
+    setCache(cacheKey, response)
 
     return NextResponse.json(response)
   } catch (error: any) {
