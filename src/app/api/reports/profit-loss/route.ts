@@ -125,9 +125,9 @@ export async function GET(request: NextRequest) {
           st.unit_cost,
           pv.purchase_price,
           pv.selling_price
-        FROM stock_transaction st
-        INNER JOIN product_variation pv ON st.product_variation_id = pv.id
-        INNER JOIN product p ON st.product_id = p.id
+        FROM stock_transactions st
+        INNER JOIN product_variations pv ON st.product_variation_id = pv.id
+        INNER JOIN products p ON st.product_id = p.id
         WHERE st.business_id = $1
           AND p.deleted_at IS NULL
           AND st.created_at <= $2
@@ -171,9 +171,9 @@ export async function GET(request: NextRequest) {
           st.unit_cost,
           pv.purchase_price,
           pv.selling_price
-        FROM stock_transaction st
-        INNER JOIN product_variation pv ON st.product_variation_id = pv.id
-        INNER JOIN product p ON st.product_id = p.id
+        FROM stock_transactions st
+        INNER JOIN product_variations pv ON st.product_variation_id = pv.id
+        INNER JOIN products p ON st.product_id = p.id
         WHERE st.business_id = $1
           AND p.deleted_at IS NULL
           AND st.created_at <= $2
