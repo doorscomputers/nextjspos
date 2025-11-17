@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import { formatCurrency } from '@/lib/currencyUtils'
@@ -102,7 +102,7 @@ export default function ProfitLossReportPage() {
   }, [])
 
   // Fetch report data
-  const fetchReport = async () => {
+  const fetchReport = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams({
@@ -131,12 +131,12 @@ export default function ProfitLossReportPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [startDate, endDate, locationId])
 
-  // Initial fetch
+  // Auto-fetch when filters change
   useEffect(() => {
     fetchReport()
-  }, [])
+  }, [fetchReport])
 
   const handleResetFilters = () => {
     setStartDate(defaultStartDate)
