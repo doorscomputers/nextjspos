@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { PERMISSIONS } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { LoadingSkeleton } from '@/components/reports/profit-loss/LoadingSkeleton'
 import { FilterPanel } from '@/components/reports/profit-loss/FilterPanel'
 import { ReportDisplay } from '@/components/reports/profit-loss/ReportDisplay'
@@ -38,11 +39,17 @@ async function ProfitLossReport({
     params.append('locationId', locationId)
   }
 
+  // Get all cookies to pass to API request
+  const cookieStore = cookies()
+  const cookieHeader = cookieStore.getAll()
+    .map(cookie => `${cookie.name}=${cookie.value}`)
+    .join('; ')
+
   // Fetch from API (server-side)
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   const res = await fetch(`${baseUrl}/api/reports/profit-loss?${params.toString()}`, {
     headers: {
-      cookie: `next-auth.session-token=${session.user.id}`, // Pass session token
+      cookie: cookieHeader, // Pass all cookies including session
     },
     // Add cache configuration for optimal performance
     next: {
