@@ -251,7 +251,7 @@ export async function GET(request: NextRequest) {
     const sales = await prisma.sale.findMany({
       where: salesWhere,
       include: {
-        saleItems: true, // Include sale items to calculate COGS
+        items: true, // Include sale items to calculate COGS
       },
     })
 
@@ -270,8 +270,8 @@ export async function GET(request: NextRequest) {
       // totalSellRoundOff += sale.roundOffAmount ? parseFloat(sale.roundOffAmount.toString()) : 0 // Field doesn't exist in schema
 
       // Calculate COGS from sale items
-      if (sale.saleItems && Array.isArray(sale.saleItems)) {
-        sale.saleItems.forEach((item: any) => {
+      if (sale.items && Array.isArray(sale.items)) {
+        sale.items.forEach((item: any) => {
           const quantity = item.quantity ? parseFloat(item.quantity.toString()) : 0
           const unitCost = item.unitCost ? parseFloat(item.unitCost.toString()) : 0
           actualCOGS += quantity * unitCost
