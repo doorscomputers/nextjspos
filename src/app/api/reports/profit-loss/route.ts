@@ -488,16 +488,7 @@ export async function GET(request: NextRequest) {
       },
     }
 
-    // Add caching headers for better performance
-    // Cache for 60 seconds on the client, revalidate after 120 seconds
-    const headers = new Headers()
-    headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120')
-    headers.set('Content-Type', 'application/json')
-
-    return new NextResponse(JSON.stringify(response), {
-      status: 200,
-      headers,
-    })
+    return NextResponse.json(response)
   } catch (error: any) {
     console.error('Error generating profit/loss report:', error)
     return NextResponse.json(
@@ -506,7 +497,3 @@ export async function GET(request: NextRequest) {
     )
   }
 }
-
-// Enable route segment config for optimal caching
-export const dynamic = 'force-dynamic' // Required for session-based data
-export const revalidate = 60 // Revalidate every 60 seconds
