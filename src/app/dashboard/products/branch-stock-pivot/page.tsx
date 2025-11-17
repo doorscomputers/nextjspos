@@ -44,6 +44,7 @@ type StockFilters = {
 
 export default function BranchStockPivotPage() {
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [locations, setLocations] = useState<{ id: number; name: string }[]>([])
   const [rows, setRows] = useState<PivotRow[]>([])
   const [columnTotals, setColumnTotals] = useState<{
@@ -156,6 +157,7 @@ export default function BranchStockPivotPage() {
       try {
         if (!isExport) {
           setLoading(true)
+          setRefreshing(true)
         }
 
         const response = await fetch('/api/products/branch-stock-pivot', {
@@ -240,6 +242,7 @@ export default function BranchStockPivotPage() {
       } finally {
         if (!isExport) {
           setLoading(false)
+          setRefreshing(false)
         }
       }
     },
@@ -485,10 +488,12 @@ export default function BranchStockPivotPage() {
           onClick={() => fetchStockData()}
           variant="outline"
           size="sm"
-          className="shadow-sm hover:shadow-md transition-all"
+          disabled={refreshing || loading}
+          className="shadow-sm hover:shadow-md transition-all bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 border-green-300 dark:border-green-700"
+          title="Refresh stock data from database"
         >
-          <ArrowPathIcon className="w-4 h-4 mr-2" />
-          Refresh
+          <ArrowPathIcon className={`w-4 h-4 mr-2 text-green-600 dark:text-green-400 ${refreshing ? 'animate-spin' : ''}`} />
+          <span className="text-green-700 dark:text-green-300">{refreshing ? 'Refreshing...' : 'Refresh'}</span>
         </Button>
       </div>
 

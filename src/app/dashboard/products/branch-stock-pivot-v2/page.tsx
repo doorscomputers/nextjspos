@@ -56,12 +56,14 @@ interface LocationColumn {
 
 export default function BranchStockPivotV2Page() {
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [locations, setLocations] = useState<LocationColumn[]>([])
   const [dataSource, setDataSource] = useState<any[]>([])
 
   const fetchStockData = async () => {
     try {
       setLoading(true)
+      setRefreshing(true)
       console.log('[Branch Stock Pivot V2] Fetching stock data...')
 
       const response = await fetch('/api/products/branch-stock-pivot', {
@@ -154,6 +156,7 @@ export default function BranchStockPivotV2Page() {
       setLocations([])
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }
 
@@ -254,15 +257,17 @@ export default function BranchStockPivotV2Page() {
           onClick={fetchStockData}
           variant="outline"
           size="sm"
-          className="shadow-sm hover:shadow-md transition-all"
+          disabled={refreshing || loading}
+          className="shadow-sm hover:shadow-md transition-all bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 border-green-300 dark:border-green-700"
+          title="Refresh stock data from database"
         >
-          <ArrowPathIcon className="w-4 h-4 mr-2" />
-          Refresh
+          <ArrowPathIcon className={`w-4 h-4 mr-2 text-green-600 dark:text-green-400 ${refreshing ? 'animate-spin' : ''}`} />
+          <span className="text-green-700 dark:text-green-300">{refreshing ? 'Refreshing...' : 'Refresh'}</span>
         </Button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-lg text-white shadow-lg">
           <div className="text-sm opacity-90">Total Products</div>
           <div className="text-3xl font-bold">{dataSource.length.toLocaleString()}</div>
@@ -275,12 +280,6 @@ export default function BranchStockPivotV2Page() {
           <div className="text-sm opacity-90">Total Stock</div>
           <div className="text-3xl font-bold">
             {dataSource.reduce((sum, row) => sum + (row.totalStock || 0), 0).toLocaleString()}
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-6 rounded-lg text-white shadow-lg">
-          <div className="text-sm opacity-90">Total Inventory Value</div>
-          <div className="text-2xl font-bold">
-            ₱{dataSource.reduce((sum, row) => sum + (row.totalPrice || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         </div>
       </div>
