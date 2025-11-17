@@ -151,7 +151,6 @@ export async function POST(
           include: {
             fromLocation: { select: { name: true } },
             toLocation: { select: { name: true } },
-            business: { select: { email: true } },
           },
         })
 
@@ -162,7 +161,6 @@ export async function POST(
           toLocationName: transferWithLocations?.toLocation.name || 'Unknown',
           verifierName: user.username || user.name || `User ${userId}`,
           timestamp: new Date(),
-          businessEmail: transferWithLocations?.business?.email,
           discrepantItems: itemsWithDiscrepancies.map(item => {
             const sent = parseFloat(item.quantity.toString())
             const received = item.receivedQuantity ? parseFloat(item.receivedQuantity.toString()) : sent
