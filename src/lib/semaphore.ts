@@ -9,6 +9,7 @@
  * - Price changes
  * - Transfer alerts
  * - Return to suppliers
+ * - Purchase order approvals
  *
  * API: https://semaphore.co/
  * Pricing: Pay-as-you-go, ~₱1.00 per SMS
@@ -29,6 +30,7 @@ const semaphoreConfig = {
   supplierReturnEnabled: process.env.SMS_ALERT_SUPPLIER_RETURN_ENABLED === 'true',
   shiftCloseEnabled: process.env.SMS_ALERT_SHIFT_CLOSE_ENABLED === 'true',
   locationMismatchEnabled: process.env.SMS_ALERT_LOCATION_MISMATCH_ENABLED === 'true',
+  purchaseApprovalEnabled: process.env.SMS_ALERT_PURCHASE_APPROVAL_ENABLED === 'true',
 }
 
 /**
@@ -510,6 +512,43 @@ ${formatDateTime(data.timestamp)}
 }
 
 /**
+ * Send purchase approval alert
+ */
+export async function sendSemaphorePurchaseApprovalAlert(data: {
+  poNumber: string
+  grnNumber: string
+  supplierName: string
+  totalAmount: number
+  itemCount: number
+  quantityReceived: number
+  locationName: string
+  approvedBy: string
+  timestamp: Date
+}): Promise<boolean> {
+  if (!semaphoreConfig.enabled || !semaphoreConfig.purchaseApprovalEnabled) {
+    return false
+  }
+
+  // Truncate supplier name if too long
+  const supplierName = data.supplierName.length > 25
+    ? data.supplierName.substring(0, 22) + '...'
+    : data.supplierName
+
+  const message = `✅ PURCHASE APPROVED
+PO: ${data.poNumber}
+GRN: ${data.grnNumber}
+Supplier: ${supplierName}
+Amount: ${formatCurrency(data.totalAmount)}
+Items: ${data.itemCount} (${data.quantityReceived} units)
+Location: ${data.locationName}
+By: ${data.approvedBy}
+${formatDateTime(data.timestamp)}
+📦 Inventory updated`
+
+  return sendSemaphoreSMS(message)
+}
+
+/**
  * Send test SMS
  */
 export async function sendSemaphoreTestMessage(): Promise<boolean> {
@@ -525,6 +564,7 @@ SMS alerts configured for:
 - Price changes
 - Stock transfers
 - Supplier returns
+- Purchase approvals
 
 Recipients: ${semaphoreConfig.recipients.length}
 Ready to send alerts!`

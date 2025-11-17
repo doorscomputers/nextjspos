@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
         orderBy = { receiptDate: sortOrder }
     }
 
-    // OPTIMIZED: Fetch receipts with user details in single query (eliminates extra user query)
+    // Fetch receipts and total count
     const [receipts, totalCount] = await Promise.all([
       prisma.purchaseReceipt.findMany({
         where,
@@ -167,34 +167,37 @@ export async function GET(request: NextRequest) {
               },
             },
           },
-          // OPTIMIZED: Include user details directly instead of separate query
-          receivedByUser: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              surname: true,
-              username: true,
-            },
-          },
-          approvedByUser: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              surname: true,
-              username: true,
-            },
-          },
         },
       }),
       prisma.purchaseReceipt.count({ where }),
     ])
 
-    // Format receipts (no need to map users separately)
+    // Fetch user details for receivedBy and approvedBy
+    const userIds = [...new Set([
+      ...receipts.map(r => r.receivedBy),
+      ...receipts.filter(r => r.approvedBy).map(r => r.approvedBy!),
+    ])]
+
+    const users = await prisma.user.findMany({
+      where: {
+        id: { in: userIds },
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        surname: true,
+        username: true,
+      },
+    })
+
+    const userMap = new Map(users.map(u => [u.id, u]))
+
+    // Format receipts with user details and total quantity
     const formattedReceipts = receipts.map((receipt) => ({
       ...receipt,
-      // receivedByUser and approvedByUser are already included
+      receivedByUser: userMap.get(receipt.receivedBy),
+      approvedByUser: receipt.approvedBy ? userMap.get(receipt.approvedBy) : null,
       totalQuantity: receipt.items.reduce(
         (sum, item) => sum + parseFloat(item.quantityReceived.toString()),
         0

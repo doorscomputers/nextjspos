@@ -214,28 +214,85 @@ export default function CreatePurchaseOrderPage() {
       return
     }
 
-    // Fetch unit prices for this product
+    // OPTIMIZATION: Try to use unit prices from search results first (avoids extra API call)
     let unitPrices: UnitPrice[] = []
     let primaryUnitPrice = variation.defaultPurchasePrice || 0
     let primaryUnitId: number | null = null
 
-    try {
-      const response = await fetch(`/api/products/${product.id}/unit-prices`)
-      if (response.ok) {
-        const data = await response.json()
-        unitPrices = data.prices || []
+    // Check if product has unit data from search (performance optimization)
+    const productWithUnits = product as any
+    if (productWithUnits.unit && productWithUnits.unitPrices) {
+      // Compute unit prices from search results (same logic as getProductUnitPrices)
+      try {
+        const unit = productWithUnits.unit
+        const baseUnit = unit.baseUnit || unit
+        const explicitPrices = productWithUnits.unitPrices || []
 
-        // Find PRIMARY unit (Roll, Box, Sack, etc.) - NOT base unit
-        // The first unit in the array is always the primary unit from product configuration
-        if (unitPrices.length > 0) {
-          const primaryUnit = unitPrices[0] // First unit is the primary unit (Roll, Box, Sack)
-          primaryUnitId = primaryUnit.unitId
-          primaryUnitPrice = parseFloat(primaryUnit.purchasePrice)
+        // Get configured sub-units
+        const subUnitIds = productWithUnits.subUnitIds
+          ? JSON.parse(productWithUnits.subUnitIds)
+          : []
+
+        // Build unit prices array
+        unitPrices = []
+
+        // Add primary unit
+        const primaryExplicit = explicitPrices.find((up: any) => up.unitId === unit.id)
+        if (primaryExplicit) {
+          unitPrices.push({
+            unitId: unit.id,
+            unitName: unit.name,
+            unitShortName: unit.shortName,
+            purchasePrice: primaryExplicit.purchasePrice.toString(),
+            sellingPrice: primaryExplicit.sellingPrice.toString(),
+            multiplier: (unit.baseUnitMultiplier || 1).toString(),
+            isBaseUnit: unit.id === baseUnit.id,
+          })
+          primaryUnitId = unit.id
+          primaryUnitPrice = parseFloat(primaryExplicit.purchasePrice.toString())
+        } else {
+          // Use default from variation
+          unitPrices.push({
+            unitId: unit.id,
+            unitName: unit.name,
+            unitShortName: unit.shortName,
+            purchasePrice: (variation.defaultPurchasePrice || 0).toString(),
+            sellingPrice: (variation.defaultSellingPrice || 0).toString(),
+            multiplier: (unit.baseUnitMultiplier || 1).toString(),
+            isBaseUnit: unit.id === baseUnit.id,
+          })
+          primaryUnitId = unit.id
+          primaryUnitPrice = variation.defaultPurchasePrice || 0
         }
+
+        console.log(`[Purchase Create] Using unit prices from search results (${unitPrices.length} units) - avoided API call!`)
+      } catch (error) {
+        console.error('Error computing unit prices from search:', error)
+        // Fall through to API fetch
       }
-    } catch (error) {
-      console.error('Error fetching unit prices:', error)
-      // Fallback to default purchase price
+    }
+
+    // Only fetch from API if not available in search results
+    if (unitPrices.length === 0) {
+      try {
+        const response = await fetch(`/api/products/${product.id}/unit-prices`)
+        if (response.ok) {
+          const data = await response.json()
+          unitPrices = data.prices || []
+
+          // Find PRIMARY unit (Roll, Box, Sack, etc.) - NOT base unit
+          // The first unit in the array is always the primary unit from product configuration
+          if (unitPrices.length > 0) {
+            const primaryUnit = unitPrices[0] // First unit is the primary unit (Roll, Box, Sack)
+            primaryUnitId = primaryUnit.unitId
+            primaryUnitPrice = parseFloat(primaryUnit.purchasePrice)
+          }
+          console.log(`[Purchase Create] Fetched unit prices from API (${unitPrices.length} units)`)
+        }
+      } catch (error) {
+        console.error('Error fetching unit prices:', error)
+        // Fallback to default purchase price
+      }
     }
 
     const newItem: POItem = {

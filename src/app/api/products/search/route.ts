@@ -264,9 +264,11 @@ export async function GET(request: NextRequest) {
       where: {
         businessId,
         isActive: true,
+        deletedAt: null,
         variations: {
           some: {
             sku: { equals: searchTrimmed, mode: 'insensitive' },
+            deletedAt: null,
           },
         },
         // Filter by supplier if supplierId is provided
@@ -285,8 +287,20 @@ export async function GET(request: NextRequest) {
         variations: {
           where: {
             sku: { equals: searchTrimmed, mode: 'insensitive' },
+            deletedAt: null,
           },
           orderBy: { name: 'asc' },
+        },
+        // OPTIMIZATION: Include unit configuration for unit pricing
+        unit: {
+          include: {
+            baseUnit: true,
+          },
+        },
+        unitPrices: {
+          include: {
+            unit: true,
+          },
         },
       },
       take: 5,
@@ -318,6 +332,20 @@ export async function GET(request: NextRequest) {
                 }
               }),
               matchType: 'exact' as const,
+              // OPTIMIZATION: Include unit configuration for purchase page
+              unit: product.unit ? {
+                id: product.unit.id,
+                name: product.unit.name,
+                shortName: product.unit.shortName,
+                baseUnitMultiplier: product.unit.baseUnitMultiplier ? Number(product.unit.baseUnitMultiplier) : 1,
+                baseUnit: product.unit.baseUnit,
+              } : null,
+              unitPrices: product.unitPrices ? product.unitPrices.map((up: any) => ({
+                unitId: up.unitId,
+                purchasePrice: Number(up.purchasePrice),
+                sellingPrice: Number(up.sellingPrice),
+              })) : [],
+              subUnitIds: product.subUnitIds,
             }
           } catch (err) {
             console.error('Error mapping product:', err)
@@ -334,12 +362,14 @@ export async function GET(request: NextRequest) {
       where: {
         businessId,
         isActive: true,
+        deletedAt: null,
         OR: [
           { name: { contains: searchTrimmed, mode: 'insensitive' } },
           {
             variations: {
               some: {
                 name: { contains: searchTrimmed, mode: 'insensitive' },
+                deletedAt: null,
               },
             },
           },
@@ -358,8 +388,22 @@ export async function GET(request: NextRequest) {
       },
       include: {
         variations: {
+          where: {
+            deletedAt: null,
+          },
           // Return ALL variations of matching products, not filtered by search term
           orderBy: { name: 'asc' },
+        },
+        // OPTIMIZATION: Include unit configuration for unit pricing
+        unit: {
+          include: {
+            baseUnit: true,
+          },
+        },
+        unitPrices: {
+          include: {
+            unit: true,
+          },
         },
       },
       orderBy: { name: 'asc' },
@@ -395,6 +439,20 @@ export async function GET(request: NextRequest) {
               }
             }),
             matchType: 'fuzzy' as const,
+            // OPTIMIZATION: Include unit configuration for purchase page
+            unit: product.unit ? {
+              id: product.unit.id,
+              name: product.unit.name,
+              shortName: product.unit.shortName,
+              baseUnitMultiplier: product.unit.baseUnitMultiplier ? Number(product.unit.baseUnitMultiplier) : 1,
+              baseUnit: product.unit.baseUnit,
+            } : null,
+            unitPrices: product.unitPrices ? product.unitPrices.map((up: any) => ({
+              unitId: up.unitId,
+              purchasePrice: Number(up.purchasePrice),
+              sellingPrice: Number(up.sellingPrice),
+            })) : [],
+            subUnitIds: product.subUnitIds,
           }
         } catch (err) {
           console.error('Error mapping product:', err)
