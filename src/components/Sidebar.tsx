@@ -1124,7 +1124,7 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
             },
             {
               key: "cash_in_out_report",
-              name: "Cash In/Out Report",
+              name: "Non-Sales Cash",
               href: "/dashboard/reports/cash-in-out",
               icon: CurrencyDollarIcon,
               permission: PERMISSIONS.REPORT_CASH_IN_OUT,
