@@ -110,7 +110,10 @@ export const authOptions: NextAuthOptions = {
         const isAdminRole = roleNames.some(role =>
           role === 'Super Admin' ||
           role === 'System Administrator' ||
-          role === 'All Branch Admin'
+          role === 'Admin' ||
+          role === 'All Branch Admin' ||
+          role === 'Cross Location Approver' ||
+          role === 'Cross-Location Approver'
         )
         const hasAccessAllLocations = allPermissionsCheck.includes('access_all_locations')
         const isLocationExempt = isAdminRole || hasAccessAllLocations
