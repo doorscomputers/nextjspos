@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import { LoadingSkeleton } from '@/components/reports/profit-loss/LoadingSkeleton'
@@ -49,30 +50,21 @@ interface ProfitLossData {
 
 export default function ProfitLossReportPage() {
   const { can } = usePermissions()
+  const searchParams = useSearchParams()
   const [data, setData] = useState<ProfitLossData | null>(null)
   const [loading, setLoading] = useState(false)
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-  const [locationId, setLocationId] = useState('all')
 
-  // Initialize from URL params if available
+  // Extract params from URL
+  const startDate = searchParams.get('startDate') || ''
+  const endDate = searchParams.get('endDate') || ''
+  const locationId = searchParams.get('locationId') || 'all'
+
+  // Auto-fetch report when URL params change
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      const urlStartDate = params.get('startDate')
-      const urlEndDate = params.get('endDate')
-      const urlLocationId = params.get('locationId')
-
-      if (urlStartDate) setStartDate(urlStartDate)
-      if (urlEndDate) setEndDate(urlEndDate)
-      if (urlLocationId) setLocationId(urlLocationId)
-
-      // Auto-fetch if params are present
-      if (urlStartDate && urlEndDate) {
-        fetchReport(urlStartDate, urlEndDate, urlLocationId || 'all')
-      }
+    if (startDate && endDate) {
+      fetchReport(startDate, endDate, locationId)
     }
-  }, [])
+  }, [startDate, endDate, locationId])
 
   const fetchReport = async (start: string, end: string, location: string) => {
     setLoading(true)
