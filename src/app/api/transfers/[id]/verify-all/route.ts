@@ -75,40 +75,31 @@ export async function POST(
 
     const now = new Date()
 
-    // Bulk update all items to verified in ONE transaction
-    // This is much faster than updating one-by-one
-    const updateResult = await prisma.stockTransferItem.updateMany({
-      where: {
-        stockTransferId: transferId,
-        verified: false, // Only update unverified items
-      },
-      data: {
-        verified: true,
-        verifiedBy: parseInt(userId),
-        verifiedAt: now,
-        // Use sent quantity as received quantity (can be edited later if needed)
-        // receivedQuantity will default to quantity if not already set
-      },
-    })
+    // Get all unverified items from the transfer
+    const unverifiedItems = transfer.items.filter(item => !item.verified)
 
-    // For items that don't have receivedQuantity set, update them separately
-    // (updateMany doesn't support conditional field updates)
-    const itemsWithoutReceivedQty = transfer.items.filter(
-      item => !item.receivedQuantity
-    )
-
-    if (itemsWithoutReceivedQty.length > 0) {
+    // Update each unverified item individually to set both verified AND receivedQuantity
+    // We can't use updateMany because we need to conditionally set receivedQuantity
+    if (unverifiedItems.length > 0) {
       await Promise.all(
-        itemsWithoutReceivedQty.map(item =>
+        unverifiedItems.map(item =>
           prisma.stockTransferItem.update({
             where: { id: item.id },
             data: {
-              receivedQuantity: item.quantity, // Default to sent quantity
+              verified: true,
+              verifiedBy: parseInt(userId),
+              verifiedAt: now,
+              // Set receivedQuantity to sent quantity if not already set or if it's 0
+              receivedQuantity: item.receivedQuantity && item.receivedQuantity.toString() !== '0'
+                ? item.receivedQuantity
+                : item.quantity,
             },
           })
         )
       )
     }
+
+    const updateResult = { count: unverifiedItems.length }
 
     // Update transfer status to 'verified'
     await prisma.stockTransfer.update({
