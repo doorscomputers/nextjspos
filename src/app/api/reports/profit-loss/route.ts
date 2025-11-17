@@ -117,28 +117,28 @@ export async function GET(request: NextRequest) {
     // OPTIMIZED: Get latest stock transactions in a single query using raw SQL
     const openingStockQuery = `
       WITH LatestTransactions AS (
-        SELECT DISTINCT ON (st.productId, st.productVariationId, st.locationId)
-          st.productId,
-          st.productVariationId,
-          st.locationId,
-          st.balanceQty,
-          st.unitCost,
-          pv.purchasePrice,
-          pv.sellingPrice
-        FROM "StockTransaction" st
-        INNER JOIN "ProductVariation" pv ON st.productVariationId = pv.id
-        INNER JOIN "Product" p ON st.productId = p.id
-        WHERE st.businessId = $1
-          AND p.deletedAt IS NULL
-          AND st.createdAt <= $2
-          ${locationId && locationId !== 'all' ? 'AND st.locationId = $3' : ''}
-        ORDER BY st.productId, st.productVariationId, st.locationId, st.createdAt DESC, st.id DESC
+        SELECT DISTINCT ON (st.product_id, st.product_variation_id, st.location_id)
+          st.product_id,
+          st.product_variation_id,
+          st.location_id,
+          st.balance_qty,
+          st.unit_cost,
+          pv.purchase_price,
+          pv.selling_price
+        FROM stock_transaction st
+        INNER JOIN product_variation pv ON st.product_variation_id = pv.id
+        INNER JOIN product p ON st.product_id = p.id
+        WHERE st.business_id = $1
+          AND p.deleted_at IS NULL
+          AND st.created_at <= $2
+          ${locationId && locationId !== 'all' ? 'AND st.location_id = $3' : ''}
+        ORDER BY st.product_id, st.product_variation_id, st.location_id, st.created_at DESC, st.id DESC
       )
       SELECT
-        COALESCE(SUM(balanceQty * COALESCE(unitCost, purchasePrice, 0)), 0) as openingStockPurchase,
-        COALESCE(SUM(balanceQty * COALESCE(sellingPrice, 0)), 0) as openingStockSale
+        COALESCE(SUM(balance_qty * COALESCE(unit_cost, purchase_price, 0)), 0) as opening_stock_purchase,
+        COALESCE(SUM(balance_qty * COALESCE(selling_price, 0)), 0) as opening_stock_sale
       FROM LatestTransactions
-      WHERE balanceQty > 0
+      WHERE balance_qty > 0
     `
 
     const openingStockParams = locationId && locationId !== 'all'
@@ -147,8 +147,8 @@ export async function GET(request: NextRequest) {
 
     const openingStockResult: any = await prisma.$queryRawUnsafe(openingStockQuery, ...openingStockParams)
 
-    const openingStockPurchase = parseFloat(openingStockResult[0]?.openingstockpurchase || '0')
-    const openingStockSale = parseFloat(openingStockResult[0]?.openingstocksale || '0')
+    const openingStockPurchase = parseFloat(openingStockResult[0]?.opening_stock_purchase || '0')
+    const openingStockSale = parseFloat(openingStockResult[0]?.opening_stock_sale || '0')
 
     // ============================================
     // CLOSING STOCK (at end date)
@@ -163,28 +163,28 @@ export async function GET(request: NextRequest) {
     // OPTIMIZED: Get latest stock transactions in a single query using raw SQL
     const closingStockQuery = `
       WITH LatestTransactions AS (
-        SELECT DISTINCT ON (st.productId, st.productVariationId, st.locationId)
-          st.productId,
-          st.productVariationId,
-          st.locationId,
-          st.balanceQty,
-          st.unitCost,
-          pv.purchasePrice,
-          pv.sellingPrice
-        FROM "StockTransaction" st
-        INNER JOIN "ProductVariation" pv ON st.productVariationId = pv.id
-        INNER JOIN "Product" p ON st.productId = p.id
-        WHERE st.businessId = $1
-          AND p.deletedAt IS NULL
-          AND st.createdAt <= $2
-          ${locationId && locationId !== 'all' ? 'AND st.locationId = $3' : ''}
-        ORDER BY st.productId, st.productVariationId, st.locationId, st.createdAt DESC, st.id DESC
+        SELECT DISTINCT ON (st.product_id, st.product_variation_id, st.location_id)
+          st.product_id,
+          st.product_variation_id,
+          st.location_id,
+          st.balance_qty,
+          st.unit_cost,
+          pv.purchase_price,
+          pv.selling_price
+        FROM stock_transaction st
+        INNER JOIN product_variation pv ON st.product_variation_id = pv.id
+        INNER JOIN product p ON st.product_id = p.id
+        WHERE st.business_id = $1
+          AND p.deleted_at IS NULL
+          AND st.created_at <= $2
+          ${locationId && locationId !== 'all' ? 'AND st.location_id = $3' : ''}
+        ORDER BY st.product_id, st.product_variation_id, st.location_id, st.created_at DESC, st.id DESC
       )
       SELECT
-        COALESCE(SUM(balanceQty * COALESCE(unitCost, purchasePrice, 0)), 0) as closingStockPurchase,
-        COALESCE(SUM(balanceQty * COALESCE(sellingPrice, 0)), 0) as closingStockSale
+        COALESCE(SUM(balance_qty * COALESCE(unit_cost, purchase_price, 0)), 0) as closing_stock_purchase,
+        COALESCE(SUM(balance_qty * COALESCE(selling_price, 0)), 0) as closing_stock_sale
       FROM LatestTransactions
-      WHERE balanceQty > 0
+      WHERE balance_qty > 0
     `
 
     const closingStockParams = locationId && locationId !== 'all'
@@ -193,8 +193,8 @@ export async function GET(request: NextRequest) {
 
     const closingStockResult: any = await prisma.$queryRawUnsafe(closingStockQuery, ...closingStockParams)
 
-    const closingStockPurchase = parseFloat(closingStockResult[0]?.closingstockpurchase || '0')
-    const closingStockSale = parseFloat(closingStockResult[0]?.closingstocksale || '0')
+    const closingStockPurchase = parseFloat(closingStockResult[0]?.closing_stock_purchase || '0')
+    const closingStockSale = parseFloat(closingStockResult[0]?.closing_stock_sale || '0')
 
     // ============================================
     // PURCHASES
