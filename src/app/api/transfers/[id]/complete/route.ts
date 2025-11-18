@@ -186,9 +186,7 @@ export async function POST(
             productVariationId: variationId,
             locationId: transfer.toLocationId,
           },
-        }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+        })
 
         if (!destStock) {
           // Create new stock record if doesn't exist
@@ -288,6 +286,9 @@ export async function POST(
       })
 
       return updatedTransfer
+    }, {
+      timeout: 120000, // 2 minutes timeout for slow internet connections
+      maxWait: 10000,  // Wait up to 10 seconds to acquire transaction lock
     })
 
     // TRANSACTION IMPACT TRACKING: Step 2 - Capture inventory AFTER and generate report
