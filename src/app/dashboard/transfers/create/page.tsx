@@ -81,6 +81,26 @@ export default function CreateTransferPage() {
     fetchInitialData()
   }, [])
 
+  // Auto-set destination to Main Warehouse for branch locations (Hub-and-Spoke model)
+  // This effect runs after BOTH location and allLocations are loaded (fixes race condition)
+  useEffect(() => {
+    // Wait for both location and locations to load
+    if (!location || !allLocations.length || locationLoading || loadingLocations) {
+      return
+    }
+
+    // If user is at a branch (not Main Warehouse), auto-set to Main Warehouse
+    if (location.name !== 'Main Warehouse') {
+      const mainWarehouse = allLocations.find(loc => loc.name === 'Main Warehouse')
+
+      if (mainWarehouse && toLocationId !== mainWarehouse.id.toString()) {
+        setToLocationId(mainWarehouse.id.toString())
+        console.log('🏭 Auto-set destination to Main Warehouse (Hub-and-Spoke model)')
+        toast.info('Destination auto-set to Main Warehouse (centralized transfer policy)')
+      }
+    }
+  }, [location, allLocations, locationLoading, loadingLocations, toLocationId])
+
   const fetchInitialData = async () => {
     try {
       setLoadingLocations(true)
@@ -94,17 +114,6 @@ export default function CreateTransferPage() {
       if (allLocationsRes.ok) {
         const locations = allLocationsData.locations || []
         setAllLocations(locations)
-
-        // HUB-AND-SPOKE MODEL: Auto-set destination based on from location
-        // If from location is NOT Main Warehouse, auto-set to Main Warehouse
-        // This ensures all branch transfers go to Main Warehouse (centralized model)
-        const mainWarehouse = locations.find(loc => loc.name === 'Main Warehouse')
-
-        if (mainWarehouse && location && location.name !== 'Main Warehouse') {
-          setToLocationId(mainWarehouse.id.toString())
-          console.log('🏭 Auto-set destination to Main Warehouse (Hub-and-Spoke model)')
-          toast.info('Destination auto-set to Main Warehouse (centralized transfer policy)')
-        }
       }
     } catch (error) {
       console.error('❌ Error fetching initial data:', error)
@@ -330,12 +339,23 @@ export default function CreateTransferPage() {
                   if (!isFromMainWarehouse && mainWarehouse && !locationLoading) {
                     return (
                       <>
-                        <input
-                          type="text"
-                          value="Main Warehouse"
-                          disabled
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 cursor-not-allowed dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300"
-                        />
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={toLocationId ? "Main Warehouse" : "Setting destination..."}
+                            disabled
+                            className={`w-full px-3 py-2 border rounded-lg cursor-not-allowed
+                              ${toLocationId
+                                ? 'border-gray-300 bg-gray-50 text-gray-700 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300'
+                                : 'border-yellow-300 bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:border-yellow-800'
+                              }`}
+                          />
+                          {toLocationId && (
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded dark:bg-blue-900 dark:text-blue-300">
+                              Auto-Set
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                           <strong>🏭 Centralized Transfer Policy:</strong> All branch transfers must go to Main Warehouse
                         </p>
@@ -488,7 +508,13 @@ export default function CreateTransferPage() {
               <Button
                 className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
                 onClick={handleCreateTransferClick}
-                disabled={submitting || items.length === 0}
+                disabled={
+                  submitting ||
+                  items.length === 0 ||
+                  locationLoading ||
+                  loadingLocations ||
+                  !toLocationId
+                }
               >
                 {submitting ? 'Creating...' : 'Create Transfer'}
               </Button>
