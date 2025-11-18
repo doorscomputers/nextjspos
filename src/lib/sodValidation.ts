@@ -165,14 +165,21 @@ function validateTransferSOD(
     case 'send':
       // Creator trying to send their own transfer?
       if (transfer.createdBy === userId && !settings.allowCreatorToSend) {
-        return {
-          allowed: false,
-          reason: 'You cannot send a transfer you created. Business policy requires a different user to send for proper control.',
-          code: 'SOD_CREATOR_CANNOT_SEND',
-          configurable: true,
-          ruleField: 'allowCreatorToSend',
-          suggestion: 'Admin can enable "Allow Creator to Send" in Settings > Transfer Rules'
+        // EXCEPTION: Allow creator to send if someone else checked/approved it
+        // This maintains the critical separation (create ≠ approve) while improving workflow efficiency
+        const wasCheckedByDifferentUser = transfer.checkedBy && transfer.checkedBy !== userId
+
+        if (!wasCheckedByDifferentUser) {
+          return {
+            allowed: false,
+            reason: 'You cannot send a transfer you created. Business policy requires a different user to send for proper control.',
+            code: 'SOD_CREATOR_CANNOT_SEND',
+            configurable: true,
+            ruleField: 'allowCreatorToSend',
+            suggestion: 'Admin can enable "Allow Creator to Send" in Settings > Transfer Rules'
+          }
         }
+        // If checked by someone else, allow creator to send (SOD satisfied at approval stage)
       }
 
       // Checker trying to send transfer they checked?
