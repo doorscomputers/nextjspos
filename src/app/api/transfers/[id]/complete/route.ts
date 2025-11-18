@@ -327,11 +327,22 @@ export async function POST(
     })
 
     // Send alert notifications (async, don't await)
+    // Calculate total quantity from all items
+    const totalQuantity = transfer.items.reduce((sum, item) => {
+      const qty = item.receivedQuantity
+        ? parseFloat(item.receivedQuantity.toString())
+        : parseFloat(item.quantity.toString())
+      return sum + qty
+    }, 0)
+
     sendTransferAcceptanceAlert({
       transferNumber: transfer.transferNumber,
       fromLocation: transfer.fromLocation.name,
       toLocation: transfer.toLocation.name,
+      itemCount: transfer.items.length,
+      totalQuantity,
       acceptedBy: user.username,
+      notes,
       timestamp: new Date(),
     }).catch((error) => {
       console.error('[AlertService] Failed to send transfer acceptance alert:', error)

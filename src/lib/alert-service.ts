@@ -177,8 +177,10 @@ export async function sendTransferRejectionAlert(data: {
   transferNumber: string
   fromLocation: string
   toLocation: string
-  rejectionReason: string
+  itemCount: number
+  totalQuantity: number
   rejectedBy: string
+  rejectionReason: string
   timestamp: Date
 }): Promise<void> {
   await Promise.all([
@@ -199,7 +201,10 @@ export async function sendTransferApprovalAlert(data: {
   transferNumber: string
   fromLocation: string
   toLocation: string
+  itemCount: number
+  totalQuantity: number
   approvedBy: string
+  notes?: string
   timestamp: Date
 }): Promise<void> {
   await Promise.all([
@@ -220,7 +225,10 @@ export async function sendTransferAcceptanceAlert(data: {
   transferNumber: string
   fromLocation: string
   toLocation: string
+  itemCount: number
+  totalQuantity: number
   acceptedBy: string
+  notes?: string
   timestamp: Date
 }): Promise<void> {
   await Promise.all([
@@ -285,13 +293,25 @@ export async function sendVoidTransactionAlert(data: {
 // ============================================
 
 export async function sendTestMessage(): Promise<{ telegram: boolean; sms: boolean }> {
+  console.log('[AlertService] sendTestMessage() called')
+  console.log('[AlertService] Calling Telegram.sendTelegramTestMessage()...')
+  console.log('[AlertService] Calling SMS.sendSemaphoreTestMessage()...')
+
   const results = await Promise.allSettled([
     Telegram.sendTelegramTestMessage(),
     SMS.sendSemaphoreTestMessage(),
   ])
 
+  console.log('[AlertService] Telegram result:', results[0])
+  console.log('[AlertService] SMS result:', results[1])
+
+  const telegramSuccess = results[0].status === 'fulfilled' && results[0].value
+  const smsSuccess = results[1].status === 'fulfilled' && results[1].value
+
+  console.log('[AlertService] Final results - Telegram:', telegramSuccess, 'SMS:', smsSuccess)
+
   return {
-    telegram: results[0].status === 'fulfilled' && results[0].value,
-    sms: results[1].status === 'fulfilled' && results[1].value,
+    telegram: telegramSuccess,
+    sms: smsSuccess,
   }
 }

@@ -100,10 +100,17 @@ export async function POST(
     })
 
     // Send alert notifications (async, don't await)
+    // Calculate total quantity from all items
+    const totalQuantity = transfer.items.reduce((sum, item) => {
+      return sum + parseFloat(item.quantity.toString())
+    }, 0)
+
     sendTransferRejectionAlert({
       transferNumber: transfer.transferNumber,
       fromLocation: transfer.fromLocation.name,
       toLocation: transfer.toLocation.name,
+      itemCount: transfer.items.length,
+      totalQuantity,
       rejectedBy: user.username,
       rejectionReason: reason,
       timestamp: new Date(),
