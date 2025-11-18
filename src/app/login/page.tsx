@@ -275,16 +275,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-400 via-orange-400 to-yellow-500 py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0b1a3f] via-[#173a89] to-[#2a62d4] py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Animated background blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-orange-300 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-yellow-300 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-pink-300 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000"></div>
+        <div className="absolute -top-52 -right-32 w-96 h-96 bg-[#1b48c4] rounded-full mix-blend-screen filter blur-3xl opacity-70 animate-blob"></div>
+        <div className="absolute -bottom-48 -left-32 w-96 h-96 bg-[#06133a] rounded-full mix-blend-screen filter blur-3xl opacity-60 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[28rem] h-[28rem] bg-[#2f6cff] rounded-full mix-blend-screen filter blur-[120px] opacity-40 animate-blob animation-delay-4000"></div>
+        <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-white/10 via-white/0 to-transparent opacity-50"></div>
       </div>
 
       {/* Centered Login Card */}
-      <div className="max-w-md w-full bg-black/90 backdrop-blur-xl rounded-2xl shadow-2xl p-8 relative z-10 border border-purple-500/20">
+      <div className="max-w-md w-full bg-gradient-to-br from-[#13244d]/95 via-[#0c1833]/95 to-[#1a2f63]/95 backdrop-blur-2xl rounded-3xl shadow-[0_25px_55px_rgba(6,16,45,0.65)] p-8 relative z-10 border border-white/15">
         {/* Animated Logo */}
         <AnimatedLogo className="mb-8" />
 
@@ -312,7 +313,7 @@ export default function LoginPage() {
               type="text"
               autoComplete="username"
               required
-              className="appearance-none block w-full px-4 py-3 bg-transparent border-2 border-blue-500 rounded-lg placeholder-gray-400 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+              className="appearance-none block w-full px-4 py-3 bg-white/5 border border-[#2d66ff]/60 rounded-lg placeholder-gray-300 text-white focus:outline-none focus:ring-2 focus:ring-[#5e8cff] focus:border-[#5e8cff] transition-all"
               placeholder="User Name"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -331,7 +332,7 @@ export default function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
                 required
-                className="appearance-none block w-full px-4 py-3 pr-12 bg-transparent border-2 border-blue-500 rounded-lg placeholder-gray-400 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+                className="appearance-none block w-full px-4 py-3 pr-12 bg-white/5 border border-[#2d66ff]/60 rounded-lg placeholder-gray-300 text-white focus:outline-none focus:ring-2 focus:ring-[#5e8cff] focus:border-[#5e8cff] transition-all"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -359,7 +360,7 @@ export default function LoginPage() {
                   id="rfid"
                   name="rfid"
                   type="password"
-                  className="appearance-none block w-full px-4 py-3 bg-black/50 border-2 border-blue-500 rounded-lg text-white font-mono text-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all placeholder-gray-500"
+                  className="appearance-none block w-full px-4 py-3 bg-white/5 border border-[#2d66ff]/60 rounded-lg text-white font-mono text-lg focus:outline-none focus:ring-2 focus:ring-[#5e8cff] focus:border-[#5e8cff] transition-all placeholder-gray-400"
                   placeholder="Scan RFID card here..."
                   value={rfidCode}
                   onChange={(e) => setRfidCode(e.target.value)}
@@ -375,7 +376,7 @@ export default function LoginPage() {
                 </p>
               </>
             ) : (
-              <div className="bg-green-900/30 border-2 border-green-500 rounded-lg p-4">
+              <div className="bg-green-900/30 border border-green-500/70 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="flex items-center justify-center w-10 h-10 bg-green-500 rounded-full">
@@ -404,7 +405,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-gradient-to-r from-blue-600 via-blue-700 to-blue-600 hover:from-blue-700 hover:via-blue-800 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg uppercase tracking-wider"
+            className="w-full flex justify-center py-3 px-4 border border-white/10 text-sm font-bold rounded-lg text-white bg-gradient-to-r from-[#2d66ff] via-[#4f7dff] to-[#2d66ff] hover:from-[#3e74ff] hover:via-[#6d8dff] hover:to-[#3e74ff] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#5e8cff] focus:ring-offset-[#040b1e] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-[0_15px_35px_rgba(15,35,85,0.6)] uppercase tracking-wider"
           >
             {loading ? "Signing in..." : "LOGIN"}
           </button>

@@ -605,45 +605,6 @@ export default function ProductsListV2Page() {
         </div>
       </div>
 
-      {/* Summary Cards - Note: With server-side data, these show grid totals */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-lg text-white shadow-lg">
-          <div className="text-sm opacity-90">Products in Database</div>
-          <div className="text-3xl font-bold">
-            {(() => {
-              if (!gridInitialized || !dataGridRef.current?.instance) return '...'
-              const inst: any = dataGridRef.current.instance
-              try {
-                if (typeof inst.totalCount === 'function') {
-                  const n = inst.totalCount()
-                  if (typeof n === 'number') return n.toLocaleString()
-                }
-                const ds = typeof inst.getDataSource === 'function' ? inst.getDataSource() : null
-                if (ds && typeof ds.totalCount === 'function') {
-                  const n = ds.totalCount()
-                  if (typeof n === 'number') return n.toLocaleString()
-                }
-              } catch (_) {}
-              return '...'
-            })()}
-          </div>
-        </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-lg text-white shadow-lg">
-          <div className="text-sm opacity-90">Search & Filter</div>
-          <div className="text-3xl font-bold">
-            Unlimited
-          </div>
-          <div className="text-xs opacity-90 mt-1">Server-side operations</div>
-        </div>
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-6 rounded-lg text-white shadow-lg">
-          <div className="text-sm opacity-90">Performance</div>
-          <div className="text-3xl font-bold">
-            95% Faster
-          </div>
-          <div className="text-xs opacity-90 mt-1">Phase 2 optimization</div>
-        </div>
-      </div>
-
       {/* DevExtreme DataGrid */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl">
         <DataGrid

@@ -19,7 +19,7 @@ export default function AnimatedLogo({ className = '' }: AnimatedLogoProps) {
     <div className={`animated-logo ${className}`}>
       {/* Main company name */}
       <div className="text-center mb-2">
-        <h1 className="text-4xl font-bold tracking-tight">
+        <h1 className="text-4xl font-bold tracking-tight drop-shadow-[0_8px_20px_rgba(7,12,34,0.45)]">
           <span className="inline-block">
             <span className="text-gradient animate-letter" style={{ animationDelay: '0s' }}>P</span>
             <span className="text-gradient">ci</span>
@@ -27,13 +27,13 @@ export default function AnimatedLogo({ className = '' }: AnimatedLogoProps) {
             <span className="text-gradient">et</span>
           </span>
         </h1>
-        <p className="text-lg text-gray-300 mt-1 tracking-wide">
+        <p className="text-sm sm:text-base font-semibold uppercase tracking-[0.28em] text-[#CFE3FF] mt-3 drop-shadow-[0_4px_18px_rgba(3,8,24,0.85)]">
           <span className="text-gradient animate-letter" style={{ animationDelay: '0.4s' }}>C</span>
-          <span className="text-gray-300">omputer </span>
+          <span className="text-[#CFE3FF]">OMPUTER </span>
           <span className="text-gradient animate-letter" style={{ animationDelay: '0.6s' }}>T</span>
-          <span className="text-gray-300">rading & </span>
+          <span className="text-[#CFE3FF]">RADING & </span>
           <span className="text-gradient animate-letter" style={{ animationDelay: '0.8s' }}>S</span>
-          <span className="text-gray-300">ervices</span>
+          <span className="text-[#CFE3FF]">ERVICES</span>
         </p>
       </div>
 
@@ -53,11 +53,12 @@ export default function AnimatedLogo({ className = '' }: AnimatedLogoProps) {
         }
 
         .text-gradient {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+          background: linear-gradient(135deg, #5a7fff 0%, #7c64ff 45%, #a16eff 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
           display: inline-block;
+          text-shadow: 0 0 18px rgba(62, 104, 255, 0.45);
         }
 
         .animate-letter {
@@ -84,12 +85,12 @@ export default function AnimatedLogo({ className = '' }: AnimatedLogoProps) {
           font-size: 2.5rem;
           font-weight: 800;
           display: inline-block;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+          background: linear-gradient(135deg, #5a7fff 0%, #8f63ff 45%, #f093fb 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
           position: relative;
-          text-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+          text-shadow: 0 0 25px rgba(72, 115, 255, 0.65);
         }
 
         .pcts-p {
