@@ -7,7 +7,7 @@ import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 import { transferStockOut } from '@/lib/stockOperations'
 import { withIdempotency } from '@/lib/idempotency'
 import { validateSOD, getUserRoles } from '@/lib/sodValidation'
-import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker'
+// import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker' // TEMPORARILY DISABLED
 import { sendTelegramStockTransferAlert } from '@/lib/telegram'
 
 /**
@@ -132,10 +132,11 @@ export async function POST(
     }
 
     // TRANSACTION IMPACT TRACKING: Step 1 - Capture inventory BEFORE transaction
-    const impactTracker = new InventoryImpactTracker()
-    const productVariationIds = transfer.items.map(item => item.productVariationId)
-    const locationIds = [transfer.fromLocationId]
-    await impactTracker.captureBefore(productVariationIds, locationIds)
+    // TEMPORARILY DISABLED: Compatibility issue with Vercel edge runtime
+    // const impactTracker = new InventoryImpactTracker()
+    // const productVariationIds = transfer.items.map(item => item.productVariationId)
+    // const locationIds = [transfer.fromLocationId]
+    // await impactTracker.captureBefore(productVariationIds, locationIds)
 
     // CRITICAL: Use transaction to ensure atomicity
     const result = await prisma.$transaction(async (tx) => {
@@ -203,16 +204,17 @@ export async function POST(
     })
 
     // TRANSACTION IMPACT TRACKING: Step 2 - Capture inventory AFTER and generate report
-    const locationTypes = { [transfer.fromLocationId]: 'source' as const }
-    const inventoryImpact = await impactTracker.captureAfterAndReport(
-      productVariationIds,
-      locationIds,
-      'transfer',
-      result.id,
-      transfer.transferNumber,
-      locationTypes,
-      userDisplayName
-    )
+    // TEMPORARILY DISABLED: Compatibility issue with Vercel edge runtime
+    // const locationTypes = { [transfer.fromLocationId]: 'source' as const }
+    // const inventoryImpact = await impactTracker.captureAfterAndReport(
+    //   productVariationIds,
+    //   locationIds,
+    //   'transfer',
+    //   result.id,
+    //   transfer.transferNumber,
+    //   locationTypes,
+    //   userDisplayName
+    // )
 
     // Create audit log
     await createAuditLog({
@@ -283,7 +285,7 @@ export async function POST(
     return NextResponse.json({
       message: 'Transfer sent - stock deducted from origin location',
       transfer: result,
-      inventoryImpact,
+      // inventoryImpact temporarily disabled
     })
   } catch (error: any) {
     console.error('Error sending transfer:', error)
