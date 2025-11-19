@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 import { validateSOD, getUserRoles } from '@/lib/sodValidation'
-import { sendTransferApprovalAlert } from '@/lib/alert-service'
+// DISABLED: Alerts causing errors - can re-enable later if needed
+// import { sendTransferApprovalAlert } from '@/lib/alert-service'
 
 /**
  * POST /api/transfers/[id]/check-approve
@@ -155,27 +156,27 @@ export async function POST(
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
     })
 
-    // OPTIMIZED: Send alert notifications (async, fire and forget - don't block response)
-    (async () => {
-      try {
-        const totalQuantity = transfer.items.reduce((sum, item) => {
-          return sum + parseFloat(item.quantity.toString())
-        }, 0)
+    // DISABLED: Alert notifications causing errors - can re-enable later if needed
+    // (async () => {
+    //   try {
+    //     const totalQuantity = transfer.items.reduce((sum, item) => {
+    //       return sum + parseFloat(item.quantity.toString())
+    //     }, 0)
 
-        await sendTransferApprovalAlert({
-          transferNumber: transfer.transferNumber,
-          fromLocation: transfer.fromLocation.name,
-          toLocation: transfer.toLocation.name,
-          itemCount: transfer.items.length,
-          totalQuantity,
-          approvedBy: user.username,
-          notes,
-          timestamp: new Date(),
-        })
-      } catch (error) {
-        console.error('[AlertService] Failed to send transfer approval alert:', error)
-      }
-    })()
+    //     await sendTransferApprovalAlert({
+    //       transferNumber: transfer.transferNumber,
+    //       fromLocation: transfer.fromLocation.name,
+    //       toLocation: transfer.toLocation.name,
+    //       itemCount: transfer.items.length,
+    //       totalQuantity,
+    //       approvedBy: user.username,
+    //       notes,
+    //       timestamp: new Date(),
+    //     })
+    //   } catch (error) {
+    //     console.error('[AlertService] Failed to send transfer approval alert:', error)
+    //   }
+    // })()
 
     return NextResponse.json({
       message: 'Transfer approved - ready to send',
