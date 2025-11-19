@@ -354,9 +354,7 @@ export async function POST(request: NextRequest) {
           notes,
           createdBy: parseInt(userId),
         },
-      }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+      })
 
       // Create transfer items
       for (const item of items) {
@@ -384,6 +382,9 @@ export async function POST(request: NextRequest) {
       }
 
       return newTransfer
+    }, {
+      timeout: 120000, // 2 minutes timeout for slow Supabase connections
+      maxWait: 30000,  // Wait up to 30 seconds to acquire transaction lock
     })
 
     // Create audit log
