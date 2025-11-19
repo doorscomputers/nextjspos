@@ -544,6 +544,7 @@ export async function transferStockOut({
   notes,
   userDisplayName,
   skipAvailabilityCheck,
+  allowNegative,
   tx,
 }: {
   businessId: number
@@ -556,6 +557,7 @@ export async function transferStockOut({
   notes?: string
   userDisplayName?: string
   skipAvailabilityCheck?: boolean
+  allowNegative?: boolean
   tx?: TransactionClient
 }) {
   // Deduct from source location
@@ -572,6 +574,7 @@ export async function transferStockOut({
     notes: notes || `Transfer out - Stock Transfer #${transferId}`,
     userDisplayName,
     skipAvailabilityCheck,
+    allowNegative,
     tx,
   })
 }

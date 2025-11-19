@@ -156,6 +156,7 @@ async function processTransferSend(job: any) {
               notes: notes || `Transfer ${transfer.transferNumber} sent`,
               userDisplayName,
               skipAvailabilityCheck: true, // Already validated at transfer creation
+              allowNegative: true, // Allow negative for async transfers (stock may have changed since creation)
               tx,
             })
 
