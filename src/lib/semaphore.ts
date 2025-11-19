@@ -424,7 +424,9 @@ export async function sendSemaphoreTransferApprovalAlert(data: {
   fromLocation: string
   toLocation: string
   itemCount: number
+  totalQuantity: number
   approvedBy: string
+  notes?: string
   timestamp: Date
 }): Promise<boolean> {
   if (!semaphoreConfig.enabled || !semaphoreConfig.transferEnabled) {
@@ -436,8 +438,9 @@ TRN: ${data.transferNumber}
 From: ${data.fromLocation}
 To: ${data.toLocation}
 Items: ${data.itemCount}
+Qty: ${data.totalQuantity} units
 By: ${data.approvedBy}
-${formatDateTime(data.timestamp)}
+${data.notes ? `Notes: ${data.notes}\n` : ''}${formatDateTime(data.timestamp)}
 ✅ Ready to send`
 
   return sendSemaphoreSMS(message)
