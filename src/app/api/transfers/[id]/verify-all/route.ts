@@ -80,23 +80,28 @@ export async function POST(
 
     // Update each unverified item individually to set both verified AND receivedQuantity
     // We can't use updateMany because we need to conditionally set receivedQuantity
+    // Process in batches to avoid exhausting connection pool (limit: 5 connections)
     if (unverifiedItems.length > 0) {
-      await Promise.all(
-        unverifiedItems.map(item =>
-          prisma.stockTransferItem.update({
-            where: { id: item.id },
-            data: {
-              verified: true,
-              verifiedBy: parseInt(userId),
-              verifiedAt: now,
-              // Set receivedQuantity to sent quantity if not already set or if it's 0
-              receivedQuantity: item.receivedQuantity && item.receivedQuantity.toString() !== '0'
-                ? item.receivedQuantity
-                : item.quantity,
-            },
-          })
+      const BATCH_SIZE = 5
+      for (let i = 0; i < unverifiedItems.length; i += BATCH_SIZE) {
+        const batch = unverifiedItems.slice(i, i + BATCH_SIZE)
+        await Promise.all(
+          batch.map(item =>
+            prisma.stockTransferItem.update({
+              where: { id: item.id },
+              data: {
+                verified: true,
+                verifiedBy: parseInt(userId),
+                verifiedAt: now,
+                // Set receivedQuantity to sent quantity if not already set or if it's 0
+                receivedQuantity: item.receivedQuantity && item.receivedQuantity.toString() !== '0'
+                  ? item.receivedQuantity
+                  : item.quantity,
+              },
+            })
+          )
         )
-      )
+      }
     }
 
     const updateResult = { count: unverifiedItems.length }
