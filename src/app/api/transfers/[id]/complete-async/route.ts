@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
+import { processJob } from '@/lib/job-processor'
 
 /**
  * POST /api/transfers/[id]/complete-async
@@ -88,15 +89,13 @@ export async function POST(
       `✅ Transfer complete job created: ${job.id} for transfer ${transfer.transferNumber} (${transfer.items.length} items)`
     )
 
-    // Trigger job processing immediately (don't wait for Vercel Cron)
-    // Fire and forget - don't block the response
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    fetch(`${baseUrl}/api/cron/process-jobs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    }).catch((error) => {
-      console.error('Failed to trigger job processor:', error)
-      // Swallow error - Vercel Cron will pick it up eventually
+    // Start processing job immediately in background (non-blocking)
+    // This ensures instant processing without waiting for Vercel Cron
+    setImmediate(() => {
+      processJob(job).catch((error) => {
+        console.error(`[Job ${job.id}] Background processing failed:`, error)
+        // Error is logged but doesn't affect the response
+      })
     })
 
     // Return immediately with job ID
