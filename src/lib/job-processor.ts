@@ -280,8 +280,8 @@ async function processTransferComplete(job: any) {
         }
       },
       {
-        timeout: 60000,
-        maxWait: 10000,
+        timeout: 180000, // 180s per batch (18s per item for 10 items) - same as sending
+        maxWait: 20000, // Increased wait time for lock acquisition
       }
     )
 
