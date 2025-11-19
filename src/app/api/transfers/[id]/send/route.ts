@@ -161,6 +161,7 @@ export async function POST(
           userId: userIdNumber,
           notes: stockNote,
           userDisplayName,
+          skipAvailabilityCheck: true, // Already validated at transfer creation
           tx,
         })
 

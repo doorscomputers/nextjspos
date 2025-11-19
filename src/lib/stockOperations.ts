@@ -537,6 +537,7 @@ export async function transferStockOut({
   userId,
   notes,
   userDisplayName,
+  skipAvailabilityCheck,
   tx,
 }: {
   businessId: number
@@ -548,6 +549,7 @@ export async function transferStockOut({
   userId: number
   notes?: string
   userDisplayName?: string
+  skipAvailabilityCheck?: boolean
   tx?: TransactionClient
 }) {
   // Deduct from source location
@@ -563,6 +565,7 @@ export async function transferStockOut({
     userId,
     notes: notes || `Transfer out - Stock Transfer #${transferId}`,
     userDisplayName,
+    skipAvailabilityCheck,
     tx,
   })
 }

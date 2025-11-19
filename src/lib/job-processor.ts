@@ -154,6 +154,7 @@ async function processTransferSend(job: any) {
             userId: job.userId,
             notes: notes || `Transfer ${transfer.transferNumber} sent`,
             userDisplayName,
+            skipAvailabilityCheck: true, // Already validated at transfer creation
             tx,
           })
 
