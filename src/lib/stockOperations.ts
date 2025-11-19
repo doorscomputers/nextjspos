@@ -7,9 +7,9 @@ import { debouncedRefreshStockView } from './refreshStockView'
 type TransactionClient = Prisma.TransactionClient
 
 // Enable/disable post-operation validation (can be toggled via env var)
-// PERFORMANCE: Disabled by default as it sums entire stock_transactions history (10-20s overhead)
-// Set ENABLE_STOCK_VALIDATION=true in .env to enable for debugging stock inconsistencies
-const ENABLE_STOCK_VALIDATION = process.env.ENABLE_STOCK_VALIDATION === 'true' // false by default for performance
+// PERFORMANCE: DISABLED - adds 10-20s overhead PER ITEM (sums entire stock_transactions history)
+// NEVER enable in production - only for debugging stock inconsistencies
+const ENABLE_STOCK_VALIDATION = false // HARDCODED to false - do not change without understanding performance impact
 
 const toDecimal = (value: number | string | Prisma.Decimal) =>
   value instanceof Prisma.Decimal ? value : new Prisma.Decimal(value)
