@@ -142,29 +142,37 @@ async function processTransferSend(job: any) {
     await prisma.$transaction(
       async (tx) => {
         for (const item of batch) {
-          const quantity = parseFloat(item.quantity.toString())
+          try {
+            const quantity = parseFloat(item.quantity.toString())
 
-          await transferStockOut({
-            businessId: job.businessId,
-            productId: item.productId,
-            productVariationId: item.productVariationId,
-            fromLocationId: transfer.fromLocationId,
-            quantity,
-            transferId,
-            userId: job.userId,
-            notes: notes || `Transfer ${transfer.transferNumber} sent`,
-            userDisplayName,
-            skipAvailabilityCheck: true, // Already validated at transfer creation
-            tx,
-          })
+            await transferStockOut({
+              businessId: job.businessId,
+              productId: item.productId,
+              productVariationId: item.productVariationId,
+              fromLocationId: transfer.fromLocationId,
+              quantity,
+              transferId,
+              userId: job.userId,
+              notes: notes || `Transfer ${transfer.transferNumber} sent`,
+              userDisplayName,
+              skipAvailabilityCheck: true, // Already validated at transfer creation
+              tx,
+            })
 
-          processedCount++
+            processedCount++
 
-          // Update job progress
-          await tx.job.update({
-            where: { id: job.id },
-            data: { progress: processedCount },
-          })
+            // Update job progress
+            await tx.job.update({
+              where: { id: job.id },
+              data: { progress: processedCount },
+            })
+          } catch (itemError: any) {
+            console.error(
+              `[Job ${job.id}] Error processing item ${item.id} (Product: ${item.productId}, Variation: ${item.productVariationId}):`,
+              itemError.message
+            )
+            throw itemError // Re-throw to trigger batch retry
+          }
         }
       },
       {
@@ -233,33 +241,41 @@ async function processTransferComplete(job: any) {
     await prisma.$transaction(
       async (tx) => {
         for (const item of batch) {
-          const receivedQty = item.receivedQuantity
-            ? parseFloat(item.receivedQuantity.toString())
-            : parseFloat(item.quantity.toString())
+          try {
+            const receivedQty = item.receivedQuantity
+              ? parseFloat(item.receivedQuantity.toString())
+              : parseFloat(item.quantity.toString())
 
-          await addStock({
-            businessId: job.businessId,
-            productId: item.productId,
-            productVariationId: item.productVariationId,
-            locationId: transfer.toLocationId,
-            quantity: receivedQty,
-            type: 'transfer_in' as any,
-            referenceType: 'stock_transfer',
-            referenceId: transferId,
-            referenceNumber: transfer.transferNumber,
-            userId: job.userId,
-            userDisplayName,
-            notes: `Transfer ${transfer.transferNumber} received`,
-            tx,
-          })
+            await addStock({
+              businessId: job.businessId,
+              productId: item.productId,
+              productVariationId: item.productVariationId,
+              locationId: transfer.toLocationId,
+              quantity: receivedQty,
+              type: 'transfer_in' as any,
+              referenceType: 'stock_transfer',
+              referenceId: transferId,
+              referenceNumber: transfer.transferNumber,
+              userId: job.userId,
+              userDisplayName,
+              notes: `Transfer ${transfer.transferNumber} received`,
+              tx,
+            })
 
-          processedCount++
+            processedCount++
 
-          // Update job progress
-          await tx.job.update({
-            where: { id: job.id },
-            data: { progress: processedCount },
-          })
+            // Update job progress
+            await tx.job.update({
+              where: { id: job.id },
+              data: { progress: processedCount },
+            })
+          } catch (itemError: any) {
+            console.error(
+              `[Job ${job.id}] Error processing item ${item.id} (Product: ${item.productId}, Variation: ${item.productVariationId}):`,
+              itemError.message
+            )
+            throw itemError // Re-throw to trigger batch retry
+          }
         }
       },
       {

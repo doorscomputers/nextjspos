@@ -286,7 +286,15 @@ async function executeStockUpdate(
   })
 
   // Use provided createdByName (e.g., supplier/customer) if available, otherwise resolve from user
-  const createdByName = providedCreatedByName || await resolveUserDisplayName(tx, userId, userDisplayName)
+  let createdByName = providedCreatedByName || await resolveUserDisplayName(tx, userId, userDisplayName)
+  // Ensure createdByName is not empty and doesn't exceed DB limit (191 chars)
+  if (!createdByName || createdByName.trim().length === 0) {
+    createdByName = `User#${userId}`
+  }
+  if (createdByName.length > 191) {
+    createdByName = createdByName.substring(0, 191)
+  }
+
   const unitCostDecimal = unitCost !== undefined ? toDecimal(unitCost) : null
   const historyReferenceId = referenceId ?? transaction.id
   const historyReferenceType = referenceType ?? 'stock_transaction'
