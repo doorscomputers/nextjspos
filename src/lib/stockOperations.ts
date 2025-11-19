@@ -271,6 +271,12 @@ async function executeStockUpdate(
   // IMPORTANT: Function has explicit SELECT FOR UPDATE locking + negative stock validation
   const totalValue = unitCostDecimal !== null ? unitCostDecimal.mul(quantityDecimal.abs()) : null
 
+  // CRITICAL: Properly cast NULL values for PostgreSQL function call
+  const refNumberParam = referenceNumber !== null && referenceNumber !== undefined ? referenceNumber : null
+  const notesParam = notes !== null && notes !== undefined ? notes : null
+  const subUnitParam = subUnitId !== null && subUnitId !== undefined ? subUnitId : null
+  const totalValueParam = totalValue !== null ? totalValue : null
+
   const batchResult = await tx.$queryRaw<
     {
       previous_balance: Prisma.Decimal
@@ -282,25 +288,25 @@ async function executeStockUpdate(
   >(
     Prisma.sql`
       SELECT * FROM update_inventory_with_history(
-        ${businessId},
-        ${productId},
-        ${productVariationId},
-        ${locationId},
-        ${type},
-        ${quantityDecimal},
-        ${unitCostDecimal},
-        ${newBalanceDecimal},
-        ${previousBalanceDecimal},
-        ${referenceType},
-        ${referenceId},
-        ${referenceNumber ?? null},
-        ${userId},
-        ${createdByName},
-        ${notesText},
-        ${notes ?? null},
-        ${subUnitId ?? null},
-        ${totalValue},
-        ${allowNegative}
+        ${businessId}::INTEGER,
+        ${productId}::INTEGER,
+        ${productVariationId}::INTEGER,
+        ${locationId}::INTEGER,
+        ${type}::TEXT,
+        ${quantityDecimal}::DECIMAL,
+        ${unitCostDecimal}::DECIMAL,
+        ${newBalanceDecimal}::DECIMAL,
+        ${previousBalanceDecimal}::DECIMAL,
+        ${referenceType}::TEXT,
+        ${referenceId}::INTEGER,
+        ${refNumberParam}::TEXT,
+        ${userId}::INTEGER,
+        ${createdByName}::TEXT,
+        ${notesText}::TEXT,
+        ${notesParam}::TEXT,
+        ${subUnitParam}::INTEGER,
+        ${totalValueParam}::DECIMAL,
+        ${allowNegative}::BOOLEAN
       )
     `
   )
