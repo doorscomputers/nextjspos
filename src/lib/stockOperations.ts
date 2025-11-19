@@ -224,7 +224,8 @@ async function executeStockUpdate(
 
   const quantityDecimal = toDecimal(quantity)
 
-  // STEP 1: Lock row and get current balance
+  // PERFORMANCE: Get current balance WITHOUT locking (function will lock it)
+  // This is just for calculating new balance - the actual lock happens in the function
   const existingRows = await tx.$queryRaw<
     { id: number; qty_available: Prisma.Decimal }[]
   >(
@@ -233,7 +234,6 @@ async function executeStockUpdate(
       FROM variation_location_details
       WHERE product_variation_id = ${productVariationId}
         AND location_id = ${locationId}
-      FOR UPDATE
     `
   )
 
@@ -243,13 +243,15 @@ async function executeStockUpdate(
     : new Prisma.Decimal(0)
   const newBalanceDecimal = previousBalanceDecimal.add(quantityDecimal)
 
+  // NOTE: Negative stock validation is now handled by the stored function
+  // This pre-check avoids unnecessary function call if we know it will fail
   if (!allowNegative && newBalanceDecimal.lt(0)) {
     throw new Error(
       `Insufficient stock. Current: ${previousBalanceDecimal.toString()}, Requested: ${Math.abs(quantity)}, Shortage: ${newBalanceDecimal.negated().toString()}`
     )
   }
 
-  // Resolve createdByName early (needed for batched query)
+  // Resolve createdByName early (needed for function call)
   let createdByName = providedCreatedByName || await resolveUserDisplayName(tx, userId, userDisplayName)
   if (!createdByName || createdByName.trim().length === 0) {
     createdByName = `User#${userId}`
@@ -264,8 +266,9 @@ async function executeStockUpdate(
   const historyReferenceType = referenceType ?? 'stock_transaction'
 
   // STEP 2: STORED FUNCTION - ALL operations server-side in single function call
-  // This eliminates ALL network round trips (2 queries → 1 function call)
+  // This eliminates ALL network round trips (SELECT + UPSERT + 2 INSERTs = 1 function call)
   // Expected performance: 70 items in ~60-90 seconds (vs 5-6 min with separate queries)
+  // IMPORTANT: Function has explicit SELECT FOR UPDATE locking + negative stock validation
   const totalValue = unitCostDecimal !== null ? unitCostDecimal.mul(quantityDecimal.abs()) : null
 
   const batchResult = await tx.$queryRaw<
@@ -296,7 +299,8 @@ async function executeStockUpdate(
         ${notesText},
         ${notes ?? null},
         ${subUnitId ?? null},
-        ${totalValue}
+        ${totalValue},
+        ${allowNegative}
       )
     `
   )
