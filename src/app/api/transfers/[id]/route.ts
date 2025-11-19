@@ -21,7 +21,7 @@ export async function GET(
 
     const user = session.user as any
     const businessId = parseInt(String(user.businessId))
-    const userId = user.id
+    const userId = parseInt(String(user.id))
     const { id: transferId } = await params
 
     // Check permission
@@ -206,7 +206,7 @@ export async function PUT(
 
     const user = session.user as any
     const businessId = parseInt(String(user.businessId))
-    const userId = user.id
+    const userId = parseInt(String(user.id))
     const { id: transferId } = await params
 
     // Check permission
@@ -340,7 +340,7 @@ export async function DELETE(
 
     const user = session.user as any
     const businessId = parseInt(String(user.businessId))
-    const userId = user.id
+    const userId = parseInt(String(user.id))
     const { id: transferId } = await params
 
     // Check permission

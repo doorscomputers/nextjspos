@@ -26,7 +26,7 @@ export async function POST(
 
     const user = session.user as any
     const businessId = parseInt(String(user.businessId))
-    const userId = user.id
+    const userId = parseInt(String(user.id))
     const businessIdNumber = Number(businessId)
     const userIdNumber = Number(userId)
 
