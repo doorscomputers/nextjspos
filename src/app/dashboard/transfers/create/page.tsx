@@ -39,6 +39,8 @@ interface ProductVariation {
   enableSerialNumber: boolean
   defaultPurchasePrice?: number | null
   defaultSellingPrice?: number | null
+  stockAtLocation?: number  // NEW: Stock quantity at user's location (pre-loaded, no API call!)
+  variationLocationDetails?: any[] // Include full stock details if needed
 }
 
 interface TransferItem {
@@ -150,14 +152,28 @@ export default function CreateTransferPage() {
 
       if (data.products) {
         // Filter for products with stock > 0 at THIS location (EXACT POS PATTERN)
-        const productsWithStock = data.products.filter((p: any) => {
-          return p.variations?.some((v: any) => {
-            const locationStock = v.variationLocationDetails?.find(
-              (vl: any) => vl.locationId === locationId
-            )
-            return locationStock && parseFloat(locationStock.qtyAvailable) > 0
+        const productsWithStock = data.products
+          .map((p: any) => {
+            // Add stock quantity to each variation for INSTANT access (no API call!)
+            const variationsWithStock = p.variations?.map((v: any) => {
+              const locationStock = v.variationLocationDetails?.find(
+                (vl: any) => vl.locationId === locationId
+              )
+              const stockQty = locationStock ? parseFloat(locationStock.qtyAvailable) : 0
+
+              return {
+                ...v,
+                stockAtLocation: stockQty,  // PRE-CALCULATE stock for instant add-to-cart
+                variationLocationDetails: v.variationLocationDetails  // Keep full details if needed
+              }
+            }).filter((v: any) => v.stockAtLocation > 0)  // Only variations with stock
+
+            return {
+              ...p,
+              variations: variationsWithStock
+            }
           })
-        })
+          .filter((p: any) => p.variations && p.variations.length > 0)  // Only products with stock
 
         console.log(`✅ [INSTANT SEARCH] ${productsWithStock.length} products have stock at location ${locationId}`)
 
@@ -206,8 +222,10 @@ export default function CreateTransferPage() {
       return
     }
 
-    // Get available stock
-    const availableStock = await getAvailableStock(variation.id, parseInt(fromLocationId))
+    // INSTANT: Use pre-loaded stock (no API call!)
+    const availableStock = variation.stockAtLocation || 0
+
+    console.log(`⚡ INSTANT ADD: ${product.name} - Stock: ${availableStock} (no API call!)`)
 
     if (availableStock <= 0) {
       toast.error(`No stock available for ${product.name} - ${variation.name} at this location`)
