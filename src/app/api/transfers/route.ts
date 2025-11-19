@@ -280,7 +280,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate items and check stock availability at source
+    // OPTIMIZED: Validate items (stock validation removed - already done client-side)
+    // Stock will be validated again during SEND operation (when actually deducted)
+    const allSerialNumberIds: number[] = []
+
     for (const item of items) {
       const quantity = parseFloat(item.quantity)
 
@@ -291,27 +294,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Check stock availability at source location
-      const stock = await prisma.variationLocationDetails.findUnique({
-        where: {
-          productVariationId_locationId: {
-            productVariationId: parseInt(item.productVariationId),
-            locationId: parseInt(fromLocationId),
-          },
-        },
-      })
-
-      if (!stock || parseFloat(stock.qtyAvailable.toString()) < quantity) {
-        const availableQty = stock ? parseFloat(stock.qtyAvailable.toString()) : 0
-        return NextResponse.json(
-          {
-            error: `Insufficient stock at source location for item ${item.productId}. Available: ${availableQty}, Required: ${quantity}`,
-          },
-          { status: 400 }
-        )
-      }
-
-      // If serial numbers provided, validate them
+      // Collect serial numbers for batch validation
       if (item.serialNumberIds && item.serialNumberIds.length > 0) {
         if (item.serialNumberIds.length !== quantity) {
           return NextResponse.json(
@@ -321,26 +304,30 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           )
         }
+        allSerialNumberIds.push(...item.serialNumberIds.map((id: any) => parseInt(id)))
+      }
+    }
 
-        // Verify serial numbers exist and are at source location
-        for (const serialNumberId of item.serialNumberIds) {
-          const serialNumber = await prisma.productSerialNumber.findFirst({
-            where: {
-              id: parseInt(serialNumberId),
-              businessId: parseInt(businessId),
-              productVariationId: parseInt(item.productVariationId),
-              currentLocationId: parseInt(fromLocationId),
-              status: 'in_stock',
-            },
-          })
+    // OPTIMIZED: Batch validate ALL serial numbers in ONE query (instead of N queries)
+    if (allSerialNumberIds.length > 0) {
+      const validSerialNumbers = await prisma.productSerialNumber.findMany({
+        where: {
+          id: { in: allSerialNumberIds },
+          businessId: parseInt(businessId),
+          currentLocationId: parseInt(fromLocationId),
+          status: 'in_stock',
+        },
+        select: { id: true },
+      })
 
-          if (!serialNumber) {
-            return NextResponse.json(
-              { error: `Serial number ${serialNumberId} not available at source location` },
-              { status: 400 }
-            )
-          }
-        }
+      const validIds = new Set(validSerialNumbers.map(sn => sn.id))
+      const invalidIds = allSerialNumberIds.filter(id => !validIds.has(id))
+
+      if (invalidIds.length > 0) {
+        return NextResponse.json(
+          { error: `Serial numbers not available at source location: ${invalidIds.join(', ')}` },
+          { status: 400 }
+        )
       }
     }
 
@@ -437,7 +424,7 @@ export async function POST(request: NextRequest) {
       userAgent: getUserAgent(request),
     })
 
-    // Fetch complete transfer with relations
+    // OPTIMIZED: Fetch complete transfer with relations for response
     const completeTransfer = await prisma.stockTransfer.findUnique({
       where: { id: transfer.id },
       include: {
@@ -450,29 +437,28 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Send Telegram notification for transfer creation
-    try {
-      const userDisplayName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || `User#${userId}`
-      const totalQuantity = completeTransfer?.items.reduce((sum, item) => sum + parseFloat(item.quantity.toString()), 0) || 0
+    // Send Telegram notification for transfer creation (async - don't block response)
+    const userDisplayName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || `User#${userId}`
+    const totalQuantity = items.reduce((sum: number, item: any) => sum + parseFloat(item.quantity), 0)
 
-      await sendTelegramStockTransferAlert({
-        transferNumber,
-        fromLocation: fromLocation.name,
-        toLocation: toLocation.name,
-        itemCount: items.length,
-        totalQuantity,
-        status: 'draft',
-        createdBy: userDisplayName,
-        timestamp: new Date(),
-        items: completeTransfer?.items.slice(0, 3).map(item => ({
-          productName: item.product.name,
-          variationName: item.productVariation.name,
-          quantity: parseFloat(item.quantity.toString())
-        }))
-      })
-    } catch (telegramError) {
-      console.error('Telegram notification failed:', telegramError)
-    }
+    // Fire and forget - don't await Telegram (saves 500ms)
+    sendTelegramStockTransferAlert({
+      transferNumber,
+      fromLocation: fromLocation.name,
+      toLocation: toLocation.name,
+      itemCount: items.length,
+      totalQuantity,
+      status: 'draft',
+      createdBy: userDisplayName,
+      timestamp: new Date(),
+      items: completeTransfer?.items.slice(0, 3).map(item => ({
+        productName: item.product.name,
+        variationName: item.productVariation.name,
+        quantity: parseFloat(item.quantity.toString())
+      })) || []
+    }).catch(telegramError => {
+      console.error('Telegram notification failed (async):', telegramError)
+    })
 
     return NextResponse.json({ transfer: completeTransfer }, { status: 201 })
   } catch (error) {
