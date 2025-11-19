@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { processJob } from '@/scripts/job-worker'
+import { processJob } from '@/lib/job-processor'
 import { prisma } from '@/lib/prisma.simple'
 
 /**
