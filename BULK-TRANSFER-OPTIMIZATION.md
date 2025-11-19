@@ -38,6 +38,8 @@ PostgreSQL → Node.js: 10 results
 
 ### Step 1: Install PostgreSQL Function in Supabase
 
+**IMPORTANT:** The SQL function has been updated to fix schema compatibility with `product_history` table.
+
 1. Go to [Supabase Dashboard](https://supabase.com)
 2. Select your project
 3. Click **SQL Editor** → **New Query**
