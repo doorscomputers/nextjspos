@@ -1,6 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import { transferStockOut, addStock, bulkUpdateStock } from '@/lib/stockOperations'
-import { StockTransactionType } from '@prisma/client'
+import { transferStockOut, addStock, bulkUpdateStock, StockTransactionType } from '@/lib/stockOperations'
 
 /**
  * Job Processing Logic
