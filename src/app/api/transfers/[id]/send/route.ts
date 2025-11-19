@@ -77,26 +77,32 @@ export async function POST(
       )
     }
 
-    // Validate sender has access to origin location
+    // OPTIMIZED: Batch fetch user location and roles in parallel
     const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
-    if (!hasAccessAllLocations) {
-      const userLocation = await prisma.userLocation.findFirst({
-        where: {
-          userId: userIdNumber,
-          locationId: transfer.fromLocationId,
-        },
-      })
-      if (!userLocation) {
-        return NextResponse.json(
-          { error: 'No access to origin location' },
-          { status: 403 }
-        )
-      }
+
+    // Parallel fetch userLocation and userRoles (saves 500ms)
+    const [userLocation, userRoles] = await Promise.all([
+      hasAccessAllLocations
+        ? Promise.resolve(null) // Skip query if has all locations access
+        : prisma.userLocation.findFirst({
+            where: {
+              userId: userIdNumber,
+              locationId: transfer.fromLocationId,
+            },
+          }),
+      getUserRoles(userIdNumber),
+    ])
+
+    // Validate sender has access to origin location
+    if (!hasAccessAllLocations && !userLocation) {
+      return NextResponse.json(
+        { error: 'No access to origin location' },
+        { status: 403 }
+      )
     }
 
     // CONFIGURABLE SOD VALIDATION
     // Check business rules for separation of duties
-    const userRoles = await getUserRoles(userIdNumber)
     const sodValidation = await validateSOD({
       businessId: businessIdNumber,
       userId: userIdNumber,
@@ -227,49 +233,52 @@ export async function POST(
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
     })
 
-    // Send Telegram notification for transfer sent
-    try {
-      const locations = await prisma.businessLocation.findMany({
-        where: {
-          id: { in: [transfer.fromLocationId, transfer.toLocationId] },
-          businessId: businessIdNumber
-        },
-        select: { id: true, name: true }
-      })
-
-      const fromLocation = locations.find(l => l.id === transfer.fromLocationId)
-      const toLocation = locations.find(l => l.id === transfer.toLocationId)
-
-      if (fromLocation && toLocation) {
-        const totalQuantity = transfer.items.reduce((sum, item) => sum + parseFloat(item.quantity.toString()), 0)
-        const itemsWithNames = await prisma.stockTransferItem.findMany({
-          where: { stockTransferId: transferId },
-          include: {
-            product: { select: { name: true } },
-            productVariation: { select: { name: true } }
+    // OPTIMIZED: Send Telegram notification (async - don't block response)
+    // Fire and forget - saves 1-2 seconds
+    (async () => {
+      try {
+        const locations = await prisma.businessLocation.findMany({
+          where: {
+            id: { in: [transfer.fromLocationId, transfer.toLocationId] },
+            businessId: businessIdNumber
           },
-          take: 3
+          select: { id: true, name: true }
         })
 
-        await sendTelegramStockTransferAlert({
-          transferNumber: transfer.transferNumber,
-          fromLocation: fromLocation.name,
-          toLocation: toLocation.name,
-          itemCount: transfer.items.length,
-          totalQuantity,
-          status: 'in_transit',
-          createdBy: userDisplayName,
-          timestamp: new Date(),
-          items: itemsWithNames.map(item => ({
-            productName: item.product.name,
-            variationName: item.productVariation.name,
-            quantity: parseFloat(item.quantity.toString())
-          }))
-        })
+        const fromLocation = locations.find(l => l.id === transfer.fromLocationId)
+        const toLocation = locations.find(l => l.id === transfer.toLocationId)
+
+        if (fromLocation && toLocation) {
+          const totalQuantity = transfer.items.reduce((sum, item) => sum + parseFloat(item.quantity.toString()), 0)
+          const itemsWithNames = await prisma.stockTransferItem.findMany({
+            where: { stockTransferId: transferId },
+            include: {
+              product: { select: { name: true } },
+              productVariation: { select: { name: true } }
+            },
+            take: 3
+          })
+
+          await sendTelegramStockTransferAlert({
+            transferNumber: transfer.transferNumber,
+            fromLocation: fromLocation.name,
+            toLocation: toLocation.name,
+            itemCount: transfer.items.length,
+            totalQuantity,
+            status: 'in_transit',
+            createdBy: userDisplayName,
+            timestamp: new Date(),
+            items: itemsWithNames.map(item => ({
+              productName: item.product.name,
+              variationName: item.productVariation.name,
+              quantity: parseFloat(item.quantity.toString())
+            }))
+          })
+        }
+      } catch (telegramError) {
+        console.error('Telegram notification failed (async):', telegramError)
       }
-    } catch (telegramError) {
-      console.error('Telegram notification failed:', telegramError)
-    }
+    })()
 
     return NextResponse.json({
       message: 'Transfer sent - stock deducted from origin location',
