@@ -122,6 +122,14 @@ export default function TransferDetailPage() {
   const [showReceiveProgress, setShowReceiveProgress] = useState(false)
   const [receiveProgressStep, setReceiveProgressStep] = useState(0)
 
+  // Job tracking for async operations
+  const [sendJobId, setSendJobId] = useState<number | null>(null)
+  const [sendJobProgress, setSendJobProgress] = useState(0)
+  const [sendJobTotal, setSendJobTotal] = useState(0)
+  const [receiveJobId, setReceiveJobId] = useState<number | null>(null)
+  const [receiveJobProgress, setReceiveJobProgress] = useState(0)
+  const [receiveJobTotal, setReceiveJobTotal] = useState(0)
+
   useEffect(() => {
     fetchLocations()
     fetchUserLocations()
@@ -324,32 +332,75 @@ export default function TransferDetailPage() {
   const handleSendConfirmed = async () => {
     setShowSendConfirm(false)
     setShowSendProgress(true)
-    setSendProgressStep(0)
+    setSendProgressStep(1) // Step 1: Creating job
+    setSendJobProgress(0)
+    setSendJobTotal(transfer?.items.length || 0)
 
-    // Simulate progress steps
     try {
-      // Step 1: Validating transfer
-      setSendProgressStep(1)
-      await new Promise(resolve => setTimeout(resolve, 300))
+      // Step 1: Create async job
+      const response = await fetch(`/api/transfers/${transferId}/send-async`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      })
 
-      // Step 2: Deducting inventory
-      setSendProgressStep(2)
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to create send job')
+      }
 
-      // Make actual API call
-      await handleAction('send', 'Transfer sent - stock deducted')
+      const { jobId, itemCount } = await response.json()
+      setSendJobId(jobId)
+      setSendJobTotal(itemCount)
+      setSendProgressStep(2) // Step 2: Processing
 
-      // Step 3: Updating records
-      setSendProgressStep(3)
-      await new Promise(resolve => setTimeout(resolve, 500))
+      console.log(`✅ Send job created: ${jobId} for ${itemCount} items`)
 
-      // Step 4: Complete
-      setSendProgressStep(4)
-      await new Promise(resolve => setTimeout(resolve, 800))
+      // Step 2: Poll for job status
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusRes = await fetch(`/api/jobs/${jobId}`)
+          if (!statusRes.ok) {
+            clearInterval(pollInterval)
+            throw new Error('Failed to fetch job status')
+          }
 
+          const job = await statusRes.json()
+          setSendJobProgress(job.progress)
+          setSendJobTotal(job.total)
+
+          console.log(`Job ${jobId} progress: ${job.progress}/${job.total} (${job.progressPercent}%)`)
+
+          if (job.status === 'completed') {
+            clearInterval(pollInterval)
+            setSendProgressStep(3) // Step 3: Complete
+            toast.success('Transfer sent successfully - stock deducted!')
+
+            // Wait a moment to show completion
+            await new Promise(resolve => setTimeout(resolve, 1000))
+            setShowSendProgress(false)
+
+            // Redirect to transfers list
+            setTimeout(() => {
+              router.push('/dashboard/transfers')
+            }, 500)
+          } else if (job.status === 'failed') {
+            clearInterval(pollInterval)
+            setShowSendProgress(false)
+            toast.error(`Transfer send failed: ${job.error || 'Unknown error'}`)
+          }
+        } catch (pollError) {
+          clearInterval(pollInterval)
+          setShowSendProgress(false)
+          console.error('Error polling job status:', pollError)
+          toast.error('Lost connection to background job')
+        }
+      }, 1000) // Poll every second
+
+    } catch (error: any) {
       setShowSendProgress(false)
-    } catch (error) {
-      setShowSendProgress(false)
-      // Error already handled by handleAction
+      console.error('Error creating send job:', error)
+      toast.error(error.message || 'Failed to send transfer')
     }
   }
 
@@ -411,36 +462,75 @@ export default function TransferDetailPage() {
   const handleCompleteConfirmed = async () => {
     setShowCompleteConfirm(false)
     setShowReceiveProgress(true)
-    setReceiveProgressStep(0)
+    setReceiveProgressStep(1) // Step 1: Creating job
+    setReceiveJobProgress(0)
+    setReceiveJobTotal(transfer?.items.length || 0)
 
-    // Simulate progress steps
     try {
-      // Step 1: Validating verified items
-      setReceiveProgressStep(1)
-      await new Promise(resolve => setTimeout(resolve, 300))
+      // Step 1: Create async job
+      const response = await fetch(`/api/transfers/${transferId}/complete-async`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      })
 
-      // Step 2: Adding inventory to destination
-      setReceiveProgressStep(2)
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to create complete job')
+      }
 
-      // Make actual API call
-      await handleAction('complete', 'Transfer completed - stock added to destination')
+      const { jobId, itemCount } = await response.json()
+      setReceiveJobId(jobId)
+      setReceiveJobTotal(itemCount)
+      setReceiveProgressStep(2) // Step 2: Processing
 
-      // Step 3: Updating stock records
-      setReceiveProgressStep(3)
-      await new Promise(resolve => setTimeout(resolve, 500))
+      console.log(`✅ Complete job created: ${jobId} for ${itemCount} items`)
 
-      // Step 4: Generating reports
-      setReceiveProgressStep(4)
-      await new Promise(resolve => setTimeout(resolve, 500))
+      // Step 2: Poll for job status
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusRes = await fetch(`/api/jobs/${jobId}`)
+          if (!statusRes.ok) {
+            clearInterval(pollInterval)
+            throw new Error('Failed to fetch job status')
+          }
 
-      // Step 5: Complete
-      setReceiveProgressStep(5)
-      await new Promise(resolve => setTimeout(resolve, 800))
+          const job = await statusRes.json()
+          setReceiveJobProgress(job.progress)
+          setReceiveJobTotal(job.total)
 
+          console.log(`Job ${jobId} progress: ${job.progress}/${job.total} (${job.progressPercent}%)`)
+
+          if (job.status === 'completed') {
+            clearInterval(pollInterval)
+            setReceiveProgressStep(3) // Step 3: Complete
+            toast.success('Transfer completed successfully - stock added to destination!')
+
+            // Wait a moment to show completion
+            await new Promise(resolve => setTimeout(resolve, 1000))
+            setShowReceiveProgress(false)
+
+            // Redirect to transfers list
+            setTimeout(() => {
+              router.push('/dashboard/transfers')
+            }, 500)
+          } else if (job.status === 'failed') {
+            clearInterval(pollInterval)
+            setShowReceiveProgress(false)
+            toast.error(`Transfer complete failed: ${job.error || 'Unknown error'}`)
+          }
+        } catch (pollError) {
+          clearInterval(pollInterval)
+          setShowReceiveProgress(false)
+          console.error('Error polling job status:', pollError)
+          toast.error('Lost connection to background job')
+        }
+      }, 1000) // Poll every second
+
+    } catch (error: any) {
       setShowReceiveProgress(false)
-    } catch (error) {
-      setShowReceiveProgress(false)
-      // Error already handled by handleAction
+      console.error('Error creating complete job:', error)
+      toast.error(error.message || 'Failed to complete transfer')
     }
   }
 
@@ -2165,7 +2255,7 @@ export default function TransferDetailPage() {
 
             {/* Progress Steps */}
             <div className="space-y-4 mb-6">
-              {/* Step 1: Validating */}
+              {/* Step 1: Creating Job */}
               <div className={`flex items-start gap-3 transition-all duration-300 ${sendProgressStep >= 1 ? 'opacity-100' : 'opacity-40'}`}>
                 <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
                   sendProgressStep > 1 ? 'bg-green-500' : sendProgressStep === 1 ? 'bg-blue-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'
@@ -2179,12 +2269,12 @@ export default function TransferDetailPage() {
                   )}
                 </div>
                 <div className="flex-1">
-                  <div className="font-semibold text-gray-900 dark:text-white">Validating Transfer</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Checking transfer details and permissions</div>
+                  <div className="font-semibold text-gray-900 dark:text-white">Creating Background Job</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Setting up async processing...</div>
                 </div>
               </div>
 
-              {/* Step 2: Deducting Inventory */}
+              {/* Step 2: Processing Items */}
               <div className={`flex items-start gap-3 transition-all duration-300 ${sendProgressStep >= 2 ? 'opacity-100' : 'opacity-40'}`}>
                 <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
                   sendProgressStep > 2 ? 'bg-green-500' : sendProgressStep === 2 ? 'bg-blue-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'
@@ -2198,39 +2288,38 @@ export default function TransferDetailPage() {
                   )}
                 </div>
                 <div className="flex-1">
-                  <div className="font-semibold text-gray-900 dark:text-white">Deducting Stock from {getLocationName(transfer?.fromLocationId || 0)}</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Updating inventory at origin location</div>
-                </div>
-              </div>
-
-              {/* Step 3: Updating Records */}
-              <div className={`flex items-start gap-3 transition-all duration-300 ${sendProgressStep >= 3 ? 'opacity-100' : 'opacity-40'}`}>
-                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  sendProgressStep > 3 ? 'bg-green-500' : sendProgressStep === 3 ? 'bg-blue-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'
-                }`}>
-                  {sendProgressStep > 3 ? (
-                    <CheckIcon className="w-5 h-5 text-white" />
-                  ) : sendProgressStep === 3 ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <span className="text-white font-bold">3</span>
+                  <div className="font-semibold text-gray-900 dark:text-white">
+                    Deducting Stock from {getLocationName(transfer?.fromLocationId || 0)}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    {sendProgressStep === 2 && sendJobTotal > 0 ? (
+                      <span className="font-mono">
+                        Processing {sendJobProgress}/{sendJobTotal} items... {Math.round((sendJobProgress / sendJobTotal) * 100)}%
+                      </span>
+                    ) : (
+                      'Updating inventory at origin location'
+                    )}
+                  </div>
+                  {sendProgressStep === 2 && sendJobTotal > 0 && (
+                    <div className="mt-2 bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-blue-500 h-full transition-all duration-500 ease-out"
+                        style={{ width: `${(sendJobProgress / sendJobTotal) * 100}%` }}
+                      />
+                    </div>
                   )}
                 </div>
-                <div className="flex-1">
-                  <div className="font-semibold text-gray-900 dark:text-white">Updating Transfer Records</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Recording transaction in database</div>
-                </div>
               </div>
 
-              {/* Step 4: Complete */}
-              <div className={`flex items-start gap-3 transition-all duration-300 ${sendProgressStep >= 4 ? 'opacity-100' : 'opacity-40'}`}>
+              {/* Step 3: Complete */}
+              <div className={`flex items-start gap-3 transition-all duration-300 ${sendProgressStep >= 3 ? 'opacity-100' : 'opacity-40'}`}>
                 <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  sendProgressStep >= 4 ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                  sendProgressStep >= 3 ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
                 }`}>
-                  {sendProgressStep >= 4 ? (
+                  {sendProgressStep >= 3 ? (
                     <CheckIcon className="w-5 h-5 text-white" />
                   ) : (
-                    <span className="text-white font-bold">4</span>
+                    <span className="text-white font-bold">3</span>
                   )}
                 </div>
                 <div className="flex-1">
@@ -2272,7 +2361,7 @@ export default function TransferDetailPage() {
 
             {/* Progress Steps */}
             <div className="space-y-4 mb-6">
-              {/* Step 1: Validating */}
+              {/* Step 1: Creating Job */}
               <div className={`flex items-start gap-3 transition-all duration-300 ${receiveProgressStep >= 1 ? 'opacity-100' : 'opacity-40'}`}>
                 <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
                   receiveProgressStep > 1 ? 'bg-green-500' : receiveProgressStep === 1 ? 'bg-blue-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'
@@ -2286,12 +2375,12 @@ export default function TransferDetailPage() {
                   )}
                 </div>
                 <div className="flex-1">
-                  <div className="font-semibold text-gray-900 dark:text-white">Validating Verified Items</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Checking all items are verified</div>
+                  <div className="font-semibold text-gray-900 dark:text-white">Creating Background Job</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Setting up async processing...</div>
                 </div>
               </div>
 
-              {/* Step 2: Adding Inventory */}
+              {/* Step 2: Processing Items */}
               <div className={`flex items-start gap-3 transition-all duration-300 ${receiveProgressStep >= 2 ? 'opacity-100' : 'opacity-40'}`}>
                 <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
                   receiveProgressStep > 2 ? 'bg-green-500' : receiveProgressStep === 2 ? 'bg-blue-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'
@@ -2305,58 +2394,38 @@ export default function TransferDetailPage() {
                   )}
                 </div>
                 <div className="flex-1">
-                  <div className="font-semibold text-gray-900 dark:text-white">Adding Stock to {getLocationName(transfer?.toLocationId || 0)}</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Updating inventory at destination</div>
+                  <div className="font-semibold text-gray-900 dark:text-white">
+                    Adding Stock to {getLocationName(transfer?.toLocationId || 0)}
+                  </div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    {receiveProgressStep === 2 && receiveJobTotal > 0 ? (
+                      <span className="font-mono">
+                        Processing {receiveJobProgress}/{receiveJobTotal} items... {Math.round((receiveJobProgress / receiveJobTotal) * 100)}%
+                      </span>
+                    ) : (
+                      'Updating inventory at destination location'
+                    )}
+                  </div>
+                  {receiveProgressStep === 2 && receiveJobTotal > 0 && (
+                    <div className="mt-2 bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="bg-green-500 h-full transition-all duration-500 ease-out"
+                        style={{ width: `${(receiveJobProgress / receiveJobTotal) * 100}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Step 3: Updating Stock Records */}
+              {/* Step 3: Complete */}
               <div className={`flex items-start gap-3 transition-all duration-300 ${receiveProgressStep >= 3 ? 'opacity-100' : 'opacity-40'}`}>
                 <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  receiveProgressStep > 3 ? 'bg-green-500' : receiveProgressStep === 3 ? 'bg-blue-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'
+                  receiveProgressStep >= 3 ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
                 }`}>
-                  {receiveProgressStep > 3 ? (
+                  {receiveProgressStep >= 3 ? (
                     <CheckIcon className="w-5 h-5 text-white" />
-                  ) : receiveProgressStep === 3 ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <span className="text-white font-bold">3</span>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold text-gray-900 dark:text-white">Updating Stock Ledgers</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Recording inventory movements</div>
-                </div>
-              </div>
-
-              {/* Step 4: Generating Reports */}
-              <div className={`flex items-start gap-3 transition-all duration-300 ${receiveProgressStep >= 4 ? 'opacity-100' : 'opacity-40'}`}>
-                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  receiveProgressStep > 4 ? 'bg-green-500' : receiveProgressStep === 4 ? 'bg-blue-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'
-                }`}>
-                  {receiveProgressStep > 4 ? (
-                    <CheckIcon className="w-5 h-5 text-white" />
-                  ) : receiveProgressStep === 4 ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <span className="text-white font-bold">4</span>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold text-gray-900 dark:text-white">Generating Transfer Reports</div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Creating audit trails and reports</div>
-                </div>
-              </div>
-
-              {/* Step 5: Complete */}
-              <div className={`flex items-start gap-3 transition-all duration-300 ${receiveProgressStep >= 5 ? 'opacity-100' : 'opacity-40'}`}>
-                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  receiveProgressStep >= 5 ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
-                }`}>
-                  {receiveProgressStep >= 5 ? (
-                    <CheckIcon className="w-5 h-5 text-white" />
-                  ) : (
-                    <span className="text-white font-bold">5</span>
                   )}
                 </div>
                 <div className="flex-1">
