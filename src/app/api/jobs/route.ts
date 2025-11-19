@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     const user = session.user as any
     const businessId = parseInt(String(user.businessId))
-    const userId = user.id
+    const userId = parseInt(String(user.id))
 
     const body = await request.json()
     const { type, payload } = body as { type: JobType; payload: any }
@@ -179,7 +179,7 @@ export async function GET(request: NextRequest) {
 
     const user = session.user as any
     const businessId = parseInt(String(user.businessId))
-    const userId = user.id
+    const userId = parseInt(String(user.id))
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') as JobStatus | null
