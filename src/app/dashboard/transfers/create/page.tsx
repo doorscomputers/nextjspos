@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { ArrowLeftIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, TrashIcon, SparklesIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import UnifiedProductSearch from '@/components/UnifiedProductSearch'
 import {
@@ -195,6 +195,61 @@ export default function CreateTransferPage() {
     }
   }
 
+  const handleAutoPopulate = () => {
+    if (items.length > 0) {
+      toast.warning('Please clear current items before auto-populating')
+      return
+    }
+
+    if (allProducts.length === 0) {
+      toast.error('No products with stock available at this location')
+      return
+    }
+
+    // Flatten all variations with stock (already filtered by location!)
+    const availableVariations = allProducts.flatMap(product =>
+      product.variations.map(variation => ({
+        product,
+        variation,
+        stockQty: variation.stockAtLocation || 0
+      }))
+    ).filter(item => item.stockQty > 0)
+
+    if (availableVariations.length === 0) {
+      toast.error('No variations with stock available')
+      return
+    }
+
+    // Shuffle array randomly (Fisher-Yates algorithm)
+    const shuffled = [...availableVariations]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+
+    // Take first 70 (or less if not enough products)
+    const selected = shuffled.slice(0, Math.min(70, shuffled.length))
+
+    // Convert to TransferItem format with random quantities
+    const newItems: TransferItem[] = selected.map(({ product, variation, stockQty }) => {
+      // Random quantity between 1 and min(5, available stock)
+      const maxQty = Math.min(5, Math.floor(stockQty))
+      const randomQty = Math.floor(Math.random() * maxQty) + 1
+
+      return {
+        productId: product.id,
+        productVariationId: variation.id,
+        productName: product.name,
+        variationName: variation.name,
+        sku: variation.sku,
+        quantity: randomQty,
+        availableStock: stockQty
+      }
+    })
+
+    setItems(newItems)
+    toast.success(`✨ Auto-populated ${newItems.length} items with random quantities!`)
+  }
 
   const getAvailableStock = async (variationId: number, locationId: number): Promise<number> => {
     try {
@@ -482,6 +537,41 @@ export default function CreateTransferPage() {
               </div>
             ) : (
               <div>
+                {/* AUTO-POPULATE BUTTON */}
+                <div className="mb-4 flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="default"
+                    onClick={handleAutoPopulate}
+                    disabled={loadingProducts || allProducts.length === 0 || items.length > 0}
+                    className="gap-2 hover:border-purple-500 hover:text-purple-700 dark:hover:text-purple-400 transition-colors"
+                  >
+                    <SparklesIcon className="h-5 w-5" />
+                    Auto-populate 70 Items
+                  </Button>
+
+                  {items.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setItems([])
+                        toast.info('All items cleared')
+                      }}
+                      className="gap-2 hover:border-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors"
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                      Clear All
+                    </Button>
+                  )}
+
+                  {items.length > 0 && (
+                    <span className="text-xs text-amber-600 dark:text-amber-400">
+                      Clear items to use auto-populate
+                    </span>
+                  )}
+                </div>
+
                 {/* INSTANT SEARCH: Pass pre-loaded products for client-side filtering (POS pattern) */}
                 {loadingProducts ? (
                   <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
