@@ -76,10 +76,21 @@ export default function CreateTransferPage() {
   const [submitting, setSubmitting] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
+  // INSTANT SEARCH: Load all products once (POS pattern - client-side filtering)
+  const [allProducts, setAllProducts] = useState<Product[]>([])
+  const [loadingProducts, setLoadingProducts] = useState(true)
+
   // Product search method state
   useEffect(() => {
     fetchInitialData()
   }, [])
+
+  // Load ALL products ONCE on mount (same endpoint as POS)
+  useEffect(() => {
+    if (locationId) {
+      fetchAllProducts()
+    }
+  }, [locationId])
 
   // Auto-set destination to Main Warehouse for branch locations (Hub-and-Spoke model)
   // This effect runs after BOTH location and allLocations are loaded (fixes race condition)
@@ -120,6 +131,51 @@ export default function CreateTransferPage() {
       toast.error('Failed to load locations')
     } finally {
       setLoadingLocations(false)
+    }
+  }
+
+  // INSTANT SEARCH: Load ALL products once (EXACT POS PATTERN for instant search)
+  const fetchAllProducts = async () => {
+    if (!locationId) return
+
+    try {
+      setLoadingProducts(true)
+      console.log('🚀 [INSTANT SEARCH] Loading ALL products... (like POS)')
+
+      // Use SAME endpoint as POS: /api/products?limit=10000&status=active
+      const response = await fetch('/api/products?limit=10000&status=active')
+      const data = await response.json()
+
+      console.log(`📦 Fetched ${data.products?.length || 0} total products`)
+
+      if (data.products) {
+        // Filter for products with stock > 0 at THIS location (EXACT POS PATTERN)
+        const productsWithStock = data.products.filter((p: any) => {
+          return p.variations?.some((v: any) => {
+            const locationStock = v.variationLocationDetails?.find(
+              (vl: any) => vl.locationId === locationId
+            )
+            return locationStock && parseFloat(locationStock.qtyAvailable) > 0
+          })
+        })
+
+        console.log(`✅ [INSTANT SEARCH] ${productsWithStock.length} products have stock at location ${locationId}`)
+
+        // Sort by name (like POS)
+        const sortedProducts = productsWithStock.sort((a: any, b: any) =>
+          a.name.localeCompare(b.name)
+        )
+
+        setAllProducts(sortedProducts)
+      } else {
+        setAllProducts([])
+      }
+    } catch (error) {
+      console.error('❌ Error loading products:', error)
+      toast.error('Failed to load products for search')
+      setAllProducts([])
+    } finally {
+      setLoadingProducts(false)
     }
   }
 
@@ -408,14 +464,20 @@ export default function CreateTransferPage() {
               </div>
             ) : (
               <div>
-                {/* Unified Product Search (POS-style: Single fast search field) */}
-                <UnifiedProductSearch
-                  onProductSelect={handleProductSelect}
-                  placeholder="🔍 Scan barcode or search product (SKU, Name)..."
-                  autoFocus={true}
-                  locationId={locationId}  // Filter by user's location (only show products at their branch)
-                  withStock={true}  // Only show products with stock > 0 (can't transfer without stock!)
-                />
+                {/* INSTANT SEARCH: Pass pre-loaded products for client-side filtering (POS pattern) */}
+                {loadingProducts ? (
+                  <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                    <span className="text-sm text-blue-800 dark:text-blue-200">Loading products for instant search...</span>
+                  </div>
+                ) : (
+                  <UnifiedProductSearch
+                    onProductSelect={handleProductSelect}
+                    placeholder="🔍 Scan barcode or search product (SKU, Name)..."
+                    autoFocus={true}
+                    products={allProducts}  // CLIENT-SIDE SEARCH (INSTANT like POS!)
+                  />
+                )}
               </div>
             )}
           </div>

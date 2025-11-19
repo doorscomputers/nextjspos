@@ -43,8 +43,9 @@ interface UnifiedProductSearchProps {
   disabled?: boolean
   autoFocus?: boolean
   className?: string
-  locationId?: number  // NEW: Filter by specific location
-  withStock?: boolean  // NEW: Only show products with stock > 0
+  locationId?: number  // Filter by specific location (for API mode)
+  withStock?: boolean  // Only show products with stock > 0 (for API mode)
+  products?: Product[] // NEW: Pre-loaded products for CLIENT-SIDE search (POS pattern)
 }
 
 export default function UnifiedProductSearch({
@@ -53,8 +54,9 @@ export default function UnifiedProductSearch({
   disabled = false,
   autoFocus = true,
   className = "",
-  locationId,    // NEW: Optional location filter
-  withStock = false  // NEW: Optional stock filter (default false for backward compatibility)
+  locationId,    // Optional location filter (for API mode)
+  withStock = false,  // Optional stock filter (for API mode)
+  products  // NEW: Optional pre-loaded products for CLIENT-SIDE search (instant!)
 }: UnifiedProductSearchProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState<Product[]>([])
@@ -65,7 +67,7 @@ export default function UnifiedProductSearch({
   const inputRef = useRef<HTMLInputElement>(null)
   const searchResultRefs = useRef<(HTMLDivElement | null)[]>([])
 
-  // Debounced search - OPTIMIZED MODE
+  // CLIENT-SIDE or API SEARCH (depending on if products prop is provided)
   useEffect(() => {
     if (!searchTerm || searchTerm.trim() === '') {
       setShowDropdown(false)
@@ -77,12 +79,48 @@ export default function UnifiedProductSearch({
 
     // Debounce: wait 300ms after user stops typing
     const timer = setTimeout(async () => {
-      try {
-        const trimmed = searchTerm.trim()
+      const trimmed = searchTerm.trim().toLowerCase()
 
+      // MODE 1: CLIENT-SIDE SEARCH (INSTANT - like POS)
+      if (products && products.length > 0) {
+        console.log(`⚡ CLIENT-SIDE SEARCH in ${products.length} products`)
+
+        // Search through pre-loaded products (INSTANT)
+        const matches = products.filter((p: any) => {
+          // Exact SKU match (highest priority)
+          if (p.sku?.toLowerCase() === trimmed) return true
+          if (p.variations?.some((v: any) => v.sku?.toLowerCase() === trimmed)) return true
+
+          // Partial SKU match
+          if (p.sku?.toLowerCase().includes(trimmed)) return true
+          if (p.variations?.some((v: any) => v.sku?.toLowerCase().includes(trimmed))) return true
+
+          // Product name match
+          if (p.name?.toLowerCase().includes(trimmed)) return true
+
+          // Variation name match
+          if (p.variations?.some((v: any) => v.name?.toLowerCase().includes(trimmed))) return true
+
+          return false
+        })
+
+        console.log(`✅ Found ${matches.length} matches (CLIENT-SIDE)`)
+
+        if (matches.length > 0) {
+          setSearchResults(matches)
+          setShowDropdown(true)
+          setSelectedIndex(0)
+        } else {
+          setSearchResults([])
+          setShowDropdown(false)
+        }
+        setSearching(false)
+        return
+      }
+
+      // MODE 2: API SEARCH (backward compatibility when no products prop)
+      try {
         // SMART SEARCH DETECTION
-        // If input has no spaces and is alphanumeric, treat as SKU
-        // Otherwise, treat as product name search
         const looksLikeSKU = /^[A-Za-z0-9-_]+$/.test(trimmed)
 
         // Build optimized query params
@@ -92,12 +130,10 @@ export default function UnifiedProductSearch({
           limit: '10',
         })
 
-        // For name searches, use "beginsWith" for faster results
         if (!looksLikeSKU) {
           params.append('method', 'beginsWith')
         }
 
-        // Add location and stock filters for optimized search
         if (locationId) {
           params.append('locationId', locationId.toString())
         }
@@ -105,19 +141,18 @@ export default function UnifiedProductSearch({
           params.append('withStock', 'true')
         }
 
-        console.log(`🚀 OPTIMIZED SEARCH: type=${looksLikeSKU ? 'sku' : 'name'}, query="${trimmed}", withStock=${withStock}, locationId=${locationId}`)
+        console.log(`🌐 API SEARCH: type=${looksLikeSKU ? 'sku' : 'name'}, query="${trimmed}"`)
 
         const response = await fetch(`/api/products/search?${params.toString()}`)
 
         if (response.ok) {
           const data = await response.json()
           if (data.products && data.products.length > 0) {
-            console.log(`✅ Found ${data.products.length} products with optimized search`)
+            console.log(`✅ Found ${data.products.length} products (API)`)
             setSearchResults(data.products)
             setShowDropdown(true)
             setSelectedIndex(0)
           } else {
-            console.log('❌ No products found')
             setSearchResults([])
             setShowDropdown(false)
           }
@@ -135,7 +170,7 @@ export default function UnifiedProductSearch({
       clearTimeout(timer)
       setSearching(false)
     }
-  }, [searchTerm, locationId, withStock])
+  }, [searchTerm, products, locationId, withStock])
 
   // Scroll selected item into view
   useEffect(() => {
