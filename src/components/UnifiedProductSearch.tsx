@@ -65,7 +65,7 @@ export default function UnifiedProductSearch({
   const inputRef = useRef<HTMLInputElement>(null)
   const searchResultRefs = useRef<(HTMLDivElement | null)[]>([])
 
-  // Debounced search
+  // Debounced search - OPTIMIZED MODE
   useEffect(() => {
     if (!searchTerm || searchTerm.trim() === '') {
       setShowDropdown(false)
@@ -78,11 +78,24 @@ export default function UnifiedProductSearch({
     // Debounce: wait 300ms after user stops typing
     const timer = setTimeout(async () => {
       try {
-        // Build query params with optional location and stock filters
+        const trimmed = searchTerm.trim()
+
+        // SMART SEARCH DETECTION
+        // If input has no spaces and is alphanumeric, treat as SKU
+        // Otherwise, treat as product name search
+        const looksLikeSKU = /^[A-Za-z0-9-_]+$/.test(trimmed)
+
+        // Build optimized query params
         const params = new URLSearchParams({
-          q: searchTerm.trim(),
+          type: looksLikeSKU ? 'sku' : 'name',
+          query: trimmed,
           limit: '10',
         })
+
+        // For name searches, use "beginsWith" for faster results
+        if (!looksLikeSKU) {
+          params.append('method', 'beginsWith')
+        }
 
         // Add location and stock filters for optimized search
         if (locationId) {
@@ -92,15 +105,19 @@ export default function UnifiedProductSearch({
           params.append('withStock', 'true')
         }
 
+        console.log(`🚀 OPTIMIZED SEARCH: type=${looksLikeSKU ? 'sku' : 'name'}, query="${trimmed}", withStock=${withStock}, locationId=${locationId}`)
+
         const response = await fetch(`/api/products/search?${params.toString()}`)
 
         if (response.ok) {
           const data = await response.json()
           if (data.products && data.products.length > 0) {
+            console.log(`✅ Found ${data.products.length} products with optimized search`)
             setSearchResults(data.products)
             setShowDropdown(true)
             setSelectedIndex(0)
           } else {
+            console.log('❌ No products found')
             setSearchResults([])
             setShowDropdown(false)
           }
@@ -118,7 +135,7 @@ export default function UnifiedProductSearch({
       clearTimeout(timer)
       setSearching(false)
     }
-  }, [searchTerm])
+  }, [searchTerm, locationId, withStock])
 
   // Scroll selected item into view
   useEffect(() => {
