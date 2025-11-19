@@ -133,7 +133,7 @@ async function processTransferSend(job: any) {
     `User#${job.userId}`
 
   // Process items in batches
-  const BATCH_SIZE = 10
+  const BATCH_SIZE = 30 // Increased from 10 to reduce transaction overhead
   let processedCount = 0
 
   for (let i = 0; i < transfer.items.length; i += BATCH_SIZE) {
@@ -177,7 +177,7 @@ async function processTransferSend(job: any) {
         }
       },
       {
-        timeout: 180000, // 180s per batch (18s per item for 10 items) - increased for stored function processing
+        timeout: 180000, // 180s per batch (6s per item for 30 items)
         maxWait: 20000, // Increased wait time for lock acquisition
       }
     )
@@ -233,7 +233,7 @@ async function processTransferComplete(job: any) {
     `User#${job.userId}`
 
   // Process items in batches
-  const BATCH_SIZE = 10
+  const BATCH_SIZE = 30 // Increased from 10 to reduce transaction overhead
   let processedCount = 0
 
   for (let i = 0; i < transfer.items.length; i += BATCH_SIZE) {
@@ -280,7 +280,7 @@ async function processTransferComplete(job: any) {
         }
       },
       {
-        timeout: 180000, // 180s per batch (18s per item for 10 items) - same as sending
+        timeout: 180000, // 180s per batch (6s per item for 30 items)
         maxWait: 20000, // Increased wait time for lock acquisition
       }
     )
