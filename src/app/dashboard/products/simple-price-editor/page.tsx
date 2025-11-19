@@ -60,9 +60,7 @@ export default function SimplePriceEditorPage() {
 
       if (response.ok && result.success) {
         // Filter locations based on user role
-        let filteredLocations = result.data.filter((loc: Location) =>
-          !loc.name.toLowerCase().includes('main warehouse')
-        )
+        let filteredLocations = result.data
 
         // If user can't manage all locations, show only their assigned location
         if (!canManageAllLocations && userLocationId) {
