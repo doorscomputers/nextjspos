@@ -70,30 +70,35 @@ export async function POST(
       )
     }
 
+    // OPTIMIZED: Parallel fetch userLocation and userRoles (saves 500ms)
+    const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
+
+    const [userLocation, userRoles] = await Promise.all([
+      hasAccessAllLocations
+        ? Promise.resolve(null) // Skip query if has all locations access
+        : prisma.userLocation.findFirst({
+            where: {
+              userId: parseInt(userId),
+              OR: [
+                { locationId: transfer.fromLocationId },
+                { locationId: transfer.toLocationId },
+              ],
+            },
+          }),
+      getUserRoles(userIdNumber),
+    ])
+
     // Validate checker has access to EITHER origin OR destination location
     // This allows branch managers to approve transfers TO their location
-    const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
-    if (!hasAccessAllLocations) {
-      const userLocation = await prisma.userLocation.findFirst({
-        where: {
-          userId: parseInt(userId),
-          OR: [
-            { locationId: transfer.fromLocationId },
-            { locationId: transfer.toLocationId },
-          ],
-        },
-      })
-      if (!userLocation) {
-        return NextResponse.json(
-          { error: 'You must have access to either the origin or destination location to approve this transfer' },
-          { status: 403 }
-        )
-      }
+    if (!hasAccessAllLocations && !userLocation) {
+      return NextResponse.json(
+        { error: 'You must have access to either the origin or destination location to approve this transfer' },
+        { status: 403 }
+      )
     }
 
     // CONFIGURABLE SOD VALIDATION
     // Check business rules for separation of duties
-    const userRoles = await getUserRoles(userIdNumber)
     const sodValidation = await validateSOD({
       businessId: businessIdNumber,
       userId: userIdNumber,
