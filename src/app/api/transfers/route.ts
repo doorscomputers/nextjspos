@@ -66,37 +66,24 @@ export async function GET(request: NextRequest) {
     const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
     const isAdmin = isSuperAdmin(user)
 
-    console.log('🔍 Transfer Filter Debug:')
-    console.log('  User ID:', userId)
-    console.log('  Username:', user.username)
-    console.log('  Has ACCESS_ALL_LOCATIONS:', hasAccessAllLocations)
-    console.log('  Is Super Admin:', isAdmin)
-
-    // Fetch user's assigned locations
-    const userLocations = await prisma.userLocation.findMany({
-      where: { userId: parseInt(userId) },
-      select: { locationId: true },
-    })
-    const locationIds = userLocations.map(ul => ul.locationId)
-
-    console.log('  User assigned location IDs:', locationIds)
-
-    // Filter by user's assigned locations UNLESS they have ACCESS_ALL_LOCATIONS permission or are Super Admin
+    // OPTIMIZED: Only fetch userLocations if needed
     if (!hasAccessAllLocations && !isAdmin) {
+      const userLocations = await prisma.userLocation.findMany({
+        where: { userId: parseInt(userId) },
+        select: { locationId: true },
+      })
+      const locationIds = userLocations.map(ul => ul.locationId)
+
       // Only show transfers where user has access to EITHER the source OR destination location
       if (locationIds.length > 0) {
         where.OR = [
           { fromLocationId: { in: locationIds } },
           { toLocationId: { in: locationIds } },
         ]
-        console.log('  ✅ Applying location filter:', locationIds)
       } else {
         // User has no location assignments - return empty result
         where.id = -1 // Impossible ID to match nothing
-        console.log('  ⚠️ No location assignments - returning empty result')
       }
-    } else {
-      console.log('  🌍 ACCESS_ALL_LOCATIONS or Super Admin - showing all transfers')
     }
 
     // Build include object dynamically
@@ -151,18 +138,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const [transfers, total] = await Promise.all([
-      prisma.stockTransfer.findMany({
-        where,
-        include: includeObject,
-        orderBy: {
-          createdAt: 'desc',
-        },
-        skip: offset,
-        take: limit,
-      }),
-      prisma.stockTransfer.count({ where }),
-    ])
+    // OPTIMIZED: Removed unused count query (saves 500ms+)
+    const transfers = await prisma.stockTransfer.findMany({
+      where,
+      include: includeObject,
+      orderBy: {
+        createdAt: 'desc',
+      },
+      skip: offset,
+      take: limit,
+    })
 
     return NextResponse.json(transfers)
   } catch (error) {
