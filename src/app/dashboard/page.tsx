@@ -888,13 +888,13 @@ export default function DashboardPageV2() {
           </Card>
         )}
 
-        {/* Pending Shipments */}
+        {/* Pending Transfers */}
         {can(PERMISSIONS.STOCK_TRANSFER_VIEW) && (
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TruckIcon className="h-5 w-5 text-blue-600" />
-                Pending Shipments
+                Pending Transfers
               </CardTitle>
             </CardHeader>
             <CardContent>
