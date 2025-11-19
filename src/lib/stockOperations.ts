@@ -224,6 +224,7 @@ async function executeStockUpdate(
 
   const quantityDecimal = toDecimal(quantity)
 
+  // STEP 1: Lock row and get current balance
   const existingRows = await tx.$queryRaw<
     { id: number; qty_available: Prisma.Decimal }[]
   >(
@@ -248,46 +249,8 @@ async function executeStockUpdate(
     )
   }
 
-  if (existingRecord) {
-    await tx.variationLocationDetails.update({
-      where: { id: existingRecord.id },
-      data: {
-        qtyAvailable: newBalanceDecimal,
-        updatedAt: new Date(),
-      },
-    })
-  } else {
-    await tx.variationLocationDetails.create({
-      data: {
-        productId,
-        productVariationId,
-        locationId,
-        qtyAvailable: newBalanceDecimal,
-      },
-    })
-  }
-
-  const transaction = await tx.stockTransaction.create({
-    data: {
-      businessId,
-      productId,
-      productVariationId,
-      locationId,
-      type,
-      quantity: quantityDecimal,
-      unitCost: unitCost !== undefined ? toDecimal(unitCost) : undefined,
-      balanceQty: newBalanceDecimal,
-      referenceType,
-      referenceId,
-      createdBy: userId,
-      notes: notes || `Stock ${quantity > 0 ? 'added' : 'deducted'} - ${type}`,
-      subUnitId, // UOM: Store which unit was used in this transaction
-    },
-  })
-
-  // Use provided createdByName (e.g., supplier/customer) if available, otherwise resolve from user
+  // Resolve createdByName early (needed for batched query)
   let createdByName = providedCreatedByName || await resolveUserDisplayName(tx, userId, userDisplayName)
-  // Ensure createdByName is not empty and doesn't exceed DB limit (191 chars)
   if (!createdByName || createdByName.trim().length === 0) {
     createdByName = `User#${userId}`
   }
@@ -295,35 +258,60 @@ async function executeStockUpdate(
     createdByName = createdByName.substring(0, 191)
   }
 
+  // Prepare all values for batched query
   const unitCostDecimal = unitCost !== undefined ? toDecimal(unitCost) : null
-  const historyReferenceId = referenceId ?? transaction.id
+  const notesText = notes || `Stock ${quantity > 0 ? 'added' : 'deducted'} - ${type}`
   const historyReferenceType = referenceType ?? 'stock_transaction'
-  // Use provided referenceNumber, or fall back to ID as string
-  const historyReferenceNumber = referenceNumber ?? historyReferenceId?.toString() ?? null
 
-  await tx.productHistory.create({
-    data: {
-      businessId,
-      locationId,
-      productId,
-      productVariationId,
-      transactionType: type,
-      transactionDate: transaction.createdAt,
-      referenceType: historyReferenceType,
-      referenceId: historyReferenceId,
-      referenceNumber: historyReferenceNumber,
-      quantityChange: quantityDecimal,
-      balanceQuantity: newBalanceDecimal,
-      unitCost: unitCostDecimal ?? undefined,
-      totalValue:
-        unitCostDecimal !== null
-          ? unitCostDecimal.mul(quantityDecimal.abs())
-          : undefined,
-      createdBy: userId,
-      createdByName,
-      reason: notes || undefined,
-    },
-  })
+  // STEP 2: STORED FUNCTION - ALL operations server-side in single function call
+  // This eliminates ALL network round trips (2 queries → 1 function call)
+  // Expected performance: 70 items in ~60-90 seconds (vs 5-6 min with separate queries)
+  const totalValue = unitCostDecimal !== null ? unitCostDecimal.mul(quantityDecimal.abs()) : null
+
+  const batchResult = await tx.$queryRaw<
+    {
+      previous_balance: Prisma.Decimal
+      new_balance: Prisma.Decimal
+      transaction_id: number
+      transaction_date: Date
+      history_id: number
+    }[]
+  >(
+    Prisma.sql`
+      SELECT * FROM update_inventory_with_history(
+        ${businessId},
+        ${productId},
+        ${productVariationId},
+        ${locationId},
+        ${type},
+        ${quantityDecimal},
+        ${unitCostDecimal},
+        ${newBalanceDecimal},
+        ${previousBalanceDecimal},
+        ${referenceType},
+        ${referenceId},
+        ${referenceNumber ?? null},
+        ${userId},
+        ${createdByName},
+        ${notesText},
+        ${notes ?? null},
+        ${subUnitId ?? null},
+        ${totalValue}
+      )
+    `
+  )
+
+  if (!batchResult || batchResult.length === 0) {
+    throw new Error('Stored function execution failed - no results returned')
+  }
+
+  const result = batchResult[0]
+
+  // Reconstruct transaction object for compatibility
+  const transaction = {
+    id: result.transaction_id,
+    createdAt: result.transaction_date,
+  } as StockTransaction
 
   // CRITICAL: Validate that physical stock now matches ledger
   // This ensures no silent failures in stock updates
