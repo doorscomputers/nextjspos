@@ -236,7 +236,44 @@ export default function TransferDetailPage() {
           fetchTransfer()
         }
       } else {
-        // Show specific error message from API
+        // CRITICAL FIX: For send/complete operations, verify if it actually succeeded
+        // Even if API returns error, the transaction might have completed
+        if (endpoint === 'send' || endpoint === 'complete') {
+          console.log(`${endpoint} returned error, verifying if operation actually succeeded...`)
+
+          // Wait 2 seconds for transaction to fully commit
+          await new Promise(resolve => setTimeout(resolve, 2000))
+
+          // Refetch transfer to check actual status
+          try {
+            const verifyResponse = await fetch(`/api/transfers/${transferId}`)
+            if (verifyResponse.ok) {
+              const verifyData = await verifyResponse.json()
+              const expectedStatus = endpoint === 'send' ? 'in_transit' : 'completed'
+
+              if (verifyData.status === expectedStatus) {
+                // SUCCESS! Transaction actually worked despite error response
+                console.log(`✅ ${endpoint} verification: Status is ${verifyData.status} - operation succeeded!`)
+                toast.success(successMessage + ' (verified)', { duration: 3000 })
+
+                if (endpoint === 'complete') {
+                  setTransferJustCompleted(true)
+                }
+
+                setTimeout(() => {
+                  router.push('/dashboard/transfers')
+                }, 1000)
+                return // Exit early - operation succeeded
+              } else {
+                console.log(`❌ ${endpoint} verification: Status is ${verifyData.status}, expected ${expectedStatus}`)
+              }
+            }
+          } catch (verifyError) {
+            console.error('Verification check failed:', verifyError)
+          }
+        }
+
+        // Show error only if verification failed or not applicable
         const errorMessage = result.error || result.details || `Failed to ${successMessage.toLowerCase()}`
         toast.error(errorMessage)
 
