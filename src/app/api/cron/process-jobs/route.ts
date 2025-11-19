@@ -11,6 +11,55 @@ import { prisma } from '@/lib/prisma.simple'
  * Security: Vercel Cron includes x-vercel-cron-id header for verification
  */
 
+async function processJobs() {
+  const startTime = Date.now()
+
+  console.log('[Cron] Starting job processing...')
+
+  // Pick up pending jobs (oldest first)
+  const jobs = await prisma.job.findMany({
+    where: {
+      status: 'pending',
+      // Only process jobs that are ready (either no retry scheduled or retry time passed)
+      OR: [{ nextRetryAt: null }, { nextRetryAt: { lte: new Date() } }],
+    },
+    orderBy: { createdAt: 'asc' },
+    take: 5, // Process up to 5 jobs per cron run
+  })
+
+  if (jobs.length === 0) {
+    console.log('[Cron] No pending jobs')
+    return {
+      message: 'No pending jobs',
+      processed: 0,
+      duration: Date.now() - startTime,
+    }
+  }
+
+  console.log(`[Cron] Found ${jobs.length} pending jobs`)
+
+  // Process jobs concurrently
+  const results = await Promise.allSettled(jobs.map((job) => processJob(job)))
+
+  // Count successes and failures
+  const succeeded = results.filter((r) => r.status === 'fulfilled').length
+  const failed = results.filter((r) => r.status === 'rejected').length
+
+  const duration = Date.now() - startTime
+
+  console.log(
+    `[Cron] Completed: ${succeeded} succeeded, ${failed} failed (${duration}ms)`
+  )
+
+  return {
+    message: 'Job processing complete',
+    processed: jobs.length,
+    succeeded,
+    failed,
+    duration,
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     // Verify this is a genuine Vercel Cron request
@@ -23,52 +72,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const startTime = Date.now()
-
-    console.log('[Cron] Starting job processing...')
-
-    // Pick up pending jobs (oldest first)
-    const jobs = await prisma.job.findMany({
-      where: {
-        status: 'pending',
-        // Only process jobs that are ready (either no retry scheduled or retry time passed)
-        OR: [{ nextRetryAt: null }, { nextRetryAt: { lte: new Date() } }],
-      },
-      orderBy: { createdAt: 'asc' },
-      take: 5, // Process up to 5 jobs per cron run
-    })
-
-    if (jobs.length === 0) {
-      console.log('[Cron] No pending jobs')
-      return NextResponse.json({
-        message: 'No pending jobs',
-        processed: 0,
-        duration: Date.now() - startTime,
-      })
-    }
-
-    console.log(`[Cron] Found ${jobs.length} pending jobs`)
-
-    // Process jobs concurrently
-    const results = await Promise.allSettled(jobs.map((job) => processJob(job)))
-
-    // Count successes and failures
-    const succeeded = results.filter((r) => r.status === 'fulfilled').length
-    const failed = results.filter((r) => r.status === 'rejected').length
-
-    const duration = Date.now() - startTime
-
-    console.log(
-      `[Cron] Completed: ${succeeded} succeeded, ${failed} failed (${duration}ms)`
-    )
-
-    return NextResponse.json({
-      message: 'Job processing complete',
-      processed: jobs.length,
-      succeeded,
-      failed,
-      duration,
-    })
+    const result = await processJobs()
+    return NextResponse.json(result)
   } catch (error: any) {
     console.error('[Cron] Error processing jobs:', error)
     return NextResponse.json(
@@ -81,14 +86,23 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Also support POST for manual triggering during development
+// Also support POST for immediate triggering after job creation
+// This allows the async endpoints to trigger processing immediately
+// instead of waiting for Vercel Cron (which may be delayed or disabled)
 export async function POST(request: NextRequest) {
-  if (process.env.NODE_ENV === 'production') {
+  try {
+    // POST skips the Vercel Cron ID check - used for immediate internal triggers
+    // This enables instant job processing after creation instead of waiting for cron
+    const result = await processJobs()
+    return NextResponse.json(result)
+  } catch (error: any) {
+    console.error('[Cron] Error processing jobs (POST):', error)
     return NextResponse.json(
-      { error: 'POST method only available in development' },
-      { status: 403 }
+      {
+        error: 'Failed to process jobs',
+        details: error.message,
+      },
+      { status: 500 }
     )
   }
-
-  return GET(request)
 }
