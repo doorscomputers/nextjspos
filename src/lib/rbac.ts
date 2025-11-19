@@ -428,6 +428,12 @@ export const PERMISSIONS = {
   TRANSFER_APPROVE: 'stock_transfer.approve', // Alias for consistency
   TRANSFER_MANAGE: 'stock_transfer.manage', // Combined manage permission
 
+  // Background Job Queue (Async Processing)
+  JOB_VIEW: 'job.view', // View own jobs
+  VIEW_ALL_JOBS: 'job.view_all', // View all jobs in business (admin)
+  JOB_CANCEL: 'job.cancel', // Cancel own pending jobs
+  JOB_RETRY: 'job.retry', // Retry failed jobs
+
   // Customer Returns
   CUSTOMER_RETURN_VIEW: 'customer_return.view',
   CUSTOMER_RETURN_CREATE: 'customer_return.create',

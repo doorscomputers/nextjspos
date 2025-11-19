@@ -155,24 +155,27 @@ export async function POST(
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
     })
 
-    // Send alert notifications (async, don't await)
-    // Calculate total quantity from all items
-    const totalQuantity = transfer.items.reduce((sum, item) => {
-      return sum + parseFloat(item.quantity.toString())
-    }, 0)
+    // OPTIMIZED: Send alert notifications (async, fire and forget - don't block response)
+    (async () => {
+      try {
+        const totalQuantity = transfer.items.reduce((sum, item) => {
+          return sum + parseFloat(item.quantity.toString())
+        }, 0)
 
-    sendTransferApprovalAlert({
-      transferNumber: transfer.transferNumber,
-      fromLocation: transfer.fromLocation.name,
-      toLocation: transfer.toLocation.name,
-      itemCount: transfer.items.length,
-      totalQuantity,
-      approvedBy: user.username,
-      notes,
-      timestamp: new Date(),
-    }).catch((error) => {
-      console.error('[AlertService] Failed to send transfer approval alert:', error)
-    })
+        await sendTransferApprovalAlert({
+          transferNumber: transfer.transferNumber,
+          fromLocation: transfer.fromLocation.name,
+          toLocation: transfer.toLocation.name,
+          itemCount: transfer.items.length,
+          totalQuantity,
+          approvedBy: user.username,
+          notes,
+          timestamp: new Date(),
+        })
+      } catch (error) {
+        console.error('[AlertService] Failed to send transfer approval alert:', error)
+      }
+    })()
 
     return NextResponse.json({
       message: 'Transfer approved - ready to send',

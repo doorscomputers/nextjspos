@@ -123,9 +123,35 @@ async function calculateFIFOValue(
 
   // Calculate totals from remaining layers
   const remainingLayers = costLayers.filter(layer => layer.remainingQty > 0)
-  const currentQty = remainingLayers.reduce((sum, layer) => sum + layer.remainingQty, 0)
-  const totalValue = remainingLayers.reduce((sum, layer) => sum + layer.totalValue, 0)
-  const unitCost = currentQty > 0 ? totalValue / currentQty : 0
+  let currentQty = remainingLayers.reduce((sum, layer) => sum + layer.remainingQty, 0)
+  let totalValue = remainingLayers.reduce((sum, layer) => sum + layer.totalValue, 0)
+  let unitCost = currentQty > 0 ? totalValue / currentQty : 0
+
+  // If no transaction history, fallback to current stock qty and purchase price
+  if (currentQty === 0 && inboundTransactions.length === 0) {
+    console.log(`[calculateFIFOValue] No transaction history, falling back to variation location details`)
+
+    const stockRecord = await prisma.variationLocationDetails.findUnique({
+      where: {
+        productVariationId_locationId: {
+          productVariationId,
+          locationId
+        }
+      },
+      include: {
+        productVariation: {
+          select: { purchasePrice: true }
+        }
+      }
+    })
+
+    if (stockRecord && Number(stockRecord.qtyAvailable) > 0) {
+      currentQty = Number(stockRecord.qtyAvailable)
+      unitCost = Number(stockRecord.productVariation.purchasePrice || 0)
+      totalValue = currentQty * unitCost
+      console.log(`[calculateFIFOValue] Using stock record: qty=${currentQty}, unitCost=${unitCost}`)
+    }
+  }
 
   return {
     currentQty,
@@ -198,9 +224,35 @@ async function calculateLIFOValue(
 
   // Calculate totals
   const remainingLayers = costLayers.filter(layer => layer.remainingQty > 0)
-  const currentQty = remainingLayers.reduce((sum, layer) => sum + layer.remainingQty, 0)
-  const totalValue = remainingLayers.reduce((sum, layer) => sum + layer.totalValue, 0)
-  const unitCost = currentQty > 0 ? totalValue / currentQty : 0
+  let currentQty = remainingLayers.reduce((sum, layer) => sum + layer.remainingQty, 0)
+  let totalValue = remainingLayers.reduce((sum, layer) => sum + layer.totalValue, 0)
+  let unitCost = currentQty > 0 ? totalValue / currentQty : 0
+
+  // If no transaction history, fallback to current stock qty and purchase price
+  if (currentQty === 0 && inboundTransactions.length === 0) {
+    console.log(`[calculateLIFOValue] No transaction history, falling back to variation location details`)
+
+    const stockRecord = await prisma.variationLocationDetails.findUnique({
+      where: {
+        productVariationId_locationId: {
+          productVariationId,
+          locationId
+        }
+      },
+      include: {
+        productVariation: {
+          select: { purchasePrice: true }
+        }
+      }
+    })
+
+    if (stockRecord && Number(stockRecord.qtyAvailable) > 0) {
+      currentQty = Number(stockRecord.qtyAvailable)
+      unitCost = Number(stockRecord.productVariation.purchasePrice || 0)
+      totalValue = currentQty * unitCost
+      console.log(`[calculateLIFOValue] Using stock record: qty=${currentQty}, unitCost=${unitCost}`)
+    }
+  }
 
   return {
     currentQty,
@@ -234,6 +286,8 @@ async function calculateWeightedAverageValue(
     }
   })
 
+  console.log(`[calculateWeightedAverageValue] Variation ${productVariationId}, Location ${locationId}: Found ${inboundTransactions.length} inbound transactions`)
+
   // Calculate weighted average cost
   let totalCost = 0
   let totalQty = 0
@@ -247,6 +301,8 @@ async function calculateWeightedAverageValue(
 
   const weightedAvgCost = totalQty > 0 ? totalCost / totalQty : 0
 
+  console.log(`[calculateWeightedAverageValue] Total inbound qty: ${totalQty}, Total cost: ${totalCost}, Weighted avg: ${weightedAvgCost}`)
+
   // Get current stock quantity from variationLocationDetails
   const stockRecord = await prisma.variationLocationDetails.findUnique({
     where: {
@@ -259,11 +315,29 @@ async function calculateWeightedAverageValue(
   })
 
   const currentQty = Number(stockRecord?.qtyAvailable || 0)
-  const totalValue = currentQty * weightedAvgCost
+
+  // If no weighted average cost from transactions, fallback to product variation purchase price
+  let finalUnitCost = weightedAvgCost
+
+  if (weightedAvgCost === 0 && currentQty > 0) {
+    console.log(`[calculateWeightedAverageValue] No transaction history, falling back to variation purchase price`)
+
+    const variation = await prisma.productVariation.findUnique({
+      where: { id: productVariationId },
+      select: { purchasePrice: true }
+    })
+
+    finalUnitCost = Number(variation?.purchasePrice || 0)
+    console.log(`[calculateWeightedAverageValue] Using purchase price: ${finalUnitCost}`)
+  }
+
+  const totalValue = currentQty * finalUnitCost
+
+  console.log(`[calculateWeightedAverageValue] Current qty available: ${currentQty}, Total value: ${totalValue}`)
 
   return {
     currentQty,
-    unitCost: weightedAvgCost,
+    unitCost: finalUnitCost,
     totalValue,
     costLayers: []  // No cost layers for weighted average
   }
@@ -342,13 +416,20 @@ export async function getLocationInventoryValuation(
   const stockRecords = await prisma.variationLocationDetails.findMany({
     where: {
       locationId,
-      qtyAvailable: { gt: 0 }
+      qtyAvailable: { gt: 0 },
+      product: {
+        businessId: businessId,
+        deletedAt: null
+      }
     },
     select: {
       productVariationId: true,
-      productId: true
+      productId: true,
+      qtyAvailable: true
     }
   })
+
+  console.log(`[getLocationInventoryValuation] Found ${stockRecords.length} stock records for location ${locationId}, business ${businessId}`)
 
   const valuations: InventoryValuation[] = []
 
@@ -361,6 +442,8 @@ export async function getLocationInventoryValuation(
         method
       )
 
+      console.log(`[getLocationInventoryValuation] Variation ${record.productVariationId}: currentQty=${valuation.currentQty}, unitCost=${valuation.unitCost}, totalValue=${valuation.totalValue}`)
+
       if (valuation.currentQty > 0) {
         valuations.push(valuation)
       }
@@ -369,6 +452,8 @@ export async function getLocationInventoryValuation(
       // Continue with other products
     }
   }
+
+  console.log(`[getLocationInventoryValuation] Returning ${valuations.length} valuations with qty > 0`)
 
   return valuations
 }

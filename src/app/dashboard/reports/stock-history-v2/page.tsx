@@ -382,25 +382,27 @@ export default function StockHistoryV2Page() {
       console.log('👤 User primary location ID:', primaryLocationId)
       console.log('📋 User has access to all locations:', userLocationsData.hasAccessToAll)
 
-      // For stock-history-v2, show only the user's primary location (not all accessible locations)
-      if (primaryLocationId) {
-        // Find the primary location from the user's assigned locations
-        const primaryLocation = userLocationsData.locations.find((loc: any) => loc.id === primaryLocationId)
-
-        if (primaryLocation) {
-          console.log('✅ Primary location found:', primaryLocation.name)
-          setLocations([primaryLocation])
-          setSelectedLocationId(primaryLocation.id)
-          return
-        }
-      }
-
-      // Fallback: If no primary location, use first assigned location
+      // Show ALL accessible locations in the dropdown
       if (userLocationsData.locations.length > 0) {
-        const firstLocation = userLocationsData.locations[0]
-        console.log('📌 Using first assigned location as fallback:', firstLocation.name)
-        setLocations([firstLocation])
-        setSelectedLocationId(firstLocation.id)
+        console.log(`✅ Loading ${userLocationsData.locations.length} accessible location(s)`)
+        setLocations(userLocationsData.locations)
+
+        // Set primary location as default selection if available
+        if (primaryLocationId) {
+          const primaryLocation = userLocationsData.locations.find((loc: any) => loc.id === primaryLocationId)
+          if (primaryLocation) {
+            console.log('✅ Primary location selected by default:', primaryLocation.name)
+            setSelectedLocationId(primaryLocation.id)
+          } else {
+            // Primary location not in accessible list, use first location
+            console.log('📌 Using first accessible location as default:', userLocationsData.locations[0].name)
+            setSelectedLocationId(userLocationsData.locations[0].id)
+          }
+        } else {
+          // No primary location set, use first accessible location
+          console.log('📌 No primary location, using first accessible location:', userLocationsData.locations[0].name)
+          setSelectedLocationId(userLocationsData.locations[0].id)
+        }
       } else {
         console.warn('⚠️ No assigned locations found for user')
         setLocations([])

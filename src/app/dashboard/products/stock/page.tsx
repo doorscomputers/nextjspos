@@ -489,12 +489,15 @@ const handlePrint = async () => {
         <p className="text-gray-600 dark:text-gray-300 mt-1">View stock levels across all business locations</p>
       </div>
 
-      <div className="mb-6 flex items-start gap-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
-        <ExclamationTriangleIcon className="h-5 w-5 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
-        <div>
-          <p className="font-medium">Inventory counts are cached.</p>
-          <p className="mt-1 text-amber-800 dark:text-amber-200">
-            Click the Refresh button before relying on these numbers to pull the latest stock from every location.
+      <div className="mb-6 flex items-start gap-4 rounded-xl border-2 border-red-400 dark:border-red-700 bg-gradient-to-r from-red-50 via-amber-50 to-yellow-50 dark:from-red-900/40 dark:via-amber-900/30 dark:to-yellow-900/30 px-5 py-4 shadow-lg">
+        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 dark:bg-red-800 text-red-700 dark:text-red-200">
+          <ExclamationTriangleIcon className="h-6 w-6" />
+        </div>
+        <div className="text-base text-red-900 dark:text-red-100">
+          <p className="text-xl font-extrabold tracking-wide uppercase">Critical Inventory Warning</p>
+          <p className="mt-2 font-semibold">
+            Inventory counts shown below are <span className="underline decoration-red-500">cached snapshots</span>.
+            Always click the <span className="text-red-700 dark:text-red-200 font-bold">Refresh Stock</span> button before making decisions to pull the latest figures from every location.
           </p>
         </div>
       </div>

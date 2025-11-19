@@ -6,6 +6,7 @@ import { PERMISSIONS, getUserAccessibleLocationIds } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 import { getCurrentStock, StockTransactionType, updateStock } from '@/lib/stockOperations'
 import { sendTelegramInventoryCorrectionAlert } from '@/lib/telegram'
+import { sendSemaphoreInventoryCorrectionAlert } from '@/lib/semaphore'
 
 /**
  * POST /api/inventory-corrections/[id]/approve
@@ -195,6 +196,27 @@ export async function POST(
       console.error('Telegram notification failed:', telegramError)
       // Don't fail the request if Telegram notification fails
     }
+
+    // Send SMS notification via Semaphore (NON-BLOCKING - Fire and forget)
+    Promise.resolve().then(async () => {
+      try {
+        await sendSemaphoreInventoryCorrectionAlert({
+          productName: correction.product.name,
+          sku: correction.productVariation.sku || correction.product.sku || '',
+          previousInventory: result.previousQty,
+          currentInventory: result.stockResult.newBalance,
+          difference: actualDifference,
+          reason: correction.reason,
+          locationName: correction.location.name,
+          correctedBy: userDisplayName,
+          timestamp: new Date(),
+        })
+
+        console.log('[Inventory Correction] SMS notification sent successfully')
+      } catch (smsError) {
+        console.error('[Inventory Correction] Failed to send SMS notification:', smsError)
+      }
+    })
 
     return NextResponse.json({
       message: `Inventory correction approved successfully. Stock adjusted from ${result.previousQty} to ${result.stockResult.newBalance}.`,

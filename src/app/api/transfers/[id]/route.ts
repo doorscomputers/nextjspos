@@ -51,26 +51,33 @@ export async function GET(
       )
     }
 
-    // Fetch product and variation details for each item
-    const itemsWithDetails = await Promise.all(
-      transfer.items.map(async (item) => {
-        const [product, variation] = await Promise.all([
-          prisma.product.findUnique({
-            where: { id: item.productId },
-            select: { id: true, name: true, sku: true },
-          }),
-          prisma.productVariation.findUnique({
-            where: { id: item.productVariationId },
-            select: { id: true, name: true, sku: true },
-          }),
-        ])
-        return {
-          ...item,
-          product,
-          productVariation: variation,
-        }
-      })
-    )
+    // OPTIMIZED: Batch fetch ALL products and variations in TWO queries (instead of N×2 queries)
+    // Extract unique IDs
+    const productIds = [...new Set(transfer.items.map(item => item.productId))]
+    const variationIds = [...new Set(transfer.items.map(item => item.productVariationId))]
+
+    // Batch fetch in parallel (2 queries instead of 38!)
+    const [products, variations] = await Promise.all([
+      prisma.product.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, name: true, sku: true },
+      }),
+      prisma.productVariation.findMany({
+        where: { id: { in: variationIds } },
+        select: { id: true, name: true, sku: true },
+      }),
+    ])
+
+    // Create lookup maps for O(1) access
+    const productMap = new Map(products.map(p => [p.id, p]))
+    const variationMap = new Map(variations.map(v => [v.id, v]))
+
+    // Map items with details (instant lookup, no queries)
+    const itemsWithDetails = transfer.items.map(item => ({
+      ...item,
+      product: productMap.get(item.productId),
+      productVariation: variationMap.get(item.productVariationId),
+    }))
 
     // Fetch user details for workflow participants
     const userIds = [
@@ -99,45 +106,48 @@ export async function GET(
     })
     const locationMap = new Map(locations.map(l => [l.id, l.name]))
 
-    // Verify user has access to either source or destination location (unless they have ACCESS_ALL_LOCATIONS)
+    // OPTIMIZED: Batch all remaining queries in parallel
     const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
 
-    if (!hasAccessAllLocations) {
-      const userLocations = await prisma.userLocation.findMany({
-        where: { userId: parseInt(userId) },
-        select: { locationId: true },
-      })
-      const locationIds = userLocations.map(ul => ul.locationId)
+    const [userLocations, sodSettings, business] = await Promise.all([
+      // Only fetch userLocations if needed
+      hasAccessAllLocations
+        ? Promise.resolve([])
+        : prisma.userLocation.findMany({
+            where: { userId: parseInt(userId) },
+            select: { locationId: true },
+          }),
+        prisma.businessSODSettings.findUnique({
+          where: { businessId: parseInt(businessId) },
+          select: {
+            enforceTransferSOD: true,
+            allowCreatorToCheck: true,
+            allowCreatorToSend: true,
+            allowCheckerToSend: true,
+            allowCreatorToReceive: true,
+            allowSenderToComplete: true,
+            allowCreatorToComplete: true,
+            allowReceiverToComplete: true,
+          },
+        }),
+        prisma.business.findUnique({
+          where: { id: parseInt(businessId) },
+          select: { transferWorkflowMode: true },
+        }),
+      ])
 
-      // User must be assigned to EITHER the from location OR the to location
-      if (!locationIds.includes(transfer.fromLocationId) && !locationIds.includes(transfer.toLocationId)) {
-        return NextResponse.json(
-          { error: 'Access denied. You can only view transfers involving your assigned locations.' },
-          { status: 403 }
-        )
+      // Verify access after fetching (moved here from before)
+      if (!hasAccessAllLocations) {
+        const locationIds = userLocations.map(ul => ul.locationId)
+
+        // User must be assigned to EITHER the from location OR the to location
+        if (!locationIds.includes(transfer.fromLocationId) && !locationIds.includes(transfer.toLocationId)) {
+          return NextResponse.json(
+            { error: 'Access denied. You can only view transfers involving your assigned locations.' },
+            { status: 403 }
+          )
+        }
       }
-    }
-
-    // Fetch SOD settings and workflow mode for the business
-    const [sodSettings, business] = await Promise.all([
-      prisma.businessSODSettings.findUnique({
-        where: { businessId: parseInt(businessId) },
-        select: {
-          enforceTransferSOD: true,
-          allowCreatorToCheck: true,
-          allowCreatorToSend: true,
-          allowCheckerToSend: true,
-          allowCreatorToReceive: true,
-          allowSenderToComplete: true,
-          allowCreatorToComplete: true,
-          allowReceiverToComplete: true,
-        },
-      }),
-      prisma.business.findUnique({
-        where: { id: parseInt(businessId) },
-        select: { transferWorkflowMode: true },
-      }),
-    ])
 
     // Build response with user details, location names, SOD settings, and workflow mode
     const response = {

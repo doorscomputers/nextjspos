@@ -1,81 +1,78 @@
--- Reset transactional data for UltimatePOS Modern (PostgreSQL)
--- Purpose: provide a clean environment for inventory and POS testing.
--- Usage:
---   psql "$DATABASE_URL" -f scripts/reset_transactions.sql
-
-BEGIN;
-
--- ============================================
--- POS SALES, RETURNS, AND FRONTLINE FLOWS
--- ============================================
 TRUNCATE TABLE
-  sale_payments,
   sale_items,
-  customer_return_items,
-  customer_returns,
-  warranty_claims,
-  freebie_logs,
-  void_transactions,
+  sale_payments,
+  sales,
   quotation_items,
   quotations,
-  cash_denominations,
-  cash_in_out,
-  cashier_shifts,
-  sales
-RESTART IDENTITY CASCADE;
-
--- ============================================
--- PROCUREMENT, RECEIPTS, AND SUPPLIER FLOWS
--- ============================================
-TRUNCATE TABLE
-  supplier_return_items,
-  supplier_returns,
-  purchase_return_items,
-  purchase_returns,
-  quality_control_check_items,
-  quality_control_items,
-  quality_control_inspections,
+  purchase_items,
   purchase_receipt_items,
   purchase_receipts,
-  purchase_amendments,
-  purchase_items,
   purchases,
-  debit_notes,
+  purchase_return_items,
+  purchase_returns,
+  stock_transactions,
+  stock_transfer_items,
+  stock_transfers,
+  customer_return_items,
+  customer_returns,
+  supplier_return_items,
+  supplier_returns,
   accounts_payable,
   payments,
   post_dated_cheques,
-  bank_transactions
-RESTART IDENTITY CASCADE;
-
--- ============================================
--- INVENTORY MOVEMENTS AND AUDIT HISTORY
--- ============================================
-TRUNCATE TABLE
-  serial_number_movements,
+  bank_transactions,
+  journal_entry_lines,
+  journal_entries,
+  account_balances,
+  financial_snapshots,
+  budget_allocations,
+  expenses,
+  expense_categories,
+  product_history,
   product_serial_numbers,
-  stock_transfer_items,
-  stock_transfers,
-  stock_transactions,
+  serial_number_movements,
   inventory_corrections,
-  product_history
+  freebie_logs,
+  product_unit_prices,
+  product_unit_location_prices,
+  product_variations,
+  cashier_shift_readings,
+  cashier_shifts,
+  cash_in_out,
+  cash_denominations,
+  void_transactions,
+  service_repair_payments,
+  service_job_parts,
+  service_job_orders,
+  service_warranty_claims,
+  warranty_claims,
+  repair_job_order_parts,
+  repair_job_orders,
+  notifications,
+  audit_logs,
+  user_activity,
+  sessions,
+  idempotency_keys,
+  announcements,
+  saved_questions
 RESTART IDENTITY CASCADE;
 
--- ============================================
--- SYSTEM AUDIT TRAIL
--- ============================================
-TRUNCATE TABLE
-  audit_logs
-RESTART IDENTITY CASCADE;
+-- STEP 2 — Remove product-related records (products requested to be deleted)
+-- Clear product-specific price/location tables first
+DELETE FROM product_unit_location_prices;
+ALTER SEQUENCE IF EXISTS product_unit_location_prices_id_seq RESTART WITH 1;
 
--- ============================================
--- RESET INVENTORY BALANCES PER LOCATION
--- ============================================
-UPDATE variation_location_details
-SET
-  qty_available = 0,
-  opening_stock_locked = FALSE,
-  opening_stock_set_at = NULL,
-  opening_stock_set_by = NULL,
-  updated_at = NOW();
+DELETE FROM product_unit_prices;
+ALTER SEQUENCE IF EXISTS product_unit_prices_id_seq RESTART WITH 1;
 
-COMMIT;
+-- Remove product variations then products
+DELETE FROM product_variations;
+ALTER SEQUENCE IF EXISTS product_variations_id_seq RESTART WITH 1;
+
+DELETE FROM products;
+ALTER SEQUENCE IF EXISTS products_id_seq RESTART WITH 1;
+
+-- Reset product serials & history sequences
+ALTER SEQUENCE IF EXISTS product_serial_numbers_id_seq RESTART WITH 1;
+ALTER SEQUENCE IF EXISTS serial_number_movements_id_seq RESTART WITH 1;
+ALTER SEQUENCE IF EXISTS product_history_id_seq RESTART WITH 1;

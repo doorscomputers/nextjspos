@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     // Parse query parameters
     const { searchParams } = new URL(request.url)
-    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null ? parseInt(searchParams.get('locationId')!) : undefined
+    const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : undefined
     const methodParam = searchParams.get('method') as string | null
     const includeLayers = searchParams.get('includeLayers') === 'true'
     const groupByCategory = searchParams.get('groupByCategory') === 'true'
@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
     let valuations: any[]
 
     if (locationId) {
+      console.log(`[Inventory Valuation] Fetching for single location: ${locationId}`)
       // Single location valuation
       const locationValuations = await getLocationInventoryValuation(
         locationId,
@@ -61,8 +62,11 @@ export async function GET(request: NextRequest) {
         method
       )
 
+      console.log(`[Inventory Valuation] Location valuations count: ${locationValuations.length}`)
+
       // Enrich with product details
       valuations = await enrichValuations(locationValuations, includeLayers)
+      console.log(`[Inventory Valuation] Enriched valuations count: ${valuations.length}`)
     } else {
       // All locations valuation
       const locations = await prisma.businessLocation.findMany({
@@ -73,6 +77,8 @@ export async function GET(request: NextRequest) {
         select: { id: true, name: true }
       })
 
+      console.log(`[Inventory Valuation] Found ${locations.length} locations for business ${businessId}`)
+
       // OPTIMIZED: Process all locations in parallel instead of sequentially
       const locationResults = await Promise.all(
         locations.map(async (location) => {
@@ -81,6 +87,8 @@ export async function GET(request: NextRequest) {
             parseInt(businessId),
             method
           )
+
+          console.log(`[Inventory Valuation] Location ${location.name} (${location.id}): ${locationValuations.length} valuations`)
 
           const enriched = await enrichValuations(locationValuations, includeLayers)
 
@@ -94,6 +102,7 @@ export async function GET(request: NextRequest) {
 
       // Flatten all location results into single array
       valuations = locationResults.flat()
+      console.log(`[Inventory Valuation] Total valuations after flattening: ${valuations.length}`)
     }
 
     // Calculate summary statistics

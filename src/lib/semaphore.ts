@@ -31,17 +31,42 @@ const semaphoreConfig = {
   shiftCloseEnabled: process.env.SMS_ALERT_SHIFT_CLOSE_ENABLED === 'true',
   locationMismatchEnabled: process.env.SMS_ALERT_LOCATION_MISMATCH_ENABLED === 'true',
   purchaseApprovalEnabled: process.env.SMS_ALERT_PURCHASE_APPROVAL_ENABLED === 'true',
+  inventoryCorrectionEnabled: process.env.SMS_ALERT_INVENTORY_CORRECTION_ENABLED === 'true',
 }
 
 /**
  * Check if Semaphore SMS is configured
  */
 export function isSemaphoreConfigured(): boolean {
-  return !!(
+  const isConfigured = !!(
     semaphoreConfig.enabled &&
     semaphoreConfig.apiKey &&
     semaphoreConfig.recipients.length > 0
   )
+
+  console.log('[Semaphore] Config check:', {
+    enabled: semaphoreConfig.enabled,
+    hasApiKey: !!semaphoreConfig.apiKey,
+    apiKeyLength: semaphoreConfig.apiKey?.length || 0,
+    recipientsCount: semaphoreConfig.recipients.length,
+    recipients: semaphoreConfig.recipients,
+    isConfigured
+  })
+
+  return isConfigured
+}
+
+/**
+ * Debug: Get current configuration state
+ */
+export function getSemaphoreConfig() {
+  return {
+    enabled: semaphoreConfig.enabled,
+    apiKey: semaphoreConfig.apiKey ? `${semaphoreConfig.apiKey.substring(0, 8)}...` : 'NOT SET',
+    senderName: semaphoreConfig.senderName,
+    recipients: semaphoreConfig.recipients,
+    recipientsCount: semaphoreConfig.recipients.length,
+  }
 }
 
 /**
@@ -51,15 +76,22 @@ export function isSemaphoreConfigured(): boolean {
  * @returns Promise<boolean> - Success status
  */
 async function sendSemaphoreSMS(message: string): Promise<boolean> {
+  console.log('[Semaphore] sendSemaphoreSMS() called, checking configuration...')
+
   if (!isSemaphoreConfigured()) {
     console.log('[Semaphore] Not configured, skipping SMS')
     return false
   }
 
+  console.log('[Semaphore] Configuration valid, preparing to send SMS')
+  console.log('[Semaphore] Recipients:', semaphoreConfig.recipients)
+
   // Truncate message if too long (Semaphore supports up to 1600 chars for long SMS)
   const smsMessage = message.length > 1600 ? message.substring(0, 1597) + '...' : message
 
   try {
+    console.log('[Semaphore] Sending to API:', semaphoreConfig.apiUrl)
+
     const promises = semaphoreConfig.recipients.map((recipient) =>
       fetch(semaphoreConfig.apiUrl, {
         method: 'POST',
@@ -78,18 +110,20 @@ async function sendSemaphoreSMS(message: string): Promise<boolean> {
     const responses = await Promise.all(promises)
     const results = await Promise.all(responses.map((r) => r.json()))
 
+    console.log('[Semaphore] API responses:', JSON.stringify(results, null, 2))
+
     // Semaphore returns: { message_id, user_id, user, account_id, account, recipient, message, sender_name, network, status, type, source, created_at, updated_at }
     const allSuccessful = results.every((r) => r.status === 'Pending' || r.status === 'Queued' || r.message_id)
 
     if (allSuccessful) {
-      console.log(`[Semaphore] SMS sent to ${semaphoreConfig.recipients.length} recipient(s)`)
+      console.log(`[Semaphore] ✅ SMS sent successfully to ${semaphoreConfig.recipients.length} recipient(s)`)
     } else {
-      console.error('[Semaphore] Some SMS failed:', results)
+      console.error('[Semaphore] ❌ Some SMS failed:', results)
     }
 
     return allSuccessful
   } catch (error: any) {
-    console.error('[Semaphore] Network error:', error.message || error)
+    console.error('[Semaphore] ❌ Network error:', error.message || error)
     return false
   }
 }
@@ -450,7 +484,7 @@ export async function sendSemaphoreInventoryCorrectionAlert(data: {
   correctedBy: string
   timestamp: Date
 }): Promise<boolean> {
-  if (!semaphoreConfig.enabled) {
+  if (!semaphoreConfig.enabled || !semaphoreConfig.inventoryCorrectionEnabled) {
     return false
   }
 
@@ -552,6 +586,8 @@ ${formatDateTime(data.timestamp)}
  * Send test SMS
  */
 export async function sendSemaphoreTestMessage(): Promise<boolean> {
+  console.log('[Semaphore] sendSemaphoreTestMessage() called')
+
   const message = `✅ IgoroTechPOS SMS Test
 Status: Connected ✓
 Time: ${formatDateTime(new Date())}
@@ -569,7 +605,11 @@ SMS alerts configured for:
 Recipients: ${semaphoreConfig.recipients.length}
 Ready to send alerts!`
 
-  return sendSemaphoreSMS(message)
+  console.log('[Semaphore] About to call sendSemaphoreSMS()')
+  const result = await sendSemaphoreSMS(message)
+  console.log('[Semaphore] sendSemaphoreSMS() returned:', result)
+
+  return result
 }
 
 /**

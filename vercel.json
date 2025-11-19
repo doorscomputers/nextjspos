@@ -64,6 +64,10 @@
     {
       "path": "/api/cron/reconciliation",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/process-jobs",
+      "schedule": "* * * * *"
     }
   ]
 }

@@ -44,7 +44,7 @@ export default function TransfersPerItemReport() {
   const [products, setProducts] = useState<any[]>([])
   const [productSearch, setProductSearch] = useState('')
   const [productLoading, setProductLoading] = useState(false)
-  const [showPivotView, setShowPivotView] = useState(true) // Toggle between Pivot and Detail view
+  const [showPivotView, setShowPivotView] = useState(false) // Toggle between Pivot and Detail view - Default to Detailed View
 
   // Filter state
   const [dateRangePreset, setDateRangePreset] = useState('custom')

@@ -99,24 +99,27 @@ export async function POST(
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
     })
 
-    // Send alert notifications (async, don't await)
-    // Calculate total quantity from all items
-    const totalQuantity = transfer.items.reduce((sum, item) => {
-      return sum + parseFloat(item.quantity.toString())
-    }, 0)
+    // OPTIMIZED: Send alert notifications (async, fire and forget - don't block response)
+    (async () => {
+      try {
+        const totalQuantity = transfer.items.reduce((sum, item) => {
+          return sum + parseFloat(item.quantity.toString())
+        }, 0)
 
-    sendTransferRejectionAlert({
-      transferNumber: transfer.transferNumber,
-      fromLocation: transfer.fromLocation.name,
-      toLocation: transfer.toLocation.name,
-      itemCount: transfer.items.length,
-      totalQuantity,
-      rejectedBy: user.username,
-      rejectionReason: reason,
-      timestamp: new Date(),
-    }).catch((error) => {
-      console.error('[AlertService] Failed to send transfer rejection alert:', error)
-    })
+        await sendTransferRejectionAlert({
+          transferNumber: transfer.transferNumber,
+          fromLocation: transfer.fromLocation.name,
+          toLocation: transfer.toLocation.name,
+          itemCount: transfer.items.length,
+          totalQuantity,
+          rejectedBy: user.username,
+          rejectionReason: reason,
+          timestamp: new Date(),
+        })
+      } catch (error) {
+        console.error('[AlertService] Failed to send transfer rejection alert:', error)
+      }
+    })()
 
     return NextResponse.json({
       message: 'Transfer rejected - returned to draft for corrections',

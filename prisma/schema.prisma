@@ -115,6 +115,9 @@ model User {
   // Product Location Pricing Relations
   locationPriceUpdates ProductUnitLocationPrice[] @relation("LocationPriceUpdatedBy")
 
+  // Background Job Queue Relations
+  jobs Job[]
+
   // Audit Trail Relations
   auditLogs AuditLog[]
 
@@ -254,6 +257,9 @@ model Business {
 
   // AI Assistant Relations
   savedQuestions SavedQuestion[]
+
+  // Background Job Queue Relations
+  jobs Job[]
 
   @@map("business")
 }
@@ -4735,3 +4741,57 @@ model ServiceRepairPayment {
   @@index([receivedBy])
   @@map("service_repair_payments")
 }
+
+// ============================================
+// BACKGROUND JOB QUEUE SYSTEM
+// ============================================
+
+/// Async job queue for long-running operations
+/// Prevents HTTP timeout failures for large transactions
+model Job {
+  id Int @id @default(autoincrement())
+
+  // Multi-tenancy
+  businessId Int      @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Job creator
+  userId Int  @map("user_id")
+  user   User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  // Job details
+  type   String // 'transfer_send', 'transfer_complete', 'sale_create', 'purchase_approve'
+  status String @default("pending") // 'pending', 'processing', 'completed', 'failed', 'cancelled'
+
+  // Progress tracking
+  progress Int @default(0) // Items processed
+  total    Int // Total items to process
+
+  // Data
+  payload Json  // Input data for the job
+  result  Json? // Output data or error details
+  error   String? @db.Text // Error message if failed
+
+  // Retry tracking
+  attempts     Int      @default(0) // Number of processing attempts
+  maxAttempts  Int      @default(3) // Maximum retry attempts
+  nextRetryAt  DateTime? @map("next_retry_at") // When to retry if failed
+
+  // Timestamps
+  createdAt   DateTime  @default(now()) @map("created_at")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  // Indexes for efficient querying
+  @@index([businessId, status])
+  @@index([type, status])
+  @@index([status, nextRetryAt]) // For retry queue
+  @@index([createdAt])
+  @@map("jobs")
+}
+
+// Update User model to add jobs relation
+// (Add to User model relations section)
+
+// Update Business model to add jobs relation
+// (Add to Business model relations section)
