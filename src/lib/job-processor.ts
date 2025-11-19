@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
-import { transferStockOut, addStock } from '@/lib/stockOperations'
+import { transferStockOut, addStock, bulkUpdateStock } from '@/lib/stockOperations'
+import { StockTransactionType } from '@prisma/client'
 
 /**
  * Job Processing Logic
@@ -141,40 +142,45 @@ async function processTransferSend(job: any) {
 
     await prisma.$transaction(
       async (tx) => {
-        for (const item of batch) {
-          try {
-            const quantity = parseFloat(item.quantity.toString())
+        // BULK OPTIMIZATION: Process all items in batch with single function call
+        // Prepare bulk update parameters
+        const bulkItems = batch.map((item) => ({
+          businessId: job.businessId,
+          productId: item.productId,
+          productVariationId: item.productVariationId,
+          locationId: transfer.fromLocationId,
+          quantity: -Math.abs(parseFloat(item.quantity.toString())), // Negative for stock out
+          type: StockTransactionType.TRANSFER_OUT,
+          referenceType: 'transfer' as const,
+          referenceId: transferId,
+          userId: job.userId,
+          notes: notes || `Transfer ${transfer.transferNumber} sent`,
+          userDisplayName,
+          allowNegative: true, // Allow negative for async transfers (stock may have changed since creation)
+          tx,
+        }))
 
-            await transferStockOut({
-              businessId: job.businessId,
-              productId: item.productId,
-              productVariationId: item.productVariationId,
-              fromLocationId: transfer.fromLocationId,
-              quantity,
-              transferId,
-              userId: job.userId,
-              notes: notes || `Transfer ${transfer.transferNumber} sent`,
-              userDisplayName,
-              skipAvailabilityCheck: true, // Already validated at transfer creation
-              allowNegative: true, // Allow negative for async transfers (stock may have changed since creation)
-              tx,
-            })
+        // Call bulk function - processes all items in single server call
+        const results = await bulkUpdateStock(bulkItems)
 
-            processedCount++
-
-            // Update job progress
-            await tx.job.update({
-              where: { id: job.id },
-              data: { progress: processedCount },
-            })
-          } catch (itemError: any) {
-            console.error(
-              `[Job ${job.id}] Error processing item ${item.id} (Product: ${item.productId}, Variation: ${item.productVariationId}):`,
-              itemError.message
-            )
-            throw itemError // Re-throw to trigger batch retry
-          }
+        // Check for failures
+        const failures = results.filter((r) => !r.success)
+        if (failures.length > 0) {
+          const firstFailure = failures[0]
+          console.error(
+            `[Job ${job.id}] Bulk transfer send failed:`,
+            firstFailure.error
+          )
+          throw new Error(`Bulk update failed: ${firstFailure.error}`)
         }
+
+        processedCount += batch.length
+
+        // Update job progress once per batch
+        await tx.job.update({
+          where: { id: job.id },
+          data: { progress: processedCount },
+        })
       },
       {
         timeout: 180000, // 180s per batch (6s per item for 30 items)
@@ -241,43 +247,51 @@ async function processTransferComplete(job: any) {
 
     await prisma.$transaction(
       async (tx) => {
-        for (const item of batch) {
-          try {
-            const receivedQty = item.receivedQuantity
-              ? parseFloat(item.receivedQuantity.toString())
-              : parseFloat(item.quantity.toString())
+        // BULK OPTIMIZATION: Process all items in batch with single function call
+        // Prepare bulk update parameters
+        const bulkItems = batch.map((item) => {
+          const receivedQty = item.receivedQuantity
+            ? parseFloat(item.receivedQuantity.toString())
+            : parseFloat(item.quantity.toString())
 
-            await addStock({
-              businessId: job.businessId,
-              productId: item.productId,
-              productVariationId: item.productVariationId,
-              locationId: transfer.toLocationId,
-              quantity: receivedQty,
-              type: 'transfer_in' as any,
-              referenceType: 'stock_transfer',
-              referenceId: transferId,
-              referenceNumber: transfer.transferNumber,
-              userId: job.userId,
-              userDisplayName,
-              notes: `Transfer ${transfer.transferNumber} received`,
-              tx,
-            })
-
-            processedCount++
-
-            // Update job progress
-            await tx.job.update({
-              where: { id: job.id },
-              data: { progress: processedCount },
-            })
-          } catch (itemError: any) {
-            console.error(
-              `[Job ${job.id}] Error processing item ${item.id} (Product: ${item.productId}, Variation: ${item.productVariationId}):`,
-              itemError.message
-            )
-            throw itemError // Re-throw to trigger batch retry
+          return {
+            businessId: job.businessId,
+            productId: item.productId,
+            productVariationId: item.productVariationId,
+            locationId: transfer.toLocationId,
+            quantity: receivedQty, // Positive for stock in
+            type: StockTransactionType.TRANSFER_IN,
+            referenceType: 'stock_transfer' as const,
+            referenceId: transferId,
+            referenceNumber: transfer.transferNumber,
+            userId: job.userId,
+            notes: `Transfer ${transfer.transferNumber} received`,
+            userDisplayName,
+            tx,
           }
+        })
+
+        // Call bulk function - processes all items in single server call
+        const results = await bulkUpdateStock(bulkItems)
+
+        // Check for failures
+        const failures = results.filter((r) => !r.success)
+        if (failures.length > 0) {
+          const firstFailure = failures[0]
+          console.error(
+            `[Job ${job.id}] Bulk transfer receive failed:`,
+            firstFailure.error
+          )
+          throw new Error(`Bulk update failed: ${firstFailure.error}`)
         }
+
+        processedCount += batch.length
+
+        // Update job progress once per batch
+        await tx.job.update({
+          where: { id: job.id },
+          data: { progress: processedCount },
+        })
       },
       {
         timeout: 180000, // 180s per batch (6s per item for 30 items)
