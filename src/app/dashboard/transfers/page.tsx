@@ -103,12 +103,13 @@ export default function TransfersDevExtremePage() {
   const fetchTransfers = async () => {
     try {
       setLoading(true)
-      const statusParam = statusFilter ? `&status=${statusFilter}` : ''
-      const response = await fetch(`/api/transfers?includeDetails=true${statusParam}`)
+      // OPTIMIZED: Removed includeDetails=true (6 extra user queries not needed for list view)
+      const statusParam = statusFilter ? `?status=${statusFilter}` : ''
+      const response = await fetch(`/api/transfers${statusParam}`)
       if (response.ok) {
         const data = await response.json()
         setTransfers(data || [])
-        
+
         console.log(`📦 Loaded ${data?.length || 0} transfers`)
         if (!hasAccessToAll && userLocations.length > 0) {
           const locationNames = userLocations.map((l: any) => l.name).join(', ')
