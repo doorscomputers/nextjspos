@@ -725,10 +725,25 @@ export default function AuditTrailPage() {
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="audit-logs" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="audit-logs">Audit Logs</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="security">Security Analysis</TabsTrigger>
+        <TabsList className="h-11 p-1.5 gap-1 shadow-sm border border-border/50">
+          <TabsTrigger
+            value="audit-logs"
+            className="cursor-pointer hover:scale-[1.02] active:scale-[0.98] data-[state=active]:border-primary data-[state=active]:shadow-md font-semibold transition-all duration-200"
+          >
+            Audit Logs
+          </TabsTrigger>
+          <TabsTrigger
+            value="analytics"
+            className="cursor-pointer hover:scale-[1.02] active:scale-[0.98] data-[state=active]:border-primary data-[state=active]:shadow-md font-semibold transition-all duration-200"
+          >
+            Analytics
+          </TabsTrigger>
+          <TabsTrigger
+            value="security"
+            className="cursor-pointer hover:scale-[1.02] active:scale-[0.98] data-[state=active]:border-primary data-[state=active]:shadow-md font-semibold transition-all duration-200"
+          >
+            Security Analysis
+          </TabsTrigger>
         </TabsList>
 
         {/* Audit Logs Tab */}
