@@ -220,26 +220,20 @@ export default function TransferDetailPage() {
       if (response.ok) {
         toast.success(successMessage)
 
-        // Check if this is a send or complete action with inventory impact
-        if (result.inventoryImpact && (endpoint === 'send' || endpoint === 'complete')) {
-          setInventoryImpactData(result.inventoryImpact)
-          setShowInventoryImpact(true)
+        // OPTIMIZED: Inventory Impact disabled - always redirect for major actions
+        const redirectActions = ['submit-for-check', 'check-approve', 'check-reject', 'send', 'complete']
 
-          // Mark if transfer was just completed
+        if (redirectActions.includes(endpoint)) {
+          // Mark if transfer was just completed (for cleanup)
           if (endpoint === 'complete') {
             setTransferJustCompleted(true)
-          } else {
-            fetchTransfer()
           }
+
+          setTimeout(() => {
+            router.push('/dashboard/transfers')
+          }, 1000) // Short delay to show success message
         } else {
-          // No inventory impact, handle normally
-          if (endpoint === 'complete') {
-            setTimeout(() => {
-              router.push('/dashboard/transfers')
-            }, 2000)
-          } else {
-            fetchTransfer()
-          }
+          fetchTransfer()
         }
       } else {
         // Show specific error message from API

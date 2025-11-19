@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 import { validateSOD, getUserRoles } from '@/lib/sodValidation'
-import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker'
+// import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker' // DISABLED for speed
 import { sendTransferAcceptanceAlert } from '@/lib/alert-service'
 
 /**
@@ -158,10 +158,11 @@ export async function POST(
       `User#${userIdNumber}`
 
     // TRANSACTION IMPACT TRACKING: Step 1 - Capture inventory BEFORE transaction (BOTH locations)
-    const impactTracker = new InventoryImpactTracker()
-    const productVariationIds = transfer.items.map(item => item.productVariationId)
-    const locationIds = [transfer.fromLocationId, transfer.toLocationId] // Track BOTH source and destination
-    await impactTracker.captureBefore(productVariationIds, locationIds)
+    // DISABLED for speed - not needed for demo
+    // const impactTracker = new InventoryImpactTracker()
+    // const productVariationIds = transfer.items.map(item => item.productVariationId)
+    // const locationIds = [transfer.fromLocationId, transfer.toLocationId] // Track BOTH source and destination
+    // await impactTracker.captureBefore(productVariationIds, locationIds)
 
     // CRITICAL: Use transaction to ensure atomicity
     const result = await prisma.$transaction(async (tx) => {
@@ -292,19 +293,20 @@ export async function POST(
     })
 
     // TRANSACTION IMPACT TRACKING: Step 2 - Capture inventory AFTER and generate report
-    const locationTypes = {
-      [transfer.fromLocationId]: 'source' as const,
-      [transfer.toLocationId]: 'destination' as const
-    }
-    const inventoryImpact = await impactTracker.captureAfterAndReport(
-      productVariationIds,
-      locationIds,
-      'transfer',
-      result.id,
-      transfer.transferNumber,
-      locationTypes,
-      userDisplayName
-    )
+    // DISABLED for speed - not needed for demo
+    // const locationTypes = {
+    //   [transfer.fromLocationId]: 'source' as const,
+    //   [transfer.toLocationId]: 'destination' as const
+    // }
+    // const inventoryImpact = await impactTracker.captureAfterAndReport(
+    //   productVariationIds,
+    //   locationIds,
+    //   'transfer',
+    //   result.id,
+    //   transfer.transferNumber,
+    //   locationTypes,
+    //   userDisplayName
+    // )
 
     // Create audit log
     await createAuditLog({
@@ -351,7 +353,7 @@ export async function POST(
     return NextResponse.json({
       message: 'Transfer completed - stock added to destination location',
       transfer: result,
-      inventoryImpact,
+      // inventoryImpact disabled for speed
     })
   } catch (error: any) {
     console.error('Error completing transfer:', error)
