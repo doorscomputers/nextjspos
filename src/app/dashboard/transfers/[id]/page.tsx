@@ -404,6 +404,10 @@ export default function TransferDetailPage() {
     }
   }
 
+  const handleReceiveTransfer = () => {
+    setShowCompleteConfirm(true)
+  }
+
   const handleMarkArrived = () => {
     handleAction('mark-arrived', 'Transfer marked as arrived')
   }
@@ -462,12 +466,30 @@ export default function TransferDetailPage() {
   const handleCompleteConfirmed = async () => {
     setShowCompleteConfirm(false)
     setShowReceiveProgress(true)
-    setReceiveProgressStep(1) // Step 1: Creating job
+    setReceiveProgressStep(1) // Step 1: Auto-verifying all items
     setReceiveJobProgress(0)
     setReceiveJobTotal(transfer?.items.length || 0)
 
     try {
-      // Step 1: Create async job
+      // Step 1: Auto-verify all items first (if not already verified)
+      const hasUnverifiedItems = transfer?.items.some(item => !item.verified)
+      if (hasUnverifiedItems) {
+        console.log('Auto-verifying all items before completing...')
+        const verifyResponse = await fetch(`/api/transfers/${transferId}/verify-all`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        })
+
+        if (!verifyResponse.ok) {
+          const error = await verifyResponse.json()
+          throw new Error(error.error || 'Failed to auto-verify items')
+        }
+
+        console.log('✅ All items auto-verified')
+      }
+
+      // Step 2: Create async job for completing
       const response = await fetch(`/api/transfers/${transferId}/complete-async`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -482,9 +504,9 @@ export default function TransferDetailPage() {
       const { jobId, itemCount } = await response.json()
       setReceiveJobId(jobId)
       setReceiveJobTotal(itemCount)
-      setReceiveProgressStep(2) // Step 2: Processing
+      setReceiveProgressStep(2) // Step 2: Adding stock to destination
 
-      console.log(`✅ Complete job created: ${jobId} for ${itemCount} items`)
+      console.log(`✅ Receive job created: ${jobId} for ${itemCount} items`)
 
       // Step 2: Poll for job status
       const pollInterval = setInterval(async () => {
@@ -935,24 +957,22 @@ export default function TransferDetailPage() {
       }
     }
 
-    // In Transit → Mark Arrived
+    // In Transit → Receive Transfer (SIMPLIFIED WORKFLOW - Skip verification)
     // ⚠️  CRITICAL: This button was previously broken - DO NOT SIMPLIFY THIS LOGIC!
     //
     // WORKFLOW RULE: Only show to users at DESTINATION location
     // SECURITY: NEVER show to sender (prevents fraud - sender marking own delivery)
     //
+    // SIMPLIFIED FLOW: Auto-verify all items and complete in one step
+    //   - No manual verification required
+    //   - All items automatically verified with sent quantities
+    //   - Stock immediately added to destination
+    //
     // CORRECT LOGIC:
     //   Show if: (user at destination) OR (ACCESS_ALL_LOCATIONS AND user NOT at sender location)
     //
-    // WRONG LOGIC (DO NOT USE):
-    //   primaryLocationId === toLocationId || ACCESS_ALL_LOCATIONS
-    //   ^^^ This allows sender to mark their own transfer as arrived!
-    //
     // TEST CASE: Jheiron at Main Warehouse sending to Tuguegarao
-    //   - Jheiron has ACCESS_ALL_LOCATIONS = true
-    //   - Jheiron.primaryLocationId = 1 (Main Warehouse)
-    //   - transfer.fromLocationId = 1 (Main Warehouse)
-    //   - Result: isAtDestination = false (CORRECT - sender cannot mark arrival)
+    //   - Result: isAtDestination = false (CORRECT - sender cannot receive)
     //
     if (status === 'in_transit' && can(PERMISSIONS.STOCK_TRANSFER_RECEIVE)) {
       // The "&& primaryLocationId !== transfer.fromLocationId" is MANDATORY!
@@ -961,72 +981,17 @@ export default function TransferDetailPage() {
 
       if (isAtDestination) {
         actions.push({
-          label: 'Mark as Arrived',
+          label: 'Receive Transfer',
           icon: CheckCircleIcon,
-          onClick: handleMarkArrived,
-          variant: 'default' as const
-        })
-      }
-    }
-
-    // Arrived → Start Verification ONLY (enforce verification)
-    // CRITICAL WORKFLOW: Only show to users at DESTINATION location
-    // NEVER show to sender, even with ACCESS_ALL_LOCATIONS (receiver must verify)
-    if (status === 'arrived') {
-      // Check if user is at destination AND NOT at origin
-      const isAtDestination = primaryLocationId === transfer.toLocationId ||
-                              (can(PERMISSIONS.ACCESS_ALL_LOCATIONS) && primaryLocationId !== transfer.fromLocationId)
-
-      if (can(PERMISSIONS.STOCK_TRANSFER_VERIFY) && isAtDestination) {
-        actions.push({
-          label: 'Start Verification',
-          icon: ClipboardDocumentCheckIcon,
-          onClick: handleStartVerification,
-          variant: 'default' as const
-        })
-      }
-      // REMOVED: Quick Receive button - verification is now mandatory for data integrity
-      // Users must verify items before receiving to prevent fraud and inventory discrepancies
-    }
-
-    // Verifying → Verify All (bulk verification)
-    // CRITICAL WORKFLOW: Only show to users at DESTINATION location
-    // NEVER show to sender, even with ACCESS_ALL_LOCATIONS (receiver must verify)
-    if (status === 'verifying') {
-      // Check if user is at destination AND NOT at origin
-      const isAtDestination = primaryLocationId === transfer.toLocationId ||
-                              (can(PERMISSIONS.ACCESS_ALL_LOCATIONS) && primaryLocationId !== transfer.fromLocationId)
-
-      // Only show if there are unverified items
-      const hasUnverifiedItems = transfer.items.some(item => !item.verified)
-
-      if (can(PERMISSIONS.STOCK_TRANSFER_VERIFY) && isAtDestination && hasUnverifiedItems) {
-        actions.push({
-          label: 'Verify All Items',
-          icon: CheckCircleIcon,
-          onClick: handleVerifyAllClick,
+          onClick: handleReceiveTransfer,
           variant: 'success' as const
         })
       }
     }
 
-    // Verified → Receive Transfer (Complete)
-    // CRITICAL WORKFLOW: Only show to users at DESTINATION location
-    // NEVER show to sender, even with ACCESS_ALL_LOCATIONS (receiver must complete)
-    if (status === 'verified' && can(PERMISSIONS.STOCK_TRANSFER_COMPLETE)) {
-      // Check if user is at destination AND NOT at origin
-      const isAtDestination = primaryLocationId === transfer.toLocationId ||
-                              (can(PERMISSIONS.ACCESS_ALL_LOCATIONS) && primaryLocationId !== transfer.fromLocationId)
-
-      if (isAtDestination) {
-        actions.push({
-          label: 'Receive Transfer',
-          icon: CheckCircleIcon,
-          onClick: handleCompleteClick,
-          variant: 'default' as const
-        })
-      }
-    }
+    // REMOVED: Arrived, Start Verification, Verifying, Verify All steps
+    // REASON: User requested simplified workflow - skip verification entirely
+    // All items are now auto-verified when receiving transfer
 
     // Cancel - available for draft, pending_check, checked, in_transit
     if (['draft', 'pending_check', 'checked', 'in_transit'].includes(status) &&
