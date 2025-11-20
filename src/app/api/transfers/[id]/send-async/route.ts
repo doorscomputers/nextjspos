@@ -95,29 +95,46 @@ export async function POST(
       `✅ Transfer send job created: ${job.id} for transfer ${transfer.transferNumber} (${transfer.items.length} items)`
     )
 
-    // HYBRID APPROACH: Try immediate processing (fire-and-forget)
-    // If this fails or takes too long, the cron will pick it up
-    Promise.resolve().then(async () => {
-      try {
-        const { processJob } = await import('@/lib/job-processor')
-        await processJob(job)
-      } catch (error) {
-        console.error(`[Job ${job.id}] Immediate processing failed:`, error)
-        // Error logged, cron will retry
-      }
-    })
+    // SYNCHRONOUS PROCESSING: Process immediately and return result
+    // With bulk optimizations, 70 items complete in 30-45 seconds (within Vercel Pro 60s limit)
+    try {
+      const { processJob } = await import('@/lib/job-processor')
+      await processJob(job)
 
-    // Return immediately with job ID (don't await the promise above)
-    return NextResponse.json(
-      {
-        jobId: job.id,
-        transferId: transfer.id,
-        transferNumber: transfer.transferNumber,
-        itemCount: transfer.items.length,
-        message: `Processing ${transfer.items.length} items in background. Poll /api/jobs/${job.id} for progress.`,
-      },
-      { status: 202 } // 202 Accepted
-    )
+      console.log(`✅ Transfer send completed successfully: ${transfer.transferNumber}`)
+
+      return NextResponse.json(
+        {
+          jobId: job.id,
+          transferId: transfer.id,
+          transferNumber: transfer.transferNumber,
+          itemCount: transfer.items.length,
+          message: `Successfully processed ${transfer.items.length} items`,
+          status: 'completed',
+        },
+        { status: 200 }
+      )
+    } catch (error: any) {
+      console.error(`[Job ${job.id}] Processing failed:`, error)
+
+      // Mark job as failed
+      await prisma.job.update({
+        where: { id: job.id },
+        data: {
+          status: 'failed',
+          error: error.message,
+        },
+      })
+
+      return NextResponse.json(
+        {
+          error: 'Transfer send failed',
+          details: error.message,
+          jobId: job.id,
+        },
+        { status: 500 }
+      )
+    }
   } catch (error: any) {
     console.error('Error creating transfer send job:', error)
     return NextResponse.json(
