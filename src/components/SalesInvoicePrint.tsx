@@ -598,6 +598,26 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
                 </span>
               </div>
 
+              {/* Number of Items */}
+              <div className="flex justify-between py-1">
+                <span className={`text-gray-700 font-semibold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                  Number of Items:
+                </span>
+                <span className={`text-gray-900 font-bold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                  {sale.items?.length || 0}
+                </span>
+              </div>
+
+              {/* Total Quantity */}
+              <div className="flex justify-between py-1">
+                <span className={`text-gray-700 font-semibold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                  Total Quantity:
+                </span>
+                <span className={`text-gray-900 font-bold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                  {sale.items?.reduce((sum: number, item: any) => sum + parseFloat(item.quantity || 0), 0) || 0}
+                </span>
+              </div>
+
               {/* Discount */}
               {parseFloat(sale.discountAmount) > 0 && (
                 <div className="flex justify-between py-1">
