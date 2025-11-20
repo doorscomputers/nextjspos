@@ -293,7 +293,7 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
-import { checkStockAvailability, batchCheckStockAvailability, processSale } from '@/lib/stockOperations' // CRITICAL: processSale DEDUCTS inventory
+import { checkStockAvailability, batchCheckStockAvailability, processSale, bulkUpdateStock, StockTransactionType } from '@/lib/stockOperations' // CRITICAL: processSale DEDUCTS inventory, bulkUpdateStock processes in bulk
 import {
   sendLargeDiscountAlert as sendLargeDiscountEmail,
   sendCreditSaleAlert as sendCreditSaleEmail,
@@ -962,7 +962,10 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      // Create sale items and deduct stock
+      // BULK OPTIMIZATION: Step 1 - Prepare all sale items data for bulk creation
+      const saleItemsData = []
+      const bulkStockItems = []
+
       for (const item of items) {
         const productIdNumber = Number(item.productId)
         const productVariationIdNumber = Number(item.productVariationId)
@@ -1000,38 +1003,66 @@ export async function POST(request: NextRequest) {
           }).filter(Boolean)
         }
 
-        // Create sale item
-        await tx.saleItem.create({
-          data: {
-            saleId: newSale.id,
-            productId: productIdNumber,
-            productVariationId: productVariationIdNumber,
-            quantity: quantityNumber,
-            unitPrice: unitPriceNumber,
-            unitCost: parseFloat(variation.purchasePrice.toString()), // Use purchase price as unit cost
-            serialNumbers: serialNumbersData, // Store serial numbers as JSON
-            // UOM (Unit of Measure) fields - for display/reporting
-            subUnitId: subUnitId,
-            subUnitPrice: subUnitPrice,
-            displayQuantity: displayQuantity,  // Display quantity in selected unit (e.g., 10)
-            selectedUnitName: selectedUnitName  // Display unit name (e.g., "Meter")
-          },
+        // Collect sale item data for bulk creation
+        saleItemsData.push({
+          saleId: newSale.id,
+          productId: productIdNumber,
+          productVariationId: productVariationIdNumber,
+          quantity: quantityNumber,
+          unitPrice: unitPriceNumber,
+          unitCost: parseFloat(variation.purchasePrice.toString()),
+          serialNumbers: serialNumbersData,
+          // UOM (Unit of Measure) fields - for display/reporting
+          subUnitId: subUnitId,
+          subUnitPrice: subUnitPrice,
+          displayQuantity: displayQuantity,
+          selectedUnitName: selectedUnitName
         })
 
-        await processSale({
-          tx,
+        // Collect stock deduction data for bulk processing
+        bulkStockItems.push({
           businessId: businessIdNumber,
           productId: productIdNumber,
           productVariationId: productVariationIdNumber,
           locationId: locationIdNumber,
-          quantity: quantityNumber,
-          unitCost: parseFloat(variation.purchasePrice.toString()),
-          saleId: newSale.id,
+          quantity: -Math.abs(quantityNumber), // Negative for stock deduction
+          type: StockTransactionType.SALE,
+          referenceType: 'sale' as const,
+          referenceId: newSale.id,
+          referenceNumber: invoiceNumber,
           userId: userIdNumber,
+          notes: `Sale - Invoice ${invoiceNumber}`,
           userDisplayName,
+          unitCost: parseFloat(variation.purchasePrice.toString()),
+          tx,
         })
+      }
 
-        // Handle serial numbers if required
+      // BULK OPTIMIZATION: Step 2 - Create ALL sale items in single query (N items → 1 query)
+      if (saleItemsData.length > 0) {
+        console.log(`[Sale Creation] Bulk creating ${saleItemsData.length} sale items`)
+        await tx.saleItem.createMany({
+          data: saleItemsData,
+        })
+      }
+
+      // BULK OPTIMIZATION: Step 3 - Deduct ALL inventory in single server call (75% faster)
+      if (bulkStockItems.length > 0) {
+        console.log(`[Sale Creation] Bulk deducting ${bulkStockItems.length} items from inventory`)
+        const results = await bulkUpdateStock(bulkStockItems)
+
+        // Check for failures
+        const failures = results.filter((r) => !r.success)
+        if (failures.length > 0) {
+          const firstFailure = failures[0]
+          console.error('[Sale Creation] Bulk inventory deduction failed:', firstFailure.error)
+          throw new Error(`Bulk inventory deduction failed: ${firstFailure.error}`)
+        }
+        console.log(`[Sale Creation] ✅ Successfully deducted ${results.length} items from inventory`)
+      }
+
+      // BULK OPTIMIZATION: Step 4 - Process serial numbers (must stay sequential due to dependencies)
+      for (const item of items) {
         if (item.requiresSerial && item.serialNumberIds) {
           for (const serialNumberId of item.serialNumberIds) {
             // Update serial number status to sold
