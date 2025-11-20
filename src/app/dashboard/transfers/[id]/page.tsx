@@ -1739,7 +1739,7 @@ export default function TransferDetailPage() {
                     This action will:
                   </div>
                   <ul className="text-sm text-amber-800 dark:text-amber-300 space-y-2">
-                    <li>✓ Deduct stock from origin location ({transfer?.fromLocation.name})</li>
+                    <li>✓ Deduct stock from origin location{transfer?.fromLocationName ? ` (${transfer.fromLocationName})` : ''}</li>
                     <li>✓ Update inventory ledgers permanently</li>
                     <li>✓ Change transfer status to &quot;In Transit&quot;</li>
                   </ul>
