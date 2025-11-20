@@ -171,14 +171,18 @@ export async function POST(
         const productId = item.productId
         const variationId = item.productVariationId
 
-        // CRITICAL FIX: In simplified workflow, receivedQuantity might be 0 (not set during verification)
-        // Use original quantity if receivedQuantity is 0 or null
-        const receivedQtyValue = item.receivedQuantity
+        // CRITICAL FIX: Properly handle NULL vs 0 vs missing receivedQuantity
+        // If receivedQuantity is NULL/undefined, use original quantity
+        // If receivedQuantity is 0, also use original quantity (user didn't set it during verification)
+        const receivedQtyValue = item.receivedQuantity != null
           ? parseFloat(item.receivedQuantity.toString())
-          : 0
-        const receivedQty = receivedQtyValue > 0
+          : null
+
+        const receivedQty = (receivedQtyValue != null && receivedQtyValue > 0)
           ? receivedQtyValue
           : parseFloat(item.quantity.toString())
+
+        console.log(`[Transfer Complete] Item ${item.id}: receivedQuantity=${item.receivedQuantity}, calculated receivedQty=${receivedQty}, original quantity=${item.quantity}`)
 
         // Get or create stock record at destination
         let destStock = await tx.variationLocationDetails.findFirst({

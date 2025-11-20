@@ -296,9 +296,16 @@ async function processTransferComplete(job: any) {
         // BULK OPTIMIZATION STEP 2: Process all inventory additions in single function call
         // Prepare bulk update parameters
         const bulkItems = batch.map((item) => {
-          const receivedQty = item.receivedQuantity
+          // CRITICAL FIX: Properly handle NULL vs 0 vs missing receivedQuantity
+          const receivedQtyValue = item.receivedQuantity != null
             ? parseFloat(item.receivedQuantity.toString())
+            : null
+
+          const receivedQty = (receivedQtyValue != null && receivedQtyValue > 0)
+            ? receivedQtyValue
             : parseFloat(item.quantity.toString())
+
+          console.log(`[Job Processor Transfer] Item ${item.id}: receivedQuantity=${item.receivedQuantity}, calculated receivedQty=${receivedQty}, original quantity=${item.quantity}`)
 
           return {
             businessId: job.businessId,
