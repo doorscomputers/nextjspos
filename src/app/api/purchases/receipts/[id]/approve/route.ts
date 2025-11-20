@@ -389,7 +389,48 @@ export async function POST(
         console.log(`[Purchase Approval] ✅ Successfully added ${results.length} items to inventory`)
       }
 
-      // BULK OPTIMIZATION: Step 2 - Process serial numbers, warranties, and costs
+      // BULK OPTIMIZATION: Step 2A - Batch fetch ALL product variations (saves N queries)
+      const variationIds = receipt.items
+        .filter((item) => itemsMap.has(item.id))
+        .map((item) => item.productVariationId)
+
+      const productVariations = await tx.productVariation.findMany({
+        where: { id: { in: variationIds } },
+        select: {
+          id: true,
+          purchasePrice: true,
+          warrantyId: true,
+          warranty: {
+            select: {
+              duration: true,
+              durationType: true,
+            },
+          },
+        },
+      })
+
+      // Create variation lookup map
+      const variationMap = new Map(productVariations.map((v) => [v.id, v]))
+
+      // BULK OPTIMIZATION: Step 2B - Batch fetch ALL stock data for weighted average calculation
+      const stockData = await tx.variationLocationDetails.findMany({
+        where: { productVariationId: { in: variationIds } },
+        select: {
+          productVariationId: true,
+          qtyAvailable: true,
+        },
+      })
+
+      // Group stock by variation ID for quick lookup
+      const stockByVariation = new Map<number, typeof stockData>()
+      for (const stock of stockData) {
+        if (!stockByVariation.has(stock.productVariationId)) {
+          stockByVariation.set(stock.productVariationId, [])
+        }
+        stockByVariation.get(stock.productVariationId)!.push(stock)
+      }
+
+      // BULK OPTIMIZATION: Step 2C - Process serial numbers, warranties, and costs
       // These operations have dependencies and must be sequential
       for (const item of receipt.items) {
         const itemData = itemsMap.get(item.id)
@@ -397,20 +438,8 @@ export async function POST(
 
         const { purchaseItem, quantity, unitCost } = itemData
 
-        // Get product variation with warranty info FIRST (needed for serial numbers)
-        const productVariation = await tx.productVariation.findUnique({
-          where: { id: item.productVariationId },
-          select: {
-            purchasePrice: true,
-            warrantyId: true,
-            warranty: {
-              select: {
-                duration: true,
-                durationType: true,
-              },
-            },
-          },
-        })
+        // Get product variation from cached map (no query!)
+        const productVariation = variationMap.get(item.productVariationId)
 
         // Calculate warranty dates based on product warranty configuration
         let warrantyStartDate: Date | null = null
@@ -497,15 +526,8 @@ export async function POST(
 
         // Update product variation purchase price (weighted average costing)
         if (productVariation) {
-          // Get current total stock across all locations
-          const stockAcrossLocations = await tx.variationLocationDetails.findMany({
-            where: {
-              productVariationId: item.productVariationId,
-            },
-            select: {
-              qtyAvailable: true,
-            },
-          })
+          // Get current total stock from cached map (no query!)
+          const stockAcrossLocations = stockByVariation.get(item.productVariationId) || []
 
           const currentTotalStock = stockAcrossLocations.reduce(
             (sum, stock) => sum + parseFloat(stock.qtyAvailable.toString()),
