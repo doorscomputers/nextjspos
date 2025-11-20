@@ -1779,6 +1779,49 @@ export default function POSEnhancedPage() {
     PERMISSIONS.FREEBIE_ADD
   ) : false
 
+  // 🧪 TEST FUNCTION: Add random items to cart for testing bulk sales
+  const addRandomItemsToCart = () => {
+    if (products.length === 0) {
+      setError('No products available. Please wait for products to load.')
+      setTimeout(() => setError(''), 3000)
+      return
+    }
+
+    // Get products with stock at current location
+    const availableProducts = products.filter(product => {
+      const variation = product.variations?.[0]
+      if (!variation) return false
+
+      const locationStock = variation.variationLocationDetails?.find(
+        (vl: any) => vl.locationId === currentShift?.locationId
+      )
+      return locationStock && parseFloat(locationStock.qtyAvailable) > 0
+    })
+
+    if (availableProducts.length === 0) {
+      setError('No products with stock available at this location')
+      setTimeout(() => setError(''), 3000)
+      return
+    }
+
+    // Randomly select 20-25 items
+    const itemCount = 20 + Math.floor(Math.random() * 6) // Random number between 20-25
+    const selectedProducts = []
+
+    for (let i = 0; i < Math.min(itemCount, availableProducts.length); i++) {
+      const randomIndex = Math.floor(Math.random() * availableProducts.length)
+      selectedProducts.push(availableProducts[randomIndex])
+    }
+
+    // Add each selected product to cart
+    console.log(`[TEST] Adding ${selectedProducts.length} random items to cart`)
+    selectedProducts.forEach(product => {
+      addToCart(product, false)
+    })
+
+    console.log(`[TEST] Successfully added ${selectedProducts.length} items to cart`)
+  }
+
   // Check if user has location assignments
   if (!locationsLoading && !isLocationUser) {
     return (
@@ -1996,6 +2039,14 @@ export default function POSEnhancedPage() {
           </div>
 
           {/* Compact Action Buttons */}
+          {/* 🧪 TEST BUTTON: Add random items to cart */}
+          <Button
+            onClick={addRandomItemsToCart}
+            className="h-12 px-3 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold"
+            title="Add 20-25 random items to cart for testing"
+          >
+            🧪 Test
+          </Button>
           <Button
             onClick={() => window.open('/dashboard/readings/x-reading', '_blank')}
             className="h-12 px-4 bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
