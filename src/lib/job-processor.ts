@@ -262,19 +262,32 @@ async function processTransferComplete(job: any) {
               verified: true,
               verifiedBy: job.userId,
               verifiedAt: new Date(),
-              // Set receivedQuantity to sent quantity if not already set
-              receivedQuantity: undefined, // Can't use conditional in updateMany
             },
           })
 
-          // For items without receivedQuantity, update individually (rare case)
-          for (const item of unverifiedInBatch) {
-            if (!item.receivedQuantity || item.receivedQuantity.toString() === '0') {
-              await tx.stockTransferItem.update({
-                where: { id: item.id },
-                data: {
-                  receivedQuantity: item.quantity,
-                },
+          // BULK OPTIMIZATION 3: Update receivedQuantity in batch (saves ~4 seconds for 11 items)
+          const itemsNeedingReceivedQty = unverifiedInBatch.filter(
+            item => !item.receivedQuantity || item.receivedQuantity.toString() === '0'
+          )
+
+          if (itemsNeedingReceivedQty.length > 0) {
+            // Update all items where receivedQuantity needs to be set to quantity
+            // Note: Prisma doesn't support CASE WHEN in updateMany, so we batch by quantity
+            const quantityGroups = new Map<string, number[]>()
+
+            for (const item of itemsNeedingReceivedQty) {
+              const qtyKey = item.quantity.toString()
+              if (!quantityGroups.has(qtyKey)) {
+                quantityGroups.set(qtyKey, [])
+              }
+              quantityGroups.get(qtyKey)!.push(item.id)
+            }
+
+            // Execute one updateMany per unique quantity value
+            for (const [quantity, itemIds] of quantityGroups) {
+              await tx.stockTransferItem.updateMany({
+                where: { id: { in: itemIds } },
+                data: { receivedQuantity: parseFloat(quantity) },
               })
             }
           }

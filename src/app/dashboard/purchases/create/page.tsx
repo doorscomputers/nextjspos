@@ -12,7 +12,8 @@ import {
   PlusIcon,
   TrashIcon,
   MagnifyingGlassIcon,
-  XMarkIcon
+  XMarkIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -121,9 +122,18 @@ export default function CreatePurchaseOrderPage() {
   const [notes, setNotes] = useState('')
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
+  // INSTANT SEARCH: Load all products once (POS pattern - client-side filtering)
+  const [allProducts, setAllProducts] = useState<Product[]>([])
+  const [loadingProducts, setLoadingProducts] = useState(true)
+
   // Product search method state
   useEffect(() => {
     fetchData()
+  }, [])
+
+  // Load ALL products ONCE on mount (same endpoint as POS and Transfers)
+  useEffect(() => {
+    fetchAllProducts()
   }, [])
 
   const fetchData = async () => {
@@ -153,6 +163,120 @@ export default function CreatePurchaseOrderPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // INSTANT SEARCH: Load ALL products once (EXACT POS PATTERN for instant search)
+  const fetchAllProducts = async () => {
+    try {
+      setLoadingProducts(true)
+      console.log('🚀 [PURCHASE AUTO-POPULATE] Loading ALL products... (like POS)')
+
+      // Use SAME endpoint as POS: /api/products?limit=10000&status=active
+      const response = await fetch('/api/products?limit=10000&status=active')
+      const data = await response.json()
+
+      console.log(`📦 Fetched ${data.products?.length || 0} total products`)
+
+      if (data.products) {
+        // For purchases, we need all products (no stock filtering needed)
+        const productsWithVariations = data.products
+          .filter((p: any) => p.variations && p.variations.length > 0)
+          .sort((a: any, b: any) => a.name.localeCompare(b.name))
+
+        console.log(`✅ [PURCHASE AUTO-POPULATE] ${productsWithVariations.length} products loaded`)
+        setAllProducts(productsWithVariations)
+      } else {
+        setAllProducts([])
+      }
+    } catch (error) {
+      console.error('❌ Error loading products:', error)
+      toast.error('Failed to load products for auto-populate')
+      setAllProducts([])
+    } finally {
+      setLoadingProducts(false)
+    }
+  }
+
+  const handleAutoPopulate = async () => {
+    if (items.length > 0) {
+      toast.warning('Please clear current items before auto-populating')
+      return
+    }
+
+    if (allProducts.length === 0) {
+      toast.error('No products available. Please wait for products to load.')
+      return
+    }
+
+    // Flatten all variations (already filtered with variations!)
+    const availableVariations = allProducts.flatMap(product =>
+      product.variations.map(variation => ({
+        product,
+        variation
+      }))
+    )
+
+    if (availableVariations.length === 0) {
+      toast.error('No product variations available')
+      return
+    }
+
+    // Shuffle array randomly (Fisher-Yates algorithm)
+    const shuffled = [...availableVariations]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+
+    // Take first 70 (or less if not enough products)
+    const selected = shuffled.slice(0, Math.min(70, shuffled.length))
+
+    // Fetch unit prices for all selected variations in parallel
+    const itemsPromises = selected.map(async ({ product, variation }) => {
+      let unitPrices: UnitPrice[] = []
+      let primaryUnitPrice = variation.defaultPurchasePrice || 0
+      let primaryUnitId: number | null = null
+
+      // Try to get unit prices
+      try {
+        const response = await fetch(`/api/products/${product.id}/unit-prices`)
+        if (response.ok) {
+          const data = await response.json()
+          unitPrices = data.prices || []
+
+          // Find PRIMARY unit (first unit is always primary)
+          if (unitPrices.length > 0) {
+            const primaryUnit = unitPrices[0]
+            primaryUnitId = primaryUnit.unitId
+            primaryUnitPrice = parseFloat(primaryUnit.purchasePrice)
+          }
+        }
+      } catch (error) {
+        console.error(`Error fetching unit prices for ${product.name}:`, error)
+      }
+
+      // Random quantity between 1 and 50
+      const randomQty = Math.floor(Math.random() * 50) + 1
+
+      return {
+        productId: product.id,
+        productVariationId: variation.id,
+        productName: product.name,
+        variationName: variation.name,
+        sku: variation.sku,
+        quantity: randomQty,
+        unitCost: primaryUnitPrice,
+        requiresSerial: variation.enableSerialNumber || false,
+        subUnitId: primaryUnitId,
+        unitPrices
+      }
+    })
+
+    // Wait for all unit prices to be fetched
+    const newItems = await Promise.all(itemsPromises)
+
+    setItems(newItems)
+    toast.success(`✨ Auto-populated ${newItems.length} items with random quantities!`)
   }
 
   // Filter suppliers by search term (CONTAINS operator)
@@ -601,7 +725,50 @@ export default function CreatePurchaseOrderPage() {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Add Products</h2>
 
-          <div>
+          <div className="space-y-4">
+            {/* AUTO-POPULATE BUTTON */}
+            <div className="flex items-center gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="default"
+                onClick={handleAutoPopulate}
+                disabled={loadingProducts || allProducts.length === 0 || items.length > 0}
+                className="gap-2 hover:border-purple-500 hover:text-purple-700 dark:hover:text-purple-400 transition-colors"
+              >
+                <SparklesIcon className="h-5 w-5" />
+                Auto-populate 70 Items
+              </Button>
+
+              {items.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setItems([])
+                    toast.info('All items cleared')
+                  }}
+                  className="gap-2 hover:border-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors"
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                  Clear All
+                </Button>
+              )}
+
+              {items.length > 0 && (
+                <span className="text-xs text-amber-600 dark:text-amber-400">
+                  Clear items to use auto-populate
+                </span>
+              )}
+
+              {loadingProducts && (
+                <span className="text-xs text-blue-600 dark:text-blue-400">
+                  Loading products...
+                </span>
+              )}
+            </div>
+
             {/* Unified Product Search (POS-style: Single fast search field) */}
             <UnifiedProductSearch
               onProductSelect={handleProductSelect}
