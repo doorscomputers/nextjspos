@@ -1092,18 +1092,20 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Create sale payments (only for non-credit sales)
+      // BULK OPTIMIZATION: Create sale payments (only for non-credit sales)
       if (!isCreditSale && payments && payments.length > 0) {
-        for (const payment of payments) {
-          await tx.salePayment.create({
-            data: {
-              saleId: newSale.id,
-              paymentMethod: payment.method,
-              amount: parseFloat(payment.amount),
-              referenceNumber: payment.reference,
-            },
-          })
-        }
+        console.log(`[Sale Creation] Bulk creating ${payments.length} payment records`)
+        const paymentData = payments.map(payment => ({
+          saleId: newSale.id,
+          paymentMethod: payment.method,
+          amount: parseFloat(payment.amount),
+          referenceNumber: payment.reference,
+        }))
+
+        await tx.salePayment.createMany({
+          data: paymentData,
+        })
+        console.log(`[Sale Creation] ✅ Successfully created ${payments.length} payment records`)
       } else if (isCreditSale) {
         // For credit sales, create AR placeholder showing total unpaid amount
         await tx.salePayment.create({
