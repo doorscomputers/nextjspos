@@ -82,8 +82,7 @@ BEGIN
 
             UPDATE variation_location_details
             SET
-                qty_available = v_new_qty,
-                updated_at = NOW()
+                qty_available = v_new_qty
             WHERE id = v_dest_stock_id;
 
             RAISE NOTICE '  → Updated stock record: ID %, Old Qty: %, New Qty: %',
@@ -104,8 +103,7 @@ BEGIN
             UPDATE stock_transactions
             SET
                 quantity = v_received_qty,
-                balance_qty = v_new_qty,
-                updated_at = NOW()
+                balance_qty = v_new_qty
             WHERE reference_type = 'stock_transfer'
                 AND reference_id = v_transfer_id
                 AND product_variation_id = v_item.product_variation_id
