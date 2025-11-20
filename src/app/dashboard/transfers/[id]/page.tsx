@@ -1717,21 +1717,45 @@ export default function TransferDetailPage() {
 
       {/* Send Transfer Confirmation Dialog */}
       <AlertDialog open={showSendConfirm} onOpenChange={setShowSendConfirm}>
-        <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
+        <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 max-w-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-gray-900 dark:text-white">Confirm Send Transfer</AlertDialogTitle>
+            <AlertDialogTitle className="text-gray-900 dark:text-white text-xl">
+              ⚠️ FINAL CONFIRMATION - Send Transfer
+            </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-gray-600 dark:text-gray-400">
-                <div className="text-base">
-                  Are you sure you want to send this transfer?
+                <div className="text-base font-semibold text-gray-900 dark:text-white">
+                  You are about to SEND this transfer and DEDUCT INVENTORY from the origin location.
                 </div>
-                <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-4">
-                  <div className="font-semibold text-amber-900 dark:text-amber-200 mb-2">
-                    ⚠️ Important: Stock will be deducted
+
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                  <div className="text-sm text-blue-800 dark:text-blue-300">
+                    <strong>Total items:</strong> {transfer?.items.length || 0}
                   </div>
-                  <div className="text-sm text-amber-800 dark:text-amber-300">
-                    Stock will be immediately deducted from the origin location. This action affects inventory levels.
+                </div>
+
+                <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-300 dark:border-amber-700 rounded-lg p-4">
+                  <div className="font-bold text-amber-900 dark:text-amber-200 mb-3">
+                    This action will:
                   </div>
+                  <ul className="text-sm text-amber-800 dark:text-amber-300 space-y-2">
+                    <li>✓ Deduct stock from origin location ({transfer?.fromLocation.name})</li>
+                    <li>✓ Update inventory ledgers permanently</li>
+                    <li>✓ Change transfer status to &quot;In Transit&quot;</li>
+                  </ul>
+                </div>
+
+                <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-300 dark:border-red-700 rounded-lg p-4">
+                  <div className="font-bold text-red-900 dark:text-red-200 mb-2">
+                    ⚠️ WARNING
+                  </div>
+                  <div className="text-sm text-red-800 dark:text-red-300">
+                    Stock will be IMMEDIATELY deducted from your inventory. Make sure all quantities are correct before proceeding. This action cannot be undone easily.
+                  </div>
+                </div>
+
+                <div className="text-base font-semibold text-gray-900 dark:text-white mt-4">
+                  Are you absolutely sure you want to send this transfer?
                 </div>
               </div>
             </AlertDialogDescription>
