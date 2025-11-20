@@ -65,10 +65,10 @@ export async function POST(
       return NextResponse.json({ error: 'Transfer not found' }, { status: 404 })
     }
 
-    // Validate status
-    if (transfer.status !== 'verifying') {
+    // Validate status - allow verification from in_transit (simplified workflow) or verifying (old workflow)
+    if (!['in_transit', 'verifying', 'arrived'].includes(transfer.status)) {
       return NextResponse.json(
-        { error: `Cannot verify items with status: ${transfer.status}. Status must be 'verifying'.` },
+        { error: `Cannot verify items with status: ${transfer.status}. Status must be 'in_transit', 'arrived', or 'verifying'.` },
         { status: 400 }
       )
     }
