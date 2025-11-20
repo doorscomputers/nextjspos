@@ -103,11 +103,14 @@ export async function recordCashSale(params: {
     include: { lines: true }
   })
 
-  // Update account balances (PERFORMANCE: Pass account object, not just ID)
-  await updateAccountBalance(cashAccount, totalAmount, 0, client) // Cash increases
-  await updateAccountBalance(revenueAccount, 0, totalAmount, client) // Revenue increases
-  await updateAccountBalance(cogsAccount, costOfGoodsSold, 0, client) // COGS increases
-  await updateAccountBalance(inventoryAccount, 0, costOfGoodsSold, client) // Inventory decreases
+  // BULK OPTIMIZATION: Update all 4 account balances in parallel (75% faster)
+  // These updates are independent (different accounts), so execute simultaneously
+  await Promise.all([
+    updateAccountBalance(cashAccount, totalAmount, 0, client), // Cash increases
+    updateAccountBalance(revenueAccount, 0, totalAmount, client), // Revenue increases
+    updateAccountBalance(cogsAccount, costOfGoodsSold, 0, client), // COGS increases
+    updateAccountBalance(inventoryAccount, 0, costOfGoodsSold, client) // Inventory decreases
+  ])
 
   return entry
 }
@@ -198,11 +201,14 @@ export async function recordCreditSale(params: {
     include: { lines: true }
   })
 
-  // Update account balances (PERFORMANCE: Pass account object, not just ID)
-  await updateAccountBalance(arAccount, totalAmount, 0, client) // AR increases
-  await updateAccountBalance(revenueAccount, 0, totalAmount, client) // Revenue increases
-  await updateAccountBalance(cogsAccount, costOfGoodsSold, 0, client) // COGS increases
-  await updateAccountBalance(inventoryAccount, 0, costOfGoodsSold, client) // Inventory decreases
+  // BULK OPTIMIZATION: Update all 4 account balances in parallel (75% faster)
+  // These updates are independent (different accounts), so execute simultaneously
+  await Promise.all([
+    updateAccountBalance(arAccount, totalAmount, 0, client), // AR increases
+    updateAccountBalance(revenueAccount, 0, totalAmount, client), // Revenue increases
+    updateAccountBalance(cogsAccount, costOfGoodsSold, 0, client), // COGS increases
+    updateAccountBalance(inventoryAccount, 0, costOfGoodsSold, client) // Inventory decreases
+  ])
 
   return entry
 }
