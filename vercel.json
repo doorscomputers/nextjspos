@@ -25,6 +25,12 @@
     "src/app/api/purchases/route.ts": {
       "maxDuration": 60
     },
+    "src/app/api/transfers/*/send-async/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/transfers/*/complete-async/route.ts": {
+      "maxDuration": 60
+    },
     "src/app/api/transfers/*/send/route.ts": {
       "maxDuration": 60
     },
