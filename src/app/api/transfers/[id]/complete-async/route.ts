@@ -88,11 +88,19 @@ export async function POST(
       `✅ Transfer complete job created: ${job.id} for transfer ${transfer.transferNumber} (${transfer.items.length} items)`
     )
 
-    // Job will be processed by the cron worker (/api/cron/process-jobs)
-    // Cron runs every minute, so processing starts within 60 seconds
-    // This ensures the API response returns immediately without blocking
+    // HYBRID APPROACH: Try immediate processing (fire-and-forget)
+    // If this fails or takes too long, the cron will pick it up
+    Promise.resolve().then(async () => {
+      try {
+        const { processJob } = await import('@/lib/job-processor')
+        await processJob(job)
+      } catch (error) {
+        console.error(`[Job ${job.id}] Immediate processing failed:`, error)
+        // Error logged, cron will retry
+      }
+    })
 
-    // Return immediately with job ID
+    // Return immediately with job ID (don't await the promise above)
     return NextResponse.json(
       {
         jobId: job.id,
