@@ -466,30 +466,15 @@ export default function TransferDetailPage() {
   const handleCompleteConfirmed = async () => {
     setShowCompleteConfirm(false)
     setShowReceiveProgress(true)
-    setReceiveProgressStep(1) // Step 1: Auto-verifying all items
+    setReceiveProgressStep(1) // Single step: Auto-verify and add stock
     setReceiveJobProgress(0)
     setReceiveJobTotal(transfer?.items.length || 0)
 
     try {
-      // Step 1: Auto-verify all items first (if not already verified)
-      const hasUnverifiedItems = transfer?.items.some(item => !item.verified)
-      if (hasUnverifiedItems) {
-        console.log('Auto-verifying all items before completing...')
-        const verifyResponse = await fetch(`/api/transfers/${transferId}/verify-all`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({})
-        })
+      // OPTIMIZED: Create async job for completing (auto-verification happens in the job)
+      // This eliminates 1-2 minutes of sequential verification API calls
+      console.log('Creating async job for transfer completion (with auto-verification)...')
 
-        if (!verifyResponse.ok) {
-          const error = await verifyResponse.json()
-          throw new Error(error.error || 'Failed to auto-verify items')
-        }
-
-        console.log('✅ All items auto-verified')
-      }
-
-      // Step 2: Create async job for completing
       const response = await fetch(`/api/transfers/${transferId}/complete-async`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -504,9 +489,8 @@ export default function TransferDetailPage() {
       const { jobId, itemCount } = await response.json()
       setReceiveJobId(jobId)
       setReceiveJobTotal(itemCount)
-      setReceiveProgressStep(2) // Step 2: Adding stock to destination
 
-      console.log(`✅ Receive job created: ${jobId} for ${itemCount} items`)
+      console.log(`✅ Receive job created: ${jobId} for ${itemCount} items (includes auto-verification)`)
 
       // Step 2: Poll for job status
       const pollInterval = setInterval(async () => {

@@ -246,7 +246,41 @@ async function processTransferComplete(job: any) {
 
     await prisma.$transaction(
       async (tx) => {
-        // BULK OPTIMIZATION: Process all items in batch with single function call
+        // BULK OPTIMIZATION STEP 1: Auto-verify all unverified items in this batch (single query)
+        const batchItemIds = batch.map(item => item.id)
+        const unverifiedInBatch = batch.filter(item => !item.verified)
+
+        if (unverifiedInBatch.length > 0) {
+          console.log(`[Job ${job.id}] Auto-verifying ${unverifiedInBatch.length} items in batch`)
+
+          await tx.stockTransferItem.updateMany({
+            where: {
+              id: { in: unverifiedInBatch.map(item => item.id) },
+              verified: false, // Only update unverified items
+            },
+            data: {
+              verified: true,
+              verifiedBy: job.userId,
+              verifiedAt: new Date(),
+              // Set receivedQuantity to sent quantity if not already set
+              receivedQuantity: undefined, // Can't use conditional in updateMany
+            },
+          })
+
+          // For items without receivedQuantity, update individually (rare case)
+          for (const item of unverifiedInBatch) {
+            if (!item.receivedQuantity || item.receivedQuantity.toString() === '0') {
+              await tx.stockTransferItem.update({
+                where: { id: item.id },
+                data: {
+                  receivedQuantity: item.quantity,
+                },
+              })
+            }
+          }
+        }
+
+        // BULK OPTIMIZATION STEP 2: Process all inventory additions in single function call
         // Prepare bulk update parameters
         const bulkItems = batch.map((item) => {
           const receivedQty = item.receivedQuantity
