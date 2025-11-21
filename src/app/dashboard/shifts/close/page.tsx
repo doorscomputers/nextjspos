@@ -114,7 +114,7 @@ export default function CloseShiftPage() {
       // Add timeout to prevent hanging on old/large shifts
       // INCREASED TIMEOUT: For Supabase/cloud DBs with network latency + old shifts with many transactions (11+ hours)
       const xController = new AbortController()
-      const xTimeout = setTimeout(() => xController.abort(), 300000) // 300 seconds (5 minutes) timeout for long shifts
+      const xTimeout = setTimeout(() => xController.abort(), 600000) // 600 seconds (10 minutes) timeout for very long shifts (13+ hours)
 
       try {
         const xRes = await fetch(`/api/readings/x-reading?shiftId=${shift.id}`, {
@@ -132,7 +132,7 @@ export default function CloseShiftPage() {
       } catch (err: any) {
         clearTimeout(xTimeout)
         if (err.name === 'AbortError') {
-          throw new Error('X Reading timed out after 5 minutes. This shift may have too many transactions. Please use Force-Close or contact support.')
+          throw new Error('X Reading timed out after 10 minutes. This shift may have too many transactions. Please use Force-Close or contact support.')
         }
         throw err
       }
@@ -142,7 +142,7 @@ export default function CloseShiftPage() {
       let systemCash = 0
 
       const zController = new AbortController()
-      const zTimeout = setTimeout(() => zController.abort(), 300000) // 300 seconds (5 minutes) timeout for long shifts
+      const zTimeout = setTimeout(() => zController.abort(), 600000) // 600 seconds (10 minutes) timeout for very long shifts (13+ hours)
 
       try {
         const zRes = await fetch(`/api/readings/z-reading?shiftId=${shift.id}`, {
