@@ -347,23 +347,28 @@ async function generateXReadingFromRunningTotals(
     withdrawalAmount: cashOut,
   }
 
-  // Record reading log if incrementing
+  // Record reading log if incrementing (optional - non-critical)
   if (incrementCounter) {
-    await recordShiftReadingLog({
-      shiftId: shift.id,
-      businessId: shift.businessId,
-      locationId: shift.locationId,
-      userId: shift.userId,
-      type: 'X',
-      readingNumber,
-      readingTime: readingTimestamp,
-      grossSales: xReadingData.grossSales,
-      netSales: xReadingData.netSales,
-      totalDiscounts: xReadingData.totalDiscounts,
-      expectedCash: xReadingData.expectedCash,
-      transactionCount: xReadingData.transactionCount,
-      payload: xReadingData,
-    })
+    try {
+      await recordShiftReadingLog({
+        shiftId: shift.id,
+        businessId: shift.businessId,
+        locationId: shift.locationId,
+        userId: shift.userId,
+        type: 'X',
+        readingNumber,
+        readingTime: readingTimestamp,
+        grossSales: xReadingData.grossSales,
+        netSales: xReadingData.netSales,
+        totalDiscounts: xReadingData.totalDiscounts,
+        expectedCash: xReadingData.expectedCash,
+        transactionCount: xReadingData.transactionCount,
+        payload: xReadingData,
+      })
+    } catch (error: any) {
+      // Non-critical: Reading log table may not exist yet
+      console.warn('[X Reading] Failed to save reading log (non-critical):', error.message)
+    }
   }
 
   return xReadingData
@@ -553,23 +558,28 @@ async function generateZReadingFromRunningTotals(
     },
   }
 
-  // Record Z reading log if incrementing
+  // Record Z reading log if incrementing (optional - non-critical)
   if (incrementCounter) {
-    await recordShiftReadingLog({
-      shiftId: shift.id,
-      businessId: shift.businessId,
-      locationId: shift.locationId,
-      userId: shift.userId,
-      type: 'Z',
-      readingNumber: zReadingNumber,
-      readingTime: new Date(),
-      grossSales: xReadingData.grossSales,
-      netSales: xReadingData.netSales,
-      totalDiscounts: xReadingData.totalDiscounts,
-      expectedCash: xReadingData.expectedCash,
-      transactionCount: xReadingData.transactionCount,
-      payload: zReadingData,
-    })
+    try {
+      await recordShiftReadingLog({
+        shiftId: shift.id,
+        businessId: shift.businessId,
+        locationId: shift.locationId,
+        userId: shift.userId,
+        type: 'Z',
+        readingNumber: zReadingNumber,
+        readingTime: new Date(),
+        grossSales: xReadingData.grossSales,
+        netSales: xReadingData.netSales,
+        totalDiscounts: xReadingData.totalDiscounts,
+        expectedCash: xReadingData.expectedCash,
+        transactionCount: xReadingData.transactionCount,
+        payload: zReadingData,
+      })
+    } catch (error: any) {
+      // Non-critical: Reading log table may not exist yet
+      console.warn('[Z Reading] Failed to save reading log (non-critical):', error.message)
+    }
   }
 
   return zReadingData
