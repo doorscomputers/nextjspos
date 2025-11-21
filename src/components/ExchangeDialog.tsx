@@ -454,7 +454,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
               <div>
                 <Label>Select Items to Return</Label>
-                <div className="mt-2 space-y-2 max-h-64 overflow-y-auto border rounded-lg p-2">
+                <div className="mt-2 space-y-2 max-h-96 overflow-y-auto border rounded-lg p-2">
                   {sale.items.map((item) => {
                     const returnItem = returnItems.find(ri => ri.saleItemId === item.id)
                     const isSelected = !!returnItem
@@ -547,7 +547,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                   )}
 
                   {searchResults.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-lg shadow-lg max-h-[500px] overflow-y-auto">
                       {searchResults.map((product) => (
                         <div
                           key={product.id}
@@ -571,7 +571,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
               {exchangeItems.length > 0 && (
                 <div>
                   <Label>Exchange Items</Label>
-                  <div className="mt-2 space-y-2 max-h-64 overflow-y-auto border rounded-lg p-2">
+                  <div className="mt-2 space-y-2 max-h-96 overflow-y-auto border rounded-lg p-2">
                     {exchangeItems.map((item, index) => (
                       <div key={index} className="flex items-center gap-3 border rounded-lg p-3">
                         <div className="flex-1">
