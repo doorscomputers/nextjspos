@@ -360,6 +360,7 @@ export async function POST(
               saleId: exchangeSale.id,
               amount: actualPayment,
               paymentMethod: paymentMethod || 'cash',
+              paymentNumber: `PAY-${exchangeNumber}`,
               paidAt: new Date(),
               createdBy: parseInt(user.id),
               notes: `Payment for exchange price difference`,
