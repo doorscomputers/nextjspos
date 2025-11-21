@@ -295,8 +295,7 @@ export async function POST(
               productVariationId: exchangeItem.productVariationId,
               quantity: parseFloat(exchangeItem.quantity),
               unitPrice: parseFloat(exchangeItem.unitPrice),
-              unitCost: 0, // Exchange items don't have cost tracking
-              lineTotal: parseFloat(exchangeItem.quantity) * parseFloat(exchangeItem.unitPrice),
+              unitCost: 0,
             },
           })
 
