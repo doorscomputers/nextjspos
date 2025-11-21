@@ -143,6 +143,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
       })))
     }
 
+    let nonMatchCount = 0
     const filtered = allProducts.filter(p => {
       // Text search filter
       const matchesSearch =
@@ -152,8 +153,9 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
       if (!matchesSearch) {
         // Debug: Show why products don't match (only first 3 non-matches to avoid spam)
-        if (filtered.length === 0 && allProducts.indexOf(p) < 3) {
+        if (nonMatchCount < 3) {
           console.log(`[Exchange Filter] Product "${p.name}" (SKU: ${p.sku}) does NOT match search "${query}"`)
+          nonMatchCount++
         }
         return false
       }
