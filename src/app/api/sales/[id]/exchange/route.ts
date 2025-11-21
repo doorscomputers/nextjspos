@@ -183,6 +183,7 @@ export async function POST(
             returnDate: new Date(),
             reason: exchangeReason,
             refundAmount: returnTotal,
+            totalRefundAmount: returnTotal, // Total refund value for the exchange
             status: 'exchanged', // Mark as exchanged, not refunded
             processedBy: parseInt(user.id),
           },
