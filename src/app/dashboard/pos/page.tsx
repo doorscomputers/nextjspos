@@ -18,6 +18,7 @@ import QuotationPrint from '@/components/QuotationPrint'
 import { apiPost, isConnectionOnline, getOfflineQueueLength } from '@/lib/client/apiClient'
 import ARPaymentCollectionModal from '@/components/ARPaymentCollectionModal'
 import POSUnitSelector from '@/components/POSUnitSelector'
+import ExchangeDialog from '@/components/ExchangeDialog'
 import { Trash2 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 
@@ -79,6 +80,7 @@ export default function POSEnhancedPage() {
   const [showDigitalPaymentDialog, setShowDigitalPaymentDialog] = useState(false)
   const [showNewCustomerDialog, setShowNewCustomerDialog] = useState(false)
   const [showCameraDialog, setShowCameraDialog] = useState(false)
+  const [showExchangeDialog, setShowExchangeDialog] = useState(false)
 
   // Serial Number State
   const [showSerialNumberDialog, setShowSerialNumberDialog] = useState(false)
@@ -95,10 +97,15 @@ export default function POSEnhancedPage() {
   const [quotations, setQuotations] = useState<any[]>([])
   const [quotationCustomerName, setQuotationCustomerName] = useState('')
   const [quotationNotes, setQuotationNotes] = useState('')
+  const [savingQuotation, setSavingQuotation] = useState(false) // Loading state for saving quotation
+  const [loadingQuotation, setLoadingQuotation] = useState(false) // Loading state for loading quotation
 
   // Hold Transaction State
   const [heldTransactions, setHeldTransactions] = useState<any[]>([])
   const [holdNote, setHoldNote] = useState('')
+
+  // Sale Remarks State
+  const [remarks, setRemarks] = useState('')
 
   // New Customer State
   const [newCustomerName, setNewCustomerName] = useState('')
@@ -329,6 +336,18 @@ export default function POSEnhancedPage() {
           return
         }
         setShowHeldTransactions(true)
+        return
+      }
+
+      // F7 - Process Exchange (blocked if cart has items)
+      if (e.key === 'F7') {
+        e.preventDefault()
+        if (cart.length > 0) {
+          setError('Complete or clear current sale first')
+          setTimeout(() => setError(''), 3000)
+          return
+        }
+        setShowExchangeDialog(true)
         return
       }
 
@@ -639,6 +658,7 @@ export default function POSEnhancedPage() {
     setPwdId('')
     setPwdName('')
     setHoldNote('')
+    setRemarks('')
     setShowHoldDialog(false)
 
     alert('Transaction held successfully!')
@@ -1281,6 +1301,9 @@ export default function POSEnhancedPage() {
     }
 
     try {
+      setSavingQuotation(true) // Start loading state
+      setError('') // Clear any previous errors
+
       const subtotal = calculateSubtotal()
       const discountAmt = calculateDiscount()
       const total = calculateTotal()
@@ -1329,6 +1352,7 @@ export default function POSEnhancedPage() {
       // Clear cart and customer
       setCart([])
       setSelectedCustomer(null)
+      setRemarks('')
 
       // Refresh quotations list
       await fetchQuotations()
@@ -1357,11 +1381,15 @@ export default function POSEnhancedPage() {
       console.error('Error saving quotation:', err)
       setError(err.message)
       // Keep dialog open on error so user can see what went wrong
+    } finally {
+      setSavingQuotation(false) // End loading state
     }
   }
 
   const handleLoadQuotation = async (quotation: any) => {
     try {
+      setLoadingQuotation(true) // Start loading state
+
       // Check stock availability first
       const res = await fetch(`/api/quotations/${quotation.id}`)
 
@@ -1382,9 +1410,11 @@ export default function POSEnhancedPage() {
 
         const message = `⚠️ STOCK AVAILABILITY WARNING\n\n${stockStatus.unavailableCount} item(s) are out of stock or have insufficient quantity:\n\n${unavailableList}\n\nDo you want to load this quotation anyway?\n\nNote: You will need to adjust quantities or remove unavailable items before completing the sale.`
 
+        setLoadingQuotation(false) // Stop loading before showing confirm
         if (!confirm(message)) {
           return // User cancelled
         }
+        setLoadingQuotation(true) // Resume loading
       }
 
       // Load the quotation into cart
@@ -1421,6 +1451,8 @@ export default function POSEnhancedPage() {
     } catch (err: any) {
       console.error('Error loading quotation:', err)
       alert(`Error loading quotation: ${err.message}`)
+    } finally {
+      setLoadingQuotation(false) // End loading state
     }
   }
 
@@ -1676,6 +1708,8 @@ export default function POSEnhancedPage() {
         freebieTotal: freebieTotal,
         // Cash tendered (for invoice display of change)
         cashTendered: cashAmount && parseFloat(cashAmount) > 0 ? parseFloat(cashAmount) : null,
+        // Remarks field
+        remarks: remarks || null,
       }
 
       // Add discount information
@@ -1727,6 +1761,7 @@ export default function POSEnhancedPage() {
       setChequeDate('')
       setSelectedCustomer(null) // Reset to Walk-in Customer
       setIsCreditSale(false)
+      setRemarks('') // Reset remarks
 
       const changeAmount = calculateChange()
 
@@ -2117,6 +2152,14 @@ export default function POSEnhancedPage() {
           >
             ▶️ Retrieve
           </Button>
+          <Button
+            onClick={() => setShowExchangeDialog(true)}
+            className="h-12 px-4 bg-orange-600 hover:bg-orange-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            title={cart.length > 0 ? "Complete or clear current sale first" : "Process Exchange (F7)"}
+            disabled={cart.length > 0}
+          >
+            🔄 Exchange
+          </Button>
         </div>
       </div>
 
@@ -2229,8 +2272,9 @@ export default function POSEnhancedPage() {
                       </Button>
                     </div>
 
-                    {/* UOM (Unit of Measure) Selector - MOVED TO TOP FOR VISIBILITY */}
-                    <div className="mt-2 pt-2 border-t-2 border-amber-300">
+                    {/* UOM (Unit of Measure) Selector - HIDDEN BY USER REQUEST */}
+                    {/* COMMENTED OUT - Can be re-enabled in the future if needed */}
+                    {/* <div className="mt-2 pt-2 border-t-2 border-amber-300">
                       <Button
                         size="sm"
                         variant="outline"
@@ -2322,7 +2366,7 @@ export default function POSEnhancedPage() {
                           </div>
                         )
                       })()}
-                    </div>
+                    </div> */}
 
                     {/* Serial Number Selection - Always show button for manual entry */}
                     <div className="mt-2 pt-2 border-t">
@@ -2578,6 +2622,21 @@ export default function POSEnhancedPage() {
               )}
             </div>
 
+            {/* Remarks Field */}
+            <div className="border-2 border-gray-300 rounded-lg p-3 bg-white">
+              <Label className="text-sm font-bold block text-gray-700 mb-2">📝 Remarks (Optional)</Label>
+              <Textarea
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                placeholder="Add any additional notes or remarks about this sale..."
+                className="min-h-[80px] text-sm border-2 border-gray-300 focus:border-blue-500"
+                maxLength={500}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {remarks.length}/500 characters
+              </p>
+            </div>
+
             {/* Payment Methods */}
             {!isCreditSale && (
               <div className="border-2 border-gray-300 rounded-lg p-3 bg-white space-y-3">
@@ -2603,9 +2662,11 @@ export default function POSEnhancedPage() {
                       <SelectValue placeholder="Select payment method" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="gcash">GCash</SelectItem>
-                      <SelectItem value="maya">Maya</SelectItem>
-                      <SelectItem value="other">Other E-Wallet</SelectItem>
+                      <SelectItem value="gcash">Gcash</SelectItem>
+                      <SelectItem value="nfc">NFC</SelectItem>
+                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="card">Card Transaction</SelectItem>
+                      <SelectItem value="other">Others</SelectItem>
                     </SelectContent>
                   </Select>
                   <Input
@@ -3095,11 +3156,16 @@ export default function POSEnhancedPage() {
             <Button
               variant="outline"
               onClick={() => setShowQuotationDialog(false)}
+              disabled={savingQuotation}
             >
               Cancel
             </Button>
-            <Button onClick={handleSaveQuotation} className="bg-purple-600">
-              Save Quotation
+            <Button
+              onClick={handleSaveQuotation}
+              disabled={savingQuotation}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              {savingQuotation ? 'Saving...' : 'Save Quotation'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -3114,6 +3180,12 @@ export default function POSEnhancedPage() {
           <DialogHeader>
             <DialogTitle>Saved Quotations</DialogTitle>
           </DialogHeader>
+          {loadingQuotation && (
+            <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-3 flex items-center gap-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+              <span className="text-sm text-blue-800 font-medium">Loading quotation...</span>
+            </div>
+          )}
           <div className="max-h-96 overflow-y-auto">
             {quotations.length === 0 ? (
               <p className="text-center text-gray-400 py-8">
@@ -3124,10 +3196,13 @@ export default function POSEnhancedPage() {
                 {quotations.map((quot: any) => (
                   <div
                     key={quot.id}
-                    className="p-4 border rounded hover:bg-gray-50"
+                    className={`p-4 border rounded ${loadingQuotation ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`}
                   >
                     <div className="flex justify-between items-start">
-                      <div className="flex-1 cursor-pointer" onClick={() => handleLoadQuotation(quot)}>
+                      <div
+                        className={`flex-1 ${loadingQuotation ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                        onClick={() => !loadingQuotation && handleLoadQuotation(quot)}
+                      >
                         <p className="font-bold">{quot.quotationNumber}</p>
                         <p className="text-sm font-medium text-gray-700">
                           {quot.customer?.name || quot.customerName || 'Walk-in Customer'}
@@ -3605,6 +3680,20 @@ export default function POSEnhancedPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Exchange Dialog */}
+      <ExchangeDialog
+        open={showExchangeDialog}
+        onClose={() => setShowExchangeDialog(false)}
+        onSuccess={(exchangeNumber) => {
+          setShowExchangeDialog(false)
+          // Optional: Print exchange invoice or show success message
+          toast({
+            title: "Exchange Complete",
+            description: `Exchange ${exchangeNumber} processed successfully`,
+          })
+        }}
+      />
     </div>
   )
 }

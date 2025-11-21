@@ -52,19 +52,18 @@ export async function GET(
     const itemsWithStock = await Promise.all(
       quotation.items.map(async (item) => {
         // Get current stock for this variation at the quotation's location
-        const productHistory = await prisma.productHistory.findFirst({
+        // FIX: Use variationLocationDetails instead of productHistory for accurate stock levels
+        const stockRecord = await prisma.variationLocationDetails.findFirst({
           where: {
-            businessId: parseInt(user.businessId),
-            locationId: quotation.locationId,
-            productId: item.productId,
             productVariationId: item.productVariationId,
-          },
-          orderBy: {
-            createdAt: 'desc',
+            locationId: quotation.locationId,
+            productVariation: {
+              businessId: parseInt(user.businessId), // Multi-tenant isolation
+            },
           },
         })
 
-        const currentStock = productHistory?.quantityAfter || 0
+        const currentStock = stockRecord ? parseFloat(stockRecord.qtyAvailable.toString()) : 0
         const requestedQty = parseFloat(item.quantity.toString())
         const isAvailable = currentStock >= requestedQty
         const shortage = isAvailable ? 0 : requestedQty - currentStock
