@@ -972,19 +972,19 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                 </div>
                 <div className="line">
                   <span className="line-label">Variance (Difference):</span>
-                  <span className="line-value">{formatCurrency(zReading.cashVariance)}</span>
+                  <span className="line-value">{formatCurrency(zReading.cashVariance ?? 0)}</span>
                 </div>
                 <div className="line total-line">
                   <span className="line-label">Status:</span>
                   <span className="line-value font-bold">
-                    {zReading.cashVariance === 0 ? '✓ Balanced' :
-                     zReading.cashVariance > 0 ? `₱${Math.abs(zReading.cashVariance).toFixed(2)} Over` :
-                     `₱${Math.abs(zReading.cashVariance).toFixed(2)} Short`}
+                    {(zReading.cashVariance ?? 0) === 0 ? '✓ Balanced' :
+                     (zReading.cashVariance ?? 0) > 0 ? `₱${Math.abs(zReading.cashVariance ?? 0).toFixed(2)} Over` :
+                     `₱${Math.abs(zReading.cashVariance ?? 0).toFixed(2)} Short`}
                   </span>
                 </div>
                 <div className="text-xs mt-2 italic text-gray-600">
                   Formula: Physical Count - System Expected = Variance<br/>
-                  {formatCurrency(zReading.endingCash)} - {formatCurrency(zReading.expectedCash)} = {formatCurrency(zReading.cashVariance)}
+                  {formatCurrency(zReading.endingCash)} - {formatCurrency(zReading.expectedCash)} = {formatCurrency(zReading.cashVariance ?? 0)}
                 </div>
               </div>
 
