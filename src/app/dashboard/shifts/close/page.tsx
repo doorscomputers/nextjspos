@@ -112,9 +112,9 @@ export default function CloseShiftPage() {
 
       // Step 2: Generate X Reading (CRITICAL for cash calculation fallback)
       // Add timeout to prevent hanging on old/large shifts
-      // INCREASED TIMEOUT: For Supabase/cloud DBs with network latency + old shifts with many transactions
+      // INCREASED TIMEOUT: For Supabase/cloud DBs with network latency + old shifts with many transactions (11+ hours)
       const xController = new AbortController()
-      const xTimeout = setTimeout(() => xController.abort(), 120000) // 120 second (2 minute) timeout
+      const xTimeout = setTimeout(() => xController.abort(), 300000) // 300 seconds (5 minutes) timeout for long shifts
 
       try {
         const xRes = await fetch(`/api/readings/x-reading?shiftId=${shift.id}`, {
@@ -132,7 +132,7 @@ export default function CloseShiftPage() {
       } catch (err: any) {
         clearTimeout(xTimeout)
         if (err.name === 'AbortError') {
-          throw new Error('X Reading timed out after 2 minutes. This shift may have too many transactions. Please use Force-Close or contact support.')
+          throw new Error('X Reading timed out after 5 minutes. This shift may have too many transactions. Please use Force-Close or contact support.')
         }
         throw err
       }
@@ -142,7 +142,7 @@ export default function CloseShiftPage() {
       let systemCash = 0
 
       const zController = new AbortController()
-      const zTimeout = setTimeout(() => zController.abort(), 120000) // 120 second (2 minute) timeout
+      const zTimeout = setTimeout(() => zController.abort(), 300000) // 300 seconds (5 minutes) timeout for long shifts
 
       try {
         const zRes = await fetch(`/api/readings/z-reading?shiftId=${shift.id}`, {
@@ -177,7 +177,7 @@ export default function CloseShiftPage() {
       } catch (err: any) {
         clearTimeout(zTimeout)
         if (err.name === 'AbortError') {
-          console.warn('⚠️ Z Reading timed out after 2 minutes, using X Reading expected cash as fallback')
+          console.warn('⚠️ Z Reading timed out after 5 minutes, using X Reading expected cash as fallback')
           // Use X Reading's expected cash as fallback
           if (xReadingData && xReadingData.expectedCash !== undefined) {
             systemCash = xReadingData.expectedCash
@@ -371,11 +371,12 @@ export default function CloseShiftPage() {
       console.error('[ShiftClose] ❌ Error during close:', err)
       setError(err.message)
       setLoading(false)
-      setShowPasswordDialog(false)
-      setManagerPassword('')
-      setRfidCode('')
-      setRfidCodeActual('')
-      setRfidVerified(false)
+      // CRITICAL FIX: Don't reset showPasswordDialog - allow user to retry without re-entering credentials
+      // Only clear password (for security), keep RFID verified if it was valid
+      if (authMethod === 'password') {
+        setManagerPassword('') // Clear password for security
+      }
+      // Don't clear RFID - it's already verified and masking makes re-entry confusing
     }
   }
 

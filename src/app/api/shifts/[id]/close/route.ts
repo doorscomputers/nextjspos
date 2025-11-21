@@ -341,7 +341,7 @@ export async function POST(
         },
       })
     }, {
-      timeout: 120000, // 120 second (2 minute) timeout for network resilience with Supabase
+      timeout: 300000, // 300 seconds (5 minutes) timeout for long shifts (11+ hours) with many transactions
     })
 
     const txElapsed = Date.now() - txStartTime
