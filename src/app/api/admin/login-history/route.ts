@@ -90,17 +90,6 @@ export async function GET(request: NextRequest) {
       loginLogs.map(async (log) => {
         const roles = log.user?.roles.map((ur) => ur.role.name).join(", ") || "N/A"
 
-        // Filter out Super Admin logins from the dashboard
-        const isSuperAdmin = log.user?.roles.some((ur) =>
-          ur.role.name === "Super Admin" ||
-          ur.role.name === "System Administrator" ||
-          ur.role.name === "All Branch Admin"
-        )
-
-        if (isSuperAdmin) {
-          return null // Exclude Super Admin logins from dashboard
-        }
-
         const metadata = log.metadata as any
         const selectedLocation = metadata?.selectedLocation || "Unknown"
         const assignedLocations = metadata?.assignedLocations || []
@@ -149,22 +138,13 @@ export async function GET(request: NextRequest) {
       })
     )
 
-    // Filter out null entries (Super Admins, location filters, etc.)
+    // Filter out null entries (location filters, etc.)
     const filteredLogs = processedLogs.filter((log) => log !== null)
 
-    // Get unique users for filter dropdown (exclude Super Admins)
+    // Get all users for filter dropdown
     const uniqueUsers = await prisma.user.findMany({
       where: {
         businessId: parseInt(String(user.businessId)),
-        roles: {
-          none: {
-            role: {
-              name: {
-                in: ["Super Admin", "System Administrator", "All Branch Admin"]
-              }
-            }
-          }
-        }
       },
       select: {
         id: true,
