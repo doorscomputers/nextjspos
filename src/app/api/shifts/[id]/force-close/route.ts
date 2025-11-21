@@ -7,12 +7,12 @@ import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 import bcrypt from 'bcryptjs'
 
 /**
- * POST /api/shifts/[id]/force-close - Admin/Manager force-close a shift
- * Used when a cashier cannot close their shift (forgot, absent, emergency)
+ * POST /api/shifts/[id]/force-close - Emergency force-close for very old shifts
+ * Used for shifts 24+ hours old that cannot be closed normally due to power outages/internet disruptions
+ * IMPORTANT: This closes the shift WITHOUT generating BIR-compliant X/Z readings
  * Body: {
- *   reason: string (required - explanation for force close)
+ *   closingNotes: string (required - min 10 chars explaining why)
  *   managerPassword: string (required - admin/manager password)
- *   autoReconcile?: boolean (default true - use system cash as ending cash)
  * }
  */
 export async function POST(
@@ -20,26 +20,31 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    console.log('[ForceClose] 🚨 Emergency force-close initiated...')
+
     const session = await getServerSession(authOptions)
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Check if user has SHIFT_VIEW_ALL permission (managers/admins)
-    if (!hasPermission(session.user, PERMISSIONS.SHIFT_VIEW_ALL)) {
+    // Only these roles can force-close: Super Admin, All Branch Admin, Branch Admin, Branch Manager, Main Branch Manager
+    const allowedRoles = ['Super Admin', 'All Branch Admin', 'Branch Admin', 'Branch Manager', 'Main Branch Manager']
+    const hasRequiredRole = hasAnyRole(session.user, allowedRoles)
+
+    if (!hasRequiredRole) {
       return NextResponse.json({
-        error: 'Forbidden - Only managers and admins can force-close shifts'
+        error: 'Forbidden - Only Super Admin, Branch Admin, All Branch Admin, Branch Manager, or Main Branch Manager can force-close shifts'
       }, { status: 403 })
     }
 
     const shiftId = parseInt((await params).id)
     const body = await request.json()
-    const { reason, managerPassword, autoReconcile = true } = body
+    const { closingNotes, managerPassword } = body
 
     // Validate required fields
-    if (!reason || reason.trim().length < 10) {
+    if (!closingNotes || closingNotes.trim().length < 10) {
       return NextResponse.json({
-        error: 'Reason is required and must be at least 10 characters'
+        error: 'Closing notes are required and must be at least 10 characters explaining why force-close is necessary'
       }, { status: 400 })
     }
 
@@ -57,7 +62,7 @@ export async function POST(
           some: {
             role: {
               name: {
-                in: ['Branch Manager', 'Main Branch Manager', 'Branch Admin', 'All Branch Admin', 'Super Admin']
+                in: allowedRoles
               }
             }
           }
@@ -67,6 +72,8 @@ export async function POST(
         id: true,
         username: true,
         password: true,
+        firstName: true,
+        lastName: true,
         roles: {
           include: {
             role: true
@@ -90,9 +97,11 @@ export async function POST(
 
     if (!passwordValid) {
       return NextResponse.json({
-        error: 'Invalid manager password. Only Branch Managers or Admins can authorize force-close.'
+        error: 'Invalid manager password. Only authorized managers/admins can force-close shifts.'
       }, { status: 403 })
     }
+
+    console.log(`[ForceClose] ✓ Password verified for ${authorizingUser?.username}`)
 
     // Find the shift
     const shift = await prisma.cashierShift.findUnique({
@@ -102,7 +111,8 @@ export async function POST(
           select: {
             id: true,
             username: true,
-            name: true,
+            firstName: true,
+            lastName: true,
           },
         },
         location: {
@@ -111,12 +121,7 @@ export async function POST(
             name: true,
           },
         },
-        sales: {
-          include: {
-            payments: true,
-          },
-        },
-        cashInOutRecords: true,
+        cashInOutRecords: true, // Only need cash in/out records
       },
     })
 
@@ -128,30 +133,23 @@ export async function POST(
       return NextResponse.json({ error: 'Shift is already closed' }, { status: 400 })
     }
 
-    // Calculate system cash (same logic as normal close)
+    // Check shift age - warn if less than 24 hours
+    const shiftAge = Date.now() - new Date(shift.openedAt).getTime()
+    const hoursOld = Math.floor(shiftAge / (1000 * 60 * 60))
+    const daysOld = Math.floor(hoursOld / 24)
+
+    if (hoursOld < 24) {
+      console.log(`[ForceClose] ⚠️ WARNING: Shift is only ${hoursOld} hours old (recommended 24+ hours)`)
+    } else {
+      console.log(`[ForceClose] ✓ Shift is ${daysOld} day(s) old - force-close is appropriate`)
+    }
+
+    // Calculate system cash using RUNNING TOTALS (same as normal close)
+    console.log('[ForceClose] Calculating cash variance using running totals...')
     let systemCash = shift.beginningCash
 
-    // Add cash sales with overpayment handling
-    const cashSales = shift.sales
-      .filter(sale => sale.status === 'completed')
-      .reduce((total, sale) => {
-        const saleTotal = parseFloat(sale.totalAmount.toString())
-        const totalPayments = sale.payments
-          .reduce((sum, payment) => sum + parseFloat(payment.amount.toString()), 0)
-
-        const cashPayments = sale.payments
-          .filter(payment => payment.paymentMethod === 'cash')
-          .reduce((sum, payment) => sum + parseFloat(payment.amount.toString()), 0)
-
-        let actualCashInDrawer = cashPayments
-        if (totalPayments > saleTotal) {
-          const allocationRatio = saleTotal / totalPayments
-          actualCashInDrawer = cashPayments * allocationRatio
-        }
-
-        return total + actualCashInDrawer
-      }, 0)
-
+    // Add cash sales from running totals (already accounts for overpayment/change)
+    const cashSales = parseFloat(shift.runningCashSales.toString())
     systemCash = systemCash.plus(cashSales)
 
     // Add cash in, subtract cash out
@@ -163,28 +161,25 @@ export async function POST(
       }
     }
 
-    // For force-close, use system cash as ending cash by default
-    const endingCash = autoReconcile ? parseFloat(systemCash.toString()) : 0
-    const variance = endingCash - parseFloat(systemCash.toString())
-    const cashOver = variance > 0 ? variance : 0
-    const cashShort = variance < 0 ? Math.abs(variance) : 0
+    // Add AR payments collected during this shift (cash only) - from running totals
+    const arPaymentsCash = parseFloat(shift.runningArPaymentsCash.toString())
+    systemCash = systemCash.plus(arPaymentsCash)
 
-    // Calculate totals
-    const totalSales = shift.sales
-      .filter(sale => sale.status === 'completed')
-      .reduce((sum, sale) => sum + parseFloat(sale.totalAmount.toString()), 0)
+    // For force-close, use system cash as ending cash (auto-reconcile)
+    const endingCash = parseFloat(systemCash.toString())
+    const variance = 0 // No variance when auto-reconciling
+    const cashOver = 0
+    const cashShort = 0
 
-    const totalDiscounts = shift.sales
-      .filter(sale => sale.status === 'completed')
-      .reduce((sum, sale) => sum + parseFloat(sale.discountAmount.toString()), 0)
+    // Get totals from RUNNING TOTALS
+    const totalSales = parseFloat(shift.runningGrossSales.toString())
+    const totalDiscounts = parseFloat(shift.runningTotalDiscounts.toString())
+    const totalVoid = parseFloat(shift.runningVoidedSales.toString())
+    const transactionCount = shift.runningTransactions
 
-    const totalVoid = shift.sales
-      .filter(sale => sale.status === 'voided')
-      .reduce((sum, sale) => sum + parseFloat(sale.totalAmount.toString()), 0)
+    console.log(`[ForceClose] System Cash: ${systemCash}, Auto-reconciled Ending: ${endingCash}`)
 
-    const transactionCount = shift.sales.filter(sale => sale.status === 'completed').length
-
-    // Update shift with force-close flag
+    // Update shift with force-close flag (NO X/Z readings generated)
     const updatedShift = await prisma.cashierShift.update({
       where: { id: shiftId },
       data: {
@@ -197,12 +192,15 @@ export async function POST(
         totalDiscounts,
         totalVoid,
         transactionCount,
-        closingNotes: `[FORCE-CLOSED BY ADMIN]\nReason: ${reason}\nAuthorized by: ${authorizingUser?.username}\nClosed by: ${session.user.username}`,
+        closingNotes: `🚨 [FORCE CLOSED - EMERGENCY]\n\nShift Age: ${daysOld} day(s) ${hoursOld % 24} hour(s)\nReason: ${closingNotes}\n\nAuthorized by: ${authorizingUser?.username} (${authorizingUser.firstName} ${authorizingUser.lastName})\nExecuted by: ${session.user.username}\n\n⚠️ WARNING: NO X/Z READINGS GENERATED\nThis shift was closed without BIR-compliant readings due to emergency circumstances.\nCash auto-reconciled to system calculated amount.`,
         status: 'closed',
       },
     })
 
-    // Log audit trail with force-close details
+    // Log audit trail with FORCE CLOSED marker
+    const cashierName = [shift.user.firstName, shift.user.lastName].filter(Boolean).join(' ') || shift.user.username
+    const authName = [authorizingUser.firstName, authorizingUser.lastName].filter(Boolean).join(' ') || authorizingUser.username
+
     await createAuditLog({
       businessId: parseInt(session.user.businessId),
       userId: parseInt(session.user.id),
@@ -210,9 +208,10 @@ export async function POST(
       action: AuditAction.SHIFT_CLOSE,
       entityType: EntityType.CASHIER_SHIFT,
       entityIds: [shift.id],
-      description: `FORCE-CLOSED shift ${shift.shiftNumber}. Original cashier: ${shift.user.username}. Reason: ${reason}. Authorized by: ${authorizingUser?.username}. ${autoReconcile ? 'Auto-reconciled with system cash.' : 'Manual reconciliation required.'}`,
+      description: `🚨 FORCE CLOSED shift ${shift.shiftNumber} (${daysOld}d ${hoursOld % 24}h old). Original cashier: ${cashierName}. Reason: ${closingNotes}. Authorized by: ${authName}. NO X/Z READINGS GENERATED. Auto-reconciled: ₱${endingCash.toFixed(2)}`,
       metadata: {
         shiftNumber: shift.shiftNumber,
+        shiftAge: { days: daysOld, hours: hoursOld },
         originalCashier: shift.user.username,
         originalCashierId: shift.user.id,
         systemCash: parseFloat(systemCash.toString()),
@@ -222,27 +221,38 @@ export async function POST(
         totalSales,
         transactionCount,
         forceClose: true,
-        autoReconcile,
-        reason,
-        authorizedBy: authorizingUser?.id,
-        authorizedByUsername: authorizingUser?.username,
+        emergencyClose: true,
+        noReadingsGenerated: true,
+        autoReconciled: true,
+        reason: closingNotes,
+        authorizedBy: authorizingUser.id,
+        authorizedByUsername: authorizingUser.username,
+        authorizedByName: authName,
       },
       requiresPassword: true,
       passwordVerified: true,
     })
 
+    console.log(`[ForceClose] ✅ Shift ${shift.shiftNumber} force-closed successfully (${daysOld}d ${hoursOld % 24}h old)`)
+
     return NextResponse.json({
       success: true,
-      message: 'Shift force-closed successfully',
+      message: `Shift force-closed successfully. WARNING: No X/Z readings were generated.`,
       shift: updatedShift,
+      shiftAge: {
+        days: daysOld,
+        hours: hoursOld,
+        totalHours: hoursOld
+      },
       variance: {
         systemCash: parseFloat(systemCash.toString()),
         endingCash,
         cashOver,
         cashShort,
-        isBalanced: cashOver === 0 && cashShort === 0,
-        autoReconciled: autoReconcile,
+        isBalanced: true, // Always balanced when auto-reconciled
+        autoReconciled: true,
       },
+      warning: 'This shift was closed WITHOUT BIR-compliant X/Z readings. Use only for emergency situations.'
     })
   } catch (error: any) {
     console.error('Error force-closing shift:', error)

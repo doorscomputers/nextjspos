@@ -54,6 +54,13 @@ export default function CloseShiftPage() {
     count025: '',
   })
 
+  // Force Close dialog state
+  const [showForceCloseDialog, setShowForceCloseDialog] = useState(false)
+  const [forceCloseReason, setForceCloseReason] = useState('')
+  const [forceClosePassword, setForceClosePassword] = useState('')
+  const [forceCloseConfirmed, setForceCloseConfirmed] = useState(false)
+  const [forceClosing, setForceClosing] = useState(false)
+
   // State for readings (generated BEFORE cash count)
   const [xReading, setXReading] = useState<any>(null)
   const [zReading, setZReading] = useState<any>(null)
@@ -391,6 +398,67 @@ export default function CloseShiftPage() {
     setError('')
   }
 
+  const handleForceClose = async () => {
+    // Validation
+    if (!forceCloseReason || forceCloseReason.trim().length < 10) {
+      setError('Please provide a detailed reason (minimum 10 characters) explaining why force-close is necessary')
+      return
+    }
+
+    if (!forceClosePassword) {
+      setError('Manager password is required to authorize force-close')
+      return
+    }
+
+    if (!forceCloseConfirmed) {
+      setError('Please confirm that you understand this will close the shift WITHOUT BIR-compliant readings')
+      return
+    }
+
+    setForceClosing(true)
+    setError('')
+
+    try {
+      console.log('[ForceClose] Initiating force-close for shift:', currentShift.id)
+
+      const res = await fetch(`/api/shifts/${currentShift.id}/force-close`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          closingNotes: forceCloseReason,
+          managerPassword: forceClosePassword,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to force-close shift')
+      }
+
+      console.log('[ForceClose] Success:', data)
+
+      // Show success message
+      alert(`✅ Shift Force-Closed Successfully\n\n${data.message}\n\nShift Age: ${data.shiftAge.days} day(s) ${data.shiftAge.hours % 24} hour(s)\nSystem Cash: ₱${data.variance.systemCash.toFixed(2)}\n\n⚠️ ${data.warning}`)
+
+      // Redirect to dashboard
+      router.push('/dashboard')
+    } catch (err: any) {
+      console.error('[ForceClose] Error:', err)
+      setError(err.message)
+      setForceClosing(false)
+      setForceClosePassword('') // Clear password for security
+    }
+  }
+
+  const handleCancelForceClose = () => {
+    setShowForceCloseDialog(false)
+    setForceCloseReason('')
+    setForceClosePassword('')
+    setForceCloseConfirmed(false)
+    setError('')
+  }
+
   // Loading state while generating readings
   if (loadingReadings) {
     return (
@@ -536,11 +604,12 @@ export default function CloseShiftPage() {
 
   return (
     <div className="container max-w-5xl mx-auto py-8 px-4 space-y-6">
-      {/* Old shift warning - Simple and clean */}
+      {/* Old shift warning with Force Close button */}
       {currentShift && (() => {
         const hoursOpen = Math.floor((Date.now() - new Date(currentShift.openedAt).getTime()) / (1000 * 60 * 60))
         const daysOpen = Math.floor(hoursOpen / 24)
         const isOverdue = hoursOpen >= 24
+        const showForceCloseButton = hoursOpen >= 10 // Show force close if 10+ hours old
 
         if (hoursOpen >= 9) {
           const message = isOverdue
@@ -553,9 +622,22 @@ export default function CloseShiftPage() {
                 ? 'bg-red-50 border-red-500 dark:bg-red-950/50 dark:border-red-500'
                 : 'bg-orange-50 border-orange-500 dark:bg-orange-950/50 dark:border-orange-500'
             }`}>
-              <p className={`text-sm font-medium ${isOverdue ? 'text-red-900 dark:text-red-200' : 'text-orange-900 dark:text-orange-200'}`}>
-                {message}
-              </p>
+              <div className="flex items-center justify-between gap-4">
+                <p className={`text-sm font-medium ${isOverdue ? 'text-red-900 dark:text-red-200' : 'text-orange-900 dark:text-orange-200'}`}>
+                  {message}
+                </p>
+                {showForceCloseButton && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setShowForceCloseDialog(true)}
+                    className="gap-2 whitespace-nowrap"
+                  >
+                    <ExclamationTriangleIcon className="h-4 w-4" />
+                    Emergency Force Close
+                  </Button>
+                )}
+              </div>
             </div>
           )
         }
@@ -828,6 +910,175 @@ export default function CloseShiftPage() {
           </form>
         </CardContent>
       </Card>
+
+      {/* Force Close Dialog */}
+      {showForceCloseDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <Card className="max-w-2xl w-full border-4 border-red-500 shadow-2xl">
+            <CardHeader className="bg-red-50 dark:bg-red-950/50">
+              <CardTitle className="flex items-center gap-3 text-red-900 dark:text-red-200">
+                <ExclamationTriangleIcon className="h-8 w-8" />
+                Emergency Force Close Shift
+              </CardTitle>
+              <CardDescription className="text-red-700 dark:text-red-300">
+                ⚠️ WARNING: This will close the shift WITHOUT generating BIR-compliant X/Z readings. Use only for emergency situations.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-6">
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {/* Shift Age Info */}
+              {currentShift && (() => {
+                const hoursOpen = Math.floor((Date.now() - new Date(currentShift.openedAt).getTime()) / (1000 * 60 * 60))
+                const daysOpen = Math.floor(hoursOpen / 24)
+
+                return (
+                  <div className="p-4 bg-orange-50 dark:bg-orange-950/30 border-2 border-orange-300 dark:border-orange-700 rounded-lg">
+                    <h4 className="font-semibold text-orange-900 dark:text-orange-200 mb-2">Shift Information:</h4>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-orange-700 dark:text-orange-300">Shift Number:</span>
+                        <span className="ml-2 font-bold">{currentShift.shiftNumber}</span>
+                      </div>
+                      <div>
+                        <span className="text-orange-700 dark:text-orange-300">Age:</span>
+                        <span className="ml-2 font-bold">{daysOpen} day(s) {hoursOpen % 24} hour(s)</span>
+                      </div>
+                      <div>
+                        <span className="text-orange-700 dark:text-orange-300">Opened:</span>
+                        <span className="ml-2 font-bold">{new Date(currentShift.openedAt).toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-orange-700 dark:text-orange-300">Status:</span>
+                        <span className="ml-2 font-bold text-red-600 dark:text-red-400">
+                          {hoursOpen < 24 ? '⚠️ Less than 24 hours' : '🚨 Overdue'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Warning Messages */}
+              <div className="space-y-3">
+                <Alert className="bg-yellow-50 border-yellow-500 dark:bg-yellow-950/30">
+                  <AlertDescription className="text-yellow-900 dark:text-yellow-200">
+                    <strong>What happens during Force Close:</strong>
+                    <ul className="list-disc ml-5 mt-2 space-y-1">
+                      <li>Shift will be closed immediately</li>
+                      <li>NO X Reading will be generated</li>
+                      <li>NO Z Reading will be generated</li>
+                      <li>Cash will be auto-reconciled to system calculated amount</li>
+                      <li>Action will be logged in audit trail with "FORCE CLOSED" marker</li>
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+
+                <Alert className="bg-blue-50 border-blue-500 dark:bg-blue-950/30">
+                  <AlertDescription className="text-blue-900 dark:text-blue-200">
+                    <strong>When to use Force Close:</strong>
+                    <ul className="list-disc ml-5 mt-2 space-y-1">
+                      <li>Power outage prevented normal shift close</li>
+                      <li>Internet disruption during close process</li>
+                      <li>Shift is very old (24+ hours) and normal close times out</li>
+                      <li>Emergency situations requiring immediate closure</li>
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              </div>
+
+              {/* Reason Input */}
+              <div className="space-y-2">
+                <Label htmlFor="forceCloseReason" className="text-red-900 dark:text-red-200 font-semibold">
+                  Reason for Force Close <span className="text-red-600">*</span>
+                </Label>
+                <Textarea
+                  id="forceCloseReason"
+                  placeholder="Explain in detail why force-close is necessary (minimum 10 characters)..."
+                  value={forceCloseReason}
+                  onChange={(e) => setForceCloseReason(e.target.value)}
+                  rows={4}
+                  className="border-red-300 focus:border-red-500"
+                  disabled={forceClosing}
+                />
+                <p className="text-xs text-red-600 dark:text-red-400">
+                  {forceCloseReason.length}/10 characters minimum
+                </p>
+              </div>
+
+              {/* Manager Password */}
+              <div className="space-y-2">
+                <Label htmlFor="forceClosePassword" className="text-red-900 dark:text-red-200 font-semibold">
+                  Manager/Admin Password <span className="text-red-600">*</span>
+                </Label>
+                <Input
+                  id="forceClosePassword"
+                  type="password"
+                  placeholder="Enter manager or admin password..."
+                  value={forceClosePassword}
+                  onChange={(e) => setForceClosePassword(e.target.value)}
+                  className="border-red-300 focus:border-red-500"
+                  disabled={forceClosing}
+                />
+                <p className="text-xs text-red-600 dark:text-red-400">
+                  Required roles: Super Admin, All Branch Admin, Branch Admin, Branch Manager, or Main Branch Manager
+                </p>
+              </div>
+
+              {/* Confirmation Checkbox */}
+              <div className="flex items-start gap-3 p-4 bg-red-50 dark:bg-red-950/30 border-2 border-red-300 dark:border-red-700 rounded-lg">
+                <input
+                  type="checkbox"
+                  id="forceCloseConfirm"
+                  checked={forceCloseConfirmed}
+                  onChange={(e) => setForceCloseConfirmed(e.target.checked)}
+                  className="mt-1 h-5 w-5"
+                  disabled={forceClosing}
+                />
+                <label htmlFor="forceCloseConfirm" className="text-sm text-red-900 dark:text-red-200 font-medium cursor-pointer">
+                  I understand that this will close the shift WITHOUT BIR-compliant X/Z readings and should only be used for emergency situations. This action will be logged in the audit trail.
+                </label>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancelForceClose}
+                  className="flex-1"
+                  disabled={forceClosing}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={handleForceClose}
+                  className="flex-1 gap-2 min-w-48"
+                  disabled={forceClosing || !forceCloseReason || forceCloseReason.length < 10 || !forceClosePassword || !forceCloseConfirmed}
+                >
+                  {forceClosing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Force Closing...
+                    </>
+                  ) : (
+                    <>
+                      <ExclamationTriangleIcon className="h-4 w-4" />
+                      Confirm Force Close
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
