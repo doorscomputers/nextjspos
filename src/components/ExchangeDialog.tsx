@@ -269,7 +269,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
     setLoadingProducts(true)
     try {
       console.log('[Exchange] Loading all products for instant search...')
-      const res = await fetch('/api/products?limit=10000&status=active')
+      const res = await fetch('/api/products?limit=10000&forTransaction=true')
       const data = await res.json()
 
       if (data.products) {
