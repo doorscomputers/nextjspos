@@ -475,7 +475,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
+      <DialogContent className="max-w-7xl h-[90vh] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
             <ArrowLeftRight className="h-6 w-6" />
@@ -645,19 +645,20 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                   {searchResults.length > 0 && !loadingProducts && (
                     <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-lg shadow-lg max-h-[500px] overflow-y-auto">
                       {searchResults.map((product) => {
-                        // Calculate MAXIMUM available stock across ALL variations at current location
+                        // Calculate MAXIMUM available stock across ALL variations at location
+                        const filterLocationId = currentLocationId || sale?.locationId
                         let maxAvailableStock = 0
                         let bestVariation = product.variations?.[0] // Default to first variation
 
-                        if (currentLocationId && product.variations) {
+                        if (filterLocationId && product.variations) {
                           product.variations.forEach((variation: any) => {
                             if (variation.variationLocationDetails) {
                               // Handle both number and string locationId (type-safe comparison)
                               const locationStock = variation.variationLocationDetails.find(
                                 (detail: any) => {
                                   const detailLocId = String(detail.locationId)
-                                  const currentLocId = String(currentLocationId)
-                                  return detailLocId === currentLocId || detail.locationId === currentLocationId
+                                  const filterLocId = String(filterLocationId)
+                                  return detailLocId === filterLocId || detail.locationId === filterLocationId
                                 }
                               )
                               if (locationStock) {
