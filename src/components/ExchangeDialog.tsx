@@ -518,6 +518,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                   Back
                 </Button>
                 <Button
+                  variant="success"
                   onClick={() => setStep('select-exchange')}
                   disabled={returnItems.length === 0}
                   className="flex-1"
@@ -666,6 +667,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                   Back
                 </Button>
                 <Button
+                  variant="success"
                   onClick={() => setStep('confirm')}
                   disabled={exchangeItems.length === 0}
                   className="flex-1"
