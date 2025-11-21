@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
           id: true,
           invoiceNumber: true,
           saleDate: true,
+          locationId: true, // IMPORTANT: Required for Exchange Dialog location filtering
           subtotal: true,
           taxAmount: true,
           discountAmount: true,
@@ -107,8 +108,15 @@ export async function GET(request: NextRequest) {
               productVariationId: true,
               quantity: true,
               unitPrice: true,
+              lineTotal: true, // Required for exchange totals
               serialNumbers: true,
               product: {
+                select: {
+                  name: true,
+                  sku: true
+                }
+              },
+              productVariation: {
                 select: {
                   name: true,
                   sku: true
