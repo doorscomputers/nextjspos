@@ -153,9 +153,14 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
           console.log(`[Exchange Filter]   Variation ${idx} (${v.name || v.id}) has ${v.variationLocationDetails.length} location details`)
 
-          // Find stock at current location
+          // Find stock at current location (handle both number and string locationId)
           const locationStock = v.variationLocationDetails.find(
-            (detail: any) => detail.locationId === sale.locationId
+            (detail: any) => {
+              // Compare as both numbers and strings to handle type mismatches
+              const detailLocId = String(detail.locationId)
+              const saleLocId = String(sale.locationId)
+              return detailLocId === saleLocId || detail.locationId === sale.locationId
+            }
           )
 
           if (!locationStock) {
@@ -623,8 +628,13 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                         if (sale && product.variations) {
                           product.variations.forEach((variation: any) => {
                             if (variation.variationLocationDetails) {
+                              // Handle both number and string locationId (type-safe comparison)
                               const locationStock = variation.variationLocationDetails.find(
-                                (detail: any) => detail.locationId === sale.locationId
+                                (detail: any) => {
+                                  const detailLocId = String(detail.locationId)
+                                  const saleLocId = String(sale.locationId)
+                                  return detailLocId === saleLocId || detail.locationId === sale.locationId
+                                }
                               )
                               if (locationStock) {
                                 const stock = Number(locationStock.qtyAvailable)
