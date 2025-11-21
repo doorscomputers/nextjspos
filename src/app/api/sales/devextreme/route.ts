@@ -108,7 +108,6 @@ export async function GET(request: NextRequest) {
               productVariationId: true,
               quantity: true,
               unitPrice: true,
-              lineTotal: true, // Required for exchange totals
               serialNumbers: true,
               product: {
                 select: {
