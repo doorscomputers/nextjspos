@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ArrowLeftRight, Search, Plus, Trash2, AlertCircle } from 'lucide-react'
-import { useToast } from '@/hooks/use-toast'
+import { toast } from 'sonner'
 
 interface ExchangeDialogProps {
   isOpen: boolean
@@ -61,7 +61,6 @@ interface ExchangeItem {
 }
 
 export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSaleId }: ExchangeDialogProps) {
-  const { toast } = useToast()
   const [step, setStep] = useState<'search' | 'select-return' | 'select-exchange' | 'confirm'>(initialSaleId ? 'select-return' : 'search')
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -153,10 +152,8 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
         const daysDiff = Math.floor((today.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24))
 
         if (daysDiff > 7) {
-          toast({
-            title: 'Exchange Period Expired',
+          toast.error('Exchange Period Expired', {
             description: `This sale is ${daysDiff} days old. Only items purchased within 7 days can be exchanged.`,
-            variant: 'destructive',
           })
           return
         }
@@ -165,19 +162,13 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
         setStep('select-return')
       } else {
         console.log('[Exchange Search] No sale found. Total count:', data.totalCount)
-        toast({
-          title: 'Sale Not Found',
+        toast.error('Sale Not Found', {
           description: `No sale found with invoice number "${invoiceNumberOrId}". Please check the invoice number and try again.`,
-          variant: 'destructive',
         })
       }
     } catch (error) {
       console.error('[Exchange Search] Error:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch sale details.',
-        variant: 'destructive',
-      })
+      toast.error('Failed to fetch sale details.')
     } finally {
       setLoading(false)
     }
@@ -200,11 +191,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
       }
     } catch (error) {
       console.error('[Exchange] Error loading products:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to load products. Please refresh and try again.',
-        variant: 'destructive',
-      })
+      toast.error('Failed to load products. Please refresh and try again.')
     } finally {
       setLoadingProducts(false)
     }
@@ -257,11 +244,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
     const variationToUse = variation || product.variations?.[0]
 
     if (!variationToUse) {
-      toast({
-        title: 'Error',
-        description: 'Product has no variations available.',
-        variant: 'destructive',
-      })
+      toast.error('Product has no variations available.')
       return
     }
 
@@ -307,27 +290,15 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   const handleSubmitExchange = async () => {
     if (!sale) return
     if (returnItems.length === 0) {
-      toast({
-        title: 'Error',
-        description: 'Please select at least one item to return.',
-        variant: 'destructive',
-      })
+      toast.error('Please select at least one item to return.')
       return
     }
     if (exchangeItems.length === 0) {
-      toast({
-        title: 'Error',
-        description: 'Please select at least one item to exchange.',
-        variant: 'destructive',
-      })
+      toast.error('Please select at least one item to exchange.')
       return
     }
     if (!exchangeReason.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please provide a reason for the exchange.',
-        variant: 'destructive',
-      })
+      toast.error('Please provide a reason for the exchange.')
       return
     }
 
@@ -362,8 +333,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
         throw new Error(data.error || 'Failed to process exchange')
       }
 
-      toast({
-        title: 'Exchange Processed',
+      toast.success('Exchange Processed', {
         description: `Exchange ${data.exchangeNumber} completed successfully.`,
       })
 
@@ -373,11 +343,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
       onClose()
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to process exchange.',
-        variant: 'destructive',
-      })
+      toast.error(error.message || 'Failed to process exchange.')
     } finally {
       setSubmitting(false)
     }
