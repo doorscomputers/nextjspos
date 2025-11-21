@@ -186,6 +186,7 @@ export async function POST(
             totalRefundAmount: returnTotal, // Total refund value for the exchange
             status: 'exchanged', // Mark as exchanged, not refunded
             processedBy: parseInt(user.id),
+            createdBy: parseInt(user.id), // User who processed the exchange
           },
         }, {
           timeout: 60000,

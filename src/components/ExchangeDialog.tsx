@@ -128,7 +128,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
       p.name?.toLowerCase().includes(query) ||
       p.sku?.toLowerCase().includes(query) ||
       p.variations?.some((v: any) => v.sku?.toLowerCase().includes(query))
-    ).slice(0, 10) // Limit to 10 results for UI
+    ).slice(0, 30) // Show up to 30 results
 
     setSearchResults(filtered)
   }, [productSearch, allProducts])
@@ -547,7 +547,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                   )}
 
                   {searchResults.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-lg shadow-lg max-h-[500px] overflow-y-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-lg shadow-lg max-h-[850px] overflow-y-auto">
                       {searchResults.map((product) => (
                         <div
                           key={product.id}
