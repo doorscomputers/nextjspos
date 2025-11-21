@@ -206,6 +206,8 @@ export async function POST(
               productVariationId: saleItem.productVariationId,
               quantity: returnQty,
               unitPrice: parseFloat(saleItem.unitPrice.toString()),
+              condition: 'resellable', // Default condition for exchange items
+              returnType: 'replacement', // Exchange = replacement, not refund
             },
           })
 

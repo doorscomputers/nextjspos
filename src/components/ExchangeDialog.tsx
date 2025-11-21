@@ -109,9 +109,10 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
     }
   }, [isOpen, initialSaleId])
 
-  // POS-style instant search: Load all products when entering exchange step
+  // POS-style instant search: Preload all products early (on select-return step)
+  // This way products are ready when user reaches select-exchange step
   useEffect(() => {
-    if (step === 'select-exchange' && allProducts.length === 0) {
+    if ((step === 'select-return' || step === 'select-exchange') && allProducts.length === 0) {
       fetchAllProducts()
     }
   }, [step])
@@ -536,9 +537,10 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                 <Label>Search Products to Exchange</Label>
                 <div className="relative mt-2">
                   <Input
-                    placeholder="Search products by name or SKU..."
+                    placeholder={loadingProducts ? "Loading products..." : "Search products by name or SKU..."}
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
+                    disabled={loadingProducts}
                   />
                   {loadingProducts && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -546,7 +548,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                     </div>
                   )}
 
-                  {searchResults.length > 0 && (
+                  {searchResults.length > 0 && !loadingProducts && (
                     <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-lg shadow-lg max-h-[850px] overflow-y-auto">
                       {searchResults.map((product) => (
                         <div
@@ -566,6 +568,15 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                     </div>
                   )}
                 </div>
+
+                {loadingProducts && (
+                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p className="text-sm text-blue-800 dark:text-blue-200 flex items-center gap-2">
+                      <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full" />
+                      Loading all products for instant search... Please wait (this may take 10-15 seconds)
+                    </p>
+                  </div>
+                )}
               </div>
 
               {exchangeItems.length > 0 && (
