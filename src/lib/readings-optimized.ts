@@ -383,23 +383,27 @@ export async function generateXReadingDataOptimized(
   const elapsed = Date.now() - startTime
   console.log(`[X Reading] ✅ Generated in ${elapsed}ms (optimized)`)
 
-  // Record reading log if incrementing
+  // Record reading log if incrementing (optional - don't fail if table doesn't exist)
   if (incrementCounter) {
-    await recordShiftReadingLog({
-      shiftId: shift.id,
-      businessId: shift.businessId,
-      locationId: shift.locationId,
-      userId: shift.userId,
-      type: 'X',
-      readingNumber,
-      readingTime: readingTimestamp,
-      grossSales,
-      netSales,
-      totalDiscounts,
-      expectedCash,
-      transactionCount,
-      payload: readingData,
-    })
+    try {
+      await recordShiftReadingLog({
+        shiftId: shift.id,
+        businessId: shift.businessId,
+        locationId: shift.locationId,
+        userId: shift.userId,
+        type: 'X',
+        readingNumber,
+        readingTime: readingTimestamp,
+        grossSales,
+        netSales,
+        totalDiscounts,
+        expectedCash,
+        transactionCount,
+        payload: readingData,
+      })
+    } catch (error) {
+      console.warn('[X Reading] Failed to record audit log (table may not exist):', error)
+    }
   }
 
   return readingData
@@ -534,23 +538,27 @@ export async function generateZReadingDataOptimized(
   const elapsed = Date.now() - startTime
   console.log(`[Z Reading] ✅ Generated in ${elapsed}ms (optimized)`)
 
-  // Record Z reading log if incrementing
+  // Record Z reading log if incrementing (optional - don't fail if table doesn't exist)
   if (incrementCounter) {
-    await recordShiftReadingLog({
-      shiftId: shift.id,
-      businessId: shift.businessId,
-      locationId: shift.locationId,
-      userId: shift.userId,
-      type: 'Z',
-      readingNumber: zReadingNumber,
-      readingTime: new Date(),
-      grossSales: xReadingData.grossSales,
-      netSales: xReadingData.netSales,
-      totalDiscounts: xReadingData.totalDiscounts,
-      expectedCash: xReadingData.expectedCash,
-      transactionCount: xReadingData.transactionCount,
-      payload: zReadingData,
-    })
+    try {
+      await recordShiftReadingLog({
+        shiftId: shift.id,
+        businessId: shift.businessId,
+        locationId: shift.locationId,
+        userId: shift.userId,
+        type: 'Z',
+        readingNumber: zReadingNumber,
+        readingTime: new Date(),
+        grossSales: xReadingData.grossSales,
+        netSales: xReadingData.netSales,
+        totalDiscounts: xReadingData.totalDiscounts,
+        expectedCash: xReadingData.expectedCash,
+        transactionCount: xReadingData.transactionCount,
+        payload: zReadingData,
+      })
+    } catch (error) {
+      console.warn('[Z Reading] Failed to record audit log (table may not exist):', error)
+    }
   }
 
   return zReadingData
