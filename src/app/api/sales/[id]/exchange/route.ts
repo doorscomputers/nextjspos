@@ -274,7 +274,7 @@ export async function POST(
             taxAmount: 0,
             discountAmount: 0,
             totalAmount: exchangeTotal,
-            paymentStatus: customerPaysMore ? 'paid' : 'unpaid',
+            paidAmount: customerPaysMore ? actualPayment : 0, // Amount actually paid
             createdBy: parseInt(user.id),
             shiftId: sale.shiftId, // Link to same shift
             // Link to original sale
