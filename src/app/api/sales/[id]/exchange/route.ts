@@ -211,21 +211,20 @@ export async function POST(
           })
 
           // Restore inventory for returned items
-          await addStock(
-            saleItem.productVariationId,
-            sale.locationId,
-            returnQty,
-            {
-              type: StockTransactionType.CUSTOMER_RETURN,
-              referenceType: 'exchange_return',
-              referenceId: customerReturn.id,
-              notes: `Exchange ${exchangeNumber} - Returned from sale ${sale.invoiceNumber}`,
-              createdBy: parseInt(user.id),
-              businessId: parseInt(user.businessId),
-              displayName: user.username,
-            },
-            tx
-          )
+          await addStock({
+            productId: saleItem.productId,
+            productVariationId: saleItem.productVariationId,
+            locationId: sale.locationId,
+            quantity: returnQty,
+            type: StockTransactionType.CUSTOMER_RETURN,
+            referenceType: 'exchange_return',
+            referenceId: customerReturn.id,
+            notes: `Exchange ${exchangeNumber} - Returned from sale ${sale.invoiceNumber}`,
+            userId: parseInt(user.id),
+            businessId: parseInt(user.businessId),
+            userDisplayName: user.username,
+            tx,
+          })
 
           // Handle serial numbers if applicable
           if (
@@ -300,11 +299,20 @@ export async function POST(
             },
           })
 
-          // Prepare stock deduction
+          // Prepare stock deduction with all required fields
           exchangeStockUpdates.push({
+            businessId: parseInt(user.businessId),
+            productId: exchangeItem.productId,
             productVariationId: exchangeItem.productVariationId,
-            quantity: parseFloat(exchangeItem.quantity),
+            locationId: sale.locationId,
+            quantity: -parseFloat(exchangeItem.quantity), // Negative for deduction
+            type: StockTransactionType.SALE,
+            referenceType: 'exchange_issue',
+            referenceId: exchangeSale.id,
+            userId: parseInt(user.id),
+            userDisplayName: user.username,
             notes: `Exchange ${exchangeNumber} - Replacement for sale ${sale.invoiceNumber}`,
+            tx,
           })
 
           // Handle serial numbers for exchange items if applicable
@@ -342,19 +350,7 @@ export async function POST(
         }
 
         // 5. Deduct inventory for exchange items
-        await bulkUpdateStock(
-          sale.locationId,
-          exchangeStockUpdates,
-          {
-            type: StockTransactionType.SALE,
-            referenceType: 'exchange_issue',
-            referenceId: exchangeSale.id,
-            createdBy: parseInt(user.id),
-            businessId: parseInt(user.businessId),
-            displayName: user.username,
-          },
-          tx
-        )
+        await bulkUpdateStock(exchangeStockUpdates)
 
         // 6. Record payment if customer pays more
         if (customerPaysMore && actualPayment > 0) {
