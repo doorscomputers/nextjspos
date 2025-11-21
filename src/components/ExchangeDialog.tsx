@@ -67,13 +67,6 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   const { data: session } = useSession()
   const currentLocationId = (session?.user as any)?.currentLocationId
 
-  console.log('[Exchange Dialog] Session data:', {
-    hasSession: !!session,
-    hasUser: !!session?.user,
-    currentLocationId: currentLocationId,
-    locationIdType: typeof currentLocationId
-  })
-
   const [step, setStep] = useState<'search' | 'select-return' | 'select-exchange' | 'confirm'>(initialSaleId ? 'select-return' : 'search')
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -137,7 +130,9 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
     }
 
     const query = productSearch.toLowerCase()
-    console.log(`[Exchange Filter] Searching for: "${query}", Current location (from session): ${currentLocationId}, Total products: ${allProducts.length}`)
+    // Use currentLocationId from session, or fallback to sale's location
+    const filterLocationId = currentLocationId || sale?.locationId
+    console.log(`[Exchange Filter] Searching for: "${query}", Location ID: ${filterLocationId} (from ${currentLocationId ? 'session' : 'sale'}), Total products: ${allProducts.length}`)
 
     const filtered = allProducts.filter(p => {
       // Text search filter
@@ -151,11 +146,11 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
       // Debug: Log matched product
       console.log(`[Exchange Filter] Product "${p.name}" (${p.sku}) matches search`)
 
-      // STRICT Inventory filter: Only show products with stock > 0 at current location (from session)
-      if (currentLocationId && p.variations && p.variations.length > 0) {
+      // STRICT Inventory filter: Only show products with stock > 0 at location
+      if (filterLocationId && p.variations && p.variations.length > 0) {
         console.log(`[Exchange Filter] Checking ${p.variations.length} variations for product "${p.name}"`)
 
-        // Check if ANY variation has available stock at the current location
+        // Check if ANY variation has available stock at the location
         const hasStock = p.variations.some((v: any, idx: number) => {
           // Must have location details
           if (!v.variationLocationDetails || !Array.isArray(v.variationLocationDetails)) {
@@ -165,18 +160,18 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
           console.log(`[Exchange Filter]   Variation ${idx} (${v.name || v.id}) has ${v.variationLocationDetails.length} location details`)
 
-          // Find stock at current location (handle both number and string locationId)
+          // Find stock at location (handle both number and string locationId)
           const locationStock = v.variationLocationDetails.find(
             (detail: any) => {
               // Compare as both numbers and strings to handle type mismatches
               const detailLocId = String(detail.locationId)
-              const currentLocId = String(currentLocationId)
-              return detailLocId === currentLocId || detail.locationId === currentLocationId
+              const filterLocId = String(filterLocationId)
+              return detailLocId === filterLocId || detail.locationId === filterLocationId
             }
           )
 
           if (!locationStock) {
-            console.log(`[Exchange Filter]   Variation ${idx}: No stock record for location ${currentLocationId}`)
+            console.log(`[Exchange Filter]   Variation ${idx}: No stock record for location ${filterLocationId}`)
             console.log(`[Exchange Filter]   Available locations:`, v.variationLocationDetails.map((d: any) => `Location ${d.locationId}: ${d.qtyAvailable}`))
             return false
           }
@@ -186,7 +181,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
           // Filter out NaN, null, undefined, 0, and negative values
           const hasValidStock = !isNaN(qtyAvailable) && qtyAvailable > 0
 
-          console.log(`[Exchange Filter]   Variation ${idx} at location ${currentLocationId}: qtyAvailable = ${locationStock.qtyAvailable} (${typeof locationStock.qtyAvailable}), hasValidStock = ${hasValidStock}`)
+          console.log(`[Exchange Filter]   Variation ${idx} at location ${filterLocationId}: qtyAvailable = ${locationStock.qtyAvailable} (${typeof locationStock.qtyAvailable}), hasValidStock = ${hasValidStock}`)
 
           return hasValidStock
         })
@@ -197,14 +192,14 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
         return hasStock
       }
 
-      // If no sale context yet, don't show any products (exchange requires sale first)
-      console.log(`[Exchange Filter] No sale context yet for product "${p.name}"`)
+      // If no location ID available, don't show products (need location for stock filtering)
+      console.log(`[Exchange Filter] No location ID available for product "${p.name}"`)
       return false
     }).slice(0, 30) // Show up to 30 results
 
     console.log(`[Exchange Filter] Filtered results: ${filtered.length} products found`)
     setSearchResults(filtered)
-  }, [productSearch, allProducts, sale])
+  }, [productSearch, allProducts, sale, currentLocationId])
 
   const fetchSale = async (invoiceNumberOrId: string) => {
     setLoading(true)
