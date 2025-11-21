@@ -371,17 +371,17 @@ export async function POST(
           })
         }
 
-        // 7. Update shift running totals for exchange - DISABLED
-        // TODO: Re-enable after fixing undefined user ID issue in alert chain
-        // if (sale.shiftId) {
-        //   await incrementShiftTotalsForExchange(
-        //     sale.shiftId,
-        //     exchangeTotal,
-        //     returnTotal,
-        //     actualPayment,
-        //     tx
-        //   )
-        // }
+        // 7. Update shift running totals for exchange
+        // Net cash impact = payment received (if customer pays more) or 0 (if customer gets credit)
+        if (sale.shiftId) {
+          await incrementShiftTotalsForExchange(
+            sale.shiftId,
+            exchangeTotal,      // Total of new items issued
+            returnTotal,        // Total of items returned
+            actualPayment,      // Actual cash collected from customer
+            tx
+          )
+        }
 
         return {
           customerReturn,
