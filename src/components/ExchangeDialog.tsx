@@ -134,6 +134,15 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
     const filterLocationId = currentLocationId || sale?.locationId
     console.log(`[Exchange Filter] Searching for: "${query}", Location ID: ${filterLocationId} (from ${currentLocationId ? 'session' : 'sale'}), Total products: ${allProducts.length}`)
 
+    // Debug: Show first 5 products to understand data structure
+    if (allProducts.length > 0) {
+      console.log('[Exchange Filter] Sample products:', allProducts.slice(0, 5).map(p => ({
+        name: p.name,
+        sku: p.sku,
+        variations: p.variations?.length || 0
+      })))
+    }
+
     const filtered = allProducts.filter(p => {
       // Text search filter
       const matchesSearch =
@@ -141,7 +150,13 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
         p.sku?.toLowerCase().includes(query) ||
         p.variations?.some((v: any) => v.sku?.toLowerCase().includes(query))
 
-      if (!matchesSearch) return false
+      if (!matchesSearch) {
+        // Debug: Show why products don't match (only first 3 non-matches to avoid spam)
+        if (filtered.length === 0 && allProducts.indexOf(p) < 3) {
+          console.log(`[Exchange Filter] Product "${p.name}" (SKU: ${p.sku}) does NOT match search "${query}"`)
+        }
+        return false
+      }
 
       // Debug: Log matched product
       console.log(`[Exchange Filter] Product "${p.name}" (${p.sku}) matches search`)
