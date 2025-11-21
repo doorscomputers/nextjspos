@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials"
 import { prisma } from "./prisma.simple"
 import bcrypt from "bcryptjs"
 import { PERMISSIONS } from "./rbac"
+import { createAuditLog, AuditAction, EntityType } from "./auditLog"
 
 export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV === 'development',
@@ -174,6 +175,33 @@ export const authOptions: NextAuthOptions = {
             console.log(`[LOGIN] Attempted location: ${selectedLocationName} (ID: ${selectedLocationId})`)
             console.log(`[LOGIN] Assigned locations: ${assignedLocationNames.join(', ')}`)
 
+            // Log the failed login attempt with location mismatch
+            try {
+              await createAuditLog({
+                businessId: user.businessId!,
+                userId: user.id,
+                username: user.username,
+                action: AuditAction.USER_LOGIN,
+                entityType: EntityType.USER,
+                entityIds: [user.id],
+                description: `BLOCKED: Location mismatch - Attempted login at ${selectedLocationName}`,
+                metadata: {
+                  selectedLocation: selectedLocationName,
+                  selectedLocationId: selectedLocationId,
+                  assignedLocations: assignedLocationNames,
+                  assignedLocationIds: assignedLocationIds,
+                  roles: roleNames,
+                  loginBlocked: true,
+                  blockReason: 'Location Mismatch',
+                  loginTimestamp: new Date().toISOString(),
+                },
+                ipAddress: (credentials as any).ipAddress || 'Unknown',
+                userAgent: (credentials as any).userAgent || 'Unknown',
+              })
+            } catch (auditError) {
+              console.error('[LOGIN] Failed to create audit log for blocked login:', auditError)
+            }
+
             // BLOCK THE LOGIN
             throw new Error(
               `Access Denied: Location Mismatch\n\n` +
@@ -211,6 +239,52 @@ export const authOptions: NextAuthOptions = {
         const locationIds = directLocationIds.length > 0
           ? directLocationIds
           : [...new Set(roleLocationIds)]
+
+        // Create audit log for successful login
+        try {
+          // Get location names for audit metadata
+          let selectedLocationName = 'Not Selected'
+          let assignedLocationNames: string[] = []
+
+          if (selectedLocationId) {
+            const selectedLoc = await prisma.businessLocation.findUnique({
+              where: { id: selectedLocationId },
+              select: { name: true }
+            })
+            selectedLocationName = selectedLoc?.name || 'Unknown'
+          }
+
+          if (locationIds.length > 0) {
+            const assignedLocs = await prisma.businessLocation.findMany({
+              where: { id: { in: locationIds } },
+              select: { name: true }
+            })
+            assignedLocationNames = assignedLocs.map(l => l.name)
+          }
+
+          await createAuditLog({
+            businessId: user.businessId!,
+            userId: user.id,
+            username: user.username,
+            action: AuditAction.USER_LOGIN,
+            entityType: EntityType.USER,
+            entityIds: [user.id],
+            description: `User logged in successfully${selectedLocationId ? ` at ${selectedLocationName}` : ''}`,
+            metadata: {
+              selectedLocation: selectedLocationName,
+              selectedLocationId: selectedLocationId || null,
+              assignedLocations: assignedLocationNames,
+              assignedLocationIds: locationIds,
+              roles: roleNames,
+              loginTimestamp: new Date().toISOString(),
+            },
+            ipAddress: (credentials as any).ipAddress || 'Unknown',
+            userAgent: (credentials as any).userAgent || 'Unknown',
+          })
+        } catch (auditError) {
+          console.error('[LOGIN] Failed to create audit log:', auditError)
+          // Don't block login if audit log fails
+        }
 
         return {
           id: user.id.toString(),
