@@ -184,7 +184,6 @@ export async function POST(
             notes: exchangeReason, // Reason for exchange stored in notes field
             totalRefundAmount: returnTotal, // Total refund value for the exchange
             status: 'exchanged', // Mark as exchanged, not refunded
-            processedBy: parseInt(user.id),
             createdBy: parseInt(user.id), // User who processed the exchange
           },
         }, {
