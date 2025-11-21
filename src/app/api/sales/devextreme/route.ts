@@ -148,6 +148,7 @@ export async function GET(request: NextRequest) {
         id: sale.id,
         invoiceNumber: sale.invoiceNumber,
         saleDate: sale.saleDate,
+        locationId: sale.locationId, // IMPORTANT: Required for Exchange Dialog location filtering
         customerName: sale.customer?.name || 'Walk-in Customer',
         customerMobile: sale.customer?.mobile || null,
         itemCount: sale.items.length,
