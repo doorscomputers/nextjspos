@@ -200,8 +200,7 @@ export async function POST(
           // Create return item record
           await tx.customerReturnItem.create({
             data: {
-              customerReturnId: customerReturn.id, // Correct field name from schema
-              saleItemId: saleItem.id,
+              customerReturnId: customerReturn.id,
               productId: saleItem.productId,
               productVariationId: saleItem.productVariationId,
               quantity: returnQty,
