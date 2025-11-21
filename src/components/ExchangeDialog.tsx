@@ -38,6 +38,7 @@ interface Sale {
   id: number
   invoiceNumber: string
   saleDate: string
+  locationId: number
   customer?: {
     name: string
   }
@@ -124,14 +125,55 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
     }
 
     const query = productSearch.toLowerCase()
-    const filtered = allProducts.filter(p =>
-      p.name?.toLowerCase().includes(query) ||
-      p.sku?.toLowerCase().includes(query) ||
-      p.variations?.some((v: any) => v.sku?.toLowerCase().includes(query))
-    ).slice(0, 30) // Show up to 30 results
+    const filtered = allProducts.filter(p => {
+      // Text search filter
+      const matchesSearch =
+        p.name?.toLowerCase().includes(query) ||
+        p.sku?.toLowerCase().includes(query) ||
+        p.variations?.some((v: any) => v.sku?.toLowerCase().includes(query))
+
+      if (!matchesSearch) return false
+
+      // STRICT Inventory filter: Only show products with stock > 0 at current location
+      if (sale && p.variations && p.variations.length > 0) {
+        // Check if ANY variation has available stock at the current location
+        const hasStock = p.variations.some((v: any) => {
+          // Must have location details
+          if (!v.variationLocationDetails || !Array.isArray(v.variationLocationDetails)) {
+            return false
+          }
+
+          // Find stock at current location
+          const locationStock = v.variationLocationDetails.find(
+            (detail: any) => detail.locationId === sale.locationId
+          )
+
+          // Strict check: must exist, must be a number, and must be > 0
+          if (!locationStock) return false
+
+          const qtyAvailable = Number(locationStock.qtyAvailable)
+
+          // Filter out NaN, null, undefined, 0, and negative values
+          const hasValidStock = !isNaN(qtyAvailable) && qtyAvailable > 0
+
+          // Debug logging for products that have issues
+          if (matchesSearch && !hasValidStock && locationStock) {
+            console.log(`[Exchange Filter] Product "${p.name}" (${p.sku}) at location ${sale.locationId}: qtyAvailable = ${locationStock.qtyAvailable} (${typeof locationStock.qtyAvailable})`)
+          }
+
+          return hasValidStock
+        })
+
+        // Only include products that have at least one variation with stock
+        return hasStock
+      }
+
+      // If no sale context yet, don't show any products (exchange requires sale first)
+      return false
+    }).slice(0, 30) // Show up to 30 results
 
     setSearchResults(filtered)
-  }, [productSearch, allProducts])
+  }, [productSearch, allProducts, sale])
 
   const fetchSale = async (invoiceNumberOrId: string) => {
     setLoading(true)
@@ -289,6 +331,10 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
   const handleSubmitExchange = async () => {
     if (!sale) return
+    if (submitting) {
+      console.warn('[Exchange] Already submitting, ignoring duplicate submission')
+      return
+    }
     if (returnItems.length === 0) {
       toast.error('Please select at least one item to return.')
       return
@@ -306,9 +352,15 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
     try {
       const totals = calculateTotals()
 
+      // Generate idempotency key to prevent duplicate submissions
+      const idempotencyKey = `exchange-${sale.id}-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`
+
       const response = await fetch(`/api/sales/${sale.id}/exchange`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKey,
+        },
         body: JSON.stringify({
           returnItems: returnItems.map(ri => ({
             saleItemId: ri.saleItemId,
@@ -353,10 +405,10 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ArrowLeftRight className="h-5 w-5" />
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <ArrowLeftRight className="h-6 w-6" />
             Process Exchange
           </DialogTitle>
         </DialogHeader>
@@ -434,7 +486,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                             ? 'border-blue-500 bg-blue-50 dark:bg-blue-950'
                             : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                         }`}
-                        onClick={() => !isSelected && handleToggleReturnItem(item)}
+                        onClick={() => handleToggleReturnItem(item)}
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
@@ -500,13 +552,19 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
           {step === 'select-exchange' && (
             <div className="space-y-4">
               <div>
-                <Label>Search Products to Exchange</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Search Products to Exchange</Label>
+                  <p className="text-xs text-blue-600 dark:text-blue-400">
+                    ℹ️ Only products with stock &gt; 0 shown
+                  </p>
+                </div>
                 <div className="relative mt-2">
                   <Input
                     placeholder={loadingProducts ? "Loading products..." : "Search products by name or SKU..."}
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
                     disabled={loadingProducts}
+                    className="h-12 text-base"
                   />
                   {loadingProducts && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -515,22 +573,62 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                   )}
 
                   {searchResults.length > 0 && !loadingProducts && (
-                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-lg shadow-lg max-h-[850px] overflow-y-auto">
-                      {searchResults.map((product) => (
-                        <div
-                          key={product.id}
-                          className="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b last:border-b-0"
-                          onClick={() => handleAddExchangeItem(product)}
-                        >
-                          <p className="font-medium">{product.name}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            SKU: {product.sku} | Stock: {product.variations?.[0]?.currentStock || 0}
-                          </p>
-                          <p className="text-sm text-green-600 dark:text-green-400 font-medium mt-1">
-                            ₱{parseFloat(product.variations?.[0]?.sellingPrice || 0).toFixed(2)}
-                          </p>
-                        </div>
-                      ))}
+                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-lg shadow-lg max-h-[500px] overflow-y-auto">
+                      {searchResults.map((product) => {
+                        // Calculate MAXIMUM available stock across ALL variations at current location
+                        let maxAvailableStock = 0
+                        let bestVariation = product.variations?.[0] // Default to first variation
+
+                        if (sale && product.variations) {
+                          product.variations.forEach((variation: any) => {
+                            if (variation.variationLocationDetails) {
+                              const locationStock = variation.variationLocationDetails.find(
+                                (detail: any) => detail.locationId === sale.locationId
+                              )
+                              if (locationStock) {
+                                const stock = Number(locationStock.qtyAvailable)
+                                if (stock > maxAvailableStock) {
+                                  maxAvailableStock = stock
+                                  bestVariation = variation
+                                }
+                              }
+                            }
+                          })
+                        }
+
+                        // Safety check: Don't display products with 0 stock (shouldn't happen due to filter, but extra safety)
+                        if (maxAvailableStock <= 0) {
+                          console.warn(`[Exchange] Product ${product.name} (${product.sku}) passed filter but has 0 stock - skipping display`)
+                          return null
+                        }
+
+                        return (
+                          <div
+                            key={product.id}
+                            className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b last:border-b-0 transition-colors"
+                            onClick={() => handleAddExchangeItem(product, bestVariation)}
+                          >
+                            <p className="font-semibold text-base">{product.name}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                              SKU: {product.sku} | Available: <span className="font-bold text-green-600 dark:text-green-400">{maxAvailableStock}</span>
+                            </p>
+                            <p className="text-base text-green-600 dark:text-green-400 font-bold mt-2">
+                              ₱{parseFloat(bestVariation?.sellingPrice || 0).toFixed(2)}
+                            </p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {productSearch.length >= 2 && searchResults.length === 0 && !loadingProducts && (
+                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-lg shadow-lg p-4">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                        No products found with available stock at this location.
+                      </p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 text-center mt-1">
+                        Only products with stock &gt; 0 are shown.
+                      </p>
                     </div>
                   )}
                 </div>

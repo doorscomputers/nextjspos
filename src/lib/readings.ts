@@ -38,6 +38,10 @@ export interface XReadingData {
     pwd: number
     regular: number
   }
+  // Exchange tracking
+  exchangeCount: number
+  exchangeAmount: number
+  returnAmount: number
 }
 
 /**
@@ -288,6 +292,10 @@ export async function generateXReadingData(
         .filter(s => !s.discountType || s.discountType === 'regular')
         .reduce((sum, s) => sum + parseFloat(s.discountAmount.toString()), 0),
     },
+    // Exchange data from shift running totals
+    exchangeCount: shift.runningExchangeCount || 0,
+    exchangeAmount: shift.runningExchangeSales ? parseFloat(shift.runningExchangeSales.toString()) : 0,
+    returnAmount: shift.runningReturnAmount ? parseFloat(shift.runningReturnAmount.toString()) : 0,
   }
 
   if (incrementCounter) {

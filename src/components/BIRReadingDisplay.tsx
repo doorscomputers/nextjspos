@@ -45,6 +45,10 @@ interface XReadingData {
   endingOrNumber?: string
   refundAmount: number
   withdrawalAmount: number
+  // Exchange tracking
+  exchangeCount: number
+  exchangeAmount: number
+  returnAmount: number
 }
 
 interface ZReadingData extends XReadingData {
@@ -83,7 +87,6 @@ interface ZReadingData extends XReadingData {
     vatOnReturn: number
     otherVatAdjustments: number
   }
-  returnAmount: number
   discountSummary: {
     seniorCitizenDiscount: number
     pwdDiscount: number
@@ -415,6 +418,23 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                 </div>
               </div>
 
+              {/* Exchange */}
+              <div className="section">
+                <div className="section-title">EXCHANGE</div>
+                <div className="line">
+                  <span className="line-label">Exchange Count:</span>
+                  <span className="line-value">{xReading.exchangeCount}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">Exchange Amount:</span>
+                  <span className="line-value">{formatCurrency(xReading.exchangeAmount)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">Return Amount:</span>
+                  <span className="line-value">{formatCurrency(xReading.returnAmount)}</span>
+                </div>
+              </div>
+
               {/* Withdrawal */}
               <div className="section">
                 <div className="line">
@@ -672,6 +692,27 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                 <div className="line">
                   <span className="line-label">RETURN :</span>
                   <span className="line-value">{formatCurrency(zReading.returnAmount)}</span>
+                </div>
+              </div>
+
+              {/* Exchange Summary */}
+              <div className="section">
+                <div className="section-title">EXCHANGE SUMMARY</div>
+                <div className="line">
+                  <span className="line-label">Exchange Count :</span>
+                  <span className="line-value">{zReading.exchangeCount}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">Exchange Amount :</span>
+                  <span className="line-value">{formatCurrency(zReading.exchangeAmount)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">Return Amount :</span>
+                  <span className="line-value">{formatCurrency(zReading.returnAmount)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">Net Exchange Impact :</span>
+                  <span className="line-value">{formatCurrency(zReading.exchangeAmount - zReading.returnAmount)}</span>
                 </div>
               </div>
 

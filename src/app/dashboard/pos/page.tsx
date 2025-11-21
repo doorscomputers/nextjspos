@@ -1742,6 +1742,9 @@ export default function POSEnhancedPage() {
       setTodaysSalesTotal(prev => prev + saleAmount)
       setCurrentTransaction(data.invoiceNumber)
 
+      // Refresh product list to get updated stock levels
+      fetchProducts()
+
       // Clear everything
       setCart([])
       setDiscountType('none')
