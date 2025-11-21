@@ -844,7 +844,7 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                 </div>
                 <div className="line">
                   <span className="line-label">Cash Sales (from transactions):</span>
-                  <span className="line-value">+{formatCurrency(zReading.paymentBreakdown?.CASH || 0)}</span>
+                  <span className="line-value">+{formatCurrency(zReading.cashFromSales || zReading.paymentBreakdown?.cash || 0)}</span>
                 </div>
                 <div className="line">
                   <span className="line-label">Cash In (added to drawer):</span>
@@ -860,23 +860,23 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                 </div>
                 <div className="line">
                   <span className="line-label">Less: GCash Payments:</span>
-                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.GCASH || 0)}</span>
+                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.gcash || 0)}</span>
                 </div>
                 <div className="line">
                   <span className="line-label">Less: Card Payments:</span>
-                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.CARD || 0)}</span>
+                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.card || 0)}</span>
                 </div>
                 <div className="line">
                   <span className="line-label">Less: Bank Transfer:</span>
-                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.BANK || 0)}</span>
+                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.bank_transfer || 0)}</span>
                 </div>
                 <div className="line">
                   <span className="line-label">Less: Cheque Payments:</span>
-                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.CHECK || 0)}</span>
+                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.check || 0)}</span>
                 </div>
                 <div className="line">
                   <span className="line-label">Less: Credit/AR Sales (not cash):</span>
-                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.CREDIT || 0)}</span>
+                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.credit || 0)}</span>
                 </div>
                 <div className="line total-line">
                   <span className="line-label font-bold">= Expected Cash in Drawer:</span>
