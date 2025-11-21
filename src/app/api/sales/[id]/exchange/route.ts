@@ -186,8 +186,6 @@ export async function POST(
             status: 'exchanged', // Mark as exchanged, not refunded
             createdBy: parseInt(user.id), // User who processed the exchange
           },
-        }, {
-          timeout: 60000,
         })
 
         // 2. Process return items - restore inventory
@@ -280,8 +278,6 @@ export async function POST(
             // Link to original sale
             notes: notes || `Exchange for original sale ${sale.invoiceNumber}. Reason: ${exchangeReason}`,
           },
-        }, {
-          timeout: 60000,
         })
 
         // 4. Create sale items for exchange items
@@ -387,6 +383,8 @@ export async function POST(
           customerPaysMore,
           customerGetsCredit
         }
+      }, {
+        timeout: 600000, // 600 seconds (10 minutes) timeout for exchange transactions
       })
 
       // Create audit log
