@@ -345,6 +345,10 @@ async function generateXReadingFromRunningTotals(
     endingOrNumber: lastSale?.invoiceNumber || undefined,
     refundAmount: 0, // TODO: Calculate from refund records
     withdrawalAmount: cashOut,
+    // Exchange tracking
+    exchangeCount: shift.runningExchangeCount,
+    exchangeAmount: parseFloat(shift.runningExchangeSales.toString()),
+    returnAmount: parseFloat(shift.runningReturnAmount.toString()),
   }
 
   // Record reading log if incrementing (optional - non-critical)
@@ -546,8 +550,6 @@ async function generateZReadingFromRunningTotals(
       vatOnReturn: 0, // TODO: Calculate from returns
       otherVatAdjustments: 0,
     },
-    // Returns
-    returnAmount: 0, // TODO: Calculate from return records
     // Discount Summary
     discountSummary: {
       seniorCitizenDiscount: seniorDiscount,
