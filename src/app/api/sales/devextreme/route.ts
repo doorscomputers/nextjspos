@@ -113,12 +113,6 @@ export async function GET(request: NextRequest) {
                   name: true,
                   sku: true
                 }
-              },
-              productVariation: {
-                select: {
-                  name: true,
-                  sku: true
-                }
               }
             }
           },
@@ -180,8 +174,7 @@ export async function GET(request: NextRequest) {
             unitPrice,
             lineTotal,
             serialNumbers: item.serialNumbers,
-            product: item.product,
-            productVariation: item.productVariation
+            product: item.product
           }
         }),
         payments: sale.payments.map(p => ({
