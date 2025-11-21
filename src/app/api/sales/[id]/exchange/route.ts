@@ -181,8 +181,7 @@ export async function POST(
             locationId: sale.locationId,
             returnNumber: `RTN-${exchangeNumber}`,
             returnDate: new Date(),
-            reason: exchangeReason,
-            refundAmount: returnTotal,
+            notes: exchangeReason, // Reason for exchange stored in notes field
             totalRefundAmount: returnTotal, // Total refund value for the exchange
             status: 'exchanged', // Mark as exchanged, not refunded
             processedBy: parseInt(user.id),
