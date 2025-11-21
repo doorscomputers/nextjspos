@@ -172,13 +172,16 @@ export async function POST(
         // Generate exchange number atomically
         const exchangeNumber = await getNextExchangeNumber(parseInt(user.businessId), tx)
 
+        // Get user's current location from session (where exchange is being processed)
+        const currentLocationId = parseInt(user.currentLocationId) || sale.locationId
+
         // 1. Create customer return record for returned items
         const customerReturn = await tx.customerReturn.create({
           data: {
             businessId: parseInt(user.businessId),
             saleId: saleId,
             customerId: sale.customerId,
-            locationId: sale.locationId,
+            locationId: currentLocationId, // Use current location, not original sale location
             returnNumber: `RTN-${exchangeNumber}`,
             returnDate: new Date(),
             notes: exchangeReason, // Reason for exchange stored in notes field
@@ -208,16 +211,16 @@ export async function POST(
             },
           })
 
-          // Restore inventory for returned items
+          // Restore inventory for returned items (at current location)
           await addStock({
             productId: saleItem.productId,
             productVariationId: saleItem.productVariationId,
-            locationId: sale.locationId,
+            locationId: currentLocationId, // Add to current location, not original sale location
             quantity: returnQty,
             type: StockTransactionType.CUSTOMER_RETURN,
             referenceType: 'exchange_return',
             referenceId: customerReturn.id,
-            notes: `Exchange ${exchangeNumber} - Returned from sale ${sale.invoiceNumber}`,
+            notes: `Exchange ${exchangeNumber} - Returned from sale ${sale.invoiceNumber} at current location`,
             userId: parseInt(user.id),
             businessId: parseInt(user.businessId),
             userDisplayName: user.username,
@@ -258,11 +261,11 @@ export async function POST(
           }
         }
 
-        // 3. Create new sale for exchange items
+        // 3. Create new sale for exchange items (at current location)
         const exchangeSale = await tx.sale.create({
           data: {
             businessId: parseInt(user.businessId),
-            locationId: sale.locationId,
+            locationId: currentLocationId, // Exchange processed at current location, not original sale location
             customerId: sale.customerId,
             invoiceNumber: exchangeNumber,
             saleDate: new Date(),
@@ -295,19 +298,19 @@ export async function POST(
             },
           })
 
-          // Prepare stock deduction with all required fields
+          // Prepare stock deduction with all required fields (from current location)
           exchangeStockUpdates.push({
             businessId: parseInt(user.businessId),
             productId: exchangeItem.productId,
             productVariationId: exchangeItem.productVariationId,
-            locationId: sale.locationId,
+            locationId: currentLocationId, // Deduct from current location, not original sale location
             quantity: -parseFloat(exchangeItem.quantity), // Negative for deduction
             type: StockTransactionType.SALE,
             referenceType: 'exchange_issue',
             referenceId: exchangeSale.id,
             userId: parseInt(user.id),
             userDisplayName: user.username,
-            notes: `Exchange ${exchangeNumber} - Replacement for sale ${sale.invoiceNumber}`,
+            notes: `Exchange ${exchangeNumber} - Replacement for sale ${sale.invoiceNumber} at current location`,
             tx,
           })
 

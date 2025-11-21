@@ -757,6 +757,7 @@ export const authOptions: NextAuthOptions = {
           permissions: allPermissions,
           roles: roleNames,
           locationIds: locationIds,
+          currentLocationId: selectedLocationId, // Current location from login (RFID scan/selection)
         } as any
       },
     }),
@@ -774,6 +775,7 @@ export const authOptions: NextAuthOptions = {
         token.permissions = (user as any).permissions
         token.roles = (user as any).roles
         token.locationIds = (user as any).locationIds
+        token.currentLocationId = (user as any).currentLocationId
       }
       return token
     },
@@ -789,6 +791,7 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as any).permissions = token.permissions || []
         ;(session.user as any).roles = token.roles || []
         ;(session.user as any).locationIds = token.locationIds || []
+        ;(session.user as any).currentLocationId = token.currentLocationId
       }
       return session
     },

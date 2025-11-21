@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -62,6 +63,10 @@ interface ExchangeItem {
 }
 
 export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSaleId }: ExchangeDialogProps) {
+  // Get user session for current location
+  const { data: session } = useSession()
+  const currentLocationId = (session?.user as any)?.currentLocationId
+
   const [step, setStep] = useState<'search' | 'select-return' | 'select-exchange' | 'confirm'>(initialSaleId ? 'select-return' : 'search')
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -125,7 +130,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
     }
 
     const query = productSearch.toLowerCase()
-    console.log(`[Exchange Filter] Searching for: "${query}", Sale location: ${sale?.locationId}, Total products: ${allProducts.length}`)
+    console.log(`[Exchange Filter] Searching for: "${query}", Current location (from session): ${currentLocationId}, Total products: ${allProducts.length}`)
 
     const filtered = allProducts.filter(p => {
       // Text search filter
@@ -139,8 +144,8 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
       // Debug: Log matched product
       console.log(`[Exchange Filter] Product "${p.name}" (${p.sku}) matches search`)
 
-      // STRICT Inventory filter: Only show products with stock > 0 at current location
-      if (sale && p.variations && p.variations.length > 0) {
+      // STRICT Inventory filter: Only show products with stock > 0 at current location (from session)
+      if (currentLocationId && p.variations && p.variations.length > 0) {
         console.log(`[Exchange Filter] Checking ${p.variations.length} variations for product "${p.name}"`)
 
         // Check if ANY variation has available stock at the current location
@@ -158,13 +163,13 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
             (detail: any) => {
               // Compare as both numbers and strings to handle type mismatches
               const detailLocId = String(detail.locationId)
-              const saleLocId = String(sale.locationId)
-              return detailLocId === saleLocId || detail.locationId === sale.locationId
+              const currentLocId = String(currentLocationId)
+              return detailLocId === currentLocId || detail.locationId === currentLocationId
             }
           )
 
           if (!locationStock) {
-            console.log(`[Exchange Filter]   Variation ${idx}: No stock record for location ${sale.locationId}`)
+            console.log(`[Exchange Filter]   Variation ${idx}: No stock record for location ${currentLocationId}`)
             console.log(`[Exchange Filter]   Available locations:`, v.variationLocationDetails.map((d: any) => `Location ${d.locationId}: ${d.qtyAvailable}`))
             return false
           }
@@ -174,7 +179,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
           // Filter out NaN, null, undefined, 0, and negative values
           const hasValidStock = !isNaN(qtyAvailable) && qtyAvailable > 0
 
-          console.log(`[Exchange Filter]   Variation ${idx} at location ${sale.locationId}: qtyAvailable = ${locationStock.qtyAvailable} (${typeof locationStock.qtyAvailable}), hasValidStock = ${hasValidStock}`)
+          console.log(`[Exchange Filter]   Variation ${idx} at location ${currentLocationId}: qtyAvailable = ${locationStock.qtyAvailable} (${typeof locationStock.qtyAvailable}), hasValidStock = ${hasValidStock}`)
 
           return hasValidStock
         })
@@ -625,15 +630,15 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                         let maxAvailableStock = 0
                         let bestVariation = product.variations?.[0] // Default to first variation
 
-                        if (sale && product.variations) {
+                        if (currentLocationId && product.variations) {
                           product.variations.forEach((variation: any) => {
                             if (variation.variationLocationDetails) {
                               // Handle both number and string locationId (type-safe comparison)
                               const locationStock = variation.variationLocationDetails.find(
                                 (detail: any) => {
                                   const detailLocId = String(detail.locationId)
-                                  const saleLocId = String(sale.locationId)
-                                  return detailLocId === saleLocId || detail.locationId === sale.locationId
+                                  const currentLocId = String(currentLocationId)
+                                  return detailLocId === currentLocId || detail.locationId === currentLocationId
                                 }
                               )
                               if (locationStock) {
