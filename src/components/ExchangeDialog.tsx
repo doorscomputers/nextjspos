@@ -475,15 +475,15 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl h-[90vh] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
-            <ArrowLeftRight className="h-6 w-6" />
+      <DialogContent className="max-w-7xl h-[90vh] max-h-[90vh] overflow-y-auto p-4">
+        <DialogHeader className="pb-2">
+          <DialogTitle className="flex items-center gap-2 text-lg">
+            <ArrowLeftRight className="h-5 w-5" />
             Process Exchange
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="space-y-4">
           {/* Step 1: Search for Sale */}
           {step === 'search' && (
             <div className="space-y-4">
@@ -523,9 +523,9 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
           {/* Step 2: Select Items to Return */}
           {step === 'select-return' && sale && (
-            <div className="space-y-4">
-              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="space-y-3">
+              <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
+                <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
                     <span className="text-gray-600 dark:text-gray-400">Invoice:</span>{' '}
                     <span className="font-medium">{sale.invoiceNumber}</span>
@@ -620,21 +620,21 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
           {/* Step 3: Select Exchange Items */}
           {step === 'select-exchange' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
-                <div className="flex items-center justify-between">
-                  <Label>Search Products to Exchange</Label>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-sm">Search Products to Exchange</Label>
                   <p className="text-xs text-blue-600 dark:text-blue-400">
                     ℹ️ Only products with stock &gt; 0 shown
                   </p>
                 </div>
-                <div className="relative mt-2">
+                <div className="relative">
                   <Input
                     placeholder={loadingProducts ? "Loading products..." : "Search products by name or SKU..."}
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
                     disabled={loadingProducts}
-                    className="h-12 text-base"
+                    className="h-10 text-sm"
                   />
                   {loadingProducts && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -681,14 +681,14 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                         return (
                           <div
                             key={product.id}
-                            className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b last:border-b-0 transition-colors"
+                            className="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b last:border-b-0 transition-colors"
                             onClick={() => handleAddExchangeItem(product, bestVariation)}
                           >
-                            <p className="font-semibold text-base">{product.name}</p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            <p className="font-semibold text-sm">{product.name}</p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
                               SKU: {product.sku} | Available: <span className="font-bold text-green-600 dark:text-green-400">{maxAvailableStock}</span>
                             </p>
-                            <p className="text-base text-green-600 dark:text-green-400 font-bold mt-2">
+                            <p className="text-sm text-green-600 dark:text-green-400 font-bold mt-1">
                               ₱{parseFloat(bestVariation?.sellingPrice || 0).toFixed(2)}
                             </p>
                           </div>
