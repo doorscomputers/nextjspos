@@ -108,11 +108,15 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   const fetchSale = async (invoiceNumberOrId: string) => {
     setLoading(true)
     try {
+      console.log('[Exchange Search] Searching for:', invoiceNumberOrId)
       const response = await fetch(`/api/sales/devextreme?searchValue=${encodeURIComponent(invoiceNumberOrId)}&take=1`)
+      console.log('[Exchange Search] Response status:', response.status)
       const data = await response.json()
+      console.log('[Exchange Search] Response data:', data)
 
       if (data.data && data.data.length > 0) {
         const saleData = data.data[0]
+        console.log('[Exchange Search] Sale found:', saleData.invoiceNumber)
 
         // Validate sale age (7 days)
         const saleDate = new Date(saleData.saleDate)
@@ -131,13 +135,15 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
         setSale(saleData)
         setStep('select-return')
       } else {
+        console.log('[Exchange Search] No sale found. Total count:', data.totalCount)
         toast({
           title: 'Sale Not Found',
-          description: 'No sale found with that invoice number.',
+          description: `No sale found with invoice number "${invoiceNumberOrId}". Please check the invoice number and try again.`,
           variant: 'destructive',
         })
       }
     } catch (error) {
+      console.error('[Exchange Search] Error:', error)
       toast({
         title: 'Error',
         description: 'Failed to fetch sale details.',

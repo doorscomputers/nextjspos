@@ -53,12 +53,15 @@ export async function GET(request: NextRequest) {
 
     // Apply search across multiple fields
     if (searchValue) {
+      console.log('[DevExtreme Sales API] Searching for:', searchValue)
       whereClause.OR = [
         { invoiceNumber: { contains: searchValue, mode: 'insensitive' } },
         { customer: { name: { contains: searchValue, mode: 'insensitive' } } },
         { customer: { mobile: { contains: searchValue, mode: 'insensitive' } } }
       ]
     }
+
+    console.log('[DevExtreme Sales API] Where clause:', JSON.stringify(whereClause, null, 2))
 
     // Build order by clause
     const orderBy: any = {}
@@ -134,6 +137,11 @@ export async function GET(request: NextRequest) {
       }),
       prisma.sale.count({ where: whereClause })
     ])
+
+    console.log('[DevExtreme Sales API] Found', sales.length, 'sales out of', totalCount, 'total')
+    if (searchValue && sales.length > 0) {
+      console.log('[DevExtreme Sales API] First sale invoice:', sales[0].invoiceNumber)
+    }
 
     // Transform data for DevExtreme
     const transformedData = sales.map((sale) => {
