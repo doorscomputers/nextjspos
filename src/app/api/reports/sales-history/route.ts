@@ -443,47 +443,61 @@ export async function GET(request: NextRequest) {
     summary.grossProfit = summary.totalRevenue - summary.totalCOGS
 
     // Format sales data for response
-    const salesData = sales.map((sale) => ({
-      id: sale.id,
-      invoiceNumber: sale.invoiceNumber,
-      saleDate: sale.saleDate.toISOString().split('T')[0],
-      saleDateTime: sale.createdAt.toISOString(),
-      customer: sale.customer?.name || 'Walk-in Customer',
-      customerId: sale.customerId,
-      customerEmail: sale.customer?.email || null,
-      customerMobile: sale.customer?.mobile || null,
-      location: locationMap[sale.locationId]?.name || 'Unknown',
-      locationId: sale.locationId,
-      status: sale.status,
-      subtotal: parseFloat(sale.subtotal.toString()),
-      taxAmount: parseFloat(sale.taxAmount.toString()),
-      discountAmount: parseFloat(sale.discountAmount.toString()),
-      shippingCost: parseFloat(sale.shippingCost.toString()),
-      totalAmount: parseFloat(sale.totalAmount.toString()),
-      discountType: sale.discountType,
-      notes: sale.notes,
-      itemCount: sale.items.length,
-      items: sale.items.map((item) => {
-        const variation = variationMap[item.productVariationId]
-        const product = variation ? productMap[variation.productId] : productMap[item.productId]
+    const salesData = sales.map((sale) => {
+      // Calculate payment total from all payments
+      const paymentTotal = sale.payments.reduce((sum, payment) => {
+        return sum + parseFloat(payment.amount.toString())
+      }, 0)
 
-        return {
-          productName: product?.name || 'Unknown Product',
-          variationName: variation?.name || 'Standard',
-          sku: variation?.sku ?? '',
-          quantity: parseFloat(item.quantity.toString()),
-          unitPrice: parseFloat(item.unitPrice.toString()),
-          unitCost: parseFloat(item.unitCost.toString()),
-          total: parseFloat(item.quantity.toString()) * parseFloat(item.unitPrice.toString()),
-        }
-      }),
-      payments: sale.payments.map((p) => ({
-        method: p.paymentMethod,
-        amount: parseFloat(p.amount.toString()),
-        referenceNumber: p.referenceNumber,
-        paidAt: p.paidAt.toISOString(),
-      })),
-    }))
+      const totalAmount = parseFloat(sale.totalAmount.toString())
+      const balance = totalAmount - paymentTotal
+
+      return {
+        id: sale.id,
+        invoiceNumber: sale.invoiceNumber,
+        saleDate: sale.saleDate.toISOString().split('T')[0],
+        saleDateTime: sale.createdAt.toISOString(),
+        customer: sale.customer?.name || 'Walk-in Customer',
+        customerId: sale.customerId,
+        customerEmail: sale.customer?.email || null,
+        customerMobile: sale.customer?.mobile || null,
+        location: locationMap[sale.locationId]?.name || 'Unknown',
+        locationId: sale.locationId,
+        status: sale.status,
+        subtotal: parseFloat(sale.subtotal.toString()),
+        taxAmount: parseFloat(sale.taxAmount.toString()),
+        discountAmount: parseFloat(sale.discountAmount.toString()),
+        shippingCost: parseFloat(sale.shippingCost.toString()),
+        totalAmount: totalAmount,
+        paymentTotal: paymentTotal,
+        balance: balance,
+        paymentStatus: balance > 0.01 ? 'unpaid' : 'paid',
+        discountType: sale.discountType,
+        notes: sale.notes,
+        remarks: sale.notes || '',
+        itemCount: sale.items.length,
+        items: sale.items.map((item) => {
+          const variation = variationMap[item.productVariationId]
+          const product = variation ? productMap[variation.productId] : productMap[item.productId]
+
+          return {
+            productName: product?.name || 'Unknown Product',
+            variationName: variation?.name || 'Standard',
+            sku: variation?.sku ?? '',
+            quantity: parseFloat(item.quantity.toString()),
+            unitPrice: parseFloat(item.unitPrice.toString()),
+            unitCost: parseFloat(item.unitCost.toString()),
+            total: parseFloat(item.quantity.toString()) * parseFloat(item.unitPrice.toString()),
+          }
+        }),
+        payments: sale.payments.map((p) => ({
+          method: p.paymentMethod,
+          amount: parseFloat(p.amount.toString()),
+          referenceNumber: p.referenceNumber,
+          paidAt: p.paidAt.toISOString(),
+        })),
+      }
+    })
 
     return NextResponse.json({
       sales: salesData,

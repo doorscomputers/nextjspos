@@ -10,7 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
 import DataGrid, {
   Column,
   FilterRow,
@@ -40,10 +39,14 @@ interface SalesHistoryData {
     saleDate: string
     saleDateTime: string
     customer: string
+    subtotal: number
     totalAmount: number
     discountAmount: number
     discountType: string | null
+    paymentTotal: number
+    balance: number
     paymentStatus: string
+    remarks: string
     itemCount: number
   }>
   summary: {
@@ -157,7 +160,8 @@ export default function CashierSalesHistoryPage() {
       autoFilterEnabled: true,
       customizeCell: ({ gridCell, excelCell }: any) => {
         if (gridCell.rowType === 'data') {
-          if (gridCell.column.dataField === 'totalAmount' || gridCell.column.dataField === 'discountAmount') {
+          const numericFields = ['subtotal', 'discountAmount', 'totalAmount', 'paymentTotal', 'balance']
+          if (numericFields.includes(gridCell.column.dataField)) {
             excelCell.numFmt = '₱#,##0.00'
           }
         }
@@ -173,41 +177,6 @@ export default function CashierSalesHistoryPage() {
     e.cancel = true
   }
 
-  const renderPaymentStatus = (data: any) => {
-    const status = data.value
-    return (
-      <Badge
-        variant={status === "paid" ? "default" : "secondary"}
-        className={
-          status === "paid"
-            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-            : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-        }
-      >
-        {status}
-      </Badge>
-    )
-  }
-
-  const renderDiscount = (data: any) => {
-    const discountAmount = data.data.discountAmount
-    const discountType = data.data.discountType
-
-    if (!discountAmount || discountAmount === 0) {
-      return <span className="text-gray-400 dark:text-gray-600">-</span>
-    }
-
-    return (
-      <span className="text-orange-600 dark:text-orange-400">
-        -{formatCurrency(discountAmount)}
-        {discountType && (
-          <Badge variant="outline" className="ml-1 text-xs">
-            {discountType}
-          </Badge>
-        )}
-      </span>
-    )
-  }
 
   if (loading) {
     return (
@@ -368,16 +337,11 @@ export default function CashierSalesHistoryPage() {
               <ColumnChooser enabled={true} mode="select" />
 
               <Column
-                dataField="invoiceNumber"
-                caption="Invoice #"
-                width={140}
-              />
-              <Column
-                dataField="saleDateTime"
-                caption="Date & Time"
-                dataType="datetime"
-                format="dd/MM/yyyy HH:mm"
-                width={160}
+                dataField="saleDate"
+                caption="Sold Date"
+                dataType="date"
+                format="MM/dd/yyyy"
+                width={120}
               />
               <Column
                 dataField="customer"
@@ -385,8 +349,32 @@ export default function CashierSalesHistoryPage() {
                 minWidth={150}
               />
               <Column
+                dataField="subtotal"
+                caption="Sub Total"
+                dataType="number"
+                format="₱#,##0.00"
+                alignment="right"
+                width={120}
+              />
+              <Column
+                caption="Refund Sub Total"
+                dataType="number"
+                format="₱#,##0.00"
+                alignment="right"
+                width={140}
+                calculateCellValue={() => 0.00}
+              />
+              <Column
+                dataField="discountAmount"
+                caption="Discount"
+                dataType="number"
+                format="₱#,##0.00"
+                alignment="right"
+                width={120}
+              />
+              <Column
                 dataField="totalAmount"
-                caption="Amount"
+                caption="Total Amount"
                 dataType="number"
                 format="₱#,##0.00"
                 alignment="right"
@@ -394,31 +382,35 @@ export default function CashierSalesHistoryPage() {
                 cssClass="font-semibold"
               />
               <Column
-                dataField="discountAmount"
-                caption="Discount"
-                width={140}
-                alignment="right"
-                cellRender={renderDiscount}
-              />
-              <Column
-                dataField="paymentStatus"
-                caption="Payment Status"
-                width={130}
-                alignment="center"
-                cellRender={renderPaymentStatus}
-              />
-              <Column
-                dataField="itemCount"
-                caption="Items"
+                dataField="paymentTotal"
+                caption="Payment Total"
                 dataType="number"
-                alignment="center"
-                width={80}
+                format="₱#,##0.00"
+                alignment="right"
+                width={140}
+              />
+              <Column
+                dataField="balance"
+                caption="Balance"
+                dataType="number"
+                format="₱#,##0.00"
+                alignment="right"
+                width={120}
+                cssClass="font-semibold"
+              />
+              <Column
+                dataField="remarks"
+                caption="Remarks"
+                minWidth={150}
               />
 
               <Summary>
-                <TotalItem column="totalAmount" summaryType="sum" valueFormat="₱#,##0.00" />
+                <TotalItem column="subtotal" summaryType="sum" valueFormat="₱#,##0.00" />
                 <TotalItem column="discountAmount" summaryType="sum" valueFormat="₱#,##0.00" />
-                <TotalItem column="invoiceNumber" summaryType="count" displayFormat="Total: {0} sales" />
+                <TotalItem column="totalAmount" summaryType="sum" valueFormat="₱#,##0.00" />
+                <TotalItem column="paymentTotal" summaryType="sum" valueFormat="₱#,##0.00" />
+                <TotalItem column="balance" summaryType="sum" valueFormat="₱#,##0.00" />
+                <TotalItem column="saleDate" summaryType="count" displayFormat="Total: {0} sales" />
               </Summary>
 
               <Paging defaultPageSize={20} />
