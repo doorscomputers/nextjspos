@@ -56,8 +56,20 @@ export async function GET(request: NextRequest) {
       console.log('[DevExtreme Sales API] Searching for:', searchValue)
       whereClause.OR = [
         { invoiceNumber: { contains: searchValue, mode: 'insensitive' } },
-        { customer: { name: { contains: searchValue, mode: 'insensitive' } } },
-        { customer: { mobile: { contains: searchValue, mode: 'insensitive' } } }
+        {
+          customer: {
+            is: {
+              name: { contains: searchValue, mode: 'insensitive' }
+            }
+          }
+        },
+        {
+          customer: {
+            is: {
+              mobile: { contains: searchValue, mode: 'insensitive' }
+            }
+          }
+        }
       ]
     }
 
