@@ -3683,7 +3683,7 @@ export default function POSEnhancedPage() {
 
       {/* Exchange Dialog */}
       <ExchangeDialog
-        open={showExchangeDialog}
+        isOpen={showExchangeDialog}
         onClose={() => setShowExchangeDialog(false)}
         onSuccess={(exchangeNumber) => {
           setShowExchangeDialog(false)
