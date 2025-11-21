@@ -77,7 +77,10 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   const [exchangeItems, setExchangeItems] = useState<ExchangeItem[]>([])
   const [productSearch, setProductSearch] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
-  const [searchingProducts, setSearchingProducts] = useState(false)
+
+  // POS-style instant search: Load all products once
+  const [allProducts, setAllProducts] = useState<any[]>([])
+  const [loadingProducts, setLoadingProducts] = useState(false)
 
   // Exchange details
   const [exchangeReason, setExchangeReason] = useState('')
@@ -102,8 +105,33 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
       setPaymentMethod('cash')
       setProductSearch('')
       setSearchResults([])
+      setAllProducts([]) // Clear products cache
     }
   }, [isOpen, initialSaleId])
+
+  // POS-style instant search: Load all products when entering exchange step
+  useEffect(() => {
+    if (step === 'select-exchange' && allProducts.length === 0) {
+      fetchAllProducts()
+    }
+  }, [step])
+
+  // Client-side product filtering (POS pattern)
+  useEffect(() => {
+    if (productSearch.length < 2) {
+      setSearchResults([])
+      return
+    }
+
+    const query = productSearch.toLowerCase()
+    const filtered = allProducts.filter(p =>
+      p.name?.toLowerCase().includes(query) ||
+      p.sku?.toLowerCase().includes(query) ||
+      p.variations?.some((v: any) => v.sku?.toLowerCase().includes(query))
+    ).slice(0, 10) // Limit to 10 results for UI
+
+    setSearchResults(filtered)
+  }, [productSearch, allProducts])
 
   const fetchSale = async (invoiceNumberOrId: string) => {
     setLoading(true)
@@ -154,6 +182,33 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
     }
   }
 
+  const fetchAllProducts = async () => {
+    setLoadingProducts(true)
+    try {
+      console.log('[Exchange] Loading all products for instant search...')
+      const res = await fetch('/api/products?limit=10000&status=active')
+      const data = await res.json()
+
+      if (data.products) {
+        // Filter products with variations
+        const productsWithVariations = data.products.filter((p: any) =>
+          p.variations && p.variations.length > 0
+        )
+        console.log('[Exchange] Loaded', productsWithVariations.length, 'products with variations')
+        setAllProducts(productsWithVariations)
+      }
+    } catch (error) {
+      console.error('[Exchange] Error loading products:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to load products. Please refresh and try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoadingProducts(false)
+    }
+  }
+
   const handleSearchSale = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
@@ -196,27 +251,6 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
     }
   }
 
-  const searchProducts = async (query: string) => {
-    if (query.length < 2) {
-      setSearchResults([])
-      return
-    }
-
-    setSearchingProducts(true)
-    try {
-      const response = await fetch(`/api/products?search=${encodeURIComponent(query)}&take=10`)
-      const data = await response.json()
-      setSearchResults(data.data || [])
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to search products.',
-        variant: 'destructive',
-      })
-    } finally {
-      setSearchingProducts(false)
-    }
-  }
 
   const handleAddExchangeItem = (product: any, variation?: any) => {
     const variationToUse = variation || product.variations?.[0]
@@ -503,12 +537,9 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                   <Input
                     placeholder="Search products by name or SKU..."
                     value={productSearch}
-                    onChange={(e) => {
-                      setProductSearch(e.target.value)
-                      searchProducts(e.target.value)
-                    }}
+                    onChange={(e) => setProductSearch(e.target.value)}
                   />
-                  {searchingProducts && (
+                  {loadingProducts && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
                       <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full" />
                     </div>
