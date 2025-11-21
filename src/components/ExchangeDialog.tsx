@@ -67,6 +67,13 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   const { data: session } = useSession()
   const currentLocationId = (session?.user as any)?.currentLocationId
 
+  console.log('[Exchange Dialog] Session data:', {
+    hasSession: !!session,
+    hasUser: !!session?.user,
+    currentLocationId: currentLocationId,
+    locationIdType: typeof currentLocationId
+  })
+
   const [step, setStep] = useState<'search' | 'select-return' | 'select-exchange' | 'confirm'>(initialSaleId ? 'select-return' : 'search')
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
