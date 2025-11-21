@@ -132,18 +132,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
     const query = productSearch.toLowerCase()
     // Use currentLocationId from session, or fallback to sale's location
     const filterLocationId = currentLocationId || sale?.locationId
-    console.log(`[Exchange Filter] Searching for: "${query}", Location ID: ${filterLocationId} (from ${currentLocationId ? 'session' : 'sale'}), Total products: ${allProducts.length}`)
 
-    // Debug: Show first 5 products to understand data structure
-    if (allProducts.length > 0) {
-      console.log('[Exchange Filter] Sample products:', allProducts.slice(0, 5).map(p => ({
-        name: p.name,
-        sku: p.sku,
-        variations: p.variations?.length || 0
-      })))
-    }
-
-    let nonMatchCount = 0
     const filtered = allProducts.filter(p => {
       // Text search filter
       const matchesSearch =
@@ -152,30 +141,17 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
         p.variations?.some((v: any) => v.sku?.toLowerCase().includes(query))
 
       if (!matchesSearch) {
-        // Debug: Show why products don't match (only first 3 non-matches to avoid spam)
-        if (nonMatchCount < 3) {
-          console.log(`[Exchange Filter] Product "${p.name}" (SKU: ${p.sku}) does NOT match search "${query}"`)
-          nonMatchCount++
-        }
         return false
       }
 
-      // Debug: Log matched product
-      console.log(`[Exchange Filter] Product "${p.name}" (${p.sku}) matches search`)
-
       // STRICT Inventory filter: Only show products with stock > 0 at location
       if (filterLocationId && p.variations && p.variations.length > 0) {
-        console.log(`[Exchange Filter] Checking ${p.variations.length} variations for product "${p.name}"`)
-
         // Check if ANY variation has available stock at the location
-        const hasStock = p.variations.some((v: any, idx: number) => {
+        const hasStock = p.variations.some((v: any) => {
           // Must have location details
           if (!v.variationLocationDetails || !Array.isArray(v.variationLocationDetails)) {
-            console.log(`[Exchange Filter]   Variation ${idx} (${v.name || v.id}): No variationLocationDetails or not array`)
             return false
           }
-
-          console.log(`[Exchange Filter]   Variation ${idx} (${v.name || v.id}) has ${v.variationLocationDetails.length} location details`)
 
           // Find stock at location (handle both number and string locationId)
           const locationStock = v.variationLocationDetails.find(
@@ -188,48 +164,34 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
           )
 
           if (!locationStock) {
-            console.log(`[Exchange Filter]   Variation ${idx}: No stock record for location ${filterLocationId}`)
-            console.log(`[Exchange Filter]   Available locations:`, v.variationLocationDetails.map((d: any) => `Location ${d.locationId}: ${d.qtyAvailable}`))
             return false
           }
 
           const qtyAvailable = Number(locationStock.qtyAvailable)
 
           // Filter out NaN, null, undefined, 0, and negative values
-          const hasValidStock = !isNaN(qtyAvailable) && qtyAvailable > 0
-
-          console.log(`[Exchange Filter]   Variation ${idx} at location ${filterLocationId}: qtyAvailable = ${locationStock.qtyAvailable} (${typeof locationStock.qtyAvailable}), hasValidStock = ${hasValidStock}`)
-
-          return hasValidStock
+          return !isNaN(qtyAvailable) && qtyAvailable > 0
         })
-
-        console.log(`[Exchange Filter] Product "${p.name}" hasStock = ${hasStock}`)
 
         // Only include products that have at least one variation with stock
         return hasStock
       }
 
       // If no location ID available, don't show products (need location for stock filtering)
-      console.log(`[Exchange Filter] No location ID available for product "${p.name}"`)
       return false
     }).slice(0, 30) // Show up to 30 results
 
-    console.log(`[Exchange Filter] Filtered results: ${filtered.length} products found`)
     setSearchResults(filtered)
   }, [productSearch, allProducts, sale, currentLocationId])
 
   const fetchSale = async (invoiceNumberOrId: string) => {
     setLoading(true)
     try {
-      console.log('[Exchange Search] Searching for:', invoiceNumberOrId)
       const response = await fetch(`/api/sales/devextreme?searchValue=${encodeURIComponent(invoiceNumberOrId)}&take=1`)
-      console.log('[Exchange Search] Response status:', response.status)
       const data = await response.json()
-      console.log('[Exchange Search] Response data:', data)
 
       if (data.data && data.data.length > 0) {
         const saleData = data.data[0]
-        console.log('[Exchange Search] Sale found:', saleData.invoiceNumber)
 
         // Validate sale age (7 days)
         const saleDate = new Date(saleData.saleDate)
@@ -243,18 +205,9 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
           return
         }
 
-        console.log('[Exchange] Sale loaded:', {
-          id: saleData.id,
-          invoiceNumber: saleData.invoiceNumber,
-          locationId: saleData.locationId,
-          locationIdType: typeof saleData.locationId,
-          itemsCount: saleData.items?.length
-        })
-
         setSale(saleData)
         setStep('select-return')
       } else {
-        console.log('[Exchange Search] No sale found. Total count:', data.totalCount)
         toast.error('Sale Not Found', {
           description: `No sale found with invoice number "${invoiceNumberOrId}". Please check the invoice number and try again.`,
         })
@@ -270,7 +223,6 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   const fetchAllProducts = async () => {
     setLoadingProducts(true)
     try {
-      console.log('[Exchange] Loading all products for instant search...')
       const res = await fetch('/api/products?limit=10000&forTransaction=true')
       const data = await res.json()
 
@@ -279,25 +231,6 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
         const productsWithVariations = data.products.filter((p: any) =>
           p.variations && p.variations.length > 0
         )
-        console.log('[Exchange] Loaded', productsWithVariations.length, 'products with variations')
-
-        // Debug: Log first product structure to verify variationLocationDetails
-        if (productsWithVariations.length > 0) {
-          const sample = productsWithVariations[0]
-          console.log('[Exchange] Sample product structure:', {
-            name: sample.name,
-            sku: sample.sku,
-            hasVariations: !!sample.variations,
-            variationsCount: sample.variations?.length,
-            firstVariation: sample.variations?.[0] ? {
-              id: sample.variations[0].id,
-              name: sample.variations[0].name,
-              hasLocationDetails: !!sample.variations[0].variationLocationDetails,
-              locationDetailsCount: sample.variations[0].variationLocationDetails?.length,
-              locationDetails: sample.variations[0].variationLocationDetails
-            } : null
-          })
-        }
 
         setAllProducts(productsWithVariations)
       }
