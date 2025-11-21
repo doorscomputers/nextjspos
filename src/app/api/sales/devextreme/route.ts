@@ -107,7 +107,6 @@ export async function GET(request: NextRequest) {
               productVariationId: true,
               quantity: true,
               unitPrice: true,
-              lineTotal: true,
               serialNumbers: true,
               product: {
                 select: {
@@ -168,17 +167,23 @@ export async function GET(request: NextRequest) {
         notes: sale.notes,
         // Include full data for actions/modals
         customer: sale.customer,
-        items: sale.items.map(item => ({
-          id: item.id,
-          productId: item.productId,
-          productVariationId: item.productVariationId,
-          quantity: parseFloat(item.quantity.toString()),
-          unitPrice: parseFloat(item.unitPrice.toString()),
-          lineTotal: parseFloat(item.lineTotal.toString()),
-          serialNumbers: item.serialNumbers,
-          product: item.product,
-          productVariation: item.productVariation
-        })),
+        items: sale.items.map(item => {
+          const quantity = parseFloat(item.quantity.toString())
+          const unitPrice = parseFloat(item.unitPrice.toString())
+          const lineTotal = quantity * unitPrice // Calculate lineTotal from quantity * unitPrice
+
+          return {
+            id: item.id,
+            productId: item.productId,
+            productVariationId: item.productVariationId,
+            quantity,
+            unitPrice,
+            lineTotal,
+            serialNumbers: item.serialNumbers,
+            product: item.product,
+            productVariation: item.productVariation
+          }
+        }),
         payments: sale.payments.map(p => ({
           id: p.id,
           paymentMethod: p.paymentMethod,
