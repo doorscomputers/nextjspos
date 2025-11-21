@@ -176,6 +176,7 @@ export const authOptions: NextAuthOptions = {
             console.log(`[LOGIN] Assigned locations: ${assignedLocationNames.join(', ')}`)
 
             // Log the failed login attempt with location mismatch
+            console.log('[LOGIN AUDIT] Logging BLOCKED login attempt for user:', user.username)
             try {
               await createAuditLog({
                 businessId: user.businessId!,
@@ -198,8 +199,11 @@ export const authOptions: NextAuthOptions = {
                 ipAddress: (credentials as any).ipAddress || 'Unknown',
                 userAgent: (credentials as any).userAgent || 'Unknown',
               })
-            } catch (auditError) {
-              console.error('[LOGIN] Failed to create audit log for blocked login:', auditError)
+              console.log('[LOGIN AUDIT] ✅ Blocked login audit log created')
+            } catch (auditError: any) {
+              console.error('[LOGIN AUDIT] ❌ Failed to create audit log for blocked login')
+              console.error('[LOGIN AUDIT] Error:', auditError)
+              console.error('[LOGIN AUDIT] Error message:', auditError?.message)
             }
 
             // BLOCK THE LOGIN
@@ -241,6 +245,7 @@ export const authOptions: NextAuthOptions = {
           : [...new Set(roleLocationIds)]
 
         // Create audit log for successful login
+        console.log('[LOGIN AUDIT] Starting audit log creation for user:', user.username)
         try {
           // Get location names for audit metadata
           let selectedLocationName = 'Not Selected'
@@ -262,6 +267,11 @@ export const authOptions: NextAuthOptions = {
             assignedLocationNames = assignedLocs.map(l => l.name)
           }
 
+          console.log('[LOGIN AUDIT] Creating audit log entry...')
+          console.log('[LOGIN AUDIT] Business ID:', user.businessId)
+          console.log('[LOGIN AUDIT] User ID:', user.id)
+          console.log('[LOGIN AUDIT] Username:', user.username)
+
           await createAuditLog({
             businessId: user.businessId!,
             userId: user.id,
@@ -281,8 +291,13 @@ export const authOptions: NextAuthOptions = {
             ipAddress: (credentials as any).ipAddress || 'Unknown',
             userAgent: (credentials as any).userAgent || 'Unknown',
           })
-        } catch (auditError) {
-          console.error('[LOGIN] Failed to create audit log:', auditError)
+
+          console.log('[LOGIN AUDIT] ✅ Audit log created successfully')
+        } catch (auditError: any) {
+          console.error('[LOGIN AUDIT] ❌ Failed to create audit log')
+          console.error('[LOGIN AUDIT] Error:', auditError)
+          console.error('[LOGIN AUDIT] Error message:', auditError?.message)
+          console.error('[LOGIN AUDIT] Error stack:', auditError?.stack)
           // Don't block login if audit log fails
         }
 

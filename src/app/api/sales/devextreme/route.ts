@@ -100,9 +100,24 @@ export async function GET(request: NextRequest) {
           items: {
             select: {
               id: true,
+              productId: true,
+              productVariationId: true,
               quantity: true,
               unitPrice: true,
-              serialNumbers: true
+              lineTotal: true,
+              serialNumbers: true,
+              product: {
+                select: {
+                  name: true,
+                  sku: true
+                }
+              },
+              productVariation: {
+                select: {
+                  name: true,
+                  sku: true
+                }
+              }
             }
           },
           payments: {
@@ -147,9 +162,14 @@ export async function GET(request: NextRequest) {
         customer: sale.customer,
         items: sale.items.map(item => ({
           id: item.id,
+          productId: item.productId,
+          productVariationId: item.productVariationId,
           quantity: parseFloat(item.quantity.toString()),
           unitPrice: parseFloat(item.unitPrice.toString()),
-          serialNumbers: item.serialNumbers
+          lineTotal: parseFloat(item.lineTotal.toString()),
+          serialNumbers: item.serialNumbers,
+          product: item.product,
+          productVariation: item.productVariation
         })),
         payments: sale.payments.map(p => ({
           id: p.id,
