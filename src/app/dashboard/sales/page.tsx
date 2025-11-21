@@ -504,6 +504,13 @@ export default function SalesPage() {
             cellRender={statusCellRender}
           />
 
+          <Column
+            dataField="remarks"
+            caption="Remarks"
+            width={200}
+            visible={false}
+          />
+
           {/* Actions Column */}
           <Column
             caption="Actions"

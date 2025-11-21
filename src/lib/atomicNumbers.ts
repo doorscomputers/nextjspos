@@ -149,6 +149,31 @@ export async function getNextReturnNumber(
 }
 
 /**
+ * Generates atomic exchange numbers
+ */
+export async function getNextExchangeNumber(
+  businessId: number,
+  tx?: TransactionClient
+): Promise<string> {
+  const client = tx ?? prisma
+  const year = new Date().getFullYear()
+  const month = new Date().getMonth() + 1
+
+  const seq = await client.$queryRaw<{ sequence: number }[]>(
+    Prisma.sql`
+      INSERT INTO exchange_sequences (business_id, year, month, sequence)
+      VALUES (${businessId}, ${year}, ${month}, 1)
+      ON CONFLICT (business_id, year, month)
+      DO UPDATE SET sequence = exchange_sequences.sequence + 1
+      RETURNING sequence
+    `
+  )
+
+  const sequence = seq[0]?.sequence ?? 1
+  return `EXC-${year}${String(month).padStart(2, '0')}-${String(sequence).padStart(4, '0')}`
+}
+
+/**
  * Generates location-based X/Z Reading receipt numbers
  * Format: Inv{LocationName}{MM_DD_YYYY}_####
  * These use the SAME sequence as regular invoices (shared counter per location per day)

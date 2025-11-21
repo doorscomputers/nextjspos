@@ -528,6 +528,7 @@ export async function POST(request: NextRequest) {
       discountAmount = 0,
       shippingCost = 0,
       notes,
+      remarks, // Cashier remarks/additional information
       status, // 'completed', 'pending' (for credit sales)
       // Philippine BIR discount tracking
       discountType, // 'senior', 'pwd', 'regular', or null
@@ -950,6 +951,7 @@ export async function POST(request: NextRequest) {
           // Cash tendered (for invoice display)
           cashTendered: cashTendered ? parseFloat(cashTendered) : null,
           notes,
+          remarks, // Cashier remarks/additional information
           // Philippine BIR discount tracking
           discountType: discountType || null,
           seniorCitizenId: seniorCitizenId || null,

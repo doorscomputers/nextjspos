@@ -40,6 +40,8 @@ export enum AuditAction {
   SHIFT_Z_READING = 'shift_z_reading',
   SALE_VOID = 'sale_void',
   SALE_REFUND = 'sale_refund',
+  SALE_RETURN = 'sale_return',
+  SALE_EXCHANGE = 'sale_exchange',
   DISCOUNT_APPLIED = 'discount_applied',
   DISCOUNT_APPROVED = 'discount_approved',
   PRICE_OVERRIDE = 'price_override',

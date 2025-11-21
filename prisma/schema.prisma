@@ -593,6 +593,19 @@ model ReturnSequence {
   @@map("return_sequences")
 }
 
+// Atomic sequence generator for exchange numbers
+model ExchangeSequence {
+  id         Int @id @default(autoincrement())
+  businessId Int @map("business_id")
+  year       Int
+  month      Int
+  sequence   Int @default(1)
+
+  @@unique([businessId, year, month])
+  @@index([businessId])
+  @@map("exchange_sequences")
+}
+
 // Idempotency keys for preventing duplicate submissions
 model IdempotencyKey {
   id             Int      @id @default(autoincrement())
@@ -1941,6 +1954,9 @@ model Sale {
   // Warranty information (printed on invoice)
   warrantyTerms String? @map("warranty_terms") @db.Text
 
+  // Cashier remarks (additional information about the sale)
+  remarks String? @db.Text
+
   notes String? @db.Text
 
   createdBy Int       @map("created_by")
@@ -2721,6 +2737,10 @@ model CashierShift {
   runningVoidedSales  Decimal @default(0) @map("running_voided_sales") @db.Decimal(22, 4) // Total voided amount
   runningRefundAmount Decimal @default(0) @map("running_refund_amount") @db.Decimal(22, 4) // Total refunds
   runningReturnAmount Decimal @default(0) @map("running_return_amount") @db.Decimal(22, 4) // Total returns
+
+  // Exchange Tracking
+  runningExchangeCount Int     @default(0) @map("running_exchange_count") // Count of exchanges
+  runningExchangeSales Decimal @default(0) @map("running_exchange_sales") @db.Decimal(22, 4) // Total exchange sales
 
   // X-Reading and Z-Reading counters
   xReadingCount Int @default(0) @map("x_reading_count") // Number of X-Readings generated

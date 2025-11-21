@@ -286,6 +286,50 @@ export async function incrementShiftTotalsForRefund(
 }
 
 /**
+ * Update shift running totals when an EXCHANGE is processed
+ * An exchange involves:
+ * 1. Items returned by customer (inventory added back)
+ * 2. Items issued to customer (inventory deducted)
+ * 3. Net cash impact (if customer pays difference)
+ */
+export async function incrementShiftTotalsForExchange(
+  shiftId: number,
+  exchangeTotal: number,    // Total value of new items issued
+  returnTotal: number,       // Total value of items returned
+  cashCollected: number,     // Actual cash received from customer
+  tx?: any
+): Promise<void> {
+  const db = tx || prisma
+
+  // Net sales impact = exchange total - return total
+  // Cash impact = what customer actually paid (0 if exchange was cheaper than return)
+  const netSalesImpact = exchangeTotal - returnTotal
+
+  await db.cashierShift.update({
+    where: { id: shiftId },
+    data: {
+      // Track exchange counts
+      runningExchangeCount: { increment: 1 },
+      runningExchangeSales: { increment: exchangeTotal },
+      runningReturnAmount: { increment: returnTotal },
+
+      // Net sales impact (can be positive, negative, or zero)
+      runningNetSales: { increment: netSalesImpact },
+      runningGrossSales: { increment: netSalesImpact },
+
+      // Cash collected (only if customer paid more)
+      runningCashSales: { increment: cashCollected },
+    },
+  })
+
+  console.log(
+    `[ShiftTotals] 🔄 Exchange recorded for shift ${shiftId}: ` +
+    `Exchange: ₱${exchangeTotal.toFixed(2)}, Return: ₱${returnTotal.toFixed(2)}, ` +
+    `Net Impact: ₱${netSalesImpact.toFixed(2)}, Cash: ₱${cashCollected.toFixed(2)}`
+  )
+}
+
+/**
  * Calculate running totals from existing sales (for migration/backfill)
  * Use this to populate running totals for shifts created before this feature
  */

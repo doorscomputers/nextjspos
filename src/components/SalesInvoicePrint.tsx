@@ -784,6 +784,18 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
               </div>
             )}
 
+            {/* Remarks (if provided) */}
+            {sale.remarks && (
+              <div className="mt-3 p-2 border border-gray-300 rounded">
+                <p className={`font-bold text-gray-900 mb-1 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                  REMARKS:
+                </p>
+                <p className={`text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                  {sale.remarks}
+                </p>
+              </div>
+            )}
+
             {/* Footer */}
             <div className="text-center pt-3 border-t-2 border-black mt-3">
               <p className={`text-gray-600 mb-1 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>

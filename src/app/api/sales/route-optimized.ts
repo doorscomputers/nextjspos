@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
       where.OR = [
         { invoiceNumber: { contains: search, mode: 'insensitive' } },
         { notes: { contains: search, mode: 'insensitive' } },
+        { remarks: { contains: search, mode: 'insensitive' } },
         { customer: { name: { contains: search, mode: 'insensitive' } } }
       ]
     }
@@ -124,6 +125,7 @@ export async function GET(request: NextRequest) {
         totalAmount: true,
         paymentStatus: true,
         notes: true,
+        remarks: true,
         createdAt: true,
         updatedAt: true,
         // Minimal relation data
