@@ -354,16 +354,15 @@ export async function POST(
 
         // 6. Record payment if customer pays more
         if (customerPaysMore && actualPayment > 0) {
-          await tx.payment.create({
+          await tx.salePayment.create({
             data: {
-              businessId: parseInt(user.businessId),
               saleId: exchangeSale.id,
-              amount: actualPayment,
               paymentMethod: paymentMethod || 'cash',
-              paymentNumber: `PAY-${exchangeNumber}`,
+              amount: actualPayment,
               paidAt: new Date(),
-              createdBy: parseInt(user.id),
-              notes: `Payment for exchange price difference`,
+              shiftId: sale.shiftId, // Link to same shift
+              collectedBy: parseInt(user.id), // User who processed exchange
+              referenceNumber: `EX-${exchangeNumber}`, // Exchange reference
             },
           })
         }
