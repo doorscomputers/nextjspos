@@ -113,8 +113,9 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
     )
   }
 
-  const formatCurrency = (amount: number) => {
-    return amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  const formatCurrency = (amount: number | undefined | null) => {
+    const value = amount ?? 0
+    return value.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
   }
 
   const formatDateTime = (date: Date) => {
