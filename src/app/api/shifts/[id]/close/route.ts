@@ -341,7 +341,7 @@ export async function POST(
         },
       })
     }, {
-      timeout: 300000, // 300 seconds (5 minutes) timeout for long shifts (11+ hours) with many transactions
+      timeout: 600000, // 600 seconds (10 minutes) timeout for very long shifts (13+ hours) - matches frontend timeout
     })
 
     const txElapsed = Date.now() - txStartTime
