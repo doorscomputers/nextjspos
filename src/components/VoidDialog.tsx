@@ -48,6 +48,9 @@ export default function VoidDialog({
   const [voidReason, setVoidReason] = useState('')
   const [managerPassword, setManagerPassword] = useState('')
 
+  // Triple confirmation state
+  const [confirmationStep, setConfirmationStep] = useState(0) // 0 = not started, 1-3 = confirmation steps
+
   // Load initial sale if provided
   useEffect(() => {
     if (isOpen && (initialSaleId || initialInvoiceNumber)) {
@@ -63,6 +66,7 @@ export default function VoidDialog({
       setSale(null)
       setVoidReason('')
       setManagerPassword('')
+      setConfirmationStep(0) // Reset triple confirmation
     }
   }, [isOpen, initialSaleId, initialInvoiceNumber])
 
@@ -126,6 +130,63 @@ export default function VoidDialog({
       return
     }
 
+    // TRIPLE CONFIRMATION SYSTEM - Extra safety for cashiers
+    if (confirmationStep === 0) {
+      // First confirmation
+      const confirmed = window.confirm(
+        '⚠️ ARE YOU SURE?\n\n' +
+        `You are about to VOID:\n` +
+        `Invoice: ${sale.invoiceNumber}\n` +
+        `Amount: ₱${parseFloat(sale.totalAmount.toString()).toFixed(2)}\n` +
+        `Customer: ${sale.customer?.name || 'Walk-in Customer'}\n\n` +
+        'Click OK to continue or Cancel to stop.'
+      )
+      if (!confirmed) {
+        return // User cancelled
+      }
+      setConfirmationStep(1)
+      return
+    }
+
+    if (confirmationStep === 1) {
+      // Second confirmation - Make them double-check
+      const confirmed = window.confirm(
+        '⚠️⚠️ ARE YOU REALLY SURE?\n\n' +
+        'Did you check CAREFULLY the Transaction Number and Amount?\n\n' +
+        `Invoice: ${sale.invoiceNumber}\n` +
+        `Amount: ₱${parseFloat(sale.totalAmount.toString()).toFixed(2)}\n\n` +
+        'This action CANNOT be undone!\n\n' +
+        'Click OK to continue or Cancel to stop.'
+      )
+      if (!confirmed) {
+        setConfirmationStep(0) // Reset
+        return
+      }
+      setConfirmationStep(2)
+      return
+    }
+
+    if (confirmationStep === 2) {
+      // Third and FINAL confirmation - Last chance
+      const confirmed = window.confirm(
+        '🚨🚨🚨 FINAL WARNING 🚨🚨🚨\n\n' +
+        'ARE YOU REALLY REALLY SURE you want to VOID this Sales Transaction?\n\n' +
+        `Invoice: ${sale.invoiceNumber}\n` +
+        `Amount: ₱${parseFloat(sale.totalAmount.toString()).toFixed(2)}\n\n` +
+        '✅ Inventory will be RESTORED\n' +
+        '✅ Customer balance will be ADJUSTED (if credit sale)\n' +
+        '✅ Transaction will be marked as VOIDED\n\n' +
+        'This is your LAST CHANCE to cancel!\n\n' +
+        'Click OK to VOID NOW or Cancel to stop.'
+      )
+      if (!confirmed) {
+        setConfirmationStep(0) // Reset
+        return
+      }
+      // Fall through to actual void process
+    }
+
+    // All 3 confirmations passed - proceed with void
     setSubmitting(true)
     try {
       const response = await fetch(`/api/sales/${sale.id}/void`, {
@@ -144,16 +205,19 @@ export default function VoidDialog({
           description: `Invoice ${sale.invoiceNumber} has been voided. Inventory has been restored.`,
         })
 
+        setConfirmationStep(0) // Reset for next time
         onSuccess?.()
         onClose()
       } else {
         toast.error('Void Failed', {
           description: data.error || 'Failed to void sale. Please try again.',
         })
+        setConfirmationStep(0) // Reset on error
       }
     } catch (error) {
       console.error('[Void Submit] Error:', error)
       toast.error('Failed to void sale. Please try again.')
+      setConfirmationStep(0) // Reset on error
     } finally {
       setSubmitting(false)
     }
@@ -308,10 +372,13 @@ export default function VoidDialog({
               variant="destructive"
               onClick={handleVoid}
               disabled={submitting || !voidReason.trim() || !managerPassword.trim()}
-              className="gap-2 min-w-32"
+              className="gap-2 min-w-36"
             >
               {submitting && <span className="animate-spin">⏳</span>}
-              {submitting ? 'Voiding...' : 'Void Sale'}
+              {submitting ? 'Voiding...' :
+               confirmationStep === 0 ? 'Void Sale (1/3)' :
+               confirmationStep === 1 ? 'Confirm (2/3)' :
+               confirmationStep === 2 ? 'Final Confirm (3/3)' : 'Void Sale'}
             </Button>
           )}
         </DialogFooter>

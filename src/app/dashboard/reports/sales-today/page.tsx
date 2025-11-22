@@ -103,6 +103,14 @@ export default function SalesTodayPage() {
   const { can } = usePermissions()
   const { data: session } = useSession()
 
+  // Debug logging for void permission
+  console.log('[Sales Today] Permission Check:', {
+    hasReportPermission: can(PERMISSIONS.REPORT_SALES_TODAY),
+    hasVoidPermission: can(PERMISSIONS.SELL_VOID),
+    userPermissions: session?.user ? (session.user as any).permissions : 'No session',
+    voidPermissionValue: PERMISSIONS.SELL_VOID,
+  })
+
   if (!can(PERMISSIONS.REPORT_SALES_TODAY)) {
     return (
       <div className="text-center py-12">
