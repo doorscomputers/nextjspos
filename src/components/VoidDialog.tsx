@@ -445,10 +445,10 @@ export default function VoidDialog({
                 (authMethod === 'rfid' && !rfidLocationCode.trim())
               }
               size="lg"
-              className="gap-2 min-w-52 font-bold text-base"
+              className="gap-2 min-w-52 font-bold text-xl bg-red-600 hover:bg-red-700 text-white dark:bg-red-700 dark:hover:bg-red-800 shadow-lg"
             >
               {submitting && <span className="animate-spin">⏳</span>}
-              <span>
+              <span className="text-white">
                 {submitting ? 'Processing Void...' :
                  confirmationStep === 0 ? 'Confirm Void (Step 1)' :
                  confirmationStep === 1 ? 'Double Check (Step 2)' :
