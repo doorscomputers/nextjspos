@@ -277,9 +277,13 @@ export async function GET(request: NextRequest) {
       })
 
       // Handle unpaid/partially paid sales as credit/charge invoice
+      // IMPORTANT: Exclude exchange transactions from charge invoice calculation
+      // Exchange transactions are fundamentally different from credit sales
+      const isExchange = sale.saleType === 'exchange'
       const unpaidAmount = saleTotal - totalPaid
-      if (unpaidAmount > 0.01) {
-        // Add unpaid amount to credit total
+
+      if (unpaidAmount > 0.01 && !isExchange) {
+        // Add unpaid amount to credit total (exclude exchanges)
         creditTotal += unpaidAmount
 
         // Add to payment method map for breakdown
