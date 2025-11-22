@@ -246,7 +246,7 @@ async function generateXReadingFromRunningTotals(
   // Get first and last invoice numbers for this shift (BIR requirement)
   // INCLUDE ALL INVOICES: cash sales, charge invoices (pending), and partial payments
   // Use secondary sort by ID to handle multiple sales with same timestamp
-  const [firstSale, lastSale] = await Promise.all([
+  const [firstSale, lastSale, firstReturn, lastReturn] = await Promise.all([
     prisma.sale.findFirst({
       where: {
         shiftId: shift.id,
@@ -267,6 +267,40 @@ async function generateXReadingFromRunningTotals(
       orderBy: [
         { saleDate: 'desc' },
         { id: 'desc' } // Secondary sort by ID for deterministic ordering
+      ],
+    }),
+    // Get first return/exchange number for this shift
+    prisma.customerReturn.findFirst({
+      where: {
+        businessId: shift.businessId,
+        locationId: shift.locationId,
+        status: { in: ['exchanged', 'refunded', 'approved'] },
+        returnDate: {
+          gte: shift.openedAt,
+          lte: shift.closedAt || new Date(),
+        },
+      },
+      select: { returnNumber: true },
+      orderBy: [
+        { returnDate: 'asc' },
+        { id: 'asc' }
+      ],
+    }),
+    // Get last return/exchange number for this shift
+    prisma.customerReturn.findFirst({
+      where: {
+        businessId: shift.businessId,
+        locationId: shift.locationId,
+        status: { in: ['exchanged', 'refunded', 'approved'] },
+        returnDate: {
+          gte: shift.openedAt,
+          lte: shift.closedAt || new Date(),
+        },
+      },
+      select: { returnNumber: true },
+      orderBy: [
+        { returnDate: 'desc' },
+        { id: 'desc' }
       ],
     }),
   ])
@@ -410,6 +444,42 @@ async function generateZReadingFromRunningTotals(
     throw new Error('Location not found for Z Reading generation')
   }
 
+  // Get first and last return/exchange numbers for this shift (BIR requirement)
+  const [firstReturn, lastReturn] = await Promise.all([
+    prisma.customerReturn.findFirst({
+      where: {
+        businessId: shift.businessId,
+        locationId: shift.locationId,
+        status: { in: ['exchanged', 'refunded', 'approved'] },
+        returnDate: {
+          gte: shift.openedAt,
+          lte: shift.closedAt || new Date(),
+        },
+      },
+      select: { returnNumber: true },
+      orderBy: [
+        { returnDate: 'asc' },
+        { id: 'asc' }
+      ],
+    }),
+    prisma.customerReturn.findFirst({
+      where: {
+        businessId: shift.businessId,
+        locationId: shift.locationId,
+        status: { in: ['exchanged', 'refunded', 'approved'] },
+        returnDate: {
+          gte: shift.openedAt,
+          lte: shift.closedAt || new Date(),
+        },
+      },
+      select: { returnNumber: true },
+      orderBy: [
+        { returnDate: 'desc' },
+        { id: 'desc' }
+      ],
+    }),
+  ])
+
   // Calculate cash variance
   const endingCash = shift.endingCash
     ? parseFloat(shift.endingCash.toString())
@@ -529,8 +599,8 @@ async function generateZReadingFromRunningTotals(
     endingSiNumber: xReadingData.endingOrNumber, // From X Reading
     beginningVoidNumber: undefined, // TODO: Track void numbers
     endingVoidNumber: undefined,
-    beginningReturnNumber: undefined, // TODO: Track return numbers
-    endingReturnNumber: undefined,
+    beginningReturnNumber: firstReturn?.returnNumber || undefined,
+    endingReturnNumber: lastReturn?.returnNumber || undefined,
     zCounter: location?.zCounter || 0,
     resetCounter: location?.resetCounter || 1,
     previousAccumulatedSales: parseFloat(location?.accumulatedSales?.toString() || '0'),

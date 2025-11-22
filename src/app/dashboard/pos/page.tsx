@@ -3690,11 +3690,7 @@ export default function POSEnhancedPage() {
         onClose={() => setShowExchangeDialog(false)}
         onSuccess={(exchangeNumber) => {
           setShowExchangeDialog(false)
-          // Optional: Print exchange invoice or show success message
-          toast({
-            title: "Exchange Complete",
-            description: `Exchange ${exchangeNumber} processed successfully`,
-          })
+          // Toast is already shown by ExchangeDialog component
         }}
       />
     </div>
