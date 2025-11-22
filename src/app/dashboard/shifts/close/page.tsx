@@ -725,7 +725,7 @@ export default function CloseShiftPage() {
               <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-medium">Total Counted Cash:</span>
-                  <span className="text-2xl font-bold text-green-600">₱{totalCash.toFixed(2)}</span>
+                  <span className="text-2xl font-bold text-green-600">₱{totalCash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
               </div>
 
