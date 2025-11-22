@@ -670,7 +670,15 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                 </div>
                 <div className="line total-line">
                   <span className="line-label">Net Amount:</span>
-                  <span className="line-value">{formatCurrency(zReading.netSales)}</span>
+                  <span className="line-value">{formatCurrency(
+                    zReading.grossSales -
+                    zReading.totalDiscounts -
+                    zReading.returnAmount -
+                    zReading.voidAmount -
+                    (zReading.vatAdjustments.scTransaction +
+                     zReading.vatAdjustments.pwdTransaction +
+                     zReading.vatAdjustments.regularDiscountTransaction)
+                  )}</span>
                 </div>
               </div>
 
