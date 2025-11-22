@@ -23,6 +23,8 @@ interface XReadingData {
   transactionCount: number
   voidCount: number
   paymentBreakdown: Record<string, number>
+  totalPaymentsReceived?: number // NEW: Total of all payments actually received (excludes credit sales)
+  creditSales?: number // NEW: Charge invoices/credit sales (unpaid - tracked separately)
   cashIn: number
   cashOut: number
   arPaymentsCash: number
@@ -385,12 +387,6 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                     <span className="line-value">{formatCurrency(xReading.paymentBreakdown['bank_transfer'] || 0)}</span>
                   </div>
                 )}
-                {xReading.paymentBreakdown['credit'] > 0 && (
-                  <div className="line">
-                    <span className="line-label">CREDIT</span>
-                    <span className="line-value">{formatCurrency(xReading.paymentBreakdown['credit'] || 0)}</span>
-                  </div>
-                )}
                 {xReading.paymentBreakdown['other'] > 0 && (
                   <div className="line">
                     <span className="line-label">OTHER</span>
@@ -399,8 +395,15 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                 )}
                 <div className="line total-line">
                   <span className="line-label">Total Payments:</span>
-                  <span className="line-value">{formatCurrency(xReading.netSales)}</span>
+                  <span className="line-value">{formatCurrency(xReading.totalPaymentsReceived || xReading.netSales)}</span>
                 </div>
+                {/* Credit Sales shown separately - NOT a payment */}
+                {(xReading as any).creditSales > 0 && (
+                  <div className="line">
+                    <span className="line-label">Charge Invoice/Credit Sales (Unpaid):</span>
+                    <span className="line-value">{formatCurrency((xReading as any).creditSales)}</span>
+                  </div>
+                )}
               </div>
 
               {/* Void */}
@@ -797,17 +800,19 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                     <span className="line-value">{formatCurrency(zReading.paymentBreakdown['bank_transfer'] || 0)}</span>
                   </div>
                 )}
-                {(zReading.paymentBreakdown['credit'] || 0) > 0 && (
-                  <div className="line">
-                    <span className="line-label">Charge Invoice (Credit):</span>
-                    <span className="line-value">{formatCurrency(zReading.paymentBreakdown['credit'] || 0)}</span>
-                  </div>
-                )}
 
                 <div className="line total-line">
                   <span className="line-label">Total Payments Received:</span>
-                  <span className="line-value">{formatCurrency(zReading.netSales)}</span>
+                  <span className="line-value">{formatCurrency(zReading.totalPaymentsReceived || zReading.netSales)}</span>
                 </div>
+
+                {/* Credit Sales shown separately - NOT a payment */}
+                {(zReading as any).creditSales > 0 && (
+                  <div className="line">
+                    <span className="line-label">Charge Invoice/Credit Sales (Unpaid):</span>
+                    <span className="line-value">{formatCurrency((zReading as any).creditSales)}</span>
+                  </div>
+                )}
 
                 {/* Additional Cash Movements */}
                 {(zReading.cashIn > 0 || zReading.cashOut > 0 || zReading.arPaymentsCash > 0) && (
