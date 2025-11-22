@@ -448,13 +448,25 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                 </div>
               </div>
 
-              {/* Withdrawal */}
-              <div className="section">
-                <div className="line">
-                  <span className="line-label">WITHDRAWAL</span>
-                  <span className="line-value">{formatCurrency(xReading.withdrawalAmount)}</span>
+              {/* Cash In (if any) */}
+              {xReading.cashIn > 0 && (
+                <div className="section">
+                  <div className="line">
+                    <span className="line-label">CASH IN (Added to Drawer):</span>
+                    <span className="line-value">+{formatCurrency(xReading.cashIn)}</span>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Withdrawal */}
+              {xReading.withdrawalAmount > 0 && (
+                <div className="section">
+                  <div className="line">
+                    <span className="line-label">WITHDRAWAL (Cash Out):</span>
+                    <span className="line-value">-{formatCurrency(xReading.withdrawalAmount)}</span>
+                  </div>
+                </div>
+              )}
 
               {/* Transaction Summary */}
               <div className="section">
