@@ -8,7 +8,15 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
 
+    console.log('[Invoice Detail] Session retrieved:', {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      userId: session?.user?.id,
+      businessId: (session?.user as any)?.businessId,
+    })
+
     if (!session?.user?.id) {
+      console.error('[Invoice Detail] No session or user ID found')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -20,12 +28,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invoice number is required' }, { status: 400 })
     }
 
-    const businessId = parseInt(session.user.businessId)
+    // Check if businessId exists in session before parsing
+    const businessIdString = (session.user as any).businessId
+    if (!businessIdString) {
+      console.error('[Invoice Detail] Missing businessId in session. Session user:', JSON.stringify(session.user, null, 2))
+      return NextResponse.json({
+        error: 'Business context not found in session. Please log out and log in again.'
+      }, { status: 400 })
+    }
+
+    const businessId = parseInt(businessIdString)
     console.log('[Invoice Detail] BusinessId:', businessId, 'Invoice:', invoiceNumber, 'LocationId:', locationId)
 
     if (!businessId || Number.isNaN(businessId)) {
-      console.error('[Invoice Detail] Invalid businessId:', businessId)
-      return NextResponse.json({ error: 'Invalid business context' }, { status: 400 })
+      console.error('[Invoice Detail] Invalid businessId after parsing:', businessId, 'Original value:', businessIdString)
+      return NextResponse.json({
+        error: 'Invalid business context. Please log out and log in again.'
+      }, { status: 400 })
     }
 
     // Get all locations for this business to ensure proper filtering
@@ -173,17 +192,38 @@ export async function GET(request: NextRequest) {
     console.log('[Invoice Detail] Response prepared successfully for invoice:', response.invoiceNumber)
     return NextResponse.json(response)
   } catch (error: unknown) {
-    console.error('[Invoice Detail] ERROR occurred:', error)
-    const details = error instanceof Error ? error.message : 'Unknown error'
-    const stack = error instanceof Error ? error.stack : undefined
-    if (stack) {
-      console.error('Error stack:', stack)
+    console.error('[Invoice Detail] ===== ERROR OCCURRED =====')
+    console.error('[Invoice Detail] Error object:', error)
+
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+    const errorStack = error instanceof Error ? error.stack : undefined
+    const errorName = error instanceof Error ? error.name : 'Error'
+
+    console.error('[Invoice Detail] Error name:', errorName)
+    console.error('[Invoice Detail] Error message:', errorMessage)
+
+    if (errorStack) {
+      console.error('[Invoice Detail] Error stack:', errorStack)
     }
+
+    // Provide more specific error messages
+    let userMessage = 'Failed to fetch invoice details'
+
+    if (errorMessage.includes('prisma') || errorMessage.includes('database')) {
+      userMessage = 'Database connection error. Please try again.'
+    } else if (errorMessage.includes('timeout')) {
+      userMessage = 'Request timed out. Please try again.'
+    } else if (errorMessage.includes('not found')) {
+      userMessage = 'Invoice not found or access denied.'
+    }
+
+    console.error('[Invoice Detail] User-facing message:', userMessage)
+
     return NextResponse.json(
       {
-        error: 'Failed to fetch invoice details',
-        details,
-        stack: process.env.NODE_ENV === 'development' ? stack : undefined,
+        error: userMessage,
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        stack: process.env.NODE_ENV === 'development' ? errorStack : undefined,
       },
       { status: 500 }
     )

@@ -95,11 +95,37 @@ export default function CashierInvoiceDetailsPage() {
       )
 
       if (!response.ok) {
-        if (response.status === 404) {
-          alert("Invoice not found")
-        } else {
-          throw new Error("Failed to fetch invoice")
+        // Try to parse error message from API
+        let errorMessage = "Failed to fetch invoice"
+
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.error || errorMessage
+
+          // Log detailed error in console for debugging
+          if (errorData.details) {
+            console.error("API Error Details:", errorData.details)
+          }
+          if (errorData.stack) {
+            console.error("API Error Stack:", errorData.stack)
+          }
+        } catch (parseError) {
+          console.error("Could not parse error response:", parseError)
         }
+
+        // Show specific error messages based on status code
+        if (response.status === 404) {
+          alert("Invoice not found or you do not have access to this location")
+        } else if (response.status === 401) {
+          alert("Unauthorized. Please log in again.")
+        } else if (response.status === 400) {
+          alert(errorMessage)
+        } else {
+          alert(errorMessage)
+        }
+
+        console.error("Error response status:", response.status)
+        console.error("Error message:", errorMessage)
         setSaleDetail(null)
         return
       }
@@ -108,7 +134,8 @@ export default function CashierInvoiceDetailsPage() {
       setSaleDetail(data)
     } catch (error) {
       console.error("Error fetching invoice:", error)
-      alert("Error fetching invoice details")
+      const errorMessage = error instanceof Error ? error.message : "Error fetching invoice details"
+      alert(errorMessage)
       setSaleDetail(null)
     } finally {
       setLoading(false)
