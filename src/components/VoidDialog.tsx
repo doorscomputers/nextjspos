@@ -408,11 +408,11 @@ export default function VoidDialog({
                   </Label>
                   <Input
                     id="rfidLocationCode"
-                    type="text"
+                    type="password"
                     placeholder="Scan or enter RFID location code"
                     value={rfidLocationCode}
                     onChange={(e) => setRfidLocationCode(e.target.value)}
-                    className="mt-1 font-mono"
+                    className="mt-1 font-mono text-lg tracking-wider"
                     required
                     autoFocus
                   />
@@ -425,13 +425,13 @@ export default function VoidDialog({
           </div>
         )}
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-3 pt-4">
           {step === 'confirm' && !initialSaleId && !initialInvoiceNumber && (
-            <Button variant="outline" onClick={handleBack} disabled={submitting}>
+            <Button variant="outline" onClick={handleBack} disabled={submitting} size="lg">
               Back to Search
             </Button>
           )}
-          <Button variant="outline" onClick={onClose} disabled={submitting}>
+          <Button variant="outline" onClick={onClose} disabled={submitting} size="lg">
             Cancel
           </Button>
           {step === 'confirm' && (
@@ -444,13 +444,16 @@ export default function VoidDialog({
                 (authMethod === 'password' && !managerPassword.trim()) ||
                 (authMethod === 'rfid' && !rfidLocationCode.trim())
               }
-              className="gap-2 min-w-44"
+              size="lg"
+              className="gap-2 min-w-52 font-bold text-base"
             >
               {submitting && <span className="animate-spin">⏳</span>}
-              {submitting ? 'Processing Void...' :
-               confirmationStep === 0 ? 'Confirm Void (Step 1)' :
-               confirmationStep === 1 ? 'Double Check (Step 2)' :
-               confirmationStep === 2 ? 'FINAL CONFIRM (Step 3)' : 'Void Transaction'}
+              <span>
+                {submitting ? 'Processing Void...' :
+                 confirmationStep === 0 ? 'Confirm Void (Step 1)' :
+                 confirmationStep === 1 ? 'Double Check (Step 2)' :
+                 confirmationStep === 2 ? 'FINAL CONFIRM (Step 3)' : 'Void Transaction'}
+              </span>
             </Button>
           )}
         </DialogFooter>
