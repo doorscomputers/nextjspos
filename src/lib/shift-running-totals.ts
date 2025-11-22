@@ -107,7 +107,8 @@ export async function incrementShiftTotalsForSale(
   // Build increment data
   const incrementData: any = {
     // Sales totals
-    runningGrossSales: { increment: saleData.subtotal },
+    // BIR: Gross Sales = sum of FINAL sale amounts (after discounts) for ALL sales
+    runningGrossSales: { increment: saleData.totalAmount },
     runningNetSales: { increment: saleData.totalAmount },
     runningSubtotal: { increment: saleData.subtotal - saleData.discountAmount },
     runningTransactions: { increment: 1 },
@@ -197,24 +198,24 @@ export async function decrementShiftTotalsForVoid(
     paymentBreakdown[method] = (paymentBreakdown[method] || 0) + payment.amount
   })
 
-  // Build decrement data (reverse of increment)
+  // Build decrement data
+  // IMPORTANT BIR COMPLIANCE: Do NOT decrement Gross Sales when voiding
+  // Gross Sales must include ALL sales (voided or not)
+  // Voids are tracked separately and subtracted in the reading display
   const decrementData: any = {
-    // Reverse sales totals
-    runningGrossSales: { decrement: saleData.subtotal },
-    runningNetSales: { decrement: saleData.totalAmount },
-    runningSubtotal: { decrement: saleData.subtotal - saleData.discountAmount },
-    runningTransactions: { decrement: 1 },
+    // BIR: Gross Sales includes ALL sales (do NOT decrement)
+    // Net Sales will be calculated as: Gross - Voids - Returns - Discounts
 
-    // Reverse VAT breakdown
+    // Reverse VAT breakdown (voided sale no longer contributes to VAT)
     runningVatableSales: { decrement: vatBreakdown.vatableSales },
     runningVatAmount: { decrement: vatBreakdown.vatAmount },
     runningVatExempt: { decrement: vatBreakdown.vatExempt },
     runningNetOfVat: { decrement: vatBreakdown.netOfVat },
 
-    // Reverse discounts
+    // Reverse discounts (voided sale no longer has discount applied)
     runningTotalDiscounts: { decrement: saleData.discountAmount },
 
-    // Reverse payment methods
+    // Reverse payment methods (money was returned to customer)
     runningCashSales: { decrement: paymentBreakdown['cash'] || 0 },
     runningCardSales: { decrement: paymentBreakdown['card'] || 0 },
     runningGcashSales: { decrement: paymentBreakdown['gcash'] || 0 },
@@ -229,7 +230,7 @@ export async function decrementShiftTotalsForVoid(
         0,
     },
 
-    // Track void
+    // Track void separately (for BIR display: Gross - Void = Net)
     runningVoidCount: { increment: 1 },
     runningVoidedSales: { increment: saleData.totalAmount },
   }
@@ -301,9 +302,9 @@ export async function incrementShiftTotalsForExchange(
 ): Promise<void> {
   const db = tx || prisma
 
-  // Net sales impact = exchange total - return total
-  // Cash impact = what customer actually paid (0 if exchange was cheaper than return)
-  const netSalesImpact = exchangeTotal - returnTotal
+  // BIR COMPLIANCE: Gross Sales includes FULL exchange value
+  // Returns are tracked separately and subtracted in reading display
+  // Net Sales = Gross - Voids - Returns - Discounts (calculated, not stored)
 
   await db.cashierShift.update({
     where: { id: shiftId },
@@ -311,13 +312,14 @@ export async function incrementShiftTotalsForExchange(
       // Track exchange counts
       runningExchangeCount: { increment: 1 },
       runningExchangeSales: { increment: exchangeTotal },
+
+      // BIR: Add FULL exchange value to Gross Sales (not net impact)
+      runningGrossSales: { increment: exchangeTotal },
+
+      // Track returns separately (subtracted in reading display)
       runningReturnAmount: { increment: returnTotal },
 
-      // Net sales impact (can be positive, negative, or zero)
-      runningNetSales: { increment: netSalesImpact },
-      runningGrossSales: { increment: netSalesImpact },
-
-      // Cash collected (only if customer paid more)
+      // Cash collected from customer (if they paid difference)
       runningCashSales: { increment: cashCollected },
     },
   })
@@ -381,11 +383,15 @@ export async function calculateRunningTotalsFromSales(
     const totalAmount = parseFloat(sale.totalAmount.toString())
     const discountAmount = parseFloat(sale.discountAmount.toString())
 
+    // BIR COMPLIANCE: ALL sales (completed AND voided) add to Gross Sales
+    // Gross Sales = sum of FINAL amounts (after discounts) for ALL sales
+    // Voids/returns are tracked separately and subtracted in reading display
+    totals.runningGrossSales += totalAmount
+
     if (sale.status === 'completed') {
-      // Completed sale
-      totals.runningGrossSales += subtotal
-      totals.runningNetSales += totalAmount
-      totals.runningSubtotal += subtotal - discountAmount
+      // Completed sale - add to all running totals
+      totals.runningNetSales += totalAmount  // Sum of completed sales after discounts
+      totals.runningSubtotal += subtotal - discountAmount  // Subtotal minus discounts
       totals.runningTransactions += 1
 
       // VAT breakdown
@@ -426,11 +432,11 @@ export async function calculateRunningTotalsFromSales(
         else totals.runningOtherPayments += amount
       })
     } else if (sale.status === 'voided') {
-      // Voided sale
+      // Voided sale - already added to Gross, now track void amount
       totals.runningVoidCount += 1
       totals.runningVoidedSales += totalAmount
     } else if (sale.status === 'refunded') {
-      // Refunded sale
+      // Refunded sale - already added to Gross, now track refund amount
       totals.runningRefundCount += 1
       totals.runningRefundAmount += totalAmount
     }
