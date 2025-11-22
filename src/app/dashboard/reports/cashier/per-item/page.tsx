@@ -146,7 +146,7 @@ export default function CashierSalesPerItemPage() {
           ) : (
             <DataGrid
               dataSource={items}
-              keyExpr="productId"
+              keyExpr="id"
               showBorders={true}
               showRowLines={true}
               showColumnLines={true}
