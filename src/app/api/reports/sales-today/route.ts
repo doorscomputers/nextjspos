@@ -324,10 +324,15 @@ export async function GET(request: NextRequest) {
       (sum, sale) => sum + parseFloat(sale.taxAmount.toString()),
       0
     )
-    const totalDiscount = sales.reduce(
-      (sum, sale) => sum + parseFloat(sale.discountAmount.toString()),
-      0
-    )
+    // Calculate total discounts (exclude exchange credits)
+    const totalDiscount = sales.reduce((sum, sale) => {
+      // Exclude exchange transactions from discount totals
+      // Exchange discountAmount represents credit from returned items, not actual discounts
+      if (sale.saleType === 'exchange') {
+        return sum
+      }
+      return sum + parseFloat(sale.discountAmount.toString())
+    }, 0)
 
     // Calculate COGS (Cost of Goods Sold)
     let totalCOGS = 0
@@ -350,6 +355,11 @@ export async function GET(request: NextRequest) {
     }
 
     sales.forEach((sale) => {
+      // Skip exchange transactions in discount breakdown
+      if (sale.saleType === 'exchange') {
+        return
+      }
+
       const discount = parseFloat(sale.discountAmount.toString())
       if (sale.discountType === 'senior') {
         discountBreakdown.senior += discount
