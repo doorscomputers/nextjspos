@@ -264,6 +264,8 @@ export const PERMISSIONS = {
   SELL_UPDATE: 'sell.update',
   SELL_DELETE: 'sell.delete',
   SELL_VIEW_OWN: 'sell.view_own',
+  SELL_VOID: 'sell.void', // Void sales (requires manager authorization)
+  SELL_REFUND: 'sell.refund', // Process customer refunds
 
   // Sales - Field-Level Security (What financial data can be seen)
   SELL_VIEW_COST: 'sell.view_cost', // Can see COGS (Cost of Goods Sold) (NEW)
@@ -1277,6 +1279,7 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.X_READING,
       PERMISSIONS.Z_READING, // CRITICAL: Cashiers MUST generate Z Reading when closing shifts (BIR compliance)
       PERMISSIONS.VOID_CREATE,
+      PERMISSIONS.SELL_VOID, // Can void sales with manager authorization
       PERMISSIONS.FREEBIE_ADD,
       PERMISSIONS.SERIAL_NUMBER_SCAN,
       // Basic sales reports
@@ -1319,6 +1322,7 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.PAYMENT_COLLECT_AR, // Can collect AR payments
       PERMISSIONS.VOID_CREATE,
       PERMISSIONS.VOID_APPROVE,
+      PERMISSIONS.SELL_VOID, // Can void sales with manager authorization
       PERMISSIONS.CUSTOMER_RETURN_CREATE,
       PERMISSIONS.CUSTOMER_RETURN_VIEW,
       PERMISSIONS.SHIFT_VIEW,
@@ -2041,6 +2045,7 @@ export const DEFAULT_ROLES = {
       // Void Transactions - Create & Approve
       PERMISSIONS.VOID_CREATE,
       PERMISSIONS.VOID_APPROVE,
+      PERMISSIONS.SELL_VOID, // Can void sales with manager authorization
 
       // Cash Management - Approve Large Transactions
       PERMISSIONS.CASH_APPROVE_LARGE_TRANSACTIONS,

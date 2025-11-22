@@ -13,6 +13,7 @@ import {
   PrinterIcon,
   ArrowTrendingUpIcon,
   ArrowDownTrayIcon,
+  XCircleIcon,
 } from "@heroicons/react/24/outline"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -32,6 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import VoidDialog from "@/components/VoidDialog"
 
 interface SalesTodayData {
   summary: {
@@ -83,6 +85,7 @@ interface SalesTodayData {
     discountAmount: number
     discountType: string | null
     isARPayment: boolean
+    status?: string
     payments: Array<{ method: string; amount: number }>
     itemCount: number
     items: Array<{
@@ -114,6 +117,11 @@ export default function SalesTodayPage() {
   const [locations, setLocations] = useState<Array<{ id: number; name: string }>>([])
   const [hasAccessToAll, setHasAccessToAll] = useState(false)
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
+
+  // Void dialog state
+  const [voidDialogOpen, setVoidDialogOpen] = useState(false)
+  const [selectedSaleForVoid, setSelectedSaleForVoid] = useState<number | null>(null)
+  const [selectedInvoiceForVoid, setSelectedInvoiceForVoid] = useState<string | null>(null)
 
   useEffect(() => {
     fetchUserLocations()
@@ -232,6 +240,17 @@ export default function SalesTodayPage() {
     link.download = `sales-today-${new Date().toISOString().slice(0, 10)}.csv`
     link.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleVoidClick = (saleId: number, invoiceNumber: string) => {
+    setSelectedSaleForVoid(saleId)
+    setSelectedInvoiceForVoid(invoiceNumber)
+    setVoidDialogOpen(true)
+  }
+
+  const handleVoidSuccess = () => {
+    // Refresh the report to show updated data
+    fetchReport()
   }
 
   if (loading && !reportData) {
@@ -696,13 +715,37 @@ export default function SalesTodayPage() {
                             {formatCurrency(sale.totalAmount)}
                           </TableCell>
                           <TableCell className="text-center">
-                            <Button
-                              size="sm"
-                              className="bg-green-600 text-white hover:bg-green-700 px-4 py-1 rounded-full transition-colors"
-                              onClick={() => toggleRowExpansion(sale.id)}
-                            >
-                              {expandedRows.has(sale.id) ? "Hide" : "Show"}
-                            </Button>
+                            <div className="flex items-center justify-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="hover:bg-green-50 dark:hover:bg-green-950"
+                                onClick={() => toggleRowExpansion(sale.id)}
+                              >
+                                {expandedRows.has(sale.id) ? "Hide" : "Show"}
+                              </Button>
+                              {/* Only show Void button for:
+                                  - Non-AR payments (today's sales only, not old invoices)
+                                  - Non-voided sales
+                                  - Users with SELL_VOID permission */}
+                              {!sale.isARPayment && sale.status !== 'voided' && can(PERMISSIONS.SELL_VOID) && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950 dark:hover:text-red-400"
+                                  onClick={() => handleVoidClick(sale.id, sale.invoiceNumber)}
+                                  title="Void this sale (requires manager authorization)"
+                                >
+                                  <XCircleIcon className="h-4 w-4 mr-1" />
+                                  Void
+                                </Button>
+                              )}
+                              {sale.status === 'voided' && (
+                                <Badge variant="destructive" className="text-xs">
+                                  VOIDED
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                         {expandedRows.has(sale.id) && (
@@ -751,6 +794,19 @@ export default function SalesTodayPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Void Dialog */}
+      <VoidDialog
+        isOpen={voidDialogOpen}
+        onClose={() => {
+          setVoidDialogOpen(false)
+          setSelectedSaleForVoid(null)
+          setSelectedInvoiceForVoid(null)
+        }}
+        onSuccess={handleVoidSuccess}
+        initialSaleId={selectedSaleForVoid || undefined}
+        initialInvoiceNumber={selectedInvoiceForVoid || undefined}
+      />
 
       {/* Print Styles */}
       <style jsx global>{`

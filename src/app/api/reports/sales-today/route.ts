@@ -426,6 +426,7 @@ export async function GET(request: NextRequest) {
           totalAmount: parseFloat(sale.totalAmount.toString()),
           discountAmount: parseFloat(sale.discountAmount.toString()),
           discountType: sale.discountType,
+          status: sale.status, // Include status to show voided sales
           isARPayment, // Flag to indicate this is an AR payment transaction
           payments: sale.payments.map((p) => ({
             method: p.paymentMethod,
