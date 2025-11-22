@@ -1,15 +1,12 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import Link from "next/link"
 import { usePermissions } from "@/hooks/usePermissions"
 import { PERMISSIONS } from "@/lib/rbac"
 import {
   MagnifyingGlassIcon,
   ArrowDownTrayIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ArrowPathIcon,
   PrinterIcon,
 } from "@heroicons/react/24/outline"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,17 +20,34 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import ReportFilterPanel from "@/components/reports/ReportFilterPanel"
 import { countActiveFilters } from "@/lib/reportFilterUtils"
+import DataGrid, {
+  Column,
+  FilterRow,
+  HeaderFilter,
+  SearchPanel,
+  Paging,
+  Pager,
+  Export,
+  Summary,
+  TotalItem,
+  StateStoring,
+  ColumnChooser,
+  Grouping,
+  GroupPanel,
+  Toolbar,
+  Item,
+  MasterDetail,
+  Sorting,
+} from 'devextreme-react/data-grid'
+import { Workbook } from 'exceljs'
+import { saveAs } from 'file-saver-es'
+import { exportDataGrid } from 'devextreme/excel_exporter'
+
+// Import DevExtreme CSS
+import 'devextreme/dist/css/dx.light.css'
 
 interface SaleItem {
   productName: string
@@ -85,11 +99,12 @@ interface SalesReportData {
 
 export default function SalesReportPage() {
   const { can } = usePermissions()
+  const dataGridRef = useRef<DataGrid>(null)
 
   if (!can(PERMISSIONS.REPORT_VIEW)) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600">You do not have permission to view reports</p>
+        <p className="text-red-600 dark:text-red-400">You do not have permission to view reports</p>
       </div>
     )
   }
@@ -97,7 +112,6 @@ export default function SalesReportPage() {
   const [reportData, setReportData] = useState<SalesReportData | null>(null)
   const [loading, setLoading] = useState(false)
   const [showFilters, setShowFilters] = useState(true)
-  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
 
   // Filter states
   const [locationId, setLocationId] = useState("all")
@@ -398,101 +412,150 @@ export default function SalesReportPage() {
     [locationId, customerSearch, status, invoiceNumber, startDate, endDate, minAmount, maxAmount]
   )
 
-  const exportToCSV = () => {
-    if (!reportData) return
+  const onExporting = (e: any) => {
+    const workbook = new Workbook()
+    const worksheet = workbook.addWorksheet('Sales Report')
 
-    const headers = [
-      "Invoice",
-      "Date",
-      "Customer",
-      "Status",
-      "Subtotal",
-      "Tax",
-      "Discount",
-      "Shipping",
-      "Total",
-    ]
-
-    const rows = reportData.sales.map((sale) => [
-      sale.invoiceNumber,
-      sale.saleDate,
-      sale.customer,
-      sale.status,
-      sale.subtotal,
-      sale.taxAmount,
-      sale.discountAmount,
-      sale.shippingCost,
-      sale.totalAmount,
-    ])
-
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => row.join(",")),
-    ].join("\n")
-
-    const blob = new Blob([csvContent], { type: "text/csv" })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `sales-report-${new Date().toISOString().split("T")[0]}.csv`
-    a.click()
-  }
-
-  const toggleRowExpansion = (saleId: number) => {
-    const newExpanded = new Set(expandedRows)
-    if (newExpanded.has(saleId)) {
-      newExpanded.delete(saleId)
-    } else {
-      newExpanded.add(saleId)
-    }
-    setExpandedRows(newExpanded)
+    exportDataGrid({
+      component: e.component,
+      worksheet,
+      autoFilterEnabled: true,
+      customizeCell: ({ gridCell, excelCell }: any) => {
+        if (gridCell.rowType === 'data') {
+          if (
+            gridCell.column.dataField === 'subtotal' ||
+            gridCell.column.dataField === 'taxAmount' ||
+            gridCell.column.dataField === 'discountAmount' ||
+            gridCell.column.dataField === 'shippingCost' ||
+            gridCell.column.dataField === 'totalAmount'
+          ) {
+            excelCell.numFmt = '₱#,##0.00'
+          }
+        }
+      }
+    }).then(() => {
+      workbook.xlsx.writeBuffer().then((buffer) => {
+        saveAs(
+          new Blob([buffer], { type: 'application/octet-stream' }),
+          `sales-report-${new Date().toISOString().split('T')[0]}.xlsx`
+        )
+      })
+    })
+    e.cancel = true
   }
 
   const formatCurrency = (amount?: number) => {
     const n = Number(amount)
     if (!Number.isFinite(n)) return "—"
-    return new Intl.NumberFormat("en-US", {
+    return `₱${n.toLocaleString('en-PH', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(n)
+    })}`
   }
 
   const hasNumericValue = (value?: number) => Number.isFinite(Number(value))
 
-  const getStatusBadge = (status: string) => {
+  const renderStatusBadge = (cellData: any) => {
+    const status = cellData.value?.toLowerCase() || ''
     const variants: Record<string, string> = {
-      completed: "bg-green-100 text-green-800",
-      draft: "bg-yellow-100 text-yellow-800",
-      cancelled: "bg-red-100 text-red-800",
+      completed: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+      draft: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
+      cancelled: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
     }
 
     return (
-      <Badge className={variants[status] || "bg-gray-100 text-gray-800"}>
+      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${variants[status] || "bg-gray-100 text-gray-800"}`}>
         {status.toUpperCase()}
-      </Badge>
+      </span>
+    )
+  }
+
+  // Master detail template - shows sale items
+  const MasterDetailTemplate = (props: any) => {
+    const sale = props.data?.data || props.data
+
+    if (!sale || !sale.items || !Array.isArray(sale.items)) {
+      return (
+        <div className="p-4 bg-yellow-50 dark:bg-yellow-900 border border-yellow-300 dark:border-yellow-700 rounded">
+          <p className="text-yellow-800 dark:text-yellow-200">
+            No item details available for this sale.
+          </p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="p-4 bg-gray-50 dark:bg-gray-900">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          Sale Items ({sale.items.length} item{sale.items.length !== 1 ? 's' : ''})
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border border-gray-200 dark:border-gray-700">
+            <thead className="bg-gray-100 dark:bg-gray-800">
+              <tr>
+                <th className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">
+                  Product
+                </th>
+                <th className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">
+                  SKU
+                </th>
+                <th className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">
+                  Qty
+                </th>
+                <th className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">
+                  Price
+                </th>
+                {can(PERMISSIONS.SELL_VIEW_COST) && (
+                  <th className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">
+                    Cost
+                  </th>
+                )}
+                <th className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">
+                  Total
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {sale.items.map((item: any, idx: number) => (
+                <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                  <td className="px-4 py-2 font-medium text-gray-900 dark:text-white">
+                    {item.productName} ({item.variationName})
+                  </td>
+                  <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
+                    {item.sku}
+                  </td>
+                  <td className="px-4 py-2 text-right text-gray-900 dark:text-white">
+                    {item.quantity}
+                  </td>
+                  <td className="px-4 py-2 text-right text-gray-900 dark:text-white">
+                    {formatCurrency(item.unitPrice)}
+                  </td>
+                  {can(PERMISSIONS.SELL_VIEW_COST) && (
+                    <td className="px-4 py-2 text-right text-gray-700 dark:text-gray-300">
+                      {formatCurrency(item.unitCost)}
+                    </td>
+                  )}
+                  <td className="px-4 py-2 text-right font-semibold text-gray-900 dark:text-white">
+                    {formatCurrency(item.total)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sales Invoice Details</h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Sales Invoice Details</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             Comprehensive sales analysis with filtering
           </p>
-        </div>
-
-        <div className="flex gap-2">
-          <Button
-            onClick={exportToCSV}
-            disabled={!reportData}
-            className="bg-green-600 hover:bg-green-700 text-white font-medium shadow-md hover:shadow-lg transition-all"
-          >
-            <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
         </div>
       </div>
 
@@ -507,9 +570,9 @@ export default function SalesReportPage() {
       >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <Label className="mb-2 block">Location</Label>
+            <Label className="mb-2 block text-gray-700 dark:text-gray-300">Location</Label>
             <Select value={locationId} onValueChange={setLocationId}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
                 <SelectValue placeholder="All Locations" />
               </SelectTrigger>
               <SelectContent>
@@ -526,9 +589,9 @@ export default function SalesReportPage() {
           </div>
 
           <div>
-            <Label className="mb-2 block">Date Range Preset</Label>
+            <Label className="mb-2 block text-gray-700 dark:text-gray-300">Date Range Preset</Label>
             <Select value={datePreset} onValueChange={applyDatePreset}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
                 <SelectValue placeholder="Today" />
               </SelectTrigger>
               <SelectContent>
@@ -550,7 +613,7 @@ export default function SalesReportPage() {
           </div>
 
           <div className="relative">
-            <Label className="mb-2 block">Customer</Label>
+            <Label className="mb-2 block text-gray-700 dark:text-gray-300">Customer</Label>
             <Input
               placeholder="Search customer by name..."
               value={customerSearch}
@@ -564,18 +627,19 @@ export default function SalesReportPage() {
                 // Delay hiding suggestions to allow clicking on them
                 setTimeout(() => setShowCustomerSuggestions(false), 200)
               }}
+              className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             />
             {showCustomerSuggestions && customerSuggestions.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
+              <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-auto">
                 {customerSuggestions.map((customer, index) => (
                   <div
                     key={customer.id || `walkin-${index}`}
-                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                    className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
                     onClick={() => selectCustomer(customer)}
                   >
-                    <div className="font-medium">{customer.name}</div>
+                    <div className="font-medium text-gray-900 dark:text-white">{customer.name}</div>
                     {customer.mobile && customer.mobile !== 'N/A' && (
-                      <div className="text-sm text-gray-500">{customer.mobile}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{customer.mobile}</div>
                     )}
                   </div>
                 ))}
@@ -584,9 +648,9 @@ export default function SalesReportPage() {
           </div>
 
           <div>
-            <Label className="mb-2 block">Status</Label>
+            <Label className="mb-2 block text-gray-700 dark:text-gray-300">Status</Label>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
@@ -599,49 +663,54 @@ export default function SalesReportPage() {
           </div>
 
           <div>
-            <Label className="mb-2 block">Invoice Number</Label>
+            <Label className="mb-2 block text-gray-700 dark:text-gray-300">Invoice Number</Label>
             <Input
               placeholder="Search invoice..."
               value={invoiceNumber}
               onChange={(e) => setInvoiceNumber(e.target.value)}
+              className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             />
           </div>
 
           <div>
-            <Label className="mb-2 block">Start Date</Label>
+            <Label className="mb-2 block text-gray-700 dark:text-gray-300">Start Date</Label>
             <Input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
+              className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             />
           </div>
 
           <div>
-            <Label className="mb-2 block">End Date</Label>
+            <Label className="mb-2 block text-gray-700 dark:text-gray-300">End Date</Label>
             <Input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
+              className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             />
           </div>
 
           <div>
-            <Label className="mb-2 block">Min Amount</Label>
+            <Label className="mb-2 block text-gray-700 dark:text-gray-300">Min Amount</Label>
             <Input
               type="number"
               placeholder="0.00"
               value={minAmount}
               onChange={(e) => setMinAmount(e.target.value)}
+              className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             />
           </div>
 
           <div>
-            <Label className="mb-2 block">Max Amount</Label>
+            <Label className="mb-2 block text-gray-700 dark:text-gray-300">Max Amount</Label>
             <Input
               type="number"
               placeholder="0.00"
               value={maxAmount}
               onChange={(e) => setMaxAmount(e.target.value)}
+              className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             />
           </div>
         </div>
@@ -649,30 +718,27 @@ export default function SalesReportPage() {
         <div className="flex gap-3 mt-6 flex-wrap">
           <Button
             onClick={handleSearch}
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm px-6 rounded-lg"
+            variant="success"
+            size="sm"
+            className="gap-2"
           >
-            <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
+            <MagnifyingGlassIcon className="h-4 w-4" />
             Generate Report
           </Button>
           <Button
-            onClick={exportToCSV}
-            disabled={!reportData}
-            className="bg-green-600 hover:bg-green-700 text-white shadow-sm px-6 rounded-lg"
-          >
-            <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-            Export to Excel
-          </Button>
-          <Button
             onClick={() => window.print()}
-            className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm px-6 rounded-lg"
+            variant="outline"
+            size="sm"
+            className="gap-2 hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
           >
-            <PrinterIcon className="h-4 w-4 mr-2" />
+            <PrinterIcon className="h-4 w-4" />
             Print Report
           </Button>
           <Button
-            variant="secondary"
+            variant="outline"
+            size="sm"
             onClick={handleReset}
-            className="shadow-sm px-6"
+            className="gap-2"
           >
             Reset All Filters
           </Button>
@@ -682,35 +748,35 @@ export default function SalesReportPage() {
       {/* Summary Cards */}
       {reportData && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
+          <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <CardContent className="pt-6">
-              <div className="text-sm text-gray-600">Total Sales</div>
-              <div className="text-2xl font-bold">{reportData.summary.totalSales}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Total Sales</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">{reportData.summary.totalSales}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <CardContent className="pt-6">
-              <div className="text-sm text-gray-600">Total Revenue</div>
-              <div className="text-2xl font-bold">
+              <div className="text-sm text-gray-600 dark:text-gray-400">Total Revenue</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
                 {formatCurrency(reportData.summary.totalRevenue)}
               </div>
             </CardContent>
           </Card>
           {can(PERMISSIONS.SELL_VIEW_COST) && hasNumericValue(reportData.summary.totalCOGS) && (
-            <Card>
+            <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
               <CardContent className="pt-6">
-                <div className="text-sm text-gray-600">Total COGS</div>
-                <div className="text-2xl font-bold">
+                <div className="text-sm text-gray-600 dark:text-gray-400">Total COGS</div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
                   {formatCurrency(reportData.summary.totalCOGS)}
                 </div>
               </CardContent>
             </Card>
           )}
           {can(PERMISSIONS.SELL_VIEW_PROFIT) && hasNumericValue(reportData.summary.grossProfit) && (
-            <Card>
+            <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
               <CardContent className="pt-6">
-                <div className="text-sm text-gray-600">Gross Profit</div>
-                <div className="text-2xl font-bold text-green-600">
+                <div className="text-sm text-gray-600 dark:text-gray-400">Gross Profit</div>
+                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {formatCurrency(reportData.summary.grossProfit)}
                 </div>
               </CardContent>
@@ -719,10 +785,10 @@ export default function SalesReportPage() {
         </div>
       )}
 
-      {/* Data Table */}
-      <Card>
+      {/* Data Grid */}
+      <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
         <CardHeader>
-          <CardTitle>
+          <CardTitle className="text-gray-900 dark:text-white">
             Sales Transactions
             {reportData && ` (${reportData.pagination.totalCount} total)`}
           </CardTitle>
@@ -733,139 +799,147 @@ export default function SalesReportPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : reportData?.sales.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">No sales found</div>
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">No sales found</div>
           ) : (
-            <>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Invoice</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Items</TableHead>
-                      <TableHead className="text-right">Subtotal</TableHead>
-                      <TableHead className="text-right">Tax</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {reportData?.sales.map((sale) => (
-                      <>
-                        <TableRow key={sale.id} className="cursor-pointer hover:bg-gray-50">
-                          <TableCell className="font-medium">
-                            <Link
-                              href={`/dashboard/sales/${sale.id}`}
-                              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
-                            >
-                              {sale.invoiceNumber}
-                            </Link>
-                          </TableCell>
-                          <TableCell>{sale.saleDate}</TableCell>
-                          <TableCell>{sale.customer}</TableCell>
-                          <TableCell>{getStatusBadge(sale.status)}</TableCell>
-                          <TableCell className="text-right">{sale.itemCount}</TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(sale.subtotal)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(sale.taxAmount)}
-                          </TableCell>
-                          <TableCell className="text-right font-semibold">
-                            {formatCurrency(sale.totalAmount)}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              size="sm"
-                              onClick={() => toggleRowExpansion(sale.id)}
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 shadow-sm"
-                            >
-                              {expandedRows.has(sale.id) ? "Hide" : "Show"}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                        {expandedRows.has(sale.id) && (
-                          <TableRow>
-                            <TableCell colSpan={9} className="bg-gray-50">
-                              <div className="p-4">
-                                <h4 className="font-semibold mb-2">Sale Items</h4>
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead>Product</TableHead>
-                                      <TableHead>SKU</TableHead>
-                                      <TableHead className="text-right">Qty</TableHead>
-                                      <TableHead className="text-right">Price</TableHead>
-                                      {can(PERMISSIONS.SELL_VIEW_COST) && (
-                                        <TableHead className="text-right">Cost</TableHead>
-                                      )}
-                                      <TableHead className="text-right">Total</TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
-                                    {sale.items.map((item, idx) => (
-                                      <TableRow key={idx}>
-                                        <TableCell>
-                                          {item.productName} ({item.variationName})
-                                        </TableCell>
-                                        <TableCell>{item.sku}</TableCell>
-                                        <TableCell className="text-right">
-                                          {item.quantity}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                          {formatCurrency(item.unitPrice)}
-                                        </TableCell>
-                                        {can(PERMISSIONS.SELL_VIEW_COST) && (
-                                          <TableCell className="text-right">
-                                            {formatCurrency(item.unitCost)}
-                                          </TableCell>
-                                        )}
-                                        <TableCell className="text-right">
-                                          {formatCurrency(item.total)}
-                                        </TableCell>
-                                      </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+            <DataGrid
+              ref={dataGridRef}
+              dataSource={reportData?.sales || []}
+              keyExpr="id"
+              showBorders={true}
+              showRowLines={true}
+              showColumnLines={true}
+              rowAlternationEnabled={true}
+              allowColumnReordering={true}
+              allowColumnResizing={true}
+              columnAutoWidth={true}
+              wordWrapEnabled={false}
+              onExporting={onExporting}
+            >
+              <StateStoring enabled={true} type="localStorage" storageKey="sales-report-grid" />
+              <SearchPanel visible={true} width={240} placeholder="Search sales..." />
+              <FilterRow visible={true} />
+              <HeaderFilter visible={true} />
+              <GroupPanel visible={true} />
+              <Grouping autoExpandAll={false} />
+              <ColumnChooser enabled={true} mode="select" />
+              <Sorting mode="multiple" />
 
-              {/* Pagination */}
-              {reportData && reportData.pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <div className="text-sm text-gray-600">
-                    Page {reportData.pagination.page} of {reportData.pagination.totalPages}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => setPage(page - 1)}
-                      disabled={page === 1}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium border-2 border-blue-700 hover:border-blue-800 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronLeftIcon className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => setPage(page + 1)}
-                      disabled={page === reportData.pagination.totalPages}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium border-2 border-blue-700 hover:border-blue-800 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronRightIcon className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
+              <Paging enabled={false} />
+
+              <Export enabled={true} allowExportSelectedData={false} />
+
+              <Toolbar>
+                <Item name="groupPanel" />
+                <Item name="searchPanel" />
+                <Item name="exportButton" />
+                <Item name="columnChooserButton" />
+              </Toolbar>
+
+              <Column
+                dataField="invoiceNumber"
+                caption="Invoice #"
+                minWidth={150}
+                cssClass="font-medium"
+              />
+              <Column
+                dataField="saleDate"
+                caption="Date"
+                dataType="date"
+                format="MM/dd/yyyy"
+                width={120}
+              />
+              <Column
+                dataField="customer"
+                caption="Customer"
+                minWidth={150}
+              />
+              <Column
+                dataField="status"
+                caption="Status"
+                width={120}
+                cellRender={renderStatusBadge}
+              />
+              <Column
+                dataField="itemCount"
+                caption="Items"
+                dataType="number"
+                width={80}
+                alignment="center"
+              />
+              <Column
+                dataField="subtotal"
+                caption="Subtotal"
+                dataType="number"
+                format="₱#,##0.00"
+                alignment="right"
+                width={120}
+              />
+              <Column
+                dataField="taxAmount"
+                caption="Tax"
+                dataType="number"
+                format="₱#,##0.00"
+                alignment="right"
+                width={100}
+              />
+              <Column
+                dataField="discountAmount"
+                caption="Discount"
+                dataType="number"
+                format="₱#,##0.00"
+                alignment="right"
+                width={110}
+              />
+              <Column
+                dataField="totalAmount"
+                caption="Total"
+                dataType="number"
+                format="₱#,##0.00"
+                alignment="right"
+                width={130}
+                cssClass="font-semibold"
+              />
+
+              <Summary>
+                <TotalItem column="invoiceNumber" summaryType="count" displayFormat="Total: {0} sales" />
+                <TotalItem column="itemCount" summaryType="sum" valueFormat="decimal" />
+                <TotalItem column="subtotal" summaryType="sum" valueFormat="₱#,##0.00" />
+                <TotalItem column="taxAmount" summaryType="sum" valueFormat="₱#,##0.00" />
+                <TotalItem column="discountAmount" summaryType="sum" valueFormat="₱#,##0.00" />
+                <TotalItem column="totalAmount" summaryType="sum" valueFormat="₱#,##0.00" />
+              </Summary>
+
+              <MasterDetail enabled={true} component={MasterDetailTemplate} />
+            </DataGrid>
+          )}
+
+          {/* Custom Pagination */}
+          {reportData && reportData.pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Page {reportData.pagination.page} of {reportData.pagination.totalPages}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => setPage(page - 1)}
+                  disabled={page === 1}
+                  variant="outline"
+                  className="hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
+                >
+                  Previous
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setPage(page + 1)}
+                  disabled={page === reportData.pagination.totalPages}
+                  variant="outline"
+                  className="hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
