@@ -395,7 +395,11 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                 )}
                 <div className="line total-line">
                   <span className="line-label">Total Payments:</span>
-                  <span className="line-value">{formatCurrency(xReading.totalPaymentsReceived || xReading.netSales)}</span>
+                  <span className="line-value">{formatCurrency(
+                    Object.entries(xReading.paymentBreakdown)
+                      .filter(([key]) => key !== 'credit') // Exclude credit sales
+                      .reduce((sum, [_, amount]) => sum + amount, 0)
+                  )}</span>
                 </div>
                 {/* Credit Sales shown separately - NOT a payment */}
                 {(xReading as any).creditSales > 0 && (
@@ -485,7 +489,11 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                       </div>
                       <div className="line">
                         <span className="line-label">Payments Received:</span>
-                        <span className="line-value">{formatCurrency(xReading.netSales)}</span>
+                        <span className="line-value">{formatCurrency(
+                          Object.entries(xReading.paymentBreakdown)
+                            .filter(([key]) => key !== 'credit') // Exclude credit sales
+                            .reduce((sum, [_, amount]) => sum + amount, 0)
+                        )}</span>
                       </div>
                       {shortOverText && (
                         <div className="line total-line">
@@ -803,7 +811,11 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
 
                 <div className="line total-line">
                   <span className="line-label">Total Payments Received:</span>
-                  <span className="line-value">{formatCurrency(zReading.totalPaymentsReceived || zReading.netSales)}</span>
+                  <span className="line-value">{formatCurrency(
+                    Object.entries(zReading.paymentBreakdown)
+                      .filter(([key]) => key !== 'credit') // Exclude credit sales
+                      .reduce((sum, [_, amount]) => sum + amount, 0)
+                  )}</span>
                 </div>
 
                 {/* Credit Sales shown separately - NOT a payment */}
