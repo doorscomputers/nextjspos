@@ -266,7 +266,14 @@ export async function GET(request: NextRequest) {
       totalSales += sale.totalAmount ? parseFloat(sale.totalAmount.toString()) : 0
       totalSellShipping += sale.shippingCost ? parseFloat(sale.shippingCost.toString()) : 0
       // sellAdditionalExpenses += sale.additionalExpense ? parseFloat(sale.additionalExpense.toString()) : 0 // Field doesn't exist in schema
-      totalSellDiscount += sale.discountAmount ? parseFloat(sale.discountAmount.toString()) : 0
+
+      // CRITICAL FIX: Exclude exchange and replacement transactions from discount calculation
+      // Exchange/replacement discountAmount represents returned/replaced items value, NOT an actual discount
+      // Only count discounts from regular sales
+      if (sale.saleType === 'regular') {
+        totalSellDiscount += sale.discountAmount ? parseFloat(sale.discountAmount.toString()) : 0
+      }
+
       // totalSellRoundOff += sale.roundOffAmount ? parseFloat(sale.roundOffAmount.toString()) : 0 // Field doesn't exist in schema
 
       // Calculate COGS from sale items
