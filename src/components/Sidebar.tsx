@@ -259,25 +259,6 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
       permission: PERMISSIONS.DASHBOARD_VIEW,
     },
 
-    // ========== CASHIER REPORTS ==========
-    {
-      key: "cashier_reports_root",
-      name: "Cashier Reports",
-      href: "/dashboard/cashier-reports",
-      icon: ChartBarIcon,
-      // Use an existing permission cashiers already have so this appears immediately
-      permission: PERMISSIONS.REPORT_SALES_TODAY,
-      children: [
-        {
-          key: "cashier_sales_today",
-          name: "Sales Today",
-          href: "/dashboard/cashier-reports/sales-today",
-          icon: DocumentTextIcon,
-          permission: PERMISSIONS.REPORT_SALES_TODAY,
-        },
-        // Other cashier reports will be added here as we implement them
-      ],
-    },
     {
       name: "Analytics Dashboard V1",
       href: "/dashboard/dashboard-v2",
