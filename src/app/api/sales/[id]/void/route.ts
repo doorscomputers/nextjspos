@@ -47,31 +47,33 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid sale id' }, { status: 400 })
     }
     const body = await request.json()
-    const { voidReason, managerPassword } = body
+    const { voidReason, authMethod = 'password', managerPassword, rfidLocationCode } = body
 
     // Validate required fields
     if (!voidReason) {
       return NextResponse.json({ error: 'Void reason is required' }, { status: 400 })
     }
 
-    if (!managerPassword) {
-      return NextResponse.json(
-        { error: 'Manager password is required to void transactions' },
-        { status: 400 }
-      )
-    }
+    // Validate authorization based on method
+    if (authMethod === 'password') {
+      if (!managerPassword) {
+        return NextResponse.json(
+          { error: 'Manager password is required to void transactions' },
+          { status: 400 }
+        )
+      }
 
-    // Verify manager/admin password
-    const managerUsers = await prisma.user.findMany({
-      where: {
-        businessId: businessIdNumber,
-        roles: {
-          some: {
-            role: {
-              name: {
-                in: ['Branch Manager', 'Main Branch Manager', 'Branch Admin', 'All Branch Admin', 'Super Admin'],
+      // Verify manager/admin password
+      const managerUsers = await prisma.user.findMany({
+        where: {
+          businessId: businessIdNumber,
+          roles: {
+            some: {
+              role: {
+                name: {
+                  in: ['Branch Manager', 'Main Branch Manager', 'Branch Admin', 'All Branch Admin', 'Super Admin'],
+                },
               },
-            },
           },
         },
       },
@@ -94,10 +96,47 @@ export async function POST(
       }
     }
 
-    if (!passwordValid) {
+      if (!passwordValid) {
+        return NextResponse.json(
+          { error: 'Invalid manager password. Only managers or admins can authorize voids.' },
+          { status: 403 }
+        )
+      }
+    } else if (authMethod === 'rfid') {
+      // Validate RFID location code
+      if (!rfidLocationCode) {
+        return NextResponse.json(
+          { error: 'RFID location code is required for void authorization' },
+          { status: 400 }
+        )
+      }
+
+      // Verify RFID location code exists and belongs to this business
+      const location = await prisma.businessLocation.findFirst({
+        where: {
+          businessId: businessIdNumber,
+          rfidCode: rfidLocationCode.trim(),
+          isActive: true,
+        },
+        select: {
+          id: true,
+          name: true,
+          rfidCode: true,
+        },
+      })
+
+      if (!location) {
+        return NextResponse.json(
+          { error: 'Invalid RFID location code. Please scan a valid location tag.' },
+          { status: 403 }
+        )
+      }
+
+      console.log(`[Void] Authorized by RFID location code: ${location.name}`)
+    } else {
       return NextResponse.json(
-        { error: 'Invalid manager password. Only managers or admins can authorize voids.' },
-        { status: 403 }
+        { error: 'Invalid authorization method' },
+        { status: 400 }
       )
     }
 

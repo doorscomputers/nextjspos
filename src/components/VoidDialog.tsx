@@ -46,7 +46,9 @@ export default function VoidDialog({
 
   // Void details
   const [voidReason, setVoidReason] = useState('')
+  const [authMethod, setAuthMethod] = useState<'password' | 'rfid'>('password')
   const [managerPassword, setManagerPassword] = useState('')
+  const [rfidLocationCode, setRfidLocationCode] = useState('')
 
   // Triple confirmation state
   const [confirmationStep, setConfirmationStep] = useState(0) // 0 = not started, 1-3 = confirmation steps
@@ -65,7 +67,9 @@ export default function VoidDialog({
       setSearchQuery(initialInvoiceNumber || '')
       setSale(null)
       setVoidReason('')
+      setAuthMethod('password')
       setManagerPassword('')
+      setRfidLocationCode('')
       setConfirmationStep(0) // Reset triple confirmation
     }
   }, [isOpen, initialSaleId, initialInvoiceNumber])
@@ -125,8 +129,14 @@ export default function VoidDialog({
       return
     }
 
-    if (!managerPassword.trim()) {
+    // Validate authorization method
+    if (authMethod === 'password' && !managerPassword.trim()) {
       toast.error('Manager password is required to authorize void')
+      return
+    }
+
+    if (authMethod === 'rfid' && !rfidLocationCode.trim()) {
+      toast.error('RFID location code is required to authorize void')
       return
     }
 
@@ -194,7 +204,9 @@ export default function VoidDialog({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           voidReason: voidReason.trim(),
-          managerPassword: managerPassword.trim(),
+          authMethod,
+          managerPassword: authMethod === 'password' ? managerPassword.trim() : undefined,
+          rfidLocationCode: authMethod === 'rfid' ? rfidLocationCode.trim() : undefined,
         }),
       })
 
@@ -338,22 +350,77 @@ export default function VoidDialog({
             </div>
 
             {/* Manager Authorization */}
-            <div>
-              <Label htmlFor="managerPassword" className="text-red-700 dark:text-red-400">
-                Manager Password <span className="text-red-600">*</span>
+            <div className="space-y-4">
+              <Label className="text-red-700 dark:text-red-400">
+                Authorization Method <span className="text-red-600">*</span>
               </Label>
-              <Input
-                id="managerPassword"
-                type="password"
-                placeholder="Enter manager/admin password to authorize"
-                value={managerPassword}
-                onChange={(e) => setManagerPassword(e.target.value)}
-                className="mt-1"
-                required
-              />
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Only Branch Managers and Admins can authorize void transactions
-              </p>
+
+              {/* Authorization Method Radio Buttons */}
+              <div className="flex gap-6 mt-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    value="password"
+                    checked={authMethod === 'password'}
+                    onChange={(e) => setAuthMethod(e.target.value as 'password' | 'rfid')}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span className="text-sm font-medium">Manager Password</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    value="rfid"
+                    checked={authMethod === 'rfid'}
+                    onChange={(e) => setAuthMethod(e.target.value as 'password' | 'rfid')}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span className="text-sm font-medium">RFID Location Code</span>
+                </label>
+              </div>
+
+              {/* Conditional Fields */}
+              {authMethod === 'password' && (
+                <div>
+                  <Label htmlFor="managerPassword" className="text-red-700 dark:text-red-400">
+                    Manager Password <span className="text-red-600">*</span>
+                  </Label>
+                  <Input
+                    id="managerPassword"
+                    type="password"
+                    placeholder="Enter manager/admin password to authorize"
+                    value={managerPassword}
+                    onChange={(e) => setManagerPassword(e.target.value)}
+                    className="mt-1"
+                    required
+                    autoFocus
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Only Branch Managers and Admins can authorize void transactions
+                  </p>
+                </div>
+              )}
+
+              {authMethod === 'rfid' && (
+                <div>
+                  <Label htmlFor="rfidLocationCode" className="text-red-700 dark:text-red-400">
+                    RFID Location Code <span className="text-red-600">*</span>
+                  </Label>
+                  <Input
+                    id="rfidLocationCode"
+                    type="text"
+                    placeholder="Scan or enter RFID location code"
+                    value={rfidLocationCode}
+                    onChange={(e) => setRfidLocationCode(e.target.value)}
+                    className="mt-1 font-mono"
+                    required
+                    autoFocus
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Scan the RFID tag from your location to authorize this void transaction
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -371,14 +438,19 @@ export default function VoidDialog({
             <Button
               variant="destructive"
               onClick={handleVoid}
-              disabled={submitting || !voidReason.trim() || !managerPassword.trim()}
-              className="gap-2 min-w-36"
+              disabled={
+                submitting ||
+                !voidReason.trim() ||
+                (authMethod === 'password' && !managerPassword.trim()) ||
+                (authMethod === 'rfid' && !rfidLocationCode.trim())
+              }
+              className="gap-2 min-w-44"
             >
               {submitting && <span className="animate-spin">⏳</span>}
-              {submitting ? 'Voiding...' :
-               confirmationStep === 0 ? 'Void Sale (1/3)' :
-               confirmationStep === 1 ? 'Confirm (2/3)' :
-               confirmationStep === 2 ? 'Final Confirm (3/3)' : 'Void Sale'}
+              {submitting ? 'Processing Void...' :
+               confirmationStep === 0 ? 'Confirm Void (Step 1)' :
+               confirmationStep === 1 ? 'Double Check (Step 2)' :
+               confirmationStep === 2 ? 'FINAL CONFIRM (Step 3)' : 'Void Transaction'}
             </Button>
           )}
         </DialogFooter>
