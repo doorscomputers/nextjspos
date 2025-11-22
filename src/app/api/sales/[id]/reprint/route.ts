@@ -20,16 +20,20 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const saleId = parseInt(params.id)
+    const businessId = parseInt(session.user.businessId)
+    const userId = parseInt(session.user.id)
+
     // Check permission for reprinting receipts
-    if (!hasPermission(session.user, PERMISSIONS.SALE_VIEW)) {
+    const canViewAll = hasPermission(session.user, PERMISSIONS.SELL_VIEW)
+    const canViewOwn = hasPermission(session.user, PERMISSIONS.SELL_VIEW_OWN)
+
+    if (!canViewAll && !canViewOwn) {
       return NextResponse.json(
-        { error: 'Forbidden - Missing sell.view permission' },
+        { error: 'Forbidden - Missing sell.view or sell.view_own permission' },
         { status: 403 }
       )
     }
-
-    const saleId = parseInt(params.id)
-    const businessId = parseInt(session.user.businessId)
 
     // Get sale with all related data
     const sale = await prisma.sale.findFirst({
@@ -77,6 +81,14 @@ export async function GET(
 
     if (!sale) {
       return NextResponse.json({ error: 'Sale not found' }, { status: 404 })
+    }
+
+    // If user only has view_own permission, verify they created this sale
+    if (canViewOwn && !canViewAll && sale.createdBy !== userId) {
+      return NextResponse.json(
+        { error: 'Forbidden - You can only reprint your own sales' },
+        { status: 403 }
+      )
     }
 
     // Get business information for receipt header
