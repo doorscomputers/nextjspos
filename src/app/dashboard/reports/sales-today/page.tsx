@@ -687,7 +687,17 @@ export default function SalesTodayPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {reportData.sales.map((sale) => (
+                    {reportData.sales.map((sale) => {
+                      // Debug logging to understand why Void button might not show
+                      const showVoidButton = !sale.isARPayment && sale.status !== 'voided' && can(PERMISSIONS.SELL_VOID)
+                      console.log(`[Sales Today] Sale ${sale.invoiceNumber}:`, {
+                        isARPayment: sale.isARPayment,
+                        status: sale.status,
+                        hasVoidPermission: can(PERMISSIONS.SELL_VOID),
+                        showVoidButton,
+                      })
+
+                      return (
                       <>
                         <TableRow key={sale.id} className="hover:bg-gray-50">
                           <TableCell className="font-medium">
@@ -786,7 +796,8 @@ export default function SalesTodayPage() {
                           </TableRow>
                         )}
                       </>
-                    ))}
+                    )
+                    })}
                   </TableBody>
                 </Table>
               </div>
