@@ -576,7 +576,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                   )}
 
                   {searchResults.length > 0 && !loadingProducts && (
-                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border rounded-lg shadow-lg max-h-[500px] overflow-y-auto">
+                    <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-[400px] overflow-y-auto">
                       {searchResults.map((product) => {
                         // Calculate MAXIMUM available stock across ALL variations at location
                         const filterLocationId = currentLocationId || sale?.locationId
@@ -614,14 +614,19 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                         return (
                           <div
                             key={product.id}
-                            className="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b last:border-b-0 transition-colors"
+                            className="p-4 min-h-[80px] hover:bg-blue-50 dark:hover:bg-blue-900 cursor-pointer border-b last:border-b-0 transition-all duration-150 hover:shadow-sm"
                             onClick={() => handleAddExchangeItem(product, bestVariation)}
                           >
-                            <p className="font-semibold text-sm">{product.name}</p>
-                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                              SKU: {product.sku} | Available: <span className="font-bold text-green-600 dark:text-green-400">{maxAvailableStock}</span>
-                            </p>
-                            <p className="text-sm text-green-600 dark:text-green-400 font-bold mt-1">
+                            <p className="font-semibold text-base leading-tight text-gray-900 dark:text-gray-100">{product.name}</p>
+                            <div className="flex items-center justify-between mt-1.5">
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                SKU: <span className="font-medium">{product.sku}</span>
+                              </p>
+                              <p className="text-sm">
+                                Stock: <span className="font-bold text-green-600 dark:text-green-400">{maxAvailableStock}</span>
+                              </p>
+                            </div>
+                            <p className="text-base text-green-600 dark:text-green-400 font-bold mt-1.5">
                               ₱{parseFloat(bestVariation?.sellingPrice || 0).toFixed(2)}
                             </p>
                           </div>
