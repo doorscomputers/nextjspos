@@ -341,14 +341,16 @@ async function generateXReadingFromRunningTotals(
   if (totalPaymaya > 0) paymentBreakdown['paymaya'] = totalPaymaya
   if (totalBank > 0) paymentBreakdown['bank_transfer'] = totalBank
   if (totalCheck > 0) paymentBreakdown['check'] = totalCheck
-  if (parseFloat(shift.runningCreditSales.toString()) > 0)
-    paymentBreakdown['credit'] = parseFloat(shift.runningCreditSales.toString())
+  // REMOVED: Credit sales are NOT payments - tracked separately
+  // if (parseFloat(shift.runningCreditSales.toString()) > 0)
+  //   paymentBreakdown['credit'] = parseFloat(shift.runningCreditSales.toString())
   if (totalOther > 0) paymentBreakdown['other'] = totalOther
 
   // Calculate clearer breakdown fields
   const cashFromSales = parseFloat(shift.runningCashSales.toString()) // Cash collected from direct sales only
-  const totalNonCashPayments = totalGcash + totalPaymaya + totalCheck + totalCard + totalBank + parseFloat(shift.runningCreditSales.toString()) + totalOther
-  const totalPaymentsReceived = expectedCash + totalNonCashPayments
+  const creditSales = parseFloat(shift.runningCreditSales.toString()) // Track separately - NOT a payment received
+  const totalNonCashPayments = totalGcash + totalPaymaya + totalCheck + totalCard + totalBank + totalOther // REMOVED credit sales - they are unpaid!
+  const totalPaymentsReceived = expectedCash + totalNonCashPayments // Actual payments only (excludes credit sales)
 
   const xReadingData: XReadingData = {
     shiftNumber: shift.shiftNumber,
@@ -372,6 +374,7 @@ async function generateXReadingFromRunningTotals(
     paymentBreakdown,
     totalNonCashPayments, // NEW: Sum of all non-cash payment methods
     totalPaymentsReceived, // NEW: Grand total of all payments (expected cash + non-cash)
+    creditSales, // NEW: Charge invoices/credit sales (unpaid - shown separately from payments)
     cashIn,
     cashOut,
     arPaymentsCash,
