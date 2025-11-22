@@ -96,14 +96,32 @@ export default function AccountsReceivablePage() {
   const [customerList, setCustomerList] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Fetch locations
+  // Fetch locations (exclude warehouses)
   useEffect(() => {
     const fetchLocations = async () => {
       try {
-        const response = await fetch("/api/business-locations");
-        const data = await response.json();
-        if (data.success) {
-          setLocations(data.data);
+        // Try user-locations first for better access control
+        const response = await fetch("/api/user-locations");
+        if (response.ok) {
+          const data = await response.json();
+          const userLocations = Array.isArray(data.locations) ? data.locations : [];
+          // Exclude warehouse locations from sales reports
+          const filteredLocations = userLocations.filter((loc: any) =>
+            loc?.name && !loc.name.toLowerCase().includes('warehouse')
+          );
+          setLocations(filteredLocations);
+        } else {
+          // Fallback to business locations if user-locations fails
+          const fallbackResponse = await fetch("/api/business-locations");
+          const fallbackData = await fallbackResponse.json();
+          if (fallbackData.success) {
+            const allLocations = Array.isArray(fallbackData.data) ? fallbackData.data : [];
+            // Exclude warehouse locations
+            const filteredLocations = allLocations.filter((loc: any) =>
+              loc?.name && !loc.name.toLowerCase().includes('warehouse')
+            );
+            setLocations(filteredLocations);
+          }
         }
       } catch (error) {
         console.error("Failed to fetch locations:", error);
