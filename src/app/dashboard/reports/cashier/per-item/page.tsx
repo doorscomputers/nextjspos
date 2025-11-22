@@ -29,6 +29,7 @@ import DataGrid, {
 import { Workbook } from 'exceljs'
 import { saveAs } from 'file-saver-es'
 import { exportDataGrid } from 'devextreme/excel_exporter'
+import 'devextreme/dist/css/dx.light.css'
 
 export default function CashierSalesPerItemPage() {
   const { can } = usePermissions()
