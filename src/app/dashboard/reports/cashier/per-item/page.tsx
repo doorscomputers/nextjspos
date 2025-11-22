@@ -89,10 +89,10 @@ export default function CashierSalesPerItemPage() {
       autoFilterEnabled: true,
       customizeCell: ({ gridCell, excelCell }: any) => {
         if (gridCell.rowType === 'data') {
-          if (gridCell.column.dataField === 'totalRevenue' || gridCell.column.dataField === 'averagePrice') {
+          if (gridCell.column.dataField === 'amount' || gridCell.column.dataField === 'price') {
             excelCell.numFmt = '₱#,##0.00'
           }
-          if (gridCell.column.dataField === 'quantitySold') {
+          if (gridCell.column.dataField === 'quantity') {
             excelCell.numFmt = '#,##0.##'
           }
         }
@@ -166,6 +166,42 @@ export default function CashierSalesPerItemPage() {
               <ColumnChooser enabled={true} mode="select" />
 
               <Column
+                dataField="saleDate"
+                caption="Date"
+                dataType="date"
+                format="MM/dd/yyyy"
+                width={110}
+              />
+              <Column
+                dataField="saleTime"
+                caption="Time"
+                dataType="datetime"
+                format="hh:mm a"
+                width={100}
+                alignment="center"
+              />
+              <Column
+                dataField="invoiceNumber"
+                caption="Invoice #"
+                minWidth={150}
+                cssClass="font-medium"
+              />
+              <Column
+                dataField="customer"
+                caption="Customer"
+                minWidth={150}
+              />
+              <Column
+                dataField="location"
+                caption="Location"
+                width={130}
+              />
+              <Column
+                dataField="cashier"
+                caption="Cashier"
+                minWidth={150}
+              />
+              <Column
                 dataField="productName"
                 caption="Product Name"
                 minWidth={200}
@@ -173,62 +209,38 @@ export default function CashierSalesPerItemPage() {
               <Column
                 dataField="sku"
                 caption="SKU"
-                width={150}
+                width={130}
               />
               <Column
-                dataField="category"
-                caption="Category"
-                width={120}
-                visible={false}
-              />
-              <Column
-                dataField="quantitySold"
-                caption="Qty Sold"
+                dataField="quantity"
+                caption="Qty"
                 dataType="number"
                 format="#,##0.##"
                 alignment="right"
-                width={100}
+                width={80}
               />
               <Column
-                dataField="averagePrice"
-                caption="Avg Price"
+                dataField="price"
+                caption="Price"
+                dataType="number"
+                format="₱#,##0.00"
+                alignment="right"
+                width={110}
+              />
+              <Column
+                dataField="amount"
+                caption="Amount"
                 dataType="number"
                 format="₱#,##0.00"
                 alignment="right"
                 width={120}
-              />
-              <Column
-                dataField="totalRevenue"
-                caption="Total Revenue"
-                dataType="number"
-                format="₱#,##0.00"
-                alignment="right"
-                width={130}
                 cssClass="font-semibold"
-              />
-              <Column
-                dataField="totalProfit"
-                caption="Profit"
-                dataType="number"
-                format="₱#,##0.00"
-                alignment="right"
-                width={120}
-                visible={false}
-              />
-              <Column
-                dataField="profitMargin"
-                caption="Margin %"
-                dataType="number"
-                format="#,##0.0"
-                alignment="right"
-                width={100}
-                visible={false}
               />
 
               <Summary>
-                <TotalItem column="quantitySold" summaryType="sum" valueFormat="#,##0.##" />
-                <TotalItem column="totalRevenue" summaryType="sum" valueFormat="₱#,##0.00" />
-                <TotalItem column="totalProfit" summaryType="sum" valueFormat="₱#,##0.00" />
+                <TotalItem column="quantity" summaryType="sum" valueFormat="#,##0.##" />
+                <TotalItem column="amount" summaryType="sum" valueFormat="₱#,##0.00" />
+                <TotalItem column="saleDate" summaryType="count" displayFormat="Total: {0} items" />
               </Summary>
 
               <Paging defaultPageSize={20} />

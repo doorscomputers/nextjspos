@@ -144,8 +144,25 @@ export async function GET(request: NextRequest) {
         include: {
           sale: {
             select: {
+              id: true,
+              invoiceNumber: true,
+              saleDate: true,
               createdAt: true,
               locationId: true,
+              customerId: true,
+              createdBy: true,
+              customer: {
+                select: {
+                  name: true,
+                },
+              },
+              creator: {
+                select: {
+                  firstName: true,
+                  surname: true,
+                  username: true,
+                },
+              },
             },
           },
         },
@@ -184,136 +201,47 @@ export async function GET(request: NextRequest) {
     const productDetails = new Map(products.map((product) => [product.id, product]))
     const locationMap = new Map(locations.map(loc => [loc.id, loc.name]))
 
-    // Group by product and calculate metrics
-    type LocationTotals = { quantity: number; revenue: number }
-    type ProductAccumulator = {
-      productId: number
-      productName: string
-      sku: string
-      category: string
-      categoryId: number | null
-      quantitySold: number
-      totalRevenue: number
-      totalCost: number
-      transactionIds: Set<number>
-      locations: Map<string, LocationTotals>
-    }
-    const productMap = new Map<number, ProductAccumulator>()
-
-    saleItems.forEach((item) => {
-      const productId = item.productId
-      const productInfo = productDetails.get(productId)
-      const productName = productInfo?.name || 'Unknown Product'
-      const sku = productInfo?.sku || 'N/A'
-      const categoryName = productInfo?.category?.name || 'N/A'
-      const categoryIdValue = productInfo?.categoryId ?? null
-
-      if (!productMap.has(productId)) {
-        const accumulator: ProductAccumulator = {
-          productId,
-          productName,
-          sku,
-          category: categoryName,
-          categoryId: categoryIdValue,
-          quantitySold: 0,
-          totalRevenue: 0,
-          totalCost: 0,
-          transactionIds: new Set<number>(),
-          locations: new Map<string, LocationTotals>(),
-        }
-        productMap.set(productId, accumulator)
-      }
-
-      const productData = productMap.get(productId)
-      if (!productData) {
-        return
-      }
-      const quantity =
-        typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity?.toString() || '0')
-      const unitPrice =
-        typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice?.toString() || '0')
-      const subtotal = quantity * unitPrice
-      const unitCost =
-        typeof item.unitCost === 'number'
-          ? item.unitCost
-          : parseFloat(item.unitCost?.toString() || productInfo?.purchasePrice?.toString() || '0')
-
-      productData.quantitySold += quantity
-      productData.totalRevenue += subtotal
-      productData.totalCost += quantity * unitCost
-      productData.transactionIds.add(item.saleId)
-
-      // Track sales by location
-      const saleLocationId = item.sale?.locationId ?? null
-      const locName = saleLocationId ? locationMap.get(saleLocationId) || 'N/A' : 'N/A'
-      if (!productData.locations.has(locName)) {
-        productData.locations.set(locName, { quantity: 0, revenue: 0 })
-      }
-      const locData = productData.locations.get(locName)
-      if (locData) {
-        locData.quantity += quantity
-        locData.revenue += subtotal
-      }
-    })
-
-    // Convert to array and calculate derived metrics
-    type ProductSummaryItem = {
-      productId: number
-      productName: string
-      sku: string
-      category: string
-      categoryId: number | null
-      quantitySold: number
-      totalRevenue: number
-      totalCost: number
-      totalProfit: number
-      profitMargin: number
-      averagePrice: number
-      transactionCount: number
-      locationBreakdown: Array<{ location: string; quantity: number; revenue: number }>
-    }
-
-    const productSummary: ProductSummaryItem[] = Array.from(productMap.values()).map((item) => {
-      const totalProfit = item.totalRevenue - item.totalCost
-      const profitMargin = item.totalRevenue > 0 ? (totalProfit / item.totalRevenue) * 100 : 0
-      const locationBreakdown = Array.from(item.locations.entries()).map(([name, data]) => ({
-        location: name,
-        quantity: data.quantity,
-        revenue: data.revenue,
-      }))
+    // Map individual sale items with all details
+    const itemsWithDetails = saleItems.map((item) => {
+      const productInfo = productDetails.get(item.productId)
+      const quantity = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity?.toString() || '0')
+      const unitPrice = typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice?.toString() || '0')
+      const amount = quantity * unitPrice
 
       return {
+        id: item.id,
+        saleId: item.saleId,
+        invoiceNumber: item.sale?.invoiceNumber || 'N/A',
+        saleDate: item.sale?.saleDate ? item.sale.saleDate.toISOString().split('T')[0] : '',
+        saleTime: item.sale?.createdAt ? item.sale.createdAt.toISOString() : '',
         productId: item.productId,
-        productName: item.productName,
-        sku: item.sku,
-        category: item.category,
-        categoryId: item.categoryId,
-        quantitySold: item.quantitySold,
-        totalRevenue: item.totalRevenue,
-        totalCost: item.totalCost,
-        totalProfit,
-        profitMargin,
-        averagePrice: item.quantitySold > 0 ? item.totalRevenue / item.quantitySold : 0,
-        transactionCount: item.transactionIds.size,
-        locationBreakdown,
+        productName: productInfo?.name || 'Unknown Product',
+        sku: productInfo?.sku || 'N/A',
+        category: productInfo?.category?.name || 'N/A',
+        quantity,
+        price: unitPrice,
+        amount,
+        customer: item.sale?.customer?.name || 'Walk-in Customer',
+        location: locationMap.get(item.sale?.locationId ?? 0) || 'N/A',
+        cashier: item.sale?.creator ? `${item.sale.creator.firstName} ${item.sale.creator.surname}` : 'Unknown',
       }
     })
 
     // Sort results
     if (sortBy === 'productName') {
-      productSummary.sort((a, b) => {
+      itemsWithDetails.sort((a, b) => {
         const aVal = a.productName.toLowerCase()
         const bVal = b.productName.toLowerCase()
         return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
       })
-    } else if (sortBy === 'category') {
-      productSummary.sort((a, b) => {
-        const aVal = a.category.toLowerCase()
-        const bVal = b.category.toLowerCase()
-        return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
+    } else if (sortBy === 'saleDate') {
+      itemsWithDetails.sort((a, b) => {
+        return sortOrder === 'asc'
+          ? a.saleDate.localeCompare(b.saleDate)
+          : b.saleDate.localeCompare(a.saleDate)
       })
     } else {
-      productSummary.sort((a, b) => {
+      itemsWithDetails.sort((a, b) => {
         const aVal = a[sortBy as keyof typeof a] as number
         const bVal = b[sortBy as keyof typeof b] as number
         return sortOrder === 'asc' ? aVal - bVal : bVal - aVal
@@ -321,23 +249,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Pagination
-    const totalCount = productSummary.length
+    const totalCount = itemsWithDetails.length
     const startIndex = (page - 1) * limit
     const endIndex = startIndex + limit
-    const paginatedResults = productSummary.slice(startIndex, endIndex)
+    const paginatedResults = itemsWithDetails.slice(startIndex, endIndex)
 
     // Calculate overall summary
     const summary = {
-      totalProducts: totalCount,
-      totalQuantitySold: productSummary.reduce((sum, item) => sum + item.quantitySold, 0),
-      totalRevenue: productSummary.reduce((sum, item) => sum + item.totalRevenue, 0),
-      totalCost: productSummary.reduce((sum, item) => sum + item.totalCost, 0),
-      totalProfit: productSummary.reduce((sum, item) => sum + item.totalProfit, 0),
-      averageMargin:
-        productSummary.length > 0
-          ? productSummary.reduce((sum, item) => sum + item.profitMargin, 0) /
-            productSummary.length
-          : 0,
+      totalItems: totalCount,
+      totalQuantitySold: itemsWithDetails.reduce((sum, item) => sum + item.quantity, 0),
+      totalRevenue: itemsWithDetails.reduce((sum, item) => sum + item.amount, 0),
     }
 
     return NextResponse.json({
