@@ -54,6 +54,11 @@ export async function POST(
       return NextResponse.json({ error: 'Void reason is required' }, { status: 400 })
     }
 
+    // Authorization tracking variables (used by both password and RFID methods)
+    let authorizingUserId: number | null = null
+    let authorizingUsername: string | null = null
+    let authMethod_description = ''
+
     // Validate authorization based on method
     if (authMethod === 'password') {
       if (!managerPassword) {
@@ -85,9 +90,6 @@ export async function POST(
     })
 
     let passwordValid = false
-    let authorizingUserId: number | null = null
-    let authorizingUsername: string | null = null
-    let authMethod_description = ''
 
     for (const manager of managerUsers) {
       const isMatch = await bcrypt.compare(managerPassword, manager.password)
