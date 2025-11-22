@@ -555,27 +555,27 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                 </div>
                 <div className="line">
                   <span className="line-label">Beg. SI #:</span>
-                  <span className="line-value">{zReading.beginningSiNumber || '00000000000001'}</span>
+                  <span className="line-value">{zReading.beginningSiNumber || 'No Sales'}</span>
                 </div>
                 <div className="line">
                   <span className="line-label">End. SI #:</span>
-                  <span className="line-value">{zReading.endingSiNumber || '00000000000006'}</span>
+                  <span className="line-value">{zReading.endingSiNumber || 'No Sales'}</span>
                 </div>
                 <div className="line">
                   <span className="line-label">Beg. VOID #:</span>
-                  <span className="line-value">{zReading.beginningVoidNumber || '00000000000001'}</span>
+                  <span className="line-value">{zReading.beginningVoidNumber || 'No Voids'}</span>
                 </div>
                 <div className="line">
                   <span className="line-label">End. VOID #:</span>
-                  <span className="line-value">{zReading.endingVoidNumber || '00000000000001'}</span>
+                  <span className="line-value">{zReading.endingVoidNumber || 'No Voids'}</span>
                 </div>
                 <div className="line">
                   <span className="line-label">Beg. RETURN #:</span>
-                  <span className="line-value">{zReading.beginningReturnNumber || '00000000000000'}</span>
+                  <span className="line-value">{zReading.beginningReturnNumber || 'No Returns'}</span>
                 </div>
                 <div className="line">
                   <span className="line-label">End. RETURN #:</span>
-                  <span className="line-value">{zReading.endingReturnNumber || '00000000000000'}</span>
+                  <span className="line-value">{zReading.endingReturnNumber || 'No Returns'}</span>
                 </div>
                 <div className="line">
                   <span className="line-label">Reset Counter No.</span>
@@ -746,183 +746,130 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                 </div>
               </div>
 
-              {/* Transaction Summary */}
+              {/* Transaction Summary - Simplified and Clear */}
               <div className="section">
                 <div className="section-title">TRANSACTION SUMMARY</div>
-                {(() => {
-                  const { cashInDrawer, shortOverText } = calculateCashSummary(zReading)
-                  return (
-                    <>
+                <div className="text-xs mb-2 text-gray-600 italic">Summary of all payments collected during shift:</div>
+
+                {/* Cash Section */}
+                <div className="line">
+                  <span className="line-label">Cash Payments:</span>
+                  <span className="line-value">{formatCurrency(zReading.paymentBreakdown['cash'] || 0)}</span>
+                </div>
+
+                {/* Non-Cash Payments */}
+                {zReading.paymentBreakdown['check'] > 0 && (
+                  <div className="line">
+                    <span className="line-label">Cheque:</span>
+                    <span className="line-value">{formatCurrency(zReading.paymentBreakdown['check'] || 0)}</span>
+                  </div>
+                )}
+                {zReading.paymentBreakdown['card'] > 0 && (
+                  <div className="line">
+                    <span className="line-label">Credit Card:</span>
+                    <span className="line-value">{formatCurrency(zReading.paymentBreakdown['card'] || 0)}</span>
+                  </div>
+                )}
+                {zReading.paymentBreakdown['gcash'] > 0 && (
+                  <div className="line">
+                    <span className="line-label">GCash:</span>
+                    <span className="line-value">{formatCurrency(zReading.paymentBreakdown['gcash'] || 0)}</span>
+                  </div>
+                )}
+                {zReading.paymentBreakdown['paymaya'] > 0 && (
+                  <div className="line">
+                    <span className="line-label">PayMaya:</span>
+                    <span className="line-value">{formatCurrency(zReading.paymentBreakdown['paymaya'] || 0)}</span>
+                  </div>
+                )}
+                {zReading.paymentBreakdown['bank_transfer'] > 0 && (
+                  <div className="line">
+                    <span className="line-label">Bank Transfer:</span>
+                    <span className="line-value">{formatCurrency(zReading.paymentBreakdown['bank_transfer'] || 0)}</span>
+                  </div>
+                )}
+                {(zReading.paymentBreakdown['credit'] || 0) > 0 && (
+                  <div className="line">
+                    <span className="line-label">Charge Invoice (Credit):</span>
+                    <span className="line-value">{formatCurrency(zReading.paymentBreakdown['credit'] || 0)}</span>
+                  </div>
+                )}
+
+                <div className="line total-line">
+                  <span className="line-label">Total Payments Received:</span>
+                  <span className="line-value">{formatCurrency(zReading.netSales)}</span>
+                </div>
+
+                {/* Additional Cash Movements */}
+                {(zReading.cashIn > 0 || zReading.cashOut > 0 || zReading.arPaymentsCash > 0) && (
+                  <>
+                    <div className="mt-3 mb-1 text-xs font-semibold text-gray-700">Other Cash Movements:</div>
+                    {zReading.cashIn > 0 && (
                       <div className="line">
-                        <span className="line-label">Cash In Drawer:</span>
-                        <span className="line-value">{formatCurrency(zReading.endingCash || cashInDrawer)}</span>
+                        <span className="line-label">+ Cash In (added to drawer):</span>
+                        <span className="line-value">+{formatCurrency(zReading.cashIn)}</span>
                       </div>
-                      {zReading.paymentBreakdown['check'] > 0 && (
-                        <div className="line">
-                          <span className="line-label">CHEQUE</span>
-                          <span className="line-value">{formatCurrency(zReading.paymentBreakdown['check'] || 0)}</span>
-                        </div>
-                      )}
-                      {zReading.paymentBreakdown['card'] > 0 && (
-                        <div className="line">
-                          <span className="line-label">CREDIT CARD</span>
-                          <span className="line-value">{formatCurrency(zReading.paymentBreakdown['card'] || 0)}</span>
-                        </div>
-                      )}
-                      {zReading.paymentBreakdown['gcash'] > 0 && (
-                        <div className="line">
-                          <span className="line-label">GCASH</span>
-                          <span className="line-value">{formatCurrency(zReading.paymentBreakdown['gcash'] || 0)}</span>
-                        </div>
-                      )}
-                      {(zReading.paymentBreakdown['credit'] || 0) > 0 && (
-                        <div className="line">
-                          <span className="line-label">GIFT CERTIFICATE</span>
-                          <span className="line-value">{formatCurrency(zReading.paymentBreakdown['credit'] || 0)}</span>
-                        </div>
-                      )}
+                    )}
+                    {zReading.arPaymentsCash > 0 && (
                       <div className="line">
-                        <span className="line-label">Opening Fund:</span>
-                        <span className="line-value">{formatCurrency(zReading.beginningCash)}</span>
+                        <span className="line-label">+ AR Payments (cash):</span>
+                        <span className="line-value">+{formatCurrency(zReading.arPaymentsCash)}</span>
                       </div>
+                    )}
+                    {zReading.cashOut > 0 && (
                       <div className="line">
-                        <span className="line-label">Less Withdrawal:</span>
-                        <span className="line-value">{formatCurrency(zReading.withdrawalAmount)}</span>
+                        <span className="line-label">- Cash Out (withdrawals):</span>
+                        <span className="line-value">-{formatCurrency(zReading.cashOut)}</span>
                       </div>
-                      <div className="line">
-                        <span className="line-label">Payments Received:</span>
-                        <span className="line-value">{formatCurrency(zReading.netSales)}</span>
-                      </div>
-                      {shortOverText && (
-                        <div className="line total-line">
-                          <span className="line-label">SHORT/OVER:</span>
-                          <span className="line-value">{shortOverText}</span>
-                        </div>
-                      )}
-                    </>
-                  )
-                })()}
+                    )}
+                  </>
+                )}
               </div>
 
-              {/* Cash Denomination Breakdown */}
-              {zReading.cashDenominations && (
-                <div className="section">
-                  <div className="section-title">CASH BREAKDOWN</div>
-                  {zReading.cashDenominations.count1000 > 0 && (
-                    <div className="line">
-                      <span className="line-label">₱1000 Bills ({zReading.cashDenominations.count1000}x):</span>
-                      <span className="line-value">{formatCurrency(zReading.cashDenominations.count1000 * 1000)}</span>
-                    </div>
-                  )}
-                  {zReading.cashDenominations.count500 > 0 && (
-                    <div className="line">
-                      <span className="line-label">₱500 Bills ({zReading.cashDenominations.count500}x):</span>
-                      <span className="line-value">{formatCurrency(zReading.cashDenominations.count500 * 500)}</span>
-                    </div>
-                  )}
-                  {zReading.cashDenominations.count200 > 0 && (
-                    <div className="line">
-                      <span className="line-label">₱200 Bills ({zReading.cashDenominations.count200}x):</span>
-                      <span className="line-value">{formatCurrency(zReading.cashDenominations.count200 * 200)}</span>
-                    </div>
-                  )}
-                  {zReading.cashDenominations.count100 > 0 && (
-                    <div className="line">
-                      <span className="line-label">₱100 Bills ({zReading.cashDenominations.count100}x):</span>
-                      <span className="line-value">{formatCurrency(zReading.cashDenominations.count100 * 100)}</span>
-                    </div>
-                  )}
-                  {zReading.cashDenominations.count50 > 0 && (
-                    <div className="line">
-                      <span className="line-label">₱50 Bills ({zReading.cashDenominations.count50}x):</span>
-                      <span className="line-value">{formatCurrency(zReading.cashDenominations.count50 * 50)}</span>
-                    </div>
-                  )}
-                  {zReading.cashDenominations.count20 > 0 && (
-                    <div className="line">
-                      <span className="line-label">₱20 Bills ({zReading.cashDenominations.count20}x):</span>
-                      <span className="line-value">{formatCurrency(zReading.cashDenominations.count20 * 20)}</span>
-                    </div>
-                  )}
-                  {zReading.cashDenominations.count10 > 0 && (
-                    <div className="line">
-                      <span className="line-label">₱10 Coins ({zReading.cashDenominations.count10}x):</span>
-                      <span className="line-value">{formatCurrency(zReading.cashDenominations.count10 * 10)}</span>
-                    </div>
-                  )}
-                  {zReading.cashDenominations.count5 > 0 && (
-                    <div className="line">
-                      <span className="line-label">₱5 Coins ({zReading.cashDenominations.count5}x):</span>
-                      <span className="line-value">{formatCurrency(zReading.cashDenominations.count5 * 5)}</span>
-                    </div>
-                  )}
-                  {zReading.cashDenominations.count1 > 0 && (
-                    <div className="line">
-                      <span className="line-label">₱1 Coins ({zReading.cashDenominations.count1}x):</span>
-                      <span className="line-value">{formatCurrency(zReading.cashDenominations.count1 * 1)}</span>
-                    </div>
-                  )}
-                  {zReading.cashDenominations.count025 > 0 && (
-                    <div className="line">
-                      <span className="line-label">₱0.25 Coins ({zReading.cashDenominations.count025}x):</span>
-                      <span className="line-value">{formatCurrency(zReading.cashDenominations.count025 * 0.25)}</span>
-                    </div>
-                  )}
-                  <div className="line total-line">
-                    <span className="line-label">Total Cash Counted:</span>
-                    <span className="line-value">{formatCurrency(zReading.endingCash)}</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Expected Cash Breakdown - Easy to understand! */}
+              {/* Expected Cash Calculation - Simplified and Clear */}
               <div className="section">
                 <div className="section-title">EXPECTED CASH CALCULATION</div>
-                <div className="text-xs mb-2 text-gray-600">How system calculated expected cash in drawer:</div>
+                <div className="text-xs mb-2 text-gray-600 italic">Step-by-step calculation of expected cash in drawer:</div>
 
+                <div className="mb-2 text-xs font-semibold text-gray-700">Starting Amount:</div>
                 <div className="line">
-                  <span className="line-label">Beginning Cash (Opening Fund):</span>
-                  <span className="line-value">+{formatCurrency(zReading.beginningCash)}</span>
+                  <span className="line-label">1. Beginning Cash (Opening Fund)</span>
+                  <span className="line-value">{formatCurrency(zReading.beginningCash)}</span>
                 </div>
+
+                <div className="mt-2 mb-2 text-xs font-semibold text-gray-700">Add Cash Received:</div>
                 <div className="line">
-                  <span className="line-label">Cash Sales (from transactions):</span>
-                  <span className="line-value">+{formatCurrency(zReading.cashFromSales || zReading.paymentBreakdown?.cash || 0)}</span>
+                  <span className="line-label">2. + Cash from Sales</span>
+                  <span className="line-value">{formatCurrency(zReading.cashFromSales || zReading.paymentBreakdown?.cash || 0)}</span>
                 </div>
-                <div className="line">
-                  <span className="line-label">Cash In (added to drawer):</span>
-                  <span className="line-value">+{formatCurrency(zReading.cashIn || 0)}</span>
-                </div>
-                <div className="line">
-                  <span className="line-label">AR Payments Received (cash):</span>
-                  <span className="line-value">+{formatCurrency(zReading.arPaymentsCash || 0)}</span>
-                </div>
-                <div className="line">
-                  <span className="line-label">Less: Cash Out (withdrawals):</span>
-                  <span className="line-value">-{formatCurrency(zReading.cashOut || 0)}</span>
-                </div>
-                <div className="line">
-                  <span className="line-label">Less: GCash Payments:</span>
-                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.gcash || 0)}</span>
-                </div>
-                <div className="line">
-                  <span className="line-label">Less: Card Payments:</span>
-                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.card || 0)}</span>
-                </div>
-                <div className="line">
-                  <span className="line-label">Less: Bank Transfer:</span>
-                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.bank_transfer || 0)}</span>
-                </div>
-                <div className="line">
-                  <span className="line-label">Less: Cheque Payments:</span>
-                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.check || 0)}</span>
-                </div>
-                <div className="line">
-                  <span className="line-label">Less: Credit/AR Sales (not cash):</span>
-                  <span className="line-value">-{formatCurrency(zReading.paymentBreakdown?.credit || 0)}</span>
-                </div>
-                <div className="line total-line">
-                  <span className="line-label font-bold">= Expected Cash in Drawer:</span>
+                {(zReading.cashIn > 0) && (
+                  <div className="line">
+                    <span className="line-label">3. + Cash In (added to drawer)</span>
+                    <span className="line-value">{formatCurrency(zReading.cashIn)}</span>
+                  </div>
+                )}
+                {(zReading.arPaymentsCash > 0) && (
+                  <div className="line">
+                    <span className="line-label">4. + AR Payments (cash collected)</span>
+                    <span className="line-value">{formatCurrency(zReading.arPaymentsCash)}</span>
+                  </div>
+                )}
+
+                <div className="mt-2 mb-2 text-xs font-semibold text-gray-700">Subtract Cash Removed:</div>
+                {(zReading.cashOut > 0) && (
+                  <div className="line">
+                    <span className="line-label">5. - Cash Out (withdrawals)</span>
+                    <span className="line-value">-{formatCurrency(zReading.cashOut)}</span>
+                  </div>
+                )}
+
+                <div className="line total-line mt-3">
+                  <span className="line-label font-bold">= Expected Cash in Drawer</span>
                   <span className="line-value font-bold">{formatCurrency(zReading.expectedCash)}</span>
+                </div>
+
+                <div className="text-xs mt-2 italic text-gray-500">
+                  Formula: Beginning Cash + Cash Sales + Cash In + AR Cash - Cash Out = Expected Cash
                 </div>
               </div>
 
@@ -999,34 +946,67 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                 </div>
               )}
 
-              {/* Final Variance Calculation */}
+              {/* Final Variance Calculation - Clear and Understandable */}
               <div className="section">
-                <div className="section-title">CASH RECONCILIATION</div>
-                <div className="text-xs mb-2 text-gray-600">Comparison of expected vs actual:</div>
+                <div className="section-title">CASH RECONCILIATION (SHORT/OVER)</div>
+                <div className="text-xs mb-3 text-gray-600 italic">Comparing system calculations vs actual physical count:</div>
 
-                <div className="line">
-                  <span className="line-label">System Expected Cash:</span>
-                  <span className="line-value">{formatCurrency(zReading.expectedCash)}</span>
+                <div className="p-2 bg-blue-50 dark:bg-blue-950 rounded mb-2">
+                  <div className="line">
+                    <span className="line-label font-semibold">A. System Expected Cash:</span>
+                    <span className="line-value font-semibold">{formatCurrency(zReading.expectedCash)}</span>
+                  </div>
+                  <div className="text-xs text-gray-600 ml-4">
+                    (Based on beginning cash + sales + cash in - cash out)
+                  </div>
                 </div>
-                <div className="line">
-                  <span className="line-label">Physical Count (Actual):</span>
-                  <span className="line-value">{formatCurrency(zReading.endingCash)}</span>
+
+                <div className="p-2 bg-green-50 dark:bg-green-950 rounded mb-2">
+                  <div className="line">
+                    <span className="line-label font-semibold">B. Physical Count (Actual):</span>
+                    <span className="line-value font-semibold">{formatCurrency(zReading.endingCash)}</span>
+                  </div>
+                  <div className="text-xs text-gray-600 ml-4">
+                    (Cash denominations counted by cashier: ₱{zReading.endingCash.toFixed(2)})
+                  </div>
                 </div>
-                <div className="line">
-                  <span className="line-label">Variance (Difference):</span>
-                  <span className="line-value">{formatCurrency(zReading.cashVariance ?? 0)}</span>
+
+                <div className="p-2 bg-amber-50 dark:bg-amber-950 rounded mb-2">
+                  <div className="line">
+                    <span className="line-label font-semibold">C. Variance (B - A):</span>
+                    <span className="line-value font-semibold">
+                      {(zReading.cashVariance ?? 0) >= 0 ? '+' : ''}{formatCurrency(zReading.cashVariance ?? 0)}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-600 ml-4">
+                    {formatCurrency(zReading.endingCash)} minus {formatCurrency(zReading.expectedCash)} = {formatCurrency(zReading.cashVariance ?? 0)}
+                  </div>
                 </div>
-                <div className="line total-line">
-                  <span className="line-label">Status:</span>
-                  <span className="line-value font-bold">
-                    {(zReading.cashVariance ?? 0) === 0 ? '✓ Balanced' :
-                     (zReading.cashVariance ?? 0) > 0 ? `₱${Math.abs(zReading.cashVariance ?? 0).toFixed(2)} Over` :
-                     `₱${Math.abs(zReading.cashVariance ?? 0).toFixed(2)} Short`}
+
+                <div className={`line total-line p-3 rounded ${
+                  Math.abs(zReading.cashVariance ?? 0) < 0.01
+                    ? 'bg-green-100 dark:bg-green-900'
+                    : (zReading.cashVariance ?? 0) > 0
+                      ? 'bg-blue-100 dark:bg-blue-900'
+                      : 'bg-red-100 dark:bg-red-900'
+                }`}>
+                  <span className="line-label font-bold text-lg">SHORT/OVER:</span>
+                  <span className="line-value font-bold text-lg">
+                    {Math.abs(zReading.cashVariance ?? 0) < 0.01
+                      ? 'BALANCED ✓'
+                      : (zReading.cashVariance ?? 0) > 0
+                        ? `${formatCurrency(Math.abs(zReading.cashVariance ?? 0))}+ (OVER)`
+                        : `${formatCurrency(Math.abs(zReading.cashVariance ?? 0))}- (SHORT)`}
                   </span>
                 </div>
-                <div className="text-xs mt-2 italic text-gray-600">
-                  Formula: Physical Count - System Expected = Variance<br/>
-                  {formatCurrency(zReading.endingCash)} - {formatCurrency(zReading.expectedCash)} = {formatCurrency(zReading.cashVariance ?? 0)}
+
+                <div className="text-xs mt-3 p-2 bg-gray-100 dark:bg-gray-800 rounded">
+                  <div className="font-semibold mb-1">Understanding Short/Over:</div>
+                  <ul className="list-disc ml-4 space-y-1">
+                    <li><strong>OVER (+)</strong>: Physical cash is MORE than expected (extra cash in drawer)</li>
+                    <li><strong>SHORT (-)</strong>: Physical cash is LESS than expected (missing cash)</li>
+                    <li><strong>BALANCED</strong>: Physical cash matches system expected exactly</li>
+                  </ul>
                 </div>
               </div>
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { format } from 'date-fns'
 import {
   CalendarIcon,
@@ -9,7 +10,8 @@ import {
   PrinterIcon,
   DocumentTextIcon,
   DocumentArrowDownIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  ArrowLeftIcon
 } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { BIRReadingDisplay } from '@/components/BIRReadingDisplay'
 import DataGrid, {
   Column,
   Paging,
@@ -71,19 +74,36 @@ interface Reading {
 
 export default function ZReadingPage() {
   const { data: session } = useSession()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const shiftId = searchParams.get('shiftId')
+  const printMode = searchParams.get('print') === 'true'
+
   const [readings, setReadings] = useState<Reading[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
 
+  // State for individual reading view
+  const [viewMode, setViewMode] = useState<'list' | 'detail'>('list')
+  const [selectedReading, setSelectedReading] = useState<any>(null)
+  const [loadingDetail, setLoadingDetail] = useState(false)
+
   useEffect(() => {
-    fetchReadings()
-  }, [])
+    if (shiftId) {
+      // If shiftId parameter exists, fetch and display that specific reading
+      fetchIndividualReading(parseInt(shiftId))
+    } else {
+      // Otherwise show the list
+      fetchReadings()
+    }
+  }, [shiftId])
 
   const fetchReadings = async () => {
     try {
       setLoading(true)
+      setViewMode('list')
       // Filter by type=Z to only get Z Readings
       const params = new URLSearchParams({ limit: '500', type: 'Z' })
       const response = await fetch(`/api/readings/history?${params.toString()}`)
@@ -96,6 +116,32 @@ export default function ZReadingPage() {
       toast.error('Failed to load Z readings')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchIndividualReading = async (shiftIdNum: number) => {
+    try {
+      setLoadingDetail(true)
+      setViewMode('detail')
+
+      // Fetch the Z Reading data for this specific shift
+      const response = await fetch(`/api/readings/z-reading?shiftId=${shiftIdNum}`)
+      if (!response.ok) throw new Error('Failed to fetch Z reading details')
+
+      const data = await response.json()
+      setSelectedReading(data.zReading)
+
+      // Auto-print if print mode is enabled
+      if (printMode) {
+        setTimeout(() => window.print(), 500)
+      }
+    } catch (error: any) {
+      console.error('Error fetching Z reading details:', error)
+      toast.error('Failed to load Z reading details')
+      // Go back to list view on error
+      router.push('/dashboard/readings/z-reading')
+    } finally {
+      setLoadingDetail(false)
     }
   }
 
@@ -156,9 +202,17 @@ export default function ZReadingPage() {
       : <span className="text-muted-foreground">—</span>
   }
 
-  // Print individual reading
-  const handlePrint = (reading: Reading) => {
-    window.print()
+  // View/Print individual reading
+  const handleViewReading = (reading: Reading) => {
+    router.push(`/dashboard/readings/z-reading?shiftId=${reading.shiftId}`)
+  }
+
+  const handlePrintReading = (reading: Reading) => {
+    router.push(`/dashboard/readings/z-reading?shiftId=${reading.shiftId}&print=true`)
+  }
+
+  const handleBackToList = () => {
+    router.push('/dashboard/readings/z-reading')
   }
 
   // Export to Excel
@@ -281,6 +335,55 @@ export default function ZReadingPage() {
     toast.success('PDF exported successfully')
   }
 
+  // If in detail view mode, show the individual reading
+  if (viewMode === 'detail') {
+    if (loadingDetail) {
+      return (
+        <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+            <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">Loading Z Reading...</p>
+          </div>
+        </div>
+      )
+    }
+
+    if (!selectedReading) {
+      return (
+        <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
+          <Card>
+            <CardContent className="p-8 text-center">
+              <p className="text-gray-600 dark:text-gray-400">Z Reading not found</p>
+              <Button onClick={handleBackToList} className="mt-4 gap-2">
+                <ArrowLeftIcon className="h-4 w-4" />
+                Back to List
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )
+    }
+
+    return (
+      <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
+        {/* Back button */}
+        <div className="mb-6 print:hidden">
+          <Button onClick={handleBackToList} variant="outline" className="gap-2">
+            <ArrowLeftIcon className="h-4 w-4" />
+            Back to Z Readings List
+          </Button>
+        </div>
+
+        {/* Display the reading in BIR format */}
+        <BIRReadingDisplay
+          zReading={selectedReading}
+          onClose={handleBackToList}
+        />
+      </div>
+    )
+  }
+
+  // Otherwise show the list view
   return (
     <div className="container mx-auto p-4 sm:p-6 max-w-7xl">
       <div className="mb-6">
@@ -539,6 +642,36 @@ export default function ZReadingPage() {
                 width={110}
                 alignment="center"
                 dataType="number"
+              />
+              <Column
+                caption="Actions"
+                width={180}
+                alignment="center"
+                cellRender={(data: any) => {
+                  const reading = data.data as Reading
+                  return (
+                    <div className="flex gap-2 justify-center">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleViewReading(reading)}
+                        className="gap-1 hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
+                      >
+                        <DocumentTextIcon className="h-4 w-4" />
+                        View
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handlePrintReading(reading)}
+                        className="gap-1 hover:border-purple-500 hover:text-purple-700 dark:hover:text-purple-400"
+                      >
+                        <PrinterIcon className="h-4 w-4" />
+                        Print
+                      </Button>
+                    </div>
+                  )
+                }}
               />
 
               <Summary>
