@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { usePathname } from "next/navigation"
 import { usePermissions } from "@/hooks/usePermissions"
 import { PERMISSIONS } from "@/lib/rbac"
@@ -8,11 +8,6 @@ import { formatCurrency } from "@/lib/currencyUtils"
 import {
   MagnifyingGlassIcon,
   FunnelIcon,
-  ArrowDownTrayIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ArrowUpIcon,
-  ArrowDownIcon,
   PrinterIcon,
 } from "@heroicons/react/24/outline"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,16 +21,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import ReportFilterPanel from "@/components/reports/ReportFilterPanel"
+import DataGrid, {
+  Column,
+  FilterRow,
+  HeaderFilter,
+  SearchPanel,
+  Paging,
+  Pager,
+  Export,
+  Summary,
+  TotalItem,
+  StateStoring,
+  ColumnChooser,
+  Grouping,
+  GroupPanel,
+  Toolbar,
+  Item,
+  MasterDetail,
+  Sorting,
+} from 'devextreme-react/data-grid'
+import { Workbook } from 'exceljs'
+import { saveAs } from 'file-saver-es'
+import { exportDataGrid } from 'devextreme/excel_exporter'
+
+// Import DevExtreme CSS
+import 'devextreme/dist/css/dx.light.css'
 
 interface SaleItem {
   productName: string
@@ -99,11 +111,12 @@ export default function SalesHistoryPage() {
   const { can } = usePermissions()
   const pathname = usePathname()
   const isCashierMode = pathname?.includes('/dashboard/cashier-reports/') ?? false
+  const dataGridRef = useRef<DataGrid>(null)
 
   if (!can(PERMISSIONS.REPORT_SALES_HISTORY)) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-600">You do not have permission to view reports</p>
+        <p className="text-red-600 dark:text-red-400">You do not have permission to view reports</p>
       </div>
     )
   }
@@ -111,7 +124,6 @@ export default function SalesHistoryPage() {
   const [reportData, setReportData] = useState<SalesHistoryData | null>(null)
   const [loading, setLoading] = useState(false)
   const [showFilters, setShowFilters] = useState(true)
-  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
 
   // Filter states
   const [locationId, setLocationId] = useState("all")
@@ -309,94 +321,6 @@ export default function SalesHistoryPage() {
     fetchReport()
   }
 
-  const handleSort = (column: string) => {
-    if (sortBy === column) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc")
-    } else {
-      setSortBy(column)
-      setSortOrder("desc")
-    }
-  }
-
-  const toggleRowExpansion = (saleId: number) => {
-    const newExpanded = new Set(expandedRows)
-    if (newExpanded.has(saleId)) {
-      newExpanded.delete(saleId)
-    } else {
-      newExpanded.add(saleId)
-    }
-    setExpandedRows(newExpanded)
-  }
-
-  const exportToCSV = () => {
-    if (!reportData) return
-
-    const headers = [
-      "Invoice",
-      "Date",
-      "Customer",
-      "Location",
-      "Status",
-      "Subtotal",
-      "Tax",
-      "Discount",
-      "Shipping",
-      "Total",
-      "Payment Methods",
-    ]
-
-    const rows = reportData.sales.map((sale) => [
-      sale.invoiceNumber,
-      formatDateTime(sale.saleDateTime),
-      sale.customer,
-      sale.location,
-      sale.status,
-      sale.subtotal,
-      sale.taxAmount,
-      sale.discountAmount,
-      sale.shippingCost,
-      sale.totalAmount,
-      sale.payments.map((p) => `${p.method}:${p.amount}`).join("; "),
-    ])
-
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => row.join(",")),
-    ].join("\n")
-
-    const blob = new Blob([csvContent], { type: "text/csv" })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `sales-history-${new Date().toISOString().split("T")[0]}.csv`
-    a.click()
-  }
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, string> = {
-      completed: "bg-green-100 text-green-800",
-      pending: "bg-yellow-100 text-yellow-800",
-      draft: "bg-gray-100 text-gray-800",
-      cancelled: "bg-red-100 text-red-800",
-      voided: "bg-red-100 text-red-800",
-    }
-
-    return (
-      <Badge className={variants[status] || "bg-gray-100 text-gray-800"}>
-        {status.toUpperCase()}
-      </Badge>
-    )
-  }
-
-  const SortIcon = ({ column }: { column: string }) => {
-    if (sortBy !== column) return null
-    return sortOrder === "asc" ? (
-      <ArrowUpIcon className="h-4 w-4 inline ml-1" />
-    ) : (
-      <ArrowDownIcon className="h-4 w-4 inline ml-1" />
-    )
-  }
-
   const formatDateTime = (value: string) => {
     if (!value) return "-"
     const date = new Date(value)
@@ -410,23 +334,161 @@ export default function SalesHistoryPage() {
     })
   }
 
+  const renderStatusBadge = (cellData: any) => {
+    const status = cellData.value?.toLowerCase() || ''
+    const variants: Record<string, string> = {
+      completed: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+      pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
+      draft: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300",
+      cancelled: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+      voided: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+    }
+
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${variants[status] || "bg-gray-100 text-gray-800"}`}>
+        {status.toUpperCase()}
+      </span>
+    )
+  }
+
+  const onExporting = (e: any) => {
+    const workbook = new Workbook()
+    const worksheet = workbook.addWorksheet('Sales History')
+
+    exportDataGrid({
+      component: e.component,
+      worksheet,
+      autoFilterEnabled: true,
+      customizeCell: ({ gridCell, excelCell }: any) => {
+        if (gridCell.rowType === 'data') {
+          if (
+            gridCell.column.dataField === 'subtotal' ||
+            gridCell.column.dataField === 'taxAmount' ||
+            gridCell.column.dataField === 'discountAmount' ||
+            gridCell.column.dataField === 'shippingCost' ||
+            gridCell.column.dataField === 'totalAmount'
+          ) {
+            excelCell.numFmt = '₱#,##0.00'
+          }
+        }
+      }
+    }).then(() => {
+      workbook.xlsx.writeBuffer().then((buffer) => {
+        saveAs(
+          new Blob([buffer], { type: 'application/octet-stream' }),
+          `sales-history-${new Date().toISOString().split('T')[0]}.xlsx`
+        )
+      })
+    })
+    e.cancel = true
+  }
+
+  // Master detail template
+  const MasterDetailTemplate = (props: any) => {
+    const sale = props.data?.data || props.data
+
+    if (!sale) {
+      return (
+        <div className="p-4 bg-yellow-50 dark:bg-yellow-900 border border-yellow-300 dark:border-yellow-700 rounded">
+          <p className="text-yellow-800 dark:text-yellow-200">
+            No details available for this sale.
+          </p>
+        </div>
+      )
+    }
+
+    return (
+      <div className="p-4 bg-gray-50 dark:bg-gray-900 space-y-4">
+        {/* Sale Items */}
+        {sale.items && sale.items.length > 0 && (
+          <div>
+            <h4 className="font-semibold mb-2 text-gray-900 dark:text-white">Sale Items</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border border-gray-200 dark:border-gray-700">
+                <thead className="bg-gray-100 dark:bg-gray-800">
+                  <tr>
+                    <th className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">Product</th>
+                    <th className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">SKU</th>
+                    <th className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">Qty</th>
+                    <th className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">Price</th>
+                    <th className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {sale.items.map((item: any, idx: number) => (
+                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="px-4 py-2 font-medium text-gray-900 dark:text-white">
+                        {item.productName} ({item.variationName})
+                      </td>
+                      <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{item.sku}</td>
+                      <td className="px-4 py-2 text-right text-gray-900 dark:text-white">{item.quantity}</td>
+                      <td className="px-4 py-2 text-right text-gray-900 dark:text-white">
+                        {formatCurrency(item.unitPrice)}
+                      </td>
+                      <td className="px-4 py-2 text-right font-semibold text-gray-900 dark:text-white">
+                        {formatCurrency(item.total)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Payment Details */}
+        {sale.payments && sale.payments.length > 0 && (
+          <div>
+            <h4 className="font-semibold mb-2 text-gray-900 dark:text-white">Payment Details</h4>
+            <div className="grid grid-cols-2 gap-2">
+              {sale.payments.map((payment: any, idx: number) => (
+                <div key={idx} className="p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                    {payment.method.toUpperCase()}
+                  </div>
+                  <div className="text-lg font-bold text-gray-900 dark:text-white">
+                    {formatCurrency(payment.amount)}
+                  </div>
+                  {payment.referenceNumber && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Ref: {payment.referenceNumber}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Notes */}
+        {sale.notes && (
+          <div>
+            <h4 className="font-semibold mb-1 text-gray-900 dark:text-white">Notes</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400">{sale.notes}</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sales History per Location</h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Sales History per Location</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             Complete sales transaction history filtered by your assigned location(s)
           </p>
         </div>
         <div className="flex gap-3 flex-wrap">
           <Button
-            variant="secondary"
+            variant="outline"
+            size="sm"
             onClick={() => setShowFilters(!showFilters)}
-            className="shadow-sm"
+            className="gap-2"
           >
-            <FunnelIcon className="h-4 w-4 mr-2" />
+            <FunnelIcon className="h-4 w-4" />
             {showFilters ? "Hide" : "Show"} Filters
           </Button>
         </div>
@@ -444,7 +506,7 @@ export default function SalesHistoryPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Date Range Presets */}
           <div className="flex flex-col gap-2">
-            <Label>Quick Date Range</Label>
+            <Label className="text-gray-700 dark:text-gray-300">Quick Date Range</Label>
             <Select value={dateRange} onValueChange={(val) => {
               setDateRange(val)
               if (val !== "custom") {
@@ -452,7 +514,7 @@ export default function SalesHistoryPage() {
                 setEndDate("")
               }
             }}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
                 <SelectValue placeholder="Select range" />
               </SelectTrigger>
               <SelectContent>
@@ -473,7 +535,7 @@ export default function SalesHistoryPage() {
 
           {/* Start Date */}
           <div className="flex flex-col gap-2">
-            <Label>Start Date</Label>
+            <Label className="text-gray-700 dark:text-gray-300">Start Date</Label>
             <Input
               type="date"
               value={startDate}
@@ -482,12 +544,13 @@ export default function SalesHistoryPage() {
                 if (e.target.value) setDateRange("custom")
               }}
               disabled={dateRange !== "custom"}
+              className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             />
           </div>
 
           {/* End Date */}
           <div className="flex flex-col gap-2">
-            <Label>End Date</Label>
+            <Label className="text-gray-700 dark:text-gray-300">End Date</Label>
             <Input
               type="date"
               value={endDate}
@@ -496,21 +559,23 @@ export default function SalesHistoryPage() {
                 if (e.target.value) setDateRange("custom")
               }}
               disabled={dateRange !== "custom"}
+              className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             />
           </div>
+
           {/* Location (hidden and enforced in cashier mode) */}
           {isCashierMode ? (
             <div className="flex flex-col gap-2">
-              <Label>Location</Label>
-              <div className="px-3 py-2 bg-blue-50 rounded-md border border-blue-200 text-sm font-semibold text-blue-900">
+              <Label className="text-gray-700 dark:text-gray-300">Location</Label>
+              <div className="px-3 py-2 bg-blue-50 dark:bg-blue-900 rounded-md border border-blue-200 dark:border-blue-700 text-sm font-semibold text-blue-900 dark:text-blue-200">
                 {enforcedLocationName || 'Assigned Location'}
               </div>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              <Label>Location</Label>
+              <Label className="text-gray-700 dark:text-gray-300">Location</Label>
               <Select value={locationId} onValueChange={setLocationId}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
                   <SelectValue placeholder="All Locations" />
                 </SelectTrigger>
                 <SelectContent>
@@ -527,9 +592,9 @@ export default function SalesHistoryPage() {
 
           {/* Customer */}
           <div className="flex flex-col gap-2">
-            <Label>Customer</Label>
+            <Label className="text-gray-700 dark:text-gray-300">Customer</Label>
             <Select value={customerId} onValueChange={setCustomerId}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
                 <SelectValue placeholder="All Customers" />
               </SelectTrigger>
               <SelectContent>
@@ -545,9 +610,9 @@ export default function SalesHistoryPage() {
 
           {/* Status */}
           <div className="flex flex-col gap-2">
-            <Label>Status</Label>
+            <Label className="text-gray-700 dark:text-gray-300">Status</Label>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
                 <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
@@ -563,9 +628,9 @@ export default function SalesHistoryPage() {
 
           {/* Payment Method */}
           <div className="flex flex-col gap-2">
-            <Label>Payment Method</Label>
+            <Label className="text-gray-700 dark:text-gray-300">Payment Method</Label>
             <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-              <SelectTrigger>
+              <SelectTrigger className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
                 <SelectValue placeholder="All Methods" />
               </SelectTrigger>
               <SelectContent>
@@ -582,21 +647,23 @@ export default function SalesHistoryPage() {
 
           {/* Invoice Number */}
           <div className="flex flex-col gap-2">
-            <Label>Invoice Number</Label>
+            <Label className="text-gray-700 dark:text-gray-300">Invoice Number</Label>
             <Input
               placeholder="Search invoice..."
               value={invoiceNumber}
               onChange={(e) => setInvoiceNumber(e.target.value)}
+              className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             />
           </div>
 
           {/* Product Search */}
           <div className="lg:col-span-2 flex flex-col gap-2">
-            <Label>Product Name / SKU</Label>
+            <Label className="text-gray-700 dark:text-gray-300">Product Name / SKU</Label>
             <Input
               placeholder="Search by product name or SKU..."
               value={productSearch}
               onChange={(e) => setProductSearch(e.target.value)}
+              className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             />
           </div>
         </div>
@@ -604,30 +671,27 @@ export default function SalesHistoryPage() {
         <div className="flex gap-3 mt-6 flex-wrap">
           <Button
             onClick={handleSearch}
-            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm px-6 rounded-lg"
+            variant="success"
+            size="sm"
+            className="gap-2"
           >
-            <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
+            <MagnifyingGlassIcon className="h-4 w-4" />
             Generate Report
           </Button>
           <Button
-            onClick={exportToCSV}
-            disabled={!reportData}
-            className="bg-green-600 hover:bg-green-700 text-white shadow-sm px-6 rounded-lg"
-          >
-            <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-            Export to Excel
-          </Button>
-          <Button
             onClick={() => window.print()}
-            className="bg-purple-600 hover:bg-purple-700 text-white shadow-sm px-6 rounded-lg"
+            variant="outline"
+            size="sm"
+            className="gap-2 hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
           >
-            <PrinterIcon className="h-4 w-4 mr-2" />
+            <PrinterIcon className="h-4 w-4" />
             Print Report
           </Button>
           <Button
-            variant="secondary"
+            variant="outline"
+            size="sm"
             onClick={handleReset}
-            className="shadow-sm px-6"
+            className="gap-2"
           >
             Reset All Filters
           </Button>
@@ -637,34 +701,34 @@ export default function SalesHistoryPage() {
       {/* Summary Cards */}
       {reportData && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="bg-blue-50">
+          <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <CardContent className="pt-6">
-              <div className="text-sm text-gray-600">Total Sales</div>
-              <div className="text-2xl font-bold text-gray-900">
+              <div className="text-sm text-gray-600 dark:text-gray-400">Total Sales</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
                 {reportData.summary.totalSales}
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-green-50">
+          <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <CardContent className="pt-6">
-              <div className="text-sm text-gray-600">Total Revenue</div>
-              <div className="text-2xl font-bold text-gray-900">
+              <div className="text-sm text-gray-600 dark:text-gray-400">Total Revenue</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
                 {formatCurrency(reportData.summary.totalRevenue)}
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-purple-50">
+          <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <CardContent className="pt-6">
-              <div className="text-sm text-gray-600">Total COGS</div>
-              <div className="text-2xl font-bold text-gray-900">
+              <div className="text-sm text-gray-600 dark:text-gray-400">Total COGS</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
                 {formatCurrency(reportData.summary.totalCOGS)}
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-orange-50">
+          <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <CardContent className="pt-6">
-              <div className="text-sm text-gray-600">Gross Profit</div>
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-sm text-gray-600 dark:text-gray-400">Gross Profit</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                 {formatCurrency(reportData.summary.grossProfit)}
               </div>
             </CardContent>
@@ -672,10 +736,10 @@ export default function SalesHistoryPage() {
         </div>
       )}
 
-      {/* Data Table */}
-      <Card>
+      {/* Data Grid */}
+      <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
         <CardHeader>
-          <CardTitle>
+          <CardTitle className="text-gray-900 dark:text-white">
             Sales Transactions
             {reportData && ` (${reportData.pagination.total} total)`}
           </CardTitle>
@@ -686,190 +750,153 @@ export default function SalesHistoryPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : reportData?.sales.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">No sales found</div>
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">No sales found</div>
           ) : (
-            <>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead
-                        className="cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort("invoiceNumber")}
-                      >
-                        Invoice <SortIcon column="invoiceNumber" />
-                      </TableHead>
-                      <TableHead
-                        className="cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort("createdAt")}
-                      >
-                        Date &amp; Time <SortIcon column="createdAt" />
-                      </TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Items</TableHead>
-                      <TableHead
-                        className="text-right cursor-pointer hover:bg-gray-100"
-                        onClick={() => handleSort("totalAmount")}
-                      >
-                        Total <SortIcon column="totalAmount" />
-                      </TableHead>
-                      <TableHead>Payment</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {reportData?.sales.map((sale) => (
-                      <>
-                        <TableRow key={sale.id} className="hover:bg-gray-50">
-                          <TableCell className="font-medium">
-                            {sale.invoiceNumber}
-                          </TableCell>
-                          <TableCell>{formatDateTime(sale.saleDateTime)}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-col">
-                              <span>{sale.customer}</span>
-                              {sale.customerMobile && (
-                                <span className="text-xs text-gray-500">
-                                  {sale.customerMobile}
-                                </span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>{sale.location}</TableCell>
-                          <TableCell>{getStatusBadge(sale.status)}</TableCell>
-                          <TableCell className="text-right">{sale.itemCount}</TableCell>
-                          <TableCell className="text-right font-semibold">
-                            {formatCurrency(sale.totalAmount)}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {sale.payments.map((payment, idx) => (
-                                <Badge key={idx} variant="outline" className="text-xs">
-                                  {payment.method}
-                                </Badge>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleRowExpansion(sale.id)}
-                            >
-                              {expandedRows.has(sale.id) ? "Hide" : "Show"}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                        {expandedRows.has(sale.id) && (
-                          <TableRow>
-                            <TableCell colSpan={9} className="bg-gray-50">
-                              <div className="p-4 space-y-4">
-                                {/* Sale Items */}
-                                <div>
-                                  <h4 className="font-semibold mb-2">Sale Items</h4>
-                                  <Table>
-                                    <TableHeader>
-                                      <TableRow>
-                                        <TableHead>Product</TableHead>
-                                        <TableHead>SKU</TableHead>
-                                        <TableHead className="text-right">Qty</TableHead>
-                                        <TableHead className="text-right">Price</TableHead>
-                                        <TableHead className="text-right">Total</TableHead>
-                                      </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                      {sale.items.map((item, idx) => (
-                                        <TableRow key={idx}>
-                                          <TableCell>
-                                            {item.productName} ({item.variationName})
-                                          </TableCell>
-                                          <TableCell>{item.sku}</TableCell>
-                                          <TableCell className="text-right">
-                                            {item.quantity}
-                                          </TableCell>
-                                          <TableCell className="text-right">
-                                            {formatCurrency(item.unitPrice)}
-                                          </TableCell>
-                                          <TableCell className="text-right">
-                                            {formatCurrency(item.total)}
-                                          </TableCell>
-                                        </TableRow>
-                                      ))}
-                                    </TableBody>
-                                  </Table>
-                                </div>
+            <DataGrid
+              ref={dataGridRef}
+              dataSource={reportData?.sales || []}
+              keyExpr="id"
+              showBorders={true}
+              showRowLines={true}
+              showColumnLines={true}
+              rowAlternationEnabled={true}
+              allowColumnReordering={true}
+              allowColumnResizing={true}
+              columnAutoWidth={true}
+              wordWrapEnabled={false}
+              onExporting={onExporting}
+            >
+              <StateStoring enabled={true} type="localStorage" storageKey="sales-history-grid" />
+              <SearchPanel visible={true} width={240} placeholder="Search sales..." />
+              <FilterRow visible={true} />
+              <HeaderFilter visible={true} />
+              <GroupPanel visible={true} />
+              <Grouping autoExpandAll={false} />
+              <ColumnChooser enabled={true} mode="select" />
+              <Sorting mode="multiple" />
 
-                                {/* Payment Details */}
-                                <div>
-                                  <h4 className="font-semibold mb-2">Payment Details</h4>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    {sale.payments.map((payment, idx) => (
-                                      <div key={idx} className="p-2 bg-white rounded border">
-                                        <div className="text-sm font-medium">
-                                          {payment.method.toUpperCase()}
-                                        </div>
-                                        <div className="text-lg font-bold">
-                                          {formatCurrency(payment.amount)}
-                                        </div>
-                                        {payment.referenceNumber && (
-                                          <div className="text-xs text-gray-500">
-                                            Ref: {payment.referenceNumber}
-                                          </div>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
+              <Paging enabled={false} />
 
-                                {/* Notes */}
-                                {sale.notes && (
-                                  <div>
-                                    <h4 className="font-semibold mb-1">Notes</h4>
-                                    <p className="text-sm text-gray-600">{sale.notes}</p>
-                                  </div>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </>
-                    ))}
-                  </TableBody>
-                </Table>
+              <Export enabled={true} allowExportSelectedData={false} />
+
+              <Toolbar>
+                <Item name="groupPanel" />
+                <Item name="searchPanel" />
+                <Item name="exportButton" />
+                <Item name="columnChooserButton" />
+              </Toolbar>
+
+              <Column
+                dataField="invoiceNumber"
+                caption="Invoice #"
+                minWidth={150}
+                cssClass="font-medium"
+              />
+              <Column
+                dataField="saleDateTime"
+                caption="Date & Time"
+                dataType="datetime"
+                format="MM/dd/yyyy hh:mm a"
+                width={160}
+              />
+              <Column
+                dataField="customer"
+                caption="Customer"
+                minWidth={150}
+              />
+              <Column
+                dataField="location"
+                caption="Location"
+                width={130}
+              />
+              <Column
+                dataField="status"
+                caption="Status"
+                width={120}
+                cellRender={renderStatusBadge}
+              />
+              <Column
+                dataField="itemCount"
+                caption="Items"
+                dataType="number"
+                width={80}
+                alignment="center"
+              />
+              <Column
+                dataField="subtotal"
+                caption="Subtotal"
+                dataType="number"
+                format="₱#,##0.00"
+                alignment="right"
+                width={120}
+              />
+              <Column
+                dataField="taxAmount"
+                caption="Tax"
+                dataType="number"
+                format="₱#,##0.00"
+                alignment="right"
+                width={100}
+              />
+              <Column
+                dataField="discountAmount"
+                caption="Discount"
+                dataType="number"
+                format="₱#,##0.00"
+                alignment="right"
+                width={110}
+              />
+              <Column
+                dataField="totalAmount"
+                caption="Total"
+                dataType="number"
+                format="₱#,##0.00"
+                alignment="right"
+                width={130}
+                cssClass="font-semibold"
+              />
+
+              <Summary>
+                <TotalItem column="invoiceNumber" summaryType="count" displayFormat="Total: {0} sales" />
+                <TotalItem column="itemCount" summaryType="sum" valueFormat="decimal" />
+                <TotalItem column="subtotal" summaryType="sum" valueFormat="₱#,##0.00" />
+                <TotalItem column="taxAmount" summaryType="sum" valueFormat="₱#,##0.00" />
+                <TotalItem column="discountAmount" summaryType="sum" valueFormat="₱#,##0.00" />
+                <TotalItem column="totalAmount" summaryType="sum" valueFormat="₱#,##0.00" />
+              </Summary>
+
+              <MasterDetail enabled={true} component={MasterDetailTemplate} />
+            </DataGrid>
+          )}
+
+          {/* Custom Pagination */}
+          {reportData && reportData.pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Page {reportData.pagination.page} of {reportData.pagination.totalPages}
+                {" "}({reportData.pagination.total} total records)
               </div>
-
-              {/* Pagination */}
-              {reportData && reportData.pagination.totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <div className="text-sm text-gray-600">
-                    Page {reportData.pagination.page} of {reportData.pagination.totalPages}
-                    {" "}({reportData.pagination.total} total records)
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(page - 1)}
-                      disabled={page === 1}
-                    >
-                      <ChevronLeftIcon className="h-4 w-4 mr-1" />
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(page + 1)}
-                      disabled={page === reportData.pagination.totalPages}
-                    >
-                      Next
-                      <ChevronRightIcon className="h-4 w-4 ml-1" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(page - 1)}
+                  disabled={page === 1}
+                  className="hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(page + 1)}
+                  disabled={page === reportData.pagination.totalPages}
+                  className="hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
