@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
             id: true,
             paymentMethod: true,
             amount: true,
-            paymentDate: true,
+            paidAt: true,
           },
         },
         location: {
