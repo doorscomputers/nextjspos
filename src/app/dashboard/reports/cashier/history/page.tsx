@@ -344,6 +344,14 @@ export default function CashierSalesHistoryPage() {
                 width={120}
               />
               <Column
+                dataField="saleDateTime"
+                caption="Time"
+                dataType="datetime"
+                format="hh:mm a"
+                width={100}
+                alignment="center"
+              />
+              <Column
                 dataField="invoiceNumber"
                 caption="Invoice #"
                 minWidth={150}
