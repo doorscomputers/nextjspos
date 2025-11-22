@@ -92,6 +92,13 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // IMPORTANT: Exclude superadmin user from audit trail
+    // Superadmin actions should not be visible in reports for privacy/security
+    where.username = {
+      not: 'superadmin',
+      mode: 'insensitive'
+    }
+
     // Date range filtering
     if (startDate || endDate) {
       where.createdAt = {}
@@ -304,6 +311,12 @@ export async function POST(request: NextRequest) {
       where.businessId = parseInt(user.businessId)
     } else if (filters.businessId) {
       where.businessId = parseInt(filters.businessId)
+    }
+
+    // IMPORTANT: Exclude superadmin user from export
+    where.username = {
+      not: 'superadmin',
+      mode: 'insensitive'
     }
 
     if (filters.startDate || filters.endDate) {

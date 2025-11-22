@@ -86,7 +86,9 @@ export default function PurchaseTrendsPage() {
     try {
       const response = await fetch('/api/products')
       const data = await response.json()
-      setProducts(data.products || data)
+      // Ensure we always set an array, even if API returns error
+      const productsArray = Array.isArray(data.products) ? data.products : (Array.isArray(data) ? data : [])
+      setProducts(productsArray)
     } catch (error) {
       console.error('Failed to fetch products:', error)
       setProducts([])
@@ -97,7 +99,9 @@ export default function PurchaseTrendsPage() {
     try {
       const response = await fetch('/api/suppliers')
       const data = await response.json()
-      setSuppliers(data.suppliers || data)
+      // Ensure we always set an array, even if API returns error
+      const suppliersArray = Array.isArray(data.suppliers) ? data.suppliers : (Array.isArray(data) ? data : [])
+      setSuppliers(suppliersArray)
     } catch (error) {
       console.error('Failed to fetch suppliers:', error)
       setSuppliers([])
@@ -108,7 +112,9 @@ export default function PurchaseTrendsPage() {
     try {
       const response = await fetch('/api/locations')
       const data = await response.json()
-      setLocations(data.locations || data)
+      // Ensure we always set an array, even if API returns error
+      const locationsArray = Array.isArray(data.locations) ? data.locations : (Array.isArray(data) ? data : [])
+      setLocations(locationsArray)
     } catch (error) {
       console.error('Failed to fetch locations:', error)
       setLocations([])

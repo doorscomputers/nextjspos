@@ -39,9 +39,10 @@ export async function GET(request: NextRequest) {
     endDate.setHours(23, 59, 59, 999)
 
     // Build where clause
+    // CRITICAL: Include BOTH completed sales AND pending credit sales
     const salesWhere: any = {
       businessId,
-      status: 'completed',
+      status: { in: ['completed', 'pending'] }, // Include credit sales (pending payment)
       saleDate: {
         gte: startDate,
         lte: endDate,

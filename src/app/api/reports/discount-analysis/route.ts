@@ -16,10 +16,13 @@ export async function GET(request: NextRequest) {
     const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
 
     // Build where clause for sales with discounts
+    // CRITICAL: Exclude voided sales AND exchange/replacement transactions
+    // Exchange discountAmount represents returned item value, NOT an actual discount
     const where: any = {
       businessId: parseInt(session.user.businessId),
-      status: { not: 'VOID' },
+      status: { not: 'voided' }, // Fixed: status is lowercase in database
       discountAmount: { gt: 0 },
+      saleType: 'regular', // Only count discounts from regular sales (exclude exchange/replacement)
     }
 
     // Date filtering
