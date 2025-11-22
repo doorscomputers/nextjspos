@@ -306,6 +306,9 @@ export async function incrementShiftTotalsForExchange(
   // Returns are tracked separately and subtracted in reading display
   // Net Sales = Gross - Voids - Returns - Discounts (calculated, not stored)
 
+  // Calculate net sales impact (difference between exchange and return values)
+  const netSalesImpact = exchangeTotal - returnTotal
+
   await db.cashierShift.update({
     where: { id: shiftId },
     data: {
