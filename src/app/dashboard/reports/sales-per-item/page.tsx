@@ -1,10 +1,31 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import DataGrid, {
+  Column,
+  Paging,
+  Pager,
+  SearchPanel,
+  Export,
+  Toolbar,
+  Item,
+  HeaderFilter,
+  FilterRow,
+  Sorting,
+  ColumnChooser,
+} from 'devextreme-react/data-grid'
+import { Workbook } from 'exceljs'
+import { saveAs } from 'file-saver-es'
+import { exportDataGrid } from 'devextreme/excel_exporter'
+import { exportDataGrid as exportDataGridToPdf } from 'devextreme/pdf_exporter'
+import { jsPDF as jsPDFType } from 'jspdf'
+
+// Import DevExtreme styles
+import 'devextreme/dist/css/dx.light.css'
 
 export default function SalesPerItemReport() {
   const pathname = usePathname()
@@ -12,22 +33,17 @@ export default function SalesPerItemReport() {
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<any[]>([])
   const [summary, setSummary] = useState<any>(null)
-  const [pagination, setPagination] = useState<any>(null)
   const [locations, setLocations] = useState<any[]>([])
   const [hasAccessToAll, setHasAccessToAll] = useState<boolean>(false)
   const [enforcedLocationName, setEnforcedLocationName] = useState<string>('')
   const [categories, setCategories] = useState<any[]>([])
+  const dataGridRef = useRef<DataGrid>(null)
 
   // Initialize with empty date range to show ALL sales by default
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [locationId, setLocationId] = useState('')
   const [categoryId, setCategoryId] = useState('')
-  const [search, setSearch] = useState('')
-  const [sortBy, setSortBy] = useState('totalRevenue')
-  const [sortOrder, setSortOrder] = useState('desc')
-  const [page, setPage] = useState(1)
-  const [limit, setLimit] = useState(50)
 
   useEffect(() => {
     fetchLocations()
@@ -112,38 +128,19 @@ export default function SalesPerItemReport() {
       if (endDate) params.set('endDate', endDate)
       if (locationId) params.set('locationId', locationId)
       if (categoryId) params.set('categoryId', categoryId)
-      if (search) params.set('search', search)
-      params.set('sortBy', sortBy)
-      params.set('sortOrder', sortOrder)
-      params.set('page', page.toString())
-      params.set('limit', limit.toString())
+      // Fetch all data for client-side filtering/sorting
+      params.set('limit', '10000')
 
       const res = await fetch(`/api/reports/sales-per-item?${params}`)
       if (res.ok) {
         const data = await res.json()
         setItems(data.items || [])
         setSummary(data.summary || {})
-        setPagination(data.pagination || {})
       }
     } catch (error) {
       console.error('Error:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  // Only auto-fetch on table mechanics (page/sort/limit). Do not auto-fetch on typing filters.
-  useEffect(() => {
-    fetchItems()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, sortBy, sortOrder, limit])
-
-  const handleSort = (field: string) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-    } else {
-      setSortBy(field)
-      setSortOrder('desc')
     }
   }
 
@@ -220,80 +217,53 @@ export default function SalesPerItemReport() {
     setDatePreset(range)
   }
 
-  const exportToExcel = () => {
-    const headers = ['Product', 'SKU', 'Category', 'Qty Sold', 'Revenue', 'Cost', 'Profit', 'Margin %', 'Avg Price', 'Transactions']
-    const rows = items.map(item => [
-      item.productName,
-      item.sku,
-      item.category,
-      item.quantitySold,
-      item.totalRevenue.toFixed(2),
-      item.totalCost.toFixed(2),
-      item.totalProfit.toFixed(2),
-      item.profitMargin.toFixed(2),
-      item.averagePrice.toFixed(2),
-      item.transactionCount
-    ])
+  const onExporting = (e: any) => {
+    if (e.format === 'xlsx') {
+      const workbook = new Workbook()
+      const worksheet = workbook.addWorksheet('Sales Per Item')
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n')
+      exportDataGrid({
+        component: e.component,
+        worksheet,
+        autoFilterEnabled: true,
+        customizeCell: ({ gridCell, excelCell }: any) => {
+          if (gridCell.rowType === 'data') {
+            if (gridCell.column.dataField === 'totalRevenue' ||
+                gridCell.column.dataField === 'totalCost' ||
+                gridCell.column.dataField === 'totalProfit' ||
+                gridCell.column.dataField === 'averagePrice') {
+              excelCell.numFmt = '₱#,##0.00'
+            }
+            if (gridCell.column.dataField === 'profitMargin') {
+              excelCell.numFmt = '0.00"%"'
+            }
+          }
+        },
+      }).then(() => {
+        workbook.xlsx.writeBuffer().then((buffer) => {
+          saveAs(new Blob([buffer], { type: 'application/octet-stream' }), `sales-per-item-${new Date().toISOString().split('T')[0]}.xlsx`)
+        })
+      })
+    } else if (e.format === 'pdf') {
+      const doc = new jsPDF('landscape') as jsPDFType
 
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `sales-per-item-${new Date().toISOString().split('T')[0]}.csv`
-    a.click()
-  }
-
-  const exportToCSV = exportToExcel
-
-  const exportToPDF = () => {
-    const doc = new jsPDF('landscape')
-
-    // Add title
-    doc.setFontSize(18)
-    doc.text('Sales Per Item Report', 14, 15)
-
-    // Add date range
-    doc.setFontSize(11)
-    doc.text(`Period: ${startDate} to ${endDate}`, 14, 25)
-
-    // Add summary
-    if (summary) {
-      doc.setFontSize(10)
-      doc.text(`Total Products: ${summary.totalProducts} | Qty Sold: ${summary.totalQuantitySold?.toLocaleString()} | Revenue: ₱${summary.totalRevenue?.toLocaleString()} | Profit: ₱${summary.totalProfit?.toLocaleString()}`, 14, 32)
+      exportDataGridToPdf({
+        jsPDFDocument: doc,
+        component: e.component,
+      }).then(() => {
+        doc.save(`sales-per-item-${new Date().toISOString().split('T')[0]}.pdf`)
+      })
     }
-
-    // Add table
-    const tableData = items.map(item => [
-      item.productName,
-      item.sku,
-      item.category,
-      item.quantitySold,
-      `₱${item.totalRevenue.toFixed(2)}`,
-      `₱${item.totalProfit.toFixed(2)}`,
-      `${item.profitMargin.toFixed(1)}%`,
-      `₱${item.averagePrice.toFixed(2)}`,
-      item.transactionCount
-    ])
-
-    autoTable(doc, {
-      startY: 38,
-      head: [['Product', 'SKU', 'Category', 'Qty', 'Revenue', 'Profit', 'Margin', 'Avg Price', 'Trans']],
-      body: tableData,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [59, 130, 246] }
-    })
-
-    doc.save(`sales-per-item-${new Date().toISOString().split('T')[0]}.pdf`)
   }
 
-  const SortIcon = ({ field }: { field: string }) => {
-    if (sortBy !== field) return <span className="text-gray-400 dark:text-gray-500">⇅</span>
-    return sortOrder === 'asc' ? <span>↑</span> : <span>↓</span>
+  const customizeMarginCell = (cellInfo: any) => {
+    const margin = cellInfo.value
+    if (margin >= 30) {
+      return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+    } else if (margin >= 15) {
+      return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300'
+    }
+    return 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300'
   }
 
   return (
@@ -427,20 +397,6 @@ export default function SalesPerItemReport() {
           >
             {loading ? 'Loading...' : 'Generate Report'}
           </button>
-          <button
-            onClick={exportToExcel}
-            disabled={items.length === 0}
-            className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white shadow-sm rounded-lg disabled:opacity-50 transition-colors font-medium"
-          >
-            Export to Excel
-          </button>
-          <button
-            onClick={() => window.print()}
-            disabled={items.length === 0}
-            className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white shadow-sm rounded-lg disabled:opacity-50 transition-colors font-medium"
-          >
-            Print Report
-          </button>
         </div>
       </div>
 
@@ -470,101 +426,139 @@ export default function SalesPerItemReport() {
         </div>
       )}
 
-      {/* Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
-                  <button onClick={() => handleSort('productName')} className="flex items-center space-x-1">
-                    <span>Product</span><SortIcon field="productName" />
-                  </button>
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">SKU</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
-                  <button onClick={() => handleSort('category')} className="flex items-center space-x-1">
-                    <span>Category</span><SortIcon field="category" />
-                  </button>
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
-                  <button onClick={() => handleSort('quantitySold')} className="flex items-center justify-end space-x-1 w-full">
-                    <span>Qty Sold</span><SortIcon field="quantitySold" />
-                  </button>
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
-                  <button onClick={() => handleSort('totalRevenue')} className="flex items-center justify-end space-x-1 w-full">
-                    <span>Revenue</span><SortIcon field="totalRevenue" />
-                  </button>
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
-                  <button onClick={() => handleSort('totalProfit')} className="flex items-center justify-end space-x-1 w-full">
-                    <span>Profit</span><SortIcon field="totalProfit" />
-                  </button>
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">
-                  <button onClick={() => handleSort('profitMargin')} className="flex items-center justify-end space-x-1 w-full">
-                    <span>Margin %</span><SortIcon field="profitMargin" />
-                  </button>
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Avg Price</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Transactions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {loading ? (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Loading...</td></tr>
-              ) : items.length === 0 ? (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">No items found.</td></tr>
-              ) : (
-                items.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">{item.productName}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{item.sku}</td>
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{item.category}</td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100 font-semibold">{item.quantitySold}</td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">₱{item.totalRevenue.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-sm text-right font-semibold text-green-600 dark:text-green-400">₱{item.totalProfit.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-sm text-right">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${item.profitMargin >= 30 ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' :
-                        item.profitMargin >= 15 ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300' :
-                          'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300'
-                        }`}>
-                        {item.profitMargin.toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">₱{item.averagePrice.toFixed(2)}</td>
-                    <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-300">{item.transactionCount}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+      {/* DevExtreme DataGrid */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden p-4">
+        <DataGrid
+          ref={dataGridRef}
+          dataSource={items}
+          keyExpr="productId"
+          showBorders={true}
+          showRowLines={true}
+          showColumnLines={true}
+          rowAlternationEnabled={true}
+          hoverStateEnabled={true}
+          allowColumnReordering={true}
+          allowColumnResizing={true}
+          columnAutoWidth={true}
+          wordWrapEnabled={false}
+          onExporting={onExporting}
+        >
+          <Sorting mode="multiple" />
+          <FilterRow visible={true} />
+          <HeaderFilter visible={true} />
+          <SearchPanel visible={true} width={240} placeholder="Search..." />
+          <ColumnChooser enabled={true} mode="select" />
 
-        {pagination && pagination.totalPages > 1 && (
-          <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700 border-t border-gray-200 dark:border-gray-600 flex items-center justify-between">
-            <div className="text-sm text-gray-700 dark:text-gray-300">
-              Page {pagination.page} of {pagination.totalPages} ({pagination.totalCount} products)
-            </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
-                className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setPage(Math.min(pagination.totalPages, page + 1))}
-                disabled={page === pagination.totalPages}
-                className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
+          <Paging defaultPageSize={50} />
+          <Pager
+            visible={true}
+            allowedPageSizes={[25, 50, 100, 200]}
+            showPageSizeSelector={true}
+            showInfo={true}
+            showNavigationButtons={true}
+          />
+
+          <Export enabled={true} allowExportSelectedData={false} />
+
+          <Toolbar>
+            <Item name="searchPanel" />
+            <Item name="exportButton" />
+            <Item name="columnChooserButton" />
+          </Toolbar>
+
+          <Column
+            dataField="productName"
+            caption="Product"
+            alignment="left"
+            allowSorting={true}
+            allowFiltering={true}
+          />
+          <Column
+            dataField="sku"
+            caption="SKU"
+            alignment="left"
+            width={120}
+            allowSorting={true}
+            allowFiltering={true}
+          />
+          <Column
+            dataField="category"
+            caption="Category"
+            alignment="left"
+            width={150}
+            allowSorting={true}
+            allowFiltering={true}
+          />
+          <Column
+            dataField="quantitySold"
+            caption="Qty Sold"
+            alignment="right"
+            dataType="number"
+            width={100}
+            allowSorting={true}
+            format="#,##0"
+          />
+          <Column
+            dataField="totalRevenue"
+            caption="Revenue"
+            alignment="right"
+            dataType="number"
+            width={130}
+            allowSorting={true}
+            format="₱#,##0.00"
+          />
+          <Column
+            dataField="totalCost"
+            caption="Cost"
+            alignment="right"
+            dataType="number"
+            width={130}
+            allowSorting={true}
+            format="₱#,##0.00"
+          />
+          <Column
+            dataField="totalProfit"
+            caption="Profit"
+            alignment="right"
+            dataType="number"
+            width={130}
+            allowSorting={true}
+            format="₱#,##0.00"
+            cssClass="font-semibold text-green-600 dark:text-green-400"
+          />
+          <Column
+            dataField="profitMargin"
+            caption="Margin %"
+            alignment="center"
+            dataType="number"
+            width={110}
+            allowSorting={true}
+            format="#,##0.00'%'"
+            cellRender={(cellInfo) => (
+              <span className={`px-2 py-1 rounded-full text-xs font-semibold ${customizeMarginCell(cellInfo)}`}>
+                {cellInfo.value.toFixed(1)}%
+              </span>
+            )}
+          />
+          <Column
+            dataField="averagePrice"
+            caption="Avg Price"
+            alignment="right"
+            dataType="number"
+            width={120}
+            allowSorting={true}
+            format="₱#,##0.00"
+          />
+          <Column
+            dataField="transactionCount"
+            caption="Transactions"
+            alignment="right"
+            dataType="number"
+            width={120}
+            allowSorting={true}
+            format="#,##0"
+          />
+        </DataGrid>
       </div>
     </div>
   )

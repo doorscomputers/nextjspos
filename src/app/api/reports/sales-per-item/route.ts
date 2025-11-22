@@ -201,64 +201,98 @@ export async function GET(request: NextRequest) {
     const productDetails = new Map(products.map((product) => [product.id, product]))
     const locationMap = new Map(locations.map(loc => [loc.id, loc.name]))
 
-    // Map individual sale items with all details
-    const itemsWithDetails = saleItems.map((item) => {
+    // Aggregate by product
+    const productSalesMap = new Map<number, {
+      productId: number
+      productName: string
+      sku: string
+      category: string
+      quantitySold: number
+      totalRevenue: number
+      totalCost: number
+      totalProfit: number
+      transactionCount: number
+      prices: number[]
+    }>()
+
+    for (const item of saleItems) {
       const productInfo = productDetails.get(item.productId)
       const quantity = typeof item.quantity === 'number' ? item.quantity : parseFloat(item.quantity?.toString() || '0')
       const unitPrice = typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice?.toString() || '0')
-      const amount = quantity * unitPrice
+      const revenue = quantity * unitPrice
+      const costPerUnit = productInfo?.purchasePrice ? parseFloat(productInfo.purchasePrice.toString()) : 0
+      const cost = quantity * costPerUnit
+      const profit = revenue - cost
 
-      return {
-        id: item.id,
-        saleId: item.saleId,
-        invoiceNumber: item.sale?.invoiceNumber || 'N/A',
-        saleDate: item.sale?.saleDate ? item.sale.saleDate.toISOString().split('T')[0] : '',
-        saleTime: item.sale?.createdAt ? item.sale.createdAt.toISOString() : '',
-        productId: item.productId,
-        productName: productInfo?.name || 'Unknown Product',
-        sku: productInfo?.sku || 'N/A',
-        category: productInfo?.category?.name || 'N/A',
-        quantity,
-        price: unitPrice,
-        amount,
-        customer: item.sale?.customer?.name || 'Walk-in Customer',
-        location: locationMap.get(item.sale?.locationId ?? 0) || 'N/A',
-        cashier: item.sale?.creator ? `${item.sale.creator.firstName} ${item.sale.creator.surname}` : 'Unknown',
+      if (!productSalesMap.has(item.productId)) {
+        productSalesMap.set(item.productId, {
+          productId: item.productId,
+          productName: productInfo?.name || 'Unknown Product',
+          sku: productInfo?.sku || 'N/A',
+          category: productInfo?.category?.name || 'N/A',
+          quantitySold: 0,
+          totalRevenue: 0,
+          totalCost: 0,
+          totalProfit: 0,
+          transactionCount: 0,
+          prices: [],
+        })
       }
-    })
 
-    // Sort results
-    if (sortBy === 'productName') {
-      itemsWithDetails.sort((a, b) => {
-        const aVal = a.productName.toLowerCase()
-        const bVal = b.productName.toLowerCase()
-        return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
-      })
-    } else if (sortBy === 'saleDate') {
-      itemsWithDetails.sort((a, b) => {
-        return sortOrder === 'asc'
-          ? a.saleDate.localeCompare(b.saleDate)
-          : b.saleDate.localeCompare(a.saleDate)
-      })
-    } else {
-      itemsWithDetails.sort((a, b) => {
-        const aVal = a[sortBy as keyof typeof a] as number
-        const bVal = b[sortBy as keyof typeof b] as number
-        return sortOrder === 'asc' ? aVal - bVal : bVal - aVal
-      })
+      const productData = productSalesMap.get(item.productId)!
+      productData.quantitySold += quantity
+      productData.totalRevenue += revenue
+      productData.totalCost += cost
+      productData.totalProfit += profit
+      productData.transactionCount += 1
+      productData.prices.push(unitPrice)
     }
 
+    // Convert map to array and calculate averages
+    const aggregatedItems = Array.from(productSalesMap.values()).map(item => ({
+      productId: item.productId,
+      productName: item.productName,
+      sku: item.sku,
+      category: item.category,
+      quantitySold: item.quantitySold,
+      totalRevenue: item.totalRevenue,
+      totalCost: item.totalCost,
+      totalProfit: item.totalProfit,
+      profitMargin: item.totalRevenue > 0 ? (item.totalProfit / item.totalRevenue) * 100 : 0,
+      averagePrice: item.prices.length > 0 ? item.prices.reduce((a, b) => a + b, 0) / item.prices.length : 0,
+      transactionCount: item.transactionCount,
+    }))
+
+    // Sort aggregated results
+    const sortField = sortBy as keyof typeof aggregatedItems[0]
+    aggregatedItems.sort((a, b) => {
+      const aVal = a[sortField]
+      const bVal = b[sortField]
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return sortOrder === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
+      }
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortOrder === 'asc' ? aVal - bVal : bVal - aVal
+      }
+      return 0
+    })
+
     // Pagination
-    const totalCount = itemsWithDetails.length
+    const totalCount = aggregatedItems.length
     const startIndex = (page - 1) * limit
     const endIndex = startIndex + limit
-    const paginatedResults = itemsWithDetails.slice(startIndex, endIndex)
+    const paginatedResults = aggregatedItems.slice(startIndex, endIndex)
 
     // Calculate overall summary
     const summary = {
-      totalItems: totalCount,
-      totalQuantitySold: itemsWithDetails.reduce((sum, item) => sum + item.quantity, 0),
-      totalRevenue: itemsWithDetails.reduce((sum, item) => sum + item.amount, 0),
+      totalProducts: totalCount,
+      totalQuantitySold: aggregatedItems.reduce((sum, item) => sum + item.quantitySold, 0),
+      totalRevenue: aggregatedItems.reduce((sum, item) => sum + item.totalRevenue, 0),
+      totalCost: aggregatedItems.reduce((sum, item) => sum + item.totalCost, 0),
+      totalProfit: aggregatedItems.reduce((sum, item) => sum + item.totalProfit, 0),
+      averageMargin: aggregatedItems.length > 0
+        ? aggregatedItems.reduce((sum, item) => sum + item.profitMargin, 0) / aggregatedItems.length
+        : 0,
     }
 
     return NextResponse.json({
