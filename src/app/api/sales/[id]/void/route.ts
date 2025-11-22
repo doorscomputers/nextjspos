@@ -148,6 +148,29 @@ export async function POST(
       timeout: 60000, // 60 seconds timeout for network resilience
     })
 
+      // CRITICAL: If this was a credit/charge invoice sale, reduce customer's outstanding balance
+      // Credit sales are identified by:
+      // 1. sale.status === 'pending' (unpaid or partially paid)
+      // 2. sale.totalAmount > sale.paidAmount (has unpaid balance)
+      // 3. sale.customerId is not null (has a customer account)
+      const totalAmount = parseFloat(sale.totalAmount.toString())
+      const paidAmount = parseFloat(sale.paidAmount?.toString() || '0')
+      const unpaidAmount = totalAmount - paidAmount
+
+      if (sale.customerId && unpaidAmount > 0.01) {
+        // This is a credit sale with unpaid balance - reduce customer outstanding balance
+        console.log(`[Void] Reducing customer balance by ${unpaidAmount} for voided credit sale ${sale.invoiceNumber}`)
+
+        await tx.customer.update({
+          where: { id: sale.customerId },
+          data: {
+            outstandingBalance: {
+              decrement: unpaidAmount, // Reduce by unpaid amount
+            },
+          },
+        })
+      }
+
       // Create void transaction record
       const voidTransaction = await tx.voidTransaction.create({
         data: {

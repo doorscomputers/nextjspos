@@ -687,17 +687,7 @@ export default function SalesTodayPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {reportData.sales.map((sale) => {
-                      // Debug logging to understand why Void button might not show
-                      const showVoidButton = !sale.isARPayment && sale.status !== 'voided' && can(PERMISSIONS.SELL_VOID)
-                      console.log(`[Sales Today] Sale ${sale.invoiceNumber}:`, {
-                        isARPayment: sale.isARPayment,
-                        status: sale.status,
-                        hasVoidPermission: can(PERMISSIONS.SELL_VOID),
-                        showVoidButton,
-                      })
-
-                      return (
+                    {reportData.sales.map((sale) => (
                       <>
                         <TableRow key={sale.id} className="hover:bg-gray-50">
                           <TableCell className="font-medium">
@@ -734,11 +724,11 @@ export default function SalesTodayPage() {
                               >
                                 {expandedRows.has(sale.id) ? "Hide" : "Show"}
                               </Button>
-                              {/* Only show Void button for:
-                                  - Non-AR payments (today's sales only, not old invoices)
-                                  - Non-voided sales
-                                  - Users with SELL_VOID permission */}
-                              {!sale.isARPayment && sale.status !== 'voided' && can(PERMISSIONS.SELL_VOID) && (
+                              {/* Show Void button for ALL sales EXCEPT already voided ones
+                                  - Works for regular sales, AR payments, credit sales, etc.
+                                  - Void process will handle customer balance deduction for credit sales
+                                  - Requires SELL_VOID permission */}
+                              {sale.status !== 'voided' && can(PERMISSIONS.SELL_VOID) && (
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -796,8 +786,7 @@ export default function SalesTodayPage() {
                           </TableRow>
                         )}
                       </>
-                    )
-                    })}
+                    ))}
                   </TableBody>
                 </Table>
               </div>
