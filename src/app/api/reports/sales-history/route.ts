@@ -444,10 +444,12 @@ export async function GET(request: NextRequest) {
 
     // Format sales data for response
     const salesData = sales.map((sale) => {
-      // Calculate payment total from all payments
-      const paymentTotal = sale.payments.reduce((sum, payment) => {
-        return sum + parseFloat(payment.amount.toString())
-      }, 0)
+      // Calculate payment total from all payments (exclude 'credit' placeholder for AR sales)
+      const paymentTotal = sale.payments
+        .filter((p) => p.paymentMethod !== 'credit') // Exclude credit marker payments
+        .reduce((sum, payment) => {
+          return sum + parseFloat(payment.amount.toString())
+        }, 0)
 
       const totalAmount = parseFloat(sale.totalAmount.toString())
       const balance = totalAmount - paymentTotal
