@@ -85,13 +85,17 @@ export async function POST(
     })
 
     let passwordValid = false
-    let authorizingManager = null
+    let authorizingUserId: number | null = null
+    let authorizingUsername: string | null = null
+    let authMethod_description = ''
 
     for (const manager of managerUsers) {
       const isMatch = await bcrypt.compare(managerPassword, manager.password)
       if (isMatch) {
         passwordValid = true
-        authorizingManager = manager
+        authorizingUserId = manager.id
+        authorizingUsername = manager.username
+        authMethod_description = `Manager: ${manager.username}`
         break
       }
     }
@@ -131,6 +135,11 @@ export async function POST(
           { status: 403 }
         )
       }
+
+      // For RFID auth, the current user is the authorizer (they scanned the location tag)
+      authorizingUserId = userIdNumber
+      authorizingUsername = user.username
+      authMethod_description = `RFID: ${location.locationCode} (${location.name})`
 
       console.log(`[Void] Authorized by RFID location code: ${location.locationCode} (${location.name})`)
     } else {
@@ -187,39 +196,22 @@ export async function POST(
       timeout: 60000, // 60 seconds timeout for network resilience
     })
 
-      // CRITICAL: If this was a credit/charge invoice sale, reduce customer's outstanding balance
-      // Credit sales are identified by:
-      // 1. sale.status === 'pending' (unpaid or partially paid)
-      // 2. sale.totalAmount > sale.paidAmount (has unpaid balance)
-      // 3. sale.customerId is not null (has a customer account)
-      const totalAmount = parseFloat(sale.totalAmount.toString())
-      const paidAmount = parseFloat(sale.paidAmount?.toString() || '0')
-      const unpaidAmount = totalAmount - paidAmount
-
-      if (sale.customerId && unpaidAmount > 0.01) {
-        // This is a credit sale with unpaid balance - reduce customer outstanding balance
-        console.log(`[Void] Reducing customer balance by ${unpaidAmount} for voided credit sale ${sale.invoiceNumber}`)
-
-        await tx.customer.update({
-          where: { id: sale.customerId },
-          data: {
-            outstandingBalance: {
-              decrement: unpaidAmount, // Reduce by unpaid amount
-            },
-          },
-        })
-      }
+      // NOTE: Customer balances are calculated dynamically from sales
+      // When a sale is voided, it's automatically excluded from AR calculations
+      // No need to update customer.outstandingBalance (field doesn't exist)
 
       // Create void transaction record
       const voidTransaction = await tx.voidTransaction.create({
         data: {
           businessId: businessIdNumber,
+          locationId: sale.locationId,
           saleId,
+          voidReason: voidReason,
+          originalAmount: sale.totalAmount,
           voidedBy: userIdNumber,
-          voidedAt: new Date(),
-          reason: voidReason,
-          authorizedBy: authorizingManager.id,
-          authorizedByUsername: authorizingManager.username,
+          approvedBy: authorizingUserId, // Manager or current user (for RFID)
+          approvedAt: new Date(),
+          requiresManagerApproval: authMethod === 'password', // true for password, false for RFID
         },
       })
 
@@ -313,13 +305,15 @@ export async function POST(
       action: AuditAction.SALE_VOID,
       entityType: EntityType.SALE,
       entityIds: [saleId],
-      description: `Voided sale ${sale.invoiceNumber}. Reason: ${voidReason}. Authorized by: ${authorizingManager.username}`,
+      description: `Voided sale ${sale.invoiceNumber}. Reason: ${voidReason}. Authorization: ${authMethod_description}`,
       metadata: {
         saleId,
         invoiceNumber: sale.invoiceNumber,
         voidReason,
-        authorizedBy: authorizingManager.id,
-        authorizedByUsername: authorizingManager.username,
+        authMethod,
+        authMethodDescription: authMethod_description,
+        approvedBy: authorizingUserId,
+        approvedByUsername: authorizingUsername,
         totalAmount: parseFloat(sale.totalAmount.toString()),
       },
     })
