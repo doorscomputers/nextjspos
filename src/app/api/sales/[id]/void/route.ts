@@ -115,13 +115,13 @@ export async function POST(
       const location = await prisma.businessLocation.findFirst({
         where: {
           businessId: businessIdNumber,
-          rfidCode: rfidLocationCode.trim(),
+          locationCode: rfidLocationCode.trim(),
           isActive: true,
         },
         select: {
           id: true,
           name: true,
-          rfidCode: true,
+          locationCode: true,
         },
       })
 
@@ -132,7 +132,7 @@ export async function POST(
         )
       }
 
-      console.log(`[Void] Authorized by RFID location code: ${location.name}`)
+      console.log(`[Void] Authorized by RFID location code: ${location.locationCode} (${location.name})`)
     } else {
       return NextResponse.json(
         { error: 'Invalid authorization method' },
