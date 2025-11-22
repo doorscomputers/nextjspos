@@ -246,7 +246,7 @@ async function generateXReadingFromRunningTotals(
   // Get first and last invoice numbers for this shift (BIR requirement)
   // INCLUDE ALL INVOICES: cash sales, charge invoices (pending), and partial payments
   // Use secondary sort by ID to handle multiple sales with same timestamp
-  const [firstSale, lastSale, firstReturn, lastReturn] = await Promise.all([
+  const [firstSale, lastSale, firstReturn, lastReturn, firstVoid, lastVoid] = await Promise.all([
     prisma.sale.findFirst({
       where: {
         shiftId: shift.id,
@@ -300,6 +300,30 @@ async function generateXReadingFromRunningTotals(
       select: { returnNumber: true },
       orderBy: [
         { returnDate: 'desc' },
+        { id: 'desc' }
+      ],
+    }),
+    // Get first voided sale number for this shift
+    prisma.sale.findFirst({
+      where: {
+        shiftId: shift.id,
+        status: 'voided',
+      },
+      select: { invoiceNumber: true },
+      orderBy: [
+        { voidedAt: 'asc' },
+        { id: 'asc' }
+      ],
+    }),
+    // Get last voided sale number for this shift
+    prisma.sale.findFirst({
+      where: {
+        shiftId: shift.id,
+        status: 'voided',
+      },
+      select: { invoiceNumber: true },
+      orderBy: [
+        { voidedAt: 'desc' },
         { id: 'desc' }
       ],
     }),
@@ -444,8 +468,8 @@ async function generateZReadingFromRunningTotals(
     throw new Error('Location not found for Z Reading generation')
   }
 
-  // Get first and last return/exchange numbers for this shift (BIR requirement)
-  const [firstReturn, lastReturn] = await Promise.all([
+  // Get first and last return/exchange numbers and void numbers for this shift (BIR requirement)
+  const [firstReturn, lastReturn, firstVoid, lastVoid] = await Promise.all([
     prisma.customerReturn.findFirst({
       where: {
         businessId: shift.businessId,
@@ -475,6 +499,30 @@ async function generateZReadingFromRunningTotals(
       select: { returnNumber: true },
       orderBy: [
         { returnDate: 'desc' },
+        { id: 'desc' }
+      ],
+    }),
+    // Get first voided sale number for this shift
+    prisma.sale.findFirst({
+      where: {
+        shiftId: shift.id,
+        status: 'voided',
+      },
+      select: { invoiceNumber: true },
+      orderBy: [
+        { voidedAt: 'asc' },
+        { id: 'asc' }
+      ],
+    }),
+    // Get last voided sale number for this shift
+    prisma.sale.findFirst({
+      where: {
+        shiftId: shift.id,
+        status: 'voided',
+      },
+      select: { invoiceNumber: true },
+      orderBy: [
+        { voidedAt: 'desc' },
         { id: 'desc' }
       ],
     }),
@@ -597,8 +645,8 @@ async function generateZReadingFromRunningTotals(
     // BIR Z-Reading Specific Fields
     beginningSiNumber: xReadingData.beginningOrNumber, // From X Reading
     endingSiNumber: xReadingData.endingOrNumber, // From X Reading
-    beginningVoidNumber: undefined, // TODO: Track void numbers
-    endingVoidNumber: undefined,
+    beginningVoidNumber: firstVoid?.invoiceNumber || undefined,
+    endingVoidNumber: lastVoid?.invoiceNumber || undefined,
     beginningReturnNumber: firstReturn?.returnNumber || undefined,
     endingReturnNumber: lastReturn?.returnNumber || undefined,
     zCounter: location?.zCounter || 0,
