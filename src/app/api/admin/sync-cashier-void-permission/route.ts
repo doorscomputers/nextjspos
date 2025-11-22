@@ -32,22 +32,26 @@ export async function POST(request: NextRequest) {
 
     console.log('[Permission Sync] 🔄 Starting SELL_VOID permission sync...')
 
-    // Step 1: Find SELL_VOID permission
-    const permission = await prisma.permission.findUnique({
+    // Step 1: Find or Create SELL_VOID permission
+    let permission = await prisma.permission.findUnique({
       where: { name: 'sell.void' }
     })
 
     if (!permission) {
-      return NextResponse.json(
-        {
-          error: 'Permission "sell.void" not found in database',
-          suggestion: 'Run database seed to create all permissions'
-        },
-        { status: 404 }
-      )
-    }
+      console.log('[Permission Sync] ⚠️  Permission not found, creating it...')
 
-    console.log(`[Permission Sync] ✅ Found permission: ${permission.name} (ID: ${permission.id})`)
+      // Create the permission
+      permission = await prisma.permission.create({
+        data: {
+          name: 'sell.void',
+          guardName: 'web',
+        }
+      })
+
+      console.log(`[Permission Sync] ✅ Created permission: ${permission.name} (ID: ${permission.id})`)
+    } else {
+      console.log(`[Permission Sync] ✅ Found existing permission: ${permission.name} (ID: ${permission.id})`)
+    }
 
     // Step 2: Find all Sales Cashier roles
     const cashierRoles = await prisma.role.findMany({
