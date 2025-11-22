@@ -262,6 +262,12 @@ export async function POST(
         }
 
         // 3. Create new sale for exchange items (at current location)
+        // IMPORTANT: For exchanges, the accounting should reflect:
+        // - subtotal = value of new items issued
+        // - discountAmount = value of returned items (credit applied)
+        // - totalAmount = price difference (what customer owes/receives)
+        // - paidAmount = actual payment (only if customer pays more)
+        // This ensures Balance = 0 for completed exchanges
         const exchangeSale = await tx.sale.create({
           data: {
             businessId: parseInt(user.businessId),
@@ -271,10 +277,10 @@ export async function POST(
             saleDate: new Date(),
             saleType: 'exchange', // Mark as exchange transaction
             status: 'completed',
-            subtotal: exchangeTotal,
+            subtotal: exchangeTotal, // Value of new items issued
             taxAmount: 0,
-            discountAmount: 0,
-            totalAmount: exchangeTotal,
+            discountAmount: returnTotal, // Credit from returned items
+            totalAmount: Math.max(priceDifference, 0), // Only positive difference (what customer owes)
             paidAmount: customerPaysMore ? actualPayment : 0, // Amount actually paid
             createdBy: parseInt(user.id),
             shiftId: sale.shiftId, // Link to same shift
