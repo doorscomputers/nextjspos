@@ -124,12 +124,16 @@ export default function ZReadingPage() {
       setLoadingDetail(true)
       setViewMode('detail')
 
-      // Fetch the Z Reading data for this specific shift
-      const response = await fetch(`/api/readings/z-reading?shiftId=${shiftIdNum}`)
-      if (!response.ok) throw new Error('Failed to fetch Z reading details')
+      // Fetch the Z Reading data for this specific shift (viewOnly mode to retrieve existing reading)
+      const response = await fetch(`/api/readings/z-reading?shiftId=${shiftIdNum}&viewOnly=true`)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to fetch Z reading details')
+      }
 
       const data = await response.json()
-      setSelectedReading(data.zReading)
+      // API returns the reading payload directly
+      setSelectedReading(data)
 
       // Auto-print if print mode is enabled
       if (printMode) {
