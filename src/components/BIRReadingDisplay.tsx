@@ -350,203 +350,355 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                 </div>
               </div>
 
-              {/* SALES SUMMARY - Clear and Simple */}
+              {/* ═══════════════════════════════════════ */}
+              {/* SECTION 1: TRANSACTION COUNT */}
+              {/* ═══════════════════════════════════════ */}
               <div className="section">
-                <div className="section-title">═══ SALES SUMMARY ═══</div>
+                <div className="section-title text-base font-bold">📊 TRANSACTION COUNT</div>
                 <div className="line">
                   <span className="line-label font-bold">Total Transactions:</span>
-                  <span className="line-value font-bold">{xReading.transactionCount}</span>
+                  <span className="line-value font-bold text-lg">{xReading.transactionCount}</span>
                 </div>
                 <div className="line">
-                  <span className="line-label font-bold">Gross Sales (Before Deductions):</span>
-                  <span className="line-value font-bold">{formatCurrency(xReading.grossSales)}</span>
+                  <span className="line-label">Voided Transactions:</span>
+                  <span className="line-value">{xReading.voidCount || 0}</span>
                 </div>
                 <div className="line">
-                  <span className="line-label">   Less: Discounts</span>
-                  <span className="line-value">-{formatCurrency(xReading.totalDiscounts)}</span>
-                </div>
-                <div className="line">
-                  <span className="line-label">   Less: Returns</span>
-                  <span className="line-value">-{formatCurrency(xReading.returnAmount)}</span>
-                </div>
-                <div className="line">
-                  <span className="line-label">   Less: Voids</span>
-                  <span className="line-value">-{formatCurrency(xReading.voidAmount)}</span>
-                </div>
-                <div className="line total-line">
-                  <span className="line-label font-bold">NET SALES:</span>
-                  <span className="line-value font-bold">{formatCurrency(xReading.netSales)}</span>
+                  <span className="line-label">Exchange Transactions:</span>
+                  <span className="line-value">{xReading.exchangeCount}</span>
                 </div>
               </div>
 
-              {/* PAYMENTS RECEIVED - Cash & Non-Cash */}
+              {/* ═══════════════════════════════════════ */}
+              {/* SECTION 2: GROSS SALES BREAKDOWN */}
+              {/* ═══════════════════════════════════════ */}
               <div className="section">
-                <div className="section-title">═══ PAYMENTS RECEIVED ═══</div>
+                <div className="section-title text-base font-bold">💰 GROSS SALES (All Sales Before Deductions)</div>
                 <div className="line">
-                  <span className="line-label">💵 CASH from Sales:</span>
-                  <span className="line-value">{formatCurrency(xReading.paymentBreakdown['cash'] || 0)}</span>
+                  <span className="line-label font-bold">GROSS SALES:</span>
+                  <span className="line-value font-bold text-lg">{formatCurrency(xReading.grossSales)}</span>
                 </div>
-                {xReading.paymentBreakdown['gcash'] > 0 && (
-                  <div className="line">
-                    <span className="line-label">📱 GCASH:</span>
-                    <span className="line-value">{formatCurrency(xReading.paymentBreakdown['gcash'] || 0)}</span>
-                  </div>
-                )}
-                {xReading.paymentBreakdown['paymaya'] > 0 && (
-                  <div className="line">
-                    <span className="line-label">📱 PAYMAYA:</span>
-                    <span className="line-value">{formatCurrency(xReading.paymentBreakdown['paymaya'] || 0)}</span>
-                  </div>
-                )}
+                <div className="separator my-2"></div>
+                <div className="text-xs mb-1 font-semibold">Deductions from Gross:</div>
+                <div className="line">
+                  <span className="line-label">   - Total Discounts:</span>
+                  <span className="line-value text-red-600 dark:text-red-400">-{formatCurrency(xReading.totalDiscounts)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">   - Total Returns:</span>
+                  <span className="line-value text-red-600 dark:text-red-400">-{formatCurrency(xReading.returnAmount)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">   - Total Voids:</span>
+                  <span className="line-value text-red-600 dark:text-red-400">-{formatCurrency(xReading.voidAmount)}</span>
+                </div>
+                <div className="line total-line mt-2">
+                  <span className="line-label font-bold">= NET SALES:</span>
+                  <span className="line-value font-bold text-green-600 dark:text-green-400">{formatCurrency(xReading.netSales)}</span>
+                </div>
+              </div>
+
+              {/* ═══════════════════════════════════════ */}
+              {/* SECTION 3: SALES BY PAYMENT METHOD */}
+              {/* ═══════════════════════════════════════ */}
+              <div className="section">
+                <div className="section-title text-base font-bold">💳 HOW CUSTOMERS PAID (Payment Breakdown)</div>
+
+                <div className="text-xs mb-2 font-semibold">Cash Payments:</div>
+                <div className="line">
+                  <span className="line-label">💵 CASH Sales:</span>
+                  <span className="line-value font-bold">{formatCurrency(xReading.paymentBreakdown['cash'] || 0)}</span>
+                </div>
+
+                {/* Digital Payments Group */}
+                {(() => {
+                  const gcash = xReading.paymentBreakdown['gcash'] || 0
+                  const paymaya = xReading.paymentBreakdown['paymaya'] || 0
+                  const nfc = xReading.paymentBreakdown['nfc'] || 0
+                  const digitalTotal = gcash + paymaya + nfc
+
+                  return digitalTotal > 0 ? (
+                    <>
+                      <div className="text-xs mt-2 mb-1 font-semibold">Digital Payments:</div>
+                      {gcash > 0 && (
+                        <div className="line">
+                          <span className="line-label">📱 GCASH:</span>
+                          <span className="line-value">{formatCurrency(gcash)}</span>
+                        </div>
+                      )}
+                      {paymaya > 0 && (
+                        <div className="line">
+                          <span className="line-label">📱 PAYMAYA:</span>
+                          <span className="line-value">{formatCurrency(paymaya)}</span>
+                        </div>
+                      )}
+                      {nfc > 0 && (
+                        <div className="line">
+                          <span className="line-label">📱 NFC Payment:</span>
+                          <span className="line-value">{formatCurrency(nfc)}</span>
+                        </div>
+                      )}
+                      <div className="line">
+                        <span className="line-label font-semibold">Total Digital:</span>
+                        <span className="line-value font-semibold">{formatCurrency(digitalTotal)}</span>
+                      </div>
+                    </>
+                  ) : null
+                })()}
+
+                {/* Other Payment Methods */}
                 {xReading.paymentBreakdown['card'] > 0 && (
-                  <div className="line">
-                    <span className="line-label">💳 CREDIT CARD:</span>
-                    <span className="line-value">{formatCurrency(xReading.paymentBreakdown['card'] || 0)}</span>
-                  </div>
+                  <>
+                    <div className="text-xs mt-2 mb-1 font-semibold">Card Payments:</div>
+                    <div className="line">
+                      <span className="line-label">💳 CREDIT/DEBIT CARD:</span>
+                      <span className="line-value">{formatCurrency(xReading.paymentBreakdown['card'])}</span>
+                    </div>
+                  </>
                 )}
+
                 {xReading.paymentBreakdown['check'] > 0 && (
-                  <div className="line">
-                    <span className="line-label">🧾 CHEQUE:</span>
-                    <span className="line-value">{formatCurrency(xReading.paymentBreakdown['check'] || 0)}</span>
-                  </div>
+                  <>
+                    <div className="text-xs mt-2 mb-1 font-semibold">Cheque Payments:</div>
+                    <div className="line">
+                      <span className="line-label">🧾 CHEQUE:</span>
+                      <span className="line-value">{formatCurrency(xReading.paymentBreakdown['check'])}</span>
+                    </div>
+                  </>
                 )}
+
                 {xReading.paymentBreakdown['bank_transfer'] > 0 && (
-                  <div className="line">
-                    <span className="line-label">🏦 BANK TRANSFER:</span>
-                    <span className="line-value">{formatCurrency(xReading.paymentBreakdown['bank_transfer'] || 0)}</span>
-                  </div>
+                  <>
+                    <div className="text-xs mt-2 mb-1 font-semibold">Bank Transfer:</div>
+                    <div className="line">
+                      <span className="line-label">🏦 BANK TRANSFER:</span>
+                      <span className="line-value">{formatCurrency(xReading.paymentBreakdown['bank_transfer'])}</span>
+                    </div>
+                  </>
                 )}
+
                 {xReading.paymentBreakdown['other'] > 0 && (
                   <div className="line">
                     <span className="line-label">📋 OTHER:</span>
-                    <span className="line-value">{formatCurrency(xReading.paymentBreakdown['other'] || 0)}</span>
+                    <span className="line-value">{formatCurrency(xReading.paymentBreakdown['other'])}</span>
                   </div>
                 )}
+
+                <div className="separator my-3"></div>
                 <div className="line total-line">
                   <span className="line-label font-bold">TOTAL PAYMENTS RECEIVED:</span>
-                  <span className="line-value font-bold">{formatCurrency(
+                  <span className="line-value font-bold text-green-600 dark:text-green-400">{formatCurrency(
                     Object.entries(xReading.paymentBreakdown)
-                      .filter(([key]) => key !== 'credit') // Exclude credit sales
+                      .filter(([key]) => key !== 'credit')
                       .reduce((sum, [_, amount]) => sum + amount, 0)
                   )}</span>
                 </div>
               </div>
 
-              {/* CHARGE INVOICES / CREDIT SALES */}
-              {(xReading as any).creditSales > 0 && (
-                <div className="section">
-                  <div className="section-title">═══ CHARGE INVOICES (UNPAID) ═══</div>
-                  <div className="line">
-                    <span className="line-label">📋 Charge Invoice / Credit Sales:</span>
-                    <span className="line-value">{formatCurrency((xReading as any).creditSales)}</span>
-                  </div>
-                  <div className="text-xs mt-1 italic text-gray-500">
-                    (Sales made on credit - payment to be collected later)
-                  </div>
-                </div>
-              )}
-
-              {/* AR PAYMENTS COLLECTED - NEW SECTION */}
-              {xReading.arPaymentsCash > 0 && (
-                <div className="section">
-                  <div className="section-title">═══ AR PAYMENTS COLLECTED ═══</div>
-                  <div className="line">
-                    <span className="line-label">💰 Cash from OLD Invoices (AR):</span>
-                    <span className="line-value">+{formatCurrency(xReading.arPaymentsCash)}</span>
-                  </div>
-                  <div className="text-xs mt-1 italic text-gray-500">
-                    (Payments collected today for previous credit sales)
-                  </div>
-                </div>
-              )}
-
-
-              {/* CASH MOVEMENTS - In/Out */}
-              {(xReading.cashIn > 0 || xReading.withdrawalAmount > 0) && (
-                <div className="section">
-                  <div className="section-title">═══ CASH DRAWER MOVEMENTS ═══</div>
-                  {xReading.cashIn > 0 && (
-                    <div className="line">
-                      <span className="line-label">➕ CASH IN (Added to Drawer):</span>
-                      <span className="line-value">+{formatCurrency(xReading.cashIn)}</span>
-                    </div>
-                  )}
-                  {xReading.withdrawalAmount > 0 && (
-                    <div className="line">
-                      <span className="line-label">➖ CASH OUT (Withdrawal):</span>
-                      <span className="line-value">-{formatCurrency(xReading.withdrawalAmount)}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* EXPECTED CASH CALCULATION */}
+              {/* ═══════════════════════════════════════ */}
+              {/* SECTION 4: CREDIT SALES (UNPAID) */}
+              {/* ═══════════════════════════════════════ */}
               <div className="section">
-                <div className="section-title">═══ EXPECTED CASH IN DRAWER ═══</div>
-                <div className="text-xs mb-2 text-gray-600 dark:text-gray-400 italic">Step-by-step calculation:</div>
+                <div className="section-title text-base font-bold">📋 CHARGE INVOICES / CREDIT SALES</div>
+                <div className="line">
+                  <span className="line-label">Credit Sales (NOT YET PAID):</span>
+                  <span className="line-value font-bold text-orange-600 dark:text-orange-400">{formatCurrency((xReading as any).creditSales || 0)}</span>
+                </div>
+                <div className="text-xs mt-1 italic text-gray-500 dark:text-gray-400">
+                  (Sales made on credit today - to be collected later)
+                </div>
+              </div>
+
+              {/* ═══════════════════════════════════════ */}
+              {/* SECTION 5: AR PAYMENTS COLLECTED */}
+              {/* ═══════════════════════════════════════ */}
+              <div className="section">
+                <div className="section-title text-base font-bold">💰 AR PAYMENTS COLLECTED TODAY</div>
+                <div className="line">
+                  <span className="line-label">Cash from OLD Credit Sales:</span>
+                  <span className="line-value font-bold text-green-600 dark:text-green-400">{formatCurrency(xReading.arPaymentsCash || 0)}</span>
+                </div>
+                <div className="text-xs mt-1 italic text-gray-500 dark:text-gray-400">
+                  (Payments collected TODAY for PREVIOUS credit sales)
+                </div>
+              </div>
+
+              {/* ═══════════════════════════════════════ */}
+              {/* SECTION 6: EXCHANGE TRANSACTIONS */}
+              {/* ═══════════════════════════════════════ */}
+              <div className="section">
+                <div className="section-title text-base font-bold">🔄 EXCHANGE TRANSACTIONS</div>
+                <div className="line">
+                  <span className="line-label">Exchange Count:</span>
+                  <span className="line-value">{xReading.exchangeCount}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">New Items Given (Exchange Out):</span>
+                  <span className="line-value">{formatCurrency(xReading.exchangeAmount)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">Items Returned (Exchange In):</span>
+                  <span className="line-value">{formatCurrency(xReading.returnAmount)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">Net Exchange Impact:</span>
+                  <span className="line-value">{formatCurrency(xReading.exchangeAmount - xReading.returnAmount)}</span>
+                </div>
+              </div>
+
+              {/* ═══════════════════════════════════════ */}
+              {/* SECTION 7: VOID TRANSACTIONS */}
+              {/* ═══════════════════════════════════════ */}
+              <div className="section">
+                <div className="section-title text-base font-bold">❌ VOIDED TRANSACTIONS</div>
+                <div className="line">
+                  <span className="line-label">Total Voids (Count):</span>
+                  <span className="line-value">{xReading.voidCount || 0}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">Total Void Amount:</span>
+                  <span className="line-value text-red-600 dark:text-red-400">{formatCurrency(xReading.voidAmount)}</span>
+                </div>
+              </div>
+
+              {/* ═══════════════════════════════════════ */}
+              {/* SECTION 8: DISCOUNTS */}
+              {/* ═══════════════════════════════════════ */}
+              <div className="section">
+                <div className="section-title text-base font-bold">🎫 DISCOUNT BREAKDOWN</div>
+                <div className="line">
+                  <span className="line-label">Senior Citizen Discount:</span>
+                  <span className="line-value">{formatCurrency(xReading.discountBreakdown.senior)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">PWD Discount:</span>
+                  <span className="line-value">{formatCurrency(xReading.discountBreakdown.pwd)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">Other Discounts:</span>
+                  <span className="line-value">{formatCurrency(xReading.discountBreakdown.regular)}</span>
+                </div>
+                <div className="line total-line">
+                  <span className="line-label font-bold">TOTAL DISCOUNTS:</span>
+                  <span className="line-value font-bold">{formatCurrency(xReading.totalDiscounts)}</span>
+                </div>
+              </div>
+
+
+              {/* ═══════════════════════════════════════ */}
+              {/* SECTION 9: CASH IN/OUT (Drawer Movements) */}
+              {/* ═══════════════════════════════════════ */}
+              <div className="section">
+                <div className="section-title text-base font-bold">💸 CASH IN / CASH OUT (Non-Sales)</div>
+                <div className="line">
+                  <span className="line-label">➕ CASH IN (Added to Drawer):</span>
+                  <span className="line-value text-green-600 dark:text-green-400 font-bold">+{formatCurrency(xReading.cashIn || 0)}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">➖ CASH OUT (Withdrawals):</span>
+                  <span className="line-value text-red-600 dark:text-red-400 font-bold">-{formatCurrency(xReading.withdrawalAmount || 0)}</span>
+                </div>
+                <div className="line total-line">
+                  <span className="line-label font-bold">Net Cash Movement:</span>
+                  <span className="line-value font-bold">{formatCurrency((xReading.cashIn || 0) - (xReading.withdrawalAmount || 0))}</span>
+                </div>
+              </div>
+
+              {/* ═══════════════════════════════════════ */}
+              {/* SECTION 10: EXPECTED CASH - COMPLETE CALCULATION */}
+              {/* ═══════════════════════════════════════ */}
+              <div className="section">
+                <div className="section-title text-base font-bold">💰 EXPECTED CASH IN DRAWER (Full Calculation)</div>
+                <div className="text-xs mb-3 text-gray-600 dark:text-gray-400 italic bg-gray-100 dark:bg-gray-800 p-2 rounded">
+                  This shows ALL cash that should be in the drawer based on ALL transactions
+                </div>
 
                 {(() => {
-                  const { cashInDrawer, shortOverText } = calculateCashSummary(xReading)
                   const cashFromSales = xReading.paymentBreakdown['cash'] || 0
                   const arCash = xReading.arPaymentsCash || 0
+                  const cashIn = xReading.cashIn || 0
+                  const cashOut = xReading.withdrawalAmount || 0
 
                   return (
                     <>
-                      <div className="line">
-                        <span className="line-label">1️⃣ Beginning Cash (Opening):</span>
-                        <span className="line-value">{formatCurrency(xReading.beginningCash)}</span>
-                      </div>
-                      <div className="line">
-                        <span className="line-label">2️⃣ + Cash from Sales:</span>
-                        <span className="line-value">+{formatCurrency(cashFromSales)}</span>
-                      </div>
-                      {xReading.cashIn > 0 && (
+                      <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded mb-3">
+                        <div className="text-sm font-semibold mb-2 text-blue-900 dark:text-blue-100">CASH ADDED TO DRAWER:</div>
+
                         <div className="line">
-                          <span className="line-label">3️⃣ + Cash In (added):</span>
-                          <span className="line-value">+{formatCurrency(xReading.cashIn)}</span>
+                          <span className="line-label">1️⃣ Beginning Cash (Opening Fund):</span>
+                          <span className="line-value font-semibold">{formatCurrency(xReading.beginningCash)}</span>
                         </div>
-                      )}
-                      {arCash > 0 && (
+
                         <div className="line">
-                          <span className="line-label">4️⃣ + AR Payments (cash):</span>
-                          <span className="line-value">+{formatCurrency(arCash)}</span>
+                          <span className="line-label">2️⃣ + Cash from Sales Today:</span>
+                          <span className="line-value text-green-600 dark:text-green-400 font-semibold">+{formatCurrency(cashFromSales)}</span>
                         </div>
-                      )}
-                      {xReading.withdrawalAmount > 0 && (
+
                         <div className="line">
-                          <span className="line-label">5️⃣ - Withdrawals (cash out):</span>
-                          <span className="line-value">-{formatCurrency(xReading.withdrawalAmount)}</span>
+                          <span className="line-label">3️⃣ + AR Payments (cash collected):</span>
+                          <span className="line-value text-green-600 dark:text-green-400 font-semibold">+{formatCurrency(arCash)}</span>
                         </div>
-                      )}
-                      <div className="separator"></div>
-                      <div className="line total-line">
-                        <span className="line-label font-bold">💰 EXPECTED CASH IN DRAWER:</span>
-                        <span className="line-value font-bold">{formatCurrency(xReading.expectedCash)}</span>
+
+                        <div className="line">
+                          <span className="line-label">4️⃣ + Cash In (added to drawer):</span>
+                          <span className="line-value text-green-600 dark:text-green-400 font-semibold">+{formatCurrency(cashIn)}</span>
+                        </div>
+
+                        <div className="line total-line mt-2 pt-2 border-t border-blue-300 dark:border-blue-700">
+                          <span className="line-label font-bold">SUBTOTAL (Cash Added):</span>
+                          <span className="line-value font-bold text-green-600 dark:text-green-400">
+                            {formatCurrency(xReading.beginningCash + cashFromSales + arCash + cashIn)}
+                          </span>
+                        </div>
                       </div>
 
-                      {/* Non-Cash Payments Summary */}
-                      <div className="mt-3 pt-2 border-t border-dashed border-gray-400">
-                        <div className="text-xs mb-1 font-semibold text-gray-700 dark:text-gray-300">Non-Cash Payments (not in drawer):</div>
-                        {xReading.paymentBreakdown['check'] > 0 && (
-                          <div className="line text-xs">
-                            <span className="line-label">   • Cheques:</span>
-                            <span className="line-value">{formatCurrency(xReading.paymentBreakdown['check'])}</span>
+                      <div className="bg-red-50 dark:bg-red-950 p-3 rounded mb-3">
+                        <div className="text-sm font-semibold mb-2 text-red-900 dark:text-red-100">CASH REMOVED FROM DRAWER:</div>
+
+                        <div className="line">
+                          <span className="line-label">5️⃣ - Cash Out (Withdrawals):</span>
+                          <span className="line-value text-red-600 dark:text-red-400 font-semibold">-{formatCurrency(cashOut)}</span>
+                        </div>
+                      </div>
+
+                      <div className="separator my-3"></div>
+
+                      <div className="line total-line bg-green-100 dark:bg-green-900 p-3 rounded">
+                        <span className="line-label font-bold text-lg">💰 EXPECTED CASH IN DRAWER:</span>
+                        <span className="line-value font-bold text-lg text-green-700 dark:text-green-300">
+                          {formatCurrency(xReading.expectedCash)}
+                        </span>
+                      </div>
+
+                      <div className="text-xs mt-2 italic text-gray-500 dark:text-gray-400 text-center">
+                        Formula: Beginning + Cash Sales + AR Cash + Cash In - Cash Out
+                      </div>
+
+                      {/* Non-Cash Summary */}
+                      <div className="mt-4 pt-3 border-t-2 border-gray-300 dark:border-gray-700">
+                        <div className="text-sm mb-2 font-bold text-gray-700 dark:text-gray-300">📋 NON-CASH PAYMENTS (Not in Drawer):</div>
+                        <div className="bg-gray-50 dark:bg-gray-800 p-2 rounded">
+                          <div className="line text-sm">
+                            <span className="line-label">• Cheques:</span>
+                            <span className="line-value">{formatCurrency(xReading.paymentBreakdown['check'] || 0)}</span>
                           </div>
-                        )}
-                        {xReading.paymentBreakdown['card'] > 0 && (
-                          <div className="line text-xs">
-                            <span className="line-label">   • Credit Cards:</span>
-                            <span className="line-value">{formatCurrency(xReading.paymentBreakdown['card'])}</span>
+                          <div className="line text-sm">
+                            <span className="line-label">• Credit/Debit Cards:</span>
+                            <span className="line-value">{formatCurrency(xReading.paymentBreakdown['card'] || 0)}</span>
                           </div>
-                        )}
-                        {(xReading.paymentBreakdown['gcash'] || 0) + (xReading.paymentBreakdown['paymaya'] || 0) > 0 && (
-                          <div className="line text-xs">
-                            <span className="line-label">   • E-Wallets:</span>
+                          <div className="line text-sm">
+                            <span className="line-label">• E-Wallets (GCash/PayMaya/NFC):</span>
                             <span className="line-value">{formatCurrency(
-                              (xReading.paymentBreakdown['gcash'] || 0) + (xReading.paymentBreakdown['paymaya'] || 0)
+                              (xReading.paymentBreakdown['gcash'] || 0) +
+                              (xReading.paymentBreakdown['paymaya'] || 0) +
+                              (xReading.paymentBreakdown['nfc'] || 0)
                             )}</span>
                           </div>
-                        )}
+                          <div className="line text-sm">
+                            <span className="line-label">• Bank Transfers:</span>
+                            <span className="line-value">{formatCurrency(xReading.paymentBreakdown['bank_transfer'] || 0)}</span>
+                          </div>
+                        </div>
                       </div>
                     </>
                   )
