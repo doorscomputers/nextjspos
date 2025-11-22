@@ -1567,6 +1567,25 @@ export default function POSEnhancedPage() {
       return
     }
 
+    // CONFIRMATION DIALOG - Warn user to check their sale before completing
+    const total = calculateTotal()
+    const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0)
+    const confirmed = window.confirm(
+      '⚠️ PLEASE DOUBLE-CHECK BEFORE PROCEEDING\n\n' +
+      `Total Items: ${itemCount}\n` +
+      `Total Amount: ₱${total.toFixed(2)}\n\n` +
+      '✓ Have you checked all items are correct?\n' +
+      '✓ Have you verified the total amount?\n' +
+      '✓ Have you entered the correct customer/payment details?\n\n' +
+      '⏱️ TAKE YOUR TIME - Do not rush!\n\n' +
+      'Click OK to proceed with sale or Cancel to review.'
+    )
+
+    if (!confirmed) {
+      console.log('[POS] User cancelled checkout - reviewing sale')
+      return // User cancelled - do not proceed
+    }
+
     // Credit sale validation
     if (isCreditSale) {
       if (!selectedCustomer) {
