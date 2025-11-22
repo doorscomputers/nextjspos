@@ -408,15 +408,15 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl h-[90vh] max-h-[90vh] overflow-y-auto p-4">
-        <DialogHeader className="pb-2">
+      <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto p-4 flex flex-col">
+        <DialogHeader className="pb-3 border-b">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <ArrowLeftRight className="h-5 w-5" />
             Process Exchange
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 flex-1">
           {/* Step 1: Search for Sale */}
           {step === 'search' && (
             <div className="space-y-4">
