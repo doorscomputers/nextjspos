@@ -310,10 +310,7 @@ async function generateXReadingFromRunningTotals(
         status: 'voided',
       },
       select: { invoiceNumber: true },
-      orderBy: [
-        { voidedAt: 'asc' },
-        { id: 'asc' }
-      ],
+      orderBy: { id: 'asc' },
     }),
     // Get last voided sale number for this shift
     prisma.sale.findFirst({
@@ -322,10 +319,7 @@ async function generateXReadingFromRunningTotals(
         status: 'voided',
       },
       select: { invoiceNumber: true },
-      orderBy: [
-        { voidedAt: 'desc' },
-        { id: 'desc' }
-      ],
+      orderBy: { id: 'desc' },
     }),
   ])
 
@@ -509,10 +503,7 @@ async function generateZReadingFromRunningTotals(
         status: 'voided',
       },
       select: { invoiceNumber: true },
-      orderBy: [
-        { voidedAt: 'asc' },
-        { id: 'asc' }
-      ],
+      orderBy: { id: 'asc' },
     }),
     // Get last voided sale number for this shift
     prisma.sale.findFirst({
@@ -521,10 +512,7 @@ async function generateZReadingFromRunningTotals(
         status: 'voided',
       },
       select: { invoiceNumber: true },
-      orderBy: [
-        { voidedAt: 'desc' },
-        { id: 'desc' }
-      ],
+      orderBy: { id: 'desc' },
     }),
   ])
 
