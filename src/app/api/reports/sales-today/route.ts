@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
             grossProfit: 0,
             grossMargin: 0,
           },
-          paymentMethods: { cash: { amount: 0, percentage: 0 }, credit: { amount: 0, percentage: 0 }, digital: { amount: 0, percentage: 0, breakdown: { card: 0, mobilePayment: 0, bankTransfer: 0 } }, cheque: { amount: 0, percentage: 0 }, arPaymentReceived: { amount: 0, count: 0 }, total: 0 },
+          paymentMethods: { cash: { amount: 0, percentage: 0 }, credit: { amount: 0, percentage: 0 }, digital: { amount: 0, percentage: 0, breakdown: { card: 0, mobilePayment: 0, bankTransfer: 0 } }, cheque: { amount: 0, percentage: 0 }, arPaymentReceived: { amount: 0, count: 0 }, void: { amount: 0, count: 0 }, total: 0 },
           paymentBreakdown: [],
           discountBreakdown: { senior: 0, pwd: 0, regular: 0, total: 0 },
           sales: [],
@@ -226,6 +226,8 @@ export async function GET(request: NextRequest) {
     let chequeTotal = 0
     let bankTransferTotal = 0
     let mobilePaymentTotal = 0
+    let voidTotal = 0
+    let voidCount = 0
 
     const paymentBreakdown: Array<{
       method: string
@@ -239,6 +241,13 @@ export async function GET(request: NextRequest) {
 
     sales.forEach((sale) => {
       const saleTotal = parseFloat(sale.totalAmount.toString())
+
+      // Track voided sales separately
+      if (sale.status === 'voided') {
+        voidTotal += saleTotal
+        voidCount += 1
+        return // Don't count voided sales in payment totals
+      }
 
       // CRITICAL: Use sale.paidAmount from database (excludes credit placeholders automatically)
       const totalPaid = parseFloat(sale.paidAmount?.toString() || '0')
@@ -265,7 +274,7 @@ export async function GET(request: NextRequest) {
         } else if (method === 'card' || method === 'debit_card' || method === 'credit_card') {
           digitalTotal += amount
           cardTotal += amount
-        } else if (method === 'mobile_payment' || method === 'gcash' || method === 'paymaya' || method === 'maya') {
+        } else if (method === 'mobile_payment' || method === 'gcash' || method === 'paymaya' || method === 'maya' || method === 'nfc') {
           digitalTotal += amount
           mobilePaymentTotal += amount
         } else if (method === 'bank_transfer') {
@@ -407,6 +416,10 @@ export async function GET(request: NextRequest) {
         arPaymentReceived: {
           amount: totalARPaymentsReceived,
           count: arPaymentsToday.length,
+        },
+        void: {
+          amount: voidTotal,
+          count: voidCount,
         },
         total: totalSalesAmount,
       },

@@ -61,6 +61,7 @@ interface SalesTodayData {
     }
     cheque: { amount: number; percentage: number }
     arPaymentReceived: { amount: number; count: number }
+    void: { amount: number; count: number }
     total: number
   }
   paymentBreakdown: Array<{
@@ -439,6 +440,26 @@ export default function SalesTodayPage() {
                     </div>
                   </div>
                   <BanknotesIcon className="h-10 w-10 text-teal-600" />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Total Void */}
+          {(reportData.paymentMethods.void.amount > 0 || reportData.paymentMethods.void.count > 0) && (
+            <Card className="bg-gradient-to-br from-gray-50 to-gray-100">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-gray-600">Total Void</div>
+                    <div className="text-3xl font-bold text-gray-900">
+                      {formatCurrency(reportData.paymentMethods.void.amount)}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      {reportData.paymentMethods.void.count} transaction(s)
+                    </div>
+                  </div>
+                  <XCircleIcon className="h-10 w-10 text-gray-600" />
                 </div>
               </CardContent>
             </Card>
