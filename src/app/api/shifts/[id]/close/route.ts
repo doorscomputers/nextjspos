@@ -239,7 +239,47 @@ export async function POST(
     const totalVoid = parseFloat(shift.runningVoidedSales.toString())
     const transactionCount = shift.runningTransactions
 
+    // STEP 2.5: Save cash denomination FIRST (before generating readings)
+    // This ensures the Z Reading can include the actual physical cash count
+    console.log('[ShiftClose] ⏱️ Saving cash denomination...')
+    if (cashDenomination) {
+      const totalFromDenomination =
+        (cashDenomination.count1000 || 0) * 1000 +
+        (cashDenomination.count500 || 0) * 500 +
+        (cashDenomination.count200 || 0) * 200 +
+        (cashDenomination.count100 || 0) * 100 +
+        (cashDenomination.count50 || 0) * 50 +
+        (cashDenomination.count20 || 0) * 20 +
+        (cashDenomination.count10 || 0) * 10 +
+        (cashDenomination.count5 || 0) * 5 +
+        (cashDenomination.count1 || 0) * 1 +
+        (cashDenomination.count025 || 0) * 0.25
+
+      await prisma.cashDenomination.create({
+        data: {
+          businessId: shift.businessId,
+          locationId: shift.locationId,
+          shiftId: shift.id,
+          count1000: cashDenomination.count1000 || 0,
+          count500: cashDenomination.count500 || 0,
+          count200: cashDenomination.count200 || 0,
+          count100: cashDenomination.count100 || 0,
+          count50: cashDenomination.count50 || 0,
+          count20: cashDenomination.count20 || 0,
+          count10: cashDenomination.count10 || 0,
+          count5: cashDenomination.count5 || 0,
+          count1: cashDenomination.count1 || 0,
+          count025: cashDenomination.count025 || 0,
+          totalAmount: totalFromDenomination,
+          countType: 'closing',
+          countedBy: parseInt(session.user.id),
+        },
+      })
+      console.log(`[ShiftClose] ✅ Cash denomination saved (₱${totalFromDenomination.toFixed(2)})`)
+    }
+
     // 🚀 OPTIMIZATION: Generate X and Z readings in PARALLEL (instant mode ⚡)
+    // NOW the readings will have access to the cash denomination data
     console.log('[ShiftClose] Generating X and Z readings in parallel...')
     const readingsStartTime = Date.now()
 
@@ -272,46 +312,11 @@ export async function POST(
       )
     }
 
-    // STEP 3: Update shift with cash denomination and close
+    // STEP 3: Update shift and close
     console.log('[ShiftClose] ⏱️ Starting database transaction...')
     const txStartTime = Date.now()
 
     const updatedShift = await prisma.$transaction(async (tx) => {
-      // Save cash denomination if provided
-      if (cashDenomination) {
-        const totalFromDenomination =
-          (cashDenomination.count1000 || 0) * 1000 +
-          (cashDenomination.count500 || 0) * 500 +
-          (cashDenomination.count200 || 0) * 200 +
-          (cashDenomination.count100 || 0) * 100 +
-          (cashDenomination.count50 || 0) * 50 +
-          (cashDenomination.count20 || 0) * 20 +
-          (cashDenomination.count10 || 0) * 10 +
-          (cashDenomination.count5 || 0) * 5 +
-          (cashDenomination.count1 || 0) * 1 +
-          (cashDenomination.count025 || 0) * 0.25
-
-        await tx.cashDenomination.create({
-          data: {
-            businessId: shift.businessId,
-            locationId: shift.locationId,
-            shiftId: shift.id,
-            count1000: cashDenomination.count1000 || 0,
-            count500: cashDenomination.count500 || 0,
-            count200: cashDenomination.count200 || 0,
-            count100: cashDenomination.count100 || 0,
-            count50: cashDenomination.count50 || 0,
-            count20: cashDenomination.count20 || 0,
-            count10: cashDenomination.count10 || 0,
-            count5: cashDenomination.count5 || 0,
-            count1: cashDenomination.count1 || 0,
-            count025: cashDenomination.count025 || 0,
-            totalAmount: totalFromDenomination,
-            countType: 'closing',
-            countedBy: parseInt(session.user.id),
-          },
-        })
-      }
 
       // Update location BIR counters (per-location tracking)
       // ⚠️ IMPORTANT: This must be done BEFORE closing the shift to ensure atomicity
