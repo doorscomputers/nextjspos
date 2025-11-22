@@ -405,8 +405,13 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
 
               {/* Void */}
               <div className="section">
+                <div className="section-title">VOID TRANSACTIONS</div>
                 <div className="line">
-                  <span className="line-label">VOID</span>
+                  <span className="line-label">VOID Count</span>
+                  <span className="line-value">{xReading.voidCount || 0}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">VOID Amount</span>
                   <span className="line-value">{formatCurrency(xReading.voidAmount)}</span>
                 </div>
               </div>
@@ -687,7 +692,11 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
               <div className="section">
                 <div className="section-title">SALES ADJUSTMENT</div>
                 <div className="line">
-                  <span className="line-label">VOID :</span>
+                  <span className="line-label">VOID Count :</span>
+                  <span className="line-value">{zReading.voidCount || 0}</span>
+                </div>
+                <div className="line">
+                  <span className="line-label">VOID Amount :</span>
                   <span className="line-value">{formatCurrency(zReading.voidAmount)}</span>
                 </div>
                 <div className="line">
