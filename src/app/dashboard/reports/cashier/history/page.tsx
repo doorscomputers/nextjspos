@@ -344,6 +344,12 @@ export default function CashierSalesHistoryPage() {
                 width={120}
               />
               <Column
+                dataField="invoiceNumber"
+                caption="Invoice #"
+                minWidth={150}
+                cssClass="font-medium"
+              />
+              <Column
                 dataField="customer"
                 caption="Customer"
                 minWidth={150}
