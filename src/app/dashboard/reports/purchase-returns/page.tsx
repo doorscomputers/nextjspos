@@ -144,9 +144,25 @@ export default function PurchaseReturnsReportPage() {
       const response = await fetch("/api/locations")
       if (response.ok) {
         const data = await response.json()
-        const locationsList = data.locations || data
-        setLocations(locationsList)
+        // Handle different response formats
+        let locationsList = []
+
+        if (Array.isArray(data)) {
+          locationsList = data
+        } else if (data && Array.isArray(data.locations)) {
+          locationsList = data.locations
+        } else if (data && typeof data === 'object') {
+          locationsList = Object.values(data).filter(
+            (item): item is { id: number; name: string } =>
+              typeof item === 'object' && item !== null && 'id' in item && 'name' in item
+          )
+        }
+
+        setLocations(Array.isArray(locationsList) ? locationsList : [])
         // Don't auto-select first location - keep it as "all"
+      } else {
+        console.warn("Failed to fetch locations:", response.statusText)
+        setLocations([])
       }
     } catch (error) {
       console.error("Failed to fetch locations:", error)
@@ -159,7 +175,21 @@ export default function PurchaseReturnsReportPage() {
       const response = await fetch("/api/suppliers")
       if (response.ok) {
         const data = await response.json()
-        const suppliersList = data.suppliers || data || []
+        // Handle different response formats (suppliers array or direct array)
+        let suppliersList = []
+
+        if (Array.isArray(data)) {
+          suppliersList = data
+        } else if (data && Array.isArray(data.suppliers)) {
+          suppliersList = data.suppliers
+        } else if (data && typeof data === 'object') {
+          // If data is an object but not with suppliers array, try to extract values
+          suppliersList = Object.values(data).filter(
+            (item): item is { id: number; name: string } =>
+              typeof item === 'object' && item !== null && 'id' in item && 'name' in item
+          )
+        }
+
         setSuppliers(Array.isArray(suppliersList) ? suppliersList : [])
       } else {
         console.warn("Failed to fetch suppliers:", response.statusText)
@@ -275,7 +305,7 @@ export default function PurchaseReturnsReportPage() {
   }
 
   const exportToCSV = () => {
-    if (!reportData) return
+    if (!reportData || !Array.isArray(reportData.returns)) return
 
     const headers = [
       "Return #",
@@ -539,7 +569,7 @@ export default function PurchaseReturnsReportPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Locations</SelectItem>
-                {locations.map((loc) => (
+                {Array.isArray(locations) && locations.map((loc) => (
                   <SelectItem key={loc.id} value={loc.id.toString()}>
                     {loc.name}
                   </SelectItem>
@@ -557,7 +587,7 @@ export default function PurchaseReturnsReportPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Suppliers</SelectItem>
-                {suppliers.map((supplier) => (
+                {Array.isArray(suppliers) && suppliers.map((supplier) => (
                   <SelectItem key={supplier.id} value={supplier.id.toString()}>
                     {supplier.name}
                   </SelectItem>
@@ -734,7 +764,7 @@ export default function PurchaseReturnsReportPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {reportData?.returns.map((ret) => (
+                    {Array.isArray(reportData?.returns) && reportData.returns.map((ret) => (
                       <React.Fragment key={ret.id}>
                         <TableRow className="hover:bg-gray-50">
                           <TableCell className="font-medium">
@@ -799,7 +829,7 @@ export default function PurchaseReturnsReportPage() {
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                      {ret.items.map((item, idx) => (
+                                      {Array.isArray(ret.items) && ret.items.map((item, idx) => (
                                         <TableRow key={idx}>
                                           <TableCell>
                                             {item.productName} ({item.variationName})
