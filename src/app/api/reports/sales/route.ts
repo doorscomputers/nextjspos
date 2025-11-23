@@ -99,27 +99,41 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Get total count
-    const totalCount = await prisma.sale.count({ where: whereClause })
+    // 🚀 OPTIMIZATION: Execute count, sales fetch, and aggregate in parallel
+    const [totalCount, sales, summary] = await Promise.all([
+      prisma.sale.count({ where: whereClause }),
 
-    // Get sales data
-    const sales = await prisma.sale.findMany({
-      where: whereClause,
-      include: {
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            mobile: true,
+      prisma.sale.findMany({
+        where: whereClause,
+        include: {
+          customer: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              mobile: true,
+            },
           },
+          items: true, // Note: ProductVariation relation not defined in schema, fetched separately
         },
-        items: true, // Can't include product/productVariation as they don't have relations
-      },
-      orderBy: { saleDate: 'desc' },
-      skip,
-      take: limit,
-    })
+        orderBy: { saleDate: 'desc' },
+        skip,
+        take: limit,
+      }),
+
+      // Calculate summary statistics in parallel
+      prisma.sale.aggregate({
+        where: whereClause,
+        _sum: {
+          subtotal: true,
+          taxAmount: true,
+          discountAmount: true,
+          shippingCost: true,
+          totalAmount: true,
+        },
+        _count: true,
+      })
+    ])
 
     // Get unique product and variation IDs from sale items
     const productIds = new Set<number>()
@@ -132,35 +146,24 @@ export async function GET(request: NextRequest) {
       })
     })
 
-    // Fetch product and variation data separately
-    const products = await prisma.product.findMany({
-      where: { id: { in: Array.from(productIds) } },
-      select: { id: true, name: true, sku: true }
-    })
+    // 🚀 OPTIMIZATION: Fetch product and variation data in parallel (instead of sequentially)
+    const [products, variations] = await Promise.all([
+      prisma.product.findMany({
+        where: { id: { in: Array.from(productIds) } },
+        select: { id: true, name: true, sku: true }
+      }),
 
-    const variations = await prisma.productVariation.findMany({
-      where: { id: { in: Array.from(variationIds) } },
-      select: { id: true, name: true, sku: true }
-    })
+      prisma.productVariation.findMany({
+        where: { id: { in: Array.from(variationIds) } },
+        select: { id: true, name: true, sku: true }
+      })
+    ])
 
     // Create lookup maps
     const productMap = new Map(products.map((p) => [p.id, p]))
     const variationMap = new Map(variations.map((v) => [v.id, v]))
 
-    // Calculate summary statistics
-    const summary = await prisma.sale.aggregate({
-      where: whereClause,
-      _sum: {
-        subtotal: true,
-        taxAmount: true,
-        discountAmount: true,
-        shippingCost: true,
-        totalAmount: true,
-      },
-      _count: true,
-    })
-
-    // Calculate COGS and Gross Profit
+    // Calculate COGS and Gross Profit (summary already fetched in parallel above)
     let totalCOGS = 0
     for (const sale of sales) {
       for (const item of sale.items) {

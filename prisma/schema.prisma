@@ -750,6 +750,8 @@ model Category {
 
   @@index([businessId])
   @@index([parentId])
+  @@index([name]) // 🚀 CRITICAL: Category name search optimization
+  @@index([businessId, name]) // 🚀 CRITICAL: Multi-tenant category search
   @@map("categories")
 }
 
@@ -766,6 +768,8 @@ model Brand {
   products Product[]
 
   @@index([businessId])
+  @@index([name]) // 🚀 CRITICAL: Brand name search optimization
+  @@index([businessId, name]) // 🚀 CRITICAL: Multi-tenant brand search
   @@map("brands")
 }
 
@@ -1995,6 +1999,7 @@ model Sale {
   @@index([shiftId, status, saleDate, id]) // 🚀 CRITICAL: First/last invoice queries in readings (NO SORT NEEDED!)
   @@index([businessId, status, saleDate]) // 🚀 OPTIMIZATION: Filtered reports with date ranges
   @@index([locationId, saleDate, status]) // 🚀 OPTIMIZATION: Location-filtered date-range reports
+  @@index([customerId, saleDate]) // 🚀 CRITICAL: Customer sales history queries
   @@map("sales")
 }
 
