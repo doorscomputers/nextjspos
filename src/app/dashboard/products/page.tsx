@@ -196,7 +196,7 @@ import { useRouter } from 'next/navigation'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import Link from 'next/link'
-import { PlusIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { History, Pencil } from 'lucide-react'
 import ProductActionsDropdown from '@/components/ProductActionsDropdown'
 import { Switch } from '@/components/ui/switch'
@@ -260,6 +260,7 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [searchInput, setSearchInput] = useState('') // Separate state for search input (not auto-filtered)
   const [activeFilter, setActiveFilter] = useState<string>('all') // all, active, inactive
 
   // Multi-column filter state
@@ -316,9 +317,10 @@ export default function ProductsPage() {
     setCurrentPage(1)
   }, [searchTerm, activeFilter, filters])
 
-  // Update searchTerm when filters.search changes
+  // Update searchTerm and searchInput when filters.search changes (e.g., from table header filters or clear all)
   useEffect(() => {
     setSearchTerm(filters.search)
+    setSearchInput(filters.search)
   }, [filters.search])
 
   const fetchLocations = async () => {
@@ -729,6 +731,26 @@ export default function ProductsPage() {
     }))
   }
 
+  // Handle manual search button click
+  const handleSearchClick = () => {
+    setSearchTerm(searchInput)
+    handleSimpleFilterChange('search', searchInput)
+  }
+
+  // Handle clearing search
+  const handleClearSearch = () => {
+    setSearchInput('')
+    setSearchTerm('')
+    handleSimpleFilterChange('search', '')
+  }
+
+  // Handle Enter key in search input
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearchClick()
+    }
+  }
+
   const handleSort = (key: string) => {
     setSortState((prev) => {
       if (prev?.key === key) {
@@ -874,18 +896,35 @@ export default function ProductsPage() {
       <Card className="mb-6 border-slate-200 dark:border-gray-700 shadow-md hover:shadow-lg transition-shadow duration-300">
         <CardContent className="pt-6">
           <div className="flex gap-4 flex-col md:flex-row">
-            <div className="relative flex-1">
-              <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-gray-500 transition-colors" />
-              <Input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value)
-                  handleSimpleFilterChange('search', e.target.value)
-                }}
-                placeholder="Search by product name, SKU, category, or brand..."
-                className="pl-10 h-11 transition-all"
-              />
+            <div className="relative flex-1 flex gap-2">
+              <div className="relative flex-1">
+                <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-gray-500 transition-colors" />
+                <Input
+                  type="text"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder="Search by product name, SKU, category, or brand... (Press Enter or click Search)"
+                  className="pl-10 pr-10 h-11 transition-all"
+                />
+                {searchInput && (
+                  <button
+                    onClick={handleClearSearch}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors"
+                    title="Clear search"
+                  >
+                    <XMarkIcon className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+              <Button
+                onClick={handleSearchClick}
+                size="default"
+                className="h-11 px-6 bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg transition-all"
+              >
+                <MagnifyingGlassIcon className="w-5 h-5 mr-2" />
+                Search
+              </Button>
             </div>
             <div className="w-full md:w-56">
               <Select value={activeFilter} onValueChange={setActiveFilter}>
