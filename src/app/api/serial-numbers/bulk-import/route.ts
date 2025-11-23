@@ -91,9 +91,13 @@ export async function POST(request: NextRequest) {
 
     // Verify all product variations exist and belong to this business
     const variationIds = entries.map((e: any) => e.productVariationId)
+
+    // Get unique variation IDs to avoid duplicate queries
+    const uniqueVariationIds = [...new Set(variationIds)]
+
     const variations = await prisma.productVariation.findMany({
       where: {
-        id: { in: variationIds },
+        id: { in: uniqueVariationIds },
         product: {
           businessId,
         },
@@ -104,7 +108,8 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    if (variations.length !== variationIds.length) {
+    // Check if all unique variations were found
+    if (variations.length !== uniqueVariationIds.length) {
       return NextResponse.json(
         { error: 'Some products are invalid or do not exist' },
         { status: 400 }
