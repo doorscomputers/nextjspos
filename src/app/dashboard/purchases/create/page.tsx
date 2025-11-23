@@ -774,6 +774,7 @@ export default function CreatePurchaseOrderPage() {
               onProductSelect={handleProductSelect}
               placeholder="🔍 Scan barcode or search product (SKU, Name)..."
               autoFocus={true}
+              products={allProducts}
             />
           </div>
         </div>
