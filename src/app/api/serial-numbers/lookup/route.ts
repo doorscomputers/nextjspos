@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
                 name: true,
               },
             },
-            assignedTechnician: {
+            acceptedByEmployee: {
               select: {
                 id: true,
                 employee: {
@@ -101,7 +101,19 @@ export async function GET(request: NextRequest) {
                 },
               },
             },
-            jobOrders: {
+            checkedByEmployee: {
+              select: {
+                id: true,
+                employee: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    employeeCode: true,
+                  },
+                },
+              },
+            },
+            repairJobOrders: {
               select: {
                 id: true,
                 jobOrderNumber: true,
@@ -208,19 +220,24 @@ export async function GET(request: NextRequest) {
           claimNumber: claim.claimNumber,
           claimDate: claim.claimDate,
           status: claim.status,
-          issueDescription: claim.issueDescription,
-          claimType: claim.claimType,
-          priority: claim.priority,
+          issueDescription: claim.problemDescription,
+          reportedIssues: claim.reportedIssues,
+          warrantyType: claim.warrantyType,
           location: claim.location,
-          technician: claim.assignedTechnician ? {
-            id: claim.assignedTechnician.id,
-            name: `${claim.assignedTechnician.employee.firstName} ${claim.assignedTechnician.employee.lastName}`,
-            code: claim.assignedTechnician.employee.employeeCode,
+          acceptedBy: claim.acceptedByEmployee ? {
+            id: claim.acceptedByEmployee.id,
+            name: `${claim.acceptedByEmployee.employee.firstName} ${claim.acceptedByEmployee.employee.lastName}`,
+            code: claim.acceptedByEmployee.employee.employeeCode,
           } : null,
-          laborCost: claim.laborCost ? Number(claim.laborCost) : null,
-          partsCost: claim.partsCost ? Number(claim.partsCost) : null,
-          totalCost: claim.totalCost ? Number(claim.totalCost) : null,
-          jobOrders: claim.jobOrders.map(job => ({
+          checkedBy: claim.checkedByEmployee ? {
+            id: claim.checkedByEmployee.id,
+            name: `${claim.checkedByEmployee.employee.firstName} ${claim.checkedByEmployee.employee.lastName}`,
+            code: claim.checkedByEmployee.employee.employeeCode,
+          } : null,
+          estimatedCost: claim.estimatedCost ? Number(claim.estimatedCost) : null,
+          isApproved: claim.isApproved,
+          isUserNegligence: claim.isUserNegligence,
+          jobOrders: claim.repairJobOrders.map(job => ({
             id: job.id,
             jobOrderNumber: job.jobOrderNumber,
             status: job.status,
