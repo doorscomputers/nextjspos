@@ -417,7 +417,8 @@ export default function AddProductPage() {
 
       setCategories(categoriesData.categories || [])
       setBrands(brandsData.brands || [])
-      setUnits(unitsData.units || [])
+      const fetchedUnits = unitsData.units || []
+      setUnits(fetchedUnits)
       const fetchedTaxRates = taxRatesData.taxRates || []
       setTaxRates(fetchedTaxRates)
       setAvailableProducts(productsData.products || [])
@@ -426,15 +427,34 @@ export default function AddProductPage() {
       const standardVAT = fetchedTaxRates.find((tax: TaxRate) =>
         tax.name === 'Standard VAT (12%)' || (tax.name.includes('Standard VAT') && tax.amount === 12)
       )
-      if (standardVAT) {
-        setFormData(prev => {
-          // Only set tax if it's not already set and this is the initial load
-          if (!prev.taxId) {
-            return { ...prev, taxId: standardVAT.id.toString() }
-          }
-          return prev
-        })
-      }
+
+      // Set default unit to "Piece(s)" if available - only on initial load
+      const pieceUnit = fetchedUnits.find((unit: Unit) =>
+        unit.name === 'Piece(s)' ||
+        unit.name === 'Pieces' ||
+        unit.name.toLowerCase().includes('piece') ||
+        unit.shortName === 'Pcs' ||
+        unit.shortName === 'Pc'
+      )
+
+      setFormData(prev => {
+        const updates: any = {}
+
+        // Only set tax if it's not already set and this is the initial load
+        if (!prev.taxId && standardVAT) {
+          updates.taxId = standardVAT.id.toString()
+        }
+
+        // Only set unit if it's not already set and this is the initial load
+        if (!prev.unitId && pieceUnit) {
+          updates.unitId = pieceUnit.id.toString()
+        }
+
+        if (Object.keys(updates).length > 0) {
+          return { ...prev, ...updates }
+        }
+        return prev
+      })
     } catch (error) {
       console.error('Error fetching metadata:', error)
     }
