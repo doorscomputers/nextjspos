@@ -555,6 +555,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Check product name uniqueness
+    const existingProductWithName = await prisma.product.findFirst({
+      where: {
+        businessId: parseInt(businessId),
+        name,
+        deletedAt: null
+      }
+    })
+
+    if (existingProductWithName) {
+      return NextResponse.json({ error: 'Product name already exists' }, { status: 400 })
+    }
+
     // Check SKU uniqueness only if provided
     if (sku && !isSkuEmpty(sku)) {
       const existingProduct = await prisma.product.findFirst({
@@ -796,8 +809,20 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ product: result, message: 'Product created successfully' }, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating product:', error)
+
+    // Handle Prisma unique constraint violations
+    if (error.code === 'P2002') {
+      const target = error.meta?.target
+      if (target?.includes('name')) {
+        return NextResponse.json({ error: 'Product name already exists' }, { status: 400 })
+      }
+      if (target?.includes('sku')) {
+        return NextResponse.json({ error: 'SKU already exists' }, { status: 400 })
+      }
+    }
+
     return NextResponse.json({ error: 'Failed to create product' }, { status: 500 })
   }
 }

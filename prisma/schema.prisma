@@ -906,13 +906,13 @@ model Product {
   unitLocationPrices ProductUnitLocationPrice[]
 
   @@unique([businessId, sku]) // SKU must be unique within each business
+  @@unique([businessId, name]) // Product name must be unique within each business
   @@index([businessId])
   @@index([categoryId])
   @@index([brandId])
   @@index([sku])
   @@index([name]) // ✅ NEW: For product name search optimization
   @@index([businessId, isActive]) // ✅ NEW: For active products queries
-  @@index([businessId, name]) // ✅ NEW: Composite index for business product search
   @@index([businessId, alertQuantity]) // 🚀 OPTIMIZATION: For stock alert queries
   @@map("products")
 }

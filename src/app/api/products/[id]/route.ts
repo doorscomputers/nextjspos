@@ -497,6 +497,22 @@ export async function PUT(
       }
     }
 
+    // Check product name uniqueness if changed
+    if (name && name !== existingProduct.name) {
+      const duplicateName = await prisma.product.findFirst({
+        where: {
+          businessId: parseInt(businessId),
+          name,
+          deletedAt: null,
+          id: { not: productId }
+        }
+      })
+
+      if (duplicateName) {
+        return NextResponse.json({ error: 'Product name already exists' }, { status: 400 })
+      }
+    }
+
     // Check SKU uniqueness if changed
     if (sku && !isSkuEmpty(sku) && sku !== existingProduct.sku) {
       const duplicateSku = await prisma.product.findFirst({
@@ -865,8 +881,20 @@ export async function PUT(
     })
 
     return NextResponse.json({ product: result, message: 'Product updated successfully' }, { status: 200 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error updating product:', error)
+
+    // Handle Prisma unique constraint violations
+    if (error.code === 'P2002') {
+      const target = error.meta?.target
+      if (target?.includes('name')) {
+        return NextResponse.json({ error: 'Product name already exists' }, { status: 400 })
+      }
+      if (target?.includes('sku')) {
+        return NextResponse.json({ error: 'SKU already exists' }, { status: 400 })
+      }
+    }
+
     return NextResponse.json({ error: 'Failed to update product' }, { status: 500 })
   }
 }
