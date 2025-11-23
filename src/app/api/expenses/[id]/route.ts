@@ -207,8 +207,8 @@ export async function PUT(
       }
     }
 
-    // Verify location if provided
-    if (locationId !== undefined) {
+    // Verify location if provided and not null
+    if (locationId !== undefined && locationId !== null) {
       const location = await prisma.businessLocation.findFirst({
         where: {
           id: parseInt(locationId),
@@ -249,7 +249,7 @@ export async function PUT(
     if (categoryId !== undefined)
       updateData.categoryId = parseInt(categoryId);
     if (locationId !== undefined)
-      updateData.locationId = parseInt(locationId);
+      updateData.locationId = locationId ? parseInt(locationId) : null;
     if (expenseDate !== undefined)
       updateData.expenseDate = new Date(expenseDate);
     if (amount !== undefined) updateData.amount = parseFloat(amount);

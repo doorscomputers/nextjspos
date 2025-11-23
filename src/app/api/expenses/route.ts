@@ -174,13 +174,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!locationId) {
-      return NextResponse.json(
-        { error: "Location is required" },
-        { status: 400 }
-      );
-    }
-
     if (!expenseDate) {
       return NextResponse.json(
         { error: "Expense date is required" },
@@ -232,20 +225,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify location exists and belongs to this business
-    const location = await prisma.businessLocation.findFirst({
-      where: {
-        id: parseInt(locationId),
-        businessId: parseInt(businessId),
-        isActive: true,
-      },
-    });
+    // Verify location exists and belongs to this business (if provided)
+    if (locationId) {
+      const location = await prisma.businessLocation.findFirst({
+        where: {
+          id: parseInt(locationId),
+          businessId: parseInt(businessId),
+          isActive: true,
+        },
+      });
 
-    if (!location) {
-      return NextResponse.json(
-        { error: "Invalid business location" },
-        { status: 400 }
-      );
+      if (!location) {
+        return NextResponse.json(
+          { error: "Invalid business location" },
+          { status: 400 }
+        );
+      }
     }
 
     // If glAccountId provided, verify it exists and belongs to this business
@@ -277,7 +272,7 @@ export async function POST(request: NextRequest) {
       data: {
         businessId: parseInt(businessId),
         categoryId: parseInt(categoryId),
-        locationId: parseInt(locationId),
+        locationId: locationId ? parseInt(locationId) : null,
         referenceNumber,
         expenseDate: new Date(expenseDate),
         amount: parseFloat(amount),

@@ -46,7 +46,7 @@ interface Expense {
   description: string
   status: string
   categoryId: number
-  locationId: number
+  locationId: number | null
   glAccountId: number | null
   category: {
     id: number
@@ -55,7 +55,7 @@ interface Expense {
   location: {
     id: number
     name: string
-  }
+  } | null
   glAccount: {
     id: number
     accountCode: string
@@ -195,7 +195,7 @@ export default function ExpensesPage() {
       setEditingExpense(expense)
       setFormData({
         categoryId: expense.categoryId.toString(),
-        locationId: expense.locationId.toString(),
+        locationId: expense.locationId?.toString() || '',
         expenseDate: new Date(expense.expenseDate).toISOString().split('T')[0],
         amount: expense.amount.toString(),
         paymentMethod: expense.paymentMethod,
@@ -239,10 +239,6 @@ export default function ExpensesPage() {
       toast.error('Category is required')
       return
     }
-    if (!formData.locationId) {
-      toast.error('Location is required')
-      return
-    }
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
       toast.error('Amount must be greater than 0')
       return
@@ -266,7 +262,7 @@ export default function ExpensesPage() {
 
       const body = {
         categoryId: parseInt(formData.categoryId),
-        locationId: parseInt(formData.locationId),
+        locationId: formData.locationId ? parseInt(formData.locationId) : null,
         expenseDate: formData.expenseDate,
         amount: parseFloat(formData.amount),
         paymentMethod: formData.paymentMethod,
@@ -449,6 +445,10 @@ export default function ExpensesPage() {
     })
   }
 
+  const locationCellRender = (data: any) => {
+    return data.value || <span className="text-gray-400 italic">No Location</span>
+  }
+
   const actionsCellRender = (data: any) => {
     const expense = data.data
     return (
@@ -578,7 +578,7 @@ export default function ExpensesPage() {
                 cellRender={dateCellRender}
               />
               <Column dataField="category.name" caption="Category" width={150} />
-              <Column dataField="location.name" caption="Location" width={150} />
+              <Column dataField="location.name" caption="Location" width={150} cellRender={locationCellRender} />
               <Column
                 dataField="amount"
                 caption="Amount"
@@ -654,15 +654,16 @@ export default function ExpensesPage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="locationId">Location *</Label>
+                    <Label htmlFor="locationId">Location (Optional)</Label>
                     <Select
-                      value={formData.locationId}
-                      onValueChange={(value) => setFormData({ ...formData, locationId: value })}
+                      value={formData.locationId || "none"}
+                      onValueChange={(value) => setFormData({ ...formData, locationId: value === "none" ? "" : value })}
                     >
                       <SelectTrigger className="bg-white border-gray-300">
-                        <SelectValue placeholder={locations.length === 0 ? "No locations available" : "Select location"} />
+                        <SelectValue placeholder="Select location (optional)" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="none">-- No Location --</SelectItem>
                         {locations.length === 0 ? (
                           <div className="p-4 text-center text-sm text-gray-500">
                             No locations found. Contact administrator to add locations.

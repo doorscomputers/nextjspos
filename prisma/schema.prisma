@@ -4128,8 +4128,8 @@ model Expense {
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   // Location reference
-  locationId Int              @map("location_id")
-  location   BusinessLocation @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  locationId Int?              @map("location_id")
+  location   BusinessLocation? @relation(fields: [locationId], references: [id], onDelete: Restrict)
 
   // Category reference
   categoryId Int             @map("category_id")
