@@ -5,7 +5,6 @@ import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeftIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import UnitPricingManager from '@/components/products/UnitPricingManager'
-import { Combobox } from '@/components/ui/combobox'
 
 interface Category {
   id: number
@@ -783,21 +782,18 @@ export default function EditProductPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category</label>
               <div className="flex gap-2">
-                <Combobox
-                  options={[
-                    { value: '', label: 'None' },
-                    ...mainCategories.map((cat) => ({
-                      value: String(cat.id),
-                      label: cat.name
-                    }))
-                  ]}
+                <select
                   value={formData.categoryId}
-                  onValueChange={(value) => setFormData({ ...formData, categoryId: value, subCategoryId: '' })}
-                  placeholder="Select category..."
-                  searchPlaceholder="Search categories..."
-                  emptyText="No category found."
-                  className="flex-1"
-                />
+                  onChange={(e) => setFormData({ ...formData, categoryId: e.target.value, subCategoryId: '' })}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
+                >
+                  <option value="">None</option>
+                  {mainCategories.map((cat) => (
+                    <option key={cat.id} value={String(cat.id)}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
                 <button
                   type="button"
                   onClick={() => setShowCategoryModal(true)}
@@ -812,23 +808,20 @@ export default function EditProductPage() {
             {/* Sub Category with Quick Add */}
             {formData.categoryId && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Sub Category</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sub Category</label>
                 <div className="flex gap-2">
-                  <Combobox
-                    options={[
-                      { value: '', label: 'None' },
-                      ...subCategories.map((cat) => ({
-                        value: String(cat.id),
-                        label: cat.name
-                      }))
-                    ]}
+                  <select
                     value={formData.subCategoryId}
-                    onValueChange={(value) => setFormData({ ...formData, subCategoryId: value })}
-                    placeholder="Select sub-category..."
-                    searchPlaceholder="Search sub-categories..."
-                    emptyText="No sub-category found."
-                    className="flex-1"
-                  />
+                    onChange={(e) => setFormData({ ...formData, subCategoryId: e.target.value })}
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
+                  >
+                    <option value="">None</option>
+                    {subCategories.map((cat) => (
+                      <option key={cat.id} value={String(cat.id)}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
                   <button
                     type="button"
                     onClick={() => setShowSubCategoryModal(true)}
@@ -845,21 +838,18 @@ export default function EditProductPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Brand</label>
               <div className="flex gap-2">
-                <Combobox
-                  options={[
-                    { value: '', label: 'None' },
-                    ...brands.map((brand) => ({
-                      value: String(brand.id),
-                      label: brand.name
-                    }))
-                  ]}
+                <select
                   value={formData.brandId}
-                  onValueChange={(value) => setFormData({ ...formData, brandId: value })}
-                  placeholder="Select brand..."
-                  searchPlaceholder="Search brands..."
-                  emptyText="No brand found."
-                  className="flex-1"
-                />
+                  onChange={(e) => setFormData({ ...formData, brandId: e.target.value })}
+                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
+                >
+                  <option value="">None</option>
+                  {brands.map((brand) => (
+                    <option key={brand.id} value={String(brand.id)}>
+                      {brand.name}
+                    </option>
+                  ))}
+                </select>
                 <button
                   type="button"
                   onClick={() => setShowBrandModal(true)}
