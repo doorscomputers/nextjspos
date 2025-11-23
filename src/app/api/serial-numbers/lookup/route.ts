@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma.simple'
 /**
  * Quick Serial Number Lookup for Warranty Claims
  * GET /api/serial-numbers/lookup?serial=SN12345
+ * GET /api/serial-numbers/lookup?s=SN12345
  *
  * Returns: Supplier info + Date received for warranty processing
  */
@@ -19,9 +20,9 @@ export async function GET(request: NextRequest) {
     const user = session.user as any
     const businessId = parseInt(user.businessId)
 
-    // Get serial number from query
+    // Get serial number from query (accept both 's' and 'serial' parameters)
     const searchParams = request.nextUrl.searchParams
-    const serialNumber = searchParams.get('serial')
+    const serialNumber = searchParams.get('serial') || searchParams.get('s')
 
     if (!serialNumber || serialNumber.trim() === '') {
       return NextResponse.json(
