@@ -68,6 +68,7 @@ export default function BulkSerialNumberImportPage() {
 
   // Form state
   const [supplierId, setSupplierId] = useState('')
+  const [supplierSearch, setSupplierSearch] = useState('')
   const [purchaseDate, setPurchaseDate] = useState(() => {
     const today = new Date()
     return today.toISOString().split('T')[0]
@@ -102,9 +103,9 @@ export default function BulkSerialNumberImportPage() {
   }
 
   const handleProductSelect = (product: Product, variation: ProductVariation) => {
+    // Allow serial numbers for all products, just show a warning if not configured
     if (!variation.enableSerialNumber) {
-      toast.error(`${product.name} - ${variation.name} does not require serial numbers`)
-      return
+      toast.warning(`⚠️ Note: ${product.name} - ${variation.name} is not configured to require serial numbers, but you can still import them for warranty tracking.`)
     }
 
     // Save the selected product
@@ -317,21 +318,49 @@ export default function BulkSerialNumberImportPage() {
           <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Import Information</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Supplier */}
+            {/* Supplier with Search */}
             <div className="space-y-2">
               <Label htmlFor="supplier" className="text-gray-900 dark:text-gray-200">
                 Supplier <span className="text-red-500">*</span>
               </Label>
-              <Select value={supplierId} onValueChange={setSupplierId}>
+
+              {/* Search Input */}
+              <Input
+                type="text"
+                placeholder="🔍 Search supplier..."
+                value={supplierSearch}
+                onChange={(e) => setSupplierSearch(e.target.value)}
+                className="mb-2"
+              />
+
+              {/* Supplier Dropdown (filtered) */}
+              <Select
+                value={supplierId}
+                onValueChange={(value) => {
+                  setSupplierId(value)
+                  setSupplierSearch('') // Clear search when supplier is selected
+                }}
+              >
                 <SelectTrigger id="supplier">
                   <SelectValue placeholder="Select supplier" />
                 </SelectTrigger>
                 <SelectContent>
-                  {suppliers.map((supplier) => (
-                    <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                      {supplier.name}
-                    </SelectItem>
-                  ))}
+                  {suppliers
+                    .filter((supplier) =>
+                      supplier.name.toLowerCase().includes(supplierSearch.toLowerCase())
+                    )
+                    .map((supplier) => (
+                      <SelectItem key={supplier.id} value={supplier.id.toString()}>
+                        {supplier.name}
+                      </SelectItem>
+                    ))}
+                  {suppliers.filter((supplier) =>
+                    supplier.name.toLowerCase().includes(supplierSearch.toLowerCase())
+                  ).length === 0 && (
+                    <div className="p-4 text-center text-sm text-gray-500">
+                      No suppliers found matching "{supplierSearch}"
+                    </div>
+                  )}
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-500 dark:text-gray-400">
