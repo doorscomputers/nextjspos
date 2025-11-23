@@ -92,25 +92,17 @@ export async function GET(request: NextRequest) {
             acceptedByEmployee: {
               select: {
                 id: true,
-                employee: {
-                  select: {
-                    firstName: true,
-                    lastName: true,
-                    employeeCode: true,
-                  },
-                },
+                firstName: true,
+                lastName: true,
+                employeeCode: true,
               },
             },
             checkedByEmployee: {
               select: {
                 id: true,
-                employee: {
-                  select: {
-                    firstName: true,
-                    lastName: true,
-                    employeeCode: true,
-                  },
-                },
+                firstName: true,
+                lastName: true,
+                employeeCode: true,
               },
             },
             repairJobOrders: {
@@ -226,13 +218,13 @@ export async function GET(request: NextRequest) {
           location: claim.location,
           acceptedBy: claim.acceptedByEmployee ? {
             id: claim.acceptedByEmployee.id,
-            name: `${claim.acceptedByEmployee.employee.firstName} ${claim.acceptedByEmployee.employee.lastName}`,
-            code: claim.acceptedByEmployee.employee.employeeCode,
+            name: `${claim.acceptedByEmployee.firstName} ${claim.acceptedByEmployee.lastName}`,
+            code: claim.acceptedByEmployee.employeeCode,
           } : null,
           checkedBy: claim.checkedByEmployee ? {
             id: claim.checkedByEmployee.id,
-            name: `${claim.checkedByEmployee.employee.firstName} ${claim.checkedByEmployee.employee.lastName}`,
-            code: claim.checkedByEmployee.employee.employeeCode,
+            name: `${claim.checkedByEmployee.firstName} ${claim.checkedByEmployee.lastName}`,
+            code: claim.checkedByEmployee.employeeCode,
           } : null,
           estimatedCost: claim.estimatedCost ? Number(claim.estimatedCost) : null,
           isApproved: claim.isApproved,
