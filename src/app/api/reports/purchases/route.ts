@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
+import { getPaginationParams } from '@/lib/pagination'
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,10 +24,8 @@ export async function GET(request: NextRequest) {
     const minAmount = searchParams.get('minAmount')
     const maxAmount = searchParams.get('maxAmount')
 
-    // Pagination
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
-    const skip = (page - 1) * limit
+    // 🚀 PERFORMANCE: Enforce pagination limits (max 1000)
+    const { limit, skip } = getPaginationParams(searchParams)
 
     const businessId = parseInt(session.user.businessId)
 

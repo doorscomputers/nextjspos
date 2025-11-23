@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { getUserAccessibleLocationIds, PERMISSIONS } from '@/lib/rbac'
+import { getFromMemory, cacheInMemory, generateCacheKey } from '@/lib/cache'
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,6 +24,20 @@ export async function GET(request: NextRequest) {
     const businessId = parseInt(session.user.businessId)
     const userId = parseInt(session.user.id)
     const userPermissions = session.user.permissions || []
+
+    // 🚀 PERFORMANCE: Check cache first (5-minute TTL)
+    const cacheKey = generateCacheKey(
+      'dashboard:stats',
+      businessId,
+      locationId || 'all',
+      startDate || 'none',
+      endDate || 'none'
+    )
+    const cached = getFromMemory(cacheKey)
+    if (cached) {
+      console.log(`[Dashboard Stats] ✅ Cache hit for ${cacheKey}`)
+      return NextResponse.json(cached)
+    }
 
     // Helper function to check permissions
     const hasPermission = (permission: string) => userPermissions.includes(permission)
@@ -357,7 +372,8 @@ export async function GET(request: NextRequest) {
       .filter((sale) => sale.amount > 0)
       .slice(0, 10)
 
-    return NextResponse.json({
+    // Build response data
+    const responseData = {
       metrics: {
         totalSales: parseFloat(salesData._sum.totalAmount?.toString() || '0'),
         netAmount: parseFloat(salesData._sum.subtotal?.toString() || '0'),
@@ -415,7 +431,13 @@ export async function GET(request: NextRequest) {
           purchaseOrderNumber: item.accountsPayable?.purchase?.purchaseOrderNumber || 'N/A',
         })),
       },
-    })
+    }
+
+    // 🚀 PERFORMANCE: Cache the response for 5 minutes
+    cacheInMemory(cacheKey, responseData, 300)
+    console.log(`[Dashboard Stats] ✅ Cached response for ${cacheKey}`)
+
+    return NextResponse.json(responseData)
   } catch (error) {
     console.error('Dashboard stats error:', error)
     console.error('Error details:', {

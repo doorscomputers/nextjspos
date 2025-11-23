@@ -43,6 +43,7 @@ import { authOptions } from '@/lib/auth.simple' // NextAuth configuration
 import { prisma } from '@/lib/prisma.simple' // Database client
 import { PERMISSIONS } from '@/lib/rbac' // Permission constants
 import { generateProductSKU, generateVariationSKU, isSkuEmpty } from '@/lib/sku-generator' // SKU utilities
+import { getPaginationParams, MAX_PAGE_SIZE } from '@/lib/pagination' // Pagination utilities
 
 // ============================================================================
 // GET METHOD - Fetch Products List
@@ -110,8 +111,8 @@ export async function GET(request: NextRequest) {
     const forTransaction = searchParams.get('forTransaction') === 'true' // Only active products
     const stockEnabledOnly = searchParams.get('stockEnabled') === 'true' // Only products with stock tracking enabled
 
-    // Parse limit parameter
-    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined
+    // 🚀 PERFORMANCE: Enforce pagination to prevent loading 10,000+ products
+    const { limit, skip } = getPaginationParams(searchParams)
 
     // Multi-column filter parameters
     const search = searchParams.get('search')?.trim() || ''
@@ -285,7 +286,8 @@ export async function GET(request: NextRequest) {
       where: whereClause,
       include: productInclude,
       orderBy: { createdAt: 'desc' },
-      ...(limit && { take: limit })
+      take: limit, // 🚀 Always enforce limit (max 1000 records)
+      skip: skip   // 🚀 Support pagination
     })
 
     // Apply stock filtering (client-side since it requires calculation)
