@@ -43,20 +43,28 @@ if (typeof window === 'undefined' && process.env.DATABASE_URL) {
 export const prisma = globalForPrisma.prisma ?? createPrismaClient()
 
 // 🚀 PERFORMANCE MONITORING: Log slow queries (> 1 second)
-prisma.$use(async (params, next) => {
-  const start = Date.now()
-  const result = await next(params)
-  const duration = Date.now() - start
+// Only apply middleware at runtime (Prisma 5+ requires conditional check)
+if (typeof prisma.$use === 'function') {
+  try {
+    prisma.$use(async (params, next) => {
+      const start = Date.now()
+      const result = await next(params)
+      const duration = Date.now() - start
 
-  if (duration > 1000) {
-    console.warn(
-      `⚠️  Slow query detected: ${params.model}.${params.action} took ${duration}ms`,
-      params.args ? `Args: ${JSON.stringify(params.args).substring(0, 200)}` : ''
-    )
+      if (duration > 1000) {
+        console.warn(
+          `⚠️  Slow query detected: ${params.model}.${params.action} took ${duration}ms`,
+          params.args ? `Args: ${JSON.stringify(params.args).substring(0, 200)}` : ''
+        )
+      }
+
+      return result
+    })
+  } catch (middlewareError) {
+    // Middleware setup failed (happens during build or with Prisma 5+) - continue without it
+    console.warn('[Prisma] Performance monitoring middleware skipped (incompatible client version)')
   }
-
-  return result
-})
+}
 
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma

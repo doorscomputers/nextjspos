@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { PERMISSIONS, DEFAULT_ROLES } from '../src/lib/rbac'
+import { initializeChartOfAccounts } from '../src/lib/chartOfAccounts'
 
 const prisma = new PrismaClient()
 
@@ -130,6 +131,11 @@ async function main() {
     },
   })
   console.log('✅ Business locations created (4 branches)')
+
+  // Initialize Chart of Accounts for the business
+  console.log('Initializing Chart of Accounts...')
+  const chartOfAccounts = await initializeChartOfAccounts(business.id)
+  console.log(`✅ Chart of Accounts initialized (${chartOfAccounts.length} accounts created)`)
 
   // Create All Permissions
   const permissionRecords = await Promise.all(
@@ -1289,6 +1295,13 @@ async function main() {
   console.log('✓ 3 Brands (Dell, HP, Logitech)')
   console.log('✓ 2 Units (Pieces, Box)')
   console.log('✓ 2 Tax Rates (Standard 10%, Reduced 5%)')
+  console.log('─'.repeat(50))
+  console.log('\n📊 Accounting Setup:')
+  console.log('─'.repeat(50))
+  console.log('✓ Chart of Accounts initialized (Assets, Liabilities, Equity, Revenue, Expenses)')
+  console.log('✓ Balance Sheet ready to use')
+  console.log('✓ Income Statement ready to use')
+  console.log('✓ Cash Flow Statement ready to use')
   console.log('─'.repeat(50))
 }
 
