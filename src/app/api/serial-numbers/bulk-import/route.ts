@@ -134,7 +134,6 @@ export async function POST(request: NextRequest) {
             currentLocationId: parseInt(locationId),
             supplierId: parseInt(supplierId), // CRITICAL: Link to supplier for warranty tracking
             purchasedAt: purchaseDate ? new Date(purchaseDate) : new Date(),
-            createdBy: parseInt(session.user.id),
           },
         })
 
