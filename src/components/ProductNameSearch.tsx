@@ -66,7 +66,8 @@ export default function ProductNameSearch({
   autoFocus = false,
   className = ""
 }: ProductNameSearchProps) {
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState('') // Actual search query used for API call
+  const [searchInput, setSearchInput] = useState('') // User typing input (not auto-searched)
   const [searching, setSearching] = useState(false)
   const [results, setResults] = useState<Product[]>([])
   const [showDropdown, setShowDropdown] = useState(false)
@@ -108,21 +109,31 @@ export default function ProductNameSearch({
     }
   }, [searchMethod])
 
-  // Debounced search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      searchProducts(query)
-    }, 300) // 300ms debounce
+  // Manual search trigger
+  const handleSearch = useCallback(() => {
+    setQuery(searchInput)
+    searchProducts(searchInput)
+  }, [searchInput, searchProducts])
 
-    return () => clearTimeout(timer)
+  // Trigger search when query changes (from manual search button)
+  useEffect(() => {
+    if (query) {
+      searchProducts(query)
+    }
   }, [query, searchProducts])
 
   // Handle keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    // If dropdown is not shown, Enter key triggers search
     if (!showDropdown || results.length === 0) {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        handleSearch()
+      }
       return
     }
 
+    // Dropdown navigation
     if (e.key === 'ArrowDown') {
       e.preventDefault()
       setSelectedIndex((prev) => (prev + 1) % results.length)
@@ -136,7 +147,7 @@ export default function ProductNameSearch({
       e.preventDefault()
       setShowDropdown(false)
     }
-  }, [showDropdown, results, selectedIndex])
+  }, [showDropdown, results, selectedIndex, handleSearch])
 
   // Handle product selection
   const handleSelectProduct = useCallback((product: Product) => {
@@ -150,8 +161,9 @@ export default function ProductNameSearch({
       onProductSelect(product, product.variations[0])
       toast.success(`Added: ${product.name} - ${product.variations[0].name}`)
 
-      // Clear field
+      // Clear fields
       setQuery('')
+      setSearchInput('')
       setResults([])
       setShowDropdown(false)
 
@@ -166,6 +178,7 @@ export default function ProductNameSearch({
       toast.success(`Added: ${product.name} - ${product.variations[0].name}`)
 
       setQuery('')
+      setSearchInput('')
       setResults([])
       setShowDropdown(false)
 
@@ -228,26 +241,65 @@ export default function ProductNameSearch({
         </div>
       </div>
 
-      {/* Search Input */}
+      {/* Search Input with Button */}
       <div className="relative" ref={dropdownRef}>
-        <Input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={() => {
-            if (results.length > 0) setShowDropdown(true)
-          }}
-          placeholder={placeholder}
-          disabled={disabled || searching}
-          autoFocus={autoFocus}
-          className="text-base"
-        />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+          <Input
+            ref={inputRef}
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onFocus={() => {
+              if (results.length > 0) setShowDropdown(true)
+            }}
+            placeholder={`${placeholder} (Press Enter or click Search)`}
+            disabled={disabled || searching}
+            autoFocus={autoFocus}
+            className="text-base pr-10"
+          />
+          {searchInput && (
+            <button
+              onClick={() => {
+                setSearchInput('')
+                setQuery('')
+                setResults([])
+                setShowDropdown(false)
+              }}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              title="Clear search"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+        <button
+          onClick={handleSearch}
+          disabled={disabled || searching || !searchInput.trim()}
+          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2"
+        >
+          {searching ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Searching...
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              Search
+            </>
+          )}
+        </button>
+        </div>
 
         {/* Dropdown Results */}
         {showDropdown && results.length > 0 && (
-          <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-80 overflow-y-auto">
+          <div className="absolute z-50 w-full mt-12 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-80 overflow-y-auto">
             {results.map((product, index) => (
               <div
                 key={product.id}
