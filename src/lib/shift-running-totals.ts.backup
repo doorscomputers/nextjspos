@@ -107,11 +107,10 @@ export async function incrementShiftTotalsForSale(
   // Build increment data
   const incrementData: any = {
     // Sales totals
-    // BIR: Gross Sales = sum of amounts BEFORE discounts (subtotal)
-    // Discounts shown separately as "Less: Discount" in Z-Reading
-    runningGrossSales: { increment: saleData.subtotal },
+    // BIR: Gross Sales = sum of FINAL sale amounts (after discounts) for ALL sales
+    runningGrossSales: { increment: saleData.totalAmount },
     runningNetSales: { increment: saleData.totalAmount },
-    runningSubtotal: { increment: saleData.subtotal },
+    runningSubtotal: { increment: saleData.subtotal - saleData.discountAmount },
     runningTransactions: { increment: 1 },
 
     // VAT breakdown
@@ -317,9 +316,8 @@ export async function incrementShiftTotalsForExchange(
       runningExchangeCount: { increment: 1 },
       runningExchangeSales: { increment: exchangeTotal },
 
-      // Exchange does NOT affect Gross Sales - it's a replacement transaction
-      // The original sale was already counted in gross, exchange just replaces it
-      // Exchange is tracked separately in runningExchangeSales and runningReturnAmount
+      // BIR: Add FULL exchange value to Gross Sales (not net impact)
+      runningGrossSales: { increment: exchangeTotal },
 
       // Track returns separately (subtracted in reading display)
       runningReturnAmount: { increment: returnTotal },
@@ -389,14 +387,14 @@ export async function calculateRunningTotalsFromSales(
     const discountAmount = parseFloat(sale.discountAmount.toString())
 
     // BIR COMPLIANCE: ALL sales (completed AND voided) add to Gross Sales
-    // Gross Sales = sum of amounts BEFORE discounts (subtotal)
-    // Discounts, voids, returns are tracked separately and subtracted in reading display
-    totals.runningGrossSales += subtotal
+    // Gross Sales = sum of FINAL amounts (after discounts) for ALL sales
+    // Voids/returns are tracked separately and subtracted in reading display
+    totals.runningGrossSales += totalAmount
 
     if (sale.status === 'completed') {
       // Completed sale - add to all running totals
       totals.runningNetSales += totalAmount  // Sum of completed sales after discounts
-      totals.runningSubtotal += subtotal  // Subtotal before discounts
+      totals.runningSubtotal += subtotal - discountAmount  // Subtotal minus discounts
       totals.runningTransactions += 1
 
       // VAT breakdown
