@@ -408,15 +408,15 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl max-h-[90vh] overflow-x-hidden overflow-y-auto p-4 flex flex-col">
-        <DialogHeader className="pb-3 border-b">
+      <DialogContent className="max-w-7xl max-h-[90vh] p-4 flex flex-col">
+        <DialogHeader className="pb-3 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <ArrowLeftRight className="h-5 w-5" />
             Process Exchange
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 flex-1">
+        <div className="space-y-4 flex-1 overflow-y-auto overflow-x-hidden min-h-0">
           {/* Step 1: Search for Sale */}
           {step === 'search' && (
             <div className="space-y-4">
@@ -576,7 +576,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                   )}
 
                   {searchResults.length > 0 && !loadingProducts && (
-                    <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-96 overflow-y-auto">
+                    <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-[600px] overflow-y-auto">
                       {searchResults.map((product) => {
                         // Calculate MAXIMUM available stock across ALL variations at location
                         const filterLocationId = currentLocationId || sale?.locationId
