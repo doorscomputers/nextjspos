@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ArrowLeftRight, Search, Trash2, AlertCircle, Plus } from 'lucide-react'
 import { toast } from 'sonner'
+import ExchangeInvoicePrint from '@/components/ExchangeInvoicePrint'
 
 interface ExchangeDialogProps {
   isOpen: boolean
@@ -88,6 +89,10 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   // Exchange details
   const [exchangeReason, setExchangeReason] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('cash')
+
+  // Print state
+  const [showPrintDialog, setShowPrintDialog] = useState(false)
+  const [completedExchange, setCompletedExchange] = useState<any>(null)
 
   // Load initial sale if provided
   useEffect(() => {
@@ -358,7 +363,9 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
         onSuccess(data)
       }
 
-      onClose()
+      // Show print dialog instead of closing immediately
+      setCompletedExchange(data)
+      setShowPrintDialog(true)
     } catch (error: any) {
       toast.error(error.message || 'Failed to process exchange.')
     } finally {
@@ -368,9 +375,16 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
   const totals = calculateTotals()
 
+  const handleClosePrintDialog = () => {
+    setShowPrintDialog(false)
+    setCompletedExchange(null)
+    onClose() // Close the main exchange dialog after print dialog closes
+  }
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] w-[1400px] max-h-[90vh] p-0 flex flex-col">
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-[95vw] w-[1400px] max-h-[90vh] p-0 flex flex-col">
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <ArrowLeftRight className="h-5 w-5" />
@@ -677,5 +691,15 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
         </div>
       </DialogContent>
     </Dialog>
+
+      {/* Exchange Receipt Print Dialog */}
+      {completedExchange && (
+        <ExchangeInvoicePrint
+          exchange={completedExchange}
+          isOpen={showPrintDialog}
+          onClose={handleClosePrintDialog}
+        />
+      )}
+    </>
   )
 }
