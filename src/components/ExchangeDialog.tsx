@@ -408,7 +408,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto p-4 flex flex-col">
+      <DialogContent className="max-w-7xl max-h-[90vh] overflow-x-hidden p-4 flex flex-col">
         <DialogHeader className="pb-3 border-b">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <ArrowLeftRight className="h-5 w-5" />
@@ -553,15 +553,15 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
           {/* Step 3: Select Exchange Items */}
           {step === 'select-exchange' && (
-            <div className="space-y-3">
-              <div>
+            <div className="space-y-3 overflow-visible">
+              <div className="overflow-visible">
                 <div className="flex items-center justify-between mb-1">
                   <Label className="text-sm">Search Products to Exchange</Label>
                   <p className="text-xs text-blue-600 dark:text-blue-400">
                     ℹ️ Only products with stock &gt; 0 shown
                   </p>
                 </div>
-                <div className="relative">
+                <div className="relative overflow-visible">
                   <Input
                     placeholder={loadingProducts ? "Loading products..." : "Search products by name or SKU..."}
                     value={productSearch}
