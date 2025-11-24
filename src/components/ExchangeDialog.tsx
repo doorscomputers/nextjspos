@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useSession } from 'next-auth/react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -90,6 +91,16 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   // Exchange details
   const [exchangeReason, setExchangeReason] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('cash')
+
+  // Portal dropdown positioning
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 })
+  const [mounted, setMounted] = useState(false)
+
+  // Track if component is mounted (for portal)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Load initial sale if provided
   useEffect(() => {
@@ -183,6 +194,29 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
     setSearchResults(filtered)
   }, [productSearch, allProducts, sale, currentLocationId])
+
+  // Update dropdown position when results change or on scroll/resize
+  useEffect(() => {
+    const updatePosition = () => {
+      if (searchResults.length > 0 && searchInputRef.current) {
+        const rect = searchInputRef.current.getBoundingClientRect()
+        setDropdownPosition({
+          top: rect.bottom + 4, // 4px gap
+          left: rect.left,
+          width: rect.width,
+        })
+      }
+    }
+
+    updatePosition()
+    window.addEventListener('scroll', updatePosition, true)
+    window.addEventListener('resize', updatePosition)
+
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true)
+      window.removeEventListener('resize', updatePosition)
+    }
+  }, [searchResults])
 
   const fetchSale = async (invoiceNumberOrId: string) => {
     setLoading(true)
@@ -563,6 +597,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                 </div>
                 <div className="relative">
                   <Input
+                    ref={searchInputRef}
                     placeholder={loadingProducts ? "Loading products..." : "Search products by name or SKU..."}
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
@@ -575,8 +610,16 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                     </div>
                   )}
 
-                  {searchResults.length > 0 && !loadingProducts && (
-                    <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-[600px] overflow-y-auto">
+                  {/* Dropdown via Portal */}
+                  {mounted && searchResults.length > 0 && !loadingProducts && createPortal(
+                    <div
+                      className="fixed z-[9999] bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-[600px] overflow-y-auto"
+                      style={{
+                        top: `${dropdownPosition.top}px`,
+                        left: `${dropdownPosition.left}px`,
+                        width: `${dropdownPosition.width}px`,
+                      }}
+                    >
                       {searchResults.map((product) => {
                         // Calculate MAXIMUM available stock across ALL variations at location
                         const filterLocationId = currentLocationId || sale?.locationId
@@ -632,7 +675,8 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                           </div>
                         )
                       })}
-                    </div>
+                    </div>,
+                    document.body
                   )}
 
                   {productSearch.length >= 2 && searchResults.length === 0 && !loadingProducts && (
