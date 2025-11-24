@@ -171,8 +171,8 @@ export default function CreatePurchaseOrderPage() {
       setLoadingProducts(true)
       console.log('🚀 [PURCHASE AUTO-POPULATE] Loading ALL products... (like POS)')
 
-      // Use SAME endpoint as POS: /api/products?limit=10000&status=active
-      const response = await fetch('/api/products?limit=10000&status=active')
+      // Use SAME endpoint as POS: /api/products?limit=10000&status=active&forTransaction=true
+      const response = await fetch('/api/products?limit=10000&status=active&forTransaction=true')
       const data = await response.json()
 
       console.log(`📦 Fetched ${data.products?.length || 0} total products`)
