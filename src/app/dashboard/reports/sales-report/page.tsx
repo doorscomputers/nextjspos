@@ -461,6 +461,7 @@ export default function SalesReportPage() {
       completed: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
       draft: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
       cancelled: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+      voided: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
     }
 
     return (
@@ -658,6 +659,7 @@ export default function SalesReportPage() {
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="voided">Voided</SelectItem>
               </SelectContent>
             </Select>
           </div>

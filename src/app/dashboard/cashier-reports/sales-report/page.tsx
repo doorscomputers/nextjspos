@@ -478,6 +478,7 @@ export default function CashierSalesReportPage() {
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="voided">Voided</SelectItem>
               </SelectContent>
             </Select>
           </div>
