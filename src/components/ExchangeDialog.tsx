@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -90,10 +90,6 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   // Exchange details
   const [exchangeReason, setExchangeReason] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('cash')
-
-  // Dropdown positioning for fixed position
-  const searchInputRef = useRef<HTMLInputElement>(null)
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 })
 
   // Load initial sale if provided
   useEffect(() => {
@@ -187,18 +183,6 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
     setSearchResults(filtered)
   }, [productSearch, allProducts, sale, currentLocationId])
-
-  // Calculate dropdown position when search results appear
-  useEffect(() => {
-    if (searchResults.length > 0 && searchInputRef.current) {
-      const rect = searchInputRef.current.getBoundingClientRect()
-      setDropdownPosition({
-        top: rect.bottom + window.scrollY + 4, // 4px gap (mt-1)
-        left: rect.left + window.scrollX,
-        width: rect.width,
-      })
-    }
-  }, [searchResults.length])
 
   const fetchSale = async (invoiceNumberOrId: string) => {
     setLoading(true)
@@ -424,7 +408,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl max-h-[90vh] overflow-x-hidden p-4 flex flex-col">
+      <DialogContent className="max-w-7xl max-h-[90vh] overflow-x-hidden overflow-y-auto p-4 flex flex-col">
         <DialogHeader className="pb-3 border-b">
           <DialogTitle className="flex items-center gap-2 text-lg">
             <ArrowLeftRight className="h-5 w-5" />
@@ -432,7 +416,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 flex-1 overflow-visible">
+        <div className="space-y-4 flex-1">
           {/* Step 1: Search for Sale */}
           {step === 'search' && (
             <div className="space-y-4">
@@ -569,17 +553,16 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
           {/* Step 3: Select Exchange Items */}
           {step === 'select-exchange' && (
-            <div className="space-y-3 overflow-visible">
-              <div className="overflow-visible">
+            <div className="space-y-3">
+              <div>
                 <div className="flex items-center justify-between mb-1">
                   <Label className="text-sm">Search Products to Exchange</Label>
                   <p className="text-xs text-blue-600 dark:text-blue-400">
                     ℹ️ Only products with stock &gt; 0 shown
                   </p>
                 </div>
-                <div className="relative overflow-visible">
+                <div className="relative">
                   <Input
-                    ref={searchInputRef}
                     placeholder={loadingProducts ? "Loading products..." : "Search products by name or SKU..."}
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
@@ -593,14 +576,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                   )}
 
                   {searchResults.length > 0 && !loadingProducts && (
-                    <div
-                      className="fixed z-[9999] bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-[600px] overflow-y-auto"
-                      style={{
-                        top: `${dropdownPosition.top}px`,
-                        left: `${dropdownPosition.left}px`,
-                        width: `${dropdownPosition.width}px`,
-                      }}
-                    >
+                    <div className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-96 overflow-y-auto">
                       {searchResults.map((product) => {
                         // Calculate MAXIMUM available stock across ALL variations at location
                         const filterLocationId = currentLocationId || sale?.locationId
