@@ -187,7 +187,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   const fetchSale = async (invoiceNumberOrId: string) => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/sales/devextreme?searchValue=${encodeURIComponent(invoiceNumberOrId)}&take=1`)
+      const response = await fetch(`/api/sales/devextreme?searchValue=${encodeURIComponent(invoiceNumberOrId)}&take=1&status=completed`)
       const data = await response.json()
 
       if (data.data && data.data.length > 0) {
