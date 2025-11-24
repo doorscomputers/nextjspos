@@ -142,9 +142,35 @@ export default function BranchStockPivotPage() {
     })
   }, [locations])
 
+  // Refresh the materialized view to get latest inventory data
+  const refreshMaterializedView = useCallback(async () => {
+    try {
+      console.log('🔄 Refreshing materialized view...')
+      const response = await fetch('/api/products/refresh-stock-pivot', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to refresh materialized view')
+      }
+
+      const data = await response.json()
+      console.log('✅ Materialized view refreshed:', data.stats)
+      return true
+    } catch (error) {
+      console.error('❌ Error refreshing materialized view:', error)
+      // Don't fail the whole operation, just log the error
+      return false
+    }
+  }, [])
+
   const fetchStockData = useCallback(
-    async (options?: { page?: number; limit?: number; sortKey?: string; sortDirection?: 'asc' | 'desc'; exportAll?: boolean }) => {
+    async (options?: { page?: number; limit?: number; sortKey?: string; sortDirection?: 'asc' | 'desc'; exportAll?: boolean; refreshView?: boolean }) => {
       const isExport = options?.exportAll ?? false
+      const shouldRefreshView = options?.refreshView ?? false
       const payload = {
         page: options?.page ?? currentPage,
         limit: options?.limit ?? itemsPerPage,
@@ -158,6 +184,11 @@ export default function BranchStockPivotPage() {
         if (!isExport) {
           setLoading(true)
           setRefreshing(true)
+        }
+
+        // Refresh materialized view if requested (on manual refresh or initial load)
+        if (shouldRefreshView) {
+          await refreshMaterializedView()
         }
 
         const response = await fetch('/api/products/branch-stock-pivot', {
@@ -246,9 +277,31 @@ export default function BranchStockPivotPage() {
         }
       }
     },
-    [currentPage, itemsPerPage, sortKey, sortDirection, filters]
+    [currentPage, itemsPerPage, sortKey, sortDirection, filters, refreshMaterializedView]
   )
 
+  // Auto-refresh materialized view on initial page load
+  useEffect(() => {
+    let isMounted = true
+
+    const initializeData = async () => {
+      if (isMounted) {
+        // Refresh the materialized view to get latest data
+        await refreshMaterializedView()
+        // Then fetch the stock data
+        await fetchStockData()
+      }
+    }
+
+    initializeData()
+
+    return () => {
+      isMounted = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // Only run on mount
+
+  // Fetch data when filters/pagination change (without refreshing view)
   useEffect(() => {
     fetchStockData()
   }, [fetchStockData])
@@ -485,12 +538,12 @@ export default function BranchStockPivotPage() {
           <p className="text-gray-600 dark:text-gray-300 mt-1">Comprehensive stock view across all locations with cost analysis</p>
         </div>
         <Button
-          onClick={() => fetchStockData()}
+          onClick={() => fetchStockData({ refreshView: true })}
           variant="outline"
           size="sm"
           disabled={refreshing || loading}
           className="shadow-sm hover:shadow-md transition-all bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 border-green-300 dark:border-green-700"
-          title="Refresh stock data from database"
+          title="Refresh inventory data from database (updates materialized view)"
         >
           <ArrowPathIcon className={`w-4 h-4 mr-2 text-green-600 dark:text-green-400 ${refreshing ? 'animate-spin' : ''}`} />
           <span className="text-green-700 dark:text-green-300">{refreshing ? 'Refreshing...' : 'Refresh'}</span>

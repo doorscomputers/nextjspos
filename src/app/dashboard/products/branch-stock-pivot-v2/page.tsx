@@ -60,11 +60,41 @@ export default function BranchStockPivotV2Page() {
   const [locations, setLocations] = useState<LocationColumn[]>([])
   const [dataSource, setDataSource] = useState<any[]>([])
 
-  const fetchStockData = async () => {
+  // Refresh the materialized view to get latest inventory data
+  const refreshMaterializedView = async () => {
+    try {
+      console.log('🔄 [V2] Refreshing materialized view...')
+      const response = await fetch('/api/products/refresh-stock-pivot', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to refresh materialized view')
+      }
+
+      const data = await response.json()
+      console.log('✅ [V2] Materialized view refreshed:', data.stats)
+      return true
+    } catch (error) {
+      console.error('❌ [V2] Error refreshing materialized view:', error)
+      // Don't fail the whole operation, just log the error
+      return false
+    }
+  }
+
+  const fetchStockData = async (refreshView: boolean = false) => {
     try {
       setLoading(true)
       setRefreshing(true)
       console.log('[Branch Stock Pivot V2] Fetching stock data...')
+
+      // Refresh materialized view if requested (on manual refresh or initial load)
+      if (refreshView) {
+        await refreshMaterializedView()
+      }
 
       const response = await fetch('/api/products/branch-stock-pivot', {
         method: 'POST',
@@ -160,8 +190,10 @@ export default function BranchStockPivotV2Page() {
     }
   }
 
+  // Auto-refresh materialized view on initial page load
   useEffect(() => {
-    fetchStockData()
+    fetchStockData(true) // true = refresh the materialized view before fetching
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const onExporting = (e: any) => {
@@ -254,12 +286,12 @@ export default function BranchStockPivotV2Page() {
           </p>
         </div>
         <Button
-          onClick={fetchStockData}
+          onClick={() => fetchStockData(true)}
           variant="outline"
           size="sm"
           disabled={refreshing || loading}
           className="shadow-sm hover:shadow-md transition-all bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 border-green-300 dark:border-green-700"
-          title="Refresh stock data from database"
+          title="Refresh inventory data from database (updates materialized view)"
         >
           <ArrowPathIcon className={`w-4 h-4 mr-2 text-green-600 dark:text-green-400 ${refreshing ? 'animate-spin' : ''}`} />
           <span className="text-green-700 dark:text-green-300">{refreshing ? 'Refreshing...' : 'Refresh'}</span>
