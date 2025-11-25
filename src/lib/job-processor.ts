@@ -198,7 +198,8 @@
  * **2. Scheduled Task** (Production):
  * ```javascript
  * // Using node-cron in Next.js API route
- * cron.schedule('*/30 * * * * *', async () => {  // Every 30 seconds
+ * // Run every 30 seconds: '* / 30 * * * * *' (remove spaces)
+ * cron.schedule('* / 30 * * * * *', async () => {
  *   await processPendingJobs()
  * })
  * ```
