@@ -219,20 +219,24 @@ export function getThisYearRangePH(): { startOfYear: Date; endOfYear: Date } {
  * @returns Start and end of the day in Philippines timezone
  */
 export function parseDateToPHRange(dateInput: string | Date): { startOfDay: Date; endOfDay: Date } {
-  let date: Date
+  let year: number
+  let month: number
+  let day: number
 
   if (typeof dateInput === 'string') {
-    // Parse date string and convert to Manila time
-    date = new Date(dateInput)
+    // IMPORTANT: Parse YYYY-MM-DD string directly without timezone conversion
+    // This ensures "2025-11-25" means Nov 25, not shifted by timezone
+    const parts = dateInput.split('-')
+    year = parseInt(parts[0], 10)
+    month = parseInt(parts[1], 10) - 1 // Convert to 0-indexed
+    day = parseInt(parts[2], 10)
   } else {
-    date = dateInput
+    // For Date objects, get components in Manila timezone
+    const manilaDate = toManilaTime(dateInput)
+    year = manilaDate.getFullYear()
+    month = manilaDate.getMonth()
+    day = manilaDate.getDate()
   }
-
-  // Get the date components in Manila timezone
-  const manilaDate = toManilaTime(date)
-  const year = manilaDate.getFullYear()
-  const month = manilaDate.getMonth()
-  const day = manilaDate.getDate()
 
   return {
     startOfDay: createStartOfDayPH(year, month, day),
