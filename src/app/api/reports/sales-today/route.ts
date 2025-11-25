@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
-import { getTodayRangePH } from '@/lib/timezone'
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,17 +27,20 @@ export async function GET(request: NextRequest) {
     const startDateParam = searchParams.get('startDate')
     const endDateParam = searchParams.get('endDate')
 
-    // Get date range - use provided dates or default to today in Philippines timezone (UTC+8)
+    // Get date range - use the SAME date handling as Sales History API (which works correctly)
+    // The database stores dates in UTC, so we use UTC-based date filtering
     let startOfDay: Date
     let endOfDay: Date
 
     if (startDateParam && endDateParam) {
-      // Use provided date range with Philippines timezone
-      const { parseDateToPHRange } = await import('@/lib/timezone')
-      const startRange = parseDateToPHRange(startDateParam)
-      const endRange = parseDateToPHRange(endDateParam)
-      startOfDay = startRange.startOfDay
-      endOfDay = endRange.endOfDay
+      // Parse the date string and create start/end of day in LOCAL server time
+      // This matches how Sales History API handles dates
+      const [startYear, startMonth, startDay] = startDateParam.split('-').map(Number)
+      const [endYear, endMonth, endDay] = endDateParam.split('-').map(Number)
+
+      startOfDay = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0)
+      endOfDay = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999)
+
       console.log('[Sales Today API] Using provided dates:', {
         startDateParam,
         endDateParam,
@@ -46,10 +48,10 @@ export async function GET(request: NextRequest) {
         endOfDay: endOfDay.toISOString(),
       })
     } else {
-      // Default to today in Philippines timezone
-      const todayRange = getTodayRangePH()
-      startOfDay = todayRange.startOfDay
-      endOfDay = todayRange.endOfDay
+      // Default to today using server time (same as Sales History)
+      const now = new Date()
+      startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+      endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
       console.log('[Sales Today API] Using default today range:', {
         startOfDay: startOfDay.toISOString(),
         endOfDay: endOfDay.toISOString(),
@@ -405,11 +407,8 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Format the date correctly - use the provided date or today in Philippines timezone
-    const reportDateString = startDateParam || (() => {
-      const { getTodayDateStringPH } = require('@/lib/timezone')
-      return getTodayDateStringPH()
-    })()
+    // Format the date correctly - use the provided date or today
+    const reportDateString = startDateParam || startOfDay.toISOString().split('T')[0]
 
     return NextResponse.json({
       summary: {
