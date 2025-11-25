@@ -4,7 +4,6 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { getUserAccessibleLocationIds } from '@/lib/rbac'
 import type { Prisma } from '@prisma/client'
-import { parseDateToPHRange } from '@/lib/timezone'
 
 export async function GET(request: NextRequest) {
   try {
@@ -85,26 +84,24 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Date filtering with Philippines timezone (UTC+8)
+    // Date filtering - use same approach as working Sales History API
+    // Parse date strings directly and create local Date objects
     if (startDate && endDate) {
-      // Both start and end dates provided
-      const startRange = parseDateToPHRange(startDate)
-      const endRange = parseDateToPHRange(endDate)
+      const [startYear, startMonth, startDay] = startDate.split('-').map(Number)
+      const [endYear, endMonth, endDay] = endDate.split('-').map(Number)
       saleWhere.saleDate = {
-        gte: startRange.startOfDay,
-        lte: endRange.endOfDay
+        gte: new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0),
+        lte: new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999)
       }
     } else if (startDate) {
-      // Only start date provided
-      const startRange = parseDateToPHRange(startDate)
+      const [startYear, startMonth, startDay] = startDate.split('-').map(Number)
       saleWhere.saleDate = {
-        gte: startRange.startOfDay
+        gte: new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0)
       }
     } else if (endDate) {
-      // Only end date provided
-      const endRange = parseDateToPHRange(endDate)
+      const [endYear, endMonth, endDay] = endDate.split('-').map(Number)
       saleWhere.saleDate = {
-        lte: endRange.endOfDay
+        lte: new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999)
       }
     }
 
