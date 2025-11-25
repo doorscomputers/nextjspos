@@ -21,6 +21,7 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { getUserAccessibleLocationIds, PERMISSIONS } from '@/lib/rbac'
 import { withCacheKey, generateCacheKey, getCacheTTL } from '@/lib/cache'
+import { parseDateToPHRange, getManilaDate, createStartOfDayPH } from '@/lib/timezone'
 
 export async function GET(request: NextRequest) {
   try {
@@ -118,14 +119,20 @@ export async function GET(request: NextRequest) {
           }
         }
 
+        // Build date filter with Philippines timezone (UTC+8)
         const dateFilter: any = {}
-        if (startDate) {
-          dateFilter.gte = new Date(startDate)
-        }
-        if (endDate) {
-          const endDateTime = new Date(endDate)
-          endDateTime.setHours(23, 59, 59, 999)
-          dateFilter.lte = endDateTime
+        if (startDate && endDate) {
+          // Use range from startDate 00:00:00 to endDate 23:59:59 in PH timezone
+          const startRange = parseDateToPHRange(startDate)
+          const endRange = parseDateToPHRange(endDate)
+          dateFilter.gte = startRange.startOfDay
+          dateFilter.lte = endRange.endOfDay
+        } else if (startDate) {
+          const startRange = parseDateToPHRange(startDate)
+          dateFilter.gte = startRange.startOfDay
+        } else if (endDate) {
+          const endRange = parseDateToPHRange(endDate)
+          dateFilter.lte = endRange.endOfDay
         }
 
         // Build where clause with date filter for sales
@@ -146,10 +153,12 @@ export async function GET(request: NextRequest) {
         }
 
         // Execute all queries in parallel
-        const thirtyDaysAgo = new Date()
+        // Use Manila timezone for date calculations
+        const nowManila = getManilaDate()
+        const thirtyDaysAgo = new Date(nowManila)
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-        const currentYear = new Date().getFullYear()
-        const financialYearStart = new Date(currentYear, 0, 1)
+        const currentYear = nowManila.getFullYear()
+        const financialYearStart = createStartOfDayPH(currentYear, 0, 1) // January 1st in PH timezone
 
         const [
           salesData,

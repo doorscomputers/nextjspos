@@ -1,28 +1,143 @@
+/**
+ * STOCK OPERATIONS MODULE
+ * =======================
+ *
+ * This is the CORE INVENTORY MANAGEMENT module for the entire POS system.
+ * ALL inventory movements (purchases, sales, transfers, returns, adjustments) MUST go through these functions.
+ *
+ * KEY CONCEPTS:
+ * -------------
+ * 1. **Stock Transactions**: Every inventory movement creates a StockTransaction record in the database
+ * 2. **Running Balance**: Each transaction updates the current stock balance in variation_location_details table
+ * 3. **Product History**: Each transaction also creates a ProductHistory record for audit trail
+ * 4. **Multi-Location**: Each product variation can have different stock levels at different business locations
+ *
+ * STOCK TRANSACTION TYPES:
+ * ------------------------
+ * - OPENING_STOCK: Initial stock when setting up inventory
+ * - PURCHASE: Stock received from supplier (adds inventory)
+ * - SALE: Stock sold to customer (deducts inventory)
+ * - TRANSFER_IN: Stock received from another location (adds inventory)
+ * - TRANSFER_OUT: Stock sent to another location (deducts inventory)
+ * - ADJUSTMENT: Manual correction of stock levels (add or deduct)
+ * - CUSTOMER_RETURN: Customer returns item (adds inventory back)
+ * - SUPPLIER_RETURN: Returning defective items to supplier (deducts inventory)
+ * - CORRECTION: System correction after stock count/audit (add or deduct)
+ * - REPLACEMENT_ISSUED: Issuing replacement for returned item (deducts inventory)
+ *
+ * PERFORMANCE OPTIMIZATIONS:
+ * --------------------------
+ * This module uses PostgreSQL stored functions to minimize database round trips:
+ * - Individual updates: 1 function call (vs 4 separate queries)
+ * - Bulk updates: Processes 70 items in 30-45 seconds (vs 2-3 minutes)
+ * - Debounced view refresh: Batches multiple operations to reduce load
+ *
+ * TRANSACTION SAFETY:
+ * -------------------
+ * - All operations use database transactions (ACID compliance)
+ * - Row-level locking prevents concurrent modification conflicts
+ * - Validation ensures negative stock is prevented (unless explicitly allowed)
+ *
+ * USAGE EXAMPLES:
+ * ---------------
+ * ```typescript
+ * // Recording a purchase
+ * await processPurchaseReceipt({
+ *   businessId: 1,
+ *   productId: 100,
+ *   productVariationId: 200,
+ *   locationId: 5,
+ *   quantity: 50,
+ *   unitCost: 25.00,
+ *   purchaseId: 12,
+ *   receiptId: 34,
+ *   userId: 7
+ * })
+ *
+ * // Processing a sale
+ * await processSale({
+ *   businessId: 1,
+ *   productId: 100,
+ *   productVariationId: 200,
+ *   locationId: 5,
+ *   quantity: 10,
+ *   unitCost: 30.00,
+ *   saleId: 56,
+ *   userId: 7
+ * })
+ *
+ * // Checking stock availability before sale
+ * const { available, currentStock, shortage } = await checkStockAvailability({
+ *   productVariationId: 200,
+ *   locationId: 5,
+ *   quantity: 10
+ * })
+ * ```
+ */
+
 import { prisma } from './prisma'
 import { Prisma, type StockTransaction } from '@prisma/client'
 import { validateStockConsistency } from './stockValidation'
 import { convertToBaseUnit, type UnitWithConversion } from './uomConversion'
 import { debouncedRefreshStockView } from './refreshStockView'
 
+// Type alias for Prisma transaction client - used when operations are part of a larger transaction
 type TransactionClient = Prisma.TransactionClient
 
-// Enable/disable post-operation validation (can be toggled via env var)
-// PERFORMANCE: DISABLED - adds 10-20s overhead PER ITEM (sums entire stock_transactions history)
-// NEVER enable in production - only for debugging stock inconsistencies
+/**
+ * STOCK VALIDATION FLAG
+ * ---------------------
+ * Enable/disable post-operation stock validation.
+ *
+ * WARNING: NEVER enable this in production!
+ * - Adds 10-20 seconds overhead PER ITEM
+ * - Sums entire stock_transactions table history for each validation
+ * - Only useful for debugging stock inconsistencies in development
+ *
+ * Current setting: HARDCODED to false for safety
+ */
 const ENABLE_STOCK_VALIDATION = false // HARDCODED to false - do not change without understanding performance impact
 
+/**
+ * Helper function to convert various numeric types to Prisma.Decimal
+ *
+ * Why we use Decimal:
+ * - JavaScript's number type has floating-point precision issues (0.1 + 0.2 = 0.30000000000000004)
+ * - Financial calculations require exact precision (e.g., currency, inventory quantities)
+ * - Prisma.Decimal ensures accurate calculations with no rounding errors
+ *
+ * @param value - Number, string, or existing Decimal to convert
+ * @returns Prisma.Decimal for precise calculations
+ */
 const toDecimal = (value: number | string | Prisma.Decimal) =>
   value instanceof Prisma.Decimal ? value : new Prisma.Decimal(value)
 
+/**
+ * Resolve user's display name for stock transaction records
+ *
+ * This function determines what name to show in stock history reports.
+ * Priority order:
+ * 1. If providedName is given (e.g., "John Doe Supplier"), use it
+ * 2. Try to build name from user's firstName + lastName
+ * 3. Fall back to username
+ * 4. Last resort: "User#123"
+ *
+ * @param tx - Database transaction client
+ * @param userId - ID of the user performing the transaction
+ * @param providedName - Optional pre-formatted name to use
+ * @returns Display name string (max 191 characters to fit database column)
+ */
 async function resolveUserDisplayName(
   tx: TransactionClient,
   userId: number,
   providedName?: string
 ): Promise<string> {
+  // If a name was already provided, use it
   if (providedName && providedName.trim().length > 0) {
     return providedName.trim()
   }
 
+  // Otherwise, look up the user in the database
   const user = await tx.user.findUnique({
     where: { id: userId },
     select: {
@@ -32,18 +147,50 @@ async function resolveUserDisplayName(
     },
   })
 
+  // User not found - return fallback
   if (!user) {
     return `User#${userId}`
   }
 
+  // Build name from firstName + lastName if available
   const nameParts = [user.firstName, user.lastName].filter(Boolean)
   if (nameParts.length > 0) {
     return nameParts.join(' ')
   }
 
+  // Fall back to username, or user ID as last resort
   return user.username || `User#${userId}`
 }
 
+/**
+ * PARAMETERS FOR STOCK UPDATE OPERATIONS
+ * =======================================
+ *
+ * This interface defines all the data needed to record an inventory movement.
+ *
+ * REQUIRED FIELDS:
+ * ----------------
+ * @param businessId - Which business owns this inventory (multi-tenant isolation)
+ * @param productId - The product being moved
+ * @param productVariationId - The specific variant (size, color, etc.)
+ * @param locationId - Which store/warehouse location
+ * @param quantity - How many units (positive = add, negative = deduct)
+ * @param type - Type of transaction (see StockTransactionType enum)
+ * @param userId - Who is performing this operation
+ *
+ * OPTIONAL FIELDS:
+ * ----------------
+ * @param unitCost - Cost per unit (for valuation and COGS calculations)
+ * @param referenceType - What triggered this ('sale', 'purchase', 'transfer', etc.)
+ * @param referenceId - ID of the source record (sale ID, purchase ID, etc.)
+ * @param referenceNumber - Human-readable reference (Invoice #123, PO #456)
+ * @param userDisplayName - Override for user's display name
+ * @param notes - Additional context or reason for the transaction
+ * @param allowNegative - Allow stock to go negative (false by default for safety)
+ * @param subUnitId - Unit of Measure ID (for items sold by different units like boxes, pieces)
+ * @param createdByName - Name to show in history (e.g., supplier name, customer name)
+ * @param tx - Database transaction to join (for batch operations)
+ */
 export type UpdateStockParams = {
   businessId: number
   productId: number
@@ -64,6 +211,21 @@ export type UpdateStockParams = {
   tx?: TransactionClient
 }
 
+/**
+ * RESULT OF STOCK UPDATE OPERATION
+ * =================================
+ *
+ * After updating stock, this object tells you what happened.
+ *
+ * @param transaction - The StockTransaction record that was created
+ * @param previousBalance - Stock level BEFORE the operation
+ * @param newBalance - Stock level AFTER the operation
+ *
+ * Example:
+ * - previousBalance: 100 units
+ * - quantity: -10 (sale of 10 units)
+ * - newBalance: 90 units
+ */
 export type UpdateStockResult = {
   transaction: StockTransaction
   previousBalance: number
@@ -71,7 +233,32 @@ export type UpdateStockResult = {
 }
 
 /**
- * Stock Transaction Types
+ * STOCK TRANSACTION TYPES ENUM
+ * =============================
+ *
+ * This enum defines all possible types of inventory movements in the system.
+ * Every stock change must specify one of these types.
+ *
+ * INVENTORY INCREASING TRANSACTIONS (Add Stock):
+ * -----------------------------------------------
+ * - OPENING_STOCK: Initial inventory when first setting up the system
+ * - PURCHASE: Receiving goods from a supplier (most common way to add stock)
+ * - TRANSFER_IN: Receiving inventory transferred from another location/branch
+ * - CUSTOMER_RETURN: Customer returns a previously sold item (adds it back to inventory)
+ * - ADJUSTMENT: Manual increase in stock (e.g., found misplaced items during audit)
+ *
+ * INVENTORY DECREASING TRANSACTIONS (Remove Stock):
+ * --------------------------------------------------
+ * - SALE: Selling items to customers (most common way to remove stock)
+ * - TRANSFER_OUT: Sending inventory to another location/branch
+ * - SUPPLIER_RETURN: Returning defective/damaged items back to supplier
+ * - REPLACEMENT_ISSUED: Giving customer a replacement for defective item
+ * - ADJUSTMENT: Manual decrease in stock (e.g., discovered theft, damage, expiry)
+ *
+ * SPECIAL TRANSACTIONS:
+ * ---------------------
+ * - CORRECTION: System correction after physical stock count reveals discrepancy
+ *   (can be positive or negative depending on actual vs system count)
  */
 export enum StockTransactionType {
   OPENING_STOCK = 'opening_stock',
@@ -87,7 +274,24 @@ export enum StockTransactionType {
 }
 
 /**
- * Get current stock for a product variation at a location
+ * Get current stock quantity for a product variation at a specific location
+ *
+ * This function queries the variation_location_details table which maintains
+ * the running balance (current stock on hand) for each product variant at each location.
+ *
+ * @param productVariationId - The product variant to check
+ * @param locationId - The business location (warehouse, store, branch)
+ * @param tx - Optional database transaction to use (for consistent reads within larger transaction)
+ * @returns Current stock quantity as a number (0 if no record exists)
+ *
+ * Example:
+ * ```typescript
+ * const currentStock = await getCurrentStock({
+ *   productVariationId: 123,
+ *   locationId: 5
+ * })
+ * console.log(`Current stock: ${currentStock} units`)
+ * ```
  */
 export async function getCurrentStock({
   productVariationId,
@@ -112,11 +316,37 @@ export async function getCurrentStock({
     },
   })
 
+  // Convert Prisma.Decimal to number for easier JavaScript usage
   return stock ? parseFloat(stock.qtyAvailable.toString()) : 0
 }
 
 /**
- * Check if sufficient stock is available
+ * Check if sufficient stock is available for an operation
+ *
+ * This function is used BEFORE attempting to deduct stock (e.g., before processing a sale)
+ * to verify that there's enough inventory available. It prevents negative stock situations.
+ *
+ * @param productVariationId - The product variant to check
+ * @param locationId - The business location
+ * @param quantity - How many units are needed
+ * @param tx - Optional database transaction for consistent reads
+ * @returns Object with availability status and stock details:
+ *   - available: true if currentStock >= quantity, false otherwise
+ *   - currentStock: How many units are actually in stock right now
+ *   - shortage: If not available, how many units short (0 if available)
+ *
+ * Example:
+ * ```typescript
+ * const { available, currentStock, shortage } = await checkStockAvailability({
+ *   productVariationId: 123,
+ *   locationId: 5,
+ *   quantity: 50
+ * })
+ *
+ * if (!available) {
+ *   console.error(`Not enough stock! Need ${quantity}, have ${currentStock}, short by ${shortage}`)
+ * }
+ * ```
  */
 export async function checkStockAvailability({
   productVariationId,
@@ -145,9 +375,42 @@ export async function checkStockAvailability({
 }
 
 /**
- * Batch check stock availability for multiple items
- * PERFORMANCE: Fetches all stock levels in a single query instead of N sequential queries
- * Saves ~1-2 seconds for 10-item sales
+ * Batch check stock availability for multiple items at once
+ *
+ * PERFORMANCE OPTIMIZATION:
+ * -------------------------
+ * Instead of checking each item one-by-one (which would be N database queries),
+ * this function fetches ALL stock levels in a SINGLE query, then processes them in memory.
+ *
+ * Performance gain: Saves ~1-2 seconds for a 10-item sale transaction
+ *
+ * Use Case:
+ * ---------
+ * When processing a sale with multiple items, you need to verify ALL items are in stock
+ * BEFORE starting the transaction. This function does that efficiently.
+ *
+ * @param items - Array of items to check, each with productVariationId and quantity needed
+ * @param locationId - The business location where stock will be deducted
+ * @param tx - Optional database transaction for consistent reads
+ * @returns Map where key = productVariationId, value = availability info
+ *
+ * Example:
+ * ```typescript
+ * const items = [
+ *   { productVariationId: 100, quantity: 5 },
+ *   { productVariationId: 200, quantity: 10 },
+ *   { productVariationId: 300, quantity: 3 }
+ * ]
+ *
+ * const results = await batchCheckStockAvailability({ items, locationId: 5 })
+ *
+ * for (const item of items) {
+ *   const check = results.get(item.productVariationId)
+ *   if (!check.available) {
+ *     console.error(`Item ${item.productVariationId}: Need ${item.quantity}, have ${check.currentStock}`)
+ *   }
+ * }
+ * ```
  */
 export async function batchCheckStockAvailability({
   items,
@@ -199,6 +462,50 @@ export async function batchCheckStockAvailability({
   return results
 }
 
+/**
+ * CORE STOCK UPDATE FUNCTION (INTERNAL)
+ * ======================================
+ *
+ * This is the HEART of the entire inventory system. Every inventory movement ultimately
+ * goes through this function. It handles:
+ *
+ * 1. **Validation**: Checks if operation would cause negative stock (unless allowed)
+ * 2. **Stock Update**: Updates the variation_location_details table (current balance)
+ * 3. **Transaction Record**: Creates StockTransaction record (audit trail)
+ * 4. **History Record**: Creates ProductHistory record (user-friendly history)
+ * 5. **Locking**: Uses row-level locks to prevent concurrent modification conflicts
+ *
+ * PERFORMANCE OPTIMIZATION:
+ * -------------------------
+ * This function uses a PostgreSQL stored function (update_inventory_with_history)
+ * that performs ALL operations server-side in a single function call.
+ *
+ * Traditional approach would require 4 separate queries:
+ * 1. SELECT current balance (with lock)
+ * 2. UPSERT variation_location_details (update balance)
+ * 3. INSERT into stock_transactions
+ * 4. INSERT into product_history
+ *
+ * With stored function: 1 function call = massive performance gain
+ * Expected: 70 items in 60-90 seconds (vs 5-6 minutes with separate queries)
+ *
+ * TRANSACTION SAFETY:
+ * -------------------
+ * - This function MUST be called within a database transaction (tx parameter required)
+ * - Uses SELECT FOR UPDATE in the stored function for row-level locking
+ * - Prevents race conditions when multiple users modify same product simultaneously
+ *
+ * @param tx - Database transaction client (REQUIRED - this function doesn't create its own transaction)
+ * @param params - All the data needed for the stock update (see UpdateStockParams)
+ * @returns UpdateStockResult with transaction record and before/after balances
+ *
+ * IMPORTANT: Do NOT call this directly - use the public wrapper functions instead:
+ * - updateStock() - for general updates
+ * - addStock() - for purchases, returns
+ * - deductStock() - for sales, transfers out
+ * - processSale() - specifically for sales
+ * - processPurchaseReceipt() - specifically for purchases
+ */
 async function executeStockUpdate(
   tx: TransactionClient,
   params: Omit<UpdateStockParams, 'tx'>
@@ -222,10 +529,14 @@ async function executeStockUpdate(
     createdByName: providedCreatedByName, // Optional supplier/customer name
   } = params
 
+  // Convert quantity to Decimal for precise calculations (no floating-point errors)
   const quantityDecimal = toDecimal(quantity)
 
-  // PERFORMANCE: Get current balance WITHOUT locking (function will lock it)
-  // This is just for calculating new balance - the actual lock happens in the function
+  // STEP 1: Get current stock balance (WITHOUT locking yet)
+  // --------------------------------------------------------
+  // We need to know the current balance to calculate the new balance.
+  // NOTE: We're NOT locking the row here - the stored function will do that.
+  // This is just a preview read to validate before calling the stored function.
   const existingRows = await tx.$queryRaw<
     { id: number; qty_available: Prisma.Decimal }[]
   >(
@@ -237,46 +548,75 @@ async function executeStockUpdate(
     `
   )
 
+  // Extract current balance (or 0 if this product doesn't exist at this location yet)
   const existingRecord = existingRows[0] ?? null
   const previousBalanceDecimal = existingRecord
     ? toDecimal(existingRecord.qty_available)
     : new Prisma.Decimal(0)
+
+  // Calculate what the new balance will be after this operation
+  // Example: previousBalance = 100, quantity = -10 (sale) => newBalance = 90
   const newBalanceDecimal = previousBalanceDecimal.add(quantityDecimal)
 
-  // NOTE: Negative stock validation is now handled by the stored function
-  // This pre-check avoids unnecessary function call if we know it will fail
+  // VALIDATION: Check for negative stock (unless explicitly allowed)
+  // -----------------------------------------------------------------
+  // This pre-check prevents us from calling the stored function if we know it will fail.
+  // The stored function ALSO validates this, but catching it early provides better error messages.
   if (!allowNegative && newBalanceDecimal.lt(0)) {
     throw new Error(
       `Insufficient stock. Current: ${previousBalanceDecimal.toString()}, Requested: ${Math.abs(quantity)}, Shortage: ${newBalanceDecimal.negated().toString()}`
     )
   }
 
-  // Resolve createdByName early (needed for function call)
+  // Resolve the display name for the person performing this operation
+  // This will appear in stock history reports
   let createdByName = providedCreatedByName || await resolveUserDisplayName(tx, userId, userDisplayName)
   if (!createdByName || createdByName.trim().length === 0) {
-    createdByName = `User#${userId}`
+    createdByName = `User#${userId}`  // Fallback if no name available
   }
+  // Truncate if too long (database column limit is VARCHAR(191))
   if (createdByName.length > 191) {
     createdByName = createdByName.substring(0, 191)
   }
 
-  // Prepare all values for batched query
+  // Prepare all values for the stored function call
   const unitCostDecimal = unitCost !== undefined ? toDecimal(unitCost) : null
   const notesText = notes || `Stock ${quantity > 0 ? 'added' : 'deducted'} - ${type}`
   const historyReferenceType = referenceType ?? 'stock_transaction'
 
-  // STEP 2: STORED FUNCTION - ALL operations server-side in single function call
-  // This eliminates ALL network round trips (SELECT + UPSERT + 2 INSERTs = 1 function call)
-  // Expected performance: 70 items in ~60-90 seconds (vs 5-6 min with separate queries)
-  // IMPORTANT: Function has explicit SELECT FOR UPDATE locking + negative stock validation
+  // STEP 2: CALL POSTGRESQL STORED FUNCTION
+  // ========================================
+  // This is the CRITICAL performance optimization.
+  // Instead of 4 separate database queries:
+  //   1. SELECT (with lock)
+  //   2. UPSERT variation_location_details
+  //   3. INSERT stock_transactions
+  //   4. INSERT product_history
+  //
+  // We call ONE stored function that does ALL of this server-side.
+  //
+  // Performance Impact:
+  // - Individual operation: 4 round trips → 1 round trip
+  // - Bulk operation (70 items): 280 round trips → 70 round trips
+  // - Time saved: 5-6 minutes → 60-90 seconds
+  //
+  // The stored function also includes:
+  // - SELECT FOR UPDATE (row-level locking to prevent race conditions)
+  // - Negative stock validation
+  // - Automatic timestamp handling
+
+  // Calculate total value (quantity × unit cost) for inventory valuation
   const totalValue = unitCostDecimal !== null ? unitCostDecimal.mul(quantityDecimal.abs()) : null
 
-  // CRITICAL: Properly cast NULL values for PostgreSQL function call
+  // PostgreSQL is strict about NULL types - must explicitly pass null (not undefined)
   const refNumberParam = referenceNumber !== null && referenceNumber !== undefined ? referenceNumber : null
   const notesParam = notes !== null && notes !== undefined ? notes : null
   const subUnitParam = subUnitId !== null && subUnitId !== undefined ? subUnitId : null
   const totalValueParam = totalValue !== null ? totalValue : null
 
+  // Call the stored function with all parameters
+  // Function signature: update_inventory_with_history(businessId, productId, variationId, ...)
+  // Returns: previous_balance, new_balance, transaction_id, transaction_date, history_id
   const batchResult = await tx.$queryRaw<
     {
       previous_balance: Prisma.Decimal
@@ -311,13 +651,15 @@ async function executeStockUpdate(
     `
   )
 
+  // Verify the function executed successfully
   if (!batchResult || batchResult.length === 0) {
     throw new Error('Stored function execution failed - no results returned')
   }
 
   const result = batchResult[0]
 
-  // Reconstruct transaction object for compatibility
+  // Reconstruct transaction object for compatibility with existing code
+  // (We only have ID and timestamp from the function, but that's all we need)
   const transaction = {
     id: result.transaction_id,
     createdAt: result.transaction_date,
@@ -557,12 +899,60 @@ export async function bulkUpdateStock(
 }
 
 /**
- * Update stock and create transaction record
- * This is the ONLY function that should modify stock quantities
+ * UPDATE STOCK - Main public function for stock operations
+ * =========================================================
  *
- * NOTE: Materialized view refresh is handled automatically:
- * - When called within a transaction (tx provided): No refresh (caller responsible)
- * - When called standalone: Debounced refresh after 2 seconds
+ * This is the PRIMARY ENTRY POINT for ALL stock updates in the system.
+ * Whether you're recording a sale, purchase, transfer, or adjustment - it goes through here.
+ *
+ * WHAT IT DOES:
+ * -------------
+ * 1. Updates the stock balance in variation_location_details table
+ * 2. Creates a StockTransaction record (audit trail)
+ * 3. Creates a ProductHistory record (user-friendly history)
+ * 4. Schedules materialized view refresh (for reports)
+ *
+ * TRANSACTION HANDLING:
+ * ---------------------
+ * - If `tx` parameter is provided: Joins existing transaction (caller handles commit/rollback)
+ * - If `tx` is NOT provided: Creates its own transaction automatically
+ *
+ * MATERIALIZED VIEW REFRESH:
+ * --------------------------
+ * The system maintains a materialized view for fast inventory reports.
+ * - When called WITHIN a transaction (tx provided): Caller must refresh the view
+ * - When called STANDALONE: Automatically schedules debounced refresh after 2 seconds
+ *   (Debouncing batches multiple rapid updates into one refresh for performance)
+ *
+ * @param params - All stock operation parameters (see UpdateStockParams type)
+ * @returns UpdateStockResult with transaction record and before/after balances
+ *
+ * Example Usage:
+ * ```typescript
+ * // Standalone operation (auto-refresh)
+ * const result = await updateStock({
+ *   businessId: 1,
+ *   productId: 100,
+ *   productVariationId: 200,
+ *   locationId: 5,
+ *   quantity: 50,
+ *   type: StockTransactionType.PURCHASE,
+ *   userId: 7
+ * })
+ *
+ * // Within existing transaction (manual refresh)
+ * await prisma.$transaction(async (tx) => {
+ *   await updateStock({ ...params, tx })
+ *   // ... other operations ...
+ *   await refreshStockView() // Manual refresh at end
+ * })
+ * ```
+ *
+ * NOTE: For most use cases, use the helper functions instead:
+ * - processSale() - for sales
+ * - processPurchaseReceipt() - for purchases
+ * - addStock() - for adding inventory
+ * - deductStock() - for removing inventory
  */
 export async function updateStock(params: UpdateStockParams): Promise<UpdateStockResult> {
   const { tx, ...rest } = params
@@ -587,7 +977,44 @@ export async function updateStock(params: UpdateStockParams): Promise<UpdateStoc
 }
 
 /**
- * Add stock (purchases, returns, corrections)
+ * ADD STOCK - Helper function for operations that INCREASE inventory
+ * ===================================================================
+ *
+ * Use this function when inventory is being ADDED (quantity must be positive).
+ *
+ * Common Use Cases:
+ * -----------------
+ * - PURCHASE: Receiving goods from supplier
+ * - CUSTOMER_RETURN: Customer returns an item
+ * - TRANSFER_IN: Receiving stock from another location
+ * - ADJUSTMENT: Manual increase (found misplaced items, etc.)
+ * - CORRECTION: Physical count shows more stock than system
+ *
+ * This is a convenience wrapper around updateStock() that:
+ * 1. Validates quantity is positive
+ * 2. Ensures quantity is passed as positive number
+ * 3. Calls updateStock() with the correct parameters
+ *
+ * @param quantity - Must be POSITIVE (will throw error if <= 0)
+ * @param type - Transaction type (usually PURCHASE, CUSTOMER_RETURN, TRANSFER_IN, etc.)
+ * @param unitCost - Optional cost per unit for inventory valuation
+ * @param subUnitId - Optional Unit of Measure ID (e.g., if buying by boxes vs pieces)
+ * @param createdByName - Optional name to show in history (e.g., supplier name)
+ *
+ * Example:
+ * ```typescript
+ * await addStock({
+ *   businessId: 1,
+ *   productId: 100,
+ *   productVariationId: 200,
+ *   locationId: 5,
+ *   quantity: 50,  // Add 50 units
+ *   type: StockTransactionType.PURCHASE,
+ *   unitCost: 25.00,
+ *   userId: 7,
+ *   createdByName: "ABC Supplier Co."
+ * })
+ * ```
  */
 export async function addStock({
   businessId,
@@ -649,7 +1076,51 @@ export async function addStock({
 }
 
 /**
- * Deduct stock (sales, transfers out, supplier returns)
+ * DEDUCT STOCK - Helper function for operations that DECREASE inventory
+ * ======================================================================
+ *
+ * Use this function when inventory is being REMOVED (quantity must be positive).
+ *
+ * Common Use Cases:
+ * -----------------
+ * - SALE: Selling items to customers
+ * - TRANSFER_OUT: Sending stock to another location
+ * - SUPPLIER_RETURN: Returning defective items to supplier
+ * - REPLACEMENT_ISSUED: Giving customer a replacement item
+ * - ADJUSTMENT: Manual decrease (theft, damage, expiry, etc.)
+ * - CORRECTION: Physical count shows less stock than system
+ *
+ * This is a convenience wrapper around updateStock() that:
+ * 1. Validates quantity is positive
+ * 2. Checks stock availability BEFORE deducting (unless skipAvailabilityCheck = true)
+ * 3. Converts quantity to NEGATIVE before passing to updateStock()
+ * 4. Prevents negative stock (unless allowNegative = true)
+ *
+ * @param quantity - Must be POSITIVE (function converts it to negative internally)
+ * @param type - Transaction type (usually SALE, TRANSFER_OUT, SUPPLIER_RETURN, etc.)
+ * @param allowNegative - Allow stock to go negative? Default: false (throws error if insufficient)
+ * @param skipAvailabilityCheck - Skip pre-check? Default: false (use true if already validated)
+ * @param unitCost - Optional cost per unit for COGS calculation
+ * @param subUnitId - Optional Unit of Measure ID
+ *
+ * IMPORTANT: The quantity parameter should be POSITIVE.
+ * Example: To deduct 10 units, pass quantity: 10 (NOT -10)
+ * The function automatically converts it to -10 internally.
+ *
+ * Example:
+ * ```typescript
+ * await deductStock({
+ *   businessId: 1,
+ *   productId: 100,
+ *   productVariationId: 200,
+ *   locationId: 5,
+ *   quantity: 10,  // Deduct 10 units (pass as positive!)
+ *   type: StockTransactionType.SALE,
+ *   unitCost: 30.00,
+ *   userId: 7,
+ *   allowNegative: false  // Throw error if insufficient stock
+ * })
+ * ```
  */
 export async function deductStock({
   businessId,

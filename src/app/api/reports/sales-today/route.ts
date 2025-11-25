@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
+import { getTodayRangePH } from '@/lib/timezone'
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,10 +26,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
 
-    // Get today's date range (start of day to end of day)
-    const today = new Date()
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0)
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59)
+    // Get today's date range in Philippines timezone (UTC+8)
+    // This ensures "today" means today in Philippines time, not server's UTC time
+    const { startOfDay, endOfDay } = getTodayRangePH()
 
     const where: any = {
       businessId: parseInt(businessId),
@@ -381,7 +381,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       summary: {
-        date: today.toISOString().split('T')[0],
+        date: startOfDay.toISOString().split('T')[0],
         totalSales,
         totalAmount,
         totalSubtotal,

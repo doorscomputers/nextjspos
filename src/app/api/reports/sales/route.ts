@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS, getUserAccessibleLocationIds } from '@/lib/rbac'
+import { parseDateToPHRange } from '@/lib/timezone'
 
 export async function GET(request: NextRequest) {
   try {
@@ -73,18 +74,26 @@ export async function GET(request: NextRequest) {
       whereClause.invoiceNumber = { contains: invoiceNumber }
     }
 
-    // Date range filter
-    if (startDate || endDate) {
-      whereClause.saleDate = {}
-      if (startDate) {
-        // Start of day in local timezone
-        const startDateTime = new Date(startDate + 'T00:00:00')
-        whereClause.saleDate.gte = startDateTime
+    // Date range filter with Philippines timezone (UTC+8)
+    if (startDate && endDate) {
+      // Both start and end dates provided
+      const startRange = parseDateToPHRange(startDate)
+      const endRange = parseDateToPHRange(endDate)
+      whereClause.saleDate = {
+        gte: startRange.startOfDay,
+        lte: endRange.endOfDay
       }
-      if (endDate) {
-        // End of day in local timezone (23:59:59.999)
-        const endDateTime = new Date(endDate + 'T23:59:59.999')
-        whereClause.saleDate.lte = endDateTime
+    } else if (startDate) {
+      // Only start date provided
+      const startRange = parseDateToPHRange(startDate)
+      whereClause.saleDate = {
+        gte: startRange.startOfDay
+      }
+    } else if (endDate) {
+      // Only end date provided
+      const endRange = parseDateToPHRange(endDate)
+      whereClause.saleDate = {
+        lte: endRange.endOfDay
       }
     }
 

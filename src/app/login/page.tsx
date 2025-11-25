@@ -351,7 +351,7 @@ export default function LoginPage() {
           <div>
             <label htmlFor="rfid" className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
               <MapPin className="w-4 h-4" />
-              Scan Location RFID Card (Cashiers/Managers only)
+              Scan Location RFID Card (Cashiers/Managers/Warehouse Managers)
             </label>
 
             {!rfidVerified ? (
@@ -372,7 +372,7 @@ export default function LoginPage() {
                   📱 Scan the RFID card at your location, then press Enter
                 </p>
                 <p className="mt-1 text-xs text-yellow-400">
-                  ⚠️ Admins can skip this field - location scan not required for admin roles
+                  ⚠️ Only Super Admin, System Administrator, and All Branch Admin can skip this field
                 </p>
               </>
             ) : (

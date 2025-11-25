@@ -14,11 +14,11 @@
             - generic [ref=e11]: et
         - paragraph [ref=e12]:
           - generic [ref=e13]: C
-          - generic [ref=e14]: omputer
+          - generic [ref=e14]: OMPUTER
           - generic [ref=e15]: T
-          - generic [ref=e16]: rading &
+          - generic [ref=e16]: RADING &
           - generic [ref=e17]: S
-          - generic [ref=e18]: ervices
+          - generic [ref=e18]: ERVICES
       - generic [ref=e20]:
         - generic [ref=e21]: P
         - generic [ref=e22]: C
@@ -26,23 +26,23 @@
         - generic [ref=e24]: S
     - heading "Login" [level=2] [ref=e26]
     - generic [ref=e27]:
-      - paragraph [ref=e29]: "Login failed: Invalid credentials"
+      - paragraph [ref=e29]: "Login failed: Invalid `prisma.user.findUnique()` invocation: The column `business.enable_sub_units` does not exist in the current database."
       - generic [ref=e30]:
         - generic [ref=e31]: User Name
-        - textbox "User Name" [ref=e32]: superadmin
+        - textbox "User Name" [ref=e32]: Jheiron
       - generic [ref=e33]:
         - generic [ref=e34]: Password
         - generic [ref=e35]:
-          - textbox "Password" [ref=e36]: Sss999....
+          - textbox "Password" [ref=e36]: "111111"
           - button [ref=e37]:
             - img [ref=e38]
       - generic [ref=e41]:
         - generic [ref=e42]:
           - img [ref=e43]
-          - text: Scan Location RFID Card (Cashiers/Managers only)
-        - textbox "Scan Location RFID Card (Cashiers/Managers only)" [ref=e46]
+          - text: Scan Location RFID Card (Cashiers/Managers/Warehouse Managers)
+        - textbox "Scan Location RFID Card (Cashiers/Managers/Warehouse Managers)" [ref=e46]
         - paragraph [ref=e47]: 📱 Scan the RFID card at your location, then press Enter
-        - paragraph [ref=e48]: ⚠️ Admins can skip this field - location scan not required for admin roles
+        - paragraph [ref=e48]: ⚠️ Only Super Admin, System Administrator, and All Branch Admin can skip this field
       - button "LOGIN" [ref=e49]
   - alert [ref=e50]
 ```

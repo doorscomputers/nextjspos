@@ -1,37 +1,400 @@
+/**
+ * EMAIL ALERTS MODULE
+ * ===================
+ *
+ * This module sends external email notifications for critical events in the POS system.
+ * Unlike in-app notifications (notifications.ts), these are EMAILS sent to admin inboxes.
+ *
+ * WHY EMAIL ALERTS?
+ * -----------------
+ * - **Critical Events**: Notify managers even when not logged into the system
+ * - **Audit Trail**: Permanent email records of sensitive transactions
+ * - **Fraud Prevention**: Instant alerts for large discounts, voids, cash outs
+ * - **Inventory Management**: Low stock alerts to prevent stock outs
+ * - **Discrepancy Detection**: Transfer mismatches that may indicate theft/errors
+ * - **Remote Monitoring**: Managers can monitor business from anywhere
+ *
+ * WHAT TRIGGERS EMAIL ALERTS?
+ * ----------------------------
+ * 1. **Large Discount** - Discount exceeds configured threshold (default: ₱1,000)
+ * 2. **Void Transaction** - Any sale is voided/cancelled
+ * 3. **Refund Transaction** - Customer receives money back
+ * 4. **Credit Sale** - Sale made on credit (accounts receivable)
+ * 5. **Large Cash Out** - Cash withdrawal exceeds threshold (default: ₱5,000)
+ * 6. **Low Stock** - Product inventory below reorder point
+ * 7. **Transfer Discrepancy** - Received quantity doesn't match sent quantity
+ * 8. **Supplier Return** - Products being returned to supplier
+ *
+ * HOW IT WORKS:
+ * -------------
+ * 1. Event occurs in the system (e.g., sale with large discount)
+ * 2. System checks if email alerts are enabled (areNotificationsEnabled())
+ * 3. Checks if event exceeds threshold (e.g., discount > ₱1,000)
+ * 4. Builds HTML email using template (getEmailTemplate())
+ * 5. Sends email via SMTP using Nodemailer (sendEmail())
+ * 6. Returns true if sent, false if skipped/failed
+ *
+ * CONFIGURATION (Environment Variables):
+ * ---------------------------------------
+ * **SMTP Settings** (required for email to work):
+ * - SMTP_HOST: Mail server (e.g., "smtp.gmail.com")
+ * - SMTP_PORT: Port number (587 for TLS, 465 for SSL)
+ * - SMTP_SECURE: "true" for port 465, "false" for 587
+ * - SMTP_USER: Email account username
+ * - SMTP_PASS: Email account password/app password
+ * - SMTP_FROM: From address (e.g., "POS <noreply@company.com>")
+ *
+ * **Alert Settings** (optional - control which alerts are sent):
+ * - EMAIL_NOTIFICATIONS_ENABLED: "true" to enable all alerts
+ * - EMAIL_ADMIN_RECIPIENTS: Comma-separated admin emails
+ * - EMAIL_ALERT_DISCOUNT_THRESHOLD: Min discount amount (default: 1000)
+ * - EMAIL_ALERT_VOID_ENABLED: "true" to alert on voids
+ * - EMAIL_ALERT_REFUND_ENABLED: "true" to alert on refunds
+ * - EMAIL_ALERT_CREDIT_ENABLED: "true" to alert on credit sales
+ * - EMAIL_ALERT_CASH_OUT_THRESHOLD: Min cash out amount (default: 5000)
+ * - EMAIL_ALERT_LOW_STOCK_ENABLED: "true" to alert on low stock
+ * - EMAIL_ALERT_TRANSFER_DISCREPANCY_ENABLED: "true" for transfer alerts
+ *
+ * COMMON USE CASES:
+ * -----------------
+ *
+ * 1. **Check if Email is Configured**
+ * ```typescript
+ * import { isEmailConfigured } from '@/lib/email'
+ *
+ * if (isEmailConfigured()) {
+ *   console.log('Email system ready')
+ * } else {
+ *   console.warn('Email not configured - check .env file')
+ * }
+ * ```
+ *
+ * 2. **Send Test Email**
+ * ```typescript
+ * import { sendTestEmail } from '@/lib/email'
+ *
+ * // Verify SMTP configuration
+ * const success = await sendTestEmail('admin@company.com')
+ * if (success) {
+ *   console.log('Test email sent successfully')
+ * }
+ * ```
+ *
+ * 3. **Alert on Large Discount** (called from sales API)
+ * ```typescript
+ * import { sendLargeDiscountAlert } from '@/lib/email'
+ *
+ * // After processing sale with discount
+ * if (discountAmount > 1000) {
+ *   await sendLargeDiscountAlert({
+ *     saleNumber: 'INV-001',
+ *     discountAmount: 1500,
+ *     discountType: 'Senior Citizen 20%',
+ *     totalAmount: 6000,
+ *     cashierName: 'Juan Dela Cruz',
+ *     locationName: 'Main Store',
+ *     timestamp: new Date(),
+ *     reason: 'Valid senior citizen ID presented'
+ *   })
+ * }
+ * ```
+ *
+ * 4. **Alert on Low Stock** (called from stock operations)
+ * ```typescript
+ * import { sendLowStockAlert } from '@/lib/email'
+ *
+ * await sendLowStockAlert({
+ *   products: [
+ *     {
+ *       name: 'Coca Cola 1.5L',
+ *       sku: 'COKE-1.5',
+ *       currentStock: 5,
+ *       reorderPoint: 20,
+ *       locationName: 'Main Store',
+ *       urgency: 'critical'  // Red alert
+ *     },
+ *     {
+ *       name: 'Sprite 1.5L',
+ *       sku: 'SPR-1.5',
+ *       currentStock: 12,
+ *       reorderPoint: 20,
+ *       locationName: 'Main Store',
+ *       urgency: 'high'  // Orange alert
+ *     }
+ *   ]
+ * })
+ * ```
+ *
+ * 5. **Alert on Transfer Discrepancy** (called after transfer verification)
+ * ```typescript
+ * import { sendTransferDiscrepancyAlert } from '@/lib/email'
+ *
+ * // When received quantity doesn't match sent quantity
+ * await sendTransferDiscrepancyAlert({
+ *   transferNumber: 'TR-001',
+ *   fromLocationName: 'Main Warehouse',
+ *   toLocationName: 'Branch A',
+ *   verifierName: 'Maria Santos',
+ *   timestamp: new Date(),
+ *   discrepantItems: [
+ *     {
+ *       productName: 'Laptop Dell XPS',
+ *       variationName: '15-inch, 16GB RAM',
+ *       sku: 'LAPTOP-DELL-001',
+ *       quantitySent: 10,
+ *       quantityReceived: 9,  // Missing 1 unit!
+ *       difference: -1,
+ *       discrepancyType: 'shortage'
+ *     }
+ *   ]
+ * })
+ * ```
+ *
+ * 6. **Custom Email** (generic send function)
+ * ```typescript
+ * import { sendEmail } from '@/lib/email'
+ *
+ * await sendEmail({
+ *   to: ['admin@company.com', 'manager@company.com'],
+ *   subject: 'Custom Alert',
+ *   html: '<h1>Custom HTML content</h1><p>Alert details...</p>',
+ *   text: 'Plain text fallback',
+ *   attachments: [
+ *     {
+ *       filename: 'report.pdf',
+ *       path: '/path/to/report.pdf'
+ *     }
+ *   ]
+ * })
+ * ```
+ *
+ * EMAIL TEMPLATE DESIGN:
+ * ----------------------
+ * All emails use consistent HTML template with:
+ * - Responsive design (mobile-friendly)
+ * - Brand colors (blue header)
+ * - Alert boxes (red/orange/blue for different severities)
+ * - Detail tables (key-value pairs for transaction data)
+ * - Action buttons (links to relevant pages)
+ * - Footer with disclaimer and copyright
+ *
+ * PHILIPPINE FORMATTING:
+ * ----------------------
+ * All monetary amounts and dates use Philippine format:
+ * - Currency: ₱1,234.56 (peso sign, thousands separator, 2 decimals)
+ * - Dates: "January 15, 2025 at 3:45 PM" (en-PH locale)
+ * - Numbers: 1,234.5678 (for quantities with precision)
+ *
+ * SMTP PROVIDERS:
+ * ---------------
+ * **Gmail** (recommended for testing):
+ * - Host: smtp.gmail.com
+ * - Port: 587 (TLS) or 465 (SSL)
+ * - Requires "App Password" (not regular password)
+ * - Enable 2FA first, then generate app password
+ *
+ * **SendGrid** (recommended for production):
+ * - Host: smtp.sendgrid.net
+ * - Port: 587
+ * - User: apikey
+ * - Pass: Your SendGrid API key
+ * - More reliable delivery than Gmail
+ *
+ * **Mailgun, Amazon SES, etc.**:
+ * - Follow provider's SMTP settings
+ * - Update .env file accordingly
+ *
+ * TYPESCRIPT PATTERNS:
+ * --------------------
+ *
+ * **Singleton Pattern (Transporter)**:
+ * ```typescript
+ * let transporter: Transporter | null = null
+ * function getTransporter() {
+ *   if (!transporter) {
+ *     transporter = nodemailer.createTransport(...)
+ *   }
+ *   return transporter
+ * }
+ * ```
+ * - Creates transporter ONCE and reuses it
+ * - Avoids creating new SMTP connections for every email
+ * - More efficient than creating transporter per email
+ *
+ * **Type Safety with Interfaces**:
+ * ```typescript
+ * interface SendEmailOptions {
+ *   to: string | string[]  // Single email or array
+ *   subject: string
+ *   html: string
+ *   text?: string  // Optional plain text
+ *   attachments?: Array<...>  // Optional files
+ * }
+ * ```
+ * - Ensures all required fields are provided
+ * - Autocomplete in IDE
+ * - Compile-time error if missing fields
+ *
+ * **Template Literals for HTML**:
+ * ```typescript
+ * const html = `<div>${variable}</div>`
+ * ```
+ * - Embed variables directly in HTML
+ * - Easier than string concatenation
+ * - Supports multi-line strings
+ *
+ * **Array Methods (filter, map, reduce)**:
+ * ```typescript
+ * const critical = products.filter(p => p.urgency === 'critical')
+ * const rows = items.map(item => `<tr>...</tr>`).join('')
+ * const total = items.reduce((sum, item) => sum + item.amount, 0)
+ * ```
+ * - Functional programming patterns
+ * - More readable than loops
+ * - Chainable operations
+ *
+ * NODEMAILER PATTERNS:
+ * --------------------
+ *
+ * **Creating Transporter**:
+ * ```typescript
+ * nodemailer.createTransport({
+ *   host: 'smtp.gmail.com',
+ *   port: 587,
+ *   secure: false,  // TLS (upgrade later)
+ *   auth: { user: '...', pass: '...' }
+ * })
+ * ```
+ * - Configures SMTP connection
+ * - `secure: true` for port 465 (SSL)
+ * - `secure: false` for port 587 (TLS/STARTTLS)
+ *
+ * **Sending Email**:
+ * ```typescript
+ * await transporter.sendMail({
+ *   from: 'POS <noreply@company.com>',
+ *   to: 'admin@company.com',
+ *   subject: 'Alert',
+ *   html: '<h1>HTML content</h1>',
+ *   text: 'Plain text fallback'
+ * })
+ * ```
+ * - Returns message info (including messageId)
+ * - Throws error if send fails
+ * - Always provide both HTML and text for compatibility
+ *
+ * **Multiple Recipients**:
+ * ```typescript
+ * to: ['admin@company.com', 'manager@company.com'].join(', ')
+ * // Or: to: 'admin@company.com, manager@company.com'
+ * ```
+ * - Comma-separated string
+ * - All recipients see each other (TO field)
+ * - Use BCC for privacy
+ *
+ * PERFORMANCE CONSIDERATIONS:
+ * ---------------------------
+ * - Email sending is SLOW (1-3 seconds per email)
+ * - Don't block API response waiting for email send
+ * - Consider background job queue (BullMQ, etc.) for production
+ * - Rate limit: Most providers limit emails per hour
+ * - Gmail: 500 emails/day for free accounts
+ * - Batch low stock alerts instead of per-product
+ *
+ * SECURITY NOTES:
+ * ---------------
+ * - NEVER commit SMTP credentials to git (.env only)
+ * - Use app passwords for Gmail (not account password)
+ * - Enable 2FA on email account for security
+ * - Validate email addresses before sending
+ * - Sanitize user input in email content (prevent injection)
+ * - Use TLS/SSL for encrypted SMTP connection
+ * - Monitor failed send attempts (could indicate attack)
+ *
+ * IMPORTANT NOTES:
+ * ----------------
+ * - Emails are EXTERNAL notifications (leave audit trail)
+ * - Always check isEmailConfigured() before relying on alerts
+ * - Test with sendTestEmail() after configuration changes
+ * - Use areNotificationsEnabled() to check both config AND feature flags
+ * - Alert functions return false if skipped (threshold not met, disabled)
+ * - Recipient list comes from EMAIL_ADMIN_RECIPIENTS env var
+ * - Each alert type can be individually enabled/disabled
+ * - Thresholds prevent alert fatigue from minor events
+ * - HTML emails may be blocked by some email clients (provide text fallback)
+ * - Email delivery not guaranteed (use in-app notifications for critical UX)
+ */
+
 import nodemailer from 'nodemailer'
 import type { Transporter } from 'nodemailer'
 
 // Email configuration from environment variables
+// process.env is a Node.js global containing all environment variables from .env file
+/**
+ * SMTP Configuration
+ *
+ * Loaded from environment variables (.env file).
+ * If variables not set, uses defaults (Gmail SMTP for development).
+ */
 const emailConfig = {
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',  // SMTP server
+  port: parseInt(process.env.SMTP_PORT || '587'),    // 587=TLS, 465=SSL
+  secure: process.env.SMTP_SECURE === 'true',        // true for 465, false for 587
   auth: {
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || '',
+    user: process.env.SMTP_USER || '',  // Email account username
+    pass: process.env.SMTP_PASS || '',  // Email account password/app password
   },
 }
 
+/**
+ * From Address
+ *
+ * Email address that appears in "From" field.
+ * Format: "Name <email@domain.com>"
+ */
 const fromAddress = process.env.SMTP_FROM || 'IgoroTechPOS <noreply@igorotechpos.com>'
 
-// Alert thresholds
+/**
+ * Alert Configuration
+ *
+ * Controls which alerts are enabled and their thresholds.
+ * Loaded from environment variables with sensible defaults.
+ */
 const alertConfig = {
-  enabled: process.env.EMAIL_NOTIFICATIONS_ENABLED === 'true',
+  enabled: process.env.EMAIL_NOTIFICATIONS_ENABLED === 'true',  // Master switch
+  // Admin recipients (comma-separated in .env, converted to array)
   adminRecipients: (process.env.EMAIL_ADMIN_RECIPIENTS || '').split(',').filter(Boolean),
+  // Minimum discount amount to trigger alert (default: ₱1,000)
   discountThreshold: parseFloat(process.env.EMAIL_ALERT_DISCOUNT_THRESHOLD || '1000'),
+  // Individual alert type toggles
   voidEnabled: process.env.EMAIL_ALERT_VOID_ENABLED === 'true',
   refundEnabled: process.env.EMAIL_ALERT_REFUND_ENABLED === 'true',
   creditEnabled: process.env.EMAIL_ALERT_CREDIT_ENABLED === 'true',
+  // Minimum cash out amount to trigger alert (default: ₱5,000)
   cashOutThreshold: parseFloat(process.env.EMAIL_ALERT_CASH_OUT_THRESHOLD || '5000'),
   lowStockEnabled: process.env.EMAIL_ALERT_LOW_STOCK_ENABLED === 'true',
   transferDiscrepancyEnabled: process.env.EMAIL_ALERT_TRANSFER_DISCREPANCY_ENABLED === 'true',
 }
 
-// Create reusable transporter
+/**
+ * Transporter Singleton
+ *
+ * Nodemailer transporter is created ONCE and reused for all emails.
+ * This avoids creating new SMTP connections for every email (more efficient).
+ */
 let transporter: Transporter | null = null
 
+/**
+ * Get Transporter (Singleton Pattern)
+ *
+ * Returns the cached transporter if it exists, otherwise creates it.
+ * Lazy initialization: transporter is only created when first email is sent.
+ *
+ * @returns Nodemailer transporter instance
+ */
 function getTransporter(): Transporter {
   if (!transporter) {
+    // Create transporter on first call
     transporter = nodemailer.createTransport(emailConfig)
   }
   return transporter

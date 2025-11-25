@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { getUserAccessibleLocationIds } from '@/lib/rbac'
 import type { Prisma } from '@prisma/client'
+import { parseDateToPHRange } from '@/lib/timezone'
 
 export async function GET(request: NextRequest) {
   try {
@@ -84,19 +85,26 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Date filtering
-    if (startDate || endDate) {
-      const dateFilter: Prisma.DateTimeFilter = {}
-      if (startDate) {
-        dateFilter.gte = new Date(startDate)
+    // Date filtering with Philippines timezone (UTC+8)
+    if (startDate && endDate) {
+      // Both start and end dates provided
+      const startRange = parseDateToPHRange(startDate)
+      const endRange = parseDateToPHRange(endDate)
+      saleWhere.saleDate = {
+        gte: startRange.startOfDay,
+        lte: endRange.endOfDay
       }
-      if (endDate) {
-        const end = new Date(endDate)
-        end.setHours(23, 59, 59, 999)
-        dateFilter.lte = end
+    } else if (startDate) {
+      // Only start date provided
+      const startRange = parseDateToPHRange(startDate)
+      saleWhere.saleDate = {
+        gte: startRange.startOfDay
       }
-      if (Object.keys(dateFilter).length > 0) {
-        saleWhere.saleDate = dateFilter
+    } else if (endDate) {
+      // Only end date provided
+      const endRange = parseDateToPHRange(endDate)
+      saleWhere.saleDate = {
+        lte: endRange.endOfDay
       }
     }
 

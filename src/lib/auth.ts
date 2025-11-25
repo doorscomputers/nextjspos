@@ -311,6 +311,12 @@ export const authOptions: NextAuthOptions = {
         // - Super Admin: Full system access across all businesses
         // - System Administrator: Full access within their business
         // - All Branch Admin: Access to all locations within business
+        //
+        // IMPORTANT: The following roles MUST scan RFID/location code:
+        // - Cashiers, Managers, Supervisors (POS operations)
+        // - Warehouse Manager (critical inventory operations - purchasing, transfers, receiving)
+        // - Branch Managers (location-specific operations)
+        // - All other non-admin roles
         const isAdminRole = roleNames.some(role =>
           role === 'Super Admin' ||
           role === 'System Administrator' ||

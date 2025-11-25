@@ -1,15 +1,314 @@
+/**
+ * BACKGROUND JOB PROCESSOR MODULE
+ * ================================
+ *
+ * This module processes long-running operations asynchronously in the background.
+ * It prevents API timeouts and improves user experience for operations that take
+ * several seconds to complete (like processing 100-item transfer requests).
+ *
+ * WHY BACKGROUND JOBS?
+ * --------------------
+ * - **Prevent Timeouts**: Transfer with 100 items can take 60+ seconds (API timeout)
+ * - **Better UX**: User gets immediate response ("Processing in background...")
+ * - **Retry Logic**: Automatic retry on transient failures (network, deadlocks)
+ * - **Monitoring**: Track progress via job status (pending → processing → completed)
+ * - **Fault Tolerance**: Recover from crashes by resuming pending jobs
+ * - **Scalability**: Process multiple jobs concurrently (future: worker pool)
+ *
+ * HOW IT WORKS:
+ * -------------
+ * 1. User triggers operation (e.g., "Send Transfer")
+ * 2. API creates Job record in database (status: 'pending')
+ * 3. API returns immediately with job ID ("Job #123 queued")
+ * 4. Worker picks up pending job and processes it
+ * 5. Job status updates: pending → processing → completed/failed
+ * 6. Frontend polls job status to show progress/completion
+ *
+ * JOB LIFECYCLE:
+ * --------------
+ * ```
+ * pending (created by API)
+ *    ↓
+ * processing (picked up by worker)
+ *    ↓
+ * ├─→ completed (success!)
+ * ├─→ failed (max retries exhausted)
+ * └─→ pending (retry scheduled - exponential backoff)
+ * ```
+ *
+ * JOB TYPES:
+ * ----------
+ * - **transfer_send**: Deduct stock from source location (bulk operation)
+ * - **transfer_complete**: Add stock to destination location (bulk operation)
+ * - **sale_create**: Process sale and deduct inventory (TODO)
+ * - **purchase_approve**: Approve purchase and add inventory (TODO)
+ *
+ * DATABASE SCHEMA:
+ * ----------------
+ * ```prisma
+ * model Job {
+ *   id          Int       @id @default(autoincrement())
+ *   businessId  Int
+ *   userId      Int       // User who triggered the job
+ *   type        String    // transfer_send, transfer_complete, etc.
+ *   payload     Json      // Job parameters (e.g., { transferId: 123 })
+ *   status      String    // pending, processing, completed, failed
+ *   progress    Int       @default(0)     // Items processed so far
+ *   total       Int       @default(0)     // Total items to process
+ *   result      Json?     // Success result data
+ *   error       String?   // Error message if failed
+ *   attempts    Int       @default(0)     // Number of attempts
+ *   maxAttempts Int       @default(3)     // Max retry attempts
+ *   nextRetryAt DateTime? // When to retry (exponential backoff)
+ *   startedAt   DateTime? // When processing started
+ *   completedAt DateTime? // When finished (success or failure)
+ *   createdAt   DateTime  @default(now())
+ * }
+ * ```
+ *
+ * RETRY STRATEGY:
+ * ---------------
+ * Uses **Exponential Backoff** for retries:
+ * - Attempt 1 fails → Retry after 2 minutes (2^1 = 2)
+ * - Attempt 2 fails → Retry after 4 minutes (2^2 = 4)
+ * - Attempt 3 fails → Retry after 8 minutes (2^3 = 8)
+ * - After 3 attempts → Mark as permanently failed
+ *
+ * Why exponential backoff?
+ * - Gives transient issues time to resolve (e.g., database deadlock)
+ * - Prevents hammering the database immediately after failure
+ * - Common pattern in distributed systems
+ *
+ * BULK OPTIMIZATION:
+ * ------------------
+ * Transfer processing uses bulk operations to dramatically improve performance:
+ *
+ * **Before (Sequential)**: 100 items × 500ms per item = 50 seconds
+ * **After (Bulk)**: 100 items ÷ 30 per batch × 2s per batch = 7 seconds
+ *
+ * Bulk processing techniques:
+ * 1. Process items in batches of 30 (configurable BATCH_SIZE)
+ * 2. Use single bulkUpdateStock() call per batch (not 30 separate calls)
+ * 3. Auto-verify items with updateMany (not individual updates)
+ * 4. Update receivedQuantity in groups by value (reduces queries)
+ * 5. Single transaction per batch (reduces commit overhead)
+ *
+ * TRANSACTION SAFETY:
+ * -------------------
+ * Each batch is wrapped in a Prisma transaction:
+ * - All items in batch succeed together OR all fail together
+ * - Prevents partial inventory updates (data integrity)
+ * - Timeout: 180 seconds per batch (6 seconds per item × 30)
+ * - MaxWait: 20 seconds for lock acquisition
+ *
+ * If batch fails halfway:
+ * - Transaction rolls back (no partial updates)
+ * - Job marked for retry with exponential backoff
+ * - Next attempt processes from beginning (idempotent)
+ *
+ * COMMON USE CASES:
+ * -----------------
+ *
+ * 1. **Create Transfer Send Job** (API Route)
+ * ```typescript
+ * import { prisma } from '@/lib/prisma'
+ *
+ * // After transfer request is approved
+ * const job = await prisma.job.create({
+ *   data: {
+ *     businessId: transfer.businessId,
+ *     userId: session.user.id,
+ *     type: 'transfer_send',
+ *     payload: {
+ *       transferId: transfer.id,
+ *       notes: 'Approved by manager'
+ *     },
+ *     total: transfer.items.length,  // For progress tracking
+ *     maxAttempts: 3
+ *   }
+ * })
+ *
+ * return { message: 'Processing in background', jobId: job.id }
+ * ```
+ *
+ * 2. **Process Job** (Worker or CLI)
+ * ```typescript
+ * import { processJob } from '@/lib/job-processor'
+ *
+ * // Get pending jobs
+ * const pendingJobs = await prisma.job.findMany({
+ *   where: {
+ *     status: 'pending',
+ *     OR: [
+ *       { nextRetryAt: null },           // Never attempted
+ *       { nextRetryAt: { lte: new Date() }}  // Retry time reached
+ *     ]
+ *   },
+ *   take: 10  // Process 10 jobs at a time
+ * })
+ *
+ * // Process each job
+ * for (const job of pendingJobs) {
+ *   await processJob(job)
+ * }
+ * ```
+ *
+ * 3. **Check Job Status** (Frontend)
+ * ```typescript
+ * // Poll job status every 2 seconds
+ * const checkStatus = async (jobId: number) => {
+ *   const response = await fetch(`/api/jobs/${jobId}`)
+ *   const job = await response.json()
+ *
+ *   if (job.status === 'completed') {
+ *     alert('Transfer processed successfully!')
+ *   } else if (job.status === 'failed') {
+ *     alert(`Transfer failed: ${job.error}`)
+ *   } else if (job.status === 'processing') {
+ *     console.log(`Progress: ${job.progress}/${job.total} items`)
+ *     // Continue polling...
+ *   }
+ * }
+ * ```
+ *
+ * 4. **Manual Job Creation** (Admin Tools)
+ * ```typescript
+ * // Reprocess a failed job manually
+ * await prisma.job.update({
+ *   where: { id: failedJobId },
+ *   data: {
+ *     status: 'pending',
+ *     attempts: 0,           // Reset attempts
+ *     error: null,           // Clear error
+ *     nextRetryAt: null      // Process immediately
+ *   }
+ * })
+ * ```
+ *
+ * WORKER DEPLOYMENT:
+ * ------------------
+ * Job workers can run in multiple ways:
+ *
+ * **1. CLI Worker** (Development):
+ * ```bash
+ * npm run worker  # Runs src/scripts/job-worker.ts
+ * # Polls database every 5 seconds for pending jobs
+ * ```
+ *
+ * **2. Scheduled Task** (Production):
+ * ```javascript
+ * // Using node-cron in Next.js API route
+ * cron.schedule('*/30 * * * * *', async () => {  // Every 30 seconds
+ *   await processPendingJobs()
+ * })
+ * ```
+ *
+ * **3. Background Job Queue** (Production - Recommended):
+ * ```javascript
+ * // Using BullMQ or similar
+ * import Queue from 'bull'
+ * const jobQueue = new Queue('pos-jobs', 'redis://localhost')
+ *
+ * jobQueue.process('transfer_send', async (job) => {
+ *   await processJob(job.data)
+ * })
+ * ```
+ *
+ * TYPESCRIPT PATTERNS:
+ * --------------------
+ *
+ * **Switch Statement for Job Routing**:
+ * ```typescript
+ * switch (job.type) {
+ *   case 'transfer_send': return await processTransferSend(job)
+ *   case 'transfer_complete': return await processTransferComplete(job)
+ *   default: throw new Error(`Unknown job type`)
+ * }
+ * ```
+ * - Routes to appropriate processor based on job type
+ * - Centralized error handling for unknown types
+ * - Easy to add new job types
+ *
+ * **Exponential Backoff Calculation**:
+ * ```typescript
+ * const retryDelay = Math.pow(2, job.attempts) * 60 * 1000
+ * ```
+ * - Math.pow(2, n) = 2^n (2, 4, 8, 16, ...)
+ * - Multiply by 60,000ms = minutes
+ * - Example: attempts=2 → 2^2 = 4 → 4 minutes
+ *
+ * **Batch Processing Pattern**:
+ * ```typescript
+ * for (let i = 0; i < items.length; i += BATCH_SIZE) {
+ *   const batch = items.slice(i, i + BATCH_SIZE)
+ *   await processBatch(batch)
+ * }
+ * ```
+ * - Process items in chunks (not all at once)
+ * - Prevents memory overflow for large datasets
+ * - Provides incremental progress updates
+ *
+ * PRISMA PATTERNS:
+ * ----------------
+ *
+ * **Transaction with Timeout**:
+ * ```typescript
+ * await prisma.$transaction(async (tx) => {
+ *   // All operations here are atomic
+ * }, {
+ *   timeout: 180000,  // 3 minutes
+ *   maxWait: 20000    // 20 seconds to acquire lock
+ * })
+ * ```
+ * - Ensures data consistency (all or nothing)
+ * - Timeout prevents hanging transactions
+ * - MaxWait prevents indefinite lock waits
+ *
+ * **UpdateMany for Bulk Updates**:
+ * ```typescript
+ * await tx.stockTransferItem.updateMany({
+ *   where: { id: { in: itemIds }},
+ *   data: { verified: true, verifiedAt: new Date() }
+ * })
+ * ```
+ * - Updates multiple records in single query (faster)
+ * - Cannot update with different values per record
+ * - For different values, group by value and run updateMany per group
+ *
+ * PERFORMANCE NOTES:
+ * ------------------
+ * - Batch size 30 is optimal for balance between speed and memory
+ * - Larger batches = fewer transactions but longer lock time
+ * - Smaller batches = more transactions but shorter lock time
+ * - Monitor job completion time and adjust BATCH_SIZE if needed
+ * - Database connection pooling is critical for concurrent jobs
+ *
+ * IMPORTANT NOTES:
+ * ----------------
+ * - Jobs are NOT deleted after completion (kept for audit trail)
+ * - Clean up old completed jobs periodically (e.g., delete > 30 days old)
+ * - Job processor is idempotent (safe to retry from beginning)
+ * - Progress tracking shows partial completion for user feedback
+ * - Failed jobs need manual review (check error message)
+ * - Worker crash doesn't lose jobs (resume from database state)
+ * - Consider distributed locking for multiple workers (prevent duplicate processing)
+ * - Monitor job queue depth (too many pending = need more workers)
+ */
+
 import { PrismaClient } from '@prisma/client'
 import { transferStockOut, addStock, bulkUpdateStock, StockTransactionType } from '@/lib/stockOperations'
 
-/**
- * Job Processing Logic
- *
- * Separated from CLI script for use in API routes
- */
-
 const prisma = new PrismaClient()
 
-// Sleep utility
+/**
+ * Sleep utility
+ *
+ * Returns a Promise that resolves after specified milliseconds.
+ * Useful for rate limiting or delays in processing.
+ *
+ * @param ms - Milliseconds to sleep
+ * @returns Promise that resolves after delay
+ */
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 // Process a single job
