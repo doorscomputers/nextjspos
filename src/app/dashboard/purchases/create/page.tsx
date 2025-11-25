@@ -726,20 +726,8 @@ export default function CreatePurchaseOrderPage() {
           <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Add Products</h2>
 
           <div className="space-y-4">
-            {/* AUTO-POPULATE BUTTON */}
+            {/* Clear All button when items exist */}
             <div className="flex items-center gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="default"
-                onClick={handleAutoPopulate}
-                disabled={loadingProducts || allProducts.length === 0 || items.length > 0}
-                className="gap-2 hover:border-purple-500 hover:text-purple-700 dark:hover:text-purple-400 transition-colors"
-              >
-                <SparklesIcon className="h-5 w-5" />
-                Auto-populate 70 Items
-              </Button>
-
               {items.length > 0 && (
                 <Button
                   type="button"
@@ -754,12 +742,6 @@ export default function CreatePurchaseOrderPage() {
                   <XMarkIcon className="h-4 w-4" />
                   Clear All
                 </Button>
-              )}
-
-              {items.length > 0 && (
-                <span className="text-xs text-amber-600 dark:text-amber-400">
-                  Clear items to use auto-populate
-                </span>
               )}
 
               {loadingProducts && (
