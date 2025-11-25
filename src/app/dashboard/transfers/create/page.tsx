@@ -537,20 +537,9 @@ export default function CreateTransferPage() {
               </div>
             ) : (
               <div>
-                {/* AUTO-POPULATE BUTTON */}
-                <div className="mb-4 flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    size="default"
-                    onClick={handleAutoPopulate}
-                    disabled={loadingProducts || allProducts.length === 0 || items.length > 0}
-                    className="gap-2 hover:border-purple-500 hover:text-purple-700 dark:hover:text-purple-400 transition-colors"
-                  >
-                    <SparklesIcon className="h-5 w-5" />
-                    Auto-populate 70 Items
-                  </Button>
-
-                  {items.length > 0 && (
+                {/* Clear All button when items exist */}
+                {items.length > 0 && (
+                  <div className="mb-4 flex items-center gap-3">
                     <Button
                       variant="outline"
                       size="sm"
@@ -563,14 +552,8 @@ export default function CreateTransferPage() {
                       <XMarkIcon className="h-4 w-4" />
                       Clear All
                     </Button>
-                  )}
-
-                  {items.length > 0 && (
-                    <span className="text-xs text-amber-600 dark:text-amber-400">
-                      Clear items to use auto-populate
-                    </span>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {/* INSTANT SEARCH: Pass pre-loaded products for client-side filtering (POS pattern) */}
                 {loadingProducts ? (
