@@ -165,27 +165,40 @@ export default function DashboardPageV2() {
     }
   }, [user, hasAnyRole, can, router])
 
+  // OPTIMIZED: Fetch locations and initial data in parallel on mount
   useEffect(() => {
-    fetchLocations()
+    const initializeDashboard = async () => {
+      // Fetch locations first, then other data in parallel
+      await fetchLocations()
+    }
+    initializeDashboard()
   }, [])
 
+  // OPTIMIZED: Fetch dashboard stats, sales by location, and supplier payments in parallel
   useEffect(() => {
-    fetchDashboardStats()
-  }, [locationFilter, metricsDateFilter])
-
-  useEffect(() => {
-    // Fetch sales by location - API will return empty data if user lacks permission
     if (user) {
+      // Run all three fetches in parallel instead of sequentially
+      Promise.all([
+        fetchDashboardStats(),
+        fetchSalesByLocation(),
+        fetchSupplierPayments()
+      ])
+    }
+  }, [locationFilter, metricsDateFilter, user])
+
+  // Only re-fetch sales by location when period changes (not on initial load)
+  useEffect(() => {
+    if (user && salesPeriod) {
       fetchSalesByLocation()
     }
-  }, [salesPeriod, user])
+  }, [salesPeriod])
 
+  // Only re-fetch supplier payments when date range changes (not on initial load)
   useEffect(() => {
-    // Fetch supplier payments separately with its own date filter
-    if (user) {
+    if (user && supplierPaymentsDateRange) {
       fetchSupplierPayments()
     }
-  }, [supplierPaymentsDateRange, user])
+  }, [supplierPaymentsDateRange])
 
   // Helper function to calculate date ranges using Philippines timezone
   const getDateRange = (filter: 'today' | 'week' | 'month' | 'quarter' | 'year' | 'all') => {

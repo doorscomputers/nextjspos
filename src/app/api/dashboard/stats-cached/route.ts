@@ -151,7 +151,6 @@ export async function GET(request: NextRequest) {
           purchaseWhereClause.invoiceDate = dateFilter
         }
 
-        // Execute all queries in parallel
         // Use Manila timezone for date calculations (inline implementation to avoid dependency issues)
         const nowManila = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }))
         const thirtyDaysAgo = new Date(nowManila)
@@ -159,6 +158,67 @@ export async function GET(request: NextRequest) {
         const currentYear = nowManila.getFullYear()
         // January 1st of current year at start of day (0:00:00.000)
         const financialYearStart = new Date(currentYear, 0, 1, 0, 0, 0, 0)
+
+        // Pre-build ALL where clauses BEFORE the main Promise.all
+        // This allows us to run ALL queries in a single parallel batch
+
+        // Transfer where clause
+        const transferWhereClause: any = {
+          businessId,
+          status: { notIn: ['completed', 'cancelled'] },
+          receivedAt: null,
+          completedAt: null,
+        }
+
+        if (accessibleLocationIds !== null) {
+          const normalizedLocationIds = accessibleLocationIds
+            .map((id) => Number(id))
+            .filter((id): id is number => Number.isFinite(id) && Number.isInteger(id))
+            .filter((id) => businessLocationIds.includes(id))
+
+          if (normalizedLocationIds.length > 0) {
+            transferWhereClause.OR = [
+              { fromLocationId: { in: normalizedLocationIds } },
+              { toLocationId: { in: normalizedLocationIds } },
+            ]
+          }
+        }
+
+        // Sales Payment Due where clause
+        const salesPaymentDueWhereClause: any = {
+          businessId,
+          status: { notIn: ['voided', 'cancelled'] },
+          customerId: { not: null },
+          NOT: {
+            customer: {
+              name: {
+                contains: "Walk-in",
+                mode: "insensitive"
+              }
+            }
+          }
+        }
+
+        if (accessibleLocationIds !== null) {
+          const normalizedLocationIds = accessibleLocationIds
+            .map((id) => Number(id))
+            .filter((id): id is number => Number.isFinite(id) && Number.isInteger(id))
+            .filter((id) => businessLocationIds.includes(id))
+
+          if (normalizedLocationIds.length > 0) {
+            salesPaymentDueWhereClause.locationId = { in: normalizedLocationIds }
+          } else if (businessLocationIds.length > 0) {
+            salesPaymentDueWhereClause.locationId = businessLocationIds[0]
+          }
+        }
+
+        const supplierPaymentsWhere: any = {
+          businessId,
+          status: 'completed',
+          ...(Object.keys(dateFilter).length > 0 ? { paymentDate: dateFilter } : {}),
+        }
+
+        // OPTIMIZED: Execute ALL queries in a single Promise.all (merged from 2 separate batches)
 
         const [
           salesData,
@@ -170,6 +230,11 @@ export async function GET(request: NextRequest) {
           salesLast30Days,
           salesCurrentYear,
           allProductsWithAlerts,
+          // Merged from second Promise.all:
+          pendingShipments,
+          salesPaymentDueRaw,
+          purchasePaymentDue,
+          supplierPayments,
         ] = await Promise.all([
           // Total Sales
           hasPermission(PERMISSIONS.SELL_VIEW)
@@ -209,30 +274,20 @@ export async function GET(request: NextRequest) {
             _count: true,
           }),
 
-          // Invoice Due - Calculate BALANCE DUE (not total sales amount)
-          // CRITICAL FIX: Sum of unpaid balances, not total sales
+          // Invoice Due - OPTIMIZED: Use raw SQL for sum calculation instead of fetching all records
+          // This is much faster than fetching all sales and calculating in JavaScript
           hasPermission(PERMISSIONS.SELL_VIEW)
-            ? prisma.sale.findMany({
-                where: {
-                  ...whereClause,
-                  status: { notIn: ['cancelled', 'voided'] },
-                  // Only include sales with customers (exclude walk-in)
-                  customerId: { not: null },
-                  NOT: {
-                    customer: {
-                      name: {
-                        contains: "Walk-in",
-                        mode: "insensitive"
-                      }
-                    }
-                  }
-                },
-                select: {
-                  totalAmount: true,
-                  paidAmount: true,
-                },
-              })
-            : Promise.resolve([]),
+            ? prisma.$queryRaw<[{ total_due: bigint | null }]>`
+                SELECT COALESCE(SUM(s.total_amount - COALESCE(s.paid_amount, 0)), 0) as total_due
+                FROM sales s
+                LEFT JOIN customers c ON s.customer_id = c.id
+                WHERE s.business_id = ${businessId}
+                  AND s.status NOT IN ('cancelled', 'voided')
+                  AND s.customer_id IS NOT NULL
+                  AND (c.name IS NULL OR c.name NOT ILIKE '%Walk-in%')
+                  AND (s.total_amount - COALESCE(s.paid_amount, 0)) > 0
+              `
+            : Promise.resolve([{ total_due: BigInt(0) }]),
 
           // Purchase Due (this should still show ALL unpaid purchases regardless of date)
           prisma.accountsPayable.aggregate({
@@ -281,80 +336,10 @@ export async function GET(request: NextRequest) {
               },
             },
           }),
-        ])
 
-        // Process data
-        const expenseData = { _sum: { amount: null } }
+          // ===== MERGED FROM SECOND PROMISE.ALL - Now all queries run in parallel =====
 
-        const stockAlerts = allProductsWithAlerts
-          .filter((item) => {
-            const alertQty = item.product.alertQuantity
-              ? parseFloat(item.product.alertQuantity.toString())
-              : 0
-            const currentQty = parseFloat(item.qtyAvailable.toString())
-            return alertQty > 0 && currentQty <= alertQty
-          })
-          .slice(0, 10)
-
-        // Build transfer where clause
-        const transferWhereClause: any = {
-          businessId,
-          status: { notIn: ['completed', 'cancelled'] },
-          receivedAt: null,
-          completedAt: null,
-        }
-
-        if (accessibleLocationIds !== null) {
-          const normalizedLocationIds = accessibleLocationIds
-            .map((id) => Number(id))
-            .filter((id): id is number => Number.isFinite(id) && Number.isInteger(id))
-            .filter((id) => businessLocationIds.includes(id))
-
-          if (normalizedLocationIds.length > 0) {
-            transferWhereClause.OR = [
-              { fromLocationId: { in: normalizedLocationIds } },
-              { toLocationId: { in: normalizedLocationIds } },
-            ]
-          }
-        }
-
-        // CRITICAL FIX: Sales Payment Due - Only show credit sales with actual customers
-        const salesPaymentDueWhereClause: any = {
-          businessId,
-          status: { notIn: ['voided', 'cancelled'] },
-          // CRITICAL: Only include sales with customers (exclude walk-in)
-          customerId: { not: null },
-          NOT: {
-            customer: {
-              name: {
-                contains: "Walk-in",
-                mode: "insensitive"
-              }
-            }
-          }
-        }
-
-        if (accessibleLocationIds !== null) {
-          const normalizedLocationIds = accessibleLocationIds
-            .map((id) => Number(id))
-            .filter((id): id is number => Number.isFinite(id) && Number.isInteger(id))
-            .filter((id) => businessLocationIds.includes(id))
-
-          if (normalizedLocationIds.length > 0) {
-            salesPaymentDueWhereClause.locationId = { in: normalizedLocationIds }
-          } else if (businessLocationIds.length > 0) {
-            salesPaymentDueWhereClause.locationId = businessLocationIds[0]
-          }
-        }
-
-        const supplierPaymentsWhere: any = {
-          businessId,
-          status: 'completed',
-          ...(Object.keys(dateFilter).length > 0 ? { paymentDate: dateFilter } : {}),
-        }
-
-        // Execute remaining queries in parallel
-        const [pendingShipments, salesPaymentDueRaw, purchasePaymentDue, supplierPayments] = await Promise.all([
+          // Pending Shipments/Transfers
           prisma.stockTransfer.findMany({
             where: transferWhereClause,
             include: {
@@ -365,6 +350,7 @@ export async function GET(request: NextRequest) {
             take: 10,
           }),
 
+          // Sales Payment Due (for table display)
           prisma.sale.findMany({
             where: salesPaymentDueWhereClause,
             select: {
@@ -380,6 +366,7 @@ export async function GET(request: NextRequest) {
             take: 100,
           }),
 
+          // Purchase Payment Due
           prisma.accountsPayable.findMany({
             where: {
               businessId,
@@ -396,6 +383,7 @@ export async function GET(request: NextRequest) {
             take: 10,
           }),
 
+          // Supplier Payments
           prisma.payment.findMany({
             where: supplierPaymentsWhere,
             include: {
@@ -411,8 +399,21 @@ export async function GET(request: NextRequest) {
           }),
         ])
 
+        // Process data
+        const expenseData = { _sum: { amount: null } }
+
+        const stockAlerts = allProductsWithAlerts
+          .filter((item) => {
+            const alertQty = item.product.alertQuantity
+              ? parseFloat(item.product.alertQuantity.toString())
+              : 0
+            const currentQty = parseFloat(item.qtyAvailable.toString())
+            return alertQty > 0 && currentQty <= alertQty
+          })
+          .slice(0, 10)
+
         // Process sales payment due
-        // CRITICAL FIX: Use paidAmount from database (it excludes credit placeholders automatically)
+        // Use paidAmount from database (it excludes credit placeholders automatically)
         const salesPaymentDue = salesPaymentDueRaw
           .map((sale) => {
             const totalAmount = parseFloat(sale.totalAmount.toString())
@@ -434,14 +435,9 @@ export async function GET(request: NextRequest) {
           .filter((sale) => sale.amount > 0)
           .slice(0, 10)
 
-        // CRITICAL FIX: Calculate invoiceDue as sum of unpaid balances
-        const totalInvoiceDue = Array.isArray(invoiceDue)
-          ? invoiceDue.reduce((sum, sale) => {
-              const total = parseFloat(sale.totalAmount?.toString() || '0')
-              const paid = parseFloat(sale.paidAmount?.toString() || '0')
-              const balance = Math.max(0, total - paid)
-              return sum + balance
-            }, 0)
+        // Invoice Due - now using optimized raw SQL result
+        const totalInvoiceDue = Array.isArray(invoiceDue) && invoiceDue.length > 0
+          ? Number(invoiceDue[0]?.total_due || 0)
           : 0
 
         const result = {
