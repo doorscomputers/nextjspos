@@ -5,7 +5,6 @@ import { useSession } from "next-auth/react"
 import { usePermissions } from "@/hooks/usePermissions"
 import { PERMISSIONS } from "@/lib/rbac"
 import { formatCurrency } from "@/lib/currencyUtils"
-import { getTodayDateStringPH } from "@/lib/timezone"
 import {
   BanknotesIcon,
   CreditCardIcon,
@@ -130,13 +129,24 @@ export default function SalesTodayPage() {
   const [hasAccessToAll, setHasAccessToAll] = useState(false)
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
 
-  // Date filter state - use Philippines timezone for default
-  const [selectedDate, setSelectedDate] = useState(() => getTodayDateStringPH())
+  // Date filter state - initialized empty, will be set on client side
+  const [selectedDate, setSelectedDate] = useState("")
 
   // Void dialog state
   const [voidDialogOpen, setVoidDialogOpen] = useState(false)
   const [selectedSaleForVoid, setSelectedSaleForVoid] = useState<number | null>(null)
   const [selectedInvoiceForVoid, setSelectedInvoiceForVoid] = useState<string | null>(null)
+
+  // Set default date on client side to ensure Philippines timezone
+  useEffect(() => {
+    // Calculate today's date in Philippines timezone on client
+    const nowPH = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }))
+    const year = nowPH.getFullYear()
+    const month = nowPH.getMonth()
+    const day = nowPH.getDate()
+    const todayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    setSelectedDate(todayStr)
+  }, [])
 
   useEffect(() => {
     fetchUserLocations()
