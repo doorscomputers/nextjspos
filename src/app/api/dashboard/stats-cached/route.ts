@@ -21,7 +21,6 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { getUserAccessibleLocationIds, PERMISSIONS } from '@/lib/rbac'
 import { withCacheKey, generateCacheKey, getCacheTTL } from '@/lib/cache'
-import { parseDateToPHRange, getManilaDate, createStartOfDayPH } from '@/lib/timezone'
 
 export async function GET(request: NextRequest) {
   try {
@@ -119,20 +118,20 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        // Build date filter with Philippines timezone (UTC+8)
+        // Build date filter - use same approach as working Sales History API
+        // Parse date strings directly and create local Date objects
         const dateFilter: any = {}
         if (startDate && endDate) {
-          // Use range from startDate 00:00:00 to endDate 23:59:59 in PH timezone
-          const startRange = parseDateToPHRange(startDate)
-          const endRange = parseDateToPHRange(endDate)
-          dateFilter.gte = startRange.startOfDay
-          dateFilter.lte = endRange.endOfDay
+          const [startYear, startMonth, startDay] = startDate.split('-').map(Number)
+          const [endYear, endMonth, endDay] = endDate.split('-').map(Number)
+          dateFilter.gte = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0)
+          dateFilter.lte = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999)
         } else if (startDate) {
-          const startRange = parseDateToPHRange(startDate)
-          dateFilter.gte = startRange.startOfDay
+          const [startYear, startMonth, startDay] = startDate.split('-').map(Number)
+          dateFilter.gte = new Date(startYear, startMonth - 1, startDay, 0, 0, 0, 0)
         } else if (endDate) {
-          const endRange = parseDateToPHRange(endDate)
-          dateFilter.lte = endRange.endOfDay
+          const [endYear, endMonth, endDay] = endDate.split('-').map(Number)
+          dateFilter.lte = new Date(endYear, endMonth - 1, endDay, 23, 59, 59, 999)
         }
 
         // Build where clause with date filter for sales
