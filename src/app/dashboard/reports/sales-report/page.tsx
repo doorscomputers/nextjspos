@@ -133,11 +133,27 @@ export default function SalesReportPage() {
   const [customerSuggestions, setCustomerSuggestions] = useState<Array<{ id: number | null; name: string; mobile?: string }>>([])
   const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false)
 
+  // Set initial dates on client side to ensure Philippines timezone
+  useEffect(() => {
+    // Calculate date range in Philippines timezone on client
+    const nowPH = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }))
+    const year = nowPH.getFullYear()
+    const month = nowPH.getMonth()
+    const day = nowPH.getDate()
+
+    const formatDate = (y: number, m: number, d: number) =>
+      `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+
+    // Default to "Today" preset
+    const todayStr = formatDate(year, month, day)
+    setStartDate(todayStr)
+    setEndDate(todayStr)
+    setDatePreset("Today")
+  }, [])
+
   useEffect(() => {
     fetchLocations()
     fetchCustomers()
-    // Default date range so results show immediately
-    applyDatePreset("This Year")
   }, [])
 
   useEffect(() => {

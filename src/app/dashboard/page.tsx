@@ -187,10 +187,19 @@ export default function DashboardPageV2() {
     }
   }, [supplierPaymentsDateRange, user])
 
-  // Helper function to calculate date ranges
+  // Helper function to calculate date ranges using Philippines timezone
   const getDateRange = (filter: 'today' | 'week' | 'month' | 'quarter' | 'year' | 'all') => {
-    const today = new Date()
-    const endDate = today.toISOString().split('T')[0]
+    // Get current date in Philippines timezone (UTC+8)
+    const nowPH = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }))
+    const year = nowPH.getFullYear()
+    const month = nowPH.getMonth()
+    const day = nowPH.getDate()
+
+    // Format date as YYYY-MM-DD
+    const formatDate = (y: number, m: number, d: number) =>
+      `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+
+    const endDate = formatDate(year, month, day)
     let startDate = ''
 
     switch (filter) {
@@ -198,24 +207,21 @@ export default function DashboardPageV2() {
         startDate = endDate
         break
       case 'week':
-        const weekAgo = new Date(today)
+        const weekAgo = new Date(nowPH)
         weekAgo.setDate(weekAgo.getDate() - 7)
-        startDate = weekAgo.toISOString().split('T')[0]
+        startDate = formatDate(weekAgo.getFullYear(), weekAgo.getMonth(), weekAgo.getDate())
         break
       case 'month':
-        const monthAgo = new Date(today)
+        const monthAgo = new Date(nowPH)
         monthAgo.setDate(monthAgo.getDate() - 30)
-        startDate = monthAgo.toISOString().split('T')[0]
+        startDate = formatDate(monthAgo.getFullYear(), monthAgo.getMonth(), monthAgo.getDate())
         break
       case 'quarter':
-        const currentMonth = today.getMonth()
-        const currentQuarter = Math.floor(currentMonth / 3)
-        const quarterStart = new Date(today.getFullYear(), currentQuarter * 3, 1)
-        startDate = quarterStart.toISOString().split('T')[0]
+        const currentQuarter = Math.floor(month / 3)
+        startDate = formatDate(year, currentQuarter * 3, 1)
         break
       case 'year':
-        const yearStart = new Date(today.getFullYear(), 0, 1)
-        startDate = yearStart.toISOString().split('T')[0]
+        startDate = formatDate(year, 0, 1)
         break
       case 'all':
         return { startDate: '', endDate: '' }
