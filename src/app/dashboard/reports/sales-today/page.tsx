@@ -138,6 +138,7 @@ export default function SalesTodayPage() {
   const [selectedInvoiceForVoid, setSelectedInvoiceForVoid] = useState<string | null>(null)
 
   // Set default date on client side to ensure Philippines timezone
+  // This must happen BEFORE any fetch to ensure correct date filtering
   useEffect(() => {
     // Calculate today's date in Philippines timezone on client
     const nowPH = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }))
@@ -145,6 +146,7 @@ export default function SalesTodayPage() {
     const month = nowPH.getMonth()
     const day = nowPH.getDate()
     const todayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    console.log('[Sales Today Page] Setting default date to:', todayStr)
     setSelectedDate(todayStr)
   }, [])
 
@@ -205,10 +207,27 @@ export default function SalesTodayPage() {
     try {
       const params = new URLSearchParams()
       if (locationId !== "all") params.append("locationId", locationId)
-      if (selectedDate) {
-        params.append("startDate", selectedDate)
-        params.append("endDate", selectedDate)
+
+      // CRITICAL: Always include date parameters for filtering
+      // If selectedDate is not set yet (initial render), calculate it on the fly
+      let dateToUse = selectedDate
+      if (!dateToUse) {
+        const nowPH = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }))
+        const year = nowPH.getFullYear()
+        const month = nowPH.getMonth()
+        const day = nowPH.getDate()
+        dateToUse = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
       }
+
+      params.append("startDate", dateToUse)
+      params.append("endDate", dateToUse)
+
+      console.log('[Sales Today Page] Fetching report with params:', {
+        locationId,
+        startDate: dateToUse,
+        endDate: dateToUse,
+        url: `/api/reports/sales-today?${params.toString()}`
+      })
 
       const response = await fetch(`/api/reports/sales-today?${params.toString()}`)
       if (response.ok) {
