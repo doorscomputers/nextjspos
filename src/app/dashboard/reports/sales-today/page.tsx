@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react"
 import { usePermissions } from "@/hooks/usePermissions"
 import { PERMISSIONS } from "@/lib/rbac"
 import { formatCurrency } from "@/lib/currencyUtils"
+import { getTodayDateStringPH } from "@/lib/timezone"
 import {
   BanknotesIcon,
   CreditCardIcon,
@@ -129,11 +130,8 @@ export default function SalesTodayPage() {
   const [hasAccessToAll, setHasAccessToAll] = useState(false)
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
 
-  // Date filter state
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date()
-    return today.toISOString().split('T')[0] // YYYY-MM-DD format
-  })
+  // Date filter state - use Philippines timezone for default
+  const [selectedDate, setSelectedDate] = useState(() => getTodayDateStringPH())
 
   // Void dialog state
   const [voidDialogOpen, setVoidDialogOpen] = useState(false)
@@ -279,12 +277,17 @@ export default function SalesTodayPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Sales Today</h1>
           <p className="text-sm text-gray-600 mt-1">
-            {reportData?.summary.date && new Date(reportData.summary.date).toLocaleDateString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })}
+            {selectedDate && (() => {
+              // Parse YYYY-MM-DD directly to avoid timezone issues
+              const [year, month, day] = selectedDate.split('-').map(Number)
+              const date = new Date(year, month - 1, day)
+              return date.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })
+            })()}
           </p>
         </div>
 

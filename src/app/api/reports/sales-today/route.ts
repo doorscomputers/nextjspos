@@ -395,9 +395,15 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // Format the date correctly - use the provided date or today in Philippines timezone
+    const reportDateString = startDateParam || (() => {
+      const { getTodayDateStringPH } = require('@/lib/timezone')
+      return getTodayDateStringPH()
+    })()
+
     return NextResponse.json({
       summary: {
-        date: startOfDay.toISOString().split('T')[0],
+        date: reportDateString,
         totalSales,
         totalAmount,
         totalSubtotal,
