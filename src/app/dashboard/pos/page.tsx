@@ -875,6 +875,8 @@ export default function POSEnhancedPage() {
         newCart[existingIndex].serialNumbers = []
       }
       setCart(newCart)
+      // Focus back to search input for quick scanning
+      setTimeout(() => barcodeInputRef.current?.focus(), 50)
     } else {
       // Check if initial quantity exceeds available stock
       if (qtyToAdd > availableStock) {
@@ -907,6 +909,8 @@ export default function POSEnhancedPage() {
           serialNumbers: [], // Store full serial number objects
         },
       ])
+      // Focus back to search input for quick scanning
+      setTimeout(() => barcodeInputRef.current?.focus(), 50)
     }
   }
 
