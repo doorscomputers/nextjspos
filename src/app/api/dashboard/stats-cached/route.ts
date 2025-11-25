@@ -152,12 +152,13 @@ export async function GET(request: NextRequest) {
         }
 
         // Execute all queries in parallel
-        // Use Manila timezone for date calculations
-        const nowManila = getManilaDate()
+        // Use Manila timezone for date calculations (inline implementation to avoid dependency issues)
+        const nowManila = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }))
         const thirtyDaysAgo = new Date(nowManila)
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
         const currentYear = nowManila.getFullYear()
-        const financialYearStart = createStartOfDayPH(currentYear, 0, 1) // January 1st in PH timezone
+        // January 1st of current year at start of day (0:00:00.000)
+        const financialYearStart = new Date(currentYear, 0, 1, 0, 0, 0, 0)
 
         const [
           salesData,
