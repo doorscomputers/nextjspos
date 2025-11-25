@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS, getUserAccessibleLocationIds } from '@/lib/rbac'
-import { getManilaDate, createStartOfDayPH, createEndOfDayPH } from '@/lib/timezone'
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,102 +51,81 @@ export async function GET(request: NextRequest) {
     let dateFilter: any = {}
 
     if (dateRange) {
-      // Use Philippines timezone (UTC+8) for all date calculations
-      const nowPH = getManilaDate()
-      const year = nowPH.getFullYear()
-      const month = nowPH.getMonth()
-      const day = nowPH.getDate()
-      const dayOfWeek = nowPH.getDay() // 0 = Sunday
-
+      const now = new Date()
       switch (dateRange) {
         case 'today':
-          dateFilter = {
-            gte: createStartOfDayPH(year, month, day),
-            lte: createEndOfDayPH(year, month, day)
-          }
+          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
+          const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+          dateFilter = { gte: todayStart, lte: todayEnd }
           break
-        case 'yesterday': {
-          const yesterday = new Date(nowPH)
+        case 'yesterday':
+          const yesterday = new Date(now)
           yesterday.setDate(yesterday.getDate() - 1)
-          dateFilter = {
-            gte: createStartOfDayPH(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate()),
-            lte: createEndOfDayPH(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate())
-          }
+          const yesterdayStart = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 0, 0, 0)
+          const yesterdayEnd = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59)
+          dateFilter = { gte: yesterdayStart, lte: yesterdayEnd }
           break
-        }
-        case 'thisWeek': {
-          // Week starts on Sunday
-          const weekStart = new Date(nowPH)
-          weekStart.setDate(weekStart.getDate() - dayOfWeek)
-          dateFilter = {
-            gte: createStartOfDayPH(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate())
-          }
+        case 'thisWeek':
+          const weekStart = new Date(now)
+          weekStart.setDate(weekStart.getDate() - weekStart.getDay())
+          weekStart.setHours(0, 0, 0, 0)
+          dateFilter = { gte: weekStart }
           break
-        }
-        case 'lastWeek': {
-          const lastWeekStart = new Date(nowPH)
-          lastWeekStart.setDate(lastWeekStart.getDate() - dayOfWeek - 7)
+        case 'lastWeek':
+          const lastWeekStart = new Date(now)
+          lastWeekStart.setDate(lastWeekStart.getDate() - lastWeekStart.getDay() - 7)
+          lastWeekStart.setHours(0, 0, 0, 0)
           const lastWeekEnd = new Date(lastWeekStart)
           lastWeekEnd.setDate(lastWeekEnd.getDate() + 6)
-          dateFilter = {
-            gte: createStartOfDayPH(lastWeekStart.getFullYear(), lastWeekStart.getMonth(), lastWeekStart.getDate()),
-            lte: createEndOfDayPH(lastWeekEnd.getFullYear(), lastWeekEnd.getMonth(), lastWeekEnd.getDate())
-          }
+          lastWeekEnd.setHours(23, 59, 59, 999)
+          dateFilter = { gte: lastWeekStart, lte: lastWeekEnd }
           break
-        }
         case 'thisMonth':
-          dateFilter = { gte: createStartOfDayPH(year, month, 1) }
+          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+          dateFilter = { gte: monthStart }
           break
-        case 'lastMonth': {
-          const lastMonth = month === 0 ? 11 : month - 1
-          const lastMonthYear = month === 0 ? year - 1 : year
-          const lastDayOfLastMonth = new Date(lastMonthYear, lastMonth + 1, 0).getDate()
-          dateFilter = {
-            gte: createStartOfDayPH(lastMonthYear, lastMonth, 1),
-            lte: createEndOfDayPH(lastMonthYear, lastMonth, lastDayOfLastMonth)
-          }
+        case 'lastMonth':
+          const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+          const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
+          dateFilter = { gte: lastMonthStart, lte: lastMonthEnd }
           break
-        }
         case 'thisQuarter': {
-          const quarterStartMonth = Math.floor(month / 3) * 3
-          dateFilter = { gte: createStartOfDayPH(year, quarterStartMonth, 1) }
+          const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3
+          const quarterStart = new Date(now.getFullYear(), quarterStartMonth, 1)
+          dateFilter = { gte: quarterStart }
           break
         }
         case 'lastQuarter': {
-          let lqStartMonth = Math.floor(month / 3) * 3 - 3
-          let lqYear = year
-          if (lqStartMonth < 0) {
-            lqStartMonth += 12
-            lqYear -= 1
-          }
-          const lqEndMonth = lqStartMonth + 2
-          const lastDayOfQuarter = new Date(lqYear, lqEndMonth + 1, 0).getDate()
-          dateFilter = {
-            gte: createStartOfDayPH(lqYear, lqStartMonth, 1),
-            lte: createEndOfDayPH(lqYear, lqEndMonth, lastDayOfQuarter)
-          }
+          const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3
+          const lastQuarterStart = new Date(now.getFullYear(), quarterStartMonth - 3, 1)
+          const lastQuarterEnd = new Date(
+            now.getFullYear(),
+            quarterStartMonth,
+            0,
+            23,
+            59,
+            59,
+            999
+          )
+          dateFilter = { gte: lastQuarterStart, lte: lastQuarterEnd }
           break
         }
         case 'thisYear':
-          dateFilter = { gte: createStartOfDayPH(year, 0, 1) }
+          const yearStart = new Date(now.getFullYear(), 0, 1)
+          dateFilter = { gte: yearStart }
           break
         case 'lastYear':
-          dateFilter = {
-            gte: createStartOfDayPH(year - 1, 0, 1),
-            lte: createEndOfDayPH(year - 1, 11, 31)
-          }
+          const lastYearStart = new Date(now.getFullYear() - 1, 0, 1)
+          const lastYearEnd = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999)
+          dateFilter = { gte: lastYearStart, lte: lastYearEnd }
           break
       }
     } else if (startDate || endDate) {
-      // Handle custom date range with Philippines timezone
-      const { parseDateToPHRange } = await import('@/lib/timezone')
-      if (startDate) {
-        const startRange = parseDateToPHRange(startDate)
-        dateFilter.gte = startRange.startOfDay
-      }
+      if (startDate) dateFilter.gte = new Date(startDate)
       if (endDate) {
-        const endRange = parseDateToPHRange(endDate)
-        dateFilter.lte = endRange.endOfDay
+        const endDateObj = new Date(endDate)
+        endDateObj.setHours(23, 59, 59, 999)
+        dateFilter.lte = endDateObj
       }
     }
 
