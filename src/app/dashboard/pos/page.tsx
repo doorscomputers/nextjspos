@@ -2096,14 +2096,6 @@ export default function POSEnhancedPage() {
           </div>
 
           {/* Compact Action Buttons */}
-          {/* 🧪 TEST BUTTON: Add random items to cart */}
-          <Button
-            onClick={addRandomItemsToCart}
-            className="h-12 px-3 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold"
-            title="Add 20-25 random items to cart for testing"
-          >
-            🧪 Test
-          </Button>
           <Button
             onClick={() => window.open('/dashboard/readings/x-reading', '_blank')}
             className="h-12 px-4 bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
