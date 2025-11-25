@@ -23,6 +23,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import ReportFilterPanel from "@/components/reports/ReportFilterPanel"
 import { countActiveFilters } from "@/lib/reportFilterUtils"
+import { getDatePresetRangePH, type DatePreset } from "@/lib/timezone"
 import DataGrid, {
   Column,
   FilterRow,
@@ -307,95 +308,12 @@ export default function SalesReportPage() {
   }
 
   const applyDatePreset = (preset: string) => {
-    const today = new Date()
-    const start = new Date()
-    const end = new Date()
-
-    const startOfWeek = (d: Date) => {
-      const date = new Date(d)
-      const day = date.getDay() || 7
-      if (day !== 1) date.setHours(-24 * (day - 1))
-      date.setHours(0, 0, 0, 0)
-      return date
+    // Use the shared Philippines timezone utility for consistent date calculations
+    const range = getDatePresetRangePH(preset as DatePreset)
+    if (range) {
+      setStartDate(range.startDate)
+      setEndDate(range.endDate)
     }
-    const endOfWeek = (d: Date) => {
-      const date = startOfWeek(d)
-      date.setDate(date.getDate() + 6)
-      date.setHours(23, 59, 59, 999)
-      return date
-    }
-
-    const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1)
-    const endOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth() + 1, 0)
-    const startOfQuarter = (d: Date) => new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3, 1)
-    const endOfQuarter = (d: Date) => new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3 + 3, 0)
-    const startOfYear = (y: number) => new Date(y, 0, 1)
-    const endOfYear = (y: number) => new Date(y, 11, 31)
-
-    switch (preset) {
-      case "Today":
-        start.setHours(0, 0, 0, 0)
-        end.setHours(23, 59, 59, 999)
-        break
-      case "Yesterday":
-        start.setDate(today.getDate() - 1)
-        end.setDate(today.getDate() - 1)
-        start.setHours(0, 0, 0, 0)
-        end.setHours(23, 59, 59, 999)
-        break
-      case "This Week":
-        start.setTime(startOfWeek(today).getTime())
-        end.setTime(endOfWeek(today).getTime())
-        break
-      case "Last Week":
-        const lw = new Date(today)
-        lw.setDate(lw.getDate() - 7)
-        start.setTime(startOfWeek(lw).getTime())
-        end.setTime(endOfWeek(lw).getTime())
-        break
-      case "This Month":
-        start.setTime(startOfMonth(today).getTime())
-        end.setTime(endOfMonth(today).getTime())
-        break
-      case "Last Month":
-        const lm = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-        start.setTime(startOfMonth(lm).getTime())
-        end.setTime(endOfMonth(lm).getTime())
-        break
-      case "This Quarter":
-        start.setTime(startOfQuarter(today).getTime())
-        end.setTime(endOfQuarter(today).getTime())
-        break
-      case "Last Quarter":
-        const lq = new Date(today.getFullYear(), today.getMonth() - 3, 1)
-        start.setTime(startOfQuarter(lq).getTime())
-        end.setTime(endOfQuarter(lq).getTime())
-        break
-      case "This Year":
-        start.setTime(startOfYear(today.getFullYear()).getTime())
-        end.setTime(endOfYear(today.getFullYear()).getTime())
-        break
-      case "Last Year":
-        start.setTime(startOfYear(today.getFullYear() - 1).getTime())
-        end.setTime(endOfYear(today.getFullYear() - 1).getTime())
-        break
-      case "Last 30 Days":
-        start.setDate(today.getDate() - 29)
-        start.setHours(0, 0, 0, 0)
-        end.setHours(23, 59, 59, 999)
-        break
-      case "Last 90 Days":
-        start.setDate(today.getDate() - 89)
-        start.setHours(0, 0, 0, 0)
-        end.setHours(23, 59, 59, 999)
-        break
-      default:
-        return
-    }
-
-    const toISODate = (d: Date) => d.toISOString().slice(0, 10)
-    setStartDate(toISODate(start))
-    setEndDate(toISODate(end))
     setDatePreset(preset)
   }
 

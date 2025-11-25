@@ -243,3 +243,173 @@ export function parseDateToPHRange(dateInput: string | Date): { startOfDay: Date
     endOfDay: createEndOfDayPH(year, month, day)
   }
 }
+
+/**
+ * DATE PRESET UTILITIES FOR REPORT PAGES
+ *
+ * These functions calculate date ranges in Philippines timezone for use in
+ * report filter presets (Today, Yesterday, This Week, etc.)
+ */
+
+export type DatePreset =
+  | 'Today'
+  | 'Yesterday'
+  | 'This Week'
+  | 'Last Week'
+  | 'This Month'
+  | 'Last Month'
+  | 'This Quarter'
+  | 'Last Quarter'
+  | 'This Year'
+  | 'Last Year'
+  | 'Last 30 Days'
+  | 'Last 90 Days'
+  | 'Custom Range'
+
+/**
+ * Get date range for a given preset in Philippines timezone
+ * Returns dates as YYYY-MM-DD strings for use in date input fields
+ *
+ * @param preset - The date preset to calculate
+ * @returns Object with startDate and endDate as YYYY-MM-DD strings, or null for Custom Range
+ */
+export function getDatePresetRangePH(preset: DatePreset): { startDate: string; endDate: string } | null {
+  // Get current date in Philippines timezone (UTC+8)
+  const nowPH = getManilaDate()
+  const year = nowPH.getFullYear()
+  const month = nowPH.getMonth()
+  const day = nowPH.getDate()
+  const dayOfWeek = nowPH.getDay() // 0 = Sunday
+
+  // Helper to format as YYYY-MM-DD
+  const formatDate = (y: number, m: number, d: number) => {
+    return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  }
+
+  // Helper to get last day of month
+  const getLastDayOfMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate()
+
+  switch (preset) {
+    case 'Today':
+      return {
+        startDate: formatDate(year, month, day),
+        endDate: formatDate(year, month, day)
+      }
+
+    case 'Yesterday': {
+      const yesterday = new Date(nowPH)
+      yesterday.setDate(yesterday.getDate() - 1)
+      const dateStr = formatDate(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate())
+      return { startDate: dateStr, endDate: dateStr }
+    }
+
+    case 'This Week': {
+      // Week starts on Sunday
+      const weekStart = new Date(nowPH)
+      weekStart.setDate(weekStart.getDate() - dayOfWeek)
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekEnd.getDate() + 6)
+      return {
+        startDate: formatDate(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate()),
+        endDate: formatDate(weekEnd.getFullYear(), weekEnd.getMonth(), weekEnd.getDate())
+      }
+    }
+
+    case 'Last Week': {
+      const lastWeekStart = new Date(nowPH)
+      lastWeekStart.setDate(lastWeekStart.getDate() - dayOfWeek - 7)
+      const lastWeekEnd = new Date(lastWeekStart)
+      lastWeekEnd.setDate(lastWeekEnd.getDate() + 6)
+      return {
+        startDate: formatDate(lastWeekStart.getFullYear(), lastWeekStart.getMonth(), lastWeekStart.getDate()),
+        endDate: formatDate(lastWeekEnd.getFullYear(), lastWeekEnd.getMonth(), lastWeekEnd.getDate())
+      }
+    }
+
+    case 'This Month':
+      return {
+        startDate: formatDate(year, month, 1),
+        endDate: formatDate(year, month, getLastDayOfMonth(year, month))
+      }
+
+    case 'Last Month': {
+      const lastMonth = month === 0 ? 11 : month - 1
+      const lastMonthYear = month === 0 ? year - 1 : year
+      return {
+        startDate: formatDate(lastMonthYear, lastMonth, 1),
+        endDate: formatDate(lastMonthYear, lastMonth, getLastDayOfMonth(lastMonthYear, lastMonth))
+      }
+    }
+
+    case 'This Quarter': {
+      const quarterStart = Math.floor(month / 3) * 3
+      const quarterEnd = quarterStart + 2
+      return {
+        startDate: formatDate(year, quarterStart, 1),
+        endDate: formatDate(year, quarterEnd, getLastDayOfMonth(year, quarterEnd))
+      }
+    }
+
+    case 'Last Quarter': {
+      let lqStartMonth = Math.floor(month / 3) * 3 - 3
+      let lqYear = year
+      if (lqStartMonth < 0) {
+        lqStartMonth += 12
+        lqYear -= 1
+      }
+      const lqEndMonth = lqStartMonth + 2
+      return {
+        startDate: formatDate(lqYear, lqStartMonth, 1),
+        endDate: formatDate(lqYear, lqEndMonth, getLastDayOfMonth(lqYear, lqEndMonth))
+      }
+    }
+
+    case 'This Year':
+      return {
+        startDate: formatDate(year, 0, 1),
+        endDate: formatDate(year, 11, 31)
+      }
+
+    case 'Last Year':
+      return {
+        startDate: formatDate(year - 1, 0, 1),
+        endDate: formatDate(year - 1, 11, 31)
+      }
+
+    case 'Last 30 Days': {
+      const thirtyDaysAgo = new Date(nowPH)
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29)
+      return {
+        startDate: formatDate(thirtyDaysAgo.getFullYear(), thirtyDaysAgo.getMonth(), thirtyDaysAgo.getDate()),
+        endDate: formatDate(year, month, day)
+      }
+    }
+
+    case 'Last 90 Days': {
+      const ninetyDaysAgo = new Date(nowPH)
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 89)
+      return {
+        startDate: formatDate(ninetyDaysAgo.getFullYear(), ninetyDaysAgo.getMonth(), ninetyDaysAgo.getDate()),
+        endDate: formatDate(year, month, day)
+      }
+    }
+
+    case 'Custom Range':
+      return null
+
+    default:
+      return null
+  }
+}
+
+/**
+ * Get today's date as YYYY-MM-DD string in Philippines timezone
+ * Useful for setting default date values in forms
+ */
+export function getTodayDateStringPH(): string {
+  const nowPH = getManilaDate()
+  const year = nowPH.getFullYear()
+  const month = nowPH.getMonth()
+  const day = nowPH.getDate()
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
