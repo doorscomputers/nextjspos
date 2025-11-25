@@ -25,10 +25,26 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
+    const startDateParam = searchParams.get('startDate')
+    const endDateParam = searchParams.get('endDate')
 
-    // Get today's date range in Philippines timezone (UTC+8)
-    // This ensures "today" means today in Philippines time, not server's UTC time
-    const { startOfDay, endOfDay } = getTodayRangePH()
+    // Get date range - use provided dates or default to today in Philippines timezone (UTC+8)
+    let startOfDay: Date
+    let endOfDay: Date
+
+    if (startDateParam && endDateParam) {
+      // Use provided date range with Philippines timezone
+      const { parseDateToPHRange } = await import('@/lib/timezone')
+      const startRange = parseDateToPHRange(startDateParam)
+      const endRange = parseDateToPHRange(endDateParam)
+      startOfDay = startRange.startOfDay
+      endOfDay = endRange.endOfDay
+    } else {
+      // Default to today in Philippines timezone
+      const todayRange = getTodayRangePH()
+      startOfDay = todayRange.startOfDay
+      endOfDay = todayRange.endOfDay
+    }
 
     const where: any = {
       businessId: parseInt(businessId),

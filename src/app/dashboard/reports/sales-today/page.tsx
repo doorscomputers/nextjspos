@@ -14,9 +14,11 @@ import {
   ArrowTrendingUpIcon,
   ArrowDownTrayIcon,
   XCircleIcon,
+  MagnifyingGlassIcon,
 } from "@heroicons/react/24/outline"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
@@ -121,11 +123,17 @@ export default function SalesTodayPage() {
   }
 
   const [reportData, setReportData] = useState<SalesTodayData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [locationId, setLocationId] = useState("all")
   const [locations, setLocations] = useState<Array<{ id: number; name: string }>>([])
   const [hasAccessToAll, setHasAccessToAll] = useState(false)
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
+
+  // Date filter state
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date()
+    return today.toISOString().split('T')[0] // YYYY-MM-DD format
+  })
 
   // Void dialog state
   const [voidDialogOpen, setVoidDialogOpen] = useState(false)
@@ -135,10 +143,6 @@ export default function SalesTodayPage() {
   useEffect(() => {
     fetchUserLocations()
   }, [])
-
-  useEffect(() => {
-    fetchReport()
-  }, [locationId])
 
   const fetchUserLocations = async () => {
     try {
@@ -193,6 +197,10 @@ export default function SalesTodayPage() {
     try {
       const params = new URLSearchParams()
       if (locationId !== "all") params.append("locationId", locationId)
+      if (selectedDate) {
+        params.append("startDate", selectedDate)
+        params.append("endDate", selectedDate)
+      }
 
       const response = await fetch(`/api/reports/sales-today?${params.toString()}`)
       if (response.ok) {
@@ -262,13 +270,7 @@ export default function SalesTodayPage() {
     fetchReport()
   }
 
-  if (loading && !reportData) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    )
-  }
+  // Don't show full-page spinner on initial load - user needs to click Generate Report
 
   return (
     <div className="space-y-6 p-6">
@@ -286,7 +288,18 @@ export default function SalesTodayPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Date Filter */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Date:</label>
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-[160px]"
+            />
+          </div>
+
           {locations.length > 0 && (
             <>
               {/* Show location selector only if user has multiple locations */}
@@ -317,6 +330,26 @@ export default function SalesTodayPage() {
               )}
             </>
           )}
+
+          {/* Generate Report Button */}
+          <Button
+            onClick={fetchReport}
+            disabled={loading}
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm px-6 rounded-lg"
+          >
+            {loading ? (
+              <>
+                <span className="animate-spin mr-2">⏳</span>
+                Loading...
+              </>
+            ) : (
+              <>
+                <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
+                Generate Report
+              </>
+            )}
+          </Button>
+
           <Button
             onClick={exportToCSV}
             disabled={!reportData}
