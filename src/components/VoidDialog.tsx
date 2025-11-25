@@ -53,10 +53,14 @@ export default function VoidDialog({
   // Triple confirmation state
   const [confirmationStep, setConfirmationStep] = useState(0) // 0 = not started, 1-3 = confirmation steps
 
-  // Load initial sale if provided
+  // Load initial sale if provided (only if valid ID or invoice number)
   useEffect(() => {
-    if (isOpen && (initialSaleId || initialInvoiceNumber)) {
-      fetchSale(initialSaleId?.toString() || initialInvoiceNumber!)
+    if (isOpen && initialSaleId) {
+      // Only auto-fetch if we have a valid sale ID
+      fetchSale(initialSaleId.toString())
+    } else if (isOpen && initialInvoiceNumber && initialInvoiceNumber.trim().length > 0) {
+      // Only auto-fetch if we have a non-empty invoice number
+      fetchSale(initialInvoiceNumber.trim())
     }
   }, [isOpen, initialSaleId, initialInvoiceNumber])
 
@@ -75,13 +79,38 @@ export default function VoidDialog({
   }, [isOpen, initialSaleId, initialInvoiceNumber])
 
   const fetchSale = async (invoiceNumberOrId: string) => {
+    // Don't search if empty or too short
+    if (!invoiceNumberOrId || invoiceNumberOrId.trim().length < 2) {
+      toast.error('Please enter at least 2 characters to search')
+      return
+    }
+
     setLoading(true)
     try {
-      const response = await fetch(`/api/sales/devextreme?searchValue=${encodeURIComponent(invoiceNumberOrId)}&take=1`)
+      const response = await fetch(`/api/sales/devextreme?searchValue=${encodeURIComponent(invoiceNumberOrId.trim())}&take=1`)
       const data = await response.json()
 
       if (data.data && data.data.length > 0) {
         const saleData = data.data[0]
+
+        // IMPORTANT: Verify the search result matches what user searched for
+        // This prevents returning random invoices when search doesn't match exactly
+        const searchLower = invoiceNumberOrId.trim().toLowerCase()
+        const invoiceLower = (saleData.invoiceNumber || '').toLowerCase()
+        const customerLower = (saleData.customer?.name || '').toLowerCase()
+        const customerMobile = (saleData.customer?.mobile || '').toLowerCase()
+
+        // Check if search term is found in invoice number, customer name, or mobile
+        const matchFound = invoiceLower.includes(searchLower) ||
+                          customerLower.includes(searchLower) ||
+                          customerMobile.includes(searchLower)
+
+        if (!matchFound) {
+          toast.error('Sale Not Found', {
+            description: `No sale found matching "${invoiceNumberOrId}".`,
+          })
+          return
+        }
 
         // Validate sale status
         if (saleData.status === 'voided') {
