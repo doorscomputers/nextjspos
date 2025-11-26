@@ -909,11 +909,15 @@ export default function DashboardPageV2() {
 
         {/* Pending Transfers */}
         {can(PERMISSIONS.STOCK_TRANSFER_VIEW) && (
-          <Card className="shadow-lg">
+          <Card
+            className="shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
+            onClick={() => router.push('/dashboard/transfers?status=pending_check')}
+          >
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TruckIcon className="h-5 w-5 text-blue-600" />
                 Pending Transfers
+                <span className="text-xs text-gray-500 font-normal ml-2">(Click to view all)</span>
               </CardTitle>
             </CardHeader>
             <CardContent>

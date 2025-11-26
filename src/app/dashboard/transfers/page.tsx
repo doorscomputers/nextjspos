@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useUserLocations } from '@/hooks/useUserLocations'
 import { PERMISSIONS } from '@/lib/rbac'
@@ -68,11 +69,14 @@ interface Transfer {
 export default function TransfersDevExtremePage() {
   const { can, user } = usePermissions()
   const { isLocationUser, loading: locationsLoading } = useUserLocations()
+  const searchParams = useSearchParams()
+  const statusFromUrl = searchParams.get('status')
+
   const [transfers, setTransfers] = useState<Transfer[]>([])
   const [loading, setLoading] = useState(true)
   const [userLocations, setUserLocations] = useState<any[]>([])
   const [hasAccessToAll, setHasAccessToAll] = useState(false)
-  const [statusFilter, setStatusFilter] = useState<string>('pending_check') // Default to pending
+  const [statusFilter, setStatusFilter] = useState<string>(statusFromUrl || 'pending_check') // Read from URL or default to pending
 
   useEffect(() => {
     fetchUserLocations()
