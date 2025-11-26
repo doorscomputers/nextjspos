@@ -6,7 +6,8 @@
  */
 
 // Maximum allowed records per request (hard limit)
-export const MAX_PAGE_SIZE = 1000
+// Increased from 1000 to 4000 to support POS with large product catalogs
+export const MAX_PAGE_SIZE = 4000
 
 // Default page size if not specified
 export const DEFAULT_PAGE_SIZE = 50
