@@ -91,35 +91,55 @@ export default function VoidDialog({
 
     setLoading(true)
     setInitialFetchError(null)
+
     try {
-      // Use exactInvoice parameter when we have a known invoice number (from initial fetch)
-      // This ensures we get the exact invoice, not a partial match
-      const queryParam = isInitialFetch
-        ? `exactInvoice=${encodeURIComponent(invoiceNumberOrId.trim())}`
-        : `searchValue=${encodeURIComponent(invoiceNumberOrId.trim())}`
-      const response = await fetch(`/api/sales/devextreme?${queryParam}&take=1`)
+      // When initialInvoiceNumber is provided (clicking Void from a row), use exact match
+      // When user manually searches, use partial match (contains)
+      const apiUrl = isInitialFetch
+        ? `/api/sales/devextreme?exactInvoice=${encodeURIComponent(invoiceNumberOrId.trim())}&take=1`
+        : `/api/sales/devextreme?searchValue=${encodeURIComponent(invoiceNumberOrId.trim())}&take=1`
+
+      console.log('[VoidDialog] Fetching sale:', { invoiceNumberOrId, isInitialFetch, apiUrl })
+
+      const response = await fetch(apiUrl)
       const data = await response.json()
+
+      console.log('[VoidDialog] API response:', { totalCount: data.totalCount, dataLength: data.data?.length })
 
       if (data.data && data.data.length > 0) {
         const saleData = data.data[0]
 
-        // IMPORTANT: Verify the search result matches what user searched for
-        // This prevents returning random invoices when search doesn't match exactly
-        const searchLower = invoiceNumberOrId.trim().toLowerCase()
-        const invoiceLower = (saleData.invoiceNumber || '').toLowerCase()
-        const customerLower = (saleData.customer?.name || '').toLowerCase()
-        const customerMobile = (saleData.customer?.mobile || '').toLowerCase()
+        console.log('[VoidDialog] Found sale:', {
+          invoiceNumber: saleData.invoiceNumber,
+          searchedFor: invoiceNumberOrId,
+          isExactMatch: saleData.invoiceNumber === invoiceNumberOrId.trim()
+        })
 
-        // Check if search term is found in invoice number, customer name, or mobile
-        const matchFound = invoiceLower.includes(searchLower) ||
-                          customerLower.includes(searchLower) ||
-                          customerMobile.includes(searchLower)
-
-        if (!matchFound) {
-          const errorMsg = `No sale found matching "${invoiceNumberOrId}".`
-          toast.error('Sale Not Found', { description: errorMsg })
-          if (isInitialFetch) setInitialFetchError(errorMsg)
+        // For initial fetch (exact match), verify we got the right invoice
+        if (isInitialFetch && saleData.invoiceNumber !== invoiceNumberOrId.trim()) {
+          const errorMsg = `Invoice mismatch: searched for "${invoiceNumberOrId}" but got "${saleData.invoiceNumber}".`
+          console.error('[VoidDialog]', errorMsg)
+          toast.error('Invoice Mismatch', { description: errorMsg })
+          setInitialFetchError(errorMsg)
           return
+        }
+
+        // For manual search, verify result contains the search term
+        if (!isInitialFetch) {
+          const searchLower = invoiceNumberOrId.trim().toLowerCase()
+          const invoiceLower = (saleData.invoiceNumber || '').toLowerCase()
+          const customerLower = (saleData.customer?.name || '').toLowerCase()
+          const customerMobile = (saleData.customer?.mobile || '').toLowerCase()
+
+          const matchFound = invoiceLower.includes(searchLower) ||
+                            customerLower.includes(searchLower) ||
+                            customerMobile.includes(searchLower)
+
+          if (!matchFound) {
+            const errorMsg = `No sale found matching "${invoiceNumberOrId}".`
+            toast.error('Sale Not Found', { description: errorMsg })
+            return
+          }
         }
 
         // Validate sale status
@@ -145,7 +165,7 @@ export default function VoidDialog({
         if (isInitialFetch) setInitialFetchError(errorMsg)
       }
     } catch (error) {
-      console.error('[Void Search] Error:', error)
+      console.error('[VoidDialog] Error fetching sale:', error)
       const errorMsg = 'Failed to fetch sale details.'
       toast.error(errorMsg)
       if (isInitialFetch) setInitialFetchError(errorMsg)
