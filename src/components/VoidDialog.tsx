@@ -54,14 +54,17 @@ export default function VoidDialog({
   // Triple confirmation state
   const [confirmationStep, setConfirmationStep] = useState(0) // 0 = not started, 1-3 = confirmation steps
 
-  // Load initial sale if provided (only if valid ID or invoice number)
+  // Load initial sale if provided
+  // IMPORTANT: Prioritize initialInvoiceNumber over initialSaleId because:
+  // - Invoice number is the exact identifier shown to users
+  // - Sale ID is just an internal number that doesn't match invoice format
   useEffect(() => {
-    if (isOpen && initialSaleId) {
-      // Only auto-fetch if we have a valid sale ID
-      fetchSale(initialSaleId.toString(), true)
-    } else if (isOpen && initialInvoiceNumber && initialInvoiceNumber.trim().length > 0) {
-      // Only auto-fetch if we have a non-empty invoice number
+    if (isOpen && initialInvoiceNumber && initialInvoiceNumber.trim().length > 0) {
+      // Use invoice number for exact match lookup
       fetchSale(initialInvoiceNumber.trim(), true)
+    } else if (isOpen && initialSaleId) {
+      // Fallback to sale ID only if no invoice number provided
+      fetchSale(initialSaleId.toString(), true)
     }
   }, [isOpen, initialSaleId, initialInvoiceNumber])
 
