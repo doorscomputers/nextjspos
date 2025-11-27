@@ -710,18 +710,28 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
                   </div>
                 ))}
 
-                {/* Amount Tendered */}
-                <div className="flex justify-between py-0.5 font-semibold">
-                  <span className={`text-blue-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                    Amount Tendered:
-                  </span>
-                  <span className={`text-blue-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                    ₱{cashTendered.toLocaleString('en-PH', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2
-                    })}
-                  </span>
-                </div>
+                {/* Amount Tendered - Hidden for Credit/Charge Invoice */}
+                {(() => {
+                  const hasCredit = sale.payments?.some((p: any) => p.paymentMethod === 'credit')
+                  const totalPaid = sale.payments?.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0) || 0
+                  const isChargeInvoice = hasCredit || totalPaid === 0
+
+                  if (isChargeInvoice) return null
+
+                  return (
+                    <div className="flex justify-between py-0.5 font-semibold">
+                      <span className={`text-blue-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                        Amount Tendered:
+                      </span>
+                      <span className={`text-blue-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                        ₱{cashTendered.toLocaleString('en-PH', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
+                      </span>
+                    </div>
+                  )
+                })()}
 
                 {/* Customer Information */}
                 <div className="mt-2 pt-2 border-t border-gray-300 space-y-1">
@@ -746,20 +756,28 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
                   )}
                 </div>
 
-                {/* Change */}
-                {changeAmount > 0 && (
-                  <div className="flex justify-between py-0.5 font-bold mt-2">
-                    <span className={`text-green-600 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                      Change:
-                    </span>
-                    <span className={`text-green-600 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                      ₱{changeAmount.toLocaleString('en-PH', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                      })}
-                    </span>
-                  </div>
-                )}
+                {/* Change - Hidden for Credit/Charge Invoice */}
+                {(() => {
+                  const hasCredit = sale.payments?.some((p: any) => p.paymentMethod === 'credit')
+                  const totalPaid = sale.payments?.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0) || 0
+                  const isChargeInvoice = hasCredit || totalPaid === 0
+
+                  if (isChargeInvoice || changeAmount <= 0) return null
+
+                  return (
+                    <div className="flex justify-between py-0.5 font-bold mt-2">
+                      <span className={`text-green-600 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                        Change:
+                      </span>
+                      <span className={`text-green-600 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                        ₱{changeAmount.toLocaleString('en-PH', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
+                      </span>
+                    </div>
+                  )
+                })()}
               </div>
             </div>
 
