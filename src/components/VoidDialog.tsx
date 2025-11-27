@@ -49,6 +49,7 @@ export default function VoidDialog({
   const [authMethod, setAuthMethod] = useState<'password' | 'rfid'>('password')
   const [managerPassword, setManagerPassword] = useState('')
   const [rfidLocationCode, setRfidLocationCode] = useState('')
+  const [initialFetchError, setInitialFetchError] = useState<string | null>(null)
 
   // Triple confirmation state
   const [confirmationStep, setConfirmationStep] = useState(0) // 0 = not started, 1-3 = confirmation steps
@@ -57,10 +58,10 @@ export default function VoidDialog({
   useEffect(() => {
     if (isOpen && initialSaleId) {
       // Only auto-fetch if we have a valid sale ID
-      fetchSale(initialSaleId.toString())
+      fetchSale(initialSaleId.toString(), true)
     } else if (isOpen && initialInvoiceNumber && initialInvoiceNumber.trim().length > 0) {
       // Only auto-fetch if we have a non-empty invoice number
-      fetchSale(initialInvoiceNumber.trim())
+      fetchSale(initialInvoiceNumber.trim(), true)
     }
   }, [isOpen, initialSaleId, initialInvoiceNumber])
 
@@ -75,17 +76,21 @@ export default function VoidDialog({
       setManagerPassword('')
       setRfidLocationCode('')
       setConfirmationStep(0) // Reset triple confirmation
+      setInitialFetchError(null) // Reset initial fetch error
     }
   }, [isOpen, initialSaleId, initialInvoiceNumber])
 
-  const fetchSale = async (invoiceNumberOrId: string) => {
+  const fetchSale = async (invoiceNumberOrId: string, isInitialFetch: boolean = false) => {
     // Don't search if empty or too short
     if (!invoiceNumberOrId || invoiceNumberOrId.trim().length < 2) {
-      toast.error('Please enter at least 2 characters to search')
+      const errorMsg = 'Please enter at least 2 characters to search'
+      toast.error(errorMsg)
+      if (isInitialFetch) setInitialFetchError(errorMsg)
       return
     }
 
     setLoading(true)
+    setInitialFetchError(null)
     try {
       const response = await fetch(`/api/sales/devextreme?searchValue=${encodeURIComponent(invoiceNumberOrId.trim())}&take=1`)
       const data = await response.json()
@@ -106,37 +111,39 @@ export default function VoidDialog({
                           customerMobile.includes(searchLower)
 
         if (!matchFound) {
-          toast.error('Sale Not Found', {
-            description: `No sale found matching "${invoiceNumberOrId}".`,
-          })
+          const errorMsg = `No sale found matching "${invoiceNumberOrId}".`
+          toast.error('Sale Not Found', { description: errorMsg })
+          if (isInitialFetch) setInitialFetchError(errorMsg)
           return
         }
 
         // Validate sale status
         if (saleData.status === 'voided') {
-          toast.error('Sale Already Voided', {
-            description: `Invoice ${saleData.invoiceNumber} is already voided.`,
-          })
+          const errorMsg = `Invoice ${saleData.invoiceNumber} is already voided.`
+          toast.error('Sale Already Voided', { description: errorMsg })
+          if (isInitialFetch) setInitialFetchError(errorMsg)
           return
         }
 
         if (saleData.status === 'cancelled') {
-          toast.error('Cannot Void Cancelled Sale', {
-            description: `Invoice ${saleData.invoiceNumber} is cancelled and cannot be voided.`,
-          })
+          const errorMsg = `Invoice ${saleData.invoiceNumber} is cancelled and cannot be voided.`
+          toast.error('Cannot Void Cancelled Sale', { description: errorMsg })
+          if (isInitialFetch) setInitialFetchError(errorMsg)
           return
         }
 
         setSale(saleData)
         setStep('confirm')
       } else {
-        toast.error('Sale Not Found', {
-          description: `No sale found with invoice number "${invoiceNumberOrId}".`,
-        })
+        const errorMsg = `No sale found with invoice number "${invoiceNumberOrId}".`
+        toast.error('Sale Not Found', { description: errorMsg })
+        if (isInitialFetch) setInitialFetchError(errorMsg)
       }
     } catch (error) {
       console.error('[Void Search] Error:', error)
-      toast.error('Failed to fetch sale details.')
+      const errorMsg = 'Failed to fetch sale details.'
+      toast.error(errorMsg)
+      if (isInitialFetch) setInitialFetchError(errorMsg)
     } finally {
       setLoading(false)
     }
@@ -286,8 +293,32 @@ export default function VoidDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Step 1: Search for sale */}
-        {step === 'search' && (
+        {/* Loading state when auto-fetching from initialInvoiceNumber */}
+        {step === 'search' && initialInvoiceNumber && loading && !initialFetchError && (
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p className="text-gray-600 dark:text-gray-400 text-center">
+              Loading invoice <span className="font-semibold">{initialInvoiceNumber}</span>...
+            </p>
+          </div>
+        )}
+
+        {/* Error state when initial fetch fails */}
+        {step === 'search' && initialInvoiceNumber && !loading && initialFetchError && (
+          <div className="flex flex-col items-center justify-center py-8 space-y-4">
+            <div className="p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg text-center">
+              <XCircle className="h-12 w-12 text-red-500 mx-auto mb-3" />
+              <h3 className="font-semibold text-red-800 dark:text-red-200 mb-2">Failed to Load Invoice</h3>
+              <p className="text-sm text-red-600 dark:text-red-400">{initialFetchError}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-3">
+                Invoice: <span className="font-mono font-semibold">{initialInvoiceNumber}</span>
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Step 1: Search for sale - Only show if NO initialInvoiceNumber provided */}
+        {step === 'search' && !initialInvoiceNumber && (
           <div className="space-y-4">
             <form onSubmit={handleSearchSale} className="space-y-4">
               <div>
