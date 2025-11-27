@@ -1306,6 +1306,15 @@ export default function POSEnhancedPage() {
       return
     }
 
+    // Confirmation before saving
+    const confirmed = window.confirm(
+      '✅ CONFIRM CASH IN\n\n' +
+      `Amount: ₱${parseFloat(cashIOAmount).toFixed(2)}\n` +
+      `Remarks: ${cashIORemarks || '(none)'}\n\n` +
+      'Are you sure you want to record this Cash In transaction?'
+    )
+    if (!confirmed) return
+
     try {
       const res = await fetch('/api/cash/in', {
         method: 'POST',
@@ -1350,6 +1359,15 @@ export default function POSEnhancedPage() {
       setError('Remarks are required for cash out')
       return
     }
+
+    // Confirmation before saving
+    const confirmed = window.confirm(
+      '✅ CONFIRM CASH OUT\n\n' +
+      `Amount: ₱${parseFloat(cashIOAmount).toFixed(2)}\n` +
+      `Remarks: ${cashIORemarks}\n\n` +
+      'Are you sure you want to record this Cash Out transaction?'
+    )
+    if (!confirmed) return
 
     try {
       const res = await fetch('/api/cash/out', {
@@ -1670,9 +1688,14 @@ export default function POSEnhancedPage() {
       '⚠️ PLEASE DOUBLE-CHECK BEFORE PROCEEDING\n\n' +
       `Total Items: ${itemCount}\n` +
       `Total Amount: ₱${total.toFixed(2)}\n\n` +
+      '💳 PAYMENT DETAILS:\n' +
+      `   Cash: ₱${cashAmount || '0.00'}\n` +
+      `   Digital (${digitalMethod || 'N/A'}): ₱${digitalAmount || '0.00'}\n` +
+      `   Cheque: ₱${chequeAmount || '0.00'}\n\n` +
+      '✓ Have you verified the PAYMENT TYPES are correct?\n' +
+      '✓ Have you verified the PAYMENT AMOUNTS are correct?\n' +
       '✓ Have you checked all items are correct?\n' +
-      '✓ Have you verified the total amount?\n' +
-      '✓ Have you entered the correct customer/payment details?\n\n' +
+      '✓ Have you entered the correct customer details?\n\n' +
       '⏱️ TAKE YOUR TIME - Do not rush!\n\n' +
       'Click OK to proceed with sale or Cancel to review.'
     )
@@ -2217,7 +2240,22 @@ export default function POSEnhancedPage() {
             📊 X Read
           </Button>
           <Button
-            onClick={() => { setCashIOAmount(''); setCashIORemarks(''); setShowCashInDialog(true); }}
+            onClick={() => {
+              const confirmed = window.confirm(
+                '💵 CASH IN TRANSACTION\n\n' +
+                'You are about to record a Cash In transaction.\n\n' +
+                'Cash In is used for:\n' +
+                '• Beginning cash/change fund\n' +
+                '• Additional cash from owner/manager\n' +
+                '• Cash corrections\n\n' +
+                'Are you sure you want to proceed?'
+              )
+              if (confirmed) {
+                setCashIOAmount('')
+                setCashIORemarks('')
+                setShowCashInDialog(true)
+              }
+            }}
             className="h-12 px-4 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             title={cart.length > 0 ? "Complete or clear current sale first" : "Cash In"}
             disabled={cart.length > 0}
@@ -2225,7 +2263,22 @@ export default function POSEnhancedPage() {
             💵 Cash In
           </Button>
           <Button
-            onClick={() => { setCashIOAmount(''); setCashIORemarks(''); setShowCashOutDialog(true); }}
+            onClick={() => {
+              const confirmed = window.confirm(
+                '💸 CASH OUT TRANSACTION\n\n' +
+                'You are about to record a Cash Out transaction.\n\n' +
+                'Cash Out is used for:\n' +
+                '• Petty cash expenses\n' +
+                '• Cash pickups by manager\n' +
+                '• Cash corrections\n\n' +
+                'Are you sure you want to proceed?'
+              )
+              if (confirmed) {
+                setCashIOAmount('')
+                setCashIORemarks('')
+                setShowCashOutDialog(true)
+              }
+            }}
             className="h-12 px-4 bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             title={cart.length > 0 ? "Complete or clear current sale first" : "Cash Out"}
             disabled={cart.length > 0}
