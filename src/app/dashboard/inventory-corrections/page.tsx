@@ -9,7 +9,7 @@ import { PERMISSIONS } from '@/lib/rbac'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { PasswordConfirmDialog } from '@/components/PasswordConfirmDialog'
-import { Plus, CheckCircle, Eye, Edit, Trash2 } from 'lucide-react'
+import { Plus, CheckCircle, XCircle, Eye, Edit, Trash2 } from 'lucide-react'
 import DataGrid, {
   Column,
   Paging,
@@ -39,6 +39,7 @@ interface InventoryCorrection {
   createdAt: string
   updatedAt: string
   approvedAt: string | null
+  rejectedAt?: string | null
   product: {
     id: number
     name: string
@@ -158,6 +159,39 @@ export default function InventoryCorrectionsPage() {
     } catch (error) {
       console.error('Error deleting correction:', error)
       toast.error('Failed to delete inventory correction')
+    }
+  }
+
+  const handleReject = async (correctionId: number) => {
+    const reason = prompt('Please enter the reason for rejection (optional):')
+
+    if (reason === null) {
+      // User cancelled the prompt
+      return
+    }
+
+    if (!confirm('Are you sure you want to reject this inventory correction? This will mark it as rejected and no stock adjustments will be made.')) {
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/inventory-corrections/${correctionId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        toast.success(data.message || 'Inventory correction rejected successfully')
+        fetchCorrections() // Refresh list
+      } else {
+        const error = await res.json()
+        toast.error(error.error || 'Failed to reject inventory correction')
+      }
+    } catch (error) {
+      console.error('Error rejecting correction:', error)
+      toast.error('Failed to reject inventory correction')
     }
   }
 
@@ -283,6 +317,8 @@ export default function InventoryCorrectionsPage() {
         return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300 dark:bg-yellow-950 dark:text-yellow-400">Pending</Badge>
       case 'approved':
         return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300 dark:bg-green-950 dark:text-green-400">Approved</Badge>
+      case 'rejected':
+        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300 dark:bg-red-950 dark:text-red-400">Rejected</Badge>
       default:
         return <Badge variant="outline">{status}</Badge>
     }
@@ -313,6 +349,20 @@ export default function InventoryCorrectionsPage() {
           >
             <CheckCircle className="h-3.5 w-3.5" />
             <span className="font-medium text-xs">Approve</span>
+          </Button>
+        )}
+
+        {/* Reject Button - For mistakenly entered corrections */}
+        {correction.status === 'pending' && can(PERMISSIONS.INVENTORY_CORRECTION_REJECT) && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleReject(correction.id)}
+            className="gap-1.5 px-3 border-red-500 text-red-700 hover:bg-red-50 hover:border-red-600 hover:shadow-sm dark:border-red-600 dark:text-red-400 dark:hover:bg-red-950 dark:hover:border-red-500 transition-all"
+            title="Reject correction"
+          >
+            <XCircle className="h-3.5 w-3.5" />
+            <span className="font-medium text-xs">Reject</span>
           </Button>
         )}
 
@@ -554,7 +604,7 @@ export default function InventoryCorrectionsPage() {
 
           <Column
             caption="Actions"
-            width={250}
+            width={320}
             alignment="right"
             cellRender={renderActionsCell}
             allowFiltering={false}

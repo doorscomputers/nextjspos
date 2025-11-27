@@ -253,6 +253,7 @@ export const PERMISSIONS = {
   INVENTORY_CORRECTION_UPDATE: 'inventory_correction.update',
   INVENTORY_CORRECTION_DELETE: 'inventory_correction.delete',
   INVENTORY_CORRECTION_APPROVE: 'inventory_correction.approve',
+  INVENTORY_CORRECTION_REJECT: 'inventory_correction.reject',
 
   // Physical Inventory Count
   PHYSICAL_INVENTORY_EXPORT: 'physical_inventory.export',
@@ -985,13 +986,14 @@ export const DEFAULT_ROLES = {
 
   INVENTORY_CORRECTION_APPROVER: {
     name: 'Inventory Correction Approver',
-    description: 'Approves inventory corrections from all locations (cannot create)',
+    description: 'Approves or rejects inventory corrections from all locations (cannot create)',
     category: 'Product & Inventory',
     permissions: [
       PERMISSIONS.DASHBOARD_VIEW,
       PERMISSIONS.PRODUCT_VIEW,
       PERMISSIONS.INVENTORY_CORRECTION_VIEW,
       PERMISSIONS.INVENTORY_CORRECTION_APPROVE,
+      PERMISSIONS.INVENTORY_CORRECTION_REJECT,
       PERMISSIONS.INVENTORY_CORRECTION_DELETE,
       PERMISSIONS.STOCK_REPORT_VIEW,
       PERMISSIONS.VIEW_INVENTORY_REPORTS,
@@ -1974,9 +1976,10 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.PRODUCT_WARRANTY_UPDATE,
       PERMISSIONS.PRODUCT_WARRANTY_DELETE,
 
-      // Inventory Management - View & Approve Only (NO CREATE/UPDATE/DELETE)
+      // Inventory Management - View & Approve/Reject Only (NO CREATE/UPDATE/DELETE)
       PERMISSIONS.INVENTORY_CORRECTION_VIEW,
       PERMISSIONS.INVENTORY_CORRECTION_APPROVE,
+      PERMISSIONS.INVENTORY_CORRECTION_REJECT,
       PERMISSIONS.PHYSICAL_INVENTORY_EXPORT,
       // PERMISSIONS.PHYSICAL_INVENTORY_IMPORT, // DISABLED - Too dangerous! Only Super Admin can import
 

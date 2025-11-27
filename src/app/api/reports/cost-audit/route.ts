@@ -34,11 +34,14 @@ export async function GET(request: Request) {
       locationFilter.id = { in: accessibleLocationIds }
     }
 
-    // Fetch all active locations
+    // Fetch all active locations (excluding Main Warehouse for cost audit)
     const locations = await prisma.businessLocation.findMany({
       where: {
         businessId,
         isActive: true,
+        name: {
+          not: 'Main Warehouse',
+        },
         ...locationFilter,
       },
       select: {
@@ -49,6 +52,9 @@ export async function GET(request: Request) {
         name: 'asc',
       },
     })
+
+    // Get location IDs for filtering variation details (excludes Main Warehouse)
+    const filteredLocationIds = locations.map((l) => l.id)
 
     // Fetch product variations with cost and pricing data
     const productVariations = await prisma.productVariation.findMany({
@@ -76,9 +82,9 @@ export async function GET(request: Request) {
           },
         },
         variationLocationDetails: {
-          where: accessibleLocationIds !== null
-            ? { locationId: { in: accessibleLocationIds } }
-            : {},
+          where: {
+            locationId: { in: filteredLocationIds },
+          },
           select: {
             locationId: true,
             sellingPrice: true,
