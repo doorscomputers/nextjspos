@@ -273,9 +273,76 @@ function applyDevExtremeFilters(whereClause: any, filters: any) {
 }
 
 /**
+ * Map of transformed field names to actual Prisma relation paths
+ * These are fields that come from the transformed data but need to query relations
+ */
+const RELATION_FIELD_MAP: Record<string, string> = {
+  'category': 'category.name',
+  'brand': 'brand.name',
+  'unit': 'unit.shortName',
+  'tax': 'tax.name',
+}
+
+/**
+ * Fields that should be skipped in search (non-searchable or computed fields)
+ */
+const SKIP_SEARCH_FIELDS = [
+  'isActive',
+  'status',
+  'lastSupplier',
+  'latestSupplier',
+  'totalStock',
+  'totalCost',
+  'variationCount',
+  'lastPurchaseDate',
+  'lastPurchaseCost',
+  'lastPurchaseQuantity',
+  'enableStock',
+  'alertQuantity',
+  'createdAt',
+  'image',
+  'variations'
+]
+
+/**
  * Apply single filter to where clause
  */
 function applyFilter(whereClause: any, field: string, operation: string, value: any) {
+  // Skip non-searchable fields
+  if (SKIP_SEARCH_FIELDS.includes(field)) {
+    return
+  }
+
+  // Handle relation fields - map to actual Prisma path
+  const relationPath = RELATION_FIELD_MAP[field]
+  if (relationPath) {
+    const [relation, subField] = relationPath.split('.')
+    switch (operation) {
+      case 'contains':
+        whereClause[relation] = { [subField]: { contains: value, mode: 'insensitive' } }
+        break
+      case 'notcontains':
+        whereClause[relation] = { [subField]: { not: { contains: value } } }
+        break
+      case 'startswith':
+        whereClause[relation] = { [subField]: { startsWith: value, mode: 'insensitive' } }
+        break
+      case 'endswith':
+        whereClause[relation] = { [subField]: { endsWith: value, mode: 'insensitive' } }
+        break
+      case '=':
+        whereClause[relation] = { [subField]: value }
+        break
+      case '<>':
+        whereClause[relation] = { [subField]: { not: value } }
+        break
+      default:
+        whereClause[relation] = { [subField]: value }
+    }
+    return
+  }
+
+  // Handle regular string fields
   switch (operation) {
     case 'contains':
       whereClause[field] = { contains: value, mode: 'insensitive' }
