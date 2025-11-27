@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
 
     // Search
     const searchValue = searchParams.get('searchValue')?.trim() || ''
+    const exactInvoice = searchParams.get('exactInvoice')?.trim() || '' // Exact invoice number match
 
     // Sorting
     const sortField = searchParams.get('sort')
@@ -51,8 +52,13 @@ export async function GET(request: NextRequest) {
       whereClause.status = statusFilter
     }
 
-    // Apply search across multiple fields
-    if (searchValue) {
+    // Apply exact invoice match (used by VoidDialog when invoice is already known)
+    if (exactInvoice) {
+      console.log('[DevExtreme Sales API] Exact invoice lookup:', exactInvoice)
+      whereClause.invoiceNumber = exactInvoice
+    }
+    // Apply search across multiple fields (partial match)
+    else if (searchValue) {
       console.log('[DevExtreme Sales API] Searching for:', searchValue)
       whereClause.OR = [
         { invoiceNumber: { contains: searchValue, mode: 'insensitive' } },

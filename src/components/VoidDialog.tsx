@@ -92,7 +92,12 @@ export default function VoidDialog({
     setLoading(true)
     setInitialFetchError(null)
     try {
-      const response = await fetch(`/api/sales/devextreme?searchValue=${encodeURIComponent(invoiceNumberOrId.trim())}&take=1`)
+      // Use exactInvoice parameter when we have a known invoice number (from initial fetch)
+      // This ensures we get the exact invoice, not a partial match
+      const queryParam = isInitialFetch
+        ? `exactInvoice=${encodeURIComponent(invoiceNumberOrId.trim())}`
+        : `searchValue=${encodeURIComponent(invoiceNumberOrId.trim())}`
+      const response = await fetch(`/api/sales/devextreme?${queryParam}&take=1`)
       const data = await response.json()
 
       if (data.data && data.data.length > 0) {
