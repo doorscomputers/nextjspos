@@ -68,10 +68,10 @@ export async function sendCreditSaleAlert(data: {
   cashierName: string
   timestamp: Date
 }): Promise<void> {
+  // Note: Telegram credit sale alert temporarily disabled due to data mismatch issue
+  // Only SMS alert is active for credit sales
   await Promise.all([
-    Telegram.sendTelegramCreditSaleAlert(data).catch(err =>
-      console.error('[AlertService] Telegram credit sale alert failed:', err)
-    ),
+    // Telegram.sendTelegramCreditSaleAlert(data) - disabled
     SMS.sendSemaphoreCreditSaleAlert(data).catch(err =>
       console.error('[AlertService] SMS credit sale alert failed:', err)
     ),
