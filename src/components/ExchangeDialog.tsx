@@ -586,23 +586,44 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                   {/* Selected Exchange Items */}
                   <div className="space-y-2 max-h-[300px] overflow-y-auto">
                     {exchangeItems.map((item, index) => (
-                      <div key={index} className="flex items-center gap-2 border rounded-lg p-3">
-                        <div className="flex-1">
-                          <p className="font-medium text-sm">{item.productName}</p>
-                          <p className="text-xs text-gray-600">₱{item.unitPrice.toFixed(2)} each</p>
+                      <div key={index} className="flex items-center gap-3 border rounded-lg p-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{item.productName}</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">₱{item.unitPrice.toFixed(2)} each</p>
                         </div>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={item.quantity}
-                          onChange={(e) => handleUpdateExchangeQuantity(index, parseInt(e.target.value) || 1)}
-                          className="w-16 h-8 text-sm"
-                        />
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            size="icon-sm"
+                            variant="outline"
+                            onClick={() => handleUpdateExchangeQuantity(index, item.quantity - 1)}
+                            disabled={item.quantity <= 1}
+                            className="h-8 w-8"
+                          >
+                            -
+                          </Button>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => handleUpdateExchangeQuantity(index, parseInt(e.target.value) || 1)}
+                            className="w-14 h-8 text-center font-semibold text-base px-1"
+                          />
+                          <Button
+                            type="button"
+                            size="icon-sm"
+                            variant="outline"
+                            onClick={() => handleUpdateExchangeQuantity(index, item.quantity + 1)}
+                            className="h-8 w-8"
+                          >
+                            +
+                          </Button>
+                        </div>
                         <Button
                           size="icon-sm"
                           variant="outline"
                           onClick={() => handleRemoveExchangeItem(index)}
-                          className="hover:border-red-500 hover:text-red-700"
+                          className="hover:border-red-500 hover:text-red-700 dark:hover:text-red-400"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
