@@ -1128,6 +1128,7 @@ export default function POSEnhancedPage() {
 
   const sanitizeCurrencyInput = (raw: string) => {
     if (!raw) return ''
+    // Remove negative signs and any non-numeric characters except decimal point
     const sanitized = raw.replace(/[^0-9.]/g, '')
     const parts = sanitized.split('.')
     if (parts.length <= 1) return sanitized
@@ -2746,8 +2747,13 @@ export default function POSEnhancedPage() {
                   <Label className="text-base font-bold mb-1 block text-green-700">Cash Amount</Label>
                   <Input
                     type="number"
+                    min="0"
                     value={cashAmount}
-                    onChange={(e) => setCashAmount(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      if (val === '' || parseFloat(val) >= 0) setCashAmount(val)
+                    }}
+                    onKeyDown={(e) => { if (e.key === '-') e.preventDefault() }}
                     placeholder="0.00"
                     className="h-12 text-xl font-bold border-2 border-green-400"
                   />
@@ -2770,8 +2776,13 @@ export default function POSEnhancedPage() {
                   </Select>
                   <Input
                     type="number"
+                    min="0"
                     value={digitalAmount}
-                    onChange={(e) => setDigitalAmount(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      if (val === '' || parseFloat(val) >= 0) setDigitalAmount(val)
+                    }}
+                    onKeyDown={(e) => { if (e.key === '-') e.preventDefault() }}
                     placeholder="0.00"
                     className="h-12 text-xl font-bold border-2 border-blue-400"
                   />
@@ -2791,8 +2802,13 @@ export default function POSEnhancedPage() {
                   <Label className="text-base font-bold mb-1 block text-amber-700">Cheque Payment</Label>
                   <Input
                     type="number"
+                    min="0"
                     value={chequeAmount}
-                    onChange={(e) => setChequeAmount(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      if (val === '' || parseFloat(val) >= 0) setChequeAmount(val)
+                    }}
+                    onKeyDown={(e) => { if (e.key === '-') e.preventDefault() }}
                     placeholder="0.00"
                     className="h-12 text-xl font-bold border-2 border-amber-400"
                   />
