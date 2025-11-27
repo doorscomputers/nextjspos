@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import { ArrowPathIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import DataGrid, {
   Column,
   Export,
@@ -59,6 +60,31 @@ export default function BranchStockPivotV2Page() {
   const [refreshing, setRefreshing] = useState(false)
   const [locations, setLocations] = useState<LocationColumn[]>([])
   const [dataSource, setDataSource] = useState<any[]>([])
+  const dataGridRef = useRef<DataGrid>(null)
+  const [searchInput, setSearchInput] = useState('')
+  const [searchText, setSearchText] = useState('')
+
+  // Handle search - only apply when Enter is pressed or Search button clicked
+  const handleSearch = () => {
+    setSearchText(searchInput)
+    if (dataGridRef.current?.instance) {
+      dataGridRef.current.instance.searchByText(searchInput)
+    }
+  }
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch()
+    }
+  }
+
+  const handleClearSearch = () => {
+    setSearchInput('')
+    setSearchText('')
+    if (dataGridRef.current?.instance) {
+      dataGridRef.current.instance.searchByText('')
+    }
+  }
 
   // Refresh the materialized view to get latest inventory data
   const refreshMaterializedView = async () => {
@@ -300,7 +326,45 @@ export default function BranchStockPivotV2Page() {
 
       {/* DevExtreme DataGrid */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+        {/* Custom Search Bar */}
+        <div className="mb-4 flex items-center gap-2">
+          <div className="relative flex-1 max-w-md">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search products... (Press Enter or click Search)"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              className="pl-10 pr-10"
+            />
+            {searchInput && (
+              <button
+                onClick={handleClearSearch}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <Button
+            onClick={handleSearch}
+            variant="outline"
+            size="sm"
+            className="gap-2"
+          >
+            <MagnifyingGlassIcon className="h-4 w-4" />
+            Search
+          </Button>
+          {searchText && (
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              Searching: &quot;{searchText}&quot;
+            </span>
+          )}
+        </div>
+
         <DataGrid
+          ref={dataGridRef}
           dataSource={dataSource}
           showBorders={true}
           columnAutoWidth={true}
@@ -319,7 +383,7 @@ export default function BranchStockPivotV2Page() {
           <Export enabled={true} formats={['xlsx', 'pdf']} allowExportSelectedData={true} />
           <ColumnChooser enabled={true} mode="select" />
           <ColumnFixing enabled={true} />
-          <SearchPanel visible={true} width={300} placeholder="Search products..." />
+          <SearchPanel visible={false} text={searchText} />
           <FilterRow visible={true} />
           <HeaderFilter visible={true} />
           <Paging defaultPageSize={100} />

@@ -745,24 +745,24 @@ export default function ProductsPage() {
   }
 
   const handleSimpleFilterChange = (key: keyof ProductFilters, value: string) => {
-    // Text-based filters that require minimum characters
+    // Text-based filters - only update input display, require Enter to apply
     const textFilters: (keyof ProductFilters)[] = ['search', 'sku', 'categoryName', 'brandName', 'unitName', 'taxName']
 
     if (textFilters.includes(key)) {
-      // Always update the input display value
+      // Only update the input display value - actual filter applied on Enter
       setFilterInputs((prev) => ({
         ...prev,
         [key]: value,
       }))
 
-      // Only update the actual filter if empty (clearing) or >= MIN_SEARCH_CHARS
-      if (value === '' || value.length >= MIN_SEARCH_CHARS) {
+      // Clear filter immediately when input is emptied
+      if (value === '') {
         if (key === 'search') {
-          setSearchTerm(value)
+          setSearchTerm('')
         }
         setFilters((prev) => ({
           ...prev,
-          [key]: value,
+          [key]: '',
         }))
       }
       return
@@ -776,6 +776,20 @@ export default function ProductsPage() {
       ...prev,
       [key]: value,
     }))
+  }
+
+  // Handle Enter key for column filters - applies the filter
+  const handleColumnFilterKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, key: keyof ProductFilters) => {
+    if (e.key === 'Enter') {
+      const value = filterInputs[key] ?? ''
+      if (key === 'search') {
+        setSearchTerm(value)
+      }
+      setFilters((prev) => ({
+        ...prev,
+        [key]: value,
+      }))
+    }
   }
 
   // Handle manual search button click
@@ -1187,7 +1201,8 @@ export default function ProductsPage() {
                     <Input
                       value={filterInputs.search ?? ''}
                       onChange={(e) => handleSimpleFilterChange('search', e.target.value)}
-                      placeholder={`Filter (min ${MIN_SEARCH_CHARS} chars)...`}
+                      onKeyDown={(e) => handleColumnFilterKeyDown(e, 'search')}
+                      placeholder="Type & press Enter..."
                       className="h-8 text-xs"
                     />
                   </TableCell>
@@ -1198,7 +1213,8 @@ export default function ProductsPage() {
                     <Input
                       value={filterInputs.sku ?? ''}
                       onChange={(e) => handleSimpleFilterChange('sku', e.target.value)}
-                      placeholder={`Filter (min ${MIN_SEARCH_CHARS})...`}
+                      onKeyDown={(e) => handleColumnFilterKeyDown(e, 'sku')}
+                      placeholder="Type & press Enter..."
                       className="h-8 text-xs font-mono"
                     />
                   </TableCell>
@@ -1222,7 +1238,8 @@ export default function ProductsPage() {
                     <Input
                       value={filterInputs.categoryName ?? ''}
                       onChange={(e) => handleSimpleFilterChange('categoryName', e.target.value)}
-                      placeholder={`Filter (min ${MIN_SEARCH_CHARS})...`}
+                      onKeyDown={(e) => handleColumnFilterKeyDown(e, 'categoryName')}
+                      placeholder="Type & press Enter..."
                       className="h-8 text-xs"
                     />
                   </TableCell>
@@ -1232,7 +1249,8 @@ export default function ProductsPage() {
                     <Input
                       value={filterInputs.brandName ?? ''}
                       onChange={(e) => handleSimpleFilterChange('brandName', e.target.value)}
-                      placeholder={`Filter (min ${MIN_SEARCH_CHARS})...`}
+                      onKeyDown={(e) => handleColumnFilterKeyDown(e, 'brandName')}
+                      placeholder="Type & press Enter..."
                       className="h-8 text-xs"
                     />
                   </TableCell>
@@ -1242,7 +1260,8 @@ export default function ProductsPage() {
                     <Input
                       value={filterInputs.unitName ?? ''}
                       onChange={(e) => handleSimpleFilterChange('unitName', e.target.value)}
-                      placeholder={`Filter (min ${MIN_SEARCH_CHARS})...`}
+                      onKeyDown={(e) => handleColumnFilterKeyDown(e, 'unitName')}
+                      placeholder="Type & press Enter..."
                       className="h-8 text-xs"
                     />
                   </TableCell>
@@ -1331,7 +1350,8 @@ export default function ProductsPage() {
                     <Input
                       value={filterInputs.taxName ?? ''}
                       onChange={(e) => handleSimpleFilterChange('taxName', e.target.value)}
-                      placeholder={`Filter (min ${MIN_SEARCH_CHARS})...`}
+                      onKeyDown={(e) => handleColumnFilterKeyDown(e, 'taxName')}
+                      placeholder="Type & press Enter..."
                       className="h-8 text-xs"
                     />
                   </TableCell>

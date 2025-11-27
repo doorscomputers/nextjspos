@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { MagnifyingGlassIcon, DocumentArrowDownIcon, PrinterIcon, DocumentTextIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
+import { MagnifyingGlassIcon, DocumentArrowDownIcon, PrinterIcon, DocumentTextIcon, ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import ColumnVisibilityToggle from '@/components/ColumnVisibilityToggle'
 import { SortableTableHead } from '@/components/ui/sortable-table-head'
 import { exportToCSV, exportToExcel, exportToPDF, printTable, ExportColumn } from '@/lib/exportUtils'
@@ -83,6 +83,31 @@ export default function BranchStockPivotPage() {
     'itemCode', 'itemName', 'supplier', 'category', 'brand', 'lastDeliveryDate',
     'lastQtyDelivered', 'cost'
   ])
+
+  // Separate state for search input (only applies on Enter or Search button click)
+  const [searchInput, setSearchInput] = useState('')
+
+  // Handle search - only apply when Enter is pressed or Search button clicked
+  const handleSearch = () => {
+    handleFiltersChange({
+      ...filters,
+      search: searchInput,
+    })
+  }
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch()
+    }
+  }
+
+  const handleClearSearch = () => {
+    setSearchInput('')
+    handleFiltersChange({
+      ...filters,
+      search: '',
+    })
+  }
 
   const handleFiltersChange = (updatedFilters: StockFilters) => {
     setFilters(updatedFilters)
@@ -552,15 +577,40 @@ export default function BranchStockPivotPage() {
 
       {/* Filters */}
       <div className="mb-6 flex flex-col md:flex-row gap-4">
-        <div className="relative flex-1">
-          <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
-          <input
-            type="text"
-            value={filters.search}
-            onChange={(e) => handleSimpleFilterChange('search', e.target.value)}
-            placeholder="Search by product, SKU, supplier, category, or brand..."
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-          />
+        <div className="relative flex-1 flex gap-2">
+          <div className="relative flex-1">
+            <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Search by product, SKU, supplier, category, or brand... (Press Enter or click Search)"
+              className="w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+            />
+            {searchInput && (
+              <button
+                onClick={handleClearSearch}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            )}
+          </div>
+          <Button
+            onClick={handleSearch}
+            variant="outline"
+            size="default"
+            className="gap-2 px-4"
+          >
+            <MagnifyingGlassIcon className="h-4 w-4" />
+            Search
+          </Button>
+          {filters.search && (
+            <span className="self-center text-sm text-gray-500 dark:text-gray-400">
+              Searching: &quot;{filters.search}&quot;
+            </span>
+          )}
         </div>
 
         <div className="flex gap-2">

@@ -4,10 +4,11 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 import Link from 'next/link'
-import { PlusIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon, PencilIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, ArrowPathIcon, EyeIcon, EyeSlashIcon, PencilIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import DataGrid, {
   Column,
   Export,
@@ -78,6 +79,31 @@ export default function ProductsListV2Page() {
   const dataGridRef = useRef<DataGrid>(null)
   const [activePreset, setActivePreset] = useState<ColumnPreset>('basic')
   const [gridInitialized, setGridInitialized] = useState(false)
+  const [searchInput, setSearchInput] = useState('')
+  const [searchText, setSearchText] = useState('')
+
+  // Handle search - only apply when Enter is pressed or Search button clicked
+  const handleSearch = () => {
+    setSearchText(searchInput)
+    // Apply search to DataGrid
+    if (dataGridRef.current?.instance) {
+      dataGridRef.current.instance.searchByText(searchInput)
+    }
+  }
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSearch()
+    }
+  }
+
+  const handleClearSearch = () => {
+    setSearchInput('')
+    setSearchText('')
+    if (dataGridRef.current?.instance) {
+      dataGridRef.current.instance.searchByText('')
+    }
+  }
 
   // PHASE 2 OPTIMIZATION: CustomStore for server-side operations
   // Enables searching/filtering across ALL products without loading them into memory
@@ -607,6 +633,36 @@ export default function ProductsListV2Page() {
 
       {/* DevExtreme DataGrid */}
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl">
+        {/* Custom Search Input - Press Enter or click Search */}
+        <div className="mb-4 flex items-center gap-2">
+          <div className="relative flex-1 max-w-md">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Type search term & press Enter..."
+              className="pl-10 pr-10"
+            />
+            {searchInput && (
+              <button
+                onClick={handleClearSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <Button onClick={handleSearch} variant="default" size="sm">
+            <MagnifyingGlassIcon className="h-4 w-4 mr-1" />
+            Search
+          </Button>
+          <span className="text-xs text-gray-500 dark:text-gray-400 italic">
+            Press Enter or click Search
+          </span>
+        </div>
+
         <DataGrid
           ref={dataGridRef}
           dataSource={dataSource}
@@ -636,7 +692,8 @@ export default function ProductsListV2Page() {
           <Export enabled={true} formats={['xlsx', 'pdf']} allowExportSelectedData={true} />
           <ColumnChooser enabled={true} mode="select" />
           <ColumnFixing enabled={true} />
-          <SearchPanel visible={true} width={300} placeholder="Search across ALL products..." />
+          {/* SearchPanel disabled - using custom search input above */}
+          <SearchPanel visible={false} text={searchText} />
           <FilterRow visible={true} />
           <HeaderFilter visible={true} />
           <Paging defaultPageSize={50} />
