@@ -316,6 +316,10 @@ This is an automated alert from the Igoro Tech Inventory Management System.
 export async function sendReconciliationAlert(
   data: ReconciliationAlertData
 ): Promise<void> {
+  // NOTE: Email alerts temporarily disabled due to SMTP authentication issues
+  console.log('[EMAIL] Reconciliation alert skipped - email disabled')
+  return
+
   try {
     // Create transporter
     const transporter = createTransporter()
