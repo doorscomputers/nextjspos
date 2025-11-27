@@ -173,11 +173,25 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   const fetchSale = async (invoiceNumberOrId: string) => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/sales/devextreme?searchValue=${encodeURIComponent(invoiceNumberOrId)}&take=1&status=completed`)
+      // Use exactInvoice for direct lookup to avoid partial match issues
+      const response = await fetch(`/api/sales/devextreme?exactInvoice=${encodeURIComponent(invoiceNumberOrId)}&take=1`)
       const data = await response.json()
+
+      console.log('[Exchange] Fetching invoice:', invoiceNumberOrId)
+      console.log('[Exchange] API response:', { totalCount: data.totalCount, dataLength: data.data?.length })
 
       if (data.data && data.data.length > 0) {
         const saleData = data.data[0]
+
+        console.log('[Exchange] Found sale:', saleData.invoiceNumber, 'Status:', saleData.status)
+
+        // Check if sale status allows exchange
+        if (saleData.status === 'voided') {
+          toast.error('Cannot Exchange Voided Sale', {
+            description: `Invoice ${saleData.invoiceNumber} has been voided and cannot be exchanged.`,
+          })
+          return
+        }
 
         // Validate sale age (7 days)
         const saleDate = new Date(saleData.saleDate)
