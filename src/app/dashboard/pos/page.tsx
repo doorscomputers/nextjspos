@@ -66,6 +66,7 @@ export default function POSEnhancedPage() {
   const [seniorCitizenName, setSeniorCitizenName] = useState('')
   const [pwdId, setPwdId] = useState('')
   const [pwdName, setPwdName] = useState('')
+  const [enableSeniorPwdDiscount, setEnableSeniorPwdDiscount] = useState(false)
 
   // Additional Charge State (for Credit Sales - uses shippingCost field internally)
   const [additionalChargeType, setAdditionalChargeType] = useState<'fixed' | 'percentage'>('fixed')
@@ -172,8 +173,22 @@ export default function POSEnhancedPage() {
       fetchCustomers()
       fetchQuotations()
       loadHeldTransactions()
+      fetchBusinessSettings()
     }
   }, [session])
+
+  // Fetch business settings for Senior/PWD discount toggle
+  const fetchBusinessSettings = async () => {
+    try {
+      const response = await fetch('/api/business/settings')
+      const data = await response.json()
+      if (response.ok && data.business) {
+        setEnableSeniorPwdDiscount(data.business.enableSeniorPwdDiscount || false)
+      }
+    } catch (error) {
+      console.error('Error fetching business settings:', error)
+    }
+  }
 
   // Fetch products after shift is loaded
   useEffect(() => {
@@ -1146,10 +1161,10 @@ export default function POSEnhancedPage() {
   }
 
   const calculateDiscount = () => {
-    const subtotal = calculateSubtotal()
-    if (discountType === 'regular' && regularDiscountPercent) {
-      // Regular discount is a FIXED AMOUNT, not percentage
-      return parseFloat(String(regularDiscountPercent))
+    // Senior/PWD discount is 20% applied AFTER item discounts
+    if (discountType === 'senior' || discountType === 'pwd') {
+      const subtotalAfterItemDiscounts = calculateSubtotal() - calculateTotalItemDiscounts()
+      return subtotalAfterItemDiscounts * 0.20
     }
     return 0
   }
@@ -2748,28 +2763,58 @@ export default function POSEnhancedPage() {
           {/* PAYMENT SECTION - Discount & Payment Methods */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
-            {/* Discount Section */}
-            <div className="border-2 border-gray-300 rounded-lg p-3 bg-white">
-              <Label className="text-sm font-bold mb-2 block text-gray-700">💰 Discount Type</Label>
-              <Select value={discountType} onValueChange={(value) => setDiscountType(value)}>
-                <SelectTrigger className="h-12 text-base border-2 border-gray-400">
-                  <SelectValue placeholder="Select discount type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Discount</SelectItem>
-                  <SelectItem value="regular">Regular Discount</SelectItem>
-                </SelectContent>
-              </Select>
-              {discountType === 'regular' && (
-                <Input
-                  type="number"
-                  value={regularDiscountPercent}
-                  onChange={(e) => setRegularDiscountPercent(parseFloat(e.target.value) || 0)}
-                  placeholder="Discount Amount"
-                  className="mt-2 h-10 text-base border-2 border-blue-400"
-                />
-              )}
-            </div>
+            {/* Discount Section - Only show if Senior/PWD discount is enabled in settings */}
+            {enableSeniorPwdDiscount && (
+              <div className="border-2 border-gray-300 rounded-lg p-3 bg-white">
+                <Label className="text-sm font-bold mb-2 block text-gray-700">💰 Discount Type</Label>
+                <Select value={discountType} onValueChange={(value) => setDiscountType(value)}>
+                  <SelectTrigger className="h-12 text-base border-2 border-gray-400">
+                    <SelectValue placeholder="Select discount type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No Discount</SelectItem>
+                    <SelectItem value="senior">Senior Citizen (20%)</SelectItem>
+                    <SelectItem value="pwd">PWD (20%)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {discountType === 'senior' && (
+                  <div className="mt-2 space-y-2">
+                    <Input
+                      type="text"
+                      value={seniorCitizenId}
+                      onChange={(e) => setSeniorCitizenId(e.target.value)}
+                      placeholder="Senior Citizen ID"
+                      className="h-10 text-base border-2 border-blue-400"
+                    />
+                    <Input
+                      type="text"
+                      value={seniorCitizenName}
+                      onChange={(e) => setSeniorCitizenName(e.target.value)}
+                      placeholder="Senior Citizen Name"
+                      className="h-10 text-base border-2 border-blue-400"
+                    />
+                  </div>
+                )}
+                {discountType === 'pwd' && (
+                  <div className="mt-2 space-y-2">
+                    <Input
+                      type="text"
+                      value={pwdId}
+                      onChange={(e) => setPwdId(e.target.value)}
+                      placeholder="PWD ID"
+                      className="h-10 text-base border-2 border-blue-400"
+                    />
+                    <Input
+                      type="text"
+                      value={pwdName}
+                      onChange={(e) => setPwdName(e.target.value)}
+                      placeholder="PWD Name"
+                      className="h-10 text-base border-2 border-blue-400"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Credit Sale Toggle */}
             <div className="border-2 border-gray-300 rounded-lg p-3 bg-white">

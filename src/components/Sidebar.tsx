@@ -1537,6 +1537,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
           permission: PERMISSIONS.BUSINESS_SETTINGS_VIEW,
         },
         {
+          name: "POS Settings",
+          href: "/dashboard/settings/pos-settings",
+          icon: CogIcon,
+          key: "pos_settings",
+          permission: PERMISSIONS.BUSINESS_SETTINGS_VIEW,
+        },
+        {
           name: "Schedule Login Security",
           href: "/dashboard/settings/schedule-login",
           icon: CogIcon,

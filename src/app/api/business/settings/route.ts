@@ -81,6 +81,7 @@ export async function PUT(request: NextRequest) {
       barcodeProductVariation,
       barcodeProductPrice,
       barcodePackingDate,
+      enableSeniorPwdDiscount,
     } = body
 
     const business = await prisma.business.update({
@@ -108,6 +109,7 @@ export async function PUT(request: NextRequest) {
         barcodeProductVariation: barcodeProductVariation !== undefined ? barcodeProductVariation : undefined,
         barcodeProductPrice: barcodeProductPrice !== undefined ? barcodeProductPrice : undefined,
         barcodePackingDate: barcodePackingDate !== undefined ? barcodePackingDate : undefined,
+        enableSeniorPwdDiscount: enableSeniorPwdDiscount !== undefined ? enableSeniorPwdDiscount : undefined,
       },
       include: {
         currency: true,
