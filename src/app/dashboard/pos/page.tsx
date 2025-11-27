@@ -2756,7 +2756,7 @@ export default function POSEnhancedPage() {
                     onKeyDown={(e) => { if (e.key === '-') e.preventDefault() }}
                     onWheel={(e) => (e.target as HTMLInputElement).blur()}
                     placeholder="0.00"
-                    className="h-12 text-xl font-bold border-2 border-green-400"
+                    className="h-12 text-xl font-bold border-2 border-green-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </div>
 
@@ -2786,7 +2786,7 @@ export default function POSEnhancedPage() {
                     onKeyDown={(e) => { if (e.key === '-') e.preventDefault() }}
                     onWheel={(e) => (e.target as HTMLInputElement).blur()}
                     placeholder="0.00"
-                    className="h-12 text-xl font-bold border-2 border-blue-400"
+                    className="h-12 text-xl font-bold border-2 border-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   {parseFloat(digitalAmount || '0') > 0 && (
                     <Input
@@ -2813,7 +2813,7 @@ export default function POSEnhancedPage() {
                     onKeyDown={(e) => { if (e.key === '-') e.preventDefault() }}
                     onWheel={(e) => (e.target as HTMLInputElement).blur()}
                     placeholder="0.00"
-                    className="h-12 text-xl font-bold border-2 border-amber-400"
+                    className="h-12 text-xl font-bold border-2 border-amber-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   {parseFloat(chequeAmount || '0') > 0 && (
                     <>
