@@ -2217,7 +2217,7 @@ export default function POSEnhancedPage() {
       {/* Main Content - Two Column Layout */}
       <div className="flex-1 flex overflow-hidden gap-0">
         {/* LEFT SIDE - CART ITEMS (70%) */}
-        <div className="flex-[0.7] bg-white border-r flex flex-col shadow-lg">
+        <div className="flex-[0.7] min-w-0 bg-white border-r flex flex-col shadow-lg overflow-hidden">
           {/* Cart Items - EXPANDED TO FILL MOST OF SIDEBAR */}
           <div className="flex-1 overflow-y-auto p-4">
             <h2 className="font-bold text-xl mb-4 flex items-center justify-between border-b pb-3">
@@ -2246,9 +2246,9 @@ export default function POSEnhancedPage() {
                     key={index}
                     className="flex flex-col gap-3 p-4 bg-gradient-to-r from-blue-50 to-white rounded-xl border-2 border-blue-200 shadow-md hover:shadow-lg transition-all"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-lg truncate">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <p className="font-bold text-lg truncate" title={item.name}>
                           {item.name}
                           {item.isFreebie && (
                             <span className="ml-2 text-xs bg-green-500 text-white px-2 py-1 rounded">
@@ -2265,7 +2265,7 @@ export default function POSEnhancedPage() {
                           ₱{item.unitPrice.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × {item.displayQuantity || item.quantity} {item.selectedUnitName || ''}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         {/* ALWAYS show +/- controls - they now work for both primary and sub-units */}
                         <Button
                           size="sm"
@@ -2295,7 +2295,7 @@ export default function POSEnhancedPage() {
                           </span>
                         )}
                       </div>
-                      <div className="text-right min-w-[100px]">
+                      <div className="text-right min-w-[100px] shrink-0">
                         <p className="font-bold text-xl text-blue-600">
                           ₱{(item.unitPrice * (item.displayQuantity && item.selectedUnitName ? item.displayQuantity : item.quantity)).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
@@ -2303,7 +2303,7 @@ export default function POSEnhancedPage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="text-red-500 hover:bg-red-100 h-10 w-10 p-0"
+                        className="text-red-500 hover:bg-red-100 h-10 w-10 p-0 shrink-0"
                         onClick={() => removeFromCart(index)}
                         aria-label="Remove product from cart"
                         title="Remove product from cart"
@@ -2442,7 +2442,7 @@ export default function POSEnhancedPage() {
         </div>
 
         {/* RIGHT SIDE - PAYMENT PANEL (30%) */}
-        <div className="flex-[0.3] bg-gradient-to-b from-gray-50 to-white border-l flex flex-col shadow-2xl">
+        <div className="flex-[0.3] min-w-[320px] bg-gradient-to-b from-gray-50 to-white border-l flex flex-col shadow-2xl shrink-0">
           {/* Customer Selection - Autocomplete Style (same as Product Search) */}
           <div className="p-2 border-b bg-gradient-to-r from-gray-50 to-gray-100 relative">
             <Label className="text-xs font-medium mb-1 block">Customer</Label>
