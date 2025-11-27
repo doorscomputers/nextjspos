@@ -74,16 +74,41 @@ export default function AllBranchStockPage() {
     return numericValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }, [])
 
+  // State to track input values separately from applied filters (for Enter key submission)
+  const [filterInputs, setFilterInputs] = useState<Partial<StockFilters>>({})
+
   const handleFiltersChange = (updatedFilters: StockFilters) => {
     setFilters(updatedFilters)
     setCurrentPage(1)
   }
 
+  // Update input display value only (doesn't trigger search)
+  const handleFilterInputChange = (key: keyof StockFilters, value: string) => {
+    setFilterInputs(prev => ({ ...prev, [key]: value }))
+  }
+
+  // Apply filter when Enter key is pressed
+  const handleFilterKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, key: keyof StockFilters) => {
+    if (e.key === 'Enter') {
+      const value = (filterInputs[key] as string) ?? ''
+      handleFiltersChange({
+        ...filters,
+        [key]: value,
+      })
+    }
+  }
+
+  // For number filters (min/max stock), apply immediately on change
   const handleSimpleFilterChange = (key: keyof StockFilters, value: string) => {
     handleFiltersChange({
       ...filters,
       [key]: value,
     })
+  }
+
+  // Helper to get the display value for filter inputs
+  const getFilterInputValue = (key: keyof StockFilters): string => {
+    return (filterInputs[key] as string) ?? (filters[key] as string) ?? ''
   }
 
   const handleLocationFilterChange = (locationId: number, field: 'min' | 'max', value: string) => {
@@ -508,9 +533,10 @@ const handlePrint = async () => {
             <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
             <input
               type="text"
-              value={filters.search}
-              onChange={(e) => handleSimpleFilterChange('search', e.target.value)}
-              placeholder="Search by product name, SKU, category, or brand..."
+              value={getFilterInputValue('search')}
+              onChange={(e) => handleFilterInputChange('search', e.target.value)}
+              onKeyDown={(e) => handleFilterKeyDown(e, 'search')}
+              placeholder="Search by product name, SKU, category, or brand (press Enter)..."
               className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
             />
           </div>
@@ -732,16 +758,18 @@ const handlePrint = async () => {
                       <div className="space-y-1">
                         <input
                           type="text"
-                          value={filters.productName}
-                          onChange={(e) => handleSimpleFilterChange('productName', e.target.value)}
-                          placeholder="Filter name"
+                          value={getFilterInputValue('productName')}
+                          onChange={(e) => handleFilterInputChange('productName', e.target.value)}
+                          onKeyDown={(e) => handleFilterKeyDown(e, 'productName')}
+                          placeholder="Name (Enter)"
                           className="w-full px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-xs focus:ring-1 focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                         />
                         <input
                           type="text"
-                          value={filters.productSku}
-                          onChange={(e) => handleSimpleFilterChange('productSku', e.target.value)}
-                          placeholder="Filter product SKU"
+                          value={getFilterInputValue('productSku')}
+                          onChange={(e) => handleFilterInputChange('productSku', e.target.value)}
+                          onKeyDown={(e) => handleFilterKeyDown(e, 'productSku')}
+                          placeholder="SKU (Enter)"
                           className="w-full px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-xs focus:ring-1 focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                         />
                       </div>
@@ -751,9 +779,10 @@ const handlePrint = async () => {
                     <th className="px-2 py-2">
                       <input
                         type="text"
-                        value={filters.variationSku}
-                        onChange={(e) => handleSimpleFilterChange('variationSku', e.target.value)}
-                        placeholder="Filter SKU"
+                        value={getFilterInputValue('variationSku')}
+                        onChange={(e) => handleFilterInputChange('variationSku', e.target.value)}
+                        onKeyDown={(e) => handleFilterKeyDown(e, 'variationSku')}
+                        placeholder="Filter (Enter)"
                         className="w-full px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-xs focus:ring-1 focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                       />
                     </th>
@@ -762,9 +791,10 @@ const handlePrint = async () => {
                     <th className="px-2 py-2">
                       <input
                         type="text"
-                        value={filters.variationName}
-                        onChange={(e) => handleSimpleFilterChange('variationName', e.target.value)}
-                        placeholder="Filter variation"
+                        value={getFilterInputValue('variationName')}
+                        onChange={(e) => handleFilterInputChange('variationName', e.target.value)}
+                        onKeyDown={(e) => handleFilterKeyDown(e, 'variationName')}
+                        placeholder="Filter (Enter)"
                         className="w-full px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-xs focus:ring-1 focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                       />
                     </th>
@@ -773,9 +803,10 @@ const handlePrint = async () => {
                     <th className="px-2 py-2">
                       <input
                         type="text"
-                        value={filters.category}
-                        onChange={(e) => handleSimpleFilterChange('category', e.target.value)}
-                        placeholder="Filter category"
+                        value={getFilterInputValue('category')}
+                        onChange={(e) => handleFilterInputChange('category', e.target.value)}
+                        onKeyDown={(e) => handleFilterKeyDown(e, 'category')}
+                        placeholder="Filter (Enter)"
                         className="w-full px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-xs focus:ring-1 focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                       />
                     </th>
@@ -784,9 +815,10 @@ const handlePrint = async () => {
                     <th className="px-2 py-2">
                       <input
                         type="text"
-                        value={filters.brand}
-                        onChange={(e) => handleSimpleFilterChange('brand', e.target.value)}
-                        placeholder="Filter brand"
+                        value={getFilterInputValue('brand')}
+                        onChange={(e) => handleFilterInputChange('brand', e.target.value)}
+                        onKeyDown={(e) => handleFilterKeyDown(e, 'brand')}
+                        placeholder="Filter (Enter)"
                         className="w-full px-2 py-1 rounded border border-gray-300 dark:border-gray-600 text-xs focus:ring-1 focus:ring-blue-400 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                       />
                     </th>
