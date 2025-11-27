@@ -981,21 +981,30 @@ export default function POSEnhancedPage() {
     const qty = item.displayQuantity && item.selectedUnitName ? item.displayQuantity : item.quantity
     const lineTotal = item.unitPrice * qty
 
+    // Cap the discount value to prevent exceeding line total
+    let cappedValue = discountValue
+    if (discountType === 'percentage') {
+      // Cap percentage at 100%
+      cappedValue = Math.min(discountValue, 100)
+    } else if (discountType === 'fixed') {
+      // Cap fixed discount at line total
+      cappedValue = Math.min(discountValue, lineTotal)
+    }
+
     // Calculate the discount amount in peso
     let discountAmount = 0
-    if (discountType && discountValue > 0) {
+    if (discountType && cappedValue > 0) {
       if (discountType === 'percentage') {
-        discountAmount = (lineTotal * discountValue) / 100
+        discountAmount = (lineTotal * cappedValue) / 100
       } else {
-        // Fixed discount - can't exceed line total
-        discountAmount = Math.min(discountValue, lineTotal)
+        discountAmount = cappedValue
       }
     }
 
     newCart[index] = {
       ...item,
       itemDiscountType: discountType,
-      itemDiscountValue: discountValue,
+      itemDiscountValue: cappedValue,
       itemDiscountAmount: discountAmount,
     }
     setCart(newCart)
