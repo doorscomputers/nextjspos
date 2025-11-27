@@ -911,6 +911,10 @@ export default function POSEnhancedPage() {
           requiresSerial: false, // Default to false, user can add serials manually
           serialNumberIds: [],
           serialNumbers: [], // Store full serial number objects
+          // Per-item discount fields
+          itemDiscountType: null as 'fixed' | 'percentage' | null,
+          itemDiscountValue: 0,
+          itemDiscountAmount: 0,
         },
       ])
       // Focus back to search input for quick scanning
@@ -968,6 +972,33 @@ export default function POSEnhancedPage() {
 
   const removeFromCart = (index: number) => {
     setCart(cart.filter((_, i) => i !== index))
+  }
+
+  // Handle per-item discount changes
+  const updateItemDiscount = (index: number, discountType: 'fixed' | 'percentage' | null, discountValue: number) => {
+    const newCart = [...cart]
+    const item = newCart[index]
+    const qty = item.displayQuantity && item.selectedUnitName ? item.displayQuantity : item.quantity
+    const lineTotal = item.unitPrice * qty
+
+    // Calculate the discount amount in peso
+    let discountAmount = 0
+    if (discountType && discountValue > 0) {
+      if (discountType === 'percentage') {
+        discountAmount = (lineTotal * discountValue) / 100
+      } else {
+        // Fixed discount - can't exceed line total
+        discountAmount = Math.min(discountValue, lineTotal)
+      }
+    }
+
+    newCart[index] = {
+      ...item,
+      itemDiscountType: discountType,
+      itemDiscountValue: discountValue,
+      itemDiscountAmount: discountAmount,
+    }
+    setCart(newCart)
   }
 
   const updateQuantity = (index: number, quantity: number, unitName?: string) => {
@@ -1079,6 +1110,23 @@ export default function POSEnhancedPage() {
     }
   }
 
+  // Calculate individual item discount amount in peso
+  const calculateItemDiscount = (item: any) => {
+    if (!item.itemDiscountType || !item.itemDiscountValue) return 0
+    const qty = item.displayQuantity && item.selectedUnitName ? item.displayQuantity : item.quantity
+    const lineTotal = item.unitPrice * qty
+    if (item.itemDiscountType === 'percentage') {
+      return (lineTotal * item.itemDiscountValue) / 100
+    }
+    // Fixed discount - can't exceed line total
+    return Math.min(item.itemDiscountValue, lineTotal)
+  }
+
+  // Calculate total of all item-level discounts
+  const calculateTotalItemDiscounts = () => {
+    return cart.reduce((sum, item) => sum + calculateItemDiscount(item), 0)
+  }
+
   const calculateSubtotal = () => {
     return cart.reduce((sum, item) => {
       // For UOM items, use displayQuantity (e.g., 10 Meters)
@@ -1109,7 +1157,9 @@ export default function POSEnhancedPage() {
   }
 
   const calculateTotal = () => {
-    return calculateSubtotal() + calculateAdditionalCharge() - calculateDiscount()
+    // Formula: Subtotal - Item Discounts - Sale-Level Discount + Additional Charge
+    // Item discounts are applied first, then sale-level discount (Senior/PWD)
+    return calculateSubtotal() - calculateTotalItemDiscounts() - calculateDiscount() + calculateAdditionalCharge()
   }
 
   const getTotalPayments = () => {
@@ -1724,6 +1774,9 @@ export default function POSEnhancedPage() {
         }
       }
 
+      // Calculate total item-level discounts for the sale record
+      const totalItemDiscounts = calculateTotalItemDiscounts()
+
       const saleData: any = {
         locationId: currentShift.locationId,
         customerId: selectedCustomer?.id,
@@ -1741,10 +1794,18 @@ export default function POSEnhancedPage() {
           subUnitId: item.subUnitId || null,
           subUnitPrice: item.subUnitPrice || null,
           displayQuantity: item.displayQuantity || null,  // Display quantity (e.g., 100 Meters)
-          selectedUnitName: item.selectedUnitName || null  // Display unit name (e.g., "Meter")
+          selectedUnitName: item.selectedUnitName || null,  // Display unit name (e.g., "Meter")
+          // Per-item discount fields
+          discountType: item.itemDiscountType || null,
+          discountValue: item.itemDiscountValue || null,
+          discountAmount: item.itemDiscountAmount || 0,
         })),
         payments,
-        discountAmount: discountAmt,
+        // Sale-level discountAmount = item discounts + sale-level discount (Senior/PWD)
+        discountAmount: totalItemDiscounts + discountAmt,
+        // Separate fields for reporting
+        itemDiscountsTotal: totalItemDiscounts,
+        saleLevelDiscount: discountAmt,
         // Additional Charge (uses shippingCost field) - only for Credit Sales
         shippingCost: isCreditSale ? calculateAdditionalCharge() : 0,
         status: isCreditSale ? 'pending' : 'completed',
@@ -2297,9 +2358,16 @@ export default function POSEnhancedPage() {
                         )}
                       </div>
                       <div className="text-right min-w-[100px] shrink-0">
-                        <p className="font-bold text-xl text-blue-600">
+                        {/* Show original line total */}
+                        <p className={`font-bold text-xl ${item.itemDiscountAmount > 0 ? 'text-gray-400 line-through text-base' : 'text-blue-600'}`}>
                           ₱{(item.unitPrice * (item.displayQuantity && item.selectedUnitName ? item.displayQuantity : item.quantity)).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
+                        {/* Show discounted total if discount applied */}
+                        {item.itemDiscountAmount > 0 && (
+                          <p className="font-bold text-xl text-green-600">
+                            ₱{((item.unitPrice * (item.displayQuantity && item.selectedUnitName ? item.displayQuantity : item.quantity)) - item.itemDiscountAmount).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                        )}
                       </div>
                       <Button
                         size="sm"
@@ -2312,6 +2380,64 @@ export default function POSEnhancedPage() {
                         <Trash2 className="h-5 w-5" />
                       </Button>
                     </div>
+
+                    {/* Per-Item Discount Controls */}
+                    {!item.isFreebie && (
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600 font-medium">Discount:</span>
+                          <div className="flex items-center gap-1 flex-1">
+                            <Button
+                              size="sm"
+                              variant={item.itemDiscountType === 'percentage' ? 'default' : 'outline'}
+                              className={`h-8 px-2 text-xs ${item.itemDiscountType === 'percentage' ? 'bg-orange-500 hover:bg-orange-600' : ''}`}
+                              onClick={() => {
+                                if (item.itemDiscountType === 'percentage') {
+                                  updateItemDiscount(index, null, 0)
+                                } else {
+                                  updateItemDiscount(index, 'percentage', item.itemDiscountValue || 0)
+                                }
+                              }}
+                            >
+                              %
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={item.itemDiscountType === 'fixed' ? 'default' : 'outline'}
+                              className={`h-8 px-2 text-xs ${item.itemDiscountType === 'fixed' ? 'bg-orange-500 hover:bg-orange-600' : ''}`}
+                              onClick={() => {
+                                if (item.itemDiscountType === 'fixed') {
+                                  updateItemDiscount(index, null, 0)
+                                } else {
+                                  updateItemDiscount(index, 'fixed', item.itemDiscountValue || 0)
+                                }
+                              }}
+                            >
+                              ₱
+                            </Button>
+                            {item.itemDiscountType && (
+                              <Input
+                                type="number"
+                                min="0"
+                                step="any"
+                                value={item.itemDiscountValue || ''}
+                                onChange={(e) => {
+                                  const val = parseFloat(e.target.value) || 0
+                                  updateItemDiscount(index, item.itemDiscountType, val)
+                                }}
+                                placeholder={item.itemDiscountType === 'percentage' ? '0%' : '₱0'}
+                                className="h-8 w-20 text-sm text-center border-orange-300 focus:border-orange-500"
+                              />
+                            )}
+                            {item.itemDiscountAmount > 0 && (
+                              <span className="text-sm font-semibold text-orange-600 ml-2">
+                                -₱{item.itemDiscountAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* UOM (Unit of Measure) Selector - HIDDEN BY USER REQUEST */}
                     {/* COMMENTED OUT - Can be re-enabled in the future if needed */}
@@ -2845,9 +2971,15 @@ export default function POSEnhancedPage() {
                 <span>Subtotal:</span>
                 <span className="font-semibold">₱{calculateSubtotal().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
+              {calculateTotalItemDiscounts() > 0 && (
+                <div className="flex justify-between text-sm text-orange-600">
+                  <span>Item Discounts:</span>
+                  <span className="font-semibold">-₱{calculateTotalItemDiscounts().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              )}
               {calculateDiscount() > 0 && (
                 <div className="flex justify-between text-sm text-red-600">
-                  <span>Discount:</span>
+                  <span>Senior/PWD Discount:</span>
                   <span className="font-semibold">-₱{calculateDiscount().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
               )}

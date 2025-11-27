@@ -553,33 +553,57 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
                 </tr>
               </thead>
               <tbody>
-                {sale.items?.map((item: any, index: number) => (
-                  <tr key={index} className="border-b border-dashed border-gray-300">
-                    <td className={`py-1 text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                      {item.product?.name || item.productName || `Product #${item.productId}`}
-                    </td>
-                    <td className={`py-1 text-center text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                      {item.displayQuantity && item.selectedUnitName
-                        ? `${parseFloat(item.displayQuantity).toFixed(2)} ${item.selectedUnitName}`
-                        : parseFloat(item.quantity).toFixed(2)}
-                    </td>
-                    <td className={`py-1 text-right text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                      ₱{parseFloat(item.unitPrice).toLocaleString('en-PH', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                      })}
-                    </td>
-                    <td className={`py-1 text-right text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                      ₱{(item.displayQuantity && item.selectedUnitName
-                        ? parseFloat(item.displayQuantity) * parseFloat(item.unitPrice)
-                        : parseFloat(item.quantity) * parseFloat(item.unitPrice)
-                      ).toLocaleString('en-PH', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                      })}
-                    </td>
-                  </tr>
-                ))}
+                {sale.items?.map((item: any, index: number) => {
+                  const qty = item.displayQuantity && item.selectedUnitName
+                    ? parseFloat(item.displayQuantity)
+                    : parseFloat(item.quantity)
+                  const lineTotal = qty * parseFloat(item.unitPrice)
+                  const itemDiscount = item.discountAmount ? parseFloat(item.discountAmount) : 0
+                  const finalAmount = lineTotal - itemDiscount
+
+                  return (
+                    <tr key={index} className="border-b border-dashed border-gray-300">
+                      <td className={`py-1 text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                        {item.product?.name || item.productName || `Product #${item.productId}`}
+                        {/* Show item discount info below product name */}
+                        {itemDiscount > 0 && (
+                          <div className={`text-orange-600 ${paperSize === '80mm' ? 'text-[8px]' : 'text-xs'}`}>
+                            Disc: {item.discountType === 'percentage' ? `${item.discountValue}%` : `₱${parseFloat(item.discountValue).toFixed(2)}`} (-₱{itemDiscount.toFixed(2)})
+                          </div>
+                        )}
+                      </td>
+                      <td className={`py-1 text-center text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                        {item.displayQuantity && item.selectedUnitName
+                          ? `${parseFloat(item.displayQuantity).toFixed(2)} ${item.selectedUnitName}`
+                          : parseFloat(item.quantity).toFixed(2)}
+                      </td>
+                      <td className={`py-1 text-right text-gray-700 ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                        ₱{parseFloat(item.unitPrice).toLocaleString('en-PH', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
+                      </td>
+                      <td className={`py-1 text-right ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                        {/* Show original amount struck through if discount applied */}
+                        {itemDiscount > 0 ? (
+                          <div>
+                            <span className="text-gray-400 line-through text-[10px]">
+                              ₱{lineTotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                            <br />
+                            <span className="text-gray-900 font-bold">
+                              ₱{finalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-700">
+                            ₱{lineTotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
 
@@ -618,20 +642,45 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
                 </span>
               </div>
 
-              {/* Discount */}
-              {parseFloat(sale.discountAmount) > 0 && (
-                <div className="flex justify-between py-1">
-                  <span className={`text-red-600 font-semibold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                    Discount {sale.discountType && `(${sale.discountType})`}:
-                  </span>
-                  <span className={`text-red-600 font-bold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                    -₱{parseFloat(sale.discountAmount).toLocaleString('en-PH', {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2
-                    })}
-                  </span>
-                </div>
-              )}
+              {/* Item Discounts Total */}
+              {(() => {
+                const itemDiscountsTotal = sale.items?.reduce((sum: number, item: any) =>
+                  sum + (item.discountAmount ? parseFloat(item.discountAmount) : 0), 0) || 0
+                return itemDiscountsTotal > 0 ? (
+                  <div className="flex justify-between py-1">
+                    <span className={`text-orange-600 font-semibold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                      Item Discounts:
+                    </span>
+                    <span className={`text-orange-600 font-bold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                      -₱{itemDiscountsTotal.toLocaleString('en-PH', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
+                    </span>
+                  </div>
+                ) : null
+              })()}
+
+              {/* Senior/PWD Discount */}
+              {(() => {
+                // Calculate sale-level discount by subtracting item discounts from total discount
+                const itemDiscountsTotal = sale.items?.reduce((sum: number, item: any) =>
+                  sum + (item.discountAmount ? parseFloat(item.discountAmount) : 0), 0) || 0
+                const saleLevelDiscount = parseFloat(sale.discountAmount || 0) - itemDiscountsTotal
+                return saleLevelDiscount > 0 ? (
+                  <div className="flex justify-between py-1">
+                    <span className={`text-red-600 font-semibold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                      {sale.discountType === 'senior' ? 'Senior Discount' : sale.discountType === 'pwd' ? 'PWD Discount' : 'Discount'} {sale.discountType && `(${sale.discountType})`}:
+                    </span>
+                    <span className={`text-red-600 font-bold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
+                      -₱{saleLevelDiscount.toLocaleString('en-PH', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
+                    </span>
+                  </div>
+                ) : null
+              })()}
 
               {/* BIR VAT Breakdown */}
               <div className="border-y border-dashed border-gray-400 my-2 py-2">

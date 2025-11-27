@@ -2025,6 +2025,11 @@ model SaleItem {
   displayQuantity  Decimal? @map("display_quantity") @db.Decimal(22, 4) // Quantity in selected unit (e.g., 10 Meters)
   selectedUnitName String?  @map("selected_unit_name") @db.VarChar(50) // Unit name for display (e.g., "Meter")
 
+  // Per-item discount
+  discountType   String?  @map("discount_type") @db.VarChar(20)    // 'fixed' or 'percentage'
+  discountValue  Decimal? @map("discount_value") @db.Decimal(22, 4) // The input value (e.g., 10 for 10% or 50 for ₱50)
+  discountAmount Decimal  @default(0) @map("discount_amount") @db.Decimal(22, 4) // Calculated discount in peso
+
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([saleId])

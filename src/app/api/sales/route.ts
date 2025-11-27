@@ -1005,6 +1005,11 @@ export async function POST(request: NextRequest) {
           }).filter(Boolean)
         }
 
+        // Per-item discount fields
+        const itemDiscountType = item.discountType || null
+        const itemDiscountValue = item.discountValue ? parseFloat(item.discountValue) : null
+        const itemDiscountAmount = item.discountAmount ? parseFloat(item.discountAmount) : 0
+
         // Collect sale item data for bulk creation
         saleItemsData.push({
           saleId: newSale.id,
@@ -1018,7 +1023,11 @@ export async function POST(request: NextRequest) {
           subUnitId: subUnitId,
           subUnitPrice: subUnitPrice,
           displayQuantity: displayQuantity,
-          selectedUnitName: selectedUnitName
+          selectedUnitName: selectedUnitName,
+          // Per-item discount fields
+          discountType: itemDiscountType,
+          discountValue: itemDiscountValue,
+          discountAmount: itemDiscountAmount,
         })
 
         // Collect stock deduction data for bulk processing
