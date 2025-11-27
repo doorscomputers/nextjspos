@@ -2754,6 +2754,7 @@ export default function POSEnhancedPage() {
                       if (val === '' || parseFloat(val) >= 0) setCashAmount(val)
                     }}
                     onKeyDown={(e) => { if (e.key === '-') e.preventDefault() }}
+                    onWheel={(e) => (e.target as HTMLInputElement).blur()}
                     placeholder="0.00"
                     className="h-12 text-xl font-bold border-2 border-green-400"
                   />
@@ -2783,6 +2784,7 @@ export default function POSEnhancedPage() {
                       if (val === '' || parseFloat(val) >= 0) setDigitalAmount(val)
                     }}
                     onKeyDown={(e) => { if (e.key === '-') e.preventDefault() }}
+                    onWheel={(e) => (e.target as HTMLInputElement).blur()}
                     placeholder="0.00"
                     className="h-12 text-xl font-bold border-2 border-blue-400"
                   />
@@ -2809,6 +2811,7 @@ export default function POSEnhancedPage() {
                       if (val === '' || parseFloat(val) >= 0) setChequeAmount(val)
                     }}
                     onKeyDown={(e) => { if (e.key === '-') e.preventDefault() }}
+                    onWheel={(e) => (e.target as HTMLInputElement).blur()}
                     placeholder="0.00"
                     className="h-12 text-xl font-bold border-2 border-amber-400"
                   />
