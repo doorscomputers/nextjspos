@@ -1065,7 +1065,14 @@ export default function EditProductPage() {
                 <input
                   type="checkbox"
                   checked={formData.notForSelling}
-                  onChange={(e) => setFormData({ ...formData, notForSelling: e.target.checked })}
+                  onChange={(e) => {
+                    const isNotForSelling = e.target.checked
+                    setFormData({
+                      ...formData,
+                      notForSelling: isNotForSelling,
+                      enableStock: isNotForSelling ? false : formData.enableStock
+                    })
+                  }}
                   className="mr-3 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                 />
                 <span className="text-sm text-gray-700">Not for selling</span>
@@ -1504,16 +1511,20 @@ export default function EditProductPage() {
 
           {/* Manage Stock Checkbox */}
           <div className="mb-6">
-            <label className="flex items-start">
+            <label className={`flex items-start ${formData.notForSelling ? 'opacity-50 cursor-not-allowed' : ''}`}>
               <input
                 type="checkbox"
                 checked={formData.enableStock}
+                disabled={formData.notForSelling}
                 onChange={(e) => setFormData({ ...formData, enableStock: e.target.checked })}
-                className="mr-3 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-1"
+                className="mr-3 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded mt-1 disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <div>
                 <div className="text-sm font-medium text-gray-900">Manage Stock?</div>
                 <div className="text-xs text-gray-500 italic">Enable stock management at product level</div>
+                {formData.notForSelling && (
+                  <div className="text-xs text-amber-600 mt-1">Stock management is disabled for "Not for Selling" items (services/charges)</div>
+                )}
               </div>
             </label>
           </div>

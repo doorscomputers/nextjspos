@@ -74,14 +74,36 @@ export async function GET(request: NextRequest) {
           },
         }
 
-        // Add stock filter for transfer/POS (only products with stock > 0)
+        // Add stock filter for transfer/POS (only products with stock > 0 OR notForSelling items)
         if (withStock && locationId) {
-          whereConditions.variations.some.variationLocationDetails = {
-            some: {
-              locationId: parseInt(locationId),
-              qtyAvailable: { gt: 0 },
+          // Use OR to include products that either have stock OR are "Not for Selling" (services/charges)
+          whereConditions.OR = [
+            {
+              variations: {
+                some: {
+                  sku: { equals: searchTrimmed, mode: 'insensitive' },
+                  deletedAt: null,
+                  variationLocationDetails: {
+                    some: {
+                      locationId: parseInt(locationId),
+                      qtyAvailable: { gt: 0 },
+                    },
+                  },
+                },
+              },
             },
-          }
+            {
+              notForSelling: true, // Always include service items regardless of stock
+              variations: {
+                some: {
+                  sku: { equals: searchTrimmed, mode: 'insensitive' },
+                  deletedAt: null,
+                },
+              },
+            },
+          ]
+          // Remove the default variations filter since we're using OR
+          delete whereConditions.variations
         }
 
         const exactMatch = await prisma.product.findMany({
@@ -114,7 +136,8 @@ export async function GET(request: NextRequest) {
             const variations = product.variations
               .filter(v => {
                 // If withStock filter is enabled, only include variations with stock > 0
-                if (withStock && locationId && v.variationLocationDetails) {
+                // BUT always include "Not for Selling" items (services/charges) regardless of stock
+                if (withStock && locationId && v.variationLocationDetails && !product.notForSelling) {
                   const stockRecord = v.variationLocationDetails[0]
                   const stock = stockRecord ? Number(stockRecord.qtyAvailable) : 0
                   return stock > 0
@@ -128,10 +151,11 @@ export async function GET(request: NextRequest) {
                 enableSerialNumber: Boolean(product.enableProductInfo),
                 defaultPurchasePrice: v.purchasePrice ? Number(v.purchasePrice) : 0,
                 defaultSellingPrice: v.sellingPrice ? Number(v.sellingPrice) : 0,
-                // Include stock quantity if requested
+                // Include stock quantity if requested (services always show 0 stock but are still available)
                 stock: withStock && locationId && v.variationLocationDetails
                   ? Number(v.variationLocationDetails[0]?.qtyAvailable || 0)
                   : undefined,
+                notForSelling: product.notForSelling, // Include flag for POS to identify services
               }))
 
             return {
@@ -140,6 +164,7 @@ export async function GET(request: NextRequest) {
               categoryName: null,
               variations,
               matchType: 'exact' as const,
+              notForSelling: product.notForSelling, // Include at product level too
             }
           })
           .filter(p => p.variations.length > 0) // Remove products with no valid variations
@@ -160,19 +185,27 @@ export async function GET(request: NextRequest) {
           name: searchCondition,
         }
 
-        // Add stock filter for transfer/POS
+        // Add stock filter for transfer/POS (only products with stock > 0 OR notForSelling items)
         if (withStock && locationId) {
-          whereConditions.variations = {
-            some: {
-              deletedAt: null,
-              variationLocationDetails: {
+          // Use OR to include products that either have stock OR are "Not for Selling" (services/charges)
+          whereConditions.OR = [
+            {
+              variations: {
                 some: {
-                  locationId: parseInt(locationId),
-                  qtyAvailable: { gt: 0 },
+                  deletedAt: null,
+                  variationLocationDetails: {
+                    some: {
+                      locationId: parseInt(locationId),
+                      qtyAvailable: { gt: 0 },
+                    },
+                  },
                 },
               },
             },
-          }
+            {
+              notForSelling: true, // Always include service items regardless of stock
+            },
+          ]
         }
 
         const nameMatches = await prisma.product.findMany({
@@ -203,7 +236,8 @@ export async function GET(request: NextRequest) {
             const variations = product.variations
               .filter(v => {
                 // If withStock filter is enabled, only include variations with stock > 0
-                if (withStock && locationId && v.variationLocationDetails) {
+                // BUT always include "Not for Selling" items (services/charges) regardless of stock
+                if (withStock && locationId && v.variationLocationDetails && !product.notForSelling) {
                   const stockRecord = v.variationLocationDetails[0]
                   const stock = stockRecord ? Number(stockRecord.qtyAvailable) : 0
                   return stock > 0
@@ -217,16 +251,18 @@ export async function GET(request: NextRequest) {
                 enableSerialNumber: Boolean(product.enableProductInfo),
                 defaultPurchasePrice: v.purchasePrice ? Number(v.purchasePrice) : 0,
                 defaultSellingPrice: v.sellingPrice ? Number(v.sellingPrice) : 0,
-                // Include stock quantity if requested
+                // Include stock quantity if requested (services always show 0 stock but are still available)
                 stock: withStock && locationId && v.variationLocationDetails
                   ? Number(v.variationLocationDetails[0]?.qtyAvailable || 0)
                   : undefined,
+                notForSelling: product.notForSelling, // Include flag for POS to identify services
               }))
 
             return {
               id: product.id,
               name: product.name,
               categoryName: null,
+              notForSelling: product.notForSelling, // Include at product level too
               variations,
               matchType: 'fuzzy' as const,
             }
