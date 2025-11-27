@@ -586,12 +586,24 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                   {/* Selected Exchange Items */}
                   <div className="space-y-2 max-h-[300px] overflow-y-auto">
                     {exchangeItems.map((item, index) => (
-                      <div key={index} className="flex items-center gap-3 border rounded-lg p-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{item.productName}</p>
-                          <p className="text-xs text-gray-600 dark:text-gray-400">₱{item.unitPrice.toFixed(2)} each</p>
+                      <div key={index} className="border rounded-lg p-3">
+                        {/* Product name - full width on top */}
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm leading-tight">{item.productName}</p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">₱{item.unitPrice.toFixed(2)} each</p>
+                          </div>
+                          <Button
+                            size="icon-sm"
+                            variant="outline"
+                            onClick={() => handleRemoveExchangeItem(index)}
+                            className="hover:border-red-500 hover:text-red-700 dark:hover:text-red-400 flex-shrink-0"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <div className="flex items-center gap-1">
+                        {/* Quantity controls - bottom row */}
+                        <div className="flex items-center justify-center gap-2 pt-2 border-t">
                           <Button
                             type="button"
                             size="icon-sm"
@@ -607,7 +619,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                             min="1"
                             value={item.quantity}
                             onChange={(e) => handleUpdateExchangeQuantity(index, parseInt(e.target.value) || 1)}
-                            className="w-14 h-8 text-center font-semibold text-base px-1"
+                            className="w-16 h-8 text-center font-semibold text-base"
                           />
                           <Button
                             type="button"
@@ -619,14 +631,6 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                             +
                           </Button>
                         </div>
-                        <Button
-                          size="icon-sm"
-                          variant="outline"
-                          onClick={() => handleRemoveExchangeItem(index)}
-                          className="hover:border-red-500 hover:text-red-700 dark:hover:text-red-400"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
                       </div>
                     ))}
                   </div>
