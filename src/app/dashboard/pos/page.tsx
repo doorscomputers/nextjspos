@@ -67,6 +67,10 @@ export default function POSEnhancedPage() {
   const [pwdId, setPwdId] = useState('')
   const [pwdName, setPwdName] = useState('')
 
+  // Additional Charge State (for Credit Sales - uses shippingCost field internally)
+  const [additionalChargeType, setAdditionalChargeType] = useState<'fixed' | 'percentage'>('fixed')
+  const [additionalChargeValue, setAdditionalChargeValue] = useState<string>('')
+
   // Dialog States
   const [showCashInDialog, setShowCashInDialog] = useState(false)
   const [showCashOutDialog, setShowCashOutDialog] = useState(false)
@@ -119,7 +123,7 @@ export default function POSEnhancedPage() {
   const [quantityMultiplier, setQuantityMultiplier] = useState<number | null>(null)
 
   // Numeric Keypad State
-  const [keypadTarget, setKeypadTarget] = useState<'cash' | 'digital' | 'discount' | 'cashin' | 'cashout'>('cash')
+  const [keypadTarget, setKeypadTarget] = useState<'cash' | 'digital' | 'discount' | 'cashin' | 'cashout' | 'additionalCharge'>('cash')
   const [keypadValue, setKeypadValue] = useState('')
 
   // Freebie Total State
@@ -1093,8 +1097,19 @@ export default function POSEnhancedPage() {
     return 0
   }
 
+  // Calculate Additional Charge (for Credit Sales)
+  const calculateAdditionalCharge = () => {
+    if (!additionalChargeValue || !isCreditSale) return 0
+    const value = parseFloat(additionalChargeValue)
+    if (isNaN(value)) return 0
+    if (additionalChargeType === 'percentage') {
+      return (calculateSubtotal() * value) / 100
+    }
+    return value
+  }
+
   const calculateTotal = () => {
-    return calculateSubtotal() - calculateDiscount()
+    return calculateSubtotal() + calculateAdditionalCharge() - calculateDiscount()
   }
 
   const getTotalPayments = () => {
@@ -1169,6 +1184,8 @@ export default function POSEnhancedPage() {
       setDiscountAmount(keypadValue)
     } else if (keypadTarget === 'cashin' || keypadTarget === 'cashout') {
       setCashIOAmount(keypadValue)
+    } else if (keypadTarget === 'additionalCharge') {
+      setAdditionalChargeValue(keypadValue)
     }
     setShowNumericKeypad(false)
     setKeypadValue('')
@@ -1727,6 +1744,8 @@ export default function POSEnhancedPage() {
         })),
         payments,
         discountAmount: discountAmt,
+        // Additional Charge (uses shippingCost field) - only for Credit Sales
+        shippingCost: isCreditSale ? calculateAdditionalCharge() : 0,
         status: isCreditSale ? 'pending' : 'completed',
         freebieTotal: freebieTotal,
         // Cash tendered (for invoice display of change)
@@ -1788,6 +1807,9 @@ export default function POSEnhancedPage() {
       setSelectedCustomer(null) // Reset to Walk-in Customer
       setIsCreditSale(false)
       setRemarks('') // Reset remarks
+      // Reset additional charge
+      setAdditionalChargeType('fixed')
+      setAdditionalChargeValue('')
 
       const changeAmount = calculateChange()
 
@@ -2640,6 +2662,65 @@ export default function POSEnhancedPage() {
               )}
             </div>
 
+            {/* Additional Charge Section (Credit Sales Only) */}
+            {isCreditSale && (
+              <div className="border-2 border-amber-400 rounded-lg p-3 bg-amber-50">
+                <Label className="text-sm font-bold block text-amber-700 mb-2">💰 Additional Charge (Optional)</Label>
+                <div className="space-y-2">
+                  {/* Type Toggle */}
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={additionalChargeType === 'fixed' ? 'default' : 'outline'}
+                      onClick={() => setAdditionalChargeType('fixed')}
+                      className={additionalChargeType === 'fixed' ? 'bg-amber-600 hover:bg-amber-700' : ''}
+                    >
+                      Fixed ₱
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={additionalChargeType === 'percentage' ? 'default' : 'outline'}
+                      onClick={() => setAdditionalChargeType('percentage')}
+                      className={additionalChargeType === 'percentage' ? 'bg-amber-600 hover:bg-amber-700' : ''}
+                    >
+                      Percentage %
+                    </Button>
+                  </div>
+                  {/* Value Input */}
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      value={additionalChargeValue}
+                      onChange={(e) => setAdditionalChargeValue(e.target.value)}
+                      placeholder={additionalChargeType === 'fixed' ? 'Enter amount' : 'Enter percentage'}
+                      className="h-10 text-lg font-bold border-2 border-amber-400"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setKeypadTarget('additionalCharge')
+                        setKeypadValue(additionalChargeValue)
+                        setShowNumericKeypad(true)
+                      }}
+                      className="h-10 px-3 border-2 border-amber-400"
+                    >
+                      🔢
+                    </Button>
+                  </div>
+                  {/* Calculated Display */}
+                  {additionalChargeValue && (
+                    <div className="text-sm text-amber-700 font-semibold">
+                      Additional Charge: +₱{calculateAdditionalCharge().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {additionalChargeType === 'percentage' && ` (${additionalChargeValue}%)`}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Remarks Field */}
             <div className="border-2 border-gray-300 rounded-lg p-3 bg-white">
               <Label className="text-sm font-bold block text-gray-700 mb-2">📝 Remarks (Optional)</Label>
@@ -2749,6 +2830,12 @@ export default function POSEnhancedPage() {
                 <div className="flex justify-between text-sm text-red-600">
                   <span>Discount:</span>
                   <span className="font-semibold">-₱{calculateDiscount().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              )}
+              {calculateAdditionalCharge() > 0 && (
+                <div className="flex justify-between text-sm text-amber-600">
+                  <span>Additional Charge:</span>
+                  <span className="font-semibold">+₱{calculateAdditionalCharge().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
               )}
               <div className="flex justify-between text-4xl font-bold border-t-2 pt-3 mt-2">
