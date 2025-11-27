@@ -263,7 +263,10 @@ export default function ProductsPage() {
   const [searchInput, setSearchInput] = useState('') // Separate state for search input (not auto-filtered)
   const [activeFilter, setActiveFilter] = useState<string>('all') // all, active, inactive
 
-  // Multi-column filter state
+  // Minimum characters required for column search to trigger
+  const MIN_SEARCH_CHARS = 4
+
+  // Multi-column filter state (actual filters sent to API)
   const [filters, setFilters] = useState<ProductFilters>({
     search: '',
     sku: '',
@@ -275,6 +278,17 @@ export default function ProductsPage() {
     stockMax: '',
     taxName: ''
   })
+
+  // Input values state (what user sees in inputs, may differ from filters until MIN_SEARCH_CHARS reached)
+  const [filterInputs, setFilterInputs] = useState<Partial<ProductFilters>>({
+    search: '',
+    sku: '',
+    categoryName: '',
+    brandName: '',
+    unitName: '',
+    taxName: ''
+  })
+
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
 
   const [sortState, setSortState] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null)
@@ -317,11 +331,20 @@ export default function ProductsPage() {
     setCurrentPage(1)
   }, [searchTerm, activeFilter, filters])
 
-  // Update searchTerm and searchInput when filters.search changes (e.g., from table header filters or clear all)
+  // Update searchTerm, searchInput, and filterInputs when filters change externally (e.g., clear all)
   useEffect(() => {
     setSearchTerm(filters.search)
     setSearchInput(filters.search)
-  }, [filters.search])
+    // Sync filterInputs with filters for text-based fields
+    setFilterInputs({
+      search: filters.search,
+      sku: filters.sku,
+      categoryName: filters.categoryName,
+      brandName: filters.brandName,
+      unitName: filters.unitName,
+      taxName: filters.taxName
+    })
+  }, [filters.search, filters.sku, filters.categoryName, filters.brandName, filters.unitName, filters.taxName])
 
   const fetchLocations = async () => {
     try {
@@ -722,6 +745,30 @@ export default function ProductsPage() {
   }
 
   const handleSimpleFilterChange = (key: keyof ProductFilters, value: string) => {
+    // Text-based filters that require minimum characters
+    const textFilters: (keyof ProductFilters)[] = ['search', 'sku', 'categoryName', 'brandName', 'unitName', 'taxName']
+
+    if (textFilters.includes(key)) {
+      // Always update the input display value
+      setFilterInputs((prev) => ({
+        ...prev,
+        [key]: value,
+      }))
+
+      // Only update the actual filter if empty (clearing) or >= MIN_SEARCH_CHARS
+      if (value === '' || value.length >= MIN_SEARCH_CHARS) {
+        if (key === 'search') {
+          setSearchTerm(value)
+        }
+        setFilters((prev) => ({
+          ...prev,
+          [key]: value,
+        }))
+      }
+      return
+    }
+
+    // Non-text filters (productType, stockMin, stockMax, etc.) - apply immediately
     if (key === 'search') {
       setSearchTerm(value)
     }
@@ -1138,9 +1185,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('product') && (
                   <TableCell className="bg-slate-100/80 dark:bg-gray-700/50">
                     <Input
-                      value={filters.search}
+                      value={filterInputs.search ?? ''}
                       onChange={(e) => handleSimpleFilterChange('search', e.target.value)}
-                      placeholder="Filter product name..."
+                      placeholder={`Filter (min ${MIN_SEARCH_CHARS} chars)...`}
                       className="h-8 text-xs"
                     />
                   </TableCell>
@@ -1149,9 +1196,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('sku') && (
                   <TableCell className="bg-slate-100/80 dark:bg-gray-700/50">
                     <Input
-                      value={filters.sku}
+                      value={filterInputs.sku ?? ''}
                       onChange={(e) => handleSimpleFilterChange('sku', e.target.value)}
-                      placeholder="Filter SKU..."
+                      placeholder={`Filter (min ${MIN_SEARCH_CHARS})...`}
                       className="h-8 text-xs font-mono"
                     />
                   </TableCell>
@@ -1173,9 +1220,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('category') && (
                   <TableCell className="bg-slate-100/80 dark:bg-gray-700/50">
                     <Input
-                      value={filters.categoryName}
+                      value={filterInputs.categoryName ?? ''}
                       onChange={(e) => handleSimpleFilterChange('categoryName', e.target.value)}
-                      placeholder="Filter category..."
+                      placeholder={`Filter (min ${MIN_SEARCH_CHARS})...`}
                       className="h-8 text-xs"
                     />
                   </TableCell>
@@ -1183,9 +1230,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('brand') && (
                   <TableCell className="bg-slate-100/80 dark:bg-gray-700/50">
                     <Input
-                      value={filters.brandName}
+                      value={filterInputs.brandName ?? ''}
                       onChange={(e) => handleSimpleFilterChange('brandName', e.target.value)}
-                      placeholder="Filter brand..."
+                      placeholder={`Filter (min ${MIN_SEARCH_CHARS})...`}
                       className="h-8 text-xs"
                     />
                   </TableCell>
@@ -1193,9 +1240,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('unit') && (
                   <TableCell className="bg-slate-100/80 dark:bg-gray-700/50">
                     <Input
-                      value={filters.unitName}
+                      value={filterInputs.unitName ?? ''}
                       onChange={(e) => handleSimpleFilterChange('unitName', e.target.value)}
-                      placeholder="Filter unit..."
+                      placeholder={`Filter (min ${MIN_SEARCH_CHARS})...`}
                       className="h-8 text-xs"
                     />
                   </TableCell>
@@ -1282,9 +1329,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('tax') && (
                   <TableCell className="bg-slate-100/80 dark:bg-gray-700/50">
                     <Input
-                      value={filters.taxName}
+                      value={filterInputs.taxName ?? ''}
                       onChange={(e) => handleSimpleFilterChange('taxName', e.target.value)}
-                      placeholder="Filter tax..."
+                      placeholder={`Filter (min ${MIN_SEARCH_CHARS})...`}
                       className="h-8 text-xs"
                     />
                   </TableCell>
