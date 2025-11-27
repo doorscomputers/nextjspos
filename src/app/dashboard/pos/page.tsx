@@ -2425,8 +2425,8 @@ export default function POSEnhancedPage() {
                                   const val = parseFloat(e.target.value) || 0
                                   updateItemDiscount(index, item.itemDiscountType, val)
                                 }}
-                                placeholder={item.itemDiscountType === 'percentage' ? '0%' : '₱0'}
-                                className="h-8 w-20 text-sm text-center border-orange-300 focus:border-orange-500"
+                                placeholder="0"
+                                className="h-8 w-24 text-sm text-center border-orange-300 focus:border-orange-500"
                               />
                             )}
                             {item.itemDiscountAmount > 0 && (
