@@ -118,6 +118,7 @@ export function isSuperAdmin(user: RBACUser | null): boolean {
   // Check by role name first (most reliable)
   // Support both old and new role names for backward compatibility
   if (user.roles?.includes('Super Admin')) return true
+  if (user.roles?.includes('Admin Super')) return true  // Alternative name order
   if (user.roles?.includes('System Administrator')) return true
   if (user.roles?.includes('Super Admin (Legacy)')) return true
   // Fallback: check for superadmin.all permission
