@@ -411,7 +411,7 @@ export default function ProductsListV2Page() {
       <div className="flex justify-center gap-1">
         <button
           onClick={handleEditClick}
-          className="inline-flex items-center justify-center w-8 h-8 text-gray-600 hover:text-blue-600 hover:bg-blue-50 dark:text-gray-400 dark:hover:text-blue-400 dark:hover:bg-blue-900/20 rounded-md border border-gray-300 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-600 transition-colors duration-200"
+          className="dx-action-button inline-flex items-center justify-center w-8 h-8 rounded-md border transition-colors duration-200"
           title="Edit Product"
         >
           <PencilIcon className="w-4 h-4" />
@@ -421,15 +421,12 @@ export default function ProductsListV2Page() {
   }
 
   const cellRender = (data: any) => {
-    // Status badge
+    // Status badge - using custom CSS classes that work with dark mode
     if (data.column.dataField === 'isActive') {
       const isActive = data.value === 'Active'
       return (
         <span
-          className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${isActive
-            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-            }`}
+          className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${isActive ? 'dx-status-active' : 'dx-status-inactive'}`}
         >
           {data.text}
         </span>
@@ -440,38 +437,38 @@ export default function ProductsListV2Page() {
     if (data.column.dataField === 'totalStock') {
       const stock = data.value || 0
       const alertQty = data.data.alertQuantity || 0
-      let bgColor = 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+      let badgeClass = 'dx-status-active'
 
       if (!data.data.enableStock) {
-        bgColor = 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300'
+        badgeClass = 'dx-stock-na'
       } else if (stock <= 0) {
-        bgColor = 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+        badgeClass = 'dx-status-inactive'
       } else if (stock <= alertQty) {
-        bgColor = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+        badgeClass = 'dx-stock-warning'
       }
 
       return (
-        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${bgColor}`}>
+        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${badgeClass}`}>
           {data.data.enableStock ? stock.toFixed(2) : 'N/A'}
         </span>
       )
     }
 
-    // Type badge
+    // Type badge - using custom CSS classes that work with dark mode
     if (data.column.dataField === 'type') {
-      const colors: Record<string, string> = {
-        single: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-        variable: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-        combo: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+      const typeClasses: Record<string, string> = {
+        single: 'dx-type-single',
+        variable: 'dx-type-variable',
+        combo: 'dx-type-combo',
       }
       return (
-        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${colors[data.value] || colors.single}`}>
+        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${typeClasses[data.value] || typeClasses.single}`}>
           {data.text}
         </span>
       )
     }
 
-    return data.text
+    return <span className="dx-cell-text">{data.text}</span>
   }
 
   return (
@@ -668,7 +665,7 @@ export default function ProductsListV2Page() {
           dataSource={dataSource}
           showBorders={true}
           columnAutoWidth={true}
-          rowAlternationEnabled={true}
+          rowAlternationEnabled={false}
           height={700}
           keyExpr="id"
           onExporting={onExporting}
@@ -711,7 +708,7 @@ export default function ProductsListV2Page() {
             width={150}
             fixed={true}
             fixedPosition="left"
-            cellRender={(data) => <span className="font-mono font-medium text-gray-900 dark:text-gray-100">{data.text}</span>}
+            cellRender={(data) => <span className="dx-cell-text font-mono font-medium">{data.text}</span>}
           />
           <Column
             dataField="name"
@@ -719,8 +716,8 @@ export default function ProductsListV2Page() {
             minWidth={250}
             cellRender={(data) => (
               <div>
-                <div className="font-medium text-gray-900 dark:text-gray-100">{data.text}</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">
+                <div className="dx-cell-text font-medium">{data.text}</div>
+                <div className="dx-cell-subtext text-xs">
                   {data.data.variationCount} variation(s)
                 </div>
               </div>

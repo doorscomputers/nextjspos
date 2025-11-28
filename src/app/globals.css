@@ -581,6 +581,533 @@
     background-color: #1f2937 !important; /* gray-800 */
   }
 
+  /* ============================================
+     DevExtreme DataGrid Dark Mode - Complete Fix
+     ============================================ */
+
+  /* DataGrid Container */
+  .dark .dx-datagrid {
+    background-color: #1f2937 !important; /* gray-800 */
+    color: #f3f4f6 !important; /* gray-100 */
+  }
+
+  /* DataGrid Headers */
+  .dark .dx-datagrid-headers {
+    background-color: #111827 !important; /* gray-900 */
+    border-color: #374151 !important; /* gray-700 */
+  }
+
+  .dark .dx-datagrid-headers .dx-datagrid-table .dx-row > td {
+    background-color: #111827 !important; /* gray-900 */
+    color: #f3f4f6 !important; /* gray-100 */
+    border-color: #374151 !important; /* gray-700 */
+  }
+
+  /* DataGrid Header Filter Icon */
+  .dark .dx-header-filter {
+    color: #9ca3af !important; /* gray-400 */
+  }
+
+  .dark .dx-header-filter:hover {
+    color: #60a5fa !important; /* blue-400 */
+  }
+
+  /* DataGrid Rows */
+  .dark .dx-datagrid-rowsview {
+    background-color: #1f2937 !important; /* gray-800 */
+  }
+
+  .dark .dx-datagrid-rowsview .dx-row {
+    background-color: #1f2937 !important; /* gray-800 */
+    color: #f3f4f6 !important; /* gray-100 */
+  }
+
+  /* Alternating Row Colors - DISABLED for better readability */
+  /* Making alternating rows same color as regular rows */
+  .dark .dx-datagrid-rowsview .dx-row-alt > td,
+  .dark .dx-datagrid .dx-row-alt > td,
+  .dark .dx-datagrid-rowsview .dx-row-alt td {
+    background-color: #1f2937 !important; /* gray-800 - same as regular rows */
+  }
+
+  /* DataGrid Cells */
+  .dark .dx-datagrid-rowsview td {
+    background-color: inherit !important;
+    color: #f3f4f6 !important; /* gray-100 */
+    border-color: #374151 !important; /* gray-700 */
+  }
+
+  /* Row Hover */
+  .dark .dx-datagrid-rowsview .dx-row:hover > td {
+    background-color: #374151 !important; /* gray-700 */
+  }
+
+  /* Selected Row */
+  .dark .dx-datagrid-rowsview .dx-selection > td {
+    background-color: #1e3a5f !important; /* blue-900/60 */
+    color: #f3f4f6 !important;
+  }
+
+  /* Focus Row */
+  .dark .dx-datagrid-rowsview .dx-row-focused > td {
+    background-color: #1e3a5f !important; /* blue-900/60 */
+    color: #f3f4f6 !important;
+  }
+
+  /* Group Row */
+  .dark .dx-datagrid-rowsview .dx-group-row {
+    background-color: #111827 !important; /* gray-900 */
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-datagrid-rowsview .dx-group-row td {
+    background-color: #111827 !important; /* gray-900 */
+    color: #f3f4f6 !important;
+    border-color: #374151 !important;
+  }
+
+  /* Master Detail Row */
+  .dark .dx-datagrid-rowsview .dx-master-detail-row > td {
+    background-color: #111827 !important; /* gray-900 */
+  }
+
+  /* Filter Row */
+  .dark .dx-datagrid-filter-row {
+    background-color: #1f2937 !important; /* gray-800 */
+  }
+
+  .dark .dx-datagrid-filter-row td {
+    background-color: #1f2937 !important; /* gray-800 */
+    border-color: #374151 !important; /* gray-700 */
+  }
+
+  .dark .dx-datagrid-filter-row .dx-texteditor-input {
+    background-color: #111827 !important; /* gray-900 */
+    color: #f3f4f6 !important; /* gray-100 */
+  }
+
+  /* Search Panel */
+  .dark .dx-datagrid-search-panel {
+    background-color: #111827 !important; /* gray-900 */
+  }
+
+  .dark .dx-datagrid-search-panel .dx-texteditor-input {
+    background-color: #111827 !important; /* gray-900 */
+    color: #f3f4f6 !important;
+  }
+
+  /* Pager */
+  .dark .dx-datagrid-pager {
+    background-color: #1f2937 !important; /* gray-800 */
+    border-color: #374151 !important; /* gray-700 */
+  }
+
+  .dark .dx-pager {
+    color: #f3f4f6 !important; /* gray-100 */
+  }
+
+  .dark .dx-page {
+    color: #9ca3af !important; /* gray-400 */
+  }
+
+  .dark .dx-page.dx-selection {
+    background-color: #3b82f6 !important; /* blue-500 */
+    color: #ffffff !important;
+  }
+
+  /* Summary Footer */
+  .dark .dx-datagrid-summary-item {
+    color: #f3f4f6 !important; /* gray-100 */
+  }
+
+  .dark .dx-datagrid-total-footer {
+    background-color: #111827 !important; /* gray-900 */
+    border-color: #374151 !important;
+  }
+
+  .dark .dx-datagrid-total-footer td {
+    background-color: #111827 !important; /* gray-900 */
+    color: #f3f4f6 !important;
+  }
+
+  /* Column Chooser */
+  .dark .dx-datagrid-column-chooser {
+    background-color: #1f2937 !important; /* gray-800 */
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-datagrid-column-chooser-item {
+    color: #f3f4f6 !important;
+  }
+
+  /* Group Panel */
+  .dark .dx-datagrid-group-panel {
+    background-color: #111827 !important; /* gray-900 */
+    color: #9ca3af !important; /* gray-400 */
+  }
+
+  .dark .dx-datagrid-group-panel .dx-group-panel-item {
+    background-color: #374151 !important; /* gray-700 */
+    color: #f3f4f6 !important;
+    border-color: #4b5563 !important; /* gray-600 */
+  }
+
+  /* Borders */
+  .dark .dx-datagrid-borders > .dx-datagrid-rowsview,
+  .dark .dx-datagrid-borders > .dx-datagrid-headers {
+    border-color: #374151 !important; /* gray-700 */
+  }
+
+  /* Scrollbar */
+  .dark .dx-scrollable-scrollbar {
+    background-color: #374151 !important; /* gray-700 */
+  }
+
+  .dark .dx-scrollable-scroll-content {
+    background-color: #6b7280 !important; /* gray-500 */
+  }
+
+  /* Load Panel */
+  .dark .dx-loadpanel-content {
+    background-color: #1f2937 !important; /* gray-800 */
+    color: #f3f4f6 !important;
+    border-color: #374151 !important;
+  }
+
+  /* No Data Text */
+  .dark .dx-datagrid-nodata {
+    color: #9ca3af !important; /* gray-400 */
+  }
+
+  /* Export Button */
+  .dark .dx-datagrid-export-button .dx-button-content {
+    color: #f3f4f6 !important;
+  }
+
+  /* Checkbox in DataGrid */
+  .dark .dx-datagrid .dx-checkbox-icon {
+    border-color: #6b7280 !important; /* gray-500 */
+    background-color: #1f2937 !important; /* gray-800 */
+  }
+
+  .dark .dx-datagrid .dx-checkbox-checked .dx-checkbox-icon {
+    background-color: #3b82f6 !important; /* blue-500 */
+    border-color: #3b82f6 !important;
+  }
+
+  /* ============================================
+     DevExtreme DataGrid Fixed Columns - Dark Mode Fix
+     ============================================ */
+
+  /* Fixed columns container (left and right) - HIGH SPECIFICITY */
+  .dark .dx-datagrid-content-fixed,
+  .dark .dx-datagrid .dx-datagrid-content-fixed {
+    background-color: #1f2937 !important; /* gray-800 */
+  }
+
+  /* Fixed column cells - HIGH SPECIFICITY to override DevExtreme defaults */
+  .dark .dx-datagrid-content-fixed .dx-datagrid-table .dx-row > td,
+  .dark .dx-datagrid-content-fixed .dx-datagrid-table .dx-data-row > td,
+  .dark .dx-datagrid-content-fixed td,
+  .dark .dx-datagrid .dx-datagrid-content-fixed td {
+    background-color: #1f2937 !important; /* gray-800 */
+    color: #f3f4f6 !important; /* gray-100 */
+    border-color: #374151 !important; /* gray-700 */
+  }
+
+  /* Fixed column header cells */
+  .dark .dx-datagrid-content-fixed .dx-datagrid-headers .dx-row > td,
+  .dark .dx-datagrid-content-fixed .dx-datagrid-headers td,
+  .dark .dx-datagrid .dx-datagrid-content-fixed .dx-datagrid-headers td {
+    background-color: #111827 !important; /* gray-900 */
+    color: #f3f4f6 !important; /* gray-100 */
+  }
+
+  /* Fixed column alternating rows - DISABLED by making same color as regular rows */
+  .dark .dx-datagrid-content-fixed .dx-datagrid-rowsview .dx-row-alt > td,
+  .dark .dx-datagrid .dx-datagrid-content-fixed .dx-row-alt > td {
+    background-color: #1f2937 !important; /* gray-800 - same as regular rows */
+  }
+
+  /* Fixed column hover effect */
+  .dark .dx-datagrid-content-fixed .dx-datagrid-rowsview .dx-row:hover > td,
+  .dark .dx-datagrid .dx-datagrid-content-fixed .dx-row:hover > td {
+    background-color: #374151 !important; /* gray-700 */
+  }
+
+  /* Fixed column selected row */
+  .dark .dx-datagrid-content-fixed .dx-datagrid-rowsview .dx-selection > td,
+  .dark .dx-datagrid .dx-datagrid-content-fixed .dx-selection > td {
+    background-color: #1e3a5f !important; /* blue-900/60 */
+    color: #f3f4f6 !important;
+  }
+
+  /* Fixed column focus */
+  .dark .dx-datagrid-content-fixed .dx-datagrid-rowsview .dx-row-focused > td,
+  .dark .dx-datagrid .dx-datagrid-content-fixed .dx-row-focused > td {
+    background-color: #1e3a5f !important;
+    color: #f3f4f6 !important;
+  }
+
+  /* Fixed column filter row */
+  .dark .dx-datagrid-content-fixed .dx-datagrid-filter-row td,
+  .dark .dx-datagrid .dx-datagrid-content-fixed .dx-datagrid-filter-row td {
+    background-color: #1f2937 !important; /* gray-800 */
+    border-color: #374151 !important;
+  }
+
+  /* Text inside fixed columns - MAXIMUM SPECIFICITY */
+  .dark .dx-datagrid-content-fixed .dx-datagrid-table td,
+  .dark .dx-datagrid-content-fixed .dx-datagrid-table span,
+  .dark .dx-datagrid-content-fixed .dx-datagrid-table div,
+  .dark .dx-datagrid .dx-datagrid-content-fixed td,
+  .dark .dx-datagrid .dx-datagrid-content-fixed span,
+  .dark .dx-datagrid .dx-datagrid-content-fixed div,
+  .dark .dx-datagrid-content-fixed .dx-cell-text,
+  .dark .dx-datagrid-content-fixed .font-mono,
+  .dark .dx-datagrid-content-fixed .font-medium {
+    color: #f3f4f6 !important; /* gray-100 */
+  }
+
+  /* Fixed column borders */
+  .dark .dx-datagrid-content-fixed {
+    border-color: #374151 !important; /* gray-700 */
+  }
+
+  /* Shadow/border between fixed and scrollable content */
+  .dark .dx-datagrid-content-fixed::after {
+    background: linear-gradient(to right, rgba(55, 65, 81, 0.5), transparent) !important;
+  }
+
+  /* Ensure monospace font in SKU columns stays visible */
+  .dark .dx-datagrid .font-mono,
+  .dark .dx-datagrid-content-fixed .font-mono {
+    color: #f3f4f6 !important; /* gray-100 */
+  }
+
+  /* Status badges in fixed columns */
+  .dark .dx-datagrid-content-fixed .bg-green-100 {
+    background-color: rgba(34, 197, 94, 0.2) !important; /* green-500/20 */
+  }
+
+  .dark .dx-datagrid-content-fixed .bg-green-100 span,
+  .dark .dx-datagrid-content-fixed .bg-green-900\/30 {
+    color: #86efac !important; /* green-300 */
+  }
+
+  .dark .dx-datagrid-content-fixed .bg-red-100 {
+    background-color: rgba(239, 68, 68, 0.2) !important; /* red-500/20 */
+  }
+
+  .dark .dx-datagrid-content-fixed .bg-red-100 span,
+  .dark .dx-datagrid-content-fixed .bg-red-900\/30 {
+    color: #fca5a5 !important; /* red-300 */
+  }
+
+  /* Edit button in fixed column */
+  .dark .dx-datagrid-content-fixed button {
+    color: #9ca3af !important; /* gray-400 */
+    border-color: #4b5563 !important; /* gray-600 */
+  }
+
+  .dark .dx-datagrid-content-fixed button:hover {
+    color: #60a5fa !important; /* blue-400 */
+    border-color: #60a5fa !important;
+    background-color: rgba(59, 130, 246, 0.1) !important;
+  }
+
+  /* ============================================
+     CRITICAL: Override DevExtreme default white backgrounds
+     These rules have maximum specificity to ensure they work
+     ============================================ */
+
+  /* Force all fixed column backgrounds to dark in dark mode */
+  .dark .dx-datagrid .dx-datagrid-content-fixed,
+  .dark .dx-datagrid .dx-datagrid-content-fixed .dx-datagrid-table,
+  .dark .dx-datagrid .dx-datagrid-content-fixed .dx-datagrid-rowsview,
+  .dark .dx-datagrid .dx-datagrid-content-fixed .dx-datagrid-table tbody,
+  .dark .dx-datagrid .dx-datagrid-content-fixed .dx-datagrid-table tbody tr,
+  .dark .dx-datagrid .dx-datagrid-content-fixed .dx-datagrid-table tbody tr td {
+    background-color: #1f2937 !important; /* gray-800 */
+    color: #f3f4f6 !important; /* gray-100 */
+  }
+
+  /* Force all fixed column header backgrounds */
+  .dark .dx-datagrid .dx-datagrid-content-fixed .dx-datagrid-headers,
+  .dark .dx-datagrid .dx-datagrid-content-fixed .dx-datagrid-headers .dx-datagrid-table,
+  .dark .dx-datagrid .dx-datagrid-content-fixed .dx-datagrid-headers tbody,
+  .dark .dx-datagrid .dx-datagrid-content-fixed .dx-datagrid-headers tbody tr,
+  .dark .dx-datagrid .dx-datagrid-content-fixed .dx-datagrid-headers tbody tr td {
+    background-color: #111827 !important; /* gray-900 */
+    color: #f3f4f6 !important; /* gray-100 */
+  }
+
+  /* Override any inline styles DevExtreme might add */
+  .dark .dx-datagrid-content-fixed [style*="background"],
+  .dark .dx-datagrid-content-fixed td[style*="background"] {
+    background-color: #1f2937 !important;
+  }
+
+  /* Ensure all text elements in fixed columns are visible */
+  .dark .dx-datagrid-content-fixed *,
+  .dark .dx-datagrid .dx-datagrid-content-fixed * {
+    color: #f3f4f6 !important;
+  }
+
+  /* Fix for fixed column header text color */
+  .dark .dx-datagrid-content-fixed .dx-datagrid-headers * {
+    color: #f3f4f6 !important;
+  }
+
+  /* Preserve badge colors in fixed columns */
+  .dark .dx-datagrid-content-fixed .dx-status-active {
+    background-color: rgba(34, 197, 94, 0.2) !important;
+    color: #86efac !important;
+  }
+
+  .dark .dx-datagrid-content-fixed .dx-status-inactive {
+    background-color: rgba(239, 68, 68, 0.2) !important;
+    color: #fca5a5 !important;
+  }
+
+  .dark .dx-datagrid-content-fixed .dx-type-single {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+    color: #93c5fd !important;
+  }
+
+  .dark .dx-datagrid-content-fixed .dx-type-variable {
+    background-color: rgba(147, 51, 234, 0.2) !important;
+    color: #d8b4fe !important;
+  }
+
+  /* Preserve toggle/switch styling in fixed columns */
+  .dark .dx-datagrid-content-fixed .dx-switch-on-value .dx-switch-container {
+    background-color: #22c55e !important; /* green-500 */
+  }
+
+  /* ============================================
+     Custom Cell Text Classes for DevExtreme DataGrid
+     ============================================ */
+
+  /* Primary cell text - Light Mode */
+  .dx-cell-text {
+    color: #111827 !important; /* gray-900 */
+  }
+
+  /* Primary cell text - Dark Mode */
+  .dark .dx-cell-text {
+    color: #f3f4f6 !important; /* gray-100 */
+  }
+
+  /* Secondary/subtext - Light Mode */
+  .dx-cell-subtext {
+    color: #6b7280 !important; /* gray-500 */
+  }
+
+  /* Secondary/subtext - Dark Mode */
+  .dark .dx-cell-subtext {
+    color: #9ca3af !important; /* gray-400 */
+  }
+
+  /* Status badge styles for DataGrid */
+  .dx-status-active {
+    background-color: #dcfce7 !important; /* green-100 */
+    color: #166534 !important; /* green-800 */
+  }
+
+  .dark .dx-status-active {
+    background-color: rgba(34, 197, 94, 0.2) !important; /* green-500/20 */
+    color: #86efac !important; /* green-300 */
+  }
+
+  .dx-status-inactive {
+    background-color: #fee2e2 !important; /* red-100 */
+    color: #991b1b !important; /* red-800 */
+  }
+
+  .dark .dx-status-inactive {
+    background-color: rgba(239, 68, 68, 0.2) !important; /* red-500/20 */
+    color: #fca5a5 !important; /* red-300 */
+  }
+
+  /* Type badges */
+  .dx-type-single {
+    background-color: #dbeafe !important; /* blue-100 */
+    color: #1e40af !important; /* blue-800 */
+  }
+
+  .dark .dx-type-single {
+    background-color: rgba(59, 130, 246, 0.2) !important; /* blue-500/20 */
+    color: #93c5fd !important; /* blue-300 */
+  }
+
+  .dx-type-variable {
+    background-color: #f3e8ff !important; /* purple-100 */
+    color: #6b21a8 !important; /* purple-800 */
+  }
+
+  .dark .dx-type-variable {
+    background-color: rgba(147, 51, 234, 0.2) !important; /* purple-500/20 */
+    color: #d8b4fe !important; /* purple-300 */
+  }
+
+  .dx-type-combo {
+    background-color: #ffedd5 !important; /* orange-100 */
+    color: #9a3412 !important; /* orange-800 */
+  }
+
+  .dark .dx-type-combo {
+    background-color: rgba(249, 115, 22, 0.2) !important; /* orange-500/20 */
+    color: #fdba74 !important; /* orange-300 */
+  }
+
+  /* Stock warning badge (low stock) */
+  .dx-stock-warning {
+    background-color: #fef3c7 !important; /* yellow-100 */
+    color: #92400e !important; /* yellow-800 */
+  }
+
+  .dark .dx-stock-warning {
+    background-color: rgba(234, 179, 8, 0.2) !important; /* yellow-500/20 */
+    color: #fcd34d !important; /* yellow-300 */
+  }
+
+  /* Stock N/A badge (stock not enabled) */
+  .dx-stock-na {
+    background-color: #f3f4f6 !important; /* gray-100 */
+    color: #4b5563 !important; /* gray-600 */
+  }
+
+  .dark .dx-stock-na {
+    background-color: rgba(107, 114, 128, 0.2) !important; /* gray-500/20 */
+    color: #d1d5db !important; /* gray-300 */
+  }
+
+  /* Action button in DataGrid */
+  .dx-action-button {
+    color: #4b5563 !important; /* gray-600 */
+    border-color: #d1d5db !important; /* gray-300 */
+    background-color: transparent !important;
+  }
+
+  .dx-action-button:hover {
+    color: #2563eb !important; /* blue-600 */
+    border-color: #93c5fd !important; /* blue-300 */
+    background-color: #eff6ff !important; /* blue-50 */
+  }
+
+  .dark .dx-action-button {
+    color: #9ca3af !important; /* gray-400 */
+    border-color: #4b5563 !important; /* gray-600 */
+    background-color: transparent !important;
+  }
+
+  .dark .dx-action-button:hover {
+    color: #60a5fa !important; /* blue-400 */
+    border-color: #60a5fa !important; /* blue-400 */
+    background-color: rgba(59, 130, 246, 0.1) !important; /* blue-500/10 */
+  }
+
   /* Checkbox & Radio */
   input[type="checkbox"],
   input[type="radio"] {
