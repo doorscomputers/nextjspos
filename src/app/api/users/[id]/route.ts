@@ -143,13 +143,17 @@ export async function PUT(
       const assignedRoles = await prisma.role.findMany({
         where: { id: { in: roleIds } },
         include: {
-          permissions: true
+          permissions: {
+            include: {
+              permission: true
+            }
+          }
         }
       })
 
       // Check if ANY role has ACCESS_ALL_LOCATIONS permission
       const hasAccessAllLocations = assignedRoles.some(role =>
-        role.permissions.some(p => p.permission === 'access_all_locations')
+        role.permissions.some(rp => rp.permission.name === 'access_all_locations')
       )
 
       // Location is ONLY required if user does NOT have a role with ACCESS_ALL_LOCATIONS
