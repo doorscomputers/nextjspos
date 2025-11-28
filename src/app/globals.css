@@ -1655,4 +1655,193 @@
   .dark .dx-radiogroup .dx-item {
     color: #f3f4f6 !important;
   }
+
+  /* ============================================
+     BATCH 3: Dropdowns & Lists - Dark Mode
+     ============================================ */
+
+  /* List component */
+  .dark .dx-list {
+    background-color: #1f2937 !important; /* gray-800 */
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-list-item {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+    border-color: #374151 !important; /* gray-700 */
+  }
+
+  .dark .dx-list-item:hover,
+  .dark .dx-list-item.dx-state-hover {
+    background-color: #374151 !important; /* gray-700 */
+  }
+
+  .dark .dx-list-item.dx-state-focused {
+    background-color: #374151 !important;
+    border-color: #3b82f6 !important;
+  }
+
+  .dark .dx-list-item.dx-list-item-selected {
+    background-color: rgba(59, 130, 246, 0.2) !important; /* blue-500/20 */
+    color: #93c5fd !important; /* blue-300 */
+  }
+
+  .dark .dx-list-item-content {
+    color: #f3f4f6 !important;
+  }
+
+  /* List group headers */
+  .dark .dx-list-group-header {
+    background-color: #111827 !important; /* gray-900 */
+    color: #d1d5db !important; /* gray-300 */
+    border-color: #374151 !important;
+  }
+
+  /* List search box */
+  .dark .dx-list-search {
+    background-color: #1f2937 !important;
+  }
+
+  /* Dropdown/Overlay content (SelectBox, TagBox, etc.) */
+  .dark .dx-overlay-content {
+    background-color: #1f2937 !important; /* gray-800 */
+    border-color: #374151 !important; /* gray-700 */
+  }
+
+  .dark .dx-dropdowneditor-overlay .dx-overlay-content {
+    background-color: #1f2937 !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  /* SelectBox dropdown items */
+  .dark .dx-selectbox-popup-wrapper .dx-list-item {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-selectbox-popup-wrapper .dx-list-item:hover {
+    background-color: #374151 !important;
+  }
+
+  .dark .dx-selectbox-popup-wrapper .dx-list-item.dx-list-item-selected {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+    color: #93c5fd !important;
+  }
+
+  /* Autocomplete dropdown */
+  .dark .dx-autocomplete-popup-wrapper .dx-overlay-content {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-autocomplete-popup-wrapper .dx-list-item {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-autocomplete-popup-wrapper .dx-list-item:hover {
+    background-color: #374151 !important;
+  }
+
+  /* Lookup popup */
+  .dark .dx-lookup-popup-wrapper .dx-overlay-content {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-lookup-popup-wrapper .dx-list-item {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-lookup-field {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+  }
+
+  /* Scrollview */
+  .dark .dx-scrollview {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-scrollview-content {
+    background-color: #1f2937 !important;
+  }
+
+  /* Scrollbar styling */
+  .dark .dx-scrollbar-vertical .dx-scrollable-scroll,
+  .dark .dx-scrollbar-horizontal .dx-scrollable-scroll {
+    background-color: #374151 !important; /* gray-700 */
+  }
+
+  .dark .dx-scrollbar-vertical .dx-scrollable-scroll-content,
+  .dark .dx-scrollbar-horizontal .dx-scrollable-scroll-content {
+    background-color: #6b7280 !important; /* gray-500 */
+  }
+
+  /* DropDownBox */
+  .dark .dx-dropdownbox,
+  .dark .dx-dropdownbox .dx-texteditor-container {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-dropdownbox .dx-texteditor-input {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-dropdownbox-popup-wrapper .dx-overlay-content {
+    background-color: #1f2937 !important;
+    border-color: #374151 !important;
+  }
+
+  /* Menu component */
+  .dark .dx-menu {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-menu-item {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-menu-item:hover,
+  .dark .dx-menu-item.dx-state-hover {
+    background-color: #374151 !important;
+  }
+
+  .dark .dx-menu-item.dx-state-focused {
+    background-color: #374151 !important;
+  }
+
+  .dark .dx-menu-item.dx-menu-item-selected {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+  }
+
+  .dark .dx-menu-separator {
+    background-color: #374151 !important;
+  }
+
+  /* Submenu */
+  .dark .dx-submenu {
+    background-color: #1f2937 !important;
+    border-color: #374151 !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  /* Context menu */
+  .dark .dx-context-menu {
+    background-color: #1f2937 !important;
+    border-color: #374151 !important;
+  }
+
+  .dark .dx-context-menu .dx-menu-item {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-context-menu .dx-menu-item:hover {
+    background-color: #374151 !important;
+  }
+
+  /* Item text inside lists/dropdowns */
+  .dark .dx-item-content {
+    color: #f3f4f6 !important;
+  }
 }
