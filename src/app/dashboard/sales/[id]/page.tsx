@@ -424,7 +424,6 @@ export default function SaleDetailsPage() {
             <h2 className="text-xl font-bold mb-2">SALES INVOICE</h2>
             <p className="text-gray-600">{sale.invoiceNumber}</p>
             <p className="text-gray-600">Date: {formatDate(sale.saleDate)}</p>
-            <div className="mt-2 flex justify-center">{getStatusBadge(sale.status)}</div>
           </div>
         </div>
 
@@ -544,8 +543,7 @@ export default function SaleDetailsPage() {
 
         {/* Footer */}
         <div className="border-t pt-6 text-center text-gray-500 text-sm">
-          <p>Thank you for your business!</p>
-          <p className="mt-2">Created: {formatDate(sale.createdAt)}</p>
+          <p>Created: {formatDate(sale.createdAt)}</p>
         </div>
       </div>
 
