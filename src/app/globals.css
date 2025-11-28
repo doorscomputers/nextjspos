@@ -1192,4 +1192,235 @@
     @apply bg-blue-600 dark:bg-blue-500;
     @apply border-blue-600 dark:border-blue-500;
   }
+
+  /* ============================================
+     BATCH 1: Form Inputs & Text Editors - Dark Mode
+     ============================================ */
+
+  /* TextArea */
+  .dark .dx-textarea,
+  .dark .dx-textarea .dx-texteditor-container,
+  .dark .dx-textarea .dx-texteditor-input-container {
+    background-color: #1f2937 !important; /* gray-800 */
+  }
+
+  .dark .dx-textarea .dx-texteditor-input {
+    background-color: #1f2937 !important; /* gray-800 */
+    color: #f3f4f6 !important; /* gray-100 */
+  }
+
+  /* TextBox enhancements */
+  .dark .dx-textbox,
+  .dark .dx-textbox .dx-texteditor-container {
+    background-color: #1f2937 !important; /* gray-800 */
+  }
+
+  .dark .dx-textbox .dx-texteditor-input {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+  }
+
+  /* NumberBox */
+  .dark .dx-numberbox,
+  .dark .dx-numberbox .dx-texteditor-container {
+    background-color: #1f2937 !important; /* gray-800 */
+  }
+
+  .dark .dx-numberbox .dx-texteditor-input {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+  }
+
+  /* NumberBox spin buttons */
+  .dark .dx-numberbox-spin-button {
+    background-color: #374151 !important; /* gray-700 */
+    border-color: #4b5563 !important; /* gray-600 */
+  }
+
+  .dark .dx-numberbox-spin-button .dx-icon {
+    color: #d1d5db !important; /* gray-300 */
+  }
+
+  .dark .dx-numberbox-spin-button:hover {
+    background-color: #4b5563 !important; /* gray-600 */
+  }
+
+  .dark .dx-numberbox-spin-button:hover .dx-icon {
+    color: #f3f4f6 !important;
+  }
+
+  /* SelectBox */
+  .dark .dx-selectbox,
+  .dark .dx-selectbox .dx-texteditor-container {
+    background-color: #1f2937 !important; /* gray-800 */
+  }
+
+  .dark .dx-selectbox .dx-texteditor-input {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-selectbox .dx-dropdowneditor-button {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-selectbox .dx-dropdowneditor-icon {
+    color: #9ca3af !important; /* gray-400 */
+  }
+
+  /* DateBox */
+  .dark .dx-datebox,
+  .dark .dx-datebox .dx-texteditor-container {
+    background-color: #1f2937 !important; /* gray-800 */
+  }
+
+  .dark .dx-datebox .dx-texteditor-input {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-datebox .dx-dropdowneditor-button {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-datebox .dx-dropdowneditor-icon {
+    color: #9ca3af !important;
+  }
+
+  /* Calendar (DateBox dropdown) */
+  .dark .dx-calendar {
+    background-color: #1f2937 !important; /* gray-800 */
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-calendar-caption-button {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-calendar-navigator-previous-view,
+  .dark .dx-calendar-navigator-next-view {
+    color: #9ca3af !important;
+  }
+
+  .dark .dx-calendar-navigator-previous-view:hover,
+  .dark .dx-calendar-navigator-next-view:hover {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-calendar-cell {
+    color: #d1d5db !important; /* gray-300 */
+  }
+
+  .dark .dx-calendar-cell.dx-calendar-other-month {
+    color: #6b7280 !important; /* gray-500 */
+  }
+
+  .dark .dx-calendar-cell.dx-calendar-today {
+    border-color: #3b82f6 !important; /* blue-500 */
+  }
+
+  .dark .dx-calendar-cell.dx-calendar-selected-date {
+    background-color: #3b82f6 !important; /* blue-500 */
+    color: #ffffff !important;
+  }
+
+  .dark .dx-calendar-cell:hover {
+    background-color: #374151 !important; /* gray-700 */
+  }
+
+  .dark .dx-calendar-cell.dx-calendar-contoured-date {
+    box-shadow: inset 0 0 0 1px #3b82f6 !important;
+  }
+
+  /* TimeBox */
+  .dark .dx-timebox,
+  .dark .dx-timebox .dx-texteditor-container {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-timebox .dx-texteditor-input {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+  }
+
+  /* TagBox */
+  .dark .dx-tagbox,
+  .dark .dx-tagbox .dx-texteditor-container {
+    background-color: #1f2937 !important; /* gray-800 */
+  }
+
+  .dark .dx-tagbox .dx-texteditor-input {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-tagbox .dx-tag {
+    background-color: #374151 !important; /* gray-700 */
+    color: #f3f4f6 !important;
+    border-color: #4b5563 !important;
+  }
+
+  .dark .dx-tagbox .dx-tag-remove-button {
+    color: #9ca3af !important;
+  }
+
+  .dark .dx-tagbox .dx-tag-remove-button:hover {
+    color: #ef4444 !important; /* red-500 */
+  }
+
+  /* ColorBox */
+  .dark .dx-colorbox,
+  .dark .dx-colorbox .dx-texteditor-container {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-colorbox .dx-texteditor-input {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+  }
+
+  /* All text editors - focus state */
+  .dark .dx-texteditor.dx-state-focused {
+    border-color: #3b82f6 !important; /* blue-500 */
+  }
+
+  /* All text editors - hover state */
+  .dark .dx-texteditor.dx-state-hover {
+    border-color: #6b7280 !important; /* gray-500 */
+  }
+
+  /* All text editors - disabled state */
+  .dark .dx-texteditor.dx-state-disabled {
+    background-color: #111827 !important; /* gray-900 */
+    opacity: 0.6 !important;
+  }
+
+  .dark .dx-texteditor.dx-state-disabled .dx-texteditor-input {
+    background-color: #111827 !important;
+    color: #6b7280 !important;
+  }
+
+  /* All text editors - readonly state */
+  .dark .dx-texteditor.dx-state-readonly {
+    background-color: #111827 !important;
+  }
+
+  .dark .dx-texteditor.dx-state-readonly .dx-texteditor-input {
+    background-color: #111827 !important;
+    color: #9ca3af !important;
+  }
+
+  /* Placeholder text for all editors */
+  .dark .dx-placeholder {
+    color: #6b7280 !important; /* gray-500 */
+  }
+
+  /* Clear button in text editors */
+  .dark .dx-clear-button-area .dx-icon {
+    color: #9ca3af !important;
+  }
+
+  .dark .dx-clear-button-area:hover .dx-icon {
+    color: #f3f4f6 !important;
+  }
 }
