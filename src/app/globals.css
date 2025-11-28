@@ -1840,6 +1840,45 @@
     background-color: #374151 !important;
   }
 
+  /* DataGrid header context menu - rendered at body level */
+  .dark .dx-context-menu-container-border,
+  .dark .dx-datagrid-column-chooser {
+    background-color: #1f2937 !important;
+    border-color: #374151 !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  .dark .dx-context-menu-container-border .dx-menu-items-container {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-context-menu-container-border .dx-menu-item-wrapper {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-context-menu-container-border .dx-menu-item {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-context-menu-container-border .dx-menu-item:hover,
+  .dark .dx-context-menu-container-border .dx-menu-item.dx-state-hover,
+  .dark .dx-context-menu-container-border .dx-menu-item.dx-state-focused {
+    background-color: #374151 !important;
+  }
+
+  .dark .dx-context-menu-container-border .dx-menu-item .dx-icon {
+    color: #9ca3af !important;
+  }
+
+  .dark .dx-context-menu-container-border .dx-menu-item-text {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-context-menu-container-border .dx-menu-separator {
+    background-color: #374151 !important;
+  }
+
   /* Item text inside lists/dropdowns */
   .dark .dx-item-content {
     color: #f3f4f6 !important;
