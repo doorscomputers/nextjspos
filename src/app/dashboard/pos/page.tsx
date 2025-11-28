@@ -21,6 +21,7 @@ import POSUnitSelector from '@/components/POSUnitSelector'
 import ExchangeDialog from '@/components/ExchangeDialog'
 import { Trash2 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 export default function POSEnhancedPage() {
   const { data: session } = useSession()
@@ -86,6 +87,11 @@ export default function POSEnhancedPage() {
   const [showNewCustomerDialog, setShowNewCustomerDialog] = useState(false)
   const [showCameraDialog, setShowCameraDialog] = useState(false)
   const [showExchangeDialog, setShowExchangeDialog] = useState(false)
+
+  // Confirmation Dialog States
+  const [showClearCartConfirm, setShowClearCartConfirm] = useState(false)
+  const [showHoldConfirm, setShowHoldConfirm] = useState(false)
+  const [showSaveQuotationConfirm, setShowSaveQuotationConfirm] = useState(false)
 
   // Serial Number State
   const [showSerialNumberDialog, setShowSerialNumberDialog] = useState(false)
@@ -2366,7 +2372,7 @@ export default function POSEnhancedPage() {
                   size="sm"
                   variant="ghost"
                   className="text-red-500 hover:text-red-700 text-sm"
-                  onClick={() => setCart([])}
+                  onClick={() => setShowClearCartConfirm(true)}
                 >
                   Clear All
                 </Button>
@@ -3253,7 +3259,7 @@ export default function POSEnhancedPage() {
             <Button variant="outline" onClick={() => setShowHoldDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={saveHeldTransaction} className="bg-yellow-600">
+            <Button onClick={() => setShowHoldConfirm(true)} className="bg-yellow-600">
               Hold Transaction
             </Button>
           </DialogFooter>
@@ -3524,7 +3530,7 @@ export default function POSEnhancedPage() {
               Cancel
             </Button>
             <Button
-              onClick={handleSaveQuotation}
+              onClick={() => setShowSaveQuotationConfirm(true)}
               disabled={savingQuotation}
               className="bg-purple-600 hover:bg-purple-700 text-white"
             >
@@ -4052,6 +4058,52 @@ export default function POSEnhancedPage() {
           setShowExchangeDialog(false)
           // Toast is already shown by ExchangeDialog component
         }}
+      />
+
+      {/* Clear Cart Confirmation Dialog */}
+      <ConfirmDialog
+        open={showClearCartConfirm}
+        onOpenChange={setShowClearCartConfirm}
+        title="Clear All Cart Items?"
+        description={`Are you sure you want to remove all ${cart.length} item(s) from the cart? This action cannot be undone.`}
+        confirmLabel="Yes, Clear All"
+        cancelLabel="Cancel"
+        onConfirm={() => {
+          setCart([])
+          setShowClearCartConfirm(false)
+        }}
+        variant="destructive"
+      />
+
+      {/* Hold Transaction Confirmation Dialog */}
+      <ConfirmDialog
+        open={showHoldConfirm}
+        onOpenChange={setShowHoldConfirm}
+        title="Hold Transaction?"
+        description={`Are you sure you want to hold this transaction with ${cart.length} item(s)? You can retrieve it later from the held transactions list.`}
+        confirmLabel="Yes, Hold"
+        cancelLabel="Cancel"
+        onConfirm={() => {
+          setShowHoldConfirm(false)
+          setShowHoldDialog(false)
+          saveHeldTransaction()
+        }}
+        variant="default"
+      />
+
+      {/* Save Quotation Confirmation Dialog */}
+      <ConfirmDialog
+        open={showSaveQuotationConfirm}
+        onOpenChange={setShowSaveQuotationConfirm}
+        title="Save Quotation?"
+        description={`Are you sure you want to save this quotation with ${cart.length} item(s)? The cart will be cleared after saving.`}
+        confirmLabel="Yes, Save"
+        cancelLabel="Cancel"
+        onConfirm={() => {
+          setShowSaveQuotationConfirm(false)
+          handleSaveQuotation()
+        }}
+        variant="default"
       />
     </div>
   )
