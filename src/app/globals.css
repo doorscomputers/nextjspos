@@ -542,6 +542,29 @@
     color: #60a5fa !important; /* blue-400 */
   }
 
+  /* DevExtreme Tabs - Dark Backgrounds */
+  .dark .dx-tabpanel-tabs,
+  .dark .dx-tabs,
+  .dark .dx-tabs-wrapper {
+    background-color: #0f172a !important; /* slate-900 */
+    border-color: #1f2937 !important; /* gray-800 */
+  }
+
+  .dark .dx-tabs .dx-tab {
+    background-color: #111827 !important; /* gray-900 */
+    border-color: #1f2937 !important; /* gray-800 */
+  }
+
+  .dark .dx-tabs .dx-tab.dx-tab-selected,
+  .dark .dx-tabs .dx-tab.dx-tab-active {
+    background-color: #1f2937 !important; /* gray-800 */
+    border-bottom-color: #2563eb !important; /* blue-600 */
+  }
+
+  .dark .dx-tabs .dx-tab:hover {
+    background-color: #1f2937 !important; /* gray-800 */
+  }
+
   /* DevExtreme TextBox/NumberBox/SelectBox Labels */
   .dark .dx-texteditor-label,
   .dark .dx-placeholder {

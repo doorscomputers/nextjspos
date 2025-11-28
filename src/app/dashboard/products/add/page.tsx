@@ -1009,8 +1009,8 @@ export default function AddProductPage() {
 
         {/* Pricing Card - Only for Single Products */}
         {formData.type === 'single' && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Product Pricing</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Product Pricing</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1057,9 +1057,9 @@ export default function AddProductPage() {
 
         {/* Variations Section */}
         {formData.type === 'variable' && (
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Product Variations</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Product Variations</h2>
               <button
                 type="button"
                 onClick={addVariation}
@@ -1071,8 +1071,8 @@ export default function AddProductPage() {
             </div>
 
             {/* Variation SKU Format Selection */}
-            <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-              <label className="block text-sm font-medium text-gray-700 mb-3">
+            <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">
                 Variation SKU Format
               </label>
               <div className="space-y-2">
@@ -1084,10 +1084,10 @@ export default function AddProductPage() {
                     value="with_out_variation"
                     checked={variationSkuType === 'with_out_variation'}
                     onChange={(e) => setVariationSkuType(e.target.value as 'with_out_variation' | 'with_variation')}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600"
                   />
-                  <label htmlFor="sku-number" className="ml-3 text-sm text-gray-700">
-                    SKU-Number <span className="text-gray-500">(Example: PROD-001-1, PROD-001-2)</span>
+                  <label htmlFor="sku-number" className="ml-3 text-sm text-gray-700 dark:text-gray-200">
+                    SKU-Number <span className="text-gray-500 dark:text-gray-400">(Example: PROD-001-1, PROD-001-2)</span>
                   </label>
                 </div>
                 <div className="flex items-center">
@@ -1098,10 +1098,10 @@ export default function AddProductPage() {
                     value="with_variation"
                     checked={variationSkuType === 'with_variation'}
                     onChange={(e) => setVariationSkuType(e.target.value as 'with_out_variation' | 'with_variation')}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600"
                   />
-                  <label htmlFor="sku-variation" className="ml-3 text-sm text-gray-700">
-                    SKUVariation <span className="text-gray-500">(Example: PROD-001Small, PROD-001Medium)</span>
+                  <label htmlFor="sku-variation" className="ml-3 text-sm text-gray-700 dark:text-gray-200">
+                    SKUVariation <span className="text-gray-500 dark:text-gray-400">(Example: PROD-001Small, PROD-001Medium)</span>
                   </label>
                 </div>
               </div>
@@ -1200,9 +1200,9 @@ export default function AddProductPage() {
 
         {/* Combo Products Section */}
         {formData.type === 'combo' && (
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Combo Products</h2>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Combo Products</h2>
               <button
                 type="button"
                 onClick={addComboItem}
