@@ -1423,4 +1423,236 @@
   .dark .dx-clear-button-area:hover .dx-icon {
     color: #f3f4f6 !important;
   }
+
+  /* ============================================
+     BATCH 2: Buttons & Switches - Dark Mode
+     ============================================ */
+
+  /* Default Button */
+  .dark .dx-button {
+    background-color: #374151 !important; /* gray-700 */
+    border-color: #4b5563 !important; /* gray-600 */
+    color: #f3f4f6 !important; /* gray-100 */
+  }
+
+  .dark .dx-button .dx-icon {
+    color: #d1d5db !important; /* gray-300 */
+  }
+
+  .dark .dx-button:hover,
+  .dark .dx-button.dx-state-hover {
+    background-color: #4b5563 !important; /* gray-600 */
+    border-color: #6b7280 !important; /* gray-500 */
+  }
+
+  .dark .dx-button:active,
+  .dark .dx-button.dx-state-active {
+    background-color: #1f2937 !important; /* gray-800 */
+  }
+
+  .dark .dx-button.dx-state-focused {
+    border-color: #3b82f6 !important; /* blue-500 */
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
+  }
+
+  /* Button - Default mode (contained) */
+  .dark .dx-button-mode-contained {
+    background-color: #3b82f6 !important; /* blue-500 */
+    border-color: #3b82f6 !important;
+    color: #ffffff !important;
+  }
+
+  .dark .dx-button-mode-contained:hover {
+    background-color: #2563eb !important; /* blue-600 */
+    border-color: #2563eb !important;
+  }
+
+  .dark .dx-button-mode-contained .dx-icon {
+    color: #ffffff !important;
+  }
+
+  /* Button - Outlined mode */
+  .dark .dx-button-mode-outlined {
+    background-color: transparent !important;
+    border-color: #4b5563 !important; /* gray-600 */
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-button-mode-outlined:hover {
+    background-color: #374151 !important; /* gray-700 */
+    border-color: #6b7280 !important;
+  }
+
+  /* Button - Text mode */
+  .dark .dx-button-mode-text {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    color: #60a5fa !important; /* blue-400 */
+  }
+
+  .dark .dx-button-mode-text:hover {
+    background-color: rgba(59, 130, 246, 0.1) !important;
+  }
+
+  /* Button types - Success */
+  .dark .dx-button-success,
+  .dark .dx-button.dx-button-success {
+    background-color: #22c55e !important; /* green-500 */
+    border-color: #22c55e !important;
+    color: #ffffff !important;
+  }
+
+  .dark .dx-button-success:hover {
+    background-color: #16a34a !important; /* green-600 */
+    border-color: #16a34a !important;
+  }
+
+  .dark .dx-button-success .dx-icon {
+    color: #ffffff !important;
+  }
+
+  /* Button types - Danger */
+  .dark .dx-button-danger,
+  .dark .dx-button.dx-button-danger {
+    background-color: #ef4444 !important; /* red-500 */
+    border-color: #ef4444 !important;
+    color: #ffffff !important;
+  }
+
+  .dark .dx-button-danger:hover {
+    background-color: #dc2626 !important; /* red-600 */
+    border-color: #dc2626 !important;
+  }
+
+  .dark .dx-button-danger .dx-icon {
+    color: #ffffff !important;
+  }
+
+  /* Button - Disabled */
+  .dark .dx-button.dx-state-disabled {
+    background-color: #1f2937 !important; /* gray-800 */
+    border-color: #374151 !important;
+    color: #6b7280 !important; /* gray-500 */
+    opacity: 0.6 !important;
+  }
+
+  .dark .dx-button.dx-state-disabled .dx-icon {
+    color: #6b7280 !important;
+  }
+
+  /* Switch/Toggle */
+  .dark .dx-switch {
+    background-color: transparent !important;
+  }
+
+  .dark .dx-switch .dx-switch-container {
+    background-color: #4b5563 !important; /* gray-600 - OFF state */
+    border-color: #6b7280 !important;
+  }
+
+  .dark .dx-switch .dx-switch-handle {
+    background-color: #d1d5db !important; /* gray-300 */
+  }
+
+  /* Switch - ON state */
+  .dark .dx-switch.dx-switch-on-value .dx-switch-container {
+    background-color: #22c55e !important; /* green-500 */
+    border-color: #22c55e !important;
+  }
+
+  .dark .dx-switch.dx-switch-on-value .dx-switch-handle {
+    background-color: #ffffff !important;
+  }
+
+  /* Switch - Hover */
+  .dark .dx-switch:hover .dx-switch-container {
+    border-color: #9ca3af !important;
+  }
+
+  .dark .dx-switch.dx-switch-on-value:hover .dx-switch-container {
+    background-color: #16a34a !important; /* green-600 */
+    border-color: #16a34a !important;
+  }
+
+  /* Switch - Focused */
+  .dark .dx-switch.dx-state-focused .dx-switch-container {
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
+  }
+
+  /* Switch - Disabled */
+  .dark .dx-switch.dx-state-disabled .dx-switch-container {
+    opacity: 0.5 !important;
+  }
+
+  /* Checkbox */
+  .dark .dx-checkbox {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-checkbox-icon {
+    background-color: #1f2937 !important; /* gray-800 */
+    border-color: #4b5563 !important; /* gray-600 */
+  }
+
+  .dark .dx-checkbox.dx-checkbox-checked .dx-checkbox-icon {
+    background-color: #3b82f6 !important; /* blue-500 */
+    border-color: #3b82f6 !important;
+  }
+
+  .dark .dx-checkbox.dx-checkbox-checked .dx-checkbox-icon::before {
+    color: #ffffff !important;
+  }
+
+  .dark .dx-checkbox:hover .dx-checkbox-icon {
+    border-color: #6b7280 !important;
+  }
+
+  .dark .dx-checkbox.dx-state-focused .dx-checkbox-icon {
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
+  }
+
+  .dark .dx-checkbox-text {
+    color: #f3f4f6 !important;
+  }
+
+  /* Checkbox - Indeterminate */
+  .dark .dx-checkbox.dx-checkbox-indeterminate .dx-checkbox-icon {
+    background-color: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+  }
+
+  /* Radio Button */
+  .dark .dx-radiobutton {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-radiobutton-icon {
+    background-color: #1f2937 !important; /* gray-800 */
+    border-color: #4b5563 !important; /* gray-600 */
+  }
+
+  .dark .dx-radiobutton.dx-radiobutton-checked .dx-radiobutton-icon {
+    border-color: #3b82f6 !important; /* blue-500 */
+  }
+
+  .dark .dx-radiobutton.dx-radiobutton-checked .dx-radiobutton-icon::before {
+    background-color: #3b82f6 !important;
+  }
+
+  .dark .dx-radiobutton:hover .dx-radiobutton-icon {
+    border-color: #6b7280 !important;
+  }
+
+  .dark .dx-radiobutton.dx-state-focused .dx-radiobutton-icon {
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
+  }
+
+  /* Radio Group */
+  .dark .dx-radiogroup {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-radiogroup .dx-item {
+    color: #f3f4f6 !important;
+  }
 }
