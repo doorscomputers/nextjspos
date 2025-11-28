@@ -518,6 +518,69 @@
     @apply text-gray-900 dark:text-gray-100;
   }
 
+  /* DevExtreme Form Labels - Dark Mode Fix */
+  .dark .dx-field-item-label,
+  .dark .dx-field-item-label-text,
+  .dark .dx-label span,
+  .dark .dx-form-group-caption,
+  .dark .dx-field-item-label-content,
+  .dark .dx-texteditor-label,
+  .dark .dx-tab-text,
+  .dark .dx-tabs-wrapper .dx-tab,
+  .dark .dx-item-content {
+    color: #e5e7eb !important; /* gray-200 */
+  }
+
+  /* DevExtreme Form Group Headers */
+  .dark .dx-form-group-with-caption > .dx-form-group-caption {
+    color: #f3f4f6 !important; /* gray-100 */
+    font-weight: 600;
+  }
+
+  /* DevExtreme Tab Text */
+  .dark .dx-tab.dx-tab-selected .dx-tab-text {
+    color: #60a5fa !important; /* blue-400 */
+  }
+
+  /* DevExtreme TextBox/NumberBox/SelectBox Labels */
+  .dark .dx-texteditor-label,
+  .dark .dx-placeholder {
+    color: #9ca3af !important; /* gray-400 */
+  }
+
+  /* DevExtreme Checkbox/Switch Labels */
+  .dark .dx-checkbox-text,
+  .dark .dx-switch-on-text,
+  .dark .dx-switch-off-text {
+    color: #e5e7eb !important; /* gray-200 */
+  }
+
+  /* DevExtreme DataGrid Headers */
+  .dark .dx-datagrid-headers,
+  .dark .dx-header-row td {
+    color: #f3f4f6 !important; /* gray-100 */
+  }
+
+  /* DevExtreme Form Input Backgrounds */
+  .dark .dx-texteditor-input,
+  .dark .dx-texteditor-container {
+    background-color: #1f2937 !important; /* gray-800 */
+    color: #f3f4f6 !important; /* gray-100 */
+  }
+
+  /* DevExtreme SelectBox Dropdown */
+  .dark .dx-dropdowneditor-overlay .dx-list-item,
+  .dark .dx-overlay-content {
+    background-color: #1f2937 !important; /* gray-800 */
+    color: #f3f4f6 !important; /* gray-100 */
+  }
+
+  /* DevExtreme Popup/Overlay backgrounds */
+  .dark .dx-popup-content,
+  .dark .dx-overlay-wrapper .dx-overlay-content {
+    background-color: #1f2937 !important; /* gray-800 */
+  }
+
   /* Checkbox & Radio */
   input[type="checkbox"],
   input[type="radio"] {
