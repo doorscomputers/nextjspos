@@ -297,7 +297,10 @@ export default function SaleDetailsPage() {
     if (amount === null || amount === undefined || isNaN(Number(amount))) {
       return '0.00'
     }
-    return Number(amount).toFixed(2)
+    return Number(amount).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })
   }
 
   const getItemName = (item: SaleItem) => {
