@@ -32,11 +32,24 @@ export async function GET(request: NextRequest) {
     defaultStartDate.setDate(today.getDate() - 7)
     defaultStartDate.setHours(0, 0, 0, 0)
 
-    const startDate = startDateParam ? new Date(startDateParam) : defaultStartDate
-    startDate.setHours(0, 0, 0, 0)
+    // Parse dates as local timezone (not UTC)
+    // When parsing "YYYY-MM-DD" format, append time to ensure local timezone interpretation
+    let startDate: Date
+    if (startDateParam) {
+      const [year, month, day] = startDateParam.split('-').map(Number)
+      startDate = new Date(year, month - 1, day, 0, 0, 0, 0)
+    } else {
+      startDate = defaultStartDate
+    }
 
-    const endDate = endDateParam ? new Date(endDateParam) : new Date(today)
-    endDate.setHours(23, 59, 59, 999)
+    let endDate: Date
+    if (endDateParam) {
+      const [year, month, day] = endDateParam.split('-').map(Number)
+      endDate = new Date(year, month - 1, day, 23, 59, 59, 999)
+    } else {
+      endDate = new Date(today)
+      endDate.setHours(23, 59, 59, 999)
+    }
 
     // Build where clause
     // CRITICAL: Include BOTH completed sales AND pending credit sales
