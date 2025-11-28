@@ -2003,4 +2003,110 @@
     background-color: #111827 !important;
     color: #ef4444 !important;
   }
+
+  /* ============================================
+     BATCH 5: Validation & Error States - Dark Mode
+     ============================================ */
+
+  /* Invalid/Error state for text editors */
+  .dark .dx-texteditor.dx-invalid {
+    border-color: #ef4444 !important; /* red-500 */
+  }
+
+  .dark .dx-texteditor.dx-invalid .dx-texteditor-input {
+    background-color: rgba(239, 68, 68, 0.1) !important; /* red-500/10 */
+  }
+
+  .dark .dx-texteditor.dx-invalid.dx-state-focused {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3) !important;
+  }
+
+  /* Validation message */
+  .dark .dx-invalid-message {
+    background-color: #7f1d1d !important; /* red-900 */
+    color: #fecaca !important; /* red-200 */
+    border-color: #991b1b !important; /* red-800 */
+  }
+
+  .dark .dx-invalid-message .dx-invalid-message-content {
+    color: #fecaca !important;
+  }
+
+  .dark .dx-invalid-message .dx-overlay-content {
+    background-color: #7f1d1d !important;
+    color: #fecaca !important;
+  }
+
+  /* Validation message arrow */
+  .dark .dx-invalid-message .dx-popover-arrow::after {
+    border-color: #7f1d1d transparent transparent transparent !important;
+  }
+
+  /* Validation summary */
+  .dark .dx-validationsummary {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+    border-color: #ef4444 !important;
+    color: #fca5a5 !important; /* red-300 */
+  }
+
+  .dark .dx-validationsummary-item {
+    color: #fca5a5 !important;
+  }
+
+  .dark .dx-validationsummary-item::before {
+    color: #ef4444 !important;
+  }
+
+  /* Validator */
+  .dark .dx-validator {
+    color: #f3f4f6 !important;
+  }
+
+  /* Required indicator */
+  .dark .dx-field-item-required-mark {
+    color: #ef4444 !important;
+  }
+
+  /* Optional indicator */
+  .dark .dx-field-item-optional-mark {
+    color: #6b7280 !important; /* gray-500 */
+  }
+
+  /* Success validation state */
+  .dark .dx-texteditor.dx-valid {
+    border-color: #22c55e !important; /* green-500 */
+  }
+
+  /* Pending validation state */
+  .dark .dx-texteditor.dx-validation-pending {
+    border-color: #f59e0b !important; /* amber-500 */
+  }
+
+  /* Form item label with validation */
+  .dark .dx-field-item-label.dx-field-item-label-invalid {
+    color: #fca5a5 !important; /* red-300 */
+  }
+
+  /* Checkbox/Radio invalid state */
+  .dark .dx-checkbox.dx-invalid .dx-checkbox-icon {
+    border-color: #ef4444 !important;
+  }
+
+  .dark .dx-radiobutton.dx-invalid .dx-radiobutton-icon {
+    border-color: #ef4444 !important;
+  }
+
+  /* SelectBox/DateBox invalid state */
+  .dark .dx-selectbox.dx-invalid,
+  .dark .dx-datebox.dx-invalid,
+  .dark .dx-numberbox.dx-invalid {
+    border-color: #ef4444 !important;
+  }
+
+  .dark .dx-selectbox.dx-invalid .dx-texteditor-container,
+  .dark .dx-datebox.dx-invalid .dx-texteditor-container,
+  .dark .dx-numberbox.dx-invalid .dx-texteditor-container {
+    background-color: rgba(239, 68, 68, 0.1) !important;
+  }
 }
