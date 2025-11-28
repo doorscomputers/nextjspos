@@ -709,6 +709,55 @@
     color: #f3f4f6 !important; /* gray-100 */
   }
 
+  /* Filter Row - Complete Dark Mode Fix */
+  .dark .dx-datagrid-filter-row .dx-texteditor,
+  .dark .dx-datagrid-filter-row .dx-texteditor-container,
+  .dark .dx-datagrid-filter-row .dx-texteditor-input-container {
+    background-color: #111827 !important; /* gray-900 */
+  }
+
+  .dark .dx-datagrid-filter-row .dx-texteditor-input,
+  .dark .dx-datagrid-filter-row input {
+    background-color: #111827 !important; /* gray-900 */
+    color: #f3f4f6 !important; /* gray-100 */
+    caret-color: #f3f4f6 !important;
+  }
+
+  .dark .dx-datagrid-filter-row .dx-texteditor-input::placeholder,
+  .dark .dx-datagrid-filter-row input::placeholder {
+    color: #6b7280 !important; /* gray-500 */
+  }
+
+  /* Filter row icons */
+  .dark .dx-datagrid-filter-row .dx-icon,
+  .dark .dx-datagrid-filter-row .dx-editor-cell .dx-icon {
+    color: #9ca3af !important; /* gray-400 */
+  }
+
+  /* Filter row dropdown button */
+  .dark .dx-datagrid-filter-row .dx-dropdowneditor-button {
+    background-color: #111827 !important;
+  }
+
+  .dark .dx-datagrid-filter-row .dx-dropdowneditor-icon {
+    color: #9ca3af !important; /* gray-400 */
+  }
+
+  /* Filter row cell borders */
+  .dark .dx-datagrid-filter-row .dx-editor-cell {
+    background-color: #1f2937 !important; /* gray-800 */
+  }
+
+  .dark .dx-datagrid-filter-row .dx-editor-with-menu {
+    background-color: #111827 !important; /* gray-900 */
+  }
+
+  /* Filter row menu button */
+  .dark .dx-datagrid-filter-row .dx-menu-item-content {
+    background-color: #111827 !important;
+    color: #f3f4f6 !important;
+  }
+
   /* Search Panel */
   .dark .dx-datagrid-search-panel {
     background-color: #111827 !important; /* gray-900 */
