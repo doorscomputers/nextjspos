@@ -254,11 +254,11 @@ export default function CostAuditReportPage() {
             <SearchPanel visible={true} width={240} placeholder="Search products..." />
             <FilterRow visible={true} />
             <HeaderFilter visible={true} />
-            <Paging defaultPageSize={50} />
+            <Paging defaultPageSize={10} />
             <Pager
               visible={true}
               showPageSizeSelector={true}
-              allowedPageSizes={[20, 50, 100, 200]}
+              allowedPageSizes={[10, 20, 50, 100, 200]}
               showInfo={true}
               showNavigationButtons={true}
             />
