@@ -738,7 +738,10 @@ export default function DashboardPageV2() {
           {can(PERMISSIONS.SELL_VIEW) && (
           <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle>Sales Payment Due</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Sales Payment Due
+                <span className="text-xs text-gray-500 font-normal ml-2">(Click row to view details)</span>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <DataGrid
@@ -747,6 +750,13 @@ export default function DashboardPageV2() {
                 columnAutoWidth={true}
                 height={300}
                 keyExpr="id"
+                onRowClick={(e) => {
+                  if (e.data?.id) {
+                    router.push(`/dashboard/sales/${e.data.id}`)
+                  }
+                }}
+                hoverStateEnabled={true}
+                className="cursor-pointer"
               >
                 <Column dataField="invoiceNumber" caption="Invoice" />
                 <Column dataField="customer" caption="Customer" />
@@ -770,7 +780,10 @@ export default function DashboardPageV2() {
         {can(PERMISSIONS.PURCHASE_VIEW) && (
           <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle>Purchase Payment Due</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Purchase Payment Due
+                <span className="text-xs text-gray-500 font-normal ml-2">(Click row to view details)</span>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <DataGrid
@@ -779,6 +792,13 @@ export default function DashboardPageV2() {
                 columnAutoWidth={true}
                 height={300}
                 keyExpr="id"
+                onRowClick={(e) => {
+                  if (e.data?.id) {
+                    router.push(`/dashboard/purchases/${e.data.id}`)
+                  }
+                }}
+                hoverStateEnabled={true}
+                className="cursor-pointer"
               >
                 <Column dataField="purchaseOrderNumber" caption="PO Number" />
                 <Column dataField="supplier" caption="Supplier" />
