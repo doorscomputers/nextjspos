@@ -23,7 +23,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const startDateParam = searchParams.get('startDate')
     const endDateParam = searchParams.get('endDate')
-    const locationIdParam = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
+    const locationIdRaw = searchParams.get('locationId')
+    const locationIdParam = locationIdRaw && locationIdRaw !== 'all' ? parseInt(locationIdRaw) : null
     const dayOfWeekParam = searchParams.get('dayOfWeek') // 0=Sunday, 6=Saturday
 
     // Default date range: last 7 days
@@ -83,18 +84,18 @@ export async function GET(request: NextRequest) {
         .filter((assignment) => assignment.location && assignment.location.deletedAt === null && assignment.location.isActive !== false)
         .map((assignment) => assignment.locationId)
     }
-    if (locationIdParam && locationIdParam !== 'all') {
-      const requestedLocationId = parseInt(locationIdParam)
-      if (accessibleLocationIds !== null && !accessibleLocationIds.includes(requestedLocationId)) {
+    if (locationIdParam) {
+      if (accessibleLocationIds !== null && !accessibleLocationIds.includes(locationIdParam)) {
         return NextResponse.json(
           { error: 'You do not have access to this location' },
           { status: 403 }
         )
       }
-      salesWhere.locationId = requestedLocationId
-    } else if (accessibleLocationIds !== null) {
+      salesWhere.locationId = locationIdParam
+    } else if (accessibleLocationIds !== null && accessibleLocationIds.length > 0) {
       salesWhere.locationId = { in: accessibleLocationIds }
     }
+    // If accessibleLocationIds is null, user has access to all locations - no filter needed
 
     // Fetch all sales in date range
     const sales = await prisma.sale.findMany({
