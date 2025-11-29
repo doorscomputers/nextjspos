@@ -32,7 +32,7 @@ export async function GET(
     const jobOrder = await prisma.repairJobOrder.findFirst({
       where: {
         id: jobOrderId,
-        businessId: parseInt(businessId)
+        businessId
       },
       include: {
         customer: true,
@@ -168,7 +168,7 @@ export async function PUT(
     const existing = await prisma.repairJobOrder.findFirst({
       where: {
         id: jobOrderId,
-        businessId: parseInt(businessId)
+        businessId
       }
     })
 
@@ -263,7 +263,7 @@ export async function DELETE(
     const existing = await prisma.repairJobOrder.findFirst({
       where: {
         id: jobOrderId,
-        businessId: parseInt(businessId)
+        businessId
       }
     })
 

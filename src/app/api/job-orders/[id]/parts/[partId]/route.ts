@@ -34,7 +34,7 @@ export async function DELETE(
     const jobOrder = await prisma.repairJobOrder.findFirst({
       where: {
         id: jobOrderId,
-        businessId: parseInt(businessId)
+        businessId
       }
     })
 
@@ -54,7 +54,7 @@ export async function DELETE(
       where: {
         id: partId,
         jobOrderId,
-        businessId: parseInt(businessId)
+        businessId
       }
     })
 

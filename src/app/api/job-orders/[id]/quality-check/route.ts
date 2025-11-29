@@ -41,7 +41,7 @@ export async function POST(
     const existing = await prisma.repairJobOrder.findFirst({
       where: {
         id: jobOrderId,
-        businessId: parseInt(businessId)
+        businessId
       }
     })
 

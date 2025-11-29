@@ -43,7 +43,7 @@ export async function POST(
     const jobOrder = await prisma.repairJobOrder.findFirst({
       where: {
         id: jobOrderId,
-        businessId: parseInt(businessId)
+        businessId
       }
     })
 
@@ -80,7 +80,7 @@ export async function POST(
       // Create part
       const part = await tx.repairJobOrderPart.create({
         data: {
-          businessId: parseInt(businessId),
+          businessId,
           jobOrderId,
           productId: parseInt(productId),
           productVariationId: parseInt(productVariationId),

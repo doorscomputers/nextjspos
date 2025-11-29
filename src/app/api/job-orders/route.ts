@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const whereClause: any = {
-      businessId: parseInt(businessId)
+      businessId
     }
 
     // Apply filters
@@ -262,7 +262,7 @@ export async function POST(request: NextRequest) {
     const location = await prisma.businessLocation.findFirst({
       where: {
         id: parseInt(locationId),
-        businessId: parseInt(businessId),
+        businessId,
         deletedAt: null
       }
     })
@@ -275,7 +275,7 @@ export async function POST(request: NextRequest) {
     const serviceType = await prisma.repairServiceType.findFirst({
       where: {
         id: parseInt(serviceTypeId),
-        businessId: parseInt(businessId),
+        businessId,
         isActive: true
       }
     })
@@ -288,7 +288,7 @@ export async function POST(request: NextRequest) {
     const product = await prisma.product.findFirst({
       where: {
         id: parseInt(productId),
-        businessId: parseInt(businessId),
+        businessId,
         deletedAt: null
       }
     })
@@ -314,7 +314,7 @@ export async function POST(request: NextRequest) {
       const technician = await prisma.serviceTechnician.findFirst({
         where: {
           id: parseInt(technicianId),
-          businessId: parseInt(businessId),
+          businessId,
           isAvailable: true
         }
       })
@@ -339,12 +339,12 @@ export async function POST(request: NextRequest) {
     // Create job order in transaction
     const jobOrder = await prisma.$transaction(async (tx) => {
       // Generate job order number
-      const jobOrderNumber = await generateJobOrderNumber(parseInt(businessId), tx)
+      const jobOrderNumber = await generateJobOrderNumber(businessId, tx)
 
       // Create job order
       const newJobOrder = await tx.repairJobOrder.create({
         data: {
-          businessId: parseInt(businessId),
+          businessId,
           locationId: parseInt(locationId),
           jobOrderNumber,
           jobOrderDate: new Date(jobOrderDate),
