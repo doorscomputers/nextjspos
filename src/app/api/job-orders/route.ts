@@ -173,21 +173,46 @@ export async function GET(request: NextRequest) {
       prisma.repairJobOrder.count({ where: whereClause })
     ])
 
-    // Serialize Decimal fields
-    const serializedJobOrders = jobOrders.map(job => ({
-      ...job,
-      laborCost: Number(job.laborCost),
-      partsCost: Number(job.partsCost),
-      taxAmount: Number(job.tax),
-      totalCost: Number(job.totalCost),
-      paidAmount: Number(job.paidAmount),
-      parts: job.jobOrderParts.map(part => ({
-        ...part,
-        quantity: Number(part.quantity),
-        unitPrice: Number(part.unitPrice),
-        subtotal: Number(part.subtotal)
-      }))
-    }))
+    // Serialize and transform for frontend
+    const serializedJobOrders = jobOrders.map(job => {
+      const totalCost = Number(job.totalCost)
+      const paidAmount = Number(job.paidAmount)
+
+      // Calculate payment status
+      let paymentStatus = 'pending'
+      if (paidAmount >= totalCost && totalCost > 0) {
+        paymentStatus = 'paid'
+      } else if (paidAmount > 0) {
+        paymentStatus = 'partial'
+      }
+
+      return {
+        ...job,
+        // Map field names for frontend compatibility
+        jobNumber: job.jobOrderNumber,
+        jobDate: job.jobOrderDate,
+        productName: job.product?.name || 'N/A',
+        serviceTypeName: job.serviceType?.name || 'N/A',
+        technicianName: job.technician
+          ? `${job.technician.firstName || ''} ${job.technician.lastName || ''}`.trim() || 'Unassigned'
+          : null,
+        paymentStatus,
+        // Serialize Decimal fields
+        laborCost: Number(job.laborCost),
+        partsCost: Number(job.partsCost),
+        taxAmount: Number(job.tax),
+        totalCost,
+        paidAmount,
+        parts: job.jobOrderParts.map(part => ({
+          ...part,
+          partName: part.product?.name || part.productVariation?.name || 'Unknown Part',
+          quantity: Number(part.quantity),
+          unitPrice: Number(part.unitPrice),
+          subtotal: Number(part.subtotal)
+        })),
+        payments: [] // Will be populated in detail view
+      }
+    })
 
     return NextResponse.json({
       jobOrders: serializedJobOrders,
