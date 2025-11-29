@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
               claimNumber: true
             }
           },
-          parts: {
+          jobOrderParts: {
             include: {
               product: {
                 select: {
@@ -181,7 +181,7 @@ export async function GET(request: NextRequest) {
       taxAmount: Number(job.taxAmount),
       totalCost: Number(job.totalCost),
       paidAmount: Number(job.paidAmount),
-      parts: job.parts.map(part => ({
+      parts: job.jobOrderParts.map(part => ({
         ...part,
         quantity: Number(part.quantity),
         unitPrice: Number(part.unitPrice),

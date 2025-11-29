@@ -46,7 +46,7 @@ export async function GET(
             serialNumber: true
           }
         },
-        parts: {
+        jobOrderParts: {
           include: {
             product: {
               select: {
@@ -64,7 +64,7 @@ export async function GET(
             }
           }
         },
-        payments: {
+        repairPayments: {
           include: {
             receivedByUser: {
               select: {
@@ -115,13 +115,13 @@ export async function GET(
       taxAmount: Number(jobOrder.taxAmount),
       totalCost: Number(jobOrder.totalCost),
       paidAmount: Number(jobOrder.paidAmount),
-      parts: jobOrder.parts.map(part => ({
+      parts: jobOrder.jobOrderParts.map(part => ({
         ...part,
         quantity: Number(part.quantity),
         unitPrice: Number(part.unitPrice),
         subtotal: Number(part.subtotal)
       })),
-      payments: jobOrder.payments.map(payment => ({
+      payments: jobOrder.repairPayments.map(payment => ({
         ...payment,
         amount: Number(payment.amount)
       }))
