@@ -1035,23 +1035,27 @@ export async function POST(request: NextRequest) {
           remark: itemRemark,
         })
 
-        // Collect stock deduction data for bulk processing
-        bulkStockItems.push({
-          businessId: businessIdNumber,
-          productId: productIdNumber,
-          productVariationId: productVariationIdNumber,
-          locationId: locationIdNumber,
-          quantity: -Math.abs(quantityNumber), // Negative for stock deduction
-          type: StockTransactionType.SALE,
-          referenceType: 'sale' as const,
-          referenceId: newSale.id,
-          referenceNumber: invoiceNumber,
-          userId: userIdNumber,
-          notes: `Sale - Invoice ${invoiceNumber}`,
-          userDisplayName,
-          unitCost: parseFloat(variation.purchasePrice.toString()),
-          tx,
-        })
+        // Skip stock deduction for "Not for Selling" items (services, fees)
+        const isNotForSelling = item.notForSelling || false
+        if (!isNotForSelling) {
+          // Collect stock deduction data for bulk processing
+          bulkStockItems.push({
+            businessId: businessIdNumber,
+            productId: productIdNumber,
+            productVariationId: productVariationIdNumber,
+            locationId: locationIdNumber,
+            quantity: -Math.abs(quantityNumber), // Negative for stock deduction
+            type: StockTransactionType.SALE,
+            referenceType: 'sale' as const,
+            referenceId: newSale.id,
+            referenceNumber: invoiceNumber,
+            userId: userIdNumber,
+            notes: `Sale - Invoice ${invoiceNumber}`,
+            userDisplayName,
+            unitCost: parseFloat(variation.purchasePrice.toString()),
+            tx,
+          })
+        }
       }
 
       // BULK OPTIMIZATION: Step 2 - Create ALL sale items in single query (N items → 1 query)

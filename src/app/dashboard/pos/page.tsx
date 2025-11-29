@@ -544,6 +544,11 @@ export default function POSEnhancedPage() {
 
       if (data.products) {
         const productsWithStock = data.products.filter((p: any) => {
+          // Always include "Not for Selling" items (services, fees) regardless of stock
+          if (p.notForSelling) {
+            return true
+          }
+          // For regular products, require stock > 0 at location
           return p.variations?.some((v: any) => {
             const locationStock = v.variationLocationDetails?.find(
               (vl: any) => vl.locationId === currentShift?.locationId
@@ -807,13 +812,16 @@ export default function POSEnhancedPage() {
       (vl: any) => vl.locationId === currentShift?.locationId
     )
 
-    if (!locationStock || parseFloat(locationStock.qtyAvailable) <= 0) {
-      setError('Product out of stock at your location')
-      setTimeout(() => setError(''), 3000)
-      return
+    // Skip stock check for "Not for Selling" items (services, fees)
+    if (!product.notForSelling) {
+      if (!locationStock || parseFloat(locationStock.qtyAvailable) <= 0) {
+        setError('Product out of stock at your location')
+        setTimeout(() => setError(''), 3000)
+        return
+      }
     }
 
-    const availableStock = parseFloat(locationStock.qtyAvailable)
+    const availableStock = product.notForSelling ? 999999 : parseFloat(locationStock?.qtyAvailable || '0')
 
     // Get the unit this product will be added with (defaults to primary unit)
     const addingWithUnitId = product.unitId || null
@@ -938,6 +946,8 @@ export default function POSEnhancedPage() {
           itemDiscountAmount: 0,
           // Per-item remark (required when discount > 0)
           itemRemark: '',
+          // Service item flag (no inventory deduction)
+          notForSelling: product.notForSelling || false,
         },
       ])
       // Focus back to search input for quick scanning
@@ -1879,6 +1889,8 @@ export default function POSEnhancedPage() {
           discountAmount: item.itemDiscountAmount || 0,
           // Per-item remark (required when discount > 0)
           remark: item.itemRemark || null,
+          // Service item flag (no inventory deduction)
+          notForSelling: item.notForSelling || false,
         })),
         payments,
         // Sale-level discountAmount = item discounts + sale-level discount (Senior/PWD)
