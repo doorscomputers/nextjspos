@@ -84,7 +84,7 @@ export default function JobOrdersPage() {
   const fetchJobOrders = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/technical/job-orders')
+      const response = await fetch('/api/job-orders')
       const data = await response.json()
       if (response.ok) {
         setJobOrders(Array.isArray(data) ? data : data.jobOrders || [])
