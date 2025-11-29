@@ -87,7 +87,7 @@ export async function POST(
       ...jobOrder,
       laborCost: Number(jobOrder.laborCost),
       partsCost: Number(jobOrder.partsCost),
-      taxAmount: Number(jobOrder.taxAmount),
+      taxAmount: Number(jobOrder.tax),
       totalCost: Number(jobOrder.totalCost),
       paidAmount: Number(jobOrder.paidAmount)
     }

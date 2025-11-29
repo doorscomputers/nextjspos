@@ -122,7 +122,7 @@ export async function POST(
       ...result,
       laborCost: Number(result.laborCost),
       partsCost: Number(result.partsCost),
-      taxAmount: Number(result.taxAmount),
+      taxAmount: Number(result.tax),
       totalCost: Number(result.totalCost),
       paidAmount: Number(result.paidAmount)
     }

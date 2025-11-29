@@ -78,15 +78,14 @@ export async function DELETE(
 
       const partsCost = parts.reduce((sum, p) => sum + Number(p.subtotal), 0)
       const laborCost = Number(jobOrder.laborCost)
-      const taxAmount = jobOrder.taxRate ? ((laborCost + partsCost) * jobOrder.taxRate / 100) : Number(jobOrder.taxAmount)
-      const totalCost = laborCost + partsCost + taxAmount
+      const taxValue = Number(jobOrder.tax)
+      const totalCost = laborCost + partsCost + taxValue
 
       // Update job order
       await tx.repairJobOrder.update({
         where: { id: jobOrderId },
         data: {
           partsCost,
-          taxAmount,
           totalCost,
           updatedAt: new Date()
         }

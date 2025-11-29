@@ -29,7 +29,7 @@ export async function POST(
 
     const jobOrderId = parseInt(params.id)
     const body = await request.json()
-    const { laborCost, taxRate } = body
+    const { laborCost, taxAmount } = body
 
     // Verify job order belongs to user's business
     const existing = await prisma.repairJobOrder.findFirst({
@@ -53,8 +53,7 @@ export async function POST(
     // Calculate new totals
     const labor = laborCost !== undefined ? parseFloat(laborCost) : Number(existing.laborCost)
     const parts = Number(existing.partsCost)
-    const rate = taxRate !== undefined ? parseFloat(taxRate) : existing.taxRate
-    const tax = rate ? ((labor + parts) * rate / 100) : Number(existing.taxAmount)
+    const tax = taxAmount !== undefined ? parseFloat(taxAmount) : Number(existing.tax)
     const total = labor + parts + tax
 
     // Update job order
@@ -62,8 +61,7 @@ export async function POST(
       where: { id: jobOrderId },
       data: {
         ...(laborCost !== undefined && { laborCost: labor }),
-        ...(taxRate !== undefined && { taxRate: rate }),
-        taxAmount: tax,
+        tax: tax,
         totalCost: total,
         updatedAt: new Date()
       },
@@ -80,7 +78,7 @@ export async function POST(
       ...jobOrder,
       laborCost: Number(jobOrder.laborCost),
       partsCost: Number(jobOrder.partsCost),
-      taxAmount: Number(jobOrder.taxAmount),
+      taxAmount: Number(jobOrder.tax),
       totalCost: Number(jobOrder.totalCost),
       paidAmount: Number(jobOrder.paidAmount)
     }

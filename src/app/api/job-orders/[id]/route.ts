@@ -112,7 +112,7 @@ export async function GET(
       ...jobOrder,
       laborCost: Number(jobOrder.laborCost),
       partsCost: Number(jobOrder.partsCost),
-      taxAmount: Number(jobOrder.taxAmount),
+      taxAmount: Number(jobOrder.tax),
       totalCost: Number(jobOrder.totalCost),
       paidAmount: Number(jobOrder.paidAmount),
       parts: jobOrder.jobOrderParts.map(part => ({
@@ -176,9 +176,9 @@ export async function PUT(
       customerName,
       customerPhone,
       customerEmail,
-      issueDescription,
+      problemDescription,
       priority,
-      expectedCompletionDate,
+      estimatedEndDate,
       internalNotes
     } = body
 
@@ -189,10 +189,10 @@ export async function PUT(
         ...(customerName !== undefined && { customerName }),
         ...(customerPhone !== undefined && { customerPhone }),
         ...(customerEmail !== undefined && { customerEmail }),
-        ...(issueDescription !== undefined && { issueDescription }),
+        ...(problemDescription !== undefined && { problemDescription }),
         ...(priority !== undefined && { priority }),
-        ...(expectedCompletionDate !== undefined && {
-          expectedCompletionDate: expectedCompletionDate ? new Date(expectedCompletionDate) : null
+        ...(estimatedEndDate !== undefined && {
+          estimatedEndDate: estimatedEndDate ? new Date(estimatedEndDate) : null
         }),
         ...(internalNotes !== undefined && { internalNotes }),
         updatedAt: new Date()
@@ -211,7 +211,7 @@ export async function PUT(
       ...jobOrder,
       laborCost: Number(jobOrder.laborCost),
       partsCost: Number(jobOrder.partsCost),
-      taxAmount: Number(jobOrder.taxAmount),
+      taxAmount: Number(jobOrder.tax),
       totalCost: Number(jobOrder.totalCost),
       paidAmount: Number(jobOrder.paidAmount)
     }

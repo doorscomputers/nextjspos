@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
         { customerName: { contains: search, mode: 'insensitive' } },
         { customerPhone: { contains: search, mode: 'insensitive' } },
         { serialNumber: { contains: search, mode: 'insensitive' } },
-        { issueDescription: { contains: search, mode: 'insensitive' } }
+        { problemDescription: { contains: search, mode: 'insensitive' } }
       ]
     }
 
@@ -178,7 +178,7 @@ export async function GET(request: NextRequest) {
       ...job,
       laborCost: Number(job.laborCost),
       partsCost: Number(job.partsCost),
-      taxAmount: Number(job.taxAmount),
+      taxAmount: Number(job.tax),
       totalCost: Number(job.totalCost),
       paidAmount: Number(job.paidAmount),
       parts: job.jobOrderParts.map(part => ({
@@ -240,15 +240,14 @@ export async function POST(request: NextRequest) {
       customerPhone,
       customerEmail,
       technicianId,
-      issueDescription,
+      problemDescription,
       priority,
-      expectedCompletionDate,
-      laborCost,
-      taxRate
+      estimatedEndDate,
+      laborCost
     } = body
 
     // Validation
-    if (!locationId || !jobOrderDate || !serviceTypeId || !productId || !productVariationId || !customerName || !issueDescription) {
+    if (!locationId || !jobOrderDate || !serviceTypeId || !productId || !productVariationId || !customerName || !problemDescription) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -330,8 +329,8 @@ export async function POST(request: NextRequest) {
     // Calculate costs
     const labor = laborCost ? parseFloat(laborCost) : Number(serviceType.standardPrice)
     const parts = 0 // Will be updated when parts are added
-    const tax = taxRate ? (labor * parseFloat(taxRate) / 100) : 0
-    const total = labor + parts + tax
+    const taxAmount = 0 // Tax will be calculated based on business settings
+    const total = labor + parts + taxAmount
 
     // Create job order in transaction
     const jobOrder = await prisma.$transaction(async (tx) => {
@@ -355,18 +354,15 @@ export async function POST(request: NextRequest) {
           customerPhone,
           customerEmail,
           technicianId: technicianId ? parseInt(technicianId) : null,
-          issueDescription,
-          priority: priority || 'medium',
+          problemDescription,
+          priority: priority || 'normal',
           status: 'pending',
-          expectedCompletionDate: expectedCompletionDate ? new Date(expectedCompletionDate) : null,
+          estimatedEndDate: estimatedEndDate ? new Date(estimatedEndDate) : null,
           laborCost: labor,
           partsCost: parts,
-          taxAmount: tax,
-          taxRate: taxRate ? parseFloat(taxRate) : 0,
+          tax: taxAmount,
           totalCost: total,
-          paidAmount: 0,
-          paymentStatus: 'unpaid',
-          createdBy: parseInt(userId)
+          paidAmount: 0
         }
       }, {
       timeout: 60000, // 60 seconds timeout for network resilience
@@ -416,7 +412,7 @@ export async function POST(request: NextRequest) {
       ...completeJobOrder,
       laborCost: completeJobOrder ? Number(completeJobOrder.laborCost) : 0,
       partsCost: completeJobOrder ? Number(completeJobOrder.partsCost) : 0,
-      taxAmount: completeJobOrder ? Number(completeJobOrder.taxAmount) : 0,
+      taxAmount: completeJobOrder ? Number(completeJobOrder.tax) : 0,
       totalCost: completeJobOrder ? Number(completeJobOrder.totalCost) : 0,
       paidAmount: completeJobOrder ? Number(completeJobOrder.paidAmount) : 0
     }
