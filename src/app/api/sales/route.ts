@@ -1010,6 +1010,9 @@ export async function POST(request: NextRequest) {
         const itemDiscountValue = item.discountValue ? parseFloat(item.discountValue) : null
         const itemDiscountAmount = item.discountAmount ? parseFloat(item.discountAmount) : 0
 
+        // Per-item remark (required when discount > 0)
+        const itemRemark = item.remark || null
+
         // Collect sale item data for bulk creation
         saleItemsData.push({
           saleId: newSale.id,
@@ -1028,6 +1031,8 @@ export async function POST(request: NextRequest) {
           discountType: itemDiscountType,
           discountValue: itemDiscountValue,
           discountAmount: itemDiscountAmount,
+          // Per-item remark
+          remark: itemRemark,
         })
 
         // Collect stock deduction data for bulk processing

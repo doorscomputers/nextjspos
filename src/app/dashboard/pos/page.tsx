@@ -936,6 +936,8 @@ export default function POSEnhancedPage() {
           itemDiscountType: null as 'fixed' | 'percentage' | null,
           itemDiscountValue: 0,
           itemDiscountAmount: 0,
+          // Per-item remark (required when discount > 0)
+          itemRemark: '',
         },
       ])
       // Focus back to search input for quick scanning
@@ -1028,6 +1030,13 @@ export default function POSEnhancedPage() {
       itemDiscountValue: cappedValue,
       itemDiscountAmount: discountAmount,
     }
+    setCart(newCart)
+  }
+
+  // Handle per-item remark changes (required when discount > 0)
+  const updateItemRemark = (index: number, remark: string) => {
+    const newCart = [...cart]
+    newCart[index] = { ...newCart[index], itemRemark: remark }
     setCart(newCart)
   }
 
@@ -1687,6 +1696,22 @@ export default function POSEnhancedPage() {
       return
     }
 
+    // Validate item remarks for discounted items (required when discount > 0)
+    const itemsWithMissingRemarks = cart.filter(
+      (item) => item.itemDiscountAmount > 0 && !item.itemRemark?.trim()
+    )
+    if (itemsWithMissingRemarks.length > 0) {
+      const productNames = itemsWithMissingRemarks
+        .map((item) => item.name)
+        .slice(0, 3)
+        .join(', ')
+      const moreCount = itemsWithMissingRemarks.length > 3
+        ? ` and ${itemsWithMissingRemarks.length - 3} more`
+        : ''
+      setError(`Please add remarks for discounted items: ${productNames}${moreCount}`)
+      return
+    }
+
     // CONFIRMATION DIALOG - Warn user to check their sale before completing
     const total = calculateTotal()
     const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0)
@@ -1852,6 +1877,8 @@ export default function POSEnhancedPage() {
           discountType: item.itemDiscountType || null,
           discountValue: item.itemDiscountValue || null,
           discountAmount: item.itemDiscountAmount || 0,
+          // Per-item remark (required when discount > 0)
+          remark: item.itemRemark || null,
         })),
         payments,
         // Sale-level discountAmount = item discounts + sale-level discount (Senior/PWD)
@@ -2519,6 +2546,39 @@ export default function POSEnhancedPage() {
                             )}
                           </div>
                         </div>
+
+                        {/* Item Remark Input - Shows when discount type is selected */}
+                        {item.itemDiscountType && (
+                          <div className="mt-2">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-sm font-medium whitespace-nowrap ${
+                                item.itemDiscountAmount > 0 && !item.itemRemark?.trim()
+                                  ? 'text-red-600' : 'text-gray-600'
+                              }`}>
+                                Remark{item.itemDiscountAmount > 0 ? ' *' : ''}:
+                              </span>
+                              <Input
+                                type="text"
+                                value={item.itemRemark || ''}
+                                onChange={(e) => updateItemRemark(index, e.target.value)}
+                                placeholder={item.itemDiscountAmount > 0
+                                  ? 'Required: Reason for discount...'
+                                  : 'Optional: Add a note...'}
+                                className={`h-8 flex-1 text-sm ${
+                                  item.itemDiscountAmount > 0 && !item.itemRemark?.trim()
+                                    ? 'border-red-400 focus:border-red-500 bg-red-50 dark:bg-red-950'
+                                    : 'border-gray-300 focus:border-blue-500'
+                                }`}
+                                maxLength={500}
+                              />
+                            </div>
+                            {item.itemDiscountAmount > 0 && !item.itemRemark?.trim() && (
+                              <p className="text-xs text-red-500 mt-1 ml-16">
+                                Remark is required when discount is applied
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
 

@@ -2033,6 +2033,9 @@ model SaleItem {
   discountValue  Decimal? @map("discount_value") @db.Decimal(22, 4) // The input value (e.g., 10 for 10% or 50 for ₱50)
   discountAmount Decimal  @default(0) @map("discount_amount") @db.Decimal(22, 4) // Calculated discount in peso
 
+  // Per-item remark (required when discount > 0, optional otherwise)
+  remark String? @map("remark") @db.VarChar(500)
+
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([saleId])
