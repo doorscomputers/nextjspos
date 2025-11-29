@@ -2344,4 +2344,269 @@
   .dark .dx-area-field:hover {
     background-color: #4b5563 !important;
   }
+
+  /* ============================================
+     BATCH 7: File Uploader & Miscellaneous - Dark Mode
+     ============================================ */
+
+  /* File Uploader */
+  .dark .dx-fileuploader {
+    background-color: #1f2937 !important; /* gray-800 */
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-fileuploader-wrapper {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-fileuploader-input-wrapper {
+    background-color: #111827 !important; /* gray-900 */
+    border-color: #374151 !important;
+    border-style: dashed !important;
+  }
+
+  .dark .dx-fileuploader-input-wrapper:hover {
+    background-color: #1f2937 !important;
+    border-color: #3b82f6 !important;
+  }
+
+  .dark .dx-fileuploader-input-label {
+    color: #9ca3af !important; /* gray-400 */
+  }
+
+  .dark .dx-fileuploader-button {
+    background-color: #374151 !important;
+    border-color: #4b5563 !important;
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-fileuploader-button:hover {
+    background-color: #4b5563 !important;
+  }
+
+  .dark .dx-fileuploader-files-container {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-fileuploader-file {
+    background-color: #111827 !important;
+    border-color: #374151 !important;
+  }
+
+  .dark .dx-fileuploader-file-name {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-fileuploader-file-size {
+    color: #9ca3af !important;
+  }
+
+  .dark .dx-fileuploader-file-status-message {
+    color: #9ca3af !important;
+  }
+
+  .dark .dx-fileuploader-upload-button {
+    color: #3b82f6 !important;
+  }
+
+  .dark .dx-fileuploader-cancel-button {
+    color: #ef4444 !important;
+  }
+
+  /* Progress Bar */
+  .dark .dx-progressbar {
+    background-color: #374151 !important;
+  }
+
+  .dark .dx-progressbar-range {
+    background-color: #3b82f6 !important;
+  }
+
+  .dark .dx-progressbar-status {
+    color: #f3f4f6 !important;
+  }
+
+  /* Slider */
+  .dark .dx-slider {
+    background-color: transparent !important;
+  }
+
+  .dark .dx-slider-range {
+    background-color: #374151 !important;
+  }
+
+  .dark .dx-slider-range.dx-slider-range-visible {
+    background-color: #3b82f6 !important;
+  }
+
+  .dark .dx-slider-handle {
+    background-color: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+  }
+
+  .dark .dx-slider-handle:hover {
+    background-color: #2563eb !important;
+  }
+
+  /* Range Slider */
+  .dark .dx-rangeslider {
+    background-color: transparent !important;
+  }
+
+  /* Scheduler */
+  .dark .dx-scheduler {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-scheduler-header {
+    background-color: #111827 !important;
+    border-color: #374151 !important;
+  }
+
+  .dark .dx-scheduler-date-table-cell {
+    background-color: #1f2937 !important;
+    border-color: #374151 !important;
+  }
+
+  .dark .dx-scheduler-time-panel-cell {
+    background-color: #111827 !important;
+    color: #9ca3af !important;
+    border-color: #374151 !important;
+  }
+
+  .dark .dx-scheduler-appointment {
+    background-color: #3b82f6 !important;
+    color: #ffffff !important;
+  }
+
+  /* Gallery */
+  .dark .dx-gallery {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-gallery-indicator-item {
+    background-color: #4b5563 !important;
+  }
+
+  .dark .dx-gallery-indicator-item.dx-gallery-indicator-item-active {
+    background-color: #3b82f6 !important;
+  }
+
+  /* Sortable */
+  .dark .dx-sortable-placeholder {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+    border-color: #3b82f6 !important;
+  }
+
+  /* Resizable */
+  .dark .dx-resizable-handle {
+    background-color: #374151 !important;
+  }
+
+  /* Empty message (no data) */
+  .dark .dx-empty-message {
+    color: #9ca3af !important;
+  }
+
+  /* Pager info text */
+  .dark .dx-info {
+    color: #9ca3af !important;
+  }
+
+  /* Form group */
+  .dark .dx-form-group {
+    border-color: #374151 !important;
+  }
+
+  .dark .dx-form-group-caption {
+    color: #f3f4f6 !important;
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-form-group-content {
+    background-color: #1f2937 !important;
+  }
+
+  /* Field item */
+  .dark .dx-field-item {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-field-item-label {
+    color: #d1d5db !important; /* gray-300 */
+  }
+
+  .dark .dx-field-item-label-text {
+    color: #d1d5db !important;
+  }
+
+  /* Box/ResponsiveBox */
+  .dark .dx-box {
+    background-color: transparent !important;
+  }
+
+  /* TileView */
+  .dark .dx-tile {
+    background-color: #1f2937 !important;
+    border-color: #374151 !important;
+  }
+
+  .dark .dx-tile:hover {
+    background-color: #374151 !important;
+  }
+
+  /* Pivot Grid (additional) */
+  .dark .dx-pivotgrid {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-pivotgrid-area {
+    background-color: #1f2937 !important;
+    border-color: #374151 !important;
+  }
+
+  .dark .dx-pivotgrid-area-data td {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+    border-color: #374151 !important;
+  }
+
+  .dark .dx-pivotgrid-horizontal-headers td,
+  .dark .dx-pivotgrid-vertical-headers td {
+    background-color: #111827 !important;
+    color: #f3f4f6 !important;
+    border-color: #374151 !important;
+  }
+
+  .dark .dx-pivotgrid-expanded,
+  .dark .dx-pivotgrid-collapsed {
+    color: #9ca3af !important;
+  }
+
+  /* DataGrid additional - ensure complete coverage */
+  .dark .dx-datagrid-text-content {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-sort-indicator {
+    color: #9ca3af !important;
+  }
+
+  .dark .dx-sort-indicator.dx-sort-up,
+  .dark .dx-sort-indicator.dx-sort-down {
+    color: #3b82f6 !important;
+  }
+
+  /* All icons in dark mode */
+  .dark .dx-icon {
+    color: #9ca3af !important;
+  }
+
+  .dark .dx-state-hover .dx-icon {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-state-focused .dx-icon {
+    color: #f3f4f6 !important;
+  }
 }
