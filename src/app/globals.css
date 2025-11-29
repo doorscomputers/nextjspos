@@ -2148,4 +2148,200 @@
   .dark .dx-numberbox.dx-invalid .dx-texteditor-container {
     background-color: rgba(239, 68, 68, 0.1) !important;
   }
+
+  /* ============================================
+     BATCH 6: Toolbar & Navigation - Dark Mode
+     ============================================ */
+
+  /* Toolbar */
+  .dark .dx-toolbar {
+    background-color: #1f2937 !important; /* gray-800 */
+    border-color: #374151 !important; /* gray-700 */
+  }
+
+  .dark .dx-toolbar-items-container {
+    background-color: transparent !important;
+  }
+
+  .dark .dx-toolbar-item {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-toolbar-label {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-toolbar-menu-container {
+    background-color: #1f2937 !important;
+  }
+
+  /* Toolbar buttons */
+  .dark .dx-toolbar .dx-button {
+    background-color: transparent !important;
+    border-color: transparent !important;
+    color: #d1d5db !important;
+  }
+
+  .dark .dx-toolbar .dx-button:hover {
+    background-color: #374151 !important;
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-toolbar .dx-button.dx-state-focused {
+    background-color: #374151 !important;
+  }
+
+  /* TabPanel */
+  .dark .dx-tabpanel {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-tabpanel > .dx-tabpanel-tabs {
+    background-color: #111827 !important; /* gray-900 */
+  }
+
+  .dark .dx-tabpanel-container {
+    background-color: #1f2937 !important;
+  }
+
+  /* Tabs */
+  .dark .dx-tabs {
+    background-color: #111827 !important;
+    border-color: #374151 !important;
+  }
+
+  .dark .dx-tab {
+    background-color: #111827 !important;
+    color: #9ca3af !important; /* gray-400 */
+    border-color: #374151 !important;
+  }
+
+  .dark .dx-tab:hover {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-tab.dx-tab-selected {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+    border-bottom-color: #3b82f6 !important; /* blue-500 */
+  }
+
+  .dark .dx-tab.dx-state-focused {
+    border-color: #3b82f6 !important;
+  }
+
+  .dark .dx-tab-text {
+    color: inherit !important;
+  }
+
+  /* Accordion */
+  .dark .dx-accordion {
+    background-color: #1f2937 !important;
+    border-color: #374151 !important;
+  }
+
+  .dark .dx-accordion-item {
+    background-color: #1f2937 !important;
+    border-color: #374151 !important;
+  }
+
+  .dark .dx-accordion-item-title {
+    background-color: #111827 !important;
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-accordion-item-title:hover {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-accordion-item-opened .dx-accordion-item-title {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-accordion-item-body {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+  }
+
+  /* Drawer/Navigation */
+  .dark .dx-drawer-panel-content {
+    background-color: #111827 !important; /* gray-900 */
+  }
+
+  .dark .dx-drawer-content {
+    background-color: #1f2937 !important;
+  }
+
+  /* TreeView */
+  .dark .dx-treeview {
+    background-color: #1f2937 !important;
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-treeview-item {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-treeview-item:hover {
+    background-color: #374151 !important;
+  }
+
+  .dark .dx-treeview-item.dx-state-focused {
+    background-color: #374151 !important;
+  }
+
+  .dark .dx-treeview-item.dx-state-selected {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+    color: #93c5fd !important;
+  }
+
+  .dark .dx-treeview-toggle-item-visibility {
+    color: #9ca3af !important;
+  }
+
+  /* Breadcrumb */
+  .dark .dx-breadcrumbs {
+    background-color: transparent !important;
+  }
+
+  .dark .dx-breadcrumbs-item {
+    color: #9ca3af !important;
+  }
+
+  .dark .dx-breadcrumbs-item:hover {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-breadcrumbs-item.dx-breadcrumbs-item-current {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-breadcrumbs-separator {
+    color: #6b7280 !important;
+  }
+
+  /* Pivot Grid field chooser */
+  .dark .dx-pivotgridfieldchooser {
+    background-color: #1f2937 !important;
+  }
+
+  .dark .dx-pivotgridfieldchooser-area {
+    background-color: #111827 !important;
+    border-color: #374151 !important;
+  }
+
+  .dark .dx-pivotgridfieldchooser-area-caption {
+    color: #f3f4f6 !important;
+  }
+
+  .dark .dx-area-field {
+    background-color: #374151 !important;
+    color: #f3f4f6 !important;
+    border-color: #4b5563 !important;
+  }
+
+  .dark .dx-area-field:hover {
+    background-color: #4b5563 !important;
+  }
 }
