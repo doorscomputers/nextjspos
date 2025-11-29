@@ -839,15 +839,18 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Check stock availability from batched results
-      const availability = stockAvailabilityMap.get(Number(item.productVariationId))
-      if (!availability || !availability.available) {
-        return NextResponse.json(
-          {
-            error: `Insufficient stock for item ${item.productId}. Available: ${availability?.currentStock ?? 0}, Required: ${quantity}`,
-          },
-          { status: 400 }
-        )
+      // Check stock availability from batched results (skip for "Not for Selling" service items)
+      const isNotForSellingItem = item.notForSelling || false
+      if (!isNotForSellingItem) {
+        const availability = stockAvailabilityMap.get(Number(item.productVariationId))
+        if (!availability || !availability.available) {
+          return NextResponse.json(
+            {
+              error: `Insufficient stock for item ${item.productId}. Available: ${availability?.currentStock ?? 0}, Required: ${quantity}`,
+            },
+            { status: 400 }
+          )
+        }
       }
 
       // If serial numbers required, validate them using batch-fetched data
