@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       prisma.technicalServiceEmployee.findMany({
         where: whereClause,
         include: {
-          serviceTechnician: true
+          technicianProfile: true
         },
         orderBy: { firstName: 'asc' },
         skip: offset,
@@ -71,12 +71,12 @@ export async function GET(request: NextRequest) {
       specialization: emp.specialization,
       isActive: emp.isActive,
       // ServiceTechnician fields (if exists)
-      isAvailable: emp.serviceTechnician?.isAvailable ?? true,
-      currentJobCount: emp.serviceTechnician?.currentJobCount ?? 0,
-      maxConcurrentJobs: emp.serviceTechnician?.maxConcurrentJobs ?? 5,
-      primarySpecialization: emp.serviceTechnician?.primarySpecialization || emp.specialization,
-      totalJobsCompleted: emp.serviceTechnician?.totalJobsCompleted ?? 0,
-      averageRepairTime: emp.serviceTechnician?.averageRepairTime ? Number(emp.serviceTechnician.averageRepairTime) : null
+      isAvailable: emp.technicianProfile?.isAvailable ?? true,
+      currentJobCount: emp.technicianProfile?.currentJobCount ?? 0,
+      maxConcurrentJobs: emp.technicianProfile?.maxConcurrentJobs ?? 5,
+      primarySpecialization: emp.technicianProfile?.primarySpecialization || emp.specialization,
+      totalJobsCompleted: emp.technicianProfile?.totalJobsCompleted ?? 0,
+      averageRepairTime: emp.technicianProfile?.averageRepairTime ? Number(emp.technicianProfile.averageRepairTime) : null
     })).filter(tech => !availableOnly || tech.isAvailable)
 
     return NextResponse.json({
