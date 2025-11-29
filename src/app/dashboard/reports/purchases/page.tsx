@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import DataGrid, {
   Column,
+  ColumnChooser,
+  ColumnChooserSearch,
+  ColumnChooserSelection,
   Export,
   FilterRow,
   Paging,
@@ -257,14 +260,19 @@ export default function UnifiedPurchaseReportsPage() {
           <FilterRow visible={true} applyFilter="auto" />
           <HeaderFilter visible={true} />
           <SearchPanel visible={true} width={240} placeholder="Search purchases..." />
+          <ColumnChooser enabled={true} mode="select" height={400}>
+            <ColumnChooserSearch enabled={true} />
+            <ColumnChooserSelection allowSelectAll={true} />
+          </ColumnChooser>
           <Paging defaultPageSize={25} />
           <Grouping autoExpandAll={false} />
           <GroupPanel visible={true} emptyPanelText="Drag column headers here to group by that column" />
 
           <Toolbar>
             <Item name="groupPanel" />
-            <Item name="exportButton" />
             <Item name="searchPanel" />
+            <Item name="columnChooserButton" />
+            <Item name="exportButton" />
           </Toolbar>
 
           <Column

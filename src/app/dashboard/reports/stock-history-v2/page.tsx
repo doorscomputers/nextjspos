@@ -11,6 +11,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import DataGrid, {
   Column,
+  ColumnChooser,
+  ColumnChooserSearch,
+  ColumnChooserSelection,
   Export,
   FilterRow,
   Pager,
@@ -20,6 +23,8 @@ import DataGrid, {
   HeaderFilter,
   LoadPanel,
   Scrolling,
+  Toolbar,
+  Item,
 } from 'devextreme-react/data-grid'
 import { SelectBox } from 'devextreme-react/select-box'
 import { Workbook } from 'exceljs'
@@ -914,8 +919,17 @@ export default function StockHistoryV2Page() {
                   <FilterRow visible={true} />
                   <HeaderFilter visible={true} />
                   <SearchPanel visible={true} width={240} placeholder="Search..." />
+                  <ColumnChooser enabled={true} mode="select" height={400}>
+                    <ColumnChooserSearch enabled={true} />
+                    <ColumnChooserSelection allowSelectAll={true} />
+                  </ColumnChooser>
                   <Sorting mode="multiple" />
                   <Export enabled={true} allowExportSelectedData={false} />
+                  <Toolbar>
+                    <Item name="searchPanel" />
+                    <Item name="columnChooserButton" />
+                    <Item name="exportButton" />
+                  </Toolbar>
 
                   <Column
                     dataField="transactionTypeLabel"

@@ -14,6 +14,9 @@ import {
 } from '@/components/ui/select'
 import DataGrid, {
   Column,
+  ColumnChooser,
+  ColumnChooserSearch,
+  ColumnChooserSelection,
   Export,
   Summary,
   TotalItem,
@@ -23,7 +26,9 @@ import DataGrid, {
   FilterRow,
   Paging,
   Pager,
-  MasterDetail
+  MasterDetail,
+  Toolbar,
+  Item as ToolbarItem
 } from 'devextreme-react/data-grid'
 import { formatCurrency } from '@/lib/currencyUtils'
 import { toast } from 'sonner'
@@ -376,12 +381,21 @@ export default function GLEntriesReportPage() {
             <GroupPanel visible={true} />
             <SearchPanel visible={true} width={240} placeholder="Search entries..." />
             <FilterRow visible={true} />
+            <ColumnChooser enabled={true} mode="select" height={400}>
+              <ColumnChooserSearch enabled={true} />
+              <ColumnChooserSelection allowSelectAll={true} />
+            </ColumnChooser>
             <Paging enabled={true} defaultPageSize={50} />
             <Pager
               showPageSizeSelector={true}
               allowedPageSizes={[25, 50, 100, 200]}
               showNavigationButtons={true}
             />
+            <Toolbar>
+              <ToolbarItem name="groupPanel" />
+              <ToolbarItem name="searchPanel" />
+              <ToolbarItem name="columnChooserButton" />
+            </Toolbar>
 
             <Grouping autoExpandAll={false} />
 

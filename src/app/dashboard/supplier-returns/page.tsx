@@ -8,6 +8,9 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import DataGrid, {
   Column,
+  ColumnChooser,
+  ColumnChooserSearch,
+  ColumnChooserSelection,
   Export,
   SearchPanel,
   Paging,
@@ -253,6 +256,10 @@ export default function SupplierReturnsPage() {
         <SearchPanel visible={true} width={300} placeholder="Search..." />
         <FilterRow visible={true} />
         <HeaderFilter visible={true} />
+        <ColumnChooser enabled={true} mode="select" height={400}>
+          <ColumnChooserSearch enabled={true} />
+          <ColumnChooserSelection allowSelectAll={true} />
+        </ColumnChooser>
         <Scrolling mode="virtual" />
         <LoadPanel enabled={true} />
         <Paging enabled={true} defaultPageSize={20} />

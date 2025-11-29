@@ -9,6 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PrinterIcon, DocumentArrowDownIcon, CalendarIcon } from '@heroicons/react/24/outline'
 import DataGrid, {
   Column,
+  ColumnChooser,
+  ColumnChooserSearch,
+  ColumnChooserSelection,
   Export,
   FilterRow,
   HeaderFilter,
@@ -551,8 +554,13 @@ export default function BIRDailySalesSummaryPage() {
                   <LoadPanel enabled={true} />
                   <FilterRow visible={true} />
                   <HeaderFilter visible={true} />
+                  <ColumnChooser enabled={true} mode="select" height={400}>
+                    <ColumnChooserSearch enabled={true} />
+                    <ColumnChooserSelection allowSelectAll={true} />
+                  </ColumnChooser>
 
                   <Toolbar>
+                    <ToolbarItem name="columnChooserButton" />
                     <ToolbarItem name="exportButton" />
                   </Toolbar>
 

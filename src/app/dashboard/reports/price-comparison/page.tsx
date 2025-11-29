@@ -5,6 +5,9 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import DataGrid, {
   Column,
+  ColumnChooser,
+  ColumnChooserSearch,
+  ColumnChooserSelection,
   Paging,
   Pager,
   FilterRow,
@@ -199,6 +202,10 @@ export default function PriceComparisonReportPage() {
               showInfo={true}
               showNavigationButtons={true}
             />
+            <ColumnChooser enabled={true} mode="select" height={400}>
+              <ColumnChooserSearch enabled={true} />
+              <ColumnChooserSelection allowSelectAll={true} />
+            </ColumnChooser>
             <Export enabled={true} allowExportSelectedData={false} />
 
             <Column dataField="productName" caption="Product" width={250} fixed={true} fixedPosition="left" />
@@ -303,6 +310,7 @@ export default function PriceComparisonReportPage() {
             <Toolbar>
               <Item name="groupPanel" />
               <Item name="searchPanel" />
+              <Item name="columnChooserButton" />
               <Item location="after">
                 <Button
                   text="Refresh"

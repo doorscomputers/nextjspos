@@ -19,6 +19,9 @@ import {
 } from '@/components/ui/select'
 import DataGrid, {
   Column,
+  ColumnChooser,
+  ColumnChooserSearch,
+  ColumnChooserSelection,
   Export,
   FilterRow,
   Pager,
@@ -28,6 +31,8 @@ import DataGrid, {
   HeaderFilter,
   LoadPanel,
   Scrolling,
+  Toolbar,
+  Item,
 } from 'devextreme-react/data-grid'
 import { Workbook } from 'exceljs'
 import { saveAs } from 'file-saver'
@@ -567,7 +572,16 @@ export default function ExpensesPage() {
                 showNavigationButtons={true}
                 showInfo={true}
               />
+              <ColumnChooser enabled={true} mode="select" height={400}>
+                <ColumnChooserSearch enabled={true} />
+                <ColumnChooserSelection allowSelectAll={true} />
+              </ColumnChooser>
               <Export enabled={true} allowExportSelectedData={false} />
+              <Toolbar>
+                <Item name="searchPanel" />
+                <Item name="columnChooserButton" />
+                <Item name="exportButton" />
+              </Toolbar>
 
               <Column dataField="referenceNumber" caption="Reference #" width={150} />
               <Column

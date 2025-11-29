@@ -12,6 +12,9 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import DataGrid, {
   Column,
+  ColumnChooser,
+  ColumnChooserSearch,
+  ColumnChooserSelection,
   Export,
   FilterRow,
   Pager,
@@ -26,6 +29,8 @@ import DataGrid, {
   Form,
   RequiredRule,
   EmailRule,
+  Toolbar,
+  Item as ToolbarItem,
 } from 'devextreme-react/data-grid'
 import { Item } from 'devextreme-react/form'
 import { Workbook } from 'exceljs'
@@ -327,8 +332,17 @@ export default function CustomersPage() {
                 width={300}
                 placeholder="Search by name, email, or mobile..."
               />
+              <ColumnChooser enabled={true} mode="select" height={400}>
+                <ColumnChooserSearch enabled={true} />
+                <ColumnChooserSelection allowSelectAll={true} />
+              </ColumnChooser>
               <Sorting mode="multiple" />
               <Export enabled={true} allowExportSelectedData={false} />
+              <Toolbar>
+                <ToolbarItem name="searchPanel" />
+                <ToolbarItem name="columnChooserButton" />
+                <ToolbarItem name="exportButton" />
+              </Toolbar>
 
               <Column
                 dataField="name"

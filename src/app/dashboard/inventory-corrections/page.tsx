@@ -12,6 +12,9 @@ import { PasswordConfirmDialog } from '@/components/PasswordConfirmDialog'
 import { Plus, CheckCircle, XCircle, Eye, Edit, Trash2 } from 'lucide-react'
 import DataGrid, {
   Column,
+  ColumnChooser,
+  ColumnChooserSearch,
+  ColumnChooserSelection,
   Paging,
   Pager,
   FilterRow,
@@ -507,12 +510,16 @@ export default function InventoryCorrectionsPage() {
           <FilterRow visible={true} />
           <HeaderFilter visible={true} />
           <SearchPanel visible={true} width={240} placeholder="Search..." />
+          <ColumnChooser enabled={true} mode="select" height={400}>
+            <ColumnChooserSearch enabled={true} />
+            <ColumnChooserSelection allowSelectAll={true} />
+          </ColumnChooser>
           <Export enabled={true} allowExportSelectedData={true} />
 
           <Toolbar>
             <Item name="searchPanel" />
-            <Item name="exportButton" />
             <Item name="columnChooserButton" />
+            <Item name="exportButton" />
           </Toolbar>
 
           <Column

@@ -14,6 +14,9 @@ import {
 } from '@/components/ui/select'
 import DataGrid, {
   Column,
+  ColumnChooser,
+  ColumnChooserSearch,
+  ColumnChooserSelection,
   Export,
   Summary,
   TotalItem,
@@ -22,7 +25,9 @@ import DataGrid, {
   SearchPanel,
   FilterRow,
   Paging,
-  Pager
+  Pager,
+  Toolbar,
+  Item as ToolbarItem
 } from 'devextreme-react/data-grid'
 import PieChart, {
   Series,
@@ -377,12 +382,21 @@ export default function InventoryValuationReportPage() {
             <GroupPanel visible={groupByCategory} />
             <SearchPanel visible={true} width={240} placeholder="Search products..." />
             <FilterRow visible={true} />
+            <ColumnChooser enabled={true} mode="select" height={400}>
+              <ColumnChooserSearch enabled={true} />
+              <ColumnChooserSelection allowSelectAll={true} />
+            </ColumnChooser>
             <Paging enabled={true} defaultPageSize={50} />
             <Pager
               showPageSizeSelector={true}
               allowedPageSizes={[25, 50, 100, 200]}
               showNavigationButtons={true}
             />
+            <Toolbar>
+              <ToolbarItem name="groupPanel" />
+              <ToolbarItem name="searchPanel" />
+              <ToolbarItem name="columnChooserButton" />
+            </Toolbar>
 
             {groupByCategory && <Grouping autoExpandAll={false} />}
 

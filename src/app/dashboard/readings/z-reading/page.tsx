@@ -22,6 +22,9 @@ import { cn } from '@/lib/utils'
 import { BIRReadingDisplay } from '@/components/BIRReadingDisplay'
 import DataGrid, {
   Column,
+  ColumnChooser,
+  ColumnChooserSearch,
+  ColumnChooserSelection,
   Paging,
   Pager,
   FilterRow,
@@ -572,6 +575,14 @@ export default function ZReadingPage() {
               <FilterRow visible={true} />
               <HeaderFilter visible={true} />
               <SearchPanel visible={true} width={240} placeholder="Search all columns..." />
+              <ColumnChooser enabled={true} mode="select" height={400}>
+                <ColumnChooserSearch enabled={true} />
+                <ColumnChooserSelection allowSelectAll={true} />
+              </ColumnChooser>
+              <Toolbar>
+                <Item name="searchPanel" />
+                <Item name="columnChooserButton" />
+              </Toolbar>
 
               <Column
                 dataField="readingNumber"
