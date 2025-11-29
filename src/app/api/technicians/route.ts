@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
-import { PERMISSIONS } from '@/lib/rbac'
+import { PERMISSIONS, hasPermission } from '@/lib/rbac'
 
 // GET /api/technicians - List all technicians
 export async function GET(request: NextRequest) {
@@ -14,98 +14,78 @@ export async function GET(request: NextRequest) {
     }
 
     const user = session.user as any
-    const businessId = parseInt(String(user.businessId))
+    const businessId = user.businessId
     if (!businessId) {
       return NextResponse.json({ error: 'No business associated with user' }, { status: 400 })
     }
 
-    // Check permission
-    if (!user.permissions?.includes(PERMISSIONS.TECHNICIAN_VIEW)) {
-      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
-    }
-
     // Parse query parameters for filtering
     const { searchParams } = new URL(request.url)
-    const activeFilter = searchParams.get('active')
     const availableOnly = searchParams.get('available') === 'true'
-    const specialization = searchParams.get('specialization')
     const search = searchParams.get('search')?.trim() || ''
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = (page - 1) * limit
 
-    // Build where clause for employees
-    const employeeWhere: any = {
-      businessId: parseInt(businessId),
-      deletedAt: null
-    }
-
-    // Apply active filter
-    if (activeFilter !== null) {
-      employeeWhere.isActive = activeFilter === 'true'
+    // Build where clause - query TechnicalServiceEmployee directly
+    const whereClause: any = {
+      businessId,
+      deletedAt: null,
+      isActive: true
     }
 
     // Apply search filter
     if (search) {
-      employeeWhere.OR = [
+      whereClause.OR = [
         { employeeCode: { contains: search, mode: 'insensitive' } },
         { firstName: { contains: search, mode: 'insensitive' } },
         { lastName: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { mobile: { contains: search, mode: 'insensitive' } }
+        { email: { contains: search, mode: 'insensitive' } }
       ]
     }
 
-    // Build where clause for technicians
-    const technicianWhere: any = {
-      businessId: parseInt(businessId)
-    }
-
-    if (availableOnly) {
-      technicianWhere.isAvailable = true
-    }
-
-    if (specialization) {
-      technicianWhere.primarySpecialization = { contains: specialization, mode: 'insensitive' }
-    }
-
+    // Query TechnicalServiceEmployee directly (simpler approach)
     const [technicians, total] = await Promise.all([
-      prisma.serviceTechnician.findMany({
-        where: {
-          ...technicianWhere,
-          employee: employeeWhere
-        },
+      prisma.technicalServiceEmployee.findMany({
+        where: whereClause,
         include: {
-          employee: true
+          serviceTechnician: true
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { firstName: 'asc' },
         skip: offset,
         take: limit
       }),
-      prisma.serviceTechnician.count({
-        where: {
-          ...technicianWhere,
-          employee: employeeWhere
-        }
-      })
+      prisma.technicalServiceEmployee.count({ where: whereClause })
     ])
 
-    // Serialize Decimal fields
-    const serializedTechnicians = technicians.map(tech => ({
-      ...tech,
-      averageRepairTime: tech.averageRepairTime ? Number(tech.averageRepairTime) : null,
-      customerSatisfaction: tech.customerSatisfaction ? Number(tech.customerSatisfaction) : null,
-      onTimeCompletionRate: tech.onTimeCompletionRate ? Number(tech.onTimeCompletionRate) : null,
-      firstTimeFixRate: tech.firstTimeFixRate ? Number(tech.firstTimeFixRate) : null
-    }))
+    // Transform for frontend - flatten the structure
+    const serializedTechnicians = technicians.map(emp => ({
+      id: emp.id,
+      businessId: emp.businessId,
+      employeeCode: emp.employeeCode,
+      firstName: emp.firstName,
+      lastName: emp.lastName,
+      email: emp.email,
+      mobile: emp.mobile,
+      position: emp.position,
+      specialization: emp.specialization,
+      isActive: emp.isActive,
+      // ServiceTechnician fields (if exists)
+      isAvailable: emp.serviceTechnician?.isAvailable ?? true,
+      currentJobCount: emp.serviceTechnician?.currentJobCount ?? 0,
+      maxConcurrentJobs: emp.serviceTechnician?.maxConcurrentJobs ?? 5,
+      primarySpecialization: emp.serviceTechnician?.primarySpecialization || emp.specialization,
+      totalJobsCompleted: emp.serviceTechnician?.totalJobsCompleted ?? 0,
+      averageRepairTime: emp.serviceTechnician?.averageRepairTime ? Number(emp.serviceTechnician.averageRepairTime) : null
+    })).filter(tech => !availableOnly || tech.isAvailable)
 
     return NextResponse.json({
       technicians: serializedTechnicians,
       pagination: {
-        total,
+        total: availableOnly ? serializedTechnicians.length : total,
         page,
         limit,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil((availableOnly ? serializedTechnicians.length : total) / limit)
       }
     })
   } catch (error) {
@@ -124,13 +104,13 @@ export async function POST(request: NextRequest) {
     }
 
     const user = session.user as any
-    const businessId = parseInt(String(user.businessId))
+    const businessId = user.businessId
     if (!businessId) {
       return NextResponse.json({ error: 'No business associated with user' }, { status: 400 })
     }
 
-    // Check permission
-    if (!user.permissions?.includes(PERMISSIONS.TECHNICIAN_CREATE)) {
+    // Check permission (hasPermission includes Super Admin bypass)
+    if (!hasPermission(user, PERMISSIONS.TECHNICIAN_CREATE)) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
 
@@ -171,7 +151,7 @@ export async function POST(request: NextRequest) {
     // Check employee code uniqueness
     const existingEmployee = await prisma.technicalServiceEmployee.findFirst({
       where: {
-        businessId: parseInt(businessId),
+        businessId,
         employeeCode
       }
     })
@@ -184,7 +164,7 @@ export async function POST(request: NextRequest) {
     if (userId) {
       const existingUserLink = await prisma.technicalServiceEmployee.findFirst({
         where: {
-          businessId: parseInt(businessId),
+          businessId,
           userId: parseInt(userId),
           deletedAt: null
         }
@@ -200,7 +180,7 @@ export async function POST(request: NextRequest) {
       // Create employee
       const employee = await tx.technicalServiceEmployee.create({
         data: {
-          businessId: parseInt(businessId),
+          businessId,
           employeeCode,
           userId: userId ? parseInt(userId) : null,
           firstName,
@@ -219,14 +199,12 @@ export async function POST(request: NextRequest) {
           hireDate: hireDate ? new Date(hireDate) : null,
           isActive: isActive !== undefined ? isActive : true
         }
-      }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+      })
 
       // Create technician profile
       const technician = await tx.serviceTechnician.create({
         data: {
-          businessId: parseInt(businessId),
+          businessId,
           employeeId: employee.id,
           primarySpecialization,
           secondarySpecializations,
@@ -237,7 +215,7 @@ export async function POST(request: NextRequest) {
       })
 
       return { employee, technician }
-    })
+    }, { timeout: 60000 })
 
     // Fetch complete technician with employee
     const completeTechnician = await prisma.serviceTechnician.findUnique({
