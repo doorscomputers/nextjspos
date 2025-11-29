@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
         sales: {
           where: {
             deletedAt: null,
-            // Include ALL sales (regardless of status) - filter by balance instead
+            status: { notIn: ["voided", "cancelled"] }, // Exclude voided/cancelled from AR calculation
           },
           select: {
             totalAmount: true,

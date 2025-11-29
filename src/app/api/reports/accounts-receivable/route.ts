@@ -38,10 +38,12 @@ export async function GET(request: NextRequest) {
     // Build where clause for sales
     // NOTE: Credit sales have status='pending', partially paid sales have status='completed'
     // We need to fetch BOTH and then filter by outstanding balance
+    // IMPORTANT: Exclude voided/cancelled sales from AR
     const where: Prisma.SaleWhereInput = {
       businessId: businessId,
       status: {
         in: ["pending", "completed"], // Include BOTH credit sales (pending) and regular sales (completed)
+        notIn: ["voided", "cancelled"], // Explicitly exclude voided/cancelled
       },
       customerId: {
         not: null, // Only get sales with customers (not walk-in)

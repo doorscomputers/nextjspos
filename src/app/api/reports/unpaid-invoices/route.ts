@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
       businessId,
       deletedAt: null,
       customerId: { not: null }, // Must have a customer (not walk-in)
-      // Don't filter by status - credit sales can be 'completed' or 'pending'
+      status: { notIn: ["voided", "cancelled"] }, // Exclude voided/cancelled from AR
       // Filter by balance calculation happens after fetching (lines 152-158)
     }
 
