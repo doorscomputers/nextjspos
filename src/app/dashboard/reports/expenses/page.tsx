@@ -18,6 +18,9 @@ import {
 import { BarChart3, PieChart as PieChartIcon, TrendingUp } from 'lucide-react'
 import DataGrid, {
   Column,
+  ColumnChooser,
+  ColumnChooserSearch,
+  ColumnChooserSelection,
   Export,
   Summary,
   TotalItem,
@@ -30,6 +33,8 @@ import DataGrid, {
   LoadPanel,
   GroupPanel,
   Grouping,
+  Toolbar,
+  Item as ToolbarItem,
 } from 'devextreme-react/data-grid'
 import 'devextreme/dist/css/dx.light.css'
 
@@ -361,6 +366,10 @@ export default function ExpenseReportsPage() {
               <LoadPanel enabled={loading} />
               <SearchPanel visible={true} />
               <HeaderFilter visible={true} />
+              <ColumnChooser enabled={true} mode="select" height={400}>
+                <ColumnChooserSearch enabled={true} />
+                <ColumnChooserSelection allowSelectAll={true} />
+              </ColumnChooser>
               <Sorting mode="multiple" />
               <Grouping contextMenuEnabled={true} />
               <GroupPanel visible={true} emptyPanelText="Drag a column here to group" />
@@ -373,6 +382,12 @@ export default function ExpenseReportsPage() {
                 showInfo={true}
               />
               <Export enabled={true} allowExportSelectedData={false} />
+              <Toolbar>
+                <ToolbarItem name="groupPanel" />
+                <ToolbarItem name="searchPanel" />
+                <ToolbarItem name="columnChooserButton" />
+                <ToolbarItem name="exportButton" />
+              </Toolbar>
 
               {reportType === 'main' && (
                 <>

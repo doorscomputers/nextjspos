@@ -5,6 +5,9 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import DataGrid, {
   Column,
+  ColumnChooser,
+  ColumnChooserSearch,
+  ColumnChooserSelection,
   Editing,
   Paging,
   Pager,
@@ -1025,6 +1028,10 @@ export default function BulkPriceEditorPage() {
               showInfo={true}
               showNavigationButtons={true}
             />
+            <ColumnChooser enabled={true} mode="select" height={400}>
+              <ColumnChooserSearch enabled={true} />
+              <ColumnChooserSelection allowSelectAll={true} />
+            </ColumnChooser>
             <Export enabled={true} allowExportSelectedData={true} />
             <Editing
               mode="batch"
@@ -1120,6 +1127,7 @@ export default function BulkPriceEditorPage() {
             <Toolbar>
               <Item name="groupPanel" />
               <Item name="searchPanel" />
+              <Item name="columnChooserButton" />
               <Item location="after">
                 <Button
                   text="Refresh"
