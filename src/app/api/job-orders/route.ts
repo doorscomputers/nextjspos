@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
-import { PERMISSIONS } from '@/lib/rbac'
+import { PERMISSIONS, hasPermission } from '@/lib/rbac'
 
 // Helper function to generate job order number
 async function generateJobOrderNumber(businessId: number, tx: any) {
@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No business associated with user' }, { status: 400 })
     }
 
-    // Check permission
-    if (!user.permissions?.includes(PERMISSIONS.JOB_ORDER_VIEW)) {
+    // Check permission (hasPermission includes Super Admin bypass)
+    if (!hasPermission(user, PERMISSIONS.JOB_ORDER_VIEW)) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
 
@@ -224,8 +224,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No business associated with user' }, { status: 400 })
     }
 
-    // Check permission
-    if (!user.permissions?.includes(PERMISSIONS.JOB_ORDER_CREATE)) {
+    // Check permission (hasPermission includes Super Admin bypass)
+    if (!hasPermission(user, PERMISSIONS.JOB_ORDER_CREATE)) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
 

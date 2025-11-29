@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
-import { PERMISSIONS } from '@/lib/rbac'
+import { PERMISSIONS, hasPermission } from '@/lib/rbac'
 
 // GET /api/job-orders/[id] - Get single job order with parts and payments
 export async function GET(
@@ -23,7 +23,7 @@ export async function GET(
     }
 
     // Check permission
-    if (!user.permissions?.includes(PERMISSIONS.JOB_ORDER_VIEW)) {
+    if (!hasPermission(user, PERMISSIONS.JOB_ORDER_VIEW)) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
 
@@ -157,7 +157,7 @@ export async function PUT(
     }
 
     // Check permission
-    if (!user.permissions?.includes(PERMISSIONS.JOB_ORDER_EDIT)) {
+    if (!hasPermission(user, PERMISSIONS.JOB_ORDER_EDIT)) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
 
@@ -253,7 +253,7 @@ export async function DELETE(
     }
 
     // Check permission
-    if (!user.permissions?.includes(PERMISSIONS.JOB_ORDER_DELETE)) {
+    if (!hasPermission(user, PERMISSIONS.JOB_ORDER_DELETE)) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
 

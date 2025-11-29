@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
-import { PERMISSIONS } from '@/lib/rbac'
+import { PERMISSIONS, hasPermission } from '@/lib/rbac'
 
 // POST /api/job-orders/[id]/quality-check - Perform QC approval
 export async function POST(
@@ -25,7 +25,7 @@ export async function POST(
     }
 
     // Check permission
-    if (!user.permissions?.includes(PERMISSIONS.JOB_ORDER_QUALITY_CHECK)) {
+    if (!hasPermission(user, PERMISSIONS.JOB_ORDER_QUALITY_CHECK)) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
 

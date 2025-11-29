@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
-import { PERMISSIONS } from '@/lib/rbac'
+import { PERMISSIONS, hasPermission } from '@/lib/rbac'
 
 // DELETE /api/job-orders/[id]/parts/[partId] - Remove part from job order
 export async function DELETE(
@@ -22,8 +22,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'No business associated with user' }, { status: 400 })
     }
 
-    // Check permission
-    if (!user.permissions?.includes(PERMISSIONS.JOB_ORDER_ADD_PARTS)) {
+    // Check permission (hasPermission includes Super Admin bypass)
+    if (!hasPermission(user, PERMISSIONS.JOB_ORDER_ADD_PARTS)) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
 
