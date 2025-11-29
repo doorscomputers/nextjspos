@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Check permission
-    if (!user.permissions?.includes(PERMISSIONS.REPAIR_JOB_VIEW)) {
+    if (!user.permissions?.includes(PERMISSIONS.JOB_ORDER_VIEW)) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
 
@@ -225,7 +225,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check permission
-    if (!user.permissions?.includes(PERMISSIONS.REPAIR_JOB_CREATE)) {
+    if (!user.permissions?.includes(PERMISSIONS.JOB_ORDER_CREATE)) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
 

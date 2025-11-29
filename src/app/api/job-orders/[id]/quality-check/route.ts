@@ -25,7 +25,7 @@ export async function POST(
     }
 
     // Check permission
-    if (!user.permissions?.includes(PERMISSIONS.REPAIR_JOB_QC)) {
+    if (!user.permissions?.includes(PERMISSIONS.JOB_ORDER_QUALITY_CHECK)) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
 
