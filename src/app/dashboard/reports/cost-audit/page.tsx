@@ -5,6 +5,9 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import DataGrid, {
   Column,
+  ColumnChooser,
+  ColumnChooserSearch,
+  ColumnChooserSelection,
   Paging,
   Pager,
   FilterRow,
@@ -251,6 +254,10 @@ export default function CostAuditReportPage() {
           >
             <Grouping autoExpandAll={false} />
             <GroupPanel visible={true} />
+            <ColumnChooser enabled={true} mode="select" height={400}>
+              <ColumnChooserSearch enabled={true} />
+              <ColumnChooserSelection allowSelectAll={true} />
+            </ColumnChooser>
             <SearchPanel visible={true} width={240} placeholder="Search products..." />
             <FilterRow visible={true} />
             <HeaderFilter visible={true} />
@@ -378,6 +385,7 @@ export default function CostAuditReportPage() {
                   className="dx-theme-material-typography"
                 />
               </Item>
+              <Item name="columnChooserButton" />
               <Item name="exportButton" />
             </Toolbar>
           </DataGrid>
