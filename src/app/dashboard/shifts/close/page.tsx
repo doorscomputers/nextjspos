@@ -376,6 +376,17 @@ export default function CloseShiftPage() {
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err: any) {
       console.error('[ShiftClose] ❌ Error during close:', err)
+
+      // Handle "Shift already closed" error specially - redirect to dashboard
+      if (err.message?.includes('already closed')) {
+        setError('This shift has already been closed. Redirecting to dashboard...')
+        setLoading(false)
+        setTimeout(() => {
+          router.push('/dashboard')
+        }, 2000)
+        return
+      }
+
       setError(err.message)
       setLoading(false)
       // CRITICAL FIX: Don't reset showPasswordDialog - allow user to retry without re-entering credentials
@@ -876,12 +887,13 @@ export default function CloseShiftPage() {
                     type="submit"
                     disabled={
                       loading ||
+                      shiftClosed ||
                       (authMethod === 'password' && !managerPassword) ||
                       (authMethod === 'rfid' && !rfidVerified)
                     }
                     className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg"
                   >
-                    {loading ? '🔒 Closing...' : '✅ Confirm & Close Shift'}
+                    {loading ? '🔒 Closing...' : shiftClosed ? '✅ Shift Closed' : '✅ Confirm & Close Shift'}
                   </Button>
                 </div>
               </div>
