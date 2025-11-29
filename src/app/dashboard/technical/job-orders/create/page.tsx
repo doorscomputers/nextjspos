@@ -121,23 +121,29 @@ export default function CreateJobOrderPage() {
 
       if (locRes.ok) {
         const data = await locRes.json()
-        setLocations(data.locations || data || [])
+        // Handle different response formats: { data: [...] }, { locations: [...] }, or [...]
+        const locs = data.data || data.locations || (Array.isArray(data) ? data : [])
+        setLocations(Array.isArray(locs) ? locs : [])
       }
       if (stRes.ok) {
         const data = await stRes.json()
-        setServiceTypes(data.serviceTypes || data || [])
+        const types = data.serviceTypes || data.data || (Array.isArray(data) ? data : [])
+        setServiceTypes(Array.isArray(types) ? types : [])
       }
       if (prodRes.ok) {
         const data = await prodRes.json()
-        setProducts(data.products || data || [])
+        const prods = data.products || data.data || (Array.isArray(data) ? data : [])
+        setProducts(Array.isArray(prods) ? prods : [])
       }
       if (techRes.ok) {
         const data = await techRes.json()
-        setTechnicians(data.technicians || data || [])
+        const techs = data.technicians || data.data || (Array.isArray(data) ? data : [])
+        setTechnicians(Array.isArray(techs) ? techs : [])
       }
       if (custRes.ok) {
         const data = await custRes.json()
-        setCustomers(data.customers || data || [])
+        const custs = data.customers || data.data || (Array.isArray(data) ? data : [])
+        setCustomers(Array.isArray(custs) ? custs : [])
       }
     } catch (error) {
       console.error('Error fetching dropdown data:', error)
@@ -152,7 +158,8 @@ export default function CreateJobOrderPage() {
       const response = await fetch(`/api/products/${productId}/variations`)
       if (response.ok) {
         const data = await response.json()
-        setVariations(data.variations || data || [])
+        const vars = data.variations || data.data || (Array.isArray(data) ? data : [])
+        setVariations(Array.isArray(vars) ? vars : [])
       }
     } catch (error) {
       console.error('Error fetching variations:', error)

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
-import { PERMISSIONS } from '@/lib/rbac'
+import { PERMISSIONS, hasPermission } from '@/lib/rbac'
 
 // GET /api/service-types - List all service types
 export async function GET(request: NextRequest) {
@@ -14,14 +14,9 @@ export async function GET(request: NextRequest) {
     }
 
     const user = session.user as any
-    const businessId = parseInt(String(user.businessId))
+    const businessId = user.businessId
     if (!businessId) {
       return NextResponse.json({ error: 'No business associated with user' }, { status: 400 })
-    }
-
-    // Check permission
-    if (!user.permissions?.includes(PERMISSIONS.SERVICE_TYPE_VIEW)) {
-      return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
 
     // Parse query parameters for filtering
@@ -35,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const whereClause: any = {
-      businessId: parseInt(businessId),
+      businessId,
     }
 
     // Apply active filter
@@ -100,13 +95,13 @@ export async function POST(request: NextRequest) {
     }
 
     const user = session.user as any
-    const businessId = parseInt(String(user.businessId))
+    const businessId = user.businessId
     if (!businessId) {
       return NextResponse.json({ error: 'No business associated with user' }, { status: 400 })
     }
 
-    // Check permission
-    if (!user.permissions?.includes(PERMISSIONS.SERVICE_TYPE_CREATE)) {
+    // Check permission (hasPermission includes Super Admin bypass)
+    if (!hasPermission(user, PERMISSIONS.SERVICE_TYPE_CREATE)) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
 
@@ -135,7 +130,7 @@ export async function POST(request: NextRequest) {
     // Check code uniqueness
     const existingServiceType = await prisma.repairServiceType.findFirst({
       where: {
-        businessId: parseInt(businessId),
+        businessId,
         code
       }
     })
@@ -147,7 +142,7 @@ export async function POST(request: NextRequest) {
     // Create service type
     const serviceType = await prisma.repairServiceType.create({
       data: {
-        businessId: parseInt(businessId),
+        businessId,
         code,
         name,
         description,
