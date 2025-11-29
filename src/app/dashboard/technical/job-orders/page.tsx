@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useSession } from 'next-auth/react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import { toast } from 'sonner'
@@ -67,21 +68,15 @@ const PAYMENT_STATUS_CONFIG: Record<string, { label: string; color: string }> = 
 }
 
 export default function JobOrdersPage() {
+  const { status } = useSession()
   const { can } = usePermissions()
   const [jobOrders, setJobOrders] = useState<JobOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [hasFetched, setHasFetched] = useState(false)
   const dataGridRef = useRef<DataGrid>(null)
 
-  useEffect(() => {
-    if (!can(PERMISSIONS.JOB_ORDER_VIEW)) {
-      toast.error('You do not have permission to view job orders')
-      return
-    }
-    fetchJobOrders()
-  }, [can])
-
-  const fetchJobOrders = async () => {
+  const fetchJobOrders = useCallback(async () => {
     setLoading(true)
     try {
       const response = await fetch('/api/job-orders')
@@ -97,7 +92,19 @@ export default function JobOrdersPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    // Wait for session to be loaded
+    if (status === 'loading') return
+
+    // Only fetch once
+    if (hasFetched) return
+
+    // Session is loaded, now fetch data
+    setHasFetched(true)
+    fetchJobOrders()
+  }, [status, hasFetched, fetchJobOrders])
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -295,7 +302,8 @@ export default function JobOrdersPage() {
     )
   }
 
-  if (loading) {
+  // Show loading while session is loading OR data is loading
+  if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col items-center justify-center py-12">
@@ -306,7 +314,8 @@ export default function JobOrdersPage() {
     )
   }
 
-  if (!can(PERMISSIONS.JOB_ORDER_VIEW)) {
+  // Check permission only after session is loaded
+  if (status === 'authenticated' && !can(PERMISSIONS.JOB_ORDER_VIEW)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col items-center justify-center py-12">
