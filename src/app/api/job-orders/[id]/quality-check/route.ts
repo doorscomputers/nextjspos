@@ -70,11 +70,7 @@ export async function POST(
         customer: true,
         product: true,
         serviceType: true,
-        technician: {
-          include: {
-            employee: true
-          }
-        },
+        technician: true,
         qualityCheckedByUser: {
           select: {
             id: true,

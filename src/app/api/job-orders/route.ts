@@ -130,14 +130,11 @@ export async function GET(request: NextRequest) {
           },
           serviceType: true,
           technician: {
-            include: {
-              employee: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                  employeeCode: true
-                }
-              }
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeCode: true
             }
           },
           location: {
@@ -408,11 +405,7 @@ export async function POST(request: NextRequest) {
         product: true,
         productVariation: true,
         serviceType: true,
-        technician: {
-          include: {
-            employee: true
-          }
-        },
+        technician: true,
         location: true,
         warrantyClaim: true
       }

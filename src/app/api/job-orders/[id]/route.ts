@@ -39,11 +39,7 @@ export async function GET(
         product: true,
         productVariation: true,
         serviceType: true,
-        technician: {
-          include: {
-            employee: true
-          }
-        },
+        technician: true,
         location: true,
         warrantyClaim: {
           include: {
@@ -206,11 +202,7 @@ export async function PUT(
         product: true,
         productVariation: true,
         serviceType: true,
-        technician: {
-          include: {
-            employee: true
-          }
-        }
+        technician: true
       }
     })
 
