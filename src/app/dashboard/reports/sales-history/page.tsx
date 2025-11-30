@@ -398,25 +398,25 @@ export default function SalesHistoryPage() {
     }
 
     return (
-      <div className="p-4 bg-gray-50 dark:bg-gray-900 space-y-4">
+      <div className="p-4 bg-amber-50 dark:bg-amber-950/50 space-y-4">
         {/* Sale Items */}
         {sale.items && sale.items.length > 0 && (
           <div>
-            <h4 className="font-semibold mb-2 text-gray-900 dark:text-white">Sale Items</h4>
+            <h4 className="font-semibold mb-2 text-amber-900 dark:text-amber-100">Sale Items</h4>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm border border-gray-200 dark:border-gray-700">
-                <thead className="bg-gray-100 dark:bg-gray-800">
+              <table className="w-full text-sm border border-amber-200 dark:border-amber-700">
+                <thead className="bg-amber-100 dark:bg-amber-900/50">
                   <tr>
-                    <th className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">Product</th>
-                    <th className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">SKU</th>
-                    <th className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">Qty</th>
-                    <th className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">Price</th>
-                    <th className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">Total</th>
+                    <th className="px-4 py-2 text-left font-semibold text-amber-800 dark:text-amber-200">Product</th>
+                    <th className="px-4 py-2 text-left font-semibold text-amber-800 dark:text-amber-200">SKU</th>
+                    <th className="px-4 py-2 text-right font-semibold text-amber-800 dark:text-amber-200">Qty</th>
+                    <th className="px-4 py-2 text-right font-semibold text-amber-800 dark:text-amber-200">Price</th>
+                    <th className="px-4 py-2 text-right font-semibold text-amber-800 dark:text-amber-200">Total</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody className="bg-white dark:bg-amber-900/30 divide-y divide-amber-200 dark:divide-amber-700">
                   {sale.items.map((item: any, idx: number) => (
-                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <tr key={idx} className="hover:bg-amber-50 dark:hover:bg-amber-800/30">
                       <td className="px-4 py-2 font-medium text-gray-900 dark:text-white">
                         {item.productName} ({item.variationName})
                       </td>
@@ -439,18 +439,18 @@ export default function SalesHistoryPage() {
         {/* Payment Details */}
         {sale.payments && sale.payments.length > 0 && (
           <div>
-            <h4 className="font-semibold mb-2 text-gray-900 dark:text-white">Payment Details</h4>
+            <h4 className="font-semibold mb-2 text-amber-900 dark:text-amber-100">Payment Details</h4>
             <div className="grid grid-cols-2 gap-2">
               {sale.payments.map((payment: any, idx: number) => (
-                <div key={idx} className="p-2 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">
+                <div key={idx} className="p-2 bg-white dark:bg-amber-900/30 rounded border border-amber-200 dark:border-amber-700">
+                  <div className="text-sm font-medium text-amber-900 dark:text-amber-100">
                     {payment.method.toUpperCase()}
                   </div>
-                  <div className="text-lg font-bold text-gray-900 dark:text-white">
+                  <div className="text-lg font-bold text-amber-900 dark:text-amber-100">
                     {formatCurrency(payment.amount)}
                   </div>
                   {payment.referenceNumber && (
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                    <div className="text-xs text-amber-600 dark:text-amber-400">
                       Ref: {payment.referenceNumber}
                     </div>
                   )}
@@ -463,8 +463,8 @@ export default function SalesHistoryPage() {
         {/* Notes */}
         {sale.notes && (
           <div>
-            <h4 className="font-semibold mb-1 text-gray-900 dark:text-white">Notes</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400">{sale.notes}</p>
+            <h4 className="font-semibold mb-1 text-amber-900 dark:text-amber-100">Notes</h4>
+            <p className="text-sm text-amber-700 dark:text-amber-300">{sale.notes}</p>
           </div>
         )}
       </div>
@@ -472,12 +472,12 @@ export default function SalesHistoryPage() {
   }
 
   return (
-    <div className="space-y-6 p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <div className="space-y-6 p-6 min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Sales History per Location</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-amber-900 via-orange-800 to-amber-900 dark:from-amber-100 dark:via-orange-300 dark:to-amber-100 bg-clip-text text-transparent">Sales History per Location</h1>
+          <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
             Complete sales transaction history filtered by your assigned location(s)
           </p>
         </div>
@@ -701,33 +701,33 @@ export default function SalesHistoryPage() {
       {/* Summary Cards */}
       {reportData && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+          <Card className="bg-white dark:bg-amber-900/30 border-amber-200 dark:border-amber-700">
             <CardContent className="pt-6">
-              <div className="text-sm text-gray-600 dark:text-gray-400">Total Sales</div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+              <div className="text-sm text-amber-700 dark:text-amber-300">Total Sales</div>
+              <div className="text-2xl font-bold text-amber-900 dark:text-amber-100">
                 {reportData.summary.totalSales}
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+          <Card className="bg-white dark:bg-amber-900/30 border-amber-200 dark:border-amber-700">
             <CardContent className="pt-6">
-              <div className="text-sm text-gray-600 dark:text-gray-400">Total Revenue</div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+              <div className="text-sm text-amber-700 dark:text-amber-300">Total Revenue</div>
+              <div className="text-2xl font-bold text-amber-900 dark:text-amber-100">
                 {formatCurrency(reportData.summary.totalRevenue)}
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+          <Card className="bg-white dark:bg-amber-900/30 border-amber-200 dark:border-amber-700">
             <CardContent className="pt-6">
-              <div className="text-sm text-gray-600 dark:text-gray-400">Total COGS</div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+              <div className="text-sm text-amber-700 dark:text-amber-300">Total COGS</div>
+              <div className="text-2xl font-bold text-amber-900 dark:text-amber-100">
                 {formatCurrency(reportData.summary.totalCOGS)}
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+          <Card className="bg-white dark:bg-amber-900/30 border-amber-200 dark:border-amber-700">
             <CardContent className="pt-6">
-              <div className="text-sm text-gray-600 dark:text-gray-400">Gross Profit</div>
+              <div className="text-sm text-amber-700 dark:text-amber-300">Gross Profit</div>
               <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                 {formatCurrency(reportData.summary.grossProfit)}
               </div>
@@ -737,9 +737,9 @@ export default function SalesHistoryPage() {
       )}
 
       {/* Data Grid */}
-      <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+      <Card className="bg-white dark:bg-amber-900/30 border-amber-200 dark:border-amber-700">
         <CardHeader>
-          <CardTitle className="text-gray-900 dark:text-white">
+          <CardTitle className="text-amber-900 dark:text-amber-100">
             Sales Transactions
             {reportData && ` (${reportData.pagination.total} total)`}
           </CardTitle>
