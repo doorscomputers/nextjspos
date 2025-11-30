@@ -14,8 +14,8 @@ export async function GET(request: NextRequest) {
     }
 
     const user = session.user as any
-    const businessId = user.businessId
-    if (!businessId) {
+    const businessId = parseInt(user.businessId)
+    if (!businessId || isNaN(businessId)) {
       return NextResponse.json({ error: 'No business associated with user' }, { status: 400 })
     }
 
@@ -104,8 +104,8 @@ export async function POST(request: NextRequest) {
     }
 
     const user = session.user as any
-    const businessId = user.businessId
-    if (!businessId) {
+    const businessId = parseInt(user.businessId)
+    if (!businessId || isNaN(businessId)) {
       return NextResponse.json({ error: 'No business associated with user' }, { status: 400 })
     }
 
