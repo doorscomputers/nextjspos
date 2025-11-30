@@ -377,9 +377,9 @@ export default function BranchStockPivotV2Page() {
           allowColumnReordering={true}
           allowColumnResizing={true}
         >
-          <StateStoring enabled={true} type="localStorage" storageKey="branchStockPivotV2State" />
+          <StateStoring enabled={true} type="localStorage" storageKey="branchStockPivotV2State-v2" />
           <LoadPanel enabled={true} />
-          <Scrolling mode="virtual" />
+          <Scrolling mode="standard" />
           <Selection mode="multiple" showCheckBoxesMode="always" />
           <Export enabled={true} formats={['xlsx', 'pdf']} allowExportSelectedData={true} />
           <ColumnChooser enabled={true} mode="select" />

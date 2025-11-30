@@ -453,7 +453,7 @@ export default function TransfersDevExtremePage() {
           rowAlternationEnabled={true}
           height={700}
         >
-          <StateStoring enabled={true} type="localStorage" storageKey="transfersGridState" />
+          <StateStoring enabled={true} type="localStorage" storageKey="transfersGridState-v2" />
           <Selection mode="multiple" showCheckBoxesMode="always" />
           <FilterRow visible={true} />
           <HeaderFilter visible={true} />
