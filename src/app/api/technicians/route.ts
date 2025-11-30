@@ -28,9 +28,9 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit
 
     // Build where clause - query TechnicalServiceEmployee directly
+    // Note: TechnicalServiceEmployee uses isActive flag, not deletedAt
     const whereClause: any = {
       businessId,
-      deletedAt: null,
       isActive: true
     }
 
