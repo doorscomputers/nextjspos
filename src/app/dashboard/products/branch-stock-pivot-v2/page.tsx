@@ -300,14 +300,14 @@ export default function BranchStockPivotV2Page() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950 p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-900 via-orange-800 to-amber-900 dark:from-amber-100 dark:via-orange-300 dark:to-amber-100 bg-clip-text text-transparent">
             Branch Stock Pivot V2
           </h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-1">
+          <p className="text-amber-700 dark:text-amber-300 mt-1">
             Advanced stock view with pivot grid, grouping, and real-time filtering
           </p>
         </div>
@@ -325,7 +325,7 @@ export default function BranchStockPivotV2Page() {
       </div>
 
       {/* DevExtreme DataGrid */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+      <div className="bg-white dark:bg-orange-900/20 p-6 rounded-lg shadow-lg border border-amber-200 dark:border-orange-800">
         {/* Custom Search Bar */}
         <div className="mb-4 flex items-center gap-2">
           <div className="relative flex-1 max-w-md">
@@ -357,7 +357,7 @@ export default function BranchStockPivotV2Page() {
             Search
           </Button>
           {searchText && (
-            <span className="text-sm text-gray-500 dark:text-gray-400">
+            <span className="text-sm text-amber-600 dark:text-amber-400">
               Searching: &quot;{searchText}&quot;
             </span>
           )}
@@ -447,9 +447,9 @@ export default function BranchStockPivotV2Page() {
             format="₱#,##0.00"
             width={150}
             alignment="right"
-            cssClass="bg-blue-50 dark:bg-blue-900/20"
+            cssClass="bg-amber-50 dark:bg-amber-900/20"
           />
-          
+
           {/* Dynamic Location Columns */}
           {locations.map((location) => (
             <Column
@@ -459,7 +459,7 @@ export default function BranchStockPivotV2Page() {
               dataType="number"
               width={120}
               alignment="center"
-              cssClass="bg-blue-50 dark:bg-blue-900/20"
+              cssClass="bg-amber-50/50 dark:bg-amber-900/20"
               cellRender={cellRender}
             />
           ))}
