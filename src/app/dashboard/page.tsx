@@ -365,8 +365,8 @@ export default function DashboardPageV2() {
       name: "Total Sales",
       value: stats?.metrics.totalSales || 0,
       icon: CurrencyDollarIcon,
-      color: "from-blue-500 to-blue-600",
-      textColor: "text-blue-600",
+      color: "from-amber-600 to-orange-700",
+      textColor: "text-amber-700",
       permission: PERMISSIONS.SELL_VIEW,
     },
     {
@@ -398,8 +398,8 @@ export default function DashboardPageV2() {
       name: "Total Purchase",
       value: stats?.metrics.totalPurchase || 0,
       icon: ShoppingCartIcon,
-      color: "from-purple-500 to-purple-600",
-      textColor: "text-purple-600",
+      color: "from-yellow-700 to-amber-800",
+      textColor: "text-yellow-800",
       permission: PERMISSIONS.PURCHASE_VIEW,
     },
     {
@@ -422,8 +422,8 @@ export default function DashboardPageV2() {
       name: "Expense",
       value: stats?.metrics.expense || 0,
       icon: BanknotesIcon,
-      color: "from-gray-500 to-gray-600",
-      textColor: "text-gray-600",
+      color: "from-stone-600 to-neutral-700",
+      textColor: "text-stone-700",
       permission: PERMISSIONS.EXPENSE_VIEW,
     },
   ]

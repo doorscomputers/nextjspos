@@ -556,11 +556,11 @@ export default function BranchStockPivotPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950 p-6">
       <div className="mb-6 flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Branch Stock Pivot</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-1">Comprehensive stock view across all locations with cost analysis</p>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-900 via-orange-800 to-amber-900 dark:from-amber-100 dark:via-orange-300 dark:to-amber-100 bg-clip-text text-transparent">Branch Stock Pivot</h1>
+          <p className="text-amber-700 dark:text-amber-300 mt-1">Comprehensive stock view across all locations with cost analysis</p>
         </div>
         <Button
           onClick={() => fetchStockData({ refreshView: true })}
@@ -586,7 +586,7 @@ export default function BranchStockPivotPage() {
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={handleSearchKeyDown}
               placeholder="Search by product, SKU, supplier, category, or brand... (Press Enter or click Search)"
-              className="w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+              className="w-full pl-10 pr-10 py-3 border border-amber-300 dark:border-orange-700 rounded-lg focus:ring-2 focus:ring-amber-500 text-amber-900 dark:text-amber-100 bg-white dark:bg-orange-900/30 placeholder:text-amber-400 dark:placeholder:text-orange-400"
             />
             {searchInput && (
               <button
@@ -617,7 +617,7 @@ export default function BranchStockPivotPage() {
           <select
             value={filters.isActive}
             onChange={(e) => handleSimpleFilterChange('isActive', e.target.value)}
-            className="px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+            className="px-4 py-3 border border-amber-300 dark:border-orange-700 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white dark:bg-orange-900/30 text-amber-900 dark:text-amber-100"
           >
             <option value="all">All Products</option>
             <option value="true">Active Only</option>
@@ -652,7 +652,7 @@ export default function BranchStockPivotPage() {
 
       {/* Export buttons and Results info */}
       <div className="mb-4 flex items-center justify-between flex-wrap gap-4">
-        <div className="text-sm text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700">
+        <div className="text-sm text-amber-700 dark:text-amber-300 bg-white dark:bg-orange-900/30 px-4 py-2 rounded-lg border border-amber-300 dark:border-orange-700">
           Showing <strong>{pageDisplayStart}</strong> to <strong>{pageDisplayEnd}</strong> of <strong>{totalCount}</strong> products
         </div>
 
@@ -702,14 +702,14 @@ export default function BranchStockPivotPage() {
           </Button>
 
           <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600 dark:text-gray-300">Items per page:</label>
+            <label className="text-sm text-amber-700 dark:text-amber-300">Items per page:</label>
             <select
               value={itemsPerPage}
               onChange={(e) => {
                 setItemsPerPage(Number(e.target.value))
                 setCurrentPage(1)
               }}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              className="px-3 py-2 border border-amber-300 dark:border-orange-700 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 bg-white dark:bg-orange-900/30 text-amber-900 dark:text-amber-100"
             >
               <option value={10}>10</option>
               <option value={25}>25</option>
@@ -722,17 +722,17 @@ export default function BranchStockPivotPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-600 dark:text-gray-300">Loading stock data...</div>
+        <div className="text-center py-12 text-amber-700 dark:text-amber-300">Loading stock data...</div>
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div className="bg-white dark:bg-orange-900/20 rounded-lg shadow overflow-hidden border border-amber-200 dark:border-orange-800">
           {locations.length > 3 && (
-            <div className="bg-blue-50 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-700 px-4 py-2 text-sm text-blue-700 dark:text-blue-300">
+            <div className="bg-amber-50 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-700 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
               Displaying stock across <strong>{locations.length} locations</strong>. Scroll horizontally to view all branches.
             </div>
           )}
           <div className="overflow-x-auto" style={{ maxWidth: '100%' }}>
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700" style={{ tableLayout: 'auto' }}>
-              <thead className="bg-gray-50 dark:bg-gray-700">
+              <thead className="bg-gradient-to-r from-amber-50 to-orange-50/50 dark:from-orange-900 dark:to-orange-900/80">
                 <tr>
                   {visibleColumns.includes('itemCode') && (
                     <SortableTableHead
@@ -740,7 +740,7 @@ export default function BranchStockPivotPage() {
                       currentSortKey={sortKey}
                       currentSortDirection={sortDirection}
                       onSort={handleSort}
-                      className="px-3 py-3 text-xs uppercase tracking-wider sticky left-0 bg-gray-50 dark:bg-gray-700 z-20 min-w-[150px]"
+                      className="px-3 py-3 text-xs uppercase tracking-wider sticky left-0 bg-amber-50 dark:bg-orange-900 z-20 min-w-[150px]"
                     >
                       Item Code
                     </SortableTableHead>
@@ -833,7 +833,7 @@ export default function BranchStockPivotPage() {
                         currentSortKey={sortKey}
                         currentSortDirection={sortDirection}
                         onSort={handleSort}
-                        className="px-3 py-3 text-xs uppercase tracking-wider bg-blue-50 dark:bg-blue-900/30 min-w-[110px] whitespace-nowrap"
+                        className="px-3 py-3 text-xs uppercase tracking-wider bg-amber-100 dark:bg-amber-900/30 min-w-[110px] whitespace-nowrap"
                         align="center"
                       >
                         {location.name}
@@ -865,13 +865,13 @@ export default function BranchStockPivotPage() {
                     </SortableTableHead>
                   )}
                                     {visibleColumns.includes('active') && (
-                    <th className="px-3 py-3 text-xs uppercase tracking-wider text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-700 sticky right-0 z-20 min-w-[90px] text-center">
+                    <th className="px-3 py-3 text-xs uppercase tracking-wider text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-orange-900 sticky right-0 z-20 min-w-[90px] text-center">
                       Active
                     </th>
                   )}
                 </tr>
               </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="bg-white dark:bg-orange-900/10 divide-y divide-amber-200 dark:divide-orange-800">
                 {totalCount === 0 ? (
                   <tr>
                     <td colSpan={visibleColumns.length + locations.length} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
@@ -881,9 +881,9 @@ export default function BranchStockPivotPage() {
                 ) : (
                   <>
                     {rows.map((row, index) => (
-                      <tr key={`${row.productId}-${row.variationId}-${index}`} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <tr key={`${row.productId}-${row.variationId}-${index}`} className="hover:bg-amber-50 dark:hover:bg-orange-900/30">
                         {visibleColumns.includes('itemCode') && (
-                          <td className="px-3 py-3 whitespace-nowrap text-xs font-medium text-gray-900 dark:text-gray-100 sticky left-0 bg-white dark:bg-gray-800 z-10 shadow-sm">
+                          <td className="px-3 py-3 whitespace-nowrap text-xs font-medium text-amber-900 dark:text-amber-100 sticky left-0 bg-white dark:bg-orange-900/20 z-10 shadow-sm">
                             {row.variationSku}
                           </td>
                         )}
@@ -928,7 +928,7 @@ export default function BranchStockPivotPage() {
                                                 {locations
                           .filter(location => visibleColumns.includes(`location-${location.id}`))
                           .map(location => (
-                            <td key={location.id} className="px-3 py-3 whitespace-nowrap text-center bg-blue-50/30 dark:bg-blue-900/20">
+                            <td key={location.id} className="px-3 py-3 whitespace-nowrap text-center bg-amber-50/30 dark:bg-amber-900/20">
                               <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStockColor(row.stockByLocation[location.id] || 0)}`}>
                                 {row.stockByLocation[location.id] || 0}
                               </span>
@@ -948,7 +948,7 @@ export default function BranchStockPivotPage() {
                           </td>
                         )}
                                                 {visibleColumns.includes('active') && (
-                          <td className="px-3 py-3 whitespace-nowrap text-center sticky right-0 z-10 bg-white dark:bg-gray-800 shadow-sm">
+                          <td className="px-3 py-3 whitespace-nowrap text-center sticky right-0 z-10 bg-white dark:bg-orange-900/20 shadow-sm">
                             <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${row.isActive ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}`}>
                               {row.isActive ? 'TRUE' : 'FALSE'}
                             </span>
@@ -957,14 +957,14 @@ export default function BranchStockPivotPage() {
                       </tr>
                     ))}
                     {/* Column totals row */}
-                    <tr className="bg-gray-100 dark:bg-gray-700 font-semibold border-t-2 border-gray-300 dark:border-gray-600">
+                    <tr className="bg-amber-100 dark:bg-orange-900/40 font-semibold border-t-2 border-amber-300 dark:border-orange-700">
                       {visibleColumns.includes('itemCode') && (
-                        <td className="px-3 py-4 text-right text-sm text-gray-700 dark:text-gray-200 sticky left-0 bg-gray-100 dark:bg-gray-700 z-10 shadow-sm" colSpan={visibleColumns.includes('itemName') ? 2 : 1}>
+                        <td className="px-3 py-4 text-right text-sm text-amber-800 dark:text-amber-200 sticky left-0 bg-amber-100 dark:bg-orange-900/40 z-10 shadow-sm" colSpan={visibleColumns.includes('itemName') ? 2 : 1}>
                           <strong>Column Totals:</strong>
                         </td>
                       )}
                       {!visibleColumns.includes('itemCode') && visibleColumns.includes('itemName') && (
-                        <td className="px-3 py-4 text-right text-sm text-gray-700 dark:text-gray-200">
+                        <td className="px-3 py-4 text-right text-sm text-amber-800 dark:text-amber-200">
                           <strong>Column Totals:</strong>
                         </td>
                       )}
@@ -977,7 +977,7 @@ export default function BranchStockPivotPage() {
                                             {locations
                         .filter(location => visibleColumns.includes(`location-${location.id}`))
                         .map(location => (
-                          <td key={location.id} className="px-3 py-4 text-center text-sm font-bold text-gray-900 dark:text-gray-100 bg-blue-100 dark:bg-blue-900/40">
+                          <td key={location.id} className="px-3 py-4 text-center text-sm font-bold text-amber-900 dark:text-amber-100 bg-amber-200 dark:bg-amber-900/40">
                             {(columnTotals.byLocation[location.id] || 0).toLocaleString()}
                           </td>
                         ))
@@ -992,7 +992,7 @@ export default function BranchStockPivotPage() {
                           ₱{columnTotals.grandTotalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                       )}
-                                            {visibleColumns.includes('active') && <td className="px-3 py-4 sticky right-0 bg-gray-100 dark:bg-gray-700 z-10 shadow-sm"></td>}
+                                            {visibleColumns.includes('active') && <td className="px-3 py-4 sticky right-0 bg-amber-100 dark:bg-orange-900/40 z-10 shadow-sm"></td>}
                     </tr>
                   </>
                 )}
@@ -1002,12 +1002,12 @@ export default function BranchStockPivotPage() {
 
           {/* Pagination */}
           {!loading && totalPages > 1 && (
-            <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+            <div className="px-6 py-4 border-t border-amber-200 dark:border-orange-700 bg-gradient-to-r from-amber-50 to-orange-50/30 dark:from-orange-900/50 dark:to-orange-900/30">
               <div className="flex items-center justify-between">
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 border border-amber-300 dark:border-orange-600 rounded-lg text-sm font-medium text-amber-700 dark:text-amber-200 bg-white dark:bg-orange-900/30 hover:bg-amber-50 dark:hover:bg-orange-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
@@ -1015,15 +1015,15 @@ export default function BranchStockPivotPage() {
                 <div className="flex items-center gap-1">
                   {pageNumbers.map((page, index) => (
                     page === '...' ? (
-                      <span key={`ellipsis-${index}`} className="px-3 py-2 text-gray-500 dark:text-gray-400">...</span>
+                      <span key={`ellipsis-${index}`} className="px-3 py-2 text-amber-500 dark:text-amber-400">...</span>
                     ) : (
                       <button
                         key={page}
                         onClick={() => handlePageChange(page as number)}
                         className={`px-3 py-2 rounded-lg text-sm font-medium ${
                           currentPage === page
-                            ? 'bg-blue-600 text-white'
-                            : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                            ? 'bg-amber-600 text-white'
+                            : 'text-amber-700 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-orange-800'
                         }`}
                       >
                         {page}
@@ -1035,7 +1035,7 @@ export default function BranchStockPivotPage() {
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 border border-amber-300 dark:border-orange-600 rounded-lg text-sm font-medium text-amber-700 dark:text-amber-200 bg-white dark:bg-orange-900/30 hover:bg-amber-50 dark:hover:bg-orange-800 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
@@ -1048,27 +1048,27 @@ export default function BranchStockPivotPage() {
       {/* Stock Summary */}
       {!loading && totalCount > 0 && (
         <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Products</h3>
-            <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-2">
+          <div className="bg-white dark:bg-orange-900/20 rounded-lg shadow border border-amber-200 dark:border-orange-800 p-6">
+            <h3 className="text-sm font-medium text-amber-600 dark:text-amber-400">Total Products</h3>
+            <p className="text-3xl font-bold text-amber-900 dark:text-amber-100 mt-2">
               {totalCount.toLocaleString()}
             </p>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Locations</h3>
-            <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-2">
+          <div className="bg-white dark:bg-orange-900/20 rounded-lg shadow border border-amber-200 dark:border-orange-800 p-6">
+            <h3 className="text-sm font-medium text-amber-600 dark:text-amber-400">Total Locations</h3>
+            <p className="text-3xl font-bold text-amber-900 dark:text-amber-100 mt-2">
               {locations.length}
             </p>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Grand Total Stock</h3>
+          <div className="bg-white dark:bg-orange-900/20 rounded-lg shadow border border-amber-200 dark:border-orange-800 p-6">
+            <h3 className="text-sm font-medium text-amber-600 dark:text-amber-400">Grand Total Stock</h3>
             <p className="text-3xl font-bold text-green-600 dark:text-green-400 mt-2">
               {columnTotals.grandTotal.toLocaleString()}
             </p>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Total Inventory Value</h3>
-            <p className="text-2xl font-bold text-indigo-600 dark:text-indigo-400 mt-2">
+          <div className="bg-white dark:bg-orange-900/20 rounded-lg shadow border border-amber-200 dark:border-orange-800 p-6">
+            <h3 className="text-sm font-medium text-amber-600 dark:text-amber-400">Total Inventory Value</h3>
+            <p className="text-2xl font-bold text-amber-700 dark:text-amber-400 mt-2">
               ₱{columnTotals.grandTotalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>

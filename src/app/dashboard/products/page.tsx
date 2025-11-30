@@ -923,12 +923,12 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950 p-4 sm:p-6 lg:p-8">
       {/* Header Section with Gradient */}
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div className="space-y-1">
-            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-slate-900 via-blue-800 to-slate-900 dark:from-gray-100 dark:via-blue-300 dark:to-gray-100 bg-clip-text text-transparent">
+            <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-amber-900 via-orange-800 to-amber-900 dark:from-amber-100 dark:via-orange-300 dark:to-amber-100 bg-clip-text text-transparent">
               Products
             </h1>
             <p className="text-slate-600 dark:text-gray-300 text-sm sm:text-base">Manage your inventory with ease</p>
@@ -1090,8 +1090,8 @@ export default function ProductsPage() {
           <Card className="shadow-xl border-slate-200 dark:border-gray-700">
             <div className="overflow-auto max-h-[calc(100vh-350px)]">
               <Table noWrapper className="min-w-full">
-                <TableHeader className="sticky top-0 z-30 bg-gradient-to-r from-slate-50 to-blue-50/50 dark:from-gray-800 dark:to-gray-800/80 shadow-sm">
-                  <TableRow className="bg-gradient-to-r from-slate-50 to-blue-50/50 dark:from-gray-800 dark:to-gray-800/80 hover:from-slate-100 hover:to-blue-50 dark:hover:from-gray-700 dark:hover:to-gray-700/80">
+                <TableHeader className="sticky top-0 z-30 bg-gradient-to-r from-amber-50 to-orange-50/50 dark:from-orange-900 dark:to-orange-900/80 shadow-sm">
+                  <TableRow className="bg-gradient-to-r from-amber-50 to-orange-50/50 dark:from-orange-900 dark:to-orange-900/80 hover:from-amber-100 hover:to-orange-50 dark:hover:from-orange-800 dark:hover:to-orange-800/80">
                 <SortableTableHead className="w-12">
                   <Checkbox
                     checked={paginatedProducts.length > 0 && selectedProductIds.length === paginatedProducts.length}
@@ -1397,7 +1397,7 @@ export default function ProductsPage() {
                               className="h-12 w-12 rounded-lg object-cover shadow-sm ring-1 ring-slate-200 dark:ring-gray-700"
                             />
                           ) : (
-                            <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center text-slate-400 dark:text-gray-500 text-xs font-medium shadow-sm">
+                            <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-amber-100 to-orange-200 dark:from-orange-900 dark:to-orange-800 flex items-center justify-center text-amber-400 dark:text-orange-500 text-xs font-medium shadow-sm">
                               No img
                             </div>
                           )}
@@ -1521,7 +1521,7 @@ export default function ProductsPage() {
 
           {/* Bulk Action Buttons */}
           {selectedProductIds.length > 0 && (
-            <div className="px-6 py-5 border-t border-slate-200 dark:border-gray-700 bg-gradient-to-r from-blue-50/50 to-slate-50/50 dark:from-gray-800/50 dark:to-gray-800/30">
+            <div className="px-6 py-5 border-t border-slate-200 dark:border-gray-700 bg-gradient-to-r from-orange-50/50 to-amber-50/50 dark:from-orange-900/50 dark:to-orange-900/30">
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
@@ -1622,7 +1622,7 @@ export default function ProductsPage() {
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={setCurrentPage}
-            className="px-6 py-4 border-t border-slate-200 dark:border-gray-700 bg-gradient-to-r from-slate-50 to-blue-50/30 dark:from-gray-800/50 dark:to-gray-800/30"
+            className="px-6 py-4 border-t border-slate-200 dark:border-gray-700 bg-gradient-to-r from-amber-50 to-orange-50/30 dark:from-orange-900/50 dark:to-orange-900/30"
           />
           </Card>
         </div>
