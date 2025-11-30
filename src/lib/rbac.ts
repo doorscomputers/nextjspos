@@ -310,6 +310,13 @@ export const PERMISSIONS = {
   REPORT_CASH_IN_OUT: 'report.cash_in_out', // Cash in/out movements report
   REPORT_SALES_BY_HOUR: 'report.sales_by_hour', // Hourly sales breakdown for peak hours analysis
   REPORT_VOID_REFUND_ANALYSIS: 'report.void_refund_analysis', // Voided and refunded transactions tracking
+  REPORT_SALES_BY_PERSONNEL: 'report.sales_by_personnel', // Sales performance by sales personnel
+
+  // Sales Personnel Management
+  SALES_PERSONNEL_VIEW: 'sales_personnel.view',
+  SALES_PERSONNEL_CREATE: 'sales_personnel.create',
+  SALES_PERSONNEL_UPDATE: 'sales_personnel.update',
+  SALES_PERSONNEL_DELETE: 'sales_personnel.delete',
 
   // Cashier-only Reports
   CASHIER_REPORTS_VIEW: 'report.cashier.view',
@@ -1302,6 +1309,8 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.REPORT_VOID_REFUND_ANALYSIS,
       // Cashier-only reports section
       PERMISSIONS.CASHIER_REPORTS_VIEW,
+      // Sales Personnel - view only for dropdown selection
+      PERMISSIONS.SALES_PERSONNEL_VIEW,
     ],
   },
 
@@ -1342,6 +1351,11 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.SALES_REPORT_PER_ITEM,
       PERMISSIONS.SALES_REPORT_PER_CASHIER,
       PERMISSIONS.SALES_REPORT_ANALYTICS,
+      // Sales Personnel management and reports
+      PERMISSIONS.SALES_PERSONNEL_VIEW,
+      PERMISSIONS.SALES_PERSONNEL_CREATE,
+      PERMISSIONS.SALES_PERSONNEL_UPDATE,
+      PERMISSIONS.REPORT_SALES_BY_PERSONNEL,
     ],
   },
 
@@ -1723,6 +1737,8 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.SALES_REPORT_CUSTOMER_ANALYSIS,
       PERMISSIONS.SALES_REPORT_PAYMENT_METHOD,
       PERMISSIONS.SALES_REPORT_DISCOUNT_ANALYSIS,
+      PERMISSIONS.REPORT_SALES_BY_PERSONNEL, // Sales by personnel report
+      PERMISSIONS.SALES_PERSONNEL_VIEW, // View sales personnel for filtering
     ],
   },
 
@@ -1826,6 +1842,9 @@ export const DEFAULT_ROLES = {
       // Financial reports
       PERMISSIONS.REPORT_PROFIT_LOSS,
       PERMISSIONS.REPORT_PROFITABILITY,
+      // Sales by personnel report
+      PERMISSIONS.REPORT_SALES_BY_PERSONNEL,
+      PERMISSIONS.SALES_PERSONNEL_VIEW,
     ],
   },
 

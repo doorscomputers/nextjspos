@@ -540,6 +540,8 @@ export async function POST(request: NextRequest) {
       vatExempt = false,
       // Cash tendered (for invoice display)
       cashTendered,
+      // Sales personnel tracking
+      salesPersonnelId,
     } = body
 
     if (process.env.NODE_ENV === 'development') {
@@ -964,6 +966,8 @@ export async function POST(request: NextRequest) {
           discountApprovedBy: discountApprovedByNumber,
           vatExempt: vatExempt || false,
           createdBy: userIdNumber,
+          // Sales personnel tracking (for performance monitoring)
+          salesPersonnelId: salesPersonnelId ? Number(salesPersonnelId) : null,
         },
       })
 
@@ -1229,6 +1233,17 @@ export async function POST(request: NextRequest) {
         },
         tx  // CRITICAL: Pass transaction client for atomicity
       )
+
+      // PHASE 3: Update sales personnel performance metrics (if assigned)
+      if (salesPersonnelId) {
+        await tx.salesPersonnel.update({
+          where: { id: Number(salesPersonnelId) },
+          data: {
+            totalSalesCount: { increment: 1 },
+            totalRevenue: { increment: totalAmount },
+          },
+        })
+      }
 
       return newSale
     }, {

@@ -264,6 +264,9 @@ model Business {
   // Background Job Queue Relations
   jobs Job[]
 
+  // Sales Personnel Relations
+  salesPersonnel SalesPersonnel[]
+
   @@map("business")
 }
 
@@ -1966,6 +1969,10 @@ model Sale {
 
   notes String? @db.Text
 
+  // Sales Personnel tracking (for performance monitoring)
+  salesPersonnelId Int?            @map("sales_personnel_id")
+  salesPersonnel   SalesPersonnel? @relation(fields: [salesPersonnelId], references: [id])
+
   createdBy Int       @map("created_by")
   creator   User      @relation("SaleCreator", fields: [createdBy], references: [id])
   createdAt DateTime  @default(now()) @map("created_at")
@@ -2003,6 +2010,8 @@ model Sale {
   @@index([businessId, status, saleDate]) // 🚀 OPTIMIZATION: Filtered reports with date ranges
   @@index([locationId, saleDate, status]) // 🚀 OPTIMIZATION: Location-filtered date-range reports
   @@index([customerId, saleDate]) // 🚀 CRITICAL: Customer sales history queries
+  @@index([salesPersonnelId]) // Sales Personnel performance tracking
+  @@index([salesPersonnelId, saleDate]) // Sales Personnel performance reports by date
   @@map("sales")
 }
 
@@ -4826,8 +4835,47 @@ model Job {
   @@map("jobs")
 }
 
-// Update User model to add jobs relation
-// (Add to User model relations section)
+// ============================================================================
+// SALES PERSONNEL MODEL
+// ============================================================================
+// Independent record for tracking sales personnel performance
+// Not linked to User accounts - allows tracking employees without system login
 
-// Update Business model to add jobs relation
-// (Add to Business model relations section)
+model SalesPersonnel {
+  id         Int      @id @default(autoincrement())
+  businessId Int      @map("business_id")
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Identity
+  employeeCode String  @map("employee_code") @db.VarChar(50)
+  firstName    String  @map("first_name") @db.VarChar(100)
+  lastName     String  @map("last_name") @db.VarChar(100)
+  email        String? @db.VarChar(191)
+  mobile       String? @db.VarChar(50)
+
+  // Performance Metrics
+  salesTarget     Decimal @default(0) @map("sales_target") @db.Decimal(15, 2)
+  commissionRate  Decimal @default(0) @map("commission_rate") @db.Decimal(5, 2) // Percentage
+  totalSalesCount Int     @default(0) @map("total_sales_count")
+  totalRevenue    Decimal @default(0) @map("total_revenue") @db.Decimal(22, 4)
+
+  // Status
+  isActive        Boolean   @default(true) @map("is_active")
+  hireDate        DateTime? @map("hire_date") @db.Date
+  terminationDate DateTime? @map("termination_date") @db.Date
+
+  // Timestamps
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // Relations
+  sales Sale[]
+
+  @@unique([businessId, employeeCode])
+  @@unique([businessId, firstName, lastName]) // Ensure unique names per business
+  @@index([businessId])
+  @@index([businessId, isActive])
+  @@index([isActive])
+  @@map("sales_personnel")
+}

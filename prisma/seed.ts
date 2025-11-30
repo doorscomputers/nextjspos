@@ -967,6 +967,98 @@ async function main() {
   })
   console.log('✅ Product metadata created (categories, brands, units, taxes)')
 
+  // Create Sample Sales Personnel
+  const salesPerson1 = await prisma.salesPersonnel.upsert({
+    where: {
+      businessId_employeeCode: {
+        businessId: business.id,
+        employeeCode: 'SP-001',
+      },
+    },
+    update: {},
+    create: {
+      businessId: business.id,
+      employeeCode: 'SP-001',
+      firstName: 'Juan',
+      lastName: 'Dela Cruz',
+      email: 'juan.delacruz@pcinetstore.com',
+      mobile: '+63-912-555-1001',
+      salesTarget: 50000.00,
+      commissionRate: 2.5,
+      isActive: true,
+      hireDate: new Date('2023-01-15'),
+    },
+  })
+
+  const salesPerson2 = await prisma.salesPersonnel.upsert({
+    where: {
+      businessId_employeeCode: {
+        businessId: business.id,
+        employeeCode: 'SP-002',
+      },
+    },
+    update: {},
+    create: {
+      businessId: business.id,
+      employeeCode: 'SP-002',
+      firstName: 'Maria',
+      lastName: 'Santos',
+      email: 'maria.santos@pcinetstore.com',
+      mobile: '+63-912-555-1002',
+      salesTarget: 75000.00,
+      commissionRate: 3.0,
+      isActive: true,
+      hireDate: new Date('2022-06-01'),
+    },
+  })
+
+  const salesPerson3 = await prisma.salesPersonnel.upsert({
+    where: {
+      businessId_employeeCode: {
+        businessId: business.id,
+        employeeCode: 'SP-003',
+      },
+    },
+    update: {},
+    create: {
+      businessId: business.id,
+      employeeCode: 'SP-003',
+      firstName: 'Pedro',
+      lastName: 'Reyes',
+      email: 'pedro.reyes@pcinetstore.com',
+      mobile: '+63-912-555-1003',
+      salesTarget: 60000.00,
+      commissionRate: 2.75,
+      isActive: true,
+      hireDate: new Date('2023-03-10'),
+    },
+  })
+
+  const salesPerson4 = await prisma.salesPersonnel.upsert({
+    where: {
+      businessId_employeeCode: {
+        businessId: business.id,
+        employeeCode: 'SP-004',
+      },
+    },
+    update: {},
+    create: {
+      businessId: business.id,
+      employeeCode: 'SP-004',
+      firstName: 'Ana',
+      lastName: 'Garcia',
+      email: 'ana.garcia@pcinetstore.com',
+      mobile: '+63-912-555-1004',
+      salesTarget: 40000.00,
+      commissionRate: 2.0,
+      isActive: false,  // Inactive example
+      hireDate: new Date('2021-09-20'),
+      terminationDate: new Date('2024-06-30'),
+    },
+  })
+
+  console.log('✅ Sample Sales Personnel created (4 personnel: 3 active, 1 inactive)')
+
   // Create Sample Products
   const laptop1 = await prisma.product.upsert({
     where: { id: 1 },
@@ -1295,6 +1387,13 @@ async function main() {
   console.log('✓ 3 Brands (Dell, HP, Logitech)')
   console.log('✓ 2 Units (Pieces, Box)')
   console.log('✓ 2 Tax Rates (Standard 10%, Reduced 5%)')
+  console.log('─'.repeat(50))
+  console.log('\n👥 Sample Sales Personnel Created:')
+  console.log('─'.repeat(50))
+  console.log('✓ Juan Dela Cruz (SP-001) - Active, Target: ₱50,000')
+  console.log('✓ Maria Santos (SP-002) - Active, Target: ₱75,000')
+  console.log('✓ Pedro Reyes (SP-003) - Active, Target: ₱60,000')
+  console.log('✓ Ana Garcia (SP-004) - Inactive (Terminated)')
   console.log('─'.repeat(50))
   console.log('\n📊 Accounting Setup:')
   console.log('─'.repeat(50))

@@ -507,7 +507,7 @@ export async function generateZReadingDataOptimized(
       p.name as product_name,
       c.name as category_name,
       SUM(si.quantity) as total_quantity,
-      SUM(si.price * si.quantity) as total_amount
+      SUM(si.unit_price * si.quantity) as total_amount
     FROM sale_items si
     INNER JOIN sales s ON si.sale_id = s.id
     INNER JOIN products p ON si.product_id = p.id
@@ -566,6 +566,8 @@ export async function generateZReadingDataOptimized(
 
 /**
  * Record shift reading log for audit trail
+ * Note: ShiftReadingLog model needs to be added to schema for this to work
+ * For now, just log to console as audit trail
  */
 async function recordShiftReadingLog(data: {
   shiftId: number
@@ -582,21 +584,13 @@ async function recordShiftReadingLog(data: {
   transactionCount: number
   payload: any
 }) {
-  await prisma.shiftReadingLog.create({
-    data: {
-      shiftId: data.shiftId,
-      businessId: data.businessId,
-      locationId: data.locationId,
-      userId: data.userId,
-      readingType: data.type,
-      readingNumber: data.readingNumber,
-      readingTime: data.readingTime,
-      grossSales: data.grossSales,
-      netSales: data.netSales,
-      totalDiscounts: data.totalDiscounts,
-      expectedCash: data.expectedCash,
-      transactionCount: data.transactionCount,
-      payload: data.payload as any,
-    },
+  // TODO: Add ShiftReadingLog model to schema to enable database audit trail
+  // For now, log to console for audit purposes
+  console.log(`[Audit] ${data.type} Reading #${data.readingNumber} for shift ${data.shiftId}:`, {
+    time: data.readingTime,
+    grossSales: data.grossSales,
+    netSales: data.netSales,
+    expectedCash: data.expectedCash,
+    transactionCount: data.transactionCount,
   })
 }

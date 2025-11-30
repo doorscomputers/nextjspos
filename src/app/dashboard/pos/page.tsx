@@ -59,6 +59,10 @@ export default function POSEnhancedPage() {
   const [customers, setCustomers] = useState<any[]>([])
   const [isCreditSale, setIsCreditSale] = useState(false)
 
+  // Sales Personnel State
+  const [salesPersonnel, setSalesPersonnel] = useState<any[]>([])
+  const [selectedSalesPersonnel, setSelectedSalesPersonnel] = useState<any>(null)
+
   // Discount State - Updated
   const [discountType, setDiscountType] = useState<string>('none')
   const [discountAmount, setDiscountAmount] = useState<string>('')
@@ -180,6 +184,7 @@ export default function POSEnhancedPage() {
       fetchQuotations()
       loadHeldTransactions()
       fetchBusinessSettings()
+      fetchSalesPersonnel()
     }
   }, [session])
 
@@ -193,6 +198,19 @@ export default function POSEnhancedPage() {
       }
     } catch (error) {
       console.error('Error fetching business settings:', error)
+    }
+  }
+
+  // Fetch active sales personnel for dropdown
+  const fetchSalesPersonnel = async () => {
+    try {
+      const response = await fetch('/api/sales-personnel/active')
+      const data = await response.json()
+      if (response.ok && data.salesPersonnel) {
+        setSalesPersonnel(data.salesPersonnel)
+      }
+    } catch (error) {
+      console.error('Error fetching sales personnel:', error)
     }
   }
 
@@ -1706,6 +1724,12 @@ export default function POSEnhancedPage() {
       return
     }
 
+    // Validate sales personnel selection (required field)
+    if (!selectedSalesPersonnel) {
+      setError('Please select a Sales Personnel before completing the sale')
+      return
+    }
+
     // Validate item remarks for discounted items (required when discount > 0)
     const itemsWithMissingRemarks = cart.filter(
       (item) => item.itemDiscountAmount > 0 && !item.itemRemark?.trim()
@@ -1906,6 +1930,8 @@ export default function POSEnhancedPage() {
         cashTendered: cashAmount && parseFloat(cashAmount) > 0 ? parseFloat(cashAmount) : null,
         // Remarks field
         remarks: remarks || null,
+        // Sales personnel tracking (required)
+        salesPersonnelId: selectedSalesPersonnel?.id,
       }
 
       // Add discount information
@@ -1964,6 +1990,8 @@ export default function POSEnhancedPage() {
       // Reset additional charge
       setAdditionalChargeType('fixed')
       setAdditionalChargeValue('')
+      // Reset sales personnel (user must select again for next sale)
+      setSelectedSalesPersonnel(null)
 
       const changeAmount = calculateChange()
 
@@ -2888,6 +2916,34 @@ export default function POSEnhancedPage() {
                   <span>Walk-in Customer (default)</span>
                 </div>
               </div>
+            )}
+          </div>
+
+          {/* Sales Personnel Selection (Required) */}
+          <div className="p-2 border-b bg-gradient-to-r from-blue-50 to-indigo-50 relative">
+            <Label className="text-xs font-medium mb-1 block text-blue-800">
+              Sales Personnel <span className="text-red-500">*</span>
+            </Label>
+            <Select
+              value={selectedSalesPersonnel?.id?.toString() || ''}
+              onValueChange={(value) => {
+                const person = salesPersonnel.find(p => p.id.toString() === value)
+                setSelectedSalesPersonnel(person || null)
+              }}
+            >
+              <SelectTrigger className={`h-10 text-sm border-2 ${!selectedSalesPersonnel ? 'border-red-300 bg-red-50' : 'border-blue-300 bg-white'}`}>
+                <SelectValue placeholder="-- Select Sales Personnel --" />
+              </SelectTrigger>
+              <SelectContent>
+                {salesPersonnel.map((person) => (
+                  <SelectItem key={person.id} value={person.id.toString()}>
+                    {person.fullName} ({person.employeeCode})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!selectedSalesPersonnel && (
+              <p className="text-xs text-red-500 mt-1">Required - Select who made this sale</p>
             )}
           </div>
 

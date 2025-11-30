@@ -80,6 +80,7 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
     "Administration": false,
     "Expenses": false,
     "Expense Reports": false,
+    "Sales Personnel": false,
   })
   const [searchQuery, setSearchQuery] = useState('')
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -755,6 +756,31 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
       ],
     },
 
+    // ========== SALES PERSONNEL ==========
+    {
+      key: "sales_personnel",
+      name: "Sales Personnel",
+      href: "/dashboard/sales-personnel",
+      icon: UserGroupIcon,
+      permission: PERMISSIONS.SALES_PERSONNEL_VIEW,
+      children: [
+        {
+          key: "all_sales_personnel",
+          name: "All Sales Personnel",
+          href: "/dashboard/sales-personnel",
+          icon: UserGroupIcon,
+          permission: PERMISSIONS.SALES_PERSONNEL_VIEW,
+        },
+        {
+          key: "sales_by_personnel_report",
+          name: "Sales by Personnel Report",
+          href: "/dashboard/reports/sales-by-personnel",
+          icon: ChartBarIcon,
+          permission: PERMISSIONS.REPORT_SALES_BY_PERSONNEL,
+        },
+      ],
+    },
+
     // ========== EXPENSES ==========
     {
       key: "expenses",
@@ -843,6 +869,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               href: "/dashboard/reports/sales-per-cashier",
               icon: ChartBarIcon,
               permission: PERMISSIONS.SALES_REPORT_PER_CASHIER,
+            },
+            {
+              key: "sales_by_personnel",
+              name: "Sales by Personnel",
+              href: "/dashboard/reports/sales-by-personnel",
+              icon: UserGroupIcon,
+              permission: PERMISSIONS.REPORT_SALES_BY_PERSONNEL,
             },
             {
               key: "hourly_sales_breakdown",
