@@ -11,6 +11,7 @@ import DataGrid, {
   FilterRow,
   HeaderFilter,
   Paging,
+  Pager,
   Grouping,
   GroupPanel,
   Summary,
@@ -386,7 +387,13 @@ export default function BranchStockPivotV2Page() {
           <SearchPanel visible={false} text={searchText} />
           <FilterRow visible={true} />
           <HeaderFilter visible={true} />
-          <Paging defaultPageSize={100} />
+          <Paging defaultPageSize={10} />
+          <Pager
+            showPageSizeSelector={true}
+            allowedPageSizes={[10, 20, 30, 40, 50]}
+            showInfo={true}
+            showNavigationButtons={true}
+          />
           <Grouping autoExpandAll={false} />
           <GroupPanel visible={true} emptyPanelText="Drag column headers here to group by category, supplier, or brand" />
 

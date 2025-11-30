@@ -14,6 +14,7 @@ import DataGrid, {
   Column,
   MasterDetail,
   Paging,
+  Pager,
   FilterRow,
   HeaderFilter,
   SearchPanel,
@@ -458,7 +459,13 @@ export default function TransfersDevExtremePage() {
           <HeaderFilter visible={true} />
           <SearchPanel visible={true} width={300} placeholder="Search transfers..." />
           <ColumnChooser enabled={true} mode="select" />
-          <Paging defaultPageSize={25} />
+          <Paging defaultPageSize={10} />
+          <Pager
+            showPageSizeSelector={true}
+            allowedPageSizes={[10, 20, 30, 40, 50]}
+            showInfo={true}
+            showNavigationButtons={true}
+          />
           <Export enabled={true} formats={['xlsx', 'pdf']} />
 
           {/* Master-Detail Configuration */}

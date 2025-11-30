@@ -775,7 +775,13 @@ export default function SalesHistoryPage() {
               <ColumnChooser enabled={true} mode="select" />
               <Sorting mode="multiple" />
 
-              <Paging enabled={false} />
+              <Paging defaultPageSize={10} />
+              <Pager
+                showPageSizeSelector={true}
+                allowedPageSizes={[10, 20, 30, 40, 50]}
+                showInfo={true}
+                showNavigationButtons={true}
+              />
 
               <Export enabled={true} allowExportSelectedData={false} />
 
