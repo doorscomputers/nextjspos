@@ -63,10 +63,15 @@ const menuItems = [
   { key: 'tax_rates', name: 'Tax Rates', href: '/dashboard/settings/tax-rates', parentKey: 'settings', order: 8 },
   { key: 'menu_permissions', name: 'Menu Permissions', href: '/dashboard/settings/menu-permissions', parentKey: 'settings', order: 9 },
 
+  // Sales Personnel
+  { key: 'sales_personnel', name: 'Sales Personnel', href: '/dashboard/sales-personnel', parentKey: null, order: 9 },
+  { key: 'all_sales_personnel', name: 'All Sales Personnel', href: '/dashboard/sales-personnel', parentKey: 'sales_personnel', order: 1 },
+  { key: 'sales_by_personnel_report', name: 'Sales by Personnel Report', href: '/dashboard/reports/sales-by-personnel', parentKey: 'sales_personnel', order: 2 },
+
   // User Section
-  { key: 'help_center', name: 'Help Center', href: '/dashboard/help', parentKey: null, order: 9 },
-  { key: 'notifications', name: 'Notifications', href: '/dashboard/notifications', parentKey: null, order: 10 },
-  { key: 'my_profile', name: 'My Profile', href: '/dashboard/profile', parentKey: null, order: 11 },
+  { key: 'help_center', name: 'Help Center', href: '/dashboard/help', parentKey: null, order: 10 },
+  { key: 'notifications', name: 'Notifications', href: '/dashboard/notifications', parentKey: null, order: 11 },
+  { key: 'my_profile', name: 'My Profile', href: '/dashboard/profile', parentKey: null, order: 12 },
 ]
 
 async function main() {
