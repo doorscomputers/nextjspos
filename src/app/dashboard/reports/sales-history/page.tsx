@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useMemo, useRef, ElementRef } from "react"
 import { usePathname } from "next/navigation"
 import { usePermissions } from "@/hooks/usePermissions"
 import { PERMISSIONS } from "@/lib/rbac"
@@ -111,7 +111,7 @@ export default function SalesHistoryPage() {
   const { can } = usePermissions()
   const pathname = usePathname()
   const isCashierMode = pathname?.includes('/dashboard/cashier-reports/') ?? false
-  const dataGridRef = useRef<DataGrid>(null)
+  const dataGridRef = useRef<ElementRef<typeof DataGrid>>(null)
 
   if (!can(PERMISSIONS.REPORT_SALES_HISTORY)) {
     return (
