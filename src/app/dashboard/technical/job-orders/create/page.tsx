@@ -170,7 +170,7 @@ export default function CreateJobOrderPage() {
     setFormData(prev => ({ ...prev, [field]: value }))
 
     // Auto-fill customer details when customer is selected
-    if (field === 'customerId' && value) {
+    if (field === 'customerId' && value && value !== 'walk-in') {
       const customer = customers.find(c => c.id === parseInt(value))
       if (customer) {
         setFormData(prev => ({
@@ -181,6 +181,15 @@ export default function CreateJobOrderPage() {
           customerEmail: customer.email || '',
         }))
       }
+    } else if (field === 'customerId' && value === 'walk-in') {
+      // Clear customer details for walk-in
+      setFormData(prev => ({
+        ...prev,
+        customerId: 'walk-in',
+        customerName: '',
+        customerPhone: '',
+        customerEmail: '',
+      }))
     }
 
     // Auto-fill labor cost when service type is selected
@@ -208,6 +217,14 @@ export default function CreateJobOrderPage() {
 
     setSubmitting(true)
     try {
+      // Convert special values to null for API
+      const customerId = formData.customerId && formData.customerId !== 'walk-in'
+        ? parseInt(formData.customerId)
+        : null
+      const technicianId = formData.technicianId && formData.technicianId !== 'unassigned'
+        ? parseInt(formData.technicianId)
+        : null
+
       const response = await fetch('/api/job-orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -218,11 +235,11 @@ export default function CreateJobOrderPage() {
           productId: parseInt(formData.productId),
           productVariationId: parseInt(formData.productVariationId),
           serialNumber: formData.serialNumber || null,
-          customerId: formData.customerId ? parseInt(formData.customerId) : null,
+          customerId,
           customerName: formData.customerName,
           customerPhone: formData.customerPhone || null,
           customerEmail: formData.customerEmail || null,
-          technicianId: formData.technicianId ? parseInt(formData.technicianId) : null,
+          technicianId,
           problemDescription: formData.problemDescription,
           priority: formData.priority,
           estimatedEndDate: formData.estimatedEndDate || null,
@@ -434,7 +451,7 @@ export default function CreateJobOrderPage() {
                     <SelectValue placeholder="Select customer (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Walk-in Customer</SelectItem>
+                    <SelectItem value="walk-in">Walk-in Customer</SelectItem>
                     {customers.map((cust) => (
                       <SelectItem key={cust.id} value={cust.id.toString()}>
                         {cust.name} - {cust.mobile || 'No phone'}
@@ -486,7 +503,7 @@ export default function CreateJobOrderPage() {
                     <SelectValue placeholder="Select technician (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
                     {technicians.map((tech) => (
                       <SelectItem key={tech.id} value={tech.id.toString()}>
                         {tech.firstName} {tech.lastName} ({tech.employeeCode})
