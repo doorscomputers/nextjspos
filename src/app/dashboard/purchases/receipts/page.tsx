@@ -375,12 +375,12 @@ export default function PurchaseReceiptsPage() {
   }
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950 p-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Purchase Receipts (GRN)</h1>
-          <p className="text-gray-600 mt-1">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-900 via-orange-800 to-amber-900 dark:from-amber-100 dark:via-orange-300 dark:to-amber-100 bg-clip-text text-transparent">Purchase Receipts (GRN)</h1>
+          <p className="text-amber-700 dark:text-amber-300 mt-1">
             View and approve goods received notes. Create GRNs from Purchase Orders only.
           </p>
         </div>
@@ -516,26 +516,26 @@ export default function PurchaseReceiptsPage() {
                   <thead>
                     <tr className="border-b">
                       <th
-                        className="text-left py-3 px-4 cursor-pointer hover:bg-gray-50"
+                        className="text-left py-3 px-4 cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/30"
                         onClick={() => handleSort('receiptNumber')}
                       >
                         GRN # {getSortIcon('receiptNumber')}
                       </th>
                       <th className="text-left py-3 px-4">PO #</th>
                       <th
-                        className="text-left py-3 px-4 cursor-pointer hover:bg-gray-50"
+                        className="text-left py-3 px-4 cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/30"
                         onClick={() => handleSort('supplier')}
                       >
                         Supplier {getSortIcon('supplier')}
                       </th>
                       <th
-                        className="text-left py-3 px-4 cursor-pointer hover:bg-gray-50"
+                        className="text-left py-3 px-4 cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/30"
                         onClick={() => handleSort('receiptDate')}
                       >
                         Receipt Date {getSortIcon('receiptDate')}
                       </th>
                       <th
-                        className="text-left py-3 px-4 cursor-pointer hover:bg-gray-50"
+                        className="text-left py-3 px-4 cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/30"
                         onClick={() => handleSort('totalQuantity')}
                       >
                         Quantity {getSortIcon('totalQuantity')}
@@ -543,7 +543,7 @@ export default function PurchaseReceiptsPage() {
                       <th className="text-left py-3 px-4">Received By</th>
                       <th className="text-left py-3 px-4">Approved By</th>
                       <th
-                        className="text-left py-3 px-4 cursor-pointer hover:bg-gray-50"
+                        className="text-left py-3 px-4 cursor-pointer hover:bg-amber-50 dark:hover:bg-amber-900/30"
                         onClick={() => handleSort('status')}
                       >
                         Status {getSortIcon('status')}
@@ -553,7 +553,7 @@ export default function PurchaseReceiptsPage() {
                   </thead>
                   <tbody>
                     {filteredReceipts.map((receipt) => (
-                      <tr key={receipt.id} className="border-b hover:bg-gray-50">
+                      <tr key={receipt.id} className="border-b hover:bg-amber-50 dark:hover:bg-amber-900/30">
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{receipt.receiptNumber}</span>

@@ -158,21 +158,21 @@ export default function TransfersDevExtremePage() {
     const transfer = props.data.data
 
     return (
-      <div className="p-6 bg-gray-50 dark:bg-gray-900">
+      <div className="p-6 bg-amber-50 dark:bg-amber-950/50">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Transfer Items */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <div className="bg-white dark:bg-amber-900/30 rounded-lg shadow p-4 border border-amber-200 dark:border-amber-700">
             <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
               Transfer Items ({transfer.items.length})
             </h3>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-800">
+                <thead className="bg-amber-50 dark:bg-amber-900/50">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Product</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Sent</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Received</th>
-                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-amber-700 dark:text-amber-300 uppercase">Product</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-amber-700 dark:text-amber-300 uppercase">Sent</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-amber-700 dark:text-amber-300 uppercase">Received</th>
+                    <th className="px-4 py-2 text-center text-xs font-medium text-amber-700 dark:text-amber-300 uppercase">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -215,7 +215,7 @@ export default function TransfersDevExtremePage() {
           </div>
 
           {/* Status History & Workflow */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <div className="bg-white dark:bg-amber-900/30 rounded-lg shadow p-4 border border-amber-200 dark:border-amber-700">
             <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
               Workflow History
             </h3>
@@ -332,7 +332,7 @@ export default function TransfersDevExtremePage() {
 
         {/* Notes */}
         {transfer.notes && (
-          <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <div className="mt-6 bg-white dark:bg-amber-900/30 rounded-lg shadow p-4 border border-amber-200 dark:border-amber-700">
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Notes:</h3>
             <p className="text-sm text-gray-900 dark:text-gray-100">{transfer.notes}</p>
           </div>
@@ -361,14 +361,14 @@ export default function TransfersDevExtremePage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950 p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex-1">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-900 via-orange-800 to-amber-900 dark:from-amber-100 dark:via-orange-300 dark:to-amber-100 bg-clip-text text-transparent">
             Stock Transfers
           </h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-1">
+          <p className="text-amber-700 dark:text-amber-300 mt-1">
             Manage stock transfers with master-detail view (default: pending check)
           </p>
 
@@ -443,7 +443,7 @@ export default function TransfersDevExtremePage() {
       </div>
 
       {/* DevExtreme DataGrid with Master-Detail */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+      <div className="bg-white dark:bg-amber-900/30 rounded-lg shadow-lg p-6 border border-amber-200 dark:border-amber-700">
         <DataGrid
           dataSource={transfers}
           keyExpr="id"
