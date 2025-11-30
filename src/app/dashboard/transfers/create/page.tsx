@@ -77,6 +77,7 @@ export default function CreateTransferPage() {
   const [items, setItems] = useState<TransferItem[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [showClearAllDialog, setShowClearAllDialog] = useState(false)
 
   // INSTANT SEARCH: Load all products once (POS pattern - client-side filtering)
   const [allProducts, setAllProducts] = useState<Product[]>([])
@@ -543,10 +544,7 @@ export default function CreateTransferPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        setItems([])
-                        toast.info('All items cleared')
-                      }}
+                      onClick={() => setShowClearAllDialog(true)}
                       className="gap-2 hover:border-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors"
                     >
                       <XMarkIcon className="h-4 w-4" />
@@ -681,35 +679,133 @@ export default function CreateTransferPage() {
         </div>
       </div>
 
-      {/* Confirmation Dialog */}
-      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <AlertDialogContent>
+      {/* Clear All Confirmation Dialog */}
+      <AlertDialog open={showClearAllDialog} onOpenChange={setShowClearAllDialog}>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Transfer Details</AlertDialogTitle>
-            <AlertDialogDescription className="space-y-3">
-              <p className="text-base">
-                Are you sure you want to transfer <strong className="text-gray-900">{items.reduce((sum, item) => sum + item.quantity, 0)} item(s)</strong> to:
-              </p>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-lg font-semibold text-blue-900">
-                  {allLocations.find(loc => loc.id === parseInt(toLocationId))?.name || 'Unknown Location'}
+            <AlertDialogTitle className="text-xl flex items-center gap-2 text-red-600 dark:text-red-400">
+              <span className="text-2xl">🗑️</span>
+              Clear All Items?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <p className="text-base text-gray-700 dark:text-gray-300">
+                  Are you sure you want to remove <strong className="text-red-600 dark:text-red-400">ALL {items.length} item(s)</strong> from this transfer?
                 </p>
-                <p className="text-sm text-blue-700 mt-1">
-                  From: {location?.name || 'Unknown Location'}
-                </p>
+
+                {/* Items that will be removed */}
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                  <p className="text-sm font-medium text-red-700 dark:text-red-300 mb-2">
+                    Items to be removed:
+                  </p>
+                  <div className="max-h-32 overflow-y-auto space-y-1">
+                    {items.map((item, index) => (
+                      <div key={index} className="flex justify-between text-sm text-red-600 dark:text-red-400">
+                        <span className="truncate flex-1">• {item.productName}</span>
+                        <span className="ml-2">×{item.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-700 text-sm font-semibold text-red-700 dark:text-red-300">
+                    Total: {items.reduce((sum, item) => sum + item.quantity, 0)} units will be cleared
+                  </div>
+                </div>
+
+                {/* Warning */}
+                <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-lg p-3 flex items-start gap-2">
+                  <span className="text-lg">⚠️</span>
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    <strong>Warning:</strong> This action cannot be undone. You will need to add items again manually.
+                  </p>
+                </div>
               </div>
-              <p className="text-sm text-gray-600 mt-2">
-                <strong>Important:</strong> Once created, the transfer will enter "Draft" status. You can still cancel it at this stage if you made a mistake.
-              </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="shadow-md hover:shadow-lg transition-all duration-200">Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="mt-4">
+            <AlertDialogCancel className="shadow-md hover:shadow-lg transition-all duration-200 min-w-24">
+              Keep Items
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setItems([])
+                setShowClearAllDialog(false)
+                toast.info('All items have been cleared')
+              }}
+              className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold min-w-36"
+            >
+              🗑️ Yes, Clear All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent className="max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl flex items-center gap-2">
+              <span className="text-2xl">⚠️</span>
+              Confirm Stock Transfer
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <p className="text-base text-gray-700 dark:text-gray-300">
+                  Please review the transfer details before proceeding:
+                </p>
+
+                {/* Transfer Route */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/30 dark:to-indigo-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="text-center flex-1">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">From</p>
+                      <p className="font-semibold text-gray-900 dark:text-gray-100">{location?.name || 'Unknown'}</p>
+                    </div>
+                    <div className="text-2xl px-4">→</div>
+                    <div className="text-center flex-1">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">To</p>
+                      <p className="font-semibold text-blue-700 dark:text-blue-300">{allLocations.find(loc => loc.id === parseInt(toLocationId))?.name || 'Unknown'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Items Summary */}
+                <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Items to Transfer ({items.length}):
+                  </p>
+                  <div className="max-h-40 overflow-y-auto space-y-2">
+                    {items.map((item, index) => (
+                      <div key={index} className="flex justify-between text-sm bg-white dark:bg-gray-900 px-3 py-2 rounded border border-gray-100 dark:border-gray-700">
+                        <span className="text-gray-700 dark:text-gray-300 truncate flex-1">{item.productName} - {item.variationName}</span>
+                        <span className="font-semibold text-blue-600 dark:text-blue-400 ml-2">×{item.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600 flex justify-between font-semibold">
+                    <span className="text-gray-700 dark:text-gray-300">Total Quantity:</span>
+                    <span className="text-blue-700 dark:text-blue-300">{items.reduce((sum, item) => sum + item.quantity, 0)} units</span>
+                  </div>
+                </div>
+
+                {/* Warning */}
+                <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 rounded-lg p-3 flex items-start gap-2">
+                  <span className="text-lg">💡</span>
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    <strong>Note:</strong> The transfer will be created in <strong>"Draft"</strong> status. You can still cancel it if you made a mistake.
+                  </p>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4">
+            <AlertDialogCancel className="shadow-md hover:shadow-lg transition-all duration-200 min-w-24">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleSubmit}
-              className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
+              className="bg-gradient-to-r from-green-600 to-green-500 hover:from-green-700 hover:to-green-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold min-w-36"
             >
-              Yes, Create Transfer
+              ✓ Yes, Create Transfer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
