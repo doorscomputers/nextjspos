@@ -126,19 +126,19 @@ function SearchableSelect({
             className="fixed inset-0 z-40"
             onClick={() => setIsOpen(false)}
           />
-          <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg dark:bg-gray-800 dark:border-gray-700">
-            <div className="p-2 border-b dark:border-gray-700">
+          <div className="absolute z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg dark:bg-gray-800 dark:border-gray-600">
+            <div className="p-2 border-b border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
               <Input
                 placeholder={searchPlaceholder}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-8 dark:bg-gray-700 dark:border-gray-600"
+                className="h-8 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-500 text-gray-900 dark:text-white"
                 autoFocus
               />
             </div>
-            <div className="max-h-60 overflow-auto p-1">
+            <div className="max-h-60 overflow-auto p-1 bg-white dark:bg-gray-800">
               {filteredOptions.length === 0 ? (
-                <div className="py-6 text-center text-sm text-muted-foreground">
+                <div className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                   No results found
                 </div>
               ) : (
@@ -157,16 +157,16 @@ function SearchableSelect({
                         setSearch('')
                       }}
                       className={cn(
-                        "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer",
-                        "hover:bg-accent hover:text-accent-foreground",
-                        isSelected && "bg-accent"
+                        "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer text-gray-900 dark:text-gray-100",
+                        "hover:bg-blue-50 hover:text-blue-900 dark:hover:bg-blue-900/30 dark:hover:text-blue-100",
+                        isSelected && "bg-blue-100 dark:bg-blue-900/40"
                       )}
                     >
-                      <Check className={cn("h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />
+                      <Check className={cn("h-4 w-4 text-blue-600 dark:text-blue-400", isSelected ? "opacity-100" : "opacity-0")} />
                       <div className="flex flex-col items-start">
-                        <span>{label}</span>
+                        <span className="text-gray-900 dark:text-gray-100">{label}</span>
                         {sublabel && (
-                          <span className="text-xs text-muted-foreground">{sublabel}</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{sublabel}</span>
                         )}
                       </div>
                     </button>
@@ -510,10 +510,10 @@ export default function CreateJobOrderPage() {
 
   if (status === 'loading' || loading || locationLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950 p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col items-center justify-center py-12">
-          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin dark:border-blue-900 dark:border-t-blue-400"></div>
-          <p className="mt-4 text-slate-600 font-medium dark:text-gray-300">Loading...</p>
+          <div className="w-16 h-16 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin dark:border-amber-900 dark:border-t-amber-400"></div>
+          <p className="mt-4 text-amber-700 font-medium dark:text-amber-300">Loading...</p>
         </div>
       </div>
     )
@@ -521,7 +521,7 @@ export default function CreateJobOrderPage() {
 
   if (status === 'authenticated' && !can(PERMISSIONS.JOB_ORDER_CREATE)) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950 p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col items-center justify-center py-12">
           <p className="text-red-600 font-medium dark:text-red-400">Access denied. You do not have permission to create job orders.</p>
         </div>
@@ -542,7 +542,7 @@ export default function CreateJobOrderPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950 p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-4 mb-4">
@@ -550,19 +550,19 @@ export default function CreateJobOrderPage() {
             variant="outline"
             size="sm"
             onClick={() => router.back()}
-            className="dark:border-gray-700"
+            className="dark:border-amber-700"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
         </div>
         <div className="flex items-center gap-3">
-          <Wrench className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <Wrench className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-900 via-orange-800 to-amber-900 bg-clip-text text-transparent dark:from-amber-100 dark:via-orange-300 dark:to-amber-100">
             Create Job Order
           </h1>
         </div>
-        <p className="text-gray-600 dark:text-gray-400 mt-2">
+        <p className="text-amber-700 dark:text-amber-300 mt-2">
           Create a new repair or service job order
         </p>
       </div>
@@ -570,9 +570,9 @@ export default function CreateJobOrderPage() {
       <form onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Column - Job Details */}
-          <Card className="dark:bg-gray-800 dark:border-gray-700">
+          <Card className="border-amber-200 dark:bg-amber-900/30 dark:border-amber-700">
             <CardHeader>
-              <CardTitle className="dark:text-white">Job Details</CardTitle>
+              <CardTitle className="text-amber-900 dark:text-amber-100">Job Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -740,9 +740,9 @@ export default function CreateJobOrderPage() {
           </Card>
 
           {/* Right Column - Customer & Assignment */}
-          <Card className="dark:bg-gray-800 dark:border-gray-700">
+          <Card className="border-amber-200 dark:bg-amber-900/30 dark:border-amber-700">
             <CardHeader>
-              <CardTitle className="dark:text-white">Customer & Assignment</CardTitle>
+              <CardTitle className="text-amber-900 dark:text-amber-100">Customer & Assignment</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Customer */}
