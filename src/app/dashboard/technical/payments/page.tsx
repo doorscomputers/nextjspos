@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import { toast } from 'sonner'
-import { RefreshCw, DollarSign, Printer, XCircle } from 'lucide-react'
+import { RefreshCw, DollarSign, Printer, XCircle, Plus } from 'lucide-react'
+import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import DataGrid, {
@@ -236,10 +237,10 @@ export default function ServicePaymentsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950 p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col items-center justify-center py-12">
-          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin dark:border-blue-900 dark:border-t-blue-400"></div>
-          <p className="mt-4 text-slate-600 font-medium dark:text-gray-300">Loading payments...</p>
+          <div className="w-16 h-16 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin dark:border-amber-900 dark:border-t-amber-400"></div>
+          <p className="mt-4 text-amber-700 font-medium dark:text-amber-300">Loading payments...</p>
         </div>
       </div>
     )
@@ -247,7 +248,7 @@ export default function ServicePaymentsPage() {
 
   if (!can(PERMISSIONS.SERVICE_PAYMENT_VIEW)) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950 p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col items-center justify-center py-12">
           <p className="text-red-600 font-medium dark:text-red-400">Access denied. You do not have permission to view service payments.</p>
         </div>
@@ -256,22 +257,31 @@ export default function ServicePaymentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950 p-4 sm:p-6 lg:p-8">
       {/* Header Section */}
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <DollarSign className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-              <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-slate-900 via-blue-800 to-slate-900 bg-clip-text text-transparent dark:from-white dark:via-blue-400 dark:to-white">
+              <DollarSign className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+              <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-amber-900 via-orange-800 to-amber-900 bg-clip-text text-transparent dark:from-amber-100 dark:via-orange-300 dark:to-amber-100">
                 Service Payments
               </h1>
             </div>
-            <p className="text-slate-600 text-sm sm:text-base dark:text-gray-400">
+            <p className="text-amber-700 text-sm sm:text-base dark:text-amber-300">
               Manage service and repair payments
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link href="/dashboard/technical/job-orders">
+              <Button
+                variant="default"
+                className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow-md transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                Add Payment
+              </Button>
+            </Link>
             <Button
               onClick={handleRefresh}
               disabled={refreshing}
@@ -294,11 +304,11 @@ export default function ServicePaymentsPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <Card className="shadow-md border-slate-200 dark:bg-gray-800 dark:border-gray-700">
+          <Card className="shadow-md border-amber-200 dark:bg-amber-900/30 dark:border-amber-700">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-blue-100 rounded-lg dark:bg-blue-900/30">
-                  <DollarSign className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                <div className="p-3 bg-amber-100 rounded-lg dark:bg-amber-900/30">
+                  <DollarSign className="w-6 h-6 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Total Payments</p>
@@ -308,7 +318,7 @@ export default function ServicePaymentsPage() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-md border-slate-200 dark:bg-gray-800 dark:border-gray-700">
+          <Card className="shadow-md border-amber-200 dark:bg-amber-900/30 dark:border-amber-700">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-emerald-100 rounded-lg dark:bg-emerald-900/30">
@@ -324,7 +334,7 @@ export default function ServicePaymentsPage() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-md border-slate-200 dark:bg-gray-800 dark:border-gray-700">
+          <Card className="shadow-md border-amber-200 dark:bg-amber-900/30 dark:border-amber-700">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-yellow-100 rounded-lg dark:bg-yellow-900/30">
@@ -338,7 +348,7 @@ export default function ServicePaymentsPage() {
             </CardContent>
           </Card>
 
-          <Card className="shadow-md border-slate-200 dark:bg-gray-800 dark:border-gray-700">
+          <Card className="shadow-md border-amber-200 dark:bg-amber-900/30 dark:border-amber-700">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-red-100 rounded-lg dark:bg-red-900/30">
@@ -355,7 +365,7 @@ export default function ServicePaymentsPage() {
       </div>
 
       {/* DataGrid Card */}
-      <Card className="shadow-xl border-slate-200 overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+      <Card className="shadow-xl border-amber-200 overflow-hidden dark:bg-amber-900/30 dark:border-amber-700">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <DataGrid

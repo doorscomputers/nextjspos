@@ -185,28 +185,28 @@ export default function JobOrdersPage() {
     const jobOrder = data.data as JobOrder
 
     return (
-      <div className="p-6 bg-gray-50 dark:bg-gray-900">
+      <div className="p-6 bg-amber-50 dark:bg-amber-950/50">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Cost Breakdown */}
           <div>
             <h3 className="text-lg font-semibold mb-3 text-gray-900 dark:text-gray-100">Cost Breakdown</h3>
-            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="bg-white dark:bg-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-700 overflow-hidden">
               <div className="p-4 space-y-3">
-                <div className="flex justify-between items-center pb-2 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex justify-between items-center pb-2 border-b border-amber-200 dark:border-amber-700">
                   <span className="text-gray-600 dark:text-gray-400">Labor Cost:</span>
                   <span className="font-medium text-gray-900 dark:text-gray-100">
                     ₱{jobOrder.laborCost.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
-                <div className="flex justify-between items-center pb-2 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex justify-between items-center pb-2 border-b border-amber-200 dark:border-amber-700">
                   <span className="text-gray-600 dark:text-gray-400">Parts Cost:</span>
                   <span className="font-medium text-gray-900 dark:text-gray-100">
                     ₱{jobOrder.partsCost.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
-                <div className="flex justify-between items-center pb-2 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex justify-between items-center pb-2 border-b border-amber-200 dark:border-amber-700">
                   <span className="text-lg font-semibold text-gray-700 dark:text-gray-300">Total Cost:</span>
-                  <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                  <span className="text-lg font-bold text-amber-600 dark:text-amber-400">
                     ₱{jobOrder.totalCost.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -232,16 +232,16 @@ export default function JobOrdersPage() {
               Payments ({jobOrder.payments?.length || 0})
             </h3>
             {jobOrder.payments && jobOrder.payments.length > 0 ? (
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-100 dark:bg-gray-900">
+              <div className="bg-white dark:bg-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-700 overflow-hidden">
+                <table className="min-w-full divide-y divide-amber-200 dark:divide-amber-700">
+                  <thead className="bg-amber-100 dark:bg-amber-900/50">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">Date</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300">Method</th>
-                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 dark:text-gray-300">Amount</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-amber-800 dark:text-amber-200">Date</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-amber-800 dark:text-amber-200">Method</th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-amber-800 dark:text-amber-200">Amount</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="divide-y divide-amber-200 dark:divide-amber-700">
                     {jobOrder.payments.map((payment: any, index: number) => (
                       <tr key={index}>
                         <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
@@ -259,7 +259,7 @@ export default function JobOrdersPage() {
                 </table>
               </div>
             ) : (
-              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6 text-center">
+              <div className="bg-white dark:bg-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-700 p-6 text-center">
                 <p className="text-gray-500 dark:text-gray-400">No payments recorded</p>
               </div>
             )}
@@ -273,16 +273,16 @@ export default function JobOrdersPage() {
               Parts Used ({jobOrder.parts.length})
             </h3>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                <thead className="bg-gray-100 dark:bg-gray-900">
+              <table className="min-w-full divide-y divide-amber-200 dark:divide-amber-700 bg-white dark:bg-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-700">
+                <thead className="bg-amber-100 dark:bg-amber-900/50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Part Name</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Qty</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Unit Price</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Total</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-amber-800 dark:text-amber-200 uppercase">Part Name</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-amber-800 dark:text-amber-200 uppercase">Qty</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-amber-800 dark:text-amber-200 uppercase">Unit Price</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-amber-800 dark:text-amber-200 uppercase">Total</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                <tbody className="divide-y divide-amber-200 dark:divide-amber-700">
                   {jobOrder.parts.map((part: any, index: number) => (
                     <tr key={index}>
                       <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{part.partName}</td>
@@ -307,10 +307,10 @@ export default function JobOrdersPage() {
   // Show loading while session is loading OR data is loading
   if (status === 'loading' || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950 p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col items-center justify-center py-12">
-          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin dark:border-blue-900 dark:border-t-blue-400"></div>
-          <p className="mt-4 text-slate-600 font-medium dark:text-gray-300">Loading job orders...</p>
+          <div className="w-16 h-16 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin dark:border-amber-900 dark:border-t-amber-400"></div>
+          <p className="mt-4 text-amber-700 font-medium dark:text-amber-300">Loading job orders...</p>
         </div>
       </div>
     )
@@ -319,7 +319,7 @@ export default function JobOrdersPage() {
   // Check permission only after session is loaded
   if (status === 'authenticated' && !can(PERMISSIONS.JOB_ORDER_VIEW)) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950 p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col items-center justify-center py-12">
           <p className="text-red-600 font-medium dark:text-red-400">Access denied. You do not have permission to view job orders.</p>
         </div>
@@ -328,18 +328,18 @@ export default function JobOrdersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950 p-4 sm:p-6 lg:p-8">
       {/* Header Section */}
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <Wrench className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-              <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-slate-900 via-blue-800 to-slate-900 bg-clip-text text-transparent dark:from-white dark:via-blue-400 dark:to-white">
+              <Wrench className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+              <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-amber-900 via-orange-800 to-amber-900 bg-clip-text text-transparent dark:from-amber-100 dark:via-orange-300 dark:to-amber-100">
                 Job Orders
               </h1>
             </div>
-            <p className="text-slate-600 text-sm sm:text-base dark:text-gray-400">
+            <p className="text-amber-700 text-sm sm:text-base dark:text-amber-300">
               Manage repair and service job orders
             </p>
           </div>
@@ -376,7 +376,7 @@ export default function JobOrdersPage() {
       </div>
 
       {/* DataGrid Card */}
-      <Card className="shadow-xl border-slate-200 overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+      <Card className="shadow-xl border-amber-200 overflow-hidden dark:bg-amber-900/30 dark:border-amber-700">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <DataGrid
