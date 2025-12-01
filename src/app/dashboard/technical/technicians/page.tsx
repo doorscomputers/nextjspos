@@ -74,7 +74,7 @@ export default function TechniciansPage() {
   const fetchTechnicians = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/technical/technicians')
+      const response = await fetch('/api/technicians')
       const data = await response.json()
       if (response.ok) {
         const techData = Array.isArray(data) ? data : data.technicians || []
@@ -113,7 +113,7 @@ export default function TechniciansPage() {
 
   const handleToggleAvailability = async (technicianId: number, currentStatus: boolean) => {
     try {
-      const response = await fetch(`/api/technical/technicians/${technicianId}/availability`, {
+      const response = await fetch(`/api/technicians/${technicianId}/availability`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ isAvailable: !currentStatus }),

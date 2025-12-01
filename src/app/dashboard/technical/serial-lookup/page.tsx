@@ -66,7 +66,7 @@ export default function SerialLookupPage() {
     setSerialInfo(null)
 
     try {
-      const response = await fetch(`/api/technical/serial-lookup?serialNumber=${encodeURIComponent(searchTerm.trim())}`)
+      const response = await fetch(`/api/serial-numbers/lookup?serialNumber=${encodeURIComponent(searchTerm.trim())}`)
       const data = await response.json()
 
       if (response.ok) {

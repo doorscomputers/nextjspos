@@ -83,7 +83,7 @@ export default function WarrantyClaimsPage() {
   const fetchClaims = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/technical/warranty-claims')
+      const response = await fetch('/api/warranty-claims')
       const data = await response.json()
       if (response.ok) {
         const claimsData = Array.isArray(data) ? data : data.claims || []
@@ -120,7 +120,7 @@ export default function WarrantyClaimsPage() {
 
   const handleStatusChange = async (claimId: number, newStatus: string) => {
     try {
-      const response = await fetch(`/api/technical/warranty-claims/${claimId}/status`, {
+      const response = await fetch(`/api/warranty-claims/${claimId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
