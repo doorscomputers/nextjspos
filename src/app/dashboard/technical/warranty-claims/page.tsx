@@ -56,7 +56,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
 }
 
 export default function WarrantyClaimsPage() {
-  const { can } = usePermissions()
+  const { can, user } = usePermissions()
   const [claims, setClaims] = useState<WarrantyClaim[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -69,12 +69,16 @@ export default function WarrantyClaimsPage() {
   const dataGridRef = useRef<DataGrid>(null)
 
   useEffect(() => {
+    // Wait for user session to be loaded before checking permissions
+    if (!user) return
+
     if (!can(PERMISSIONS.WARRANTY_CLAIM_VIEW)) {
       toast.error('You do not have permission to view warranty claims')
+      setLoading(false) // Stop loading when permission denied
       return
     }
     fetchClaims()
-  }, [can])
+  }, [user])
 
   const fetchClaims = async () => {
     setLoading(true)

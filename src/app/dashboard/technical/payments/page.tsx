@@ -47,7 +47,7 @@ interface ServicePayment {
 }
 
 export default function ServicePaymentsPage() {
-  const { can } = usePermissions()
+  const { can, user } = usePermissions()
   const [payments, setPayments] = useState<ServicePayment[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -60,12 +60,16 @@ export default function ServicePaymentsPage() {
   const dataGridRef = useRef<DataGrid>(null)
 
   useEffect(() => {
+    // Wait for user session to be loaded before checking permissions
+    if (!user) return
+
     if (!can(PERMISSIONS.SERVICE_PAYMENT_VIEW)) {
       toast.error('You do not have permission to view service payments')
+      setLoading(false) // Stop loading when permission denied
       return
     }
     fetchPayments()
-  }, [can])
+  }, [user])
 
   const fetchPayments = async () => {
     setLoading(true)

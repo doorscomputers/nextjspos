@@ -71,7 +71,7 @@ interface RecentActivity {
 }
 
 export default function TechnicalDashboardPage() {
-  const { can } = usePermissions()
+  const { can, user } = usePermissions()
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [stats, setStats] = useState<DashboardStats>({
@@ -90,12 +90,16 @@ export default function TechnicalDashboardPage() {
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
 
   useEffect(() => {
+    // Wait for user session to be loaded before checking permissions
+    if (!user) return
+
     if (!can(PERMISSIONS.WARRANTY_CLAIM_VIEW) && !can(PERMISSIONS.JOB_ORDER_VIEW)) {
       toast.error('You do not have permission to view the service dashboard')
+      setLoading(false) // Stop loading when permission denied
       return
     }
     fetchDashboardData()
-  }, [can])
+  }, [user])
 
   const fetchDashboardData = async () => {
     setLoading(true)

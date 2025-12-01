@@ -47,7 +47,7 @@ interface Technician {
 }
 
 export default function TechniciansPage() {
-  const { can } = usePermissions()
+  const { can, user } = usePermissions()
   const [technicians, setTechnicians] = useState<Technician[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -60,12 +60,16 @@ export default function TechniciansPage() {
   const dataGridRef = useRef<DataGrid>(null)
 
   useEffect(() => {
+    // Wait for user session to be loaded before checking permissions
+    if (!user) return
+
     if (!can(PERMISSIONS.TECHNICIAN_VIEW)) {
       toast.error('You do not have permission to view technicians')
+      setLoading(false) // Stop loading when permission denied
       return
     }
     fetchTechnicians()
-  }, [can])
+  }, [user])
 
   const fetchTechnicians = async () => {
     setLoading(true)

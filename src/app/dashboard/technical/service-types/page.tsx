@@ -50,19 +50,23 @@ interface RepairServiceType {
 }
 
 export default function ServiceTypesPage() {
-  const { can } = usePermissions()
+  const { can, user } = usePermissions()
   const [serviceTypes, setServiceTypes] = useState<RepairServiceType[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const dataGridRef = useRef<DataGrid>(null)
 
   useEffect(() => {
+    // Wait for user session to be loaded before checking permissions
+    if (!user) return
+
     if (!can(PERMISSIONS.SERVICE_TYPE_VIEW)) {
       toast.error('You do not have permission to view service types')
+      setLoading(false) // Stop loading when permission denied
       return
     }
     fetchServiceTypes()
-  }, [can])
+  }, [user])
 
   const fetchServiceTypes = async () => {
     setLoading(true)
