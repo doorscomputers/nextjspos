@@ -119,6 +119,23 @@ export default function TechniciansPage() {
     toast.success('Technicians list refreshed')
   }
 
+  const handleAddTechnician = () => {
+    if (dataGridRef.current) {
+      const instance = dataGridRef.current.instance as any
+      if (instance && typeof instance.addRow === 'function') {
+        instance.addRow()
+      } else {
+        // Fallback: try accessing via component methods
+        try {
+          (dataGridRef.current as any).instance?.addRow?.()
+        } catch (err) {
+          console.error('Failed to add row:', err)
+          toast.error('Unable to open add form. Please try refreshing the page.')
+        }
+      }
+    }
+  }
+
   const handleToggleAvailability = async (technicianId: number, currentStatus: boolean) => {
     try {
       const response = await fetch(`/api/technicians/${technicianId}/availability`, {
@@ -448,7 +465,7 @@ export default function TechniciansPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
-              onClick={() => dataGridRef.current?.instance.addRow()}
+              onClick={handleAddTechnician}
               variant="default"
               className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow-md transition-all"
             >
