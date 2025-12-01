@@ -21,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
 import ReportFilterPanel from "@/components/reports/ReportFilterPanel"
 import DataGrid, {
   Column,
@@ -113,14 +112,7 @@ export default function SalesHistoryPage() {
   const isCashierMode = pathname?.includes('/dashboard/cashier-reports/') ?? false
   const dataGridRef = useRef<ElementRef<typeof DataGrid>>(null)
 
-  if (!can(PERMISSIONS.REPORT_SALES_HISTORY)) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-red-600 dark:text-red-400">You do not have permission to view reports</p>
-      </div>
-    )
-  }
-
+  // ALL hooks must be called BEFORE any early returns
   const [reportData, setReportData] = useState<SalesHistoryData | null>(null)
   const [loading, setLoading] = useState(false)
   const [showFilters, setShowFilters] = useState(true)
@@ -134,7 +126,7 @@ export default function SalesHistoryPage() {
   const [endDate, setEndDate] = useState("")
   const [productSearch, setProductSearch] = useState("")
   const [paymentMethod, setPaymentMethod] = useState("all")
-  const [dateRange, setDateRange] = useState("custom")
+  const [dateRange, setDateRange] = useState("today")
 
   // Sorting states
   const [sortBy, setSortBy] = useState("createdAt")
@@ -146,7 +138,6 @@ export default function SalesHistoryPage() {
 
   // Data for dropdowns
   const [locations, setLocations] = useState<Array<{ id: number; name: string }>>([])
-  const [hasAccessToAll, setHasAccessToAll] = useState<boolean>(false)
   const [customers, setCustomers] = useState<Array<{ id: number; name: string }>>([])
   const [enforcedLocationName, setEnforcedLocationName] = useState<string>("")
 
@@ -187,8 +178,9 @@ export default function SalesHistoryPage() {
   }, [page, sortBy, sortOrder])
 
   const fetchLocations = async () => {
+    type LocationItem = { id: number; name: string }
     try {
-      let list: any[] = []
+      let list: LocationItem[] = []
       let accessAll = false
       let primaryLocationId: string | null = null
 
@@ -197,8 +189,8 @@ export default function SalesHistoryPage() {
         const ulRes = await fetch('/api/user-locations')
         if (ulRes.ok) {
           const ul = await ulRes.json()
-          const raw = Array.isArray(ul.locations) ? ul.locations : []
-          list = raw.filter((l: any) => l?.name && !l.name.toLowerCase().includes('warehouse'))
+          const raw: LocationItem[] = Array.isArray(ul.locations) ? ul.locations : []
+          list = raw.filter((l) => l?.name && !l.name.toLowerCase().includes('warehouse'))
           accessAll = Boolean(ul.hasAccessToAll)
           primaryLocationId = ul.primaryLocationId ? String(ul.primaryLocationId) : null
           if (isCashierMode) {
@@ -215,32 +207,30 @@ export default function SalesHistoryPage() {
         const response = await fetch('/api/locations')
         if (response.ok) {
           const data = await response.json()
-          const locs = Array.isArray(data)
+          const locs: LocationItem[] = Array.isArray(data)
             ? data
             : Array.isArray(data.locations)
               ? data.locations
               : Array.isArray(data.data)
                 ? data.data
                 : []
-          list = locs.filter((l: any) => l?.name && !l.name.toLowerCase().includes('warehouse'))
+          list = locs.filter((l) => l?.name && !l.name.toLowerCase().includes('warehouse'))
           accessAll = true
         }
       }
 
       setLocations(list)
-      setHasAccessToAll(accessAll)
 
       // For restricted users, auto-select assigned/first location
       if (!accessAll) {
         const resolved = primaryLocationId || (list[0]?.id ? String(list[0].id) : 'all')
         setLocationId(resolved)
-        const found = list.find((l: any) => String(l.id) === String(resolved))
+        const found = list.find((l) => String(l.id) === String(resolved))
         if (found) setEnforcedLocationName(found.name)
       }
     } catch (error) {
       console.error('Failed to fetch locations:', error)
       setLocations([])
-      setHasAccessToAll(false)
     }
   }
 
@@ -314,27 +304,14 @@ export default function SalesHistoryPage() {
     setEndDate("")
     setProductSearch("")
     setPaymentMethod("all")
-    setDateRange("custom")
+    setDateRange("today")
     setSortBy("createdAt")
     setSortOrder("desc")
     setPage(1)
     fetchReport()
   }
 
-  const formatDateTime = (value: string) => {
-    if (!value) return "-"
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) return value
-    return date.toLocaleString(undefined, {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  }
-
-  const renderStatusBadge = (cellData: any) => {
+  const renderStatusBadge = (cellData: { value?: string }) => {
     const status = cellData.value?.toLowerCase() || ''
     const variants: Record<string, string> = {
       completed: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
@@ -351,6 +328,7 @@ export default function SalesHistoryPage() {
     )
   }
 
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   const onExporting = (e: any) => {
     const workbook = new Workbook()
     const worksheet = workbook.addWorksheet('Sales History')
@@ -382,10 +360,12 @@ export default function SalesHistoryPage() {
     })
     e.cancel = true
   }
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 
-  // Master detail template
+  // Master detail template - DevExtreme passes complex props
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const MasterDetailTemplate = (props: any) => {
-    const sale = props.data?.data || props.data
+    const sale: Sale | undefined = props.data?.data || props.data
 
     if (!sale) {
       return (
@@ -415,7 +395,7 @@ export default function SalesHistoryPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-amber-900/30 divide-y divide-amber-200 dark:divide-amber-700">
-                  {sale.items.map((item: any, idx: number) => (
+                  {sale.items.map((item: SaleItem, idx: number) => (
                     <tr key={idx} className="hover:bg-amber-50 dark:hover:bg-amber-800/30">
                       <td className="px-4 py-2 font-medium text-gray-900 dark:text-white">
                         {item.productName} ({item.variationName})
@@ -441,7 +421,7 @@ export default function SalesHistoryPage() {
           <div>
             <h4 className="font-semibold mb-2 text-amber-900 dark:text-amber-100">Payment Details</h4>
             <div className="grid grid-cols-2 gap-2">
-              {sale.payments.map((payment: any, idx: number) => (
+              {sale.payments.map((payment: { method: string; amount: number; referenceNumber: string | null }, idx: number) => (
                 <div key={idx} className="p-2 bg-white dark:bg-amber-900/30 rounded border border-amber-200 dark:border-amber-700">
                   <div className="text-sm font-medium text-amber-900 dark:text-amber-100">
                     {payment.method.toUpperCase()}
@@ -467,6 +447,15 @@ export default function SalesHistoryPage() {
             <p className="text-sm text-amber-700 dark:text-amber-300">{sale.notes}</p>
           </div>
         )}
+      </div>
+    )
+  }
+
+  // Permission check - AFTER all hooks
+  if (!can(PERMISSIONS.REPORT_SALES_HISTORY)) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-600 dark:text-red-400">You do not have permission to view reports</p>
       </div>
     )
   }
