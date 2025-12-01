@@ -360,6 +360,18 @@ export default function DashboardPageV2() {
     return formatCurrency(amount)
   }
 
+  // Define consistent location colors for charts
+  const locationColors: Record<string, string> = {
+    'Bambang': '#3b82f6',      // Blue
+    'Main Store': '#10b981',   // Green
+    'Tuguegarao': '#f59e0b',   // Orange
+  }
+  const defaultColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
+
+  const getLocationColor = (location: string, index: number) => {
+    return locationColors[location] || defaultColors[index % defaultColors.length]
+  }
+
   const metricCards = [
     {
       name: "Total Sales",
@@ -605,7 +617,7 @@ export default function DashboardPageV2() {
                         key={location}
                         valueField={location}
                         name={location}
-                        color={['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'][index % 6]}
+                        color={getLocationColor(location, index)}
                       />
                     ))}
                     <ArgumentAxis>
@@ -630,6 +642,10 @@ export default function DashboardPageV2() {
                   <PieChart
                     dataSource={salesByLocation?.totals || []}
                     height={350}
+                    customizePoint={(pointInfo: any) => {
+                      const color = getLocationColor(pointInfo.argument, pointInfo.index)
+                      return { color }
+                    }}
                   >
                     <Title text="Total Sales Distribution" />
                     <PieSeries
