@@ -4777,6 +4777,12 @@ model ServiceRepairPayment {
   // Notes
   notes String? @db.Text
 
+  // Void status
+  isVoided   Boolean   @default(false) @map("is_voided")
+  voidedAt   DateTime? @map("voided_at")
+  voidedBy   Int?      @map("voided_by")
+  voidReason String?   @map("void_reason") @db.Text
+
   // Timestamps
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -4788,6 +4794,7 @@ model ServiceRepairPayment {
   @@index([customerId])
   @@index([paymentDate])
   @@index([receivedBy])
+  @@index([isVoided])
   @@map("service_repair_payments")
 }
 
