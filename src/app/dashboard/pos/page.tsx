@@ -1212,9 +1212,9 @@ export default function POSEnhancedPage() {
     return 0
   }
 
-  // Calculate Additional Charge (for Credit Sales)
+  // Calculate Additional Charge (for all sales types)
   const calculateAdditionalCharge = () => {
-    if (!additionalChargeValue || !isCreditSale) return 0
+    if (!additionalChargeValue) return 0
     const value = parseFloat(additionalChargeValue)
     if (isNaN(value)) return 0
     if (additionalChargeType === 'percentage') {
@@ -1922,8 +1922,8 @@ export default function POSEnhancedPage() {
         // Separate fields for reporting
         itemDiscountsTotal: totalItemDiscounts,
         saleLevelDiscount: discountAmt,
-        // Additional Charge (uses shippingCost field) - only for Credit Sales
-        shippingCost: isCreditSale ? calculateAdditionalCharge() : 0,
+        // Additional Charge (uses shippingCost field) - for all sales types
+        shippingCost: calculateAdditionalCharge(),
         status: isCreditSale ? 'pending' : 'completed',
         freebieTotal: freebieTotal,
         // Cash tendered (for invoice display of change)
@@ -3030,10 +3030,9 @@ export default function POSEnhancedPage() {
               )}
             </div>
 
-            {/* Additional Charge Section (Credit Sales Only) */}
-            {isCreditSale && (
-              <div className="border-2 border-amber-400 rounded-lg p-3 bg-amber-50">
-                <Label className="text-sm font-bold block text-amber-700 mb-2">💰 Additional Charge (Optional)</Label>
+            {/* Additional Charge Section (for all sales types) */}
+            <div className="border-2 border-amber-400 rounded-lg p-3 bg-amber-50">
+              <Label className="text-sm font-bold block text-amber-700 mb-2">💰 Additional Charge (Optional)</Label>
                 <div className="space-y-2">
                   {/* Type Toggle */}
                   <div className="flex gap-2">
@@ -3060,6 +3059,7 @@ export default function POSEnhancedPage() {
                   <div className="flex gap-2">
                     <Input
                       type="number"
+                      min="0"
                       value={additionalChargeValue}
                       onChange={(e) => setAdditionalChargeValue(e.target.value)}
                       placeholder={additionalChargeType === 'fixed' ? 'Enter amount' : 'Enter percentage'}
@@ -3086,8 +3086,7 @@ export default function POSEnhancedPage() {
                     </div>
                   )}
                 </div>
-              </div>
-            )}
+            </div>
 
             {/* Remarks Field */}
             <div className="border-2 border-gray-300 rounded-lg p-3 bg-white">
