@@ -396,12 +396,12 @@ export default function JobOrdersPage() {
               keyExpr="id"
             >
               <LoadPanel enabled={true} />
-              <Scrolling mode="virtual" />
-              <Paging defaultPageSize={20} />
+              <Scrolling mode="standard" />
+              <Paging defaultPageSize={10} />
               <Pager
                 visible={true}
                 showPageSizeSelector={true}
-                allowedPageSizes={[10, 20, 50, 100]}
+                allowedPageSizes={[10, 20, 30, 40, 50]}
                 showInfo={true}
                 showNavigationButtons={true}
               />

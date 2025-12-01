@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import { toast } from 'sonner'
-import { RefreshCw, Users, UserPlus, Award, Clock, TrendingUp } from 'lucide-react'
+import { RefreshCw, Users, UserPlus, Award, Clock, TrendingUp, Plus } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import DataGrid, {
@@ -448,6 +448,14 @@ export default function TechniciansPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
+              onClick={() => dataGridRef.current?.instance.addRow()}
+              variant="default"
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow-md transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Add Technician
+            </Button>
+            <Button
               onClick={handleRefresh}
               disabled={refreshing}
               variant="outline"
@@ -551,12 +559,12 @@ export default function TechniciansPage() {
               keyExpr="id"
             >
               <LoadPanel enabled={true} />
-              <Scrolling mode="virtual" />
-              <Paging defaultPageSize={20} />
+              <Scrolling mode="standard" />
+              <Paging defaultPageSize={10} />
               <Pager
                 visible={true}
                 showPageSizeSelector={true}
-                allowedPageSizes={[10, 20, 50, 100]}
+                allowedPageSizes={[10, 20, 30, 40, 50]}
                 showInfo={true}
                 showNavigationButtons={true}
               />
