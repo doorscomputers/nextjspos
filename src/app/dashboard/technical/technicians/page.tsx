@@ -20,7 +20,12 @@ import DataGrid, {
   Scrolling,
   MasterDetail,
   ColumnChooser,
+  Editing,
+  Popup,
+  Form as DxForm,
+  RequiredRule,
 } from 'devextreme-react/data-grid'
+import { Item } from 'devextreme-react/form'
 import { Workbook } from 'exceljs'
 import { saveAs } from 'file-saver'
 import { exportDataGrid as exportToExcel } from 'devextreme/excel_exporter'
@@ -31,7 +36,10 @@ import 'devextreme/dist/css/dx.light.css'
 interface Technician {
   id: number
   employeeCode: string
-  employeeName: string
+  firstName: string
+  lastName: string
+  email: string | null
+  mobile: string | null
   position: string
   specialization: string
   certifications: string | null
@@ -130,6 +138,96 @@ export default function TechniciansPage() {
     } catch (error) {
       console.error('Error updating availability:', error)
       toast.error('Failed to update availability')
+    }
+  }
+
+  const onRowInserted = async (e: any) => {
+    try {
+      const response = await fetch('/api/technicians', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employeeCode: e.data.employeeCode,
+          firstName: e.data.firstName,
+          lastName: e.data.lastName,
+          email: e.data.email,
+          mobile: e.data.mobile,
+          position: e.data.position,
+          specialization: e.data.specialization,
+          primarySpecialization: e.data.specialization || 'General',
+          isActive: e.data.isActive !== undefined ? e.data.isActive : true,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('Technician created successfully')
+        fetchTechnicians()
+      } else {
+        toast.error(data.error || 'Failed to create technician')
+        e.cancel = true
+      }
+    } catch (error) {
+      console.error('Error creating technician:', error)
+      toast.error('Failed to create technician')
+      e.cancel = true
+    }
+  }
+
+  const onRowUpdated = async (e: any) => {
+    try {
+      const response = await fetch(`/api/technicians/${e.key}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employeeCode: e.data.employeeCode,
+          firstName: e.data.firstName,
+          lastName: e.data.lastName,
+          email: e.data.email,
+          mobile: e.data.mobile,
+          position: e.data.position,
+          specialization: e.data.specialization,
+          primarySpecialization: e.data.specialization,
+          isActive: e.data.isActive,
+          isAvailable: e.data.isAvailable,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('Technician updated successfully')
+        fetchTechnicians()
+      } else {
+        toast.error(data.error || 'Failed to update technician')
+        e.cancel = true
+      }
+    } catch (error) {
+      console.error('Error updating technician:', error)
+      toast.error('Failed to update technician')
+      e.cancel = true
+    }
+  }
+
+  const onRowRemoved = async (e: any) => {
+    try {
+      const response = await fetch(`/api/technicians/${e.key}`, {
+        method: 'DELETE',
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('Technician deleted successfully')
+      } else {
+        toast.error(data.error || 'Failed to delete technician')
+        e.cancel = true
+      }
+    } catch (error) {
+      console.error('Error deleting technician:', error)
+      toast.error('Failed to delete technician')
+      e.cancel = true
     }
   }
 
@@ -445,6 +543,9 @@ export default function TechniciansPage() {
               columnAutoWidth={true}
               wordWrapEnabled={false}
               onExporting={onExporting}
+              onRowInserted={onRowInserted}
+              onRowUpdated={onRowUpdated}
+              onRowRemoved={onRowRemoved}
               className="dx-card"
               width="100%"
               keyExpr="id"
@@ -474,26 +575,67 @@ export default function TechniciansPage() {
                 render={renderAssignedJobsDetail}
               />
 
+              <Editing
+                mode="popup"
+                allowAdding={can(PERMISSIONS.TECHNICIAN_CREATE)}
+                allowUpdating={can(PERMISSIONS.TECHNICIAN_EDIT)}
+                allowDeleting={can(PERMISSIONS.TECHNICIAN_DELETE)}
+                useIcons={true}
+              >
+                <Popup
+                  title="Technician Details"
+                  showTitle={true}
+                  width={700}
+                  height="auto"
+                />
+                <DxForm>
+                  <Item dataField="employeeCode" />
+                  <Item dataField="firstName" />
+                  <Item dataField="lastName" />
+                  <Item dataField="email" />
+                  <Item dataField="mobile" />
+                  <Item dataField="position" />
+                  <Item dataField="specialization" />
+                  <Item dataField="isActive" />
+                  <Item dataField="isAvailable" />
+                </DxForm>
+              </Editing>
+
               <Column
                 dataField="employeeCode"
                 caption="Employee Code"
                 minWidth={130}
-              />
+              >
+                <RequiredRule message="Employee code is required" />
+              </Column>
               <Column
-                dataField="employeeName"
-                caption="Name"
-                minWidth={200}
-              />
+                dataField="firstName"
+                caption="First Name"
+                minWidth={150}
+              >
+                <RequiredRule message="First name is required" />
+              </Column>
+              <Column
+                dataField="lastName"
+                caption="Last Name"
+                minWidth={150}
+              >
+                <RequiredRule message="Last name is required" />
+              </Column>
               <Column
                 dataField="position"
                 caption="Position"
                 minWidth={150}
-              />
+              >
+                <RequiredRule message="Position is required" />
+              </Column>
               <Column
                 dataField="specialization"
                 caption="Specialization"
                 minWidth={180}
-              />
+              >
+                <RequiredRule message="Specialization is required" />
+              </Column>
               <Column
                 dataField="skillLevel"
                 caption="Skill Level"
