@@ -107,6 +107,7 @@ export default function POSEnhancedPage() {
   // Cash In/Out State
   const [cashIOAmount, setCashIOAmount] = useState('')
   const [cashIORemarks, setCashIORemarks] = useState('')
+  const [cashIOSubmitting, setCashIOSubmitting] = useState(false)
 
   // Quotation State
   const [quotations, setQuotations] = useState<any[]>([])
@@ -1358,6 +1359,7 @@ export default function POSEnhancedPage() {
     )
     if (!confirmed) return
 
+    setCashIOSubmitting(true)
     try {
       const res = await fetch('/api/cash/in', {
         method: 'POST',
@@ -1389,6 +1391,8 @@ export default function POSEnhancedPage() {
       const errorMessage = err.message || 'Failed to record cash in'
       setError(errorMessage)
       alert(`Cash In Error: ${errorMessage}`)
+    } finally {
+      setCashIOSubmitting(false)
     }
   }
 
@@ -1412,6 +1416,7 @@ export default function POSEnhancedPage() {
     )
     if (!confirmed) return
 
+    setCashIOSubmitting(true)
     try {
       const res = await fetch('/api/cash/out', {
         method: 'POST',
@@ -1443,6 +1448,8 @@ export default function POSEnhancedPage() {
       const errorMessage = err.message || 'Failed to record cash out'
       setError(errorMessage)
       alert(`Cash Out Error: ${errorMessage}`)
+    } finally {
+      setCashIOSubmitting(false)
     }
   }
 
@@ -3550,8 +3557,8 @@ export default function POSEnhancedPage() {
             <Button variant="outline" onClick={() => setShowCashInDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCashIn} className="bg-green-600">
-              Record Cash In
+            <Button onClick={handleCashIn} className="bg-green-600" disabled={cashIOSubmitting}>
+              {cashIOSubmitting ? 'Recording...' : 'Record Cash In'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -3590,8 +3597,8 @@ export default function POSEnhancedPage() {
             <Button variant="outline" onClick={() => setShowCashOutDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCashOut} className="bg-red-600">
-              Record Cash Out
+            <Button onClick={handleCashOut} className="bg-red-600" disabled={cashIOSubmitting}>
+              {cashIOSubmitting ? 'Recording...' : 'Record Cash Out'}
             </Button>
           </DialogFooter>
         </DialogContent>
