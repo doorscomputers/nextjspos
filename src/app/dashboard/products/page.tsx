@@ -795,7 +795,12 @@ export default function ProductsPage() {
   // Handle manual search button click
   const handleSearchClick = () => {
     setSearchTerm(searchInput)
-    handleSimpleFilterChange('search', searchInput)
+    // Directly update filters instead of calling handleSimpleFilterChange
+    // because handleSimpleFilterChange returns early for text filters
+    setFilters((prev) => ({
+      ...prev,
+      search: searchInput,
+    }))
   }
 
   // Handle clearing search
