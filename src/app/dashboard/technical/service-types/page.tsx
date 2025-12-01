@@ -238,10 +238,10 @@ export default function ServiceTypesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950 p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col items-center justify-center py-12">
-          <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin dark:border-blue-900 dark:border-t-blue-400"></div>
-          <p className="mt-4 text-slate-600 font-medium dark:text-gray-300">Loading service types...</p>
+          <div className="w-16 h-16 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin dark:border-amber-900 dark:border-t-amber-400"></div>
+          <p className="mt-4 text-amber-700 font-medium dark:text-amber-300">Loading service types...</p>
         </div>
       </div>
     )
@@ -249,7 +249,7 @@ export default function ServiceTypesPage() {
 
   if (!can(PERMISSIONS.SERVICE_TYPE_VIEW)) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950 p-4 sm:p-6 lg:p-8">
         <div className="flex flex-col items-center justify-center py-12">
           <p className="text-red-600 font-medium dark:text-red-400">Access denied. You do not have permission to view service types.</p>
         </div>
@@ -258,18 +258,18 @@ export default function ServiceTypesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950 p-4 sm:p-6 lg:p-8">
       {/* Header Section */}
       <div className="mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <Wrench className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-              <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-slate-900 via-blue-800 to-slate-900 bg-clip-text text-transparent dark:from-white dark:via-blue-400 dark:to-white">
+              <Wrench className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+              <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-amber-900 via-orange-800 to-amber-900 bg-clip-text text-transparent dark:from-amber-100 dark:via-orange-300 dark:to-amber-100">
                 Service Types
               </h1>
             </div>
-            <p className="text-slate-600 text-sm sm:text-base dark:text-gray-400">
+            <p className="text-amber-700 text-sm sm:text-base dark:text-amber-300">
               Manage repair and service type definitions
             </p>
           </div>
@@ -296,7 +296,7 @@ export default function ServiceTypesPage() {
       </div>
 
       {/* DataGrid Card */}
-      <Card className="shadow-xl border-slate-200 overflow-hidden dark:bg-gray-800 dark:border-gray-700">
+      <Card className="shadow-xl border-amber-200 overflow-hidden dark:bg-amber-900/30 dark:border-amber-700">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <DataGrid
