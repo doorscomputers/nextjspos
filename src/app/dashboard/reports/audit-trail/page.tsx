@@ -217,7 +217,7 @@ export default function AuditTrailPage() {
 
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 50,
+    limit: 10,
     total: 0,
     totalPages: 0,
     hasNext: false,
@@ -287,6 +287,17 @@ export default function AuditTrailPage() {
       setLoading(false)
     }
   }
+
+  // Handle page size change
+  const handlePageSizeChange = (newLimit: number) => {
+    setPagination(prev => ({ ...prev, limit: newLimit, page: 1 }))
+  }
+
+  // Refetch when limit changes
+  useEffect(() => {
+    fetchAuditLogs(1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagination.limit])
 
   // Fetch summary statistics
   const fetchSummary = async () => {
@@ -961,10 +972,30 @@ export default function AuditTrailPage() {
               </div>
 
               {/* Pagination */}
-              <div className="flex justify-between items-center mt-4">
-                <div className="text-sm text-gray-600">
-                  Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
-                  {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} entries
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-4">
+                <div className="flex items-center gap-4">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    Showing {((pagination.page - 1) * pagination.limit) + 1} to{' '}
+                    {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} entries
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Show:</span>
+                    <Select
+                      value={pagination.limit.toString()}
+                      onValueChange={(val) => handlePageSizeChange(parseInt(val))}
+                    >
+                      <SelectTrigger className="w-20 h-8">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="30">30</SelectItem>
+                        <SelectItem value="40">40</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Button
