@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -168,6 +168,177 @@ function SearchableSelect({
                         {sublabel && (
                           <span className="text-xs text-gray-500 dark:text-gray-400">{sublabel}</span>
                         )}
+                      </div>
+                    </button>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// Product search component with server-side search
+function ProductSearchSelect({
+  value,
+  onValueChange,
+  placeholder,
+  initialProducts,
+}: {
+  value: string
+  onValueChange: (value: string) => void
+  placeholder: string
+  initialProducts: Product[]
+}) {
+  const [search, setSearch] = useState('')
+  const [isOpen, setIsOpen] = useState(false)
+  const [products, setProducts] = useState<Product[]>(initialProducts)
+  const [searching, setSearching] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Update products when initialProducts change
+  useEffect(() => {
+    setProducts(initialProducts)
+  }, [initialProducts])
+
+  // Find selected product
+  useEffect(() => {
+    if (value) {
+      const found = products.find(p => p.id.toString() === value)
+      if (found) {
+        setSelectedProduct(found)
+      } else if (!selectedProduct) {
+        // If not in current list, fetch it
+        fetch(`/api/products/${value}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.product) {
+              setSelectedProduct(data.product)
+            }
+          })
+          .catch(() => {})
+      }
+    } else {
+      setSelectedProduct(null)
+    }
+  }, [value, products])
+
+  const handleSearchChange = (searchValue: string) => {
+    setSearch(searchValue)
+
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+
+    // Debounce search
+    if (searchValue.length >= 2) {
+      setSearching(true)
+      searchTimeoutRef.current = setTimeout(async () => {
+        try {
+          const response = await fetch(`/api/products/search?q=${encodeURIComponent(searchValue)}&limit=50`)
+          if (response.ok) {
+            const data = await response.json()
+            setProducts(data.products || [])
+          }
+        } catch (error) {
+          console.error('Error searching products:', error)
+        } finally {
+          setSearching(false)
+        }
+      }, 300)
+    } else if (searchValue.length === 0) {
+      setProducts(initialProducts)
+    }
+  }
+
+  const displayLabel = selectedProduct ? selectedProduct.name : placeholder
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
+          "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+          "dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+        )}
+      >
+        <span className={cn(!selectedProduct && "text-muted-foreground")}>
+          {displayLabel}
+        </span>
+        <ChevronsUpDown className="h-4 w-4 opacity-50" />
+      </button>
+
+      {isOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg dark:bg-gray-800 dark:border-gray-600">
+            <div className="p-2 border-b border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
+              <Input
+                placeholder="Type at least 2 characters to search..."
+                value={search}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="h-8 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-500 text-gray-900 dark:text-white"
+                autoFocus
+              />
+            </div>
+            <div className="max-h-60 overflow-auto p-1 bg-white dark:bg-gray-800">
+              {/* Clear selection option */}
+              {value && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onValueChange('')
+                    setIsOpen(false)
+                    setSearch('')
+                  }}
+                  className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                >
+                  Clear selection
+                </button>
+              )}
+              {searching ? (
+                <div className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                  <div className="w-5 h-5 border-2 border-gray-300 border-t-amber-600 rounded-full animate-spin mx-auto mb-2"></div>
+                  Searching...
+                </div>
+              ) : products.length === 0 ? (
+                <div className="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                  {search.length >= 2 ? 'No products found' : 'Type to search products'}
+                </div>
+              ) : (
+                products.slice(0, 50).map((product) => {
+                  const isSelected = product.id.toString() === value
+
+                  return (
+                    <button
+                      key={product.id}
+                      type="button"
+                      onClick={() => {
+                        onValueChange(product.id.toString())
+                        setSelectedProduct(product)
+                        setIsOpen(false)
+                        setSearch('')
+                      }}
+                      className={cn(
+                        "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer text-gray-900 dark:text-gray-100",
+                        "hover:bg-blue-50 hover:text-blue-900 dark:hover:bg-blue-900/30 dark:hover:text-blue-100",
+                        isSelected && "bg-blue-100 dark:bg-blue-900/40"
+                      )}
+                    >
+                      <Check className={cn("h-4 w-4 text-blue-600 dark:text-blue-400", isSelected ? "opacity-100" : "opacity-0")} />
+                      <div className="flex flex-col items-start">
+                        <span className="text-gray-900 dark:text-gray-100">{product.name}</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">{product.sku}</span>
                       </div>
                     </button>
                   )
@@ -655,23 +826,14 @@ export default function CreateJobOrderPage() {
                 <Label className="dark:text-gray-200">
                   Link to Inventory Product <span className="text-gray-400 text-xs font-normal">(optional)</span>
                 </Label>
-                <SearchableSelect
-                  options={products}
+                <ProductSearchSelect
                   value={formData.productId}
                   onValueChange={(v) => handleInputChange('productId', v)}
                   placeholder="Search product (optional)..."
-                  searchPlaceholder="Type to search by name or SKU..."
-                  renderOption={(p) => ({
-                    label: p.name,
-                    sublabel: p.sku
-                  })}
-                  filterFn={(p, search) =>
-                    p.name?.toLowerCase().includes(search) ||
-                    p.sku?.toLowerCase().includes(search)
-                  }
+                  initialProducts={products}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Only select if the item is from your inventory
+                  Type at least 2 characters to search all products
                 </p>
               </div>
 
