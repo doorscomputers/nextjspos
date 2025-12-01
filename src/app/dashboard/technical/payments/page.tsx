@@ -83,6 +83,7 @@ export default function ServicePaymentsPage() {
   const [jobOrders, setJobOrders] = useState<JobOrder[]>([])
   const [locations, setLocations] = useState<BusinessLocation[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const [loadingDialogData, setLoadingDialogData] = useState(false)
   const [paymentForm, setPaymentForm] = useState({
     jobOrderId: '',
     locationId: '',
@@ -177,9 +178,9 @@ export default function ServicePaymentsPage() {
     }
   }
 
-  // Open add payment dialog
-  const handleOpenAddPayment = async () => {
-    await Promise.all([fetchJobOrders(), fetchLocations()])
+  // Open add payment dialog - show immediately, load data in background
+  const handleOpenAddPayment = () => {
+    // Reset form and show dialog immediately
     setPaymentForm({
       jobOrderId: '',
       locationId: '',
@@ -189,6 +190,11 @@ export default function ServicePaymentsPage() {
       notes: '',
     })
     setShowAddPaymentDialog(true)
+
+    // Load data in background
+    setLoadingDialogData(true)
+    Promise.all([fetchJobOrders(), fetchLocations()])
+      .finally(() => setLoadingDialogData(false))
   }
 
   // Get selected job order's remaining balance
@@ -631,6 +637,13 @@ export default function ServicePaymentsPage() {
             </DialogTitle>
           </DialogHeader>
 
+          {loadingDialogData ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <div className="w-10 h-10 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin"></div>
+              <p className="mt-3 text-amber-700 text-sm">Loading data...</p>
+            </div>
+          ) : (
+          <>
           <div className="space-y-4 py-4">
             {/* Job Order Selection */}
             <div className="space-y-2">
@@ -771,6 +784,8 @@ export default function ServicePaymentsPage() {
               {submitting ? 'Processing...' : 'Record Payment'}
             </Button>
           </DialogFooter>
+          </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
