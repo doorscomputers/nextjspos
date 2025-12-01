@@ -57,36 +57,43 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const now = new Date()
+    // IMPORTANT: Use Philippine Time (Asia/Manila, UTC+8) for date calculations
+    // Vercel servers run in UTC, but business operates in Philippine Time
+    const nowUtc = new Date()
+    const phOffset = 8 * 60 * 60 * 1000 // UTC+8 in milliseconds
+    const now = new Date(nowUtc.getTime() + (nowUtc.getTimezoneOffset() * 60 * 1000) + phOffset)
+
     let startDate: Date
     let groupBy: 'hour' | 'day' | 'week' | 'month'
 
     switch (period) {
       case 'day':
-        // Today's sales by hour
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        // Today's sales by hour (Philippine Time)
+        startDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - phOffset)
         groupBy = 'hour'
         break
       case 'month':
-        // This month's sales by day
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+        // This month's sales by day (Philippine Time)
+        startDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1) - phOffset)
         groupBy = 'day'
         break
       case 'quarter':
-        // This quarter's sales by week
+        // This quarter's sales by week (Philippine Time)
         const quarter = Math.floor(now.getMonth() / 3)
-        startDate = new Date(now.getFullYear(), quarter * 3, 1)
+        startDate = new Date(Date.UTC(now.getFullYear(), quarter * 3, 1) - phOffset)
         groupBy = 'week'
         break
       case 'year':
-        // This year's sales by month
-        startDate = new Date(now.getFullYear(), 0, 1)
+        // This year's sales by month (Philippine Time)
+        startDate = new Date(Date.UTC(now.getFullYear(), 0, 1) - phOffset)
         groupBy = 'month'
         break
       default:
-        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        startDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - phOffset)
         groupBy = 'hour'
     }
+
+    console.log(`[Sales by Location] Period: ${period}, PH Date: ${now.toISOString()}, Start Date: ${startDate.toISOString()}`)
 
     // OPTIMIZATION: Fetch ALL sales data in a single query instead of N queries (one per location)
     // This eliminates the N+1 query problem
