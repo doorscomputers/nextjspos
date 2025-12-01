@@ -173,6 +173,8 @@ export async function PUT(
     }
 
     const {
+      itemDescription,
+      receivedDate,
       customerName,
       customerPhone,
       customerEmail,
@@ -186,6 +188,8 @@ export async function PUT(
     const jobOrder = await prisma.repairJobOrder.update({
       where: { id: jobOrderId },
       data: {
+        ...(itemDescription !== undefined && { itemDescription }),
+        ...(receivedDate !== undefined && { receivedDate: receivedDate ? new Date(receivedDate) : null }),
         ...(customerName !== undefined && { customerName }),
         ...(customerPhone !== undefined && { customerPhone }),
         ...(customerEmail !== undefined && { customerEmail }),

@@ -70,7 +70,7 @@ export default function ServicePaymentsPage() {
   const fetchPayments = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/technical/payments')
+      const response = await fetch('/api/service-payments')
       const data = await response.json()
       if (response.ok) {
         const paymentsData = Array.isArray(data) ? data : data.payments || []
@@ -122,7 +122,7 @@ export default function ServicePaymentsPage() {
     }
 
     try {
-      const response = await fetch(`/api/technical/payments/${paymentId}/void`, {
+      const response = await fetch(`/api/service-payments/${paymentId}/void`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ voidReason: voidReason.trim() }),
@@ -143,7 +143,7 @@ export default function ServicePaymentsPage() {
   }
 
   const handlePrintReceipt = (paymentId: number) => {
-    window.open(`/api/technical/payments/${paymentId}/receipt`, '_blank')
+    window.open(`/api/service-payments/${paymentId}/receipt`, '_blank')
   }
 
   const onExporting = (e: any) => {

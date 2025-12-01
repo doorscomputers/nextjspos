@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useUserPrimaryLocation } from '@/hooks/useUserPrimaryLocation'
 import { PERMISSIONS } from '@/lib/rbac'
 import { toast } from 'sonner'
-import { ArrowLeft, Wrench, Save, Plus, Search, Check, ChevronsUpDown, X } from 'lucide-react'
+import { ArrowLeft, Wrench, Save, Plus, Check, ChevronsUpDown } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,19 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
 import {
   Dialog,
   DialogContent,
@@ -83,6 +70,117 @@ interface Customer {
   email: string
 }
 
+// Simple searchable select component
+function SearchableSelect({
+  options,
+  value,
+  onValueChange,
+  placeholder,
+  searchPlaceholder,
+  disabled,
+  renderOption,
+  filterFn,
+}: {
+  options: any[]
+  value: string
+  onValueChange: (value: string) => void
+  placeholder: string
+  searchPlaceholder: string
+  disabled?: boolean
+  renderOption: (option: any) => { label: string; sublabel?: string }
+  filterFn: (option: any, search: string) => boolean
+}) {
+  const [search, setSearch] = useState('')
+  const [isOpen, setIsOpen] = useState(false)
+
+  const filteredOptions = useMemo(() => {
+    if (!search) return options.slice(0, 100)
+    return options.filter(opt => filterFn(opt, search.toLowerCase())).slice(0, 100)
+  }, [options, search, filterFn])
+
+  const selectedOption = options.find(opt => opt.id?.toString() === value || opt.value === value)
+  const displayLabel = selectedOption ? renderOption(selectedOption).label : placeholder
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className={cn(
+          "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background",
+          "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+          "disabled:cursor-not-allowed disabled:opacity-50",
+          "dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+        )}
+      >
+        <span className={cn(!selectedOption && "text-muted-foreground")}>
+          {displayLabel}
+        </span>
+        <ChevronsUpDown className="h-4 w-4 opacity-50" />
+      </button>
+
+      {isOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg dark:bg-gray-800 dark:border-gray-700">
+            <div className="p-2 border-b dark:border-gray-700">
+              <Input
+                placeholder={searchPlaceholder}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-8 dark:bg-gray-700 dark:border-gray-600"
+                autoFocus
+              />
+            </div>
+            <div className="max-h-60 overflow-auto p-1">
+              {filteredOptions.length === 0 ? (
+                <div className="py-6 text-center text-sm text-muted-foreground">
+                  No results found
+                </div>
+              ) : (
+                filteredOptions.map((option) => {
+                  const { label, sublabel } = renderOption(option)
+                  const optionValue = option.id?.toString() || option.value
+                  const isSelected = optionValue === value
+
+                  return (
+                    <button
+                      key={optionValue}
+                      type="button"
+                      onClick={() => {
+                        onValueChange(optionValue)
+                        setIsOpen(false)
+                        setSearch('')
+                      }}
+                      className={cn(
+                        "flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer",
+                        "hover:bg-accent hover:text-accent-foreground",
+                        isSelected && "bg-accent"
+                      )}
+                    >
+                      <Check className={cn("h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />
+                      <div className="flex flex-col items-start">
+                        <span>{label}</span>
+                        {sublabel && (
+                          <span className="text-xs text-muted-foreground">{sublabel}</span>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 export default function CreateJobOrderPage() {
   const router = useRouter()
   const { data: session, status } = useSession()
@@ -100,21 +198,10 @@ export default function CreateJobOrderPage() {
   const [technicians, setTechnicians] = useState<Technician[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
 
-  // Combobox open states
-  const [serviceTypeOpen, setServiceTypeOpen] = useState(false)
-  const [productOpen, setProductOpen] = useState(false)
-  const [customerOpen, setCustomerOpen] = useState(false)
-  const [technicianOpen, setTechnicianOpen] = useState(false)
-
-  // Search states
-  const [serviceTypeSearch, setServiceTypeSearch] = useState('')
-  const [productSearch, setProductSearch] = useState('')
-  const [customerSearch, setCustomerSearch] = useState('')
-  const [technicianSearch, setTechnicianSearch] = useState('')
-
   // Quick add dialogs
   const [showServiceTypeDialog, setShowServiceTypeDialog] = useState(false)
   const [showTechnicianDialog, setShowTechnicianDialog] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [addingServiceType, setAddingServiceType] = useState(false)
   const [addingTechnician, setAddingTechnician] = useState(false)
 
@@ -136,10 +223,11 @@ export default function CreateJobOrderPage() {
   // Form data
   const [formData, setFormData] = useState({
     locationId: '',
-    jobOrderDate: new Date().toISOString().split('T')[0],
+    receivedDate: new Date().toISOString().split('T')[0], // When item was received (editable)
     serviceTypeId: '',
-    productId: '',
-    productVariationId: '',
+    itemDescription: '', // Required: describes customer's item
+    productId: '', // Optional: link to inventory product
+    productVariationId: '', // Optional: link to product variation
     serialNumber: '',
     customerId: '',
     customerName: '',
@@ -166,7 +254,6 @@ export default function CreateJobOrderPage() {
   }, [status])
 
   useEffect(() => {
-    // Fetch variations when product changes
     if (formData.productId) {
       fetchVariations(formData.productId)
     } else {
@@ -232,51 +319,9 @@ export default function CreateJobOrderPage() {
     }
   }
 
-  // Filtered lists for searchable dropdowns
-  const filteredServiceTypes = useMemo(() => {
-    if (!serviceTypeSearch) return serviceTypes
-    const search = serviceTypeSearch.toLowerCase()
-    return serviceTypes.filter(st =>
-      st.name.toLowerCase().includes(search) ||
-      st.code?.toLowerCase().includes(search) ||
-      st.category?.toLowerCase().includes(search)
-    )
-  }, [serviceTypes, serviceTypeSearch])
-
-  const filteredProducts = useMemo(() => {
-    if (!productSearch) return products.slice(0, 100) // Limit initial display
-    const search = productSearch.toLowerCase()
-    return products.filter(p =>
-      p.name.toLowerCase().includes(search) ||
-      p.sku?.toLowerCase().includes(search)
-    ).slice(0, 100)
-  }, [products, productSearch])
-
-  const filteredCustomers = useMemo(() => {
-    if (!customerSearch) return customers.slice(0, 100)
-    const search = customerSearch.toLowerCase()
-    return customers.filter(c =>
-      c.name.toLowerCase().includes(search) ||
-      c.mobile?.toLowerCase().includes(search) ||
-      c.email?.toLowerCase().includes(search)
-    ).slice(0, 100)
-  }, [customers, customerSearch])
-
-  const filteredTechnicians = useMemo(() => {
-    if (!technicianSearch) return technicians
-    const search = technicianSearch.toLowerCase()
-    return technicians.filter(t =>
-      t.firstName.toLowerCase().includes(search) ||
-      t.lastName.toLowerCase().includes(search) ||
-      t.employeeCode?.toLowerCase().includes(search) ||
-      `${t.firstName} ${t.lastName}`.toLowerCase().includes(search)
-    )
-  }, [technicians, technicianSearch])
-
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
 
-    // Auto-fill customer details when customer is selected
     if (field === 'customerId' && value && value !== 'walk-in') {
       const customer = customers.find(c => c.id === parseInt(value))
       if (customer) {
@@ -298,7 +343,6 @@ export default function CreateJobOrderPage() {
       }))
     }
 
-    // Auto-fill labor cost when service type is selected
     if (field === 'serviceTypeId' && value) {
       const serviceType = serviceTypes.find(st => st.id === parseInt(value))
       if (serviceType) {
@@ -311,7 +355,6 @@ export default function CreateJobOrderPage() {
     }
   }
 
-  // Quick add handlers
   const handleAddServiceType = async () => {
     if (!newServiceType.code || !newServiceType.name) {
       toast.error('Please fill in code and name')
@@ -335,7 +378,6 @@ export default function CreateJobOrderPage() {
 
       if (response.ok) {
         toast.success('Service type added successfully')
-        // Add to list and select it
         const newST = data.serviceType
         setServiceTypes(prev => [...prev, newST])
         handleInputChange('serviceTypeId', newST.id.toString())
@@ -376,7 +418,6 @@ export default function CreateJobOrderPage() {
 
       if (response.ok) {
         toast.success('Technician added successfully')
-        // Add to list and select
         const newTech = data.technician?.employee || data.technician
         if (newTech) {
           setTechnicians(prev => [...prev, {
@@ -400,15 +441,22 @@ export default function CreateJobOrderPage() {
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.locationId || !formData.serviceTypeId || !formData.productId ||
-        !formData.productVariationId || !formData.customerName || !formData.problemDescription) {
-      toast.error('Please fill in all required fields')
+    // Validation: itemDescription is required, product fields are now optional
+    if (!formData.locationId || !formData.serviceTypeId || !formData.itemDescription ||
+        !formData.customerName || !formData.problemDescription) {
+      toast.error('Please fill in all required fields: Service Type, Item Description, Customer Name, Problem Description')
       return
     }
 
+    // Show confirmation dialog
+    setShowConfirmDialog(true)
+  }
+
+  const handleConfirmCreate = async () => {
+    setShowConfirmDialog(false)
     setSubmitting(true)
     try {
       const customerId = formData.customerId && formData.customerId !== 'walk-in'
@@ -423,10 +471,12 @@ export default function CreateJobOrderPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           locationId: parseInt(formData.locationId),
-          jobOrderDate: formData.jobOrderDate,
+          // jobOrderDate is auto-set by server
+          receivedDate: formData.receivedDate || null, // When item was received
           serviceTypeId: parseInt(formData.serviceTypeId),
-          productId: parseInt(formData.productId),
-          productVariationId: parseInt(formData.productVariationId),
+          itemDescription: formData.itemDescription, // Required: describes customer's item
+          productId: formData.productId ? parseInt(formData.productId) : null, // Optional
+          productVariationId: formData.productVariationId ? parseInt(formData.productVariationId) : null, // Optional
           serialNumber: formData.serialNumber || null,
           customerId,
           customerName: formData.customerName,
@@ -456,12 +506,6 @@ export default function CreateJobOrderPage() {
     }
   }
 
-  // Get selected display values
-  const selectedServiceType = serviceTypes.find(st => st.id.toString() === formData.serviceTypeId)
-  const selectedProduct = products.find(p => p.id.toString() === formData.productId)
-  const selectedCustomer = customers.find(c => c.id.toString() === formData.customerId)
-  const selectedTechnician = technicians.find(t => t.id.toString() === formData.technicianId)
-
   if (status === 'loading' || loading || locationLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
@@ -482,6 +526,18 @@ export default function CreateJobOrderPage() {
       </div>
     )
   }
+
+  // Prepare customer options with walk-in
+  const customerOptions = [
+    { id: 'walk-in', name: 'Walk-in Customer', mobile: '', email: '' },
+    ...customers
+  ]
+
+  // Prepare technician options with unassigned
+  const technicianOptions = [
+    { id: 'unassigned', firstName: 'Unassigned', lastName: '', employeeCode: '' },
+    ...technicians
+  ]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-900 p-4 sm:p-6 lg:p-8">
@@ -517,28 +573,49 @@ export default function CreateJobOrderPage() {
               <CardTitle className="dark:text-white">Job Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Location - Auto-set from user */}
                 <div>
-                  <Label htmlFor="locationId" className="dark:text-gray-200">Location *</Label>
+                  <Label className="dark:text-gray-200">Location *</Label>
                   <div className="mt-1 p-2.5 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md text-sm text-gray-900 dark:text-gray-100">
                     {userLocation?.name || locations.find(l => l.id.toString() === formData.locationId)?.name || 'Loading...'}
                   </div>
-                  <input type="hidden" value={formData.locationId} />
                 </div>
+                {/* Created Date - Auto-set, read-only */}
                 <div>
-                  <Label htmlFor="jobOrderDate" className="dark:text-gray-200">Date *</Label>
+                  <Label className="dark:text-gray-200">Created Date</Label>
+                  <div className="mt-1 p-2.5 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md text-sm text-gray-900 dark:text-gray-100">
+                    {new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}
+                  </div>
+                </div>
+                {/* Received Date - Editable */}
+                <div>
+                  <Label className="dark:text-gray-200">Received Date</Label>
                   <Input
                     type="date"
-                    id="jobOrderDate"
-                    value={formData.jobOrderDate}
-                    onChange={(e) => handleInputChange('jobOrderDate', e.target.value)}
+                    value={formData.receivedDate}
+                    onChange={(e) => handleInputChange('receivedDate', e.target.value)}
                     className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   />
                 </div>
               </div>
 
-              {/* Service Type with Search and Quick Add */}
+              {/* Item Description - Required */}
+              <div>
+                <Label className="dark:text-gray-200">Item Description *</Label>
+                <Textarea
+                  value={formData.itemDescription}
+                  onChange={(e) => handleInputChange('itemDescription', e.target.value)}
+                  placeholder="Describe the item being serviced (e.g., iPhone 13 Pro Max - Black, with charger and original box. Screen has minor scratches on top left corner.)"
+                  rows={4}
+                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-white resize-y"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Include: Item name/model, color, condition, accessories received
+                </p>
+              </div>
+
+              {/* Service Type */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <Label className="dark:text-gray-200">Service Type *</Label>
@@ -553,143 +630,77 @@ export default function CreateJobOrderPage() {
                     Quick Add
                   </Button>
                 </div>
-                <Popover open={serviceTypeOpen} onOpenChange={setServiceTypeOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={serviceTypeOpen}
-                      className="w-full justify-between dark:bg-gray-700 dark:border-gray-600 dark:text-white font-normal"
-                    >
-                      {selectedServiceType
-                        ? `${selectedServiceType.name} - ₱${selectedServiceType.standardPrice?.toLocaleString() || 0}`
-                        : "Search service type..."}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0" align="start">
-                    <Command shouldFilter={false}>
-                      <CommandInput
-                        placeholder="Search by name, code, category..."
-                        value={serviceTypeSearch}
-                        onValueChange={setServiceTypeSearch}
-                      />
-                      <CommandList>
-                        <CommandEmpty>No service type found.</CommandEmpty>
-                        <CommandGroup>
-                          {filteredServiceTypes.map((st) => (
-                            <CommandItem
-                              key={st.id}
-                              value={st.id.toString()}
-                              onSelect={() => {
-                                handleInputChange('serviceTypeId', st.id.toString())
-                                setServiceTypeOpen(false)
-                                setServiceTypeSearch('')
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  formData.serviceTypeId === st.id.toString() ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              <div className="flex flex-col">
-                                <span>{st.name}</span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">
-                                  {st.code} | {st.category} | ₱{st.standardPrice?.toLocaleString() || 0}
-                                </span>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <SearchableSelect
+                  options={serviceTypes}
+                  value={formData.serviceTypeId}
+                  onValueChange={(v) => handleInputChange('serviceTypeId', v)}
+                  placeholder="Search service type..."
+                  searchPlaceholder="Type to search by name, code, category..."
+                  renderOption={(st) => ({
+                    label: `${st.name} - ₱${st.standardPrice?.toLocaleString() || 0}`,
+                    sublabel: `${st.code || ''} | ${st.category || ''}`
+                  })}
+                  filterFn={(st, search) =>
+                    st.name?.toLowerCase().includes(search) ||
+                    st.code?.toLowerCase().includes(search) ||
+                    st.category?.toLowerCase().includes(search)
+                  }
+                />
               </div>
 
-              {/* Product with Search */}
+              {/* Product - Optional (for items in inventory) */}
               <div>
-                <Label className="dark:text-gray-200">Product *</Label>
-                <Popover open={productOpen} onOpenChange={setProductOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={productOpen}
-                      className="w-full justify-between dark:bg-gray-700 dark:border-gray-600 dark:text-white font-normal mt-1"
-                    >
-                      {selectedProduct
-                        ? `${selectedProduct.name} (${selectedProduct.sku})`
-                        : "Search product..."}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0" align="start">
-                    <Command shouldFilter={false}>
-                      <CommandInput
-                        placeholder="Search by name or SKU..."
-                        value={productSearch}
-                        onValueChange={setProductSearch}
-                      />
-                      <CommandList>
-                        <CommandEmpty>No product found. Try a different search.</CommandEmpty>
-                        <CommandGroup>
-                          {filteredProducts.map((prod) => (
-                            <CommandItem
-                              key={prod.id}
-                              value={prod.id.toString()}
-                              onSelect={() => {
-                                handleInputChange('productId', prod.id.toString())
-                                setProductOpen(false)
-                                setProductSearch('')
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  formData.productId === prod.id.toString() ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              <div className="flex flex-col">
-                                <span>{prod.name}</span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">{prod.sku}</span>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <Label className="dark:text-gray-200">
+                  Link to Inventory Product <span className="text-gray-400 text-xs font-normal">(optional)</span>
+                </Label>
+                <SearchableSelect
+                  options={products}
+                  value={formData.productId}
+                  onValueChange={(v) => handleInputChange('productId', v)}
+                  placeholder="Search product (optional)..."
+                  searchPlaceholder="Type to search by name or SKU..."
+                  renderOption={(p) => ({
+                    label: p.name,
+                    sublabel: p.sku
+                  })}
+                  filterFn={(p, search) =>
+                    p.name?.toLowerCase().includes(search) ||
+                    p.sku?.toLowerCase().includes(search)
+                  }
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  Only select if the item is from your inventory
+                </p>
               </div>
 
-              {/* Variation */}
-              <div>
-                <Label htmlFor="productVariationId" className="dark:text-gray-200">Variation *</Label>
-                <Select
-                  value={formData.productVariationId}
-                  onValueChange={(v) => handleInputChange('productVariationId', v)}
-                  disabled={!formData.productId}
-                >
-                  <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600">
-                    <SelectValue placeholder={formData.productId ? "Select variation" : "Select product first"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {variations.map((v) => (
-                      <SelectItem key={v.id} value={v.id.toString()}>
-                        {v.name} ({v.sku})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Variation - Only show if product selected */}
+              {formData.productId && (
+                <div>
+                  <Label className="dark:text-gray-200">
+                    Product Variation <span className="text-gray-400 text-xs font-normal">(optional)</span>
+                  </Label>
+                  <Select
+                    value={formData.productVariationId}
+                    onValueChange={(v) => handleInputChange('productVariationId', v)}
+                  >
+                    <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600">
+                      <SelectValue placeholder="Select variation (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {variations.map((v) => (
+                        <SelectItem key={v.id} value={v.id.toString()}>
+                          {v.name} ({v.sku})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* Serial Number */}
               <div>
-                <Label htmlFor="serialNumber" className="dark:text-gray-200">Serial Number</Label>
+                <Label className="dark:text-gray-200">Serial Number</Label>
                 <Input
-                  id="serialNumber"
                   value={formData.serialNumber}
                   onChange={(e) => handleInputChange('serialNumber', e.target.value)}
                   placeholder="Enter serial number (optional)"
@@ -700,7 +711,7 @@ export default function CreateJobOrderPage() {
               {/* Priority and Est. Completion */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="priority" className="dark:text-gray-200">Priority</Label>
+                  <Label className="dark:text-gray-200">Priority</Label>
                   <Select value={formData.priority} onValueChange={(v) => handleInputChange('priority', v)}>
                     <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600">
                       <SelectValue />
@@ -714,10 +725,9 @@ export default function CreateJobOrderPage() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="estimatedEndDate" className="dark:text-gray-200">Est. Completion</Label>
+                  <Label className="dark:text-gray-200">Est. Completion</Label>
                   <Input
                     type="date"
-                    id="estimatedEndDate"
                     value={formData.estimatedEndDate}
                     onChange={(e) => handleInputChange('estimatedEndDate', e.target.value)}
                     className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
@@ -733,87 +743,31 @@ export default function CreateJobOrderPage() {
               <CardTitle className="dark:text-white">Customer & Assignment</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Customer with Search */}
+              {/* Customer */}
               <div>
                 <Label className="dark:text-gray-200">Existing Customer</Label>
-                <Popover open={customerOpen} onOpenChange={setCustomerOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={customerOpen}
-                      className="w-full justify-between dark:bg-gray-700 dark:border-gray-600 dark:text-white font-normal mt-1"
-                    >
-                      {formData.customerId === 'walk-in'
-                        ? 'Walk-in Customer'
-                        : selectedCustomer
-                        ? `${selectedCustomer.name} - ${selectedCustomer.mobile || 'No phone'}`
-                        : "Search customer..."}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0" align="start">
-                    <Command shouldFilter={false}>
-                      <CommandInput
-                        placeholder="Search by name, phone, email..."
-                        value={customerSearch}
-                        onValueChange={setCustomerSearch}
-                      />
-                      <CommandList>
-                        <CommandEmpty>No customer found.</CommandEmpty>
-                        <CommandGroup>
-                          <CommandItem
-                            value="walk-in"
-                            onSelect={() => {
-                              handleInputChange('customerId', 'walk-in')
-                              setCustomerOpen(false)
-                              setCustomerSearch('')
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                formData.customerId === 'walk-in' ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            Walk-in Customer
-                          </CommandItem>
-                          {filteredCustomers.map((cust) => (
-                            <CommandItem
-                              key={cust.id}
-                              value={cust.id.toString()}
-                              onSelect={() => {
-                                handleInputChange('customerId', cust.id.toString())
-                                setCustomerOpen(false)
-                                setCustomerSearch('')
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  formData.customerId === cust.id.toString() ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              <div className="flex flex-col">
-                                <span>{cust.name}</span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">
-                                  {cust.mobile || 'No phone'} | {cust.email || 'No email'}
-                                </span>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <SearchableSelect
+                  options={customerOptions}
+                  value={formData.customerId}
+                  onValueChange={(v) => handleInputChange('customerId', v)}
+                  placeholder="Search customer..."
+                  searchPlaceholder="Type to search by name, phone, email..."
+                  renderOption={(c) => ({
+                    label: c.name,
+                    sublabel: c.id === 'walk-in' ? undefined : `${c.mobile || 'No phone'} | ${c.email || 'No email'}`
+                  })}
+                  filterFn={(c, search) =>
+                    c.name?.toLowerCase().includes(search) ||
+                    c.mobile?.toLowerCase().includes(search) ||
+                    c.email?.toLowerCase().includes(search)
+                  }
+                />
               </div>
 
               {/* Customer Name */}
               <div>
-                <Label htmlFor="customerName" className="dark:text-gray-200">Customer Name *</Label>
+                <Label className="dark:text-gray-200">Customer Name *</Label>
                 <Input
-                  id="customerName"
                   value={formData.customerName}
                   onChange={(e) => handleInputChange('customerName', e.target.value)}
                   placeholder="Enter customer name"
@@ -824,9 +778,8 @@ export default function CreateJobOrderPage() {
               {/* Phone and Email */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="customerPhone" className="dark:text-gray-200">Phone</Label>
+                  <Label className="dark:text-gray-200">Phone</Label>
                   <Input
-                    id="customerPhone"
                     value={formData.customerPhone}
                     onChange={(e) => handleInputChange('customerPhone', e.target.value)}
                     placeholder="Phone number"
@@ -834,9 +787,8 @@ export default function CreateJobOrderPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="customerEmail" className="dark:text-gray-200">Email</Label>
+                  <Label className="dark:text-gray-200">Email</Label>
                   <Input
-                    id="customerEmail"
                     type="email"
                     value={formData.customerEmail}
                     onChange={(e) => handleInputChange('customerEmail', e.target.value)}
@@ -846,7 +798,7 @@ export default function CreateJobOrderPage() {
                 </div>
               </div>
 
-              {/* Technician with Search and Quick Add */}
+              {/* Technician */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <Label className="dark:text-gray-200">Assign Technician</Label>
@@ -861,82 +813,29 @@ export default function CreateJobOrderPage() {
                     Quick Add
                   </Button>
                 </div>
-                <Popover open={technicianOpen} onOpenChange={setTechnicianOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={technicianOpen}
-                      className="w-full justify-between dark:bg-gray-700 dark:border-gray-600 dark:text-white font-normal"
-                    >
-                      {formData.technicianId === 'unassigned'
-                        ? 'Unassigned'
-                        : selectedTechnician
-                        ? `${selectedTechnician.firstName} ${selectedTechnician.lastName} (${selectedTechnician.employeeCode})`
-                        : "Search technician..."}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0" align="start">
-                    <Command shouldFilter={false}>
-                      <CommandInput
-                        placeholder="Search by name or code..."
-                        value={technicianSearch}
-                        onValueChange={setTechnicianSearch}
-                      />
-                      <CommandList>
-                        <CommandEmpty>No technician found.</CommandEmpty>
-                        <CommandGroup>
-                          <CommandItem
-                            value="unassigned"
-                            onSelect={() => {
-                              handleInputChange('technicianId', 'unassigned')
-                              setTechnicianOpen(false)
-                              setTechnicianSearch('')
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                formData.technicianId === 'unassigned' ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            Unassigned
-                          </CommandItem>
-                          {filteredTechnicians.map((tech) => (
-                            <CommandItem
-                              key={tech.id}
-                              value={tech.id.toString()}
-                              onSelect={() => {
-                                handleInputChange('technicianId', tech.id.toString())
-                                setTechnicianOpen(false)
-                                setTechnicianSearch('')
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  formData.technicianId === tech.id.toString() ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              <div className="flex flex-col">
-                                <span>{tech.firstName} {tech.lastName}</span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">{tech.employeeCode}</span>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <SearchableSelect
+                  options={technicianOptions}
+                  value={formData.technicianId}
+                  onValueChange={(v) => handleInputChange('technicianId', v)}
+                  placeholder="Search technician..."
+                  searchPlaceholder="Type to search by name or code..."
+                  renderOption={(t) => ({
+                    label: t.id === 'unassigned' ? 'Unassigned' : `${t.firstName} ${t.lastName}`,
+                    sublabel: t.employeeCode || undefined
+                  })}
+                  filterFn={(t, search) =>
+                    t.firstName?.toLowerCase().includes(search) ||
+                    t.lastName?.toLowerCase().includes(search) ||
+                    t.employeeCode?.toLowerCase().includes(search) ||
+                    `${t.firstName} ${t.lastName}`.toLowerCase().includes(search)
+                  }
+                />
               </div>
 
               {/* Labor Cost */}
               <div>
-                <Label htmlFor="laborCost" className="dark:text-gray-200">Labor Cost (₱)</Label>
+                <Label className="dark:text-gray-200">Labor Cost (₱)</Label>
                 <Input
-                  id="laborCost"
                   type="number"
                   step="0.01"
                   value={formData.laborCost}
@@ -946,16 +845,15 @@ export default function CreateJobOrderPage() {
                 />
               </div>
 
-              {/* Problem Description */}
+              {/* Problem Description - Made bigger */}
               <div>
-                <Label htmlFor="problemDescription" className="dark:text-gray-200">Problem Description *</Label>
+                <Label className="dark:text-gray-200">Problem Description *</Label>
                 <Textarea
-                  id="problemDescription"
                   value={formData.problemDescription}
                   onChange={(e) => handleInputChange('problemDescription', e.target.value)}
-                  placeholder="Describe the issue or problem..."
-                  rows={4}
-                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  placeholder="Describe the issue or problem in detail..."
+                  rows={8}
+                  className="dark:bg-gray-700 dark:border-gray-600 dark:text-white resize-y min-h-[150px]"
                 />
               </div>
             </CardContent>
@@ -1176,6 +1074,93 @@ export default function CreateJobOrderPage() {
                 <>
                   <Plus className="w-4 h-4 mr-2" />
                   Add Technician
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Create Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent className="sm:max-w-lg dark:bg-gray-800 dark:border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="dark:text-white">Confirm Job Order Creation</DialogTitle>
+            <DialogDescription className="dark:text-gray-400">
+              Please review the details before creating this job order.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="text-gray-500 dark:text-gray-400">Location:</div>
+              <div className="font-medium dark:text-white">
+                {userLocation?.name || locations.find(l => l.id.toString() === formData.locationId)?.name}
+              </div>
+
+              <div className="text-gray-500 dark:text-gray-400">Service Type:</div>
+              <div className="font-medium dark:text-white">
+                {serviceTypes.find(st => st.id.toString() === formData.serviceTypeId)?.name || '-'}
+              </div>
+
+              <div className="text-gray-500 dark:text-gray-400">Customer:</div>
+              <div className="font-medium dark:text-white">{formData.customerName || '-'}</div>
+
+              <div className="text-gray-500 dark:text-gray-400">Priority:</div>
+              <div className="font-medium dark:text-white capitalize">{formData.priority}</div>
+
+              <div className="text-gray-500 dark:text-gray-400">Labor Cost:</div>
+              <div className="font-medium dark:text-white">
+                {formData.laborCost ? `₱${parseFloat(formData.laborCost).toLocaleString()}` : '-'}
+              </div>
+
+              {formData.productId && (
+                <>
+                  <div className="text-gray-500 dark:text-gray-400">Linked Product:</div>
+                  <div className="font-medium dark:text-white">
+                    {products.find(p => p.id.toString() === formData.productId)?.name || '-'}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="mt-3 pt-3 border-t dark:border-gray-700">
+              <div className="text-gray-500 dark:text-gray-400 text-sm mb-1">Item Description:</div>
+              <div className="text-sm font-medium dark:text-white bg-gray-50 dark:bg-gray-900 p-2 rounded max-h-24 overflow-auto">
+                {formData.itemDescription || '-'}
+              </div>
+            </div>
+
+            <div className="mt-3 pt-3 border-t dark:border-gray-700">
+              <div className="text-gray-500 dark:text-gray-400 text-sm mb-1">Problem Description:</div>
+              <div className="text-sm font-medium dark:text-white bg-gray-50 dark:bg-gray-900 p-2 rounded max-h-24 overflow-auto">
+                {formData.problemDescription || '-'}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowConfirmDialog(false)}
+              className="dark:border-gray-600"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmCreate}
+              disabled={submitting}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {submitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Confirm & Create
                 </>
               )}
             </Button>

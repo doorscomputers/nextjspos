@@ -95,6 +95,7 @@ export async function GET(request: NextRequest) {
     if (search) {
       whereClause.OR = [
         { jobOrderNumber: { contains: search, mode: 'insensitive' } },
+        { itemDescription: { contains: search, mode: 'insensitive' } },
         { customerName: { contains: search, mode: 'insensitive' } },
         { customerPhone: { contains: search, mode: 'insensitive' } },
         { serialNumber: { contains: search, mode: 'insensitive' } },
@@ -191,7 +192,9 @@ export async function GET(request: NextRequest) {
         // Map field names for frontend compatibility
         jobNumber: job.jobOrderNumber,
         jobDate: job.jobOrderDate,
-        productName: job.product?.name || 'N/A',
+        itemDescription: job.itemDescription, // Customer's item description
+        receivedDate: job.receivedDate, // When item was received
+        productName: job.product?.name || null, // Optional product link
         serviceTypeName: job.serviceType?.name || 'N/A',
         technicianName: job.technician
           ? `${job.technician.firstName || ''} ${job.technician.lastName || ''}`.trim() || 'Unassigned'
@@ -254,9 +257,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const {
       locationId,
-      jobOrderDate,
       warrantyClaimId,
       serviceTypeId,
+      itemDescription,
+      receivedDate,
       productId,
       productVariationId,
       serialNumber,
@@ -271,10 +275,10 @@ export async function POST(request: NextRequest) {
       laborCost
     } = body
 
-    // Validation
-    if (!locationId || !jobOrderDate || !serviceTypeId || !productId || !productVariationId || !customerName || !problemDescription) {
+    // Validation - itemDescription is now required, product fields are optional
+    if (!locationId || !serviceTypeId || !itemDescription || !customerName || !problemDescription) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields: locationId, serviceTypeId, itemDescription, customerName, problemDescription' },
         { status: 400 }
       )
     }
@@ -305,29 +309,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Service type not found or inactive' }, { status: 404 })
     }
 
-    // Verify product and variation
-    const product = await prisma.product.findFirst({
-      where: {
-        id: parseInt(productId),
-        businessId,
-        deletedAt: null
+    // Verify product and variation (optional - only if provided)
+    let validProductId: number | null = null
+    let validVariationId: number | null = null
+
+    if (productId) {
+      const product = await prisma.product.findFirst({
+        where: {
+          id: parseInt(productId),
+          businessId,
+          deletedAt: null
+        }
+      })
+
+      if (!product) {
+        return NextResponse.json({ error: 'Product not found' }, { status: 404 })
       }
-    })
+      validProductId = product.id
 
-    if (!product) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
-    }
+      // Variation is only required if product is provided
+      if (productVariationId) {
+        const variation = await prisma.productVariation.findFirst({
+          where: {
+            id: parseInt(productVariationId),
+            productId: parseInt(productId),
+            deletedAt: null
+          }
+        })
 
-    const variation = await prisma.productVariation.findFirst({
-      where: {
-        id: parseInt(productVariationId),
-        productId: parseInt(productId),
-        deletedAt: null
+        if (!variation) {
+          return NextResponse.json({ error: 'Product variation not found' }, { status: 404 })
+        }
+        validVariationId = variation.id
       }
-    })
-
-    if (!variation) {
-      return NextResponse.json({ error: 'Product variation not found' }, { status: 404 })
     }
 
     // Verify technician if provided
@@ -362,17 +376,19 @@ export async function POST(request: NextRequest) {
       // Generate job order number
       const jobOrderNumber = await generateJobOrderNumber(businessId, tx)
 
-      // Create job order
+      // Create job order - jobOrderDate is now auto-set to server time
       const newJobOrder = await tx.repairJobOrder.create({
         data: {
           businessId,
           locationId: parseInt(locationId),
           jobOrderNumber,
-          jobOrderDate: new Date(jobOrderDate),
+          jobOrderDate: new Date(), // Auto-set to current server time
+          itemDescription, // Required: describes the customer's item
+          receivedDate: receivedDate ? new Date(receivedDate) : null, // Optional: when item was received
           warrantyClaimId: warrantyClaimId ? parseInt(warrantyClaimId) : null,
           serviceTypeId: parseInt(serviceTypeId),
-          productId: parseInt(productId),
-          productVariationId: parseInt(productVariationId),
+          productId: validProductId, // Optional: linked product
+          productVariationId: validVariationId, // Optional: linked variation
           serialNumber,
           customerId: customerId ? parseInt(customerId) : null,
           customerName,

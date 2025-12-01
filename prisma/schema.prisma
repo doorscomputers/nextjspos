@@ -4615,11 +4615,15 @@ model RepairJobOrder {
   serviceTypeId Int               @map("service_type_id")
   serviceType   RepairServiceType @relation(fields: [serviceTypeId], references: [id], onDelete: Restrict)
 
-  // Product being repaired
-  productId          Int              @map("product_id")
-  product            Product          @relation("ProductRepairJobOrders", fields: [productId], references: [id], onDelete: Restrict)
-  productVariationId Int              @map("product_variation_id")
-  productVariation   ProductVariation @relation("VariationRepairJobOrders", fields: [productVariationId], references: [id], onDelete: Restrict)
+  // Item being repaired - description is required, product link is optional
+  itemDescription    String           @map("item_description") @db.Text // Required: describes customer's item
+  receivedDate       DateTime?        @map("received_date") @db.Date // Optional: when item was received
+
+  // Product link (optional - for items in inventory)
+  productId          Int?             @map("product_id")
+  product            Product?         @relation("ProductRepairJobOrders", fields: [productId], references: [id], onDelete: Restrict)
+  productVariationId Int?             @map("product_variation_id")
+  productVariation   ProductVariation? @relation("VariationRepairJobOrders", fields: [productVariationId], references: [id], onDelete: Restrict)
   serialNumber       String?          @map("serial_number") @db.VarChar(191)
 
   // Customer information

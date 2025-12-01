@@ -67,7 +67,7 @@ export default function ServiceTypesPage() {
   const fetchServiceTypes = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/technical/service-types')
+      const response = await fetch('/api/service-types')
       const data = await response.json()
       if (response.ok) {
         setServiceTypes(Array.isArray(data) ? data : data.serviceTypes || [])
@@ -123,7 +123,7 @@ export default function ServiceTypesPage() {
 
   const onRowInserted = async (e: any) => {
     try {
-      const response = await fetch('/api/technical/service-types', {
+      const response = await fetch('/api/service-types', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(e.data),
@@ -147,7 +147,7 @@ export default function ServiceTypesPage() {
 
   const onRowUpdated = async (e: any) => {
     try {
-      const response = await fetch(`/api/technical/service-types/${e.key}`, {
+      const response = await fetch(`/api/service-types/${e.key}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(e.data),
@@ -171,7 +171,7 @@ export default function ServiceTypesPage() {
 
   const onRowRemoved = async (e: any) => {
     try {
-      const response = await fetch(`/api/technical/service-types/${e.key}`, {
+      const response = await fetch(`/api/service-types/${e.key}`, {
         method: 'DELETE',
       })
 

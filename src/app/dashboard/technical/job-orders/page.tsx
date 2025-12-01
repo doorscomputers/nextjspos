@@ -35,8 +35,10 @@ interface JobOrder {
   id: number
   jobNumber: string
   jobDate: string
+  itemDescription: string // Customer's item description
+  receivedDate: string | null // When item was received
   customerName: string | null
-  productName: string
+  productName: string | null // Optional product link
   serviceTypeName: string
   technicianName: string | null
   status: string
@@ -431,6 +433,23 @@ export default function JobOrdersPage() {
                 format="dd/MM/yyyy"
               />
               <Column
+                dataField="itemDescription"
+                caption="Item Description"
+                minWidth={250}
+                cellRender={(data) => {
+                  const text = data.value || '-'
+                  const truncated = text.length > 50 ? text.substring(0, 50) + '...' : text
+                  return (
+                    <span
+                      className="text-gray-900 dark:text-gray-100"
+                      title={text}
+                    >
+                      {truncated}
+                    </span>
+                  )
+                }}
+              />
+              <Column
                 dataField="customerName"
                 caption="Customer"
                 minWidth={180}
@@ -442,8 +461,14 @@ export default function JobOrdersPage() {
               />
               <Column
                 dataField="productName"
-                caption="Product"
-                minWidth={200}
+                caption="Linked Product"
+                minWidth={180}
+                visible={false}
+                cellRender={(data) => (
+                  <span className={data.value ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500'}>
+                    {data.value || '-'}
+                  </span>
+                )}
               />
               <Column
                 dataField="serviceTypeName"
