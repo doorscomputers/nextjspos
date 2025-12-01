@@ -25,6 +25,8 @@ import DataGrid, {
   PatternRule,
   RangeRule,
   ColumnChooser,
+  Toolbar,
+  Item as ToolbarItem,
 } from 'devextreme-react/data-grid'
 import { Item } from 'devextreme-react/form'
 import { Workbook } from 'exceljs'
@@ -55,6 +57,7 @@ export default function ServiceTypesPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const dataGridRef = useRef<DataGrid>(null)
+  const [gridInstance, setGridInstance] = useState<any>(null)
 
   useEffect(() => {
     // Wait for user session to be loaded before checking permissions
@@ -94,19 +97,22 @@ export default function ServiceTypesPage() {
   }
 
   const handleAddServiceType = () => {
-    if (dataGridRef.current) {
-      const instance = dataGridRef.current.instance as any
-      if (instance && typeof instance.addRow === 'function') {
-        instance.addRow()
+    if (gridInstance) {
+      gridInstance.addRow()
+    } else if (dataGridRef.current) {
+      // Fallback to ref
+      const grid = dataGridRef.current.instance as any
+      if (grid && typeof grid.addRow === 'function') {
+        grid.addRow()
       } else {
-        try {
-          (dataGridRef.current as any).instance?.addRow?.()
-        } catch (err) {
-          console.error('Failed to add row:', err)
-          toast.error('Unable to open add form. Please try refreshing the page.')
-        }
+        toast.error('Grid not ready. Please try again.')
       }
     }
+  }
+
+  // Store grid instance when content is ready
+  const onContentReady = (e: any) => {
+    setGridInstance(e.component)
   }
 
   const onExporting = (e: any) => {
@@ -338,6 +344,7 @@ export default function ServiceTypesPage() {
               onRowInserted={onRowInserted}
               onRowUpdated={onRowUpdated}
               onRowRemoved={onRowRemoved}
+              onContentReady={onContentReady}
               className="dx-card"
               width="100%"
               keyExpr="id"
@@ -362,6 +369,13 @@ export default function ServiceTypesPage() {
               <Sorting mode="multiple" />
               <Export enabled={true} allowExportSelectedData={false} />
               <ColumnChooser enabled={true} mode="select" />
+
+              <Toolbar>
+                <ToolbarItem name="addRowButton" />
+                <ToolbarItem name="exportButton" />
+                <ToolbarItem name="columnChooserButton" />
+                <ToolbarItem name="searchPanel" />
+              </Toolbar>
 
               <Editing
                 mode="popup"

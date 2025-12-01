@@ -5,9 +5,13 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import { toast } from 'sonner'
 import { RefreshCw, DollarSign, Printer, XCircle, Plus } from 'lucide-react'
-import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import DataGrid, {
   Column,
   Export,
@@ -47,6 +51,20 @@ interface ServicePayment {
   createdAt: string
 }
 
+interface JobOrder {
+  id: number
+  jobOrderNumber: string
+  customerName: string | null
+  totalCost: number
+  paidAmount: number
+  paymentStatus: string
+}
+
+interface BusinessLocation {
+  id: number
+  name: string
+}
+
 export default function ServicePaymentsPage() {
   const { can, user } = usePermissions()
   const [payments, setPayments] = useState<ServicePayment[]>([])
@@ -59,6 +77,20 @@ export default function ServicePaymentsPage() {
     todayPayments: 0,
   })
   const dataGridRef = useRef<DataGrid>(null)
+
+  // Add Payment Dialog State
+  const [showAddPaymentDialog, setShowAddPaymentDialog] = useState(false)
+  const [jobOrders, setJobOrders] = useState<JobOrder[]>([])
+  const [locations, setLocations] = useState<BusinessLocation[]>([])
+  const [submitting, setSubmitting] = useState(false)
+  const [paymentForm, setPaymentForm] = useState({
+    jobOrderId: '',
+    locationId: '',
+    amount: '',
+    paymentMethod: 'cash',
+    referenceNumber: '',
+    notes: '',
+  })
 
   useEffect(() => {
     // Wait for user session to be loaded before checking permissions
@@ -113,6 +145,110 @@ export default function ServicePaymentsPage() {
     await fetchPayments()
     setRefreshing(false)
     toast.success('Payments refreshed')
+  }
+
+  // Fetch job orders with unpaid balance
+  const fetchJobOrders = async () => {
+    try {
+      const response = await fetch('/api/job-orders?paymentStatus=unpaid,partial')
+      const data = await response.json()
+      if (response.ok) {
+        // Filter job orders that have remaining balance
+        const ordersWithBalance = (data.jobOrders || []).filter(
+          (jo: JobOrder) => Number(jo.totalCost) > Number(jo.paidAmount)
+        )
+        setJobOrders(ordersWithBalance)
+      }
+    } catch (error) {
+      console.error('Error fetching job orders:', error)
+    }
+  }
+
+  // Fetch locations
+  const fetchLocations = async () => {
+    try {
+      const response = await fetch('/api/locations')
+      const data = await response.json()
+      if (response.ok) {
+        setLocations(data.locations || [])
+      }
+    } catch (error) {
+      console.error('Error fetching locations:', error)
+    }
+  }
+
+  // Open add payment dialog
+  const handleOpenAddPayment = async () => {
+    await Promise.all([fetchJobOrders(), fetchLocations()])
+    setPaymentForm({
+      jobOrderId: '',
+      locationId: '',
+      amount: '',
+      paymentMethod: 'cash',
+      referenceNumber: '',
+      notes: '',
+    })
+    setShowAddPaymentDialog(true)
+  }
+
+  // Get selected job order's remaining balance
+  const getSelectedJobOrderBalance = () => {
+    if (!paymentForm.jobOrderId) return 0
+    const jo = jobOrders.find(j => j.id === parseInt(paymentForm.jobOrderId))
+    if (!jo) return 0
+    return Number(jo.totalCost) - Number(jo.paidAmount)
+  }
+
+  // Submit payment
+  const handleSubmitPayment = async () => {
+    if (!paymentForm.jobOrderId || !paymentForm.locationId || !paymentForm.amount) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+
+    const amount = parseFloat(paymentForm.amount)
+    if (amount <= 0) {
+      toast.error('Amount must be greater than zero')
+      return
+    }
+
+    const balance = getSelectedJobOrderBalance()
+    if (amount > balance) {
+      toast.error(`Amount cannot exceed remaining balance of ₱${balance.toFixed(2)}`)
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const response = await fetch('/api/service-payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobOrderId: parseInt(paymentForm.jobOrderId),
+          locationId: parseInt(paymentForm.locationId),
+          paymentDate: new Date().toISOString(),
+          amount: amount,
+          paymentMethod: paymentForm.paymentMethod,
+          referenceNumber: paymentForm.referenceNumber || null,
+          notes: paymentForm.notes || null,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('Payment recorded successfully')
+        setShowAddPaymentDialog(false)
+        fetchPayments()
+      } else {
+        toast.error(data.error || 'Failed to record payment')
+      }
+    } catch (error) {
+      console.error('Error submitting payment:', error)
+      toast.error('Failed to record payment')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleVoidPayment = async (paymentId: number) => {
@@ -273,15 +409,14 @@ export default function ServicePaymentsPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/dashboard/technical/job-orders">
-              <Button
-                variant="default"
-                className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow-md transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                Add Payment
-              </Button>
-            </Link>
+            <Button
+              onClick={handleOpenAddPayment}
+              variant="default"
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow-md transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Add Payment
+            </Button>
             <Button
               onClick={handleRefresh}
               disabled={refreshing}
@@ -486,6 +621,158 @@ export default function ServicePaymentsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Add Payment Dialog */}
+      <Dialog open={showAddPaymentDialog} onOpenChange={setShowAddPaymentDialog}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-amber-900 dark:text-amber-100">
+              Add Payment
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Job Order Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="jobOrder" className="font-medium">
+                Job Order <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={paymentForm.jobOrderId}
+                onValueChange={(value) => setPaymentForm({ ...paymentForm, jobOrderId: value, amount: '' })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a job order" />
+                </SelectTrigger>
+                <SelectContent>
+                  {jobOrders.length === 0 ? (
+                    <SelectItem value="none" disabled>No job orders with balance</SelectItem>
+                  ) : (
+                    jobOrders.map((jo) => (
+                      <SelectItem key={jo.id} value={jo.id.toString()}>
+                        {jo.jobOrderNumber} - {jo.customerName || 'Walk-in'} (Balance: ₱{(Number(jo.totalCost) - Number(jo.paidAmount)).toFixed(2)})
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Show remaining balance when job order selected */}
+            {paymentForm.jobOrderId && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-700">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  <span className="font-medium">Remaining Balance:</span>{' '}
+                  <span className="text-lg font-bold">₱{getSelectedJobOrderBalance().toFixed(2)}</span>
+                </p>
+              </div>
+            )}
+
+            {/* Location Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="location" className="font-medium">
+                Location <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={paymentForm.locationId}
+                onValueChange={(value) => setPaymentForm({ ...paymentForm, locationId: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc.id} value={loc.id.toString()}>
+                      {loc.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Amount */}
+            <div className="space-y-2">
+              <Label htmlFor="amount" className="font-medium">
+                Amount <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="amount"
+                type="number"
+                min="0"
+                step="0.01"
+                value={paymentForm.amount}
+                onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                placeholder="Enter payment amount"
+                className="text-lg"
+              />
+            </div>
+
+            {/* Payment Method */}
+            <div className="space-y-2">
+              <Label htmlFor="paymentMethod" className="font-medium">
+                Payment Method <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={paymentForm.paymentMethod}
+                onValueChange={(value) => setPaymentForm({ ...paymentForm, paymentMethod: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="gcash">GCash</SelectItem>
+                  <SelectItem value="maya">Maya</SelectItem>
+                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                  <SelectItem value="cheque">Cheque</SelectItem>
+                  <SelectItem value="card">Card</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Reference Number */}
+            <div className="space-y-2">
+              <Label htmlFor="referenceNumber" className="font-medium">
+                Reference Number
+              </Label>
+              <Input
+                id="referenceNumber"
+                type="text"
+                value={paymentForm.referenceNumber}
+                onChange={(e) => setPaymentForm({ ...paymentForm, referenceNumber: e.target.value })}
+                placeholder="Enter reference number (optional)"
+              />
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="notes" className="font-medium">
+                Notes
+              </Label>
+              <Textarea
+                id="notes"
+                value={paymentForm.notes}
+                onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                placeholder="Enter notes (optional)"
+                rows={2}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddPaymentDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitPayment}
+              disabled={submitting || !paymentForm.jobOrderId || !paymentForm.locationId || !paymentForm.amount}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {submitting ? 'Processing...' : 'Record Payment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
