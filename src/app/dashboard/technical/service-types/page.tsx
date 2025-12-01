@@ -275,6 +275,14 @@ export default function ServiceTypesPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
+              onClick={() => dataGridRef.current?.instance.addRow()}
+              variant="default"
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow-md transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Add Service Type
+            </Button>
+            <Button
               onClick={handleRefresh}
               disabled={refreshing}
               variant="outline"
@@ -341,9 +349,9 @@ export default function ServiceTypesPage() {
 
               <Editing
                 mode="popup"
-                allowAdding={can(PERMISSIONS.SERVICE_TYPE_CREATE)}
-                allowUpdating={can(PERMISSIONS.SERVICE_TYPE_EDIT)}
-                allowDeleting={can(PERMISSIONS.SERVICE_TYPE_DELETE)}
+                allowAdding={true}
+                allowUpdating={true}
+                allowDeleting={true}
                 useIcons={true}
               >
                 <Popup
