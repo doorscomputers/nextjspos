@@ -2437,6 +2437,157 @@ export default function POSEnhancedPage() {
       <div className="flex-1 flex overflow-hidden gap-0">
         {/* LEFT SIDE - CART ITEMS (70%) */}
         <div className="flex-[0.7] min-w-0 bg-white border-r flex flex-col shadow-lg overflow-hidden">
+          {/* Customer & Sales Personnel - Single Line Header */}
+          <div className="p-2 border-b bg-gradient-to-r from-gray-50 to-gray-100 shrink-0">
+            <div className="flex items-center gap-2">
+              {/* Customer Selection */}
+              <Label className="text-xs font-medium shrink-0 text-gray-700">Customer:</Label>
+              <div className="flex-1 relative min-w-0">
+                <Input
+                  type="text"
+                  value={selectedCustomer ? selectedCustomer.name : customerSearchTerm}
+                  onChange={(e) => {
+                    if (!selectedCustomer) {
+                      setCustomerSearchTerm(e.target.value)
+                      if (!e.target.value) {
+                        setSelectedCustomer(null)
+                        setIsCreditSale(false)
+                      }
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      if (showCustomerDropdown && customerSearchResults.length > 0) {
+                        setSelectedCustomerIndex((prev) =>
+                          prev < customerSearchResults.length - 1 ? prev + 1 : 0
+                        )
+                      }
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault()
+                      if (showCustomerDropdown && customerSearchResults.length > 0) {
+                        setSelectedCustomerIndex((prev) =>
+                          prev > 0 ? prev - 1 : customerSearchResults.length - 1
+                        )
+                      }
+                    } else if (e.key === 'Enter') {
+                      e.preventDefault()
+                      if (showCustomerDropdown && customerSearchResults[selectedCustomerIndex]) {
+                        const customer = customerSearchResults[selectedCustomerIndex]
+                        setSelectedCustomer(customer)
+                        setCustomerSearchTerm('')
+                        setShowCustomerDropdown(false)
+                      }
+                    } else if (e.key === 'Escape') {
+                      setShowCustomerDropdown(false)
+                      setCustomerSearchTerm('')
+                    }
+                  }}
+                  placeholder={selectedCustomer ? '' : '🚶 Walk-in (search to change)...'}
+                  className={`h-8 text-sm border ${
+                    selectedCustomer
+                      ? 'bg-green-50 border-green-500 font-semibold text-green-800 pr-7'
+                      : 'border-gray-300 focus:border-blue-500'
+                  }`}
+                  readOnly={!!selectedCustomer}
+                />
+                {selectedCustomer && (
+                  <button
+                    onClick={() => {
+                      setSelectedCustomer(null)
+                      setCustomerSearchTerm('')
+                      setIsCreditSale(false)
+                    }}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center hover:bg-red-600 font-bold text-xs"
+                    title="Clear customer"
+                  >
+                    ✕
+                  </button>
+                )}
+                {showCustomerDropdown && customerSearchResults.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border-2 border-blue-400 rounded-lg shadow-2xl z-50 max-h-[300px] overflow-y-auto">
+                    <div className="p-2">
+                      <div className="text-xs text-gray-500 mb-2 px-2">
+                        Found {customerSearchResults.length} customer{customerSearchResults.length !== 1 ? 's' : ''} (↑↓ Enter)
+                      </div>
+                      {customerSearchResults.map((customer, index) => (
+                        <div
+                          key={customer.id}
+                          ref={(el) => (customerResultRefs.current[index] = el)}
+                          className={`p-2 rounded-lg cursor-pointer transition-all ${
+                            index === selectedCustomerIndex
+                              ? 'bg-blue-100 border-2 border-blue-500 shadow-md'
+                              : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                          }`}
+                          onClick={() => {
+                            setSelectedCustomer(customer)
+                            setCustomerSearchTerm('')
+                            setShowCustomerDropdown(false)
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="font-semibold text-sm text-gray-800">{customer.name}</div>
+                            {customer.hasUnpaidInvoices && (
+                              <div className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-bold rounded border border-red-300">
+                                AR: ₱{customer.arBalance.toFixed(2)}
+                              </div>
+                            )}
+                          </div>
+                          {customer.email && (
+                            <div className="text-xs text-gray-600">{customer.email}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white h-8 px-2 text-xs"
+                size="sm"
+                onClick={() => setShowNewCustomerDialog(true)}
+              >
+                + New
+              </Button>
+              {selectedCustomer?.hasUnpaidInvoices && selectedCustomer?.arBalance > 0 && (
+                <Button
+                  onClick={() => setShowARPaymentDialog(true)}
+                  className="bg-red-600 hover:bg-red-700 text-white h-8 px-2 text-xs font-bold"
+                  size="sm"
+                  title={`Outstanding AR: ₱${selectedCustomer.arBalance.toFixed(2)}`}
+                >
+                  AR
+                </Button>
+              )}
+
+              {/* Divider */}
+              <div className="h-6 w-px bg-gray-300 shrink-0"></div>
+
+              {/* Sales Personnel */}
+              <Label className="text-xs font-medium shrink-0 text-blue-800">
+                Sales<span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={selectedSalesPersonnel?.id?.toString() || ''}
+                onValueChange={(value) => {
+                  const person = salesPersonnel.find(p => p.id.toString() === value)
+                  setSelectedSalesPersonnel(person || null)
+                }}
+              >
+                <SelectTrigger className={`h-8 text-sm border w-48 ${!selectedSalesPersonnel ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'}`}>
+                  <SelectValue placeholder="-- Select --" />
+                </SelectTrigger>
+                <SelectContent>
+                  {salesPersonnel.map((person) => (
+                    <SelectItem key={person.id} value={person.id.toString()}>
+                      {person.fullName} ({person.employeeCode})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           {/* Cart Items - EXPANDED TO FILL MOST OF SIDEBAR */}
           <div className="flex-1 overflow-y-auto p-4">
             <h2 className="font-bold text-xl mb-4 flex items-center justify-between border-b pb-3">
@@ -2760,200 +2911,6 @@ export default function POSEnhancedPage() {
 
         {/* RIGHT SIDE - PAYMENT PANEL (30%) */}
         <div className="flex-[0.3] min-w-[320px] bg-gradient-to-b from-gray-50 to-white border-l flex flex-col shadow-2xl shrink-0">
-          {/* Customer Selection - Autocomplete Style (same as Product Search) */}
-          <div className="p-2 border-b bg-gradient-to-r from-gray-50 to-gray-100 relative">
-            <Label className="text-xs font-medium mb-1 block">Customer</Label>
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <Input
-                  type="text"
-                  value={selectedCustomer ? selectedCustomer.name : customerSearchTerm}
-                  onChange={(e) => {
-                    // Only allow typing when no customer is selected
-                    if (!selectedCustomer) {
-                      setCustomerSearchTerm(e.target.value)
-                      if (!e.target.value) {
-                        setSelectedCustomer(null)
-                        setIsCreditSale(false)
-                      }
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'ArrowDown') {
-                      e.preventDefault()
-                      if (showCustomerDropdown && customerSearchResults.length > 0) {
-                        setSelectedCustomerIndex((prev) =>
-                          prev < customerSearchResults.length - 1 ? prev + 1 : 0
-                        )
-                      }
-                    } else if (e.key === 'ArrowUp') {
-                      e.preventDefault()
-                      if (showCustomerDropdown && customerSearchResults.length > 0) {
-                        setSelectedCustomerIndex((prev) =>
-                          prev > 0 ? prev - 1 : customerSearchResults.length - 1
-                        )
-                      }
-                    } else if (e.key === 'Enter') {
-                      e.preventDefault()
-                      if (showCustomerDropdown && customerSearchResults[selectedCustomerIndex]) {
-                        const customer = customerSearchResults[selectedCustomerIndex]
-                        setSelectedCustomer(customer)
-                        setCustomerSearchTerm('')
-                        setShowCustomerDropdown(false)
-                      }
-                    } else if (e.key === 'Escape') {
-                      setShowCustomerDropdown(false)
-                      setCustomerSearchTerm('')
-                    }
-                  }}
-                  placeholder="🔍 Search customer (name, email, phone)..."
-                  className={`h-10 text-sm border-2 ${
-                    selectedCustomer
-                      ? 'bg-green-50 border-green-500 font-bold text-green-800'
-                      : 'border-blue-400 focus:border-blue-600'
-                  }`}
-                  readOnly={!!selectedCustomer}
-                />
-
-                {/* Clear button when customer is selected */}
-                {selectedCustomer && (
-                  <button
-                    onClick={() => {
-                      setSelectedCustomer(null)
-                      setCustomerSearchTerm('')
-                      setIsCreditSale(false)
-                    }}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 font-bold shadow-lg"
-                    title="Clear customer and search again"
-                  >
-                    ✕
-                  </button>
-                )}
-
-                {/* Customer Search Dropdown */}
-                {showCustomerDropdown && customerSearchResults.length > 0 && (
-                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border-2 border-blue-400 rounded-lg shadow-2xl z-50 max-h-[300px] overflow-y-auto">
-                    <div className="p-2">
-                      <div className="text-xs text-gray-500 mb-2 px-2">
-                        Found {customerSearchResults.length} customer{customerSearchResults.length !== 1 ? 's' : ''} (Use ↑↓ arrows, Enter to select)
-                      </div>
-                      {customerSearchResults.map((customer, index) => (
-                        <div
-                          key={customer.id}
-                          ref={(el) => (customerResultRefs.current[index] = el)}
-                          className={`p-3 rounded-lg cursor-pointer transition-all ${
-                            index === selectedCustomerIndex
-                              ? 'bg-blue-100 border-2 border-blue-500 shadow-md'
-                              : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
-                          }`}
-                          onClick={() => {
-                            setSelectedCustomer(customer)
-                            setCustomerSearchTerm('')
-                            setShowCustomerDropdown(false)
-                          }}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="font-bold text-sm text-gray-800">{customer.name}</div>
-                            {customer.hasUnpaidInvoices && (
-                              <div className="ml-2 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-bold rounded border border-red-300">
-                                AR: ₱{customer.arBalance.toFixed(2)}
-                              </div>
-                            )}
-                          </div>
-                          {customer.email && (
-                            <div className="text-xs text-gray-600">📧 {customer.email}</div>
-                          )}
-                          {customer.mobile && (
-                            <div className="text-xs text-gray-600">📱 {customer.mobile}</div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-              <Button
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-                size="sm"
-                onClick={() => setShowNewCustomerDialog(true)}
-              >
-                + New
-              </Button>
-            </div>
-            {selectedCustomer ? (
-              <div className="mt-2 space-y-2">
-                <div className="p-2 bg-green-50 border-2 border-green-500 rounded-lg">
-                  <div className="text-sm text-green-800 font-bold flex items-center gap-2">
-                    <span className="text-lg">✓</span>
-                    <span>SELECTED CUSTOMER</span>
-                  </div>
-                  <div className="text-base font-bold text-gray-900 mt-1">{selectedCustomer.name}</div>
-                  {selectedCustomer.email && (
-                    <div className="text-xs text-gray-600 mt-1">📧 {selectedCustomer.email}</div>
-                  )}
-                  {selectedCustomer.mobile && (
-                    <div className="text-xs text-gray-600">📱 {selectedCustomer.mobile}</div>
-                  )}
-                </div>
-
-                {/* AR Balance Display & Quick Payment Button */}
-                {selectedCustomer.hasUnpaidInvoices && selectedCustomer.arBalance > 0 && (
-                  <div className="p-3 bg-red-50 border-2 border-red-500 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <div className="text-xs font-semibold text-red-700">Outstanding AR Balance:</div>
-                        <div className="text-2xl font-bold text-red-600">₱{selectedCustomer.arBalance.toFixed(2)}</div>
-                      </div>
-                      <div className="text-4xl">💳</div>
-                    </div>
-                    <Button
-                      onClick={() => setShowARPaymentDialog(true)}
-                      className="w-full bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg"
-                      size="sm"
-                    >
-                      💰 Collect Payment Now
-                    </Button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="mt-2 p-2 bg-gray-50 border-2 border-gray-300 rounded-lg">
-                <div className="text-xs text-gray-600 flex items-center gap-2">
-                  <span>🚶</span>
-                  <span>Walk-in Customer (default)</span>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Sales Personnel Selection (Required) */}
-          <div className="p-2 border-b bg-gradient-to-r from-blue-50 to-indigo-50 relative">
-            <Label className="text-xs font-medium mb-1 block text-blue-800">
-              Sales Personnel <span className="text-red-500">*</span>
-            </Label>
-            <Select
-              value={selectedSalesPersonnel?.id?.toString() || ''}
-              onValueChange={(value) => {
-                const person = salesPersonnel.find(p => p.id.toString() === value)
-                setSelectedSalesPersonnel(person || null)
-              }}
-            >
-              <SelectTrigger className={`h-10 text-sm border-2 ${!selectedSalesPersonnel ? 'border-red-300 bg-red-50' : 'border-blue-300 bg-white'}`}>
-                <SelectValue placeholder="-- Select Sales Personnel --" />
-              </SelectTrigger>
-              <SelectContent>
-                {salesPersonnel.map((person) => (
-                  <SelectItem key={person.id} value={person.id.toString()}>
-                    {person.fullName} ({person.employeeCode})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {!selectedSalesPersonnel && (
-              <p className="text-xs text-red-500 mt-1">Required - Select who made this sale</p>
-            )}
-          </div>
-
           {/* PAYMENT SECTION - Discount & Payment Methods */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
@@ -3035,79 +2992,6 @@ export default function POSEnhancedPage() {
               {!selectedCustomer && (
                 <p className="text-xs text-red-600 mt-1">* Select customer to enable</p>
               )}
-            </div>
-
-            {/* Additional Charge Section (for all sales types) */}
-            <div className="border-2 border-amber-400 rounded-lg p-3 bg-amber-50">
-              <Label className="text-sm font-bold block text-amber-700 mb-2">💰 Additional Charge (Optional)</Label>
-                <div className="space-y-2">
-                  {/* Type Toggle */}
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={additionalChargeType === 'fixed' ? 'default' : 'outline'}
-                      onClick={() => setAdditionalChargeType('fixed')}
-                      className={additionalChargeType === 'fixed' ? 'bg-amber-600 hover:bg-amber-700' : ''}
-                    >
-                      Fixed ₱
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant={additionalChargeType === 'percentage' ? 'default' : 'outline'}
-                      onClick={() => setAdditionalChargeType('percentage')}
-                      className={additionalChargeType === 'percentage' ? 'bg-amber-600 hover:bg-amber-700' : ''}
-                    >
-                      Percentage %
-                    </Button>
-                  </div>
-                  {/* Value Input */}
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      min="0"
-                      value={additionalChargeValue}
-                      onChange={(e) => setAdditionalChargeValue(e.target.value)}
-                      placeholder={additionalChargeType === 'fixed' ? 'Enter amount' : 'Enter percentage'}
-                      className="h-10 text-lg font-bold border-2 border-amber-400"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setKeypadTarget('additionalCharge')
-                        setKeypadValue(additionalChargeValue)
-                        setShowNumericKeypad(true)
-                      }}
-                      className="h-10 px-3 border-2 border-amber-400"
-                    >
-                      🔢
-                    </Button>
-                  </div>
-                  {/* Calculated Display */}
-                  {additionalChargeValue && (
-                    <div className="text-sm text-amber-700 font-semibold">
-                      Additional Charge: +₱{calculateAdditionalCharge().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      {additionalChargeType === 'percentage' && ` (${additionalChargeValue}%)`}
-                    </div>
-                  )}
-                </div>
-            </div>
-
-            {/* Remarks Field */}
-            <div className="border-2 border-gray-300 rounded-lg p-3 bg-white">
-              <Label className="text-sm font-bold block text-gray-700 mb-2">📝 Remarks (Optional)</Label>
-              <Textarea
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-                placeholder="Add any additional notes or remarks about this sale..."
-                className="min-h-[80px] text-sm border-2 border-gray-300 focus:border-blue-500"
-                maxLength={500}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                {remarks.length}/500 characters
-              </p>
             </div>
 
             {/* Payment Methods */}
@@ -3209,6 +3093,79 @@ export default function POSEnhancedPage() {
                 </div>
               </div>
             )}
+
+            {/* Additional Charge Section (for all sales types) */}
+            <div className="border-2 border-amber-400 rounded-lg p-3 bg-amber-50">
+              <Label className="text-sm font-bold block text-amber-700 mb-2">💰 Additional Charge (Optional)</Label>
+              <div className="space-y-2">
+                {/* Type Toggle */}
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={additionalChargeType === 'fixed' ? 'default' : 'outline'}
+                    onClick={() => setAdditionalChargeType('fixed')}
+                    className={additionalChargeType === 'fixed' ? 'bg-amber-600 hover:bg-amber-700' : ''}
+                  >
+                    Fixed ₱
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={additionalChargeType === 'percentage' ? 'default' : 'outline'}
+                    onClick={() => setAdditionalChargeType('percentage')}
+                    className={additionalChargeType === 'percentage' ? 'bg-amber-600 hover:bg-amber-700' : ''}
+                  >
+                    Percentage %
+                  </Button>
+                </div>
+                {/* Value Input */}
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    min="0"
+                    value={additionalChargeValue}
+                    onChange={(e) => setAdditionalChargeValue(e.target.value)}
+                    placeholder={additionalChargeType === 'fixed' ? 'Enter amount' : 'Enter percentage'}
+                    className="h-10 text-lg font-bold border-2 border-amber-400"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setKeypadTarget('additionalCharge')
+                      setKeypadValue(additionalChargeValue)
+                      setShowNumericKeypad(true)
+                    }}
+                    className="h-10 px-3 border-2 border-amber-400"
+                  >
+                    🔢
+                  </Button>
+                </div>
+                {/* Calculated Display */}
+                {additionalChargeValue && (
+                  <div className="text-sm text-amber-700 font-semibold">
+                    Additional Charge: +₱{calculateAdditionalCharge().toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {additionalChargeType === 'percentage' && ` (${additionalChargeValue}%)`}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Remarks Field */}
+            <div className="border-2 border-gray-300 rounded-lg p-3 bg-white">
+              <Label className="text-sm font-bold block text-gray-700 mb-2">📝 Remarks (Optional)</Label>
+              <Textarea
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                placeholder="Add any additional notes or remarks about this sale..."
+                className="min-h-[80px] text-sm border-2 border-gray-300 focus:border-blue-500"
+                maxLength={500}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {remarks.length}/500 characters
+              </p>
+            </div>
           </div>
 
           {/* Total Summary & Complete Sale Button */}
