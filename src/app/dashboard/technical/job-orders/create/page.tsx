@@ -265,12 +265,14 @@ export default function CreateJobOrderPage() {
   const fetchDropdownData = async () => {
     setLoading(true)
     try {
+      // Fetch with smaller initial limits for faster page load
+      // SearchableSelect already limits display to 100 items and supports search
       const [locRes, stRes, prodRes, techRes, custRes] = await Promise.all([
         fetch('/api/locations'),
-        fetch('/api/service-types?limit=500'),
-        fetch('/api/products?limit=2000'),
-        fetch('/api/technicians?limit=500'),
-        fetch('/api/customers?limit=2000'),
+        fetch('/api/service-types?limit=100'),
+        fetch('/api/products?limit=200'),
+        fetch('/api/technicians?limit=100'),
+        fetch('/api/customers?limit=200'),
       ])
 
       if (locRes.ok) {
