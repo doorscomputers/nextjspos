@@ -49,7 +49,7 @@ export default function MyReceivedTransfersReport() {
 
   const [myLocation, setMyLocation] = useState<{ id: number; name: string } | null>(null)
 
-  const [dateRangePreset, setDateRangePreset] = useState('custom')
+  const [dateRangePreset, setDateRangePreset] = useState('today')
   const [filters, setFilters] = useState({
     startDate: '',
     endDate: '',
@@ -438,7 +438,7 @@ export default function MyReceivedTransfersReport() {
       {showPivotView && (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
           <PivotGrid id="myReceivedTransfersPivot" dataSource={pivotGridDataSource} allowSortingBySummary allowFiltering allowSorting allowExpandAll showBorders showColumnTotals showColumnGrandTotals showRowTotals showRowGrandTotals height={600}>
-            <PivotStateStoring enabled type="localStorage" storageKey="myReceivedTransfersPivotState" />
+            <PivotStateStoring enabled type="localStorage" storageKey="myReceivedTransfersPivotState-v2" />
             <FieldPanel showColumnFields showDataFields showFilterFields showRowFields allowFieldDragging visible />
             <FieldChooser enabled height={600} />
             <PivotExport enabled />
@@ -449,7 +449,7 @@ export default function MyReceivedTransfersReport() {
       {!showPivotView && (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow">
           <DataGrid dataSource={reportData} showBorders showRowLines showColumnLines rowAlternationEnabled allowColumnReordering allowColumnResizing columnAutoWidth onExporting={onExporting}>
-            <StateStoring enabled type="localStorage" storageKey="myReceivedTransfersGrid" />
+            <StateStoring enabled type="localStorage" storageKey="myReceivedTransfersGrid-v2" />
             <Export enabled allowExportSelectedData />
             <FilterRow visible />
             <HeaderFilter visible />
@@ -459,8 +459,8 @@ export default function MyReceivedTransfersReport() {
             <ColumnChooser enabled mode="select" />
             <ColumnFixing enabled />
             <Sorting mode="multiple" />
-            <Paging defaultPageSize={20} />
-            <Pager visible allowedPageSizes={[10, 20, 50, 100]} showPageSizeSelector showInfo showNavigationButtons />
+            <Paging defaultPageSize={10} />
+            <Pager visible allowedPageSizes={[10, 20, 30, 40, 50]} showPageSizeSelector showInfo showNavigationButtons />
 
             <Column dataField="transferNumber" caption="Transfer #" width={150} fixed />
             <Column dataField="transferDateFormatted" caption="Transfer Date" dataType="date" width={120} />

@@ -390,7 +390,7 @@ export default function SalesPerItemReport() {
             wordWrapEnabled={false}
             onExporting={onExporting}
           >
-            <StateStoring enabled={true} type="localStorage" storageKey="admin-sales-per-item-grid" />
+            <StateStoring enabled={true} type="localStorage" storageKey="admin-sales-per-item-grid-v2" />
             <Sorting mode="multiple" />
             <FilterRow visible={true} />
             <HeaderFilter visible={true} />
@@ -399,10 +399,10 @@ export default function SalesPerItemReport() {
             <GroupPanel visible={true} />
             <Grouping autoExpandAll={false} />
 
-            <Paging defaultPageSize={20} />
+            <Paging defaultPageSize={10} />
             <Pager
               visible={true}
-              allowedPageSizes={[10, 20, 50, 100]}
+              allowedPageSizes={[10, 20, 30, 40, 50]}
               showPageSizeSelector={true}
               showInfo={true}
               showNavigationButtons={true}

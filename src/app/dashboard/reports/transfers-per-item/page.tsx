@@ -47,7 +47,7 @@ export default function TransfersPerItemReport() {
   const [showPivotView, setShowPivotView] = useState(false) // Toggle between Pivot and Detail view - Default to Detailed View
 
   // Filter state
-  const [dateRangePreset, setDateRangePreset] = useState('custom')
+  const [dateRangePreset, setDateRangePreset] = useState('today')
   const [filters, setFilters] = useState({
     startDate: '',
     endDate: '',
@@ -725,7 +725,7 @@ export default function TransfersPerItemReport() {
           wordWrapEnabled={false}
           onExporting={onExporting}
         >
-          <StateStoring enabled={true} type="localStorage" storageKey="transfersPerItemGrid" />
+          <StateStoring enabled={true} type="localStorage" storageKey="transfersPerItemGrid-v2" />
           <Export enabled={true} allowExportSelectedData={true} />
           <FilterRow visible={true} />
           <HeaderFilter visible={true} />
@@ -737,10 +737,10 @@ export default function TransfersPerItemReport() {
 
           <Sorting mode="multiple" />
 
-          <Paging defaultPageSize={20} />
+          <Paging defaultPageSize={10} />
           <Pager
             visible={true}
-            allowedPageSizes={[10, 20, 50, 100]}
+            allowedPageSizes={[10, 20, 30, 40, 50]}
             showPageSizeSelector={true}
             showInfo={true}
             showNavigationButtons={true}

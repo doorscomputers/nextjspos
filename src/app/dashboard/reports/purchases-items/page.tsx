@@ -20,6 +20,7 @@ import DataGrid, {
   FilterRow,
   HeaderFilter,
   Paging,
+  Pager,
   Grouping,
   GroupPanel,
   Summary,
@@ -110,8 +111,8 @@ export default function PurchaseItemsReportPage() {
   const [productName, setProductName] = useState("")
   const [sku, setSku] = useState("")
   const [purchaseOrderNumber, setPurchaseOrderNumber] = useState("")
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
+  const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0])
   const [minAmount, setMinAmount] = useState("")
   const [maxAmount, setMaxAmount] = useState("")
 
@@ -827,9 +828,9 @@ export default function PurchaseItemsReportPage() {
               allowColumnResizing={true}
               noDataText="No purchase items found. Try adjusting your filters."
             >
-              <StateStoring enabled={true} type="localStorage" storageKey="purchaseItemsReportDataGridState" />
+              <StateStoring enabled={true} type="localStorage" storageKey="purchaseItemsReportDataGridState-v2" />
               <LoadPanel enabled={true} />
-              <Scrolling mode="virtual" />
+              <Scrolling mode="standard" />
               <Selection mode="multiple" showCheckBoxesMode="always" />
               <Export enabled={true} formats={['xlsx', 'pdf']} allowExportSelectedData={true} />
               <ColumnChooser enabled={true} mode="select" />
@@ -837,7 +838,13 @@ export default function PurchaseItemsReportPage() {
               <SearchPanel visible={true} width={300} placeholder="Search purchase items..." />
               <FilterRow visible={true} />
               <HeaderFilter visible={true} />
-              <Paging defaultPageSize={50} />
+              <Paging defaultPageSize={10} />
+              <Pager
+                showPageSizeSelector={true}
+                allowedPageSizes={[10, 20, 30, 40, 50]}
+                showInfo={true}
+                showNavigationButtons={true}
+              />
               <Grouping autoExpandAll={false} />
               <GroupPanel visible={true} emptyPanelText="Drag column headers here to group by status, supplier, or location" />
 
@@ -1012,7 +1019,7 @@ export default function PurchaseItemsReportPage() {
                   allowFieldDragging={true}
                   visible={true}
                 />
-                <PivotStateStoring enabled={true} type="localStorage" storageKey="purchaseItemsPivotState" />
+                <PivotStateStoring enabled={true} type="localStorage" storageKey="purchaseItemsPivotState-v2" />
                 <PivotExport enabled={true} />
                 <PivotScrolling mode="virtual" />
               </PivotGrid>

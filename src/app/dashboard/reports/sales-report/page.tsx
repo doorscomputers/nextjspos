@@ -751,7 +751,7 @@ export default function SalesReportPage() {
               wordWrapEnabled={false}
               onExporting={onExporting}
             >
-              <StateStoring enabled={true} type="localStorage" storageKey="sales-report-grid" />
+              <StateStoring enabled={true} type="localStorage" storageKey="sales-report-grid-v2" />
               <SearchPanel visible={true} width={240} placeholder="Search sales..." />
               <FilterRow visible={true} />
               <HeaderFilter visible={true} />
@@ -760,7 +760,13 @@ export default function SalesReportPage() {
               <ColumnChooser enabled={true} mode="select" />
               <Sorting mode="multiple" />
 
-              <Paging enabled={false} />
+              <Paging defaultPageSize={10} />
+              <Pager
+                showPageSizeSelector={true}
+                allowedPageSizes={[10, 20, 30, 40, 50]}
+                showInfo={true}
+                showNavigationButtons={true}
+              />
 
               <Export enabled={true} allowExportSelectedData={false} />
 
