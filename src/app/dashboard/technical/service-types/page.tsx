@@ -339,34 +339,32 @@ export default function ServiceTypesPage() {
               <Export enabled={true} allowExportSelectedData={false} />
               <ColumnChooser enabled={true} mode="select" />
 
-              {can(PERMISSIONS.SERVICE_TYPE_CREATE) && can(PERMISSIONS.SERVICE_TYPE_EDIT) && can(PERMISSIONS.SERVICE_TYPE_DELETE) && (
-                <Editing
-                  mode="popup"
-                  allowAdding={can(PERMISSIONS.SERVICE_TYPE_CREATE)}
-                  allowUpdating={can(PERMISSIONS.SERVICE_TYPE_EDIT)}
-                  allowDeleting={can(PERMISSIONS.SERVICE_TYPE_DELETE)}
-                  useIcons={true}
-                >
-                  <Popup
-                    title="Service Type Details"
-                    showTitle={true}
-                    width={700}
-                    height="auto"
-                  />
-                  <DxForm>
-                    <Item dataField="code" />
-                    <Item dataField="name" />
-                    <Item dataField="description" editorType="dxTextArea" />
-                    <Item dataField="category" />
-                    <Item dataField="standardPrice" />
-                    <Item dataField="laborCostPerHour" />
-                    <Item dataField="estimatedHours" />
-                    <Item dataField="warrantyPeriodDays" />
-                    <Item dataField="isCoveredByWarranty" />
-                    <Item dataField="isActive" />
-                  </DxForm>
-                </Editing>
-              )}
+              <Editing
+                mode="popup"
+                allowAdding={can(PERMISSIONS.SERVICE_TYPE_CREATE)}
+                allowUpdating={can(PERMISSIONS.SERVICE_TYPE_EDIT)}
+                allowDeleting={can(PERMISSIONS.SERVICE_TYPE_DELETE)}
+                useIcons={true}
+              >
+                <Popup
+                  title="Service Type Details"
+                  showTitle={true}
+                  width={700}
+                  height="auto"
+                />
+                <DxForm>
+                  <Item dataField="code" />
+                  <Item dataField="name" />
+                  <Item dataField="description" editorType="dxTextArea" />
+                  <Item dataField="category" />
+                  <Item dataField="standardPrice" />
+                  <Item dataField="laborCostPerHour" />
+                  <Item dataField="estimatedHours" />
+                  <Item dataField="warrantyPeriodDays" />
+                  <Item dataField="isCoveredByWarranty" />
+                  <Item dataField="isActive" />
+                </DxForm>
+              </Editing>
 
               <Column
                 dataField="code"
