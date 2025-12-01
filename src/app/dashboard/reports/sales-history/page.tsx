@@ -168,11 +168,13 @@ export default function SalesHistoryPage() {
     sortOrder,
   ])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchLocations()
     fetchCustomers()
   }, [])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchReport()
   }, [page, sortBy, sortOrder])
