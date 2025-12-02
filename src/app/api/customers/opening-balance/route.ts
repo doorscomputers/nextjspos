@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
           totalAmount: amountNum,
           paidAmount: 0,
           notes: initialNotes,
-          createdBy: user.id,
+          createdBy: parseInt(String(user.id)),
         },
         include: {
           customer: {
