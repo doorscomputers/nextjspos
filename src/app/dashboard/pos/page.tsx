@@ -92,6 +92,13 @@ export default function POSEnhancedPage() {
   const [showCameraDialog, setShowCameraDialog] = useState(false)
   const [showExchangeDialog, setShowExchangeDialog] = useState(false)
 
+  // Package Template State
+  const [showPackageDialog, setShowPackageDialog] = useState(false)
+  const [packageCategories, setPackageCategories] = useState<any[]>([])
+  const [packageTemplates, setPackageTemplates] = useState<any[]>([])
+  const [loadingPackages, setLoadingPackages] = useState(false)
+  const [activePackageTab, setActivePackageTab] = useState<string>('all')
+
   // Confirmation Dialog States
   const [showClearCartConfirm, setShowClearCartConfirm] = useState(false)
   const [showHoldConfirm, setShowHoldConfirm] = useState(false)
@@ -213,6 +220,78 @@ export default function POSEnhancedPage() {
     } catch (error) {
       console.error('Error fetching sales personnel:', error)
     }
+  }
+
+  // Fetch package templates and categories
+  const fetchPackages = async () => {
+    setLoadingPackages(true)
+    try {
+      const [catRes, templatesRes] = await Promise.all([
+        fetch('/api/package-categories'),
+        fetch('/api/package-templates')
+      ])
+
+      const catData = await catRes.json()
+      const templatesData = await templatesRes.json()
+
+      if (catRes.ok) {
+        setPackageCategories(catData.categories || [])
+      }
+      if (templatesRes.ok) {
+        setPackageTemplates(templatesData.templates || [])
+      }
+    } catch (error) {
+      console.error('Error fetching packages:', error)
+    } finally {
+      setLoadingPackages(false)
+    }
+  }
+
+  // Load package items into cart
+  const loadPackageToCart = (template: any) => {
+    if (!currentShift?.location?.id) {
+      setError('No location selected')
+      return
+    }
+
+    const locationId = currentShift.location.id
+    const newItems: any[] = []
+
+    template.items.forEach((item: any) => {
+      // Find the product in our products list to get stock and variation details
+      const product = products.find((p: any) => p.id === item.productId)
+      if (!product) return
+
+      const variation = product.variations?.find((v: any) => v.id === item.productVariationId)
+      if (!variation) return
+
+      // Get stock for current location
+      const locationStock = variation.stocks?.find((s: any) => s.locationId === locationId)
+      const stockQty = locationStock?.quantity || 0
+
+      newItems.push({
+        id: product.id,
+        variationId: variation.id,
+        name: product.name + (variation.name ? ` - ${variation.name}` : ''),
+        sku: product.sku + (variation.subSku ? `-${variation.subSku}` : ''),
+        price: Number(item.customPrice), // Use package custom price
+        originalPrice: Number(item.originalPrice),
+        quantity: Number(item.quantity),
+        stock: stockQty,
+        total: Number(item.customPrice) * Number(item.quantity),
+        imageUrl: product.imageUrl,
+        enableSerialNumber: product.enableSerialNumber,
+        serialNumbers: [],
+        selectedUnitId: null,
+        selectedUnitMultiplier: 1,
+        isFreebie: false,
+        freebieReason: ''
+      })
+    })
+
+    // Add items to cart (merge with existing if any)
+    setCart(prev => [...prev, ...newItems])
+    setShowPackageDialog(false)
   }
 
   // Fetch products after shift is loaded
@@ -2342,6 +2421,18 @@ export default function POSEnhancedPage() {
           </div>
 
           {/* Compact Action Buttons */}
+          {hasPermission(session?.user as RBACUser, PERMISSIONS.PACKAGE_TEMPLATE_VIEW) && (
+            <Button
+              onClick={() => {
+                fetchPackages()
+                setShowPackageDialog(true)
+              }}
+              className="h-12 px-4 bg-purple-600 hover:bg-purple-700 text-white"
+              title="Load Package Template"
+            >
+              📦 Package
+            </Button>
+          )}
           <Button
             onClick={() => window.open('/dashboard/readings/x-reading', '_blank')}
             className="h-12 px-4 bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
@@ -3287,7 +3378,23 @@ export default function POSEnhancedPage() {
 
       {/* Numeric Keypad Dialog */}
       <Dialog open={showNumericKeypad} onOpenChange={setShowNumericKeypad}>
-        <DialogContent className="max-w-sm">
+        <DialogContent
+          className="max-w-sm"
+          onKeyDown={(e) => {
+            // Handle physical keyboard input
+            if (e.key >= '0' && e.key <= '9') {
+              handleKeypadClick(e.key)
+            } else if (e.key === '.' || e.key === 'Decimal') {
+              handleKeypadClick('.')
+            } else if (e.key === 'Backspace' || e.key === 'Delete') {
+              handleKeypadClick('←')
+            } else if (e.key === 'Escape') {
+              handleKeypadClick('C')
+            } else if (e.key === 'Enter') {
+              confirmKeypadValue()
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Enter Amount</DialogTitle>
           </DialogHeader>
@@ -4261,6 +4368,122 @@ export default function POSEnhancedPage() {
         }}
         variant="default"
       />
+
+      {/* Package Selection Dialog */}
+      <Dialog open={showPackageDialog} onOpenChange={setShowPackageDialog}>
+        <DialogContent className="sm:max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              📦 Select Package Template
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {loadingPackages ? (
+              <div className="text-center py-8">
+                <div className="animate-spin inline-block w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full"></div>
+                <p className="mt-2 text-gray-500">Loading packages...</p>
+              </div>
+            ) : (
+              <>
+                <Tabs value={activePackageTab} onValueChange={setActivePackageTab}>
+                  <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 flex-wrap">
+                    <TabsTrigger
+                      value="all"
+                      className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent"
+                    >
+                      All ({packageTemplates.length})
+                    </TabsTrigger>
+                    {packageCategories.map(cat => (
+                      <TabsTrigger
+                        key={cat.id}
+                        value={cat.id.toString()}
+                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent"
+                      >
+                        {cat.name} ({packageTemplates.filter((t: any) => t.categoryId === cat.id).length})
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+
+                <div className="grid gap-3">
+                  {(activePackageTab === 'all'
+                    ? packageTemplates
+                    : packageTemplates.filter((t: any) => t.categoryId?.toString() === activePackageTab)
+                  ).map((template: any) => (
+                    <div
+                      key={template.id}
+                      className="border rounded-lg p-4 hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 cursor-pointer transition-colors"
+                      onClick={() => loadPackageToCart(template)}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-bold text-lg">{template.name}</h3>
+                          {template.category && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
+                              {template.category.name}
+                            </span>
+                          )}
+                          {template.description && (
+                            <p className="text-sm text-gray-500 mt-1">{template.description}</p>
+                          )}
+                          <p className="text-sm text-gray-500 mt-2">
+                            {template.items?.length || template._count?.items || 0} items
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-green-600">
+                            {new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(template.targetPrice))}
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="success"
+                            className="mt-2"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              loadPackageToCart(template)
+                            }}
+                          >
+                            Load to Cart
+                          </Button>
+                        </div>
+                      </div>
+                      {template.items && template.items.length > 0 && (
+                        <div className="mt-3 pt-3 border-t">
+                          <p className="text-xs text-gray-500 mb-2">Items included:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {template.items.slice(0, 5).map((item: any, idx: number) => (
+                              <span key={idx} className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded">
+                                {item.product?.name || 'Product'} x{Number(item.quantity)}
+                              </span>
+                            ))}
+                            {template.items.length > 5 && (
+                              <span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded">
+                                +{template.items.length - 5} more
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {(activePackageTab === 'all' ? packageTemplates : packageTemplates.filter((t: any) => t.categoryId?.toString() === activePackageTab)).length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      No package templates found.
+                      <br />
+                      <span className="text-sm">Create templates in the Package Templates menu.</span>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPackageDialog(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
