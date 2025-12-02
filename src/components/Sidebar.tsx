@@ -503,7 +503,7 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
       name: "Package Templates",
       href: "/dashboard/package-templates",
       icon: CubeIcon,
-      key: "package_templates",
+      key: "menu.package_templates",
       permission: PERMISSIONS.PACKAGE_TEMPLATE_VIEW,
     },
 
