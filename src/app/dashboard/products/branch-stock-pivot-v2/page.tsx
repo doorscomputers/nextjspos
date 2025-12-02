@@ -45,9 +45,11 @@ interface PivotRow {
   lastQtyDelivered: number
   lastPurchaseCost: number
   cost: number
+  price: number
   stockByLocation: Record<number, number>
   totalStock: number
   totalCost: number
+  totalPrice: number
   isActive: boolean
 }
 
@@ -181,8 +183,10 @@ export default function BranchStockPivotV2Page() {
           lastQtyDelivered: row.lastQtyDelivered,
           lastCost: row.cost, // Cost BEFORE the latest purchase (previous cost)
           cost: row.lastPurchaseCost, // Cost FROM the latest purchase (current cost)
+          price: row.price, // Selling price
           totalStock: row.totalStock,
           totalCost: row.totalCost,
+          totalPrice: row.totalPrice, // Total selling price value
           isActive: row.isActive ? 'Active' : 'Inactive',
         }
 
@@ -456,6 +460,15 @@ export default function BranchStockPivotV2Page() {
             alignment="right"
             cssClass="bg-amber-50 dark:bg-amber-900/20"
           />
+          <Column
+            dataField="price"
+            caption="Selling Price"
+            dataType="number"
+            format="₱#,##0.00"
+            width={130}
+            alignment="right"
+            cssClass="bg-blue-50 dark:bg-blue-900/20"
+          />
 
           {/* Dynamic Location Columns */}
           {locations.map((location) => (
@@ -494,7 +507,16 @@ export default function BranchStockPivotV2Page() {
             alignment="right"
             cssClass="bg-yellow-50 dark:bg-yellow-900/20"
           />
-                    <Column
+          <Column
+            dataField="totalPrice"
+            caption="Total Price"
+            dataType="number"
+            format="₱#,##0.00"
+            width={130}
+            alignment="right"
+            cssClass="bg-blue-50 dark:bg-blue-900/20"
+          />
+          <Column
             dataField="isActive"
             caption="Status"
             width={100}
