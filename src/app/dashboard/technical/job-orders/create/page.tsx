@@ -617,11 +617,42 @@ export default function CreateJobOrderPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validation: itemDescription is required, product fields are now optional
-    if (!formData.locationId || !formData.serviceTypeId || !formData.itemDescription ||
-        !formData.customerName || !formData.problemDescription) {
-      toast.error('Please fill in all required fields: Service Type, Item Description, Customer Name, Problem Description')
+    // Build list of missing required fields
+    const missingFields: string[] = []
+
+    // Location is auto-set from user's primary location
+    const effectiveLocationId = formData.locationId || userLocationId?.toString()
+    if (!effectiveLocationId) {
+      missingFields.push('Location')
+    }
+    if (!formData.serviceTypeId) {
+      missingFields.push('Service Type')
+    }
+    if (!formData.itemDescription?.trim()) {
+      missingFields.push('Item Description')
+    }
+    if (!formData.customerName?.trim()) {
+      missingFields.push('Customer Name')
+    }
+    if (!formData.problemDescription?.trim()) {
+      missingFields.push('Problem Description')
+    }
+
+    if (missingFields.length > 0) {
+      toast.error(`Please fill in: ${missingFields.join(', ')}`, {
+        duration: 5000,
+        style: {
+          background: '#FEE2E2',
+          color: '#991B1B',
+          border: '1px solid #F87171',
+        },
+      })
       return
+    }
+
+    // Update formData with effective locationId if needed
+    if (!formData.locationId && effectiveLocationId) {
+      setFormData(prev => ({ ...prev, locationId: effectiveLocationId }))
     }
 
     // Show confirmation dialog
@@ -639,11 +670,14 @@ export default function CreateJobOrderPage() {
         ? parseInt(formData.technicianId)
         : null
 
+      // Use formData.locationId or fall back to userLocationId
+      const effectiveLocationId = formData.locationId || userLocationId?.toString()
+
       const response = await fetch('/api/job-orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          locationId: parseInt(formData.locationId),
+          locationId: parseInt(effectiveLocationId || '0'),
           // jobOrderDate is auto-set by server
           receivedDate: formData.receivedDate || null, // When item was received
           serviceTypeId: parseInt(formData.serviceTypeId),
