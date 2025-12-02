@@ -733,6 +733,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
           permission: PERMISSIONS.CUSTOMER_VIEW,
         },
         {
+          key: "customer_opening_balance",
+          name: "Opening Balance",
+          href: "/dashboard/customers/opening-balance",
+          icon: BanknotesIcon,
+          permission: PERMISSIONS.CUSTOMER_UPDATE,
+        },
+        {
           key: "import_customers",
           name: "Import Customers",
           href: "/dashboard/customers/import",
