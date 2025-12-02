@@ -2408,7 +2408,7 @@ export default function POSEnhancedPage() {
                           <div className="flex-1">
                             <div className="font-bold text-lg text-gray-800">{product.name}</div>
                             <div className="text-sm text-gray-600">
-                              SKU: {product.sku} | Price: ₱{parseFloat(variation?.sellingPrice || 0).toFixed(2)}
+                              SKU: {product.sku} | Price: ₱{parseFloat(locationStock?.sellingPrice || variation?.sellingPrice || 0).toFixed(2)}
                             </div>
                           </div>
                           <div className={`text-sm font-semibold px-3 py-1 rounded ${
