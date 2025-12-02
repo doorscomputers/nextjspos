@@ -115,6 +115,9 @@ model User {
   // Product Location Pricing Relations
   locationPriceUpdates ProductUnitLocationPrice[] @relation("LocationPriceUpdatedBy")
 
+  // Package Templates Relations
+  createdPackageTemplates PackageTemplate[] @relation("PackageTemplateCreator")
+
   // Background Job Queue Relations
   jobs Job[]
 
@@ -266,6 +269,10 @@ model Business {
 
   // Sales Personnel Relations
   salesPersonnel SalesPersonnel[]
+
+  // Package Templates Relations
+  packageCategories PackageCategory[]
+  packageTemplates  PackageTemplate[]
 
   @@map("business")
 }
@@ -914,6 +921,9 @@ model Product {
   // Multi-Unit Pricing Relations
   unitPrices         ProductUnitPrice[]
   unitLocationPrices ProductUnitLocationPrice[]
+
+  // Package Templates Relations
+  packageTemplateItems PackageTemplateItem[] @relation("PackageTemplateProduct")
 
   @@unique([businessId, sku]) // SKU must be unique within each business
   @@unique([businessId, name]) // Product name must be unique within each business
@@ -4889,4 +4899,80 @@ model SalesPersonnel {
   @@index([businessId, isActive])
   @@index([isActive])
   @@map("sales_personnel")
+}
+
+// ============================================================================
+// PACKAGE TEMPLATES
+// ============================================================================
+// Pre-defined product bundles with custom pricing for quick POS loading
+// Managers create templates, cashiers load them into cart
+
+model PackageCategory {
+  id          Int      @id @default(autoincrement())
+  businessId  Int      @map("business_id")
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name        String   @db.VarChar(100)  // "Gaming", "Office", "Budget"
+  description String?  @db.Text
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  packages    PackageTemplate[]
+
+  @@unique([businessId, name])
+  @@index([businessId])
+  @@index([businessId, isActive])
+  @@map("package_categories")
+}
+
+model PackageTemplate {
+  id          Int      @id @default(autoincrement())
+  businessId  Int      @map("business_id")
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  categoryId  Int?     @map("category_id")
+  category    PackageCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  name        String   @db.VarChar(191)  // "Gaming Desktop Build A"
+  description String?  @db.Text
+  sku         String?  @db.VarChar(100)
+
+  targetPrice Decimal  @map("target_price") @db.Decimal(22, 4)  // Package selling price
+  isActive    Boolean  @default(true) @map("is_active")
+
+  createdBy   Int      @map("created_by")
+  creator     User     @relation("PackageTemplateCreator", fields: [createdBy], references: [id])
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  items       PackageTemplateItem[]
+
+  @@unique([businessId, sku])
+  @@index([businessId])
+  @@index([businessId, isActive])
+  @@index([businessId, categoryId])
+  @@map("package_templates")
+}
+
+model PackageTemplateItem {
+  id                 Int             @id @default(autoincrement())
+  packageTemplateId  Int             @map("package_template_id")
+  packageTemplate    PackageTemplate @relation(fields: [packageTemplateId], references: [id], onDelete: Cascade)
+
+  productId          Int             @map("product_id")
+  product            Product         @relation("PackageTemplateProduct", fields: [productId], references: [id])
+
+  productVariationId Int             @map("product_variation_id")
+
+  quantity           Decimal         @db.Decimal(22, 4)
+  originalPrice      Decimal         @map("original_price") @db.Decimal(22, 4)  // Product's actual price
+  customPrice        Decimal         @map("custom_price") @db.Decimal(22, 4)    // Manager's adjusted price for package
+
+  @@index([packageTemplateId])
+  @@index([productId])
+  @@map("package_template_items")
 }

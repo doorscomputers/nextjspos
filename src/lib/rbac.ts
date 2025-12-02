@@ -691,6 +691,14 @@ export const PERMISSIONS = {
   REPAIR_ANALYTICS_VIEW: 'repair_analytics.view', // Repair analytics dashboard
   SERVICE_REVENUE_REPORT: 'service_revenue.report', // Service revenue reporting
   WARRANTY_ANALYTICS_VIEW: 'warranty_analytics.view', // Warranty claim analytics
+
+  // ============================================================================
+  // PACKAGE TEMPLATES - Pre-defined product bundles with custom pricing
+  // ============================================================================
+  PACKAGE_TEMPLATE_VIEW: 'package_template.view', // View package templates
+  PACKAGE_TEMPLATE_CREATE: 'package_template.create', // Create package templates
+  PACKAGE_TEMPLATE_EDIT: 'package_template.edit', // Edit package templates
+  PACKAGE_TEMPLATE_DELETE: 'package_template.delete', // Delete package templates
 } as const
 
 /**
@@ -1311,6 +1319,8 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.CASHIER_REPORTS_VIEW,
       // Sales Personnel - view only for dropdown selection
       PERMISSIONS.SALES_PERSONNEL_VIEW,
+      // Package Templates - view only for loading in POS
+      PERMISSIONS.PACKAGE_TEMPLATE_VIEW,
     ],
   },
 
@@ -1356,6 +1366,8 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.SALES_PERSONNEL_CREATE,
       PERMISSIONS.SALES_PERSONNEL_UPDATE,
       PERMISSIONS.REPORT_SALES_BY_PERSONNEL,
+      // Package Templates
+      PERMISSIONS.PACKAGE_TEMPLATE_VIEW,
     ],
   },
 
@@ -2293,6 +2305,10 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.INVENTORY_LEDGER_VIEW,
       PERMISSIONS.VIEW_INVENTORY_REPORTS,
       PERMISSIONS.REPORT_TRANSFER_VIEW,
+      // Package Templates - can create and manage
+      PERMISSIONS.PACKAGE_TEMPLATE_VIEW,
+      PERMISSIONS.PACKAGE_TEMPLATE_CREATE,
+      PERMISSIONS.PACKAGE_TEMPLATE_EDIT,
     ],
   },
 
