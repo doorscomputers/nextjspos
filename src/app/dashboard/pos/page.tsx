@@ -3134,17 +3134,13 @@ export default function POSEnhancedPage() {
                 <div>
                   <Label className="text-base font-bold mb-1 block text-green-700">Cash Amount</Label>
                   <Input
-                    type="number"
-                    min="0"
-                    value={cashAmount}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      if (val === '' || parseFloat(val) >= 0) setCashAmount(val)
-                    }}
+                    type="text"
+                    value={cashAmount ? formatCurrencyDisplay(cashAmount, 2) : ''}
+                    onChange={(e) => setCashAmount(sanitizeCurrencyInput(e.target.value))}
                     onKeyDown={(e) => { if (e.key === '-') e.preventDefault() }}
-                    onWheel={(e) => (e.target as HTMLInputElement).blur()}
                     placeholder="0.00"
-                    className="h-12 text-xl font-bold border-2 border-green-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    inputMode="decimal"
+                    className="h-12 text-xl font-bold border-2 border-green-400"
                   />
                 </div>
 
@@ -3164,17 +3160,13 @@ export default function POSEnhancedPage() {
                     </SelectContent>
                   </Select>
                   <Input
-                    type="number"
-                    min="0"
-                    value={digitalAmount}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      if (val === '' || parseFloat(val) >= 0) setDigitalAmount(val)
-                    }}
+                    type="text"
+                    value={digitalAmount ? formatCurrencyDisplay(digitalAmount, 2) : ''}
+                    onChange={(e) => setDigitalAmount(sanitizeCurrencyInput(e.target.value))}
                     onKeyDown={(e) => { if (e.key === '-') e.preventDefault() }}
-                    onWheel={(e) => (e.target as HTMLInputElement).blur()}
                     placeholder="0.00"
-                    className="h-12 text-xl font-bold border-2 border-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    inputMode="decimal"
+                    className="h-12 text-xl font-bold border-2 border-blue-400"
                   />
                   {parseFloat(digitalAmount || '0') > 0 && (
                     <Input
@@ -3191,17 +3183,13 @@ export default function POSEnhancedPage() {
                 <div>
                   <Label className="text-base font-bold mb-1 block text-amber-700">Cheque Payment</Label>
                   <Input
-                    type="number"
-                    min="0"
-                    value={chequeAmount}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      if (val === '' || parseFloat(val) >= 0) setChequeAmount(val)
-                    }}
+                    type="text"
+                    value={chequeAmount ? formatCurrencyDisplay(chequeAmount, 2) : ''}
+                    onChange={(e) => setChequeAmount(sanitizeCurrencyInput(e.target.value))}
                     onKeyDown={(e) => { if (e.key === '-') e.preventDefault() }}
-                    onWheel={(e) => (e.target as HTMLInputElement).blur()}
                     placeholder="0.00"
-                    className="h-12 text-xl font-bold border-2 border-amber-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    inputMode="decimal"
+                    className="h-12 text-xl font-bold border-2 border-amber-400"
                   />
                   {parseFloat(chequeAmount || '0') > 0 && (
                     <>
