@@ -1155,6 +1155,18 @@ export default function POSEnhancedPage() {
         newCart[index].serialNumbers = []
       }
 
+      // Recalculate discount amount when quantity changes
+      if (newCart[index].itemDiscountType && newCart[index].itemDiscountValue > 0) {
+        const newQty = quantity
+        const newLineTotal = newCart[index].unitPrice * newQty
+        if (newCart[index].itemDiscountType === 'percentage') {
+          newCart[index].itemDiscountAmount = (newLineTotal * newCart[index].itemDiscountValue) / 100
+        } else {
+          // Fixed discount per item × quantity
+          newCart[index].itemDiscountAmount = newCart[index].itemDiscountValue * newQty
+        }
+      }
+
       setCart(newCart)
     } else {
       // Primary unit - use existing logic
@@ -1175,6 +1187,18 @@ export default function POSEnhancedPage() {
         newCart[index].serialNumbers = []
       }
 
+      // Recalculate discount amount when quantity changes
+      if (newCart[index].itemDiscountType && newCart[index].itemDiscountValue > 0) {
+        const newQty = quantity
+        const newLineTotal = newCart[index].unitPrice * newQty
+        if (newCart[index].itemDiscountType === 'percentage') {
+          newCart[index].itemDiscountAmount = (newLineTotal * newCart[index].itemDiscountValue) / 100
+        } else {
+          // Fixed discount per item × quantity
+          newCart[index].itemDiscountAmount = newCart[index].itemDiscountValue * newQty
+        }
+      }
+
       setCart(newCart)
     }
   }
@@ -1187,8 +1211,8 @@ export default function POSEnhancedPage() {
     if (item.itemDiscountType === 'percentage') {
       return (lineTotal * item.itemDiscountValue) / 100
     }
-    // Fixed discount - can't exceed line total
-    return Math.min(item.itemDiscountValue, lineTotal)
+    // Fixed discount per item × quantity (capped at line total)
+    return Math.min(item.itemDiscountValue * qty, lineTotal)
   }
 
   // Calculate total of all item-level discounts
