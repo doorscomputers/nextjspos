@@ -23,9 +23,11 @@ interface PivotRow {
   lastDeliveryDate: string | null
   lastQtyDelivered: number
   cost: number
+  price: number
   stockByLocation: Record<number, number>
   totalStock: number
   totalCost: number
+  totalPrice: number
   isActive: boolean
 }
 
@@ -50,13 +52,17 @@ export default function BranchStockPivotPage() {
   const [columnTotals, setColumnTotals] = useState<{
     byLocation: Record<number, number>
     costByLocation: Record<number, number>
+    priceByLocation: Record<number, number>
     grandTotal: number
     grandTotalCost: number
+    grandTotalPrice: number
   }>({
     byLocation: {},
     costByLocation: {},
+    priceByLocation: {},
     grandTotal: 0,
     grandTotalCost: 0,
+    grandTotalPrice: 0,
   })
   const [totalCount, setTotalCount] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -440,6 +446,11 @@ export default function BranchStockPivotPage() {
         id: 'cost',
         label: 'Cost',
         getValue: (row: PivotRow) => row.cost.toFixed(2)
+      },
+      {
+        id: 'price',
+        label: 'Price',
+        getValue: (row: PivotRow) => row.price.toFixed(2)
       }
     ]
 
@@ -461,6 +472,11 @@ export default function BranchStockPivotPage() {
         id: 'totalCost',
         label: 'Total Cost',
         getValue: (row: PivotRow) => row.totalCost.toFixed(2)
+      },
+      {
+        id: 'totalPrice',
+        label: 'Total Price',
+        getValue: (row: PivotRow) => row.totalPrice.toFixed(2)
       },
       {
         id: 'active',
@@ -824,7 +840,19 @@ export default function BranchStockPivotPage() {
                       Cost
                     </SortableTableHead>
                   )}
-                                    {locations
+                  {visibleColumns.includes('price') && (
+                    <SortableTableHead
+                      sortKey="price"
+                      currentSortKey={sortKey}
+                      currentSortDirection={sortDirection}
+                      onSort={handleSort}
+                      className="px-2 py-3 text-xs uppercase tracking-wider min-w-[100px]"
+                      align="right"
+                    >
+                      Price
+                    </SortableTableHead>
+                  )}
+                  {locations
                     .filter(location => visibleColumns.includes(`location-${location.id}`))
                     .map(location => (
                       <SortableTableHead
@@ -864,7 +892,19 @@ export default function BranchStockPivotPage() {
                       Total Cost
                     </SortableTableHead>
                   )}
-                                    {visibleColumns.includes('active') && (
+                  {visibleColumns.includes('totalPrice') && (
+                    <SortableTableHead
+                      sortKey="totalPrice"
+                      currentSortKey={sortKey}
+                      currentSortDirection={sortDirection}
+                      onSort={handleSort}
+                      className="px-3 py-3 text-xs font-bold uppercase tracking-wider bg-blue-100 dark:bg-blue-900/40 min-w-[120px]"
+                      align="right"
+                    >
+                      Total Price
+                    </SortableTableHead>
+                  )}
+                  {visibleColumns.includes('active') && (
                     <th className="px-3 py-3 text-xs uppercase tracking-wider text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-orange-900 sticky right-0 z-20 min-w-[90px] text-center">
                       Active
                     </th>
@@ -925,7 +965,12 @@ export default function BranchStockPivotPage() {
                             ₱{row.cost.toFixed(2)}
                           </td>
                         )}
-                                                {locations
+                        {visibleColumns.includes('price') && (
+                          <td className="px-2 py-3 whitespace-nowrap text-xs text-gray-900 dark:text-gray-100 text-right">
+                            ₱{row.price.toFixed(2)}
+                          </td>
+                        )}
+                        {locations
                           .filter(location => visibleColumns.includes(`location-${location.id}`))
                           .map(location => (
                             <td key={location.id} className="px-3 py-3 whitespace-nowrap text-center bg-amber-50/30 dark:bg-amber-900/20">
@@ -947,7 +992,12 @@ export default function BranchStockPivotPage() {
                             ₱{row.totalCost.toFixed(2)}
                           </td>
                         )}
-                                                {visibleColumns.includes('active') && (
+                        {visibleColumns.includes('totalPrice') && (
+                          <td className="px-3 py-3 whitespace-nowrap text-xs font-semibold text-gray-900 dark:text-gray-100 text-right bg-blue-50 dark:bg-blue-900/30">
+                            ₱{row.totalPrice.toFixed(2)}
+                          </td>
+                        )}
+                        {visibleColumns.includes('active') && (
                           <td className="px-3 py-3 whitespace-nowrap text-center sticky right-0 z-10 bg-white dark:bg-orange-900/20 shadow-sm">
                             <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${row.isActive ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'}`}>
                               {row.isActive ? 'TRUE' : 'FALSE'}
@@ -974,7 +1024,8 @@ export default function BranchStockPivotPage() {
                       {visibleColumns.includes('lastDeliveryDate') && <td className="px-2 py-4"></td>}
                       {visibleColumns.includes('lastQtyDelivered') && <td className="px-2 py-4"></td>}
                       {visibleColumns.includes('cost') && <td className="px-2 py-4"></td>}
-                                            {locations
+                      {visibleColumns.includes('price') && <td className="px-2 py-4"></td>}
+                      {locations
                         .filter(location => visibleColumns.includes(`location-${location.id}`))
                         .map(location => (
                           <td key={location.id} className="px-3 py-4 text-center text-sm font-bold text-amber-900 dark:text-amber-100 bg-amber-200 dark:bg-amber-900/40">
@@ -992,7 +1043,12 @@ export default function BranchStockPivotPage() {
                           ₱{columnTotals.grandTotalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                       )}
-                                            {visibleColumns.includes('active') && <td className="px-3 py-4 sticky right-0 bg-amber-100 dark:bg-orange-900/40 z-10 shadow-sm"></td>}
+                      {visibleColumns.includes('totalPrice') && (
+                        <td className="px-3 py-4 text-right text-sm font-bold text-gray-900 dark:text-gray-100 bg-blue-100 dark:bg-blue-900/40">
+                          ₱{columnTotals.grandTotalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                      )}
+                      {visibleColumns.includes('active') && <td className="px-3 py-4 sticky right-0 bg-amber-100 dark:bg-orange-900/40 z-10 shadow-sm"></td>}
                     </tr>
                   </>
                 )}
