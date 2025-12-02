@@ -157,7 +157,7 @@ export async function GET(request: NextRequest) {
 
         switch (groupBy) {
           case 'hour':
-            key = `${date.getHours()}:00`
+            key = `${date.getHours().toString().padStart(2, '0')}:00`
             break
           case 'day':
             key = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
