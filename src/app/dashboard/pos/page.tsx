@@ -1033,14 +1033,14 @@ export default function POSEnhancedPage() {
     const qty = item.displayQuantity && item.selectedUnitName ? item.displayQuantity : item.quantity
     const lineTotal = item.unitPrice * qty
 
-    // Cap the discount value to prevent exceeding line total
-    let cappedValue = discountValue
+    // Ensure discount value is non-negative and cap appropriately
+    let cappedValue = Math.max(0, discountValue)  // Prevent negative values
     if (discountType === 'percentage') {
-      // Cap percentage at 100%
-      cappedValue = Math.min(discountValue, 100)
+      // Cap percentage at 100% (and ensure >= 0)
+      cappedValue = Math.min(Math.max(0, discountValue), 100)
     } else if (discountType === 'fixed') {
-      // Cap fixed discount at line total
-      cappedValue = Math.min(discountValue, lineTotal)
+      // Cap fixed discount per item at unit price (and ensure >= 0)
+      cappedValue = Math.min(Math.max(0, discountValue), item.unitPrice)
     }
 
     // Calculate the discount amount in peso
@@ -1049,7 +1049,8 @@ export default function POSEnhancedPage() {
       if (discountType === 'percentage') {
         discountAmount = (lineTotal * cappedValue) / 100
       } else {
-        discountAmount = cappedValue
+        // Fixed discount per item × quantity
+        discountAmount = cappedValue * qty
       }
     }
 
@@ -1217,11 +1218,11 @@ export default function POSEnhancedPage() {
   const calculateAdditionalCharge = () => {
     if (!additionalChargeValue) return 0
     const value = parseFloat(additionalChargeValue)
-    if (isNaN(value)) return 0
+    if (isNaN(value) || value < 0) return 0  // Prevent negative values
     if (additionalChargeType === 'percentage') {
-      return (calculateSubtotal() * value) / 100
+      return (calculateSubtotal() * Math.max(0, value)) / 100
     }
-    return value
+    return Math.max(0, value)  // Ensure non-negative
   }
 
   const calculateTotal = () => {
@@ -1295,16 +1296,22 @@ export default function POSEnhancedPage() {
   }
 
   const confirmKeypadValue = () => {
+    // Ensure non-negative values for discount and additional charge
+    const numValue = parseFloat(keypadValue)
+    const safeValue = (isNaN(numValue) || numValue < 0) ? '0' : keypadValue
+
     if (keypadTarget === 'cash') {
       setCashAmount(keypadValue)
     } else if (keypadTarget === 'digital') {
       setDigitalAmount(keypadValue)
     } else if (keypadTarget === 'discount') {
-      setDiscountAmount(keypadValue)
+      // Prevent negative discount
+      setDiscountAmount(safeValue)
     } else if (keypadTarget === 'cashin' || keypadTarget === 'cashout') {
       setCashIOAmount(keypadValue)
     } else if (keypadTarget === 'additionalCharge') {
-      setAdditionalChargeValue(keypadValue)
+      // Prevent negative additional charge
+      setAdditionalChargeValue(safeValue)
     }
     setShowNumericKeypad(false)
     setKeypadValue('')
@@ -2731,7 +2738,16 @@ export default function POSEnhancedPage() {
                                 value={item.itemDiscountValue || ''}
                                 onChange={(e) => {
                                   const val = parseFloat(e.target.value) || 0
-                                  updateItemDiscount(index, item.itemDiscountType, val)
+                                  // Prevent negative values
+                                  if (val >= 0) {
+                                    updateItemDiscount(index, item.itemDiscountType, val)
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  // Block minus sign key press
+                                  if (e.key === '-' || e.key === 'Minus') {
+                                    e.preventDefault()
+                                  }
                                 }}
                                 placeholder="0"
                                 className="h-8 w-24 text-sm text-center border-orange-300 focus:border-orange-500"
@@ -3125,7 +3141,19 @@ export default function POSEnhancedPage() {
                     type="number"
                     min="0"
                     value={additionalChargeValue}
-                    onChange={(e) => setAdditionalChargeValue(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      // Prevent negative values - only allow empty or non-negative numbers
+                      if (val === '' || (parseFloat(val) >= 0 && !val.includes('-'))) {
+                        setAdditionalChargeValue(val)
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      // Block minus sign key press
+                      if (e.key === '-' || e.key === 'Minus') {
+                        e.preventDefault()
+                      }
+                    }}
                     placeholder={additionalChargeType === 'fixed' ? 'Enter amount' : 'Enter percentage'}
                     className="h-10 text-lg font-bold border-2 border-amber-400"
                   />
@@ -3958,9 +3986,22 @@ export default function POSEnhancedPage() {
                     <Label className="text-xs mb-1 block">Discount Amount</Label>
                     <Input
                       type="number"
+                      min="0"
                       placeholder="Enter discount amount..."
                       value={discountAmount}
-                      onChange={(e) => setDiscountAmount(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        // Prevent negative values - only allow empty or non-negative numbers
+                        if (val === '' || (parseFloat(val) >= 0 && !val.includes('-'))) {
+                          setDiscountAmount(val)
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        // Block minus sign key press
+                        if (e.key === '-' || e.key === 'Minus') {
+                          e.preventDefault()
+                        }
+                      }}
                       onClick={() => openKeypad('discount')}
                     />
                   </div>
