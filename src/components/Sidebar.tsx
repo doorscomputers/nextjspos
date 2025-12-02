@@ -960,6 +960,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               icon: CurrencyDollarIcon,
               permission: PERMISSIONS.REPORT_UNPAID_INVOICES,
             },
+            {
+              key: "daily_cash_collection",
+              name: "Daily Cash Collection",
+              href: "/dashboard/reports/daily-cash-collection",
+              icon: BanknotesIcon,
+              permission: PERMISSIONS.REPORT_DAILY_CASH_COLLECTION,
+            },
             // Hidden: Payment Collections report (redundant with Receivable Payments)
             // {
             //   key: "cashier_payment_collections",

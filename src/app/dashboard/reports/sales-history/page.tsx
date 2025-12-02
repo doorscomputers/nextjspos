@@ -418,6 +418,35 @@ export default function SalesHistoryPage() {
           </div>
         )}
 
+        {/* Sale Summary - Shows subtotal, discount, additional charge, and total */}
+        <div>
+          <h4 className="font-semibold mb-2 text-amber-900 dark:text-amber-100">Sale Summary</h4>
+          <div className="bg-white dark:bg-amber-900/30 rounded border border-amber-200 dark:border-amber-700 p-3 max-w-xs">
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600 dark:text-gray-400">Subtotal:</span>
+                <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(sale.subtotal)}</span>
+              </div>
+              {sale.discountAmount > 0 && (
+                <div className="flex justify-between text-red-600 dark:text-red-400">
+                  <span>Discount:</span>
+                  <span className="font-medium">-{formatCurrency(sale.discountAmount)}</span>
+                </div>
+              )}
+              {sale.shippingCost > 0 && (
+                <div className="flex justify-between text-blue-600 dark:text-blue-400">
+                  <span>Additional Charge:</span>
+                  <span className="font-medium">+{formatCurrency(sale.shippingCost)}</span>
+                </div>
+              )}
+              <div className="flex justify-between border-t border-amber-200 dark:border-amber-600 pt-1 mt-1">
+                <span className="font-semibold text-amber-900 dark:text-amber-100">Total:</span>
+                <span className="font-bold text-amber-900 dark:text-amber-100">{formatCurrency(sale.totalAmount)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Payment Details */}
         {sale.payments && sale.payments.length > 0 && (
           <div>

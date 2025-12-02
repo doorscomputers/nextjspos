@@ -1,31 +1,54 @@
-# Fix Dashboard Timezone Issue - December 2, 2025
+# Daily Cash Collection Report - December 2, 2025
 
-## Problem
-The dashboard "Sales by Location" section is showing yesterday's sales (December 1) instead of today's sales (December 2) because the server (Vercel) runs in UTC timezone while the business operates in Philippine Time (UTC+8).
+## Overview
+Create a new **Daily Cash Collection Report** that displays all cash collections and payment breakdowns for a selected date, matching the format shown in the owner's reference image.
 
-## Root Cause
-In `src/app/api/dashboard/sales-by-location/route.ts`, the date calculation uses `new Date()` which returns server time (UTC). When it's December 2 at 8:00 AM in Manila, it's still December 1 at 12:00 AM (midnight) in UTC.
-
-## Solution
-Convert to Philippine Time (Asia/Manila, UTC+8) before calculating the start date.
+## Requirements
+- Separate Report Page under Reports > Cashier Reports menu
+- All Payment Types tracked individually (Cash, Check, GCash, PayMaya, Card, NFC, Bank Transfer)
+- Reference/Payer Combined - use existing referenceNumber field for payer identification
+- Cash denomination breakdown from closed shifts
+- Print and Export (CSV) functionality
 
 ## Tasks
-- [x] Identify root cause in sales-by-location API route
-- [x] Fix timezone calculation in API route
-- [x] Commit and push changes
+- [x] Create API endpoint `/api/reports/daily-cash-collection`
+- [x] Create report page with grid layout matching the image
+- [x] Add menu item to Sidebar under Cashier Reports
+- [x] Add permission `REPORT_DAILY_CASH_COLLECTION` to RBAC
+- [x] Implement print functionality (full page)
+- [x] Add CSV export
 
 ## Review
-Fixed the timezone issue in `src/app/api/dashboard/sales-by-location/route.ts`:
+Created a new Daily Cash Collection Report feature with the following components:
 
-1. Added Philippine Time offset calculation (UTC+8)
-2. Converted server UTC time to Philippine Time before extracting date components
-3. Created proper UTC timestamps that represent Philippine midnight when filtering sales data
+### Files Created
+1. `src/app/api/reports/daily-cash-collection/route.ts` - API endpoint that:
+   - Fetches all payments for a selected date
+   - Groups payments by payment method (cash, check, gcash, paymaya, card, nfc, bank_transfer, other)
+   - Retrieves cash denomination counts from closed shifts
+   - Returns structured data for the report
 
-The fix ensures that when filtering sales for "today" in Philippine Time, the query uses the correct date boundaries regardless of the server's timezone.
+2. `src/app/dashboard/reports/daily-cash-collection/page.tsx` - Report page with:
+   - Date picker for selecting report date (defaults to today)
+   - Location filter dropdown
+   - Cash denominations table (1000, 500, 200, 100, 50, 20, 10, 5, 1, 0.25)
+   - Individual payment type sections with reference numbers and amounts
+   - Grand total calculation
+   - Print functionality (A4 format)
+   - CSV export functionality
+   - Responsive grid layout
 
-### Changes Made
-- `src/app/api/dashboard/sales-by-location/route.ts`:
-  - Added Philippine timezone offset calculation
-  - Modified `now` variable to represent current time in Philippine Time
-  - Updated all `startDate` calculations to use UTC dates adjusted for Philippine timezone
-  - Added debug logging to help verify the fix in production
+### Files Modified
+1. `src/lib/rbac.ts` - Added:
+   - `REPORT_DAILY_CASH_COLLECTION` permission
+   - Added permission to Cashier role
+   - Added permission to Branch Manager role
+
+2. `src/components/Sidebar.tsx` - Added:
+   - "Daily Cash Collection" menu item under Cashier Reports section
+
+### Layout Matches Reference Image
+- Left column: Cash denominations with QTY and AMOUNT
+- Right section: Grid of payment type cards (Check, GCash, PayMaya, Card, NFC, Bank Transfer)
+- Each payment card shows: Reference/Payer, Reference Number, Amount
+- Collection total prominently displayed
