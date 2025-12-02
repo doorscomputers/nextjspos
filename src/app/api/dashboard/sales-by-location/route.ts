@@ -58,42 +58,48 @@ export async function GET(request: NextRequest) {
     })
 
     // IMPORTANT: Use Philippine Time (Asia/Manila, UTC+8) for date calculations
-    // Vercel servers run in UTC, but business operates in Philippine Time
+    // The saleDate field stores the Philippine business date as UTC midnight
+    // e.g., A sale on Dec 2 Manila is stored as saleDate = 2025-12-02T00:00:00.000Z
     const nowUtc = new Date()
-    const phOffset = 8 * 60 * 60 * 1000 // UTC+8 in milliseconds
-    const now = new Date(nowUtc.getTime() + (nowUtc.getTimezoneOffset() * 60 * 1000) + phOffset)
+    const PH_OFFSET_MS = 8 * 60 * 60 * 1000
+
+    // Get current date in Philippine timezone
+    const nowPH = new Date(nowUtc.getTime() + PH_OFFSET_MS)
+    const phYear = nowPH.getUTCFullYear()
+    const phMonth = nowPH.getUTCMonth()
+    const phDate = nowPH.getUTCDate()
 
     let startDate: Date
     let groupBy: 'hour' | 'day' | 'week' | 'month'
 
     switch (period) {
       case 'day':
-        // Today's sales by hour (Philippine Time)
-        startDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - phOffset)
+        // Today's sales: Filter by today's Philippine date (stored as UTC midnight)
+        startDate = new Date(Date.UTC(phYear, phMonth, phDate))
         groupBy = 'hour'
         break
       case 'month':
-        // This month's sales by day (Philippine Time)
-        startDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1) - phOffset)
+        // This month's sales: Start of month in Philippine Time
+        startDate = new Date(Date.UTC(phYear, phMonth, 1))
         groupBy = 'day'
         break
       case 'quarter':
-        // This quarter's sales by week (Philippine Time)
-        const quarter = Math.floor(now.getMonth() / 3)
-        startDate = new Date(Date.UTC(now.getFullYear(), quarter * 3, 1) - phOffset)
+        // This quarter's sales: Start of quarter in Philippine Time
+        const quarter = Math.floor(phMonth / 3)
+        startDate = new Date(Date.UTC(phYear, quarter * 3, 1))
         groupBy = 'week'
         break
       case 'year':
-        // This year's sales by month (Philippine Time)
-        startDate = new Date(Date.UTC(now.getFullYear(), 0, 1) - phOffset)
+        // This year's sales: Start of year in Philippine Time
+        startDate = new Date(Date.UTC(phYear, 0, 1))
         groupBy = 'month'
         break
       default:
-        startDate = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - phOffset)
+        startDate = new Date(Date.UTC(phYear, phMonth, phDate))
         groupBy = 'hour'
     }
 
-    console.log(`[Sales by Location] Period: ${period}, PH Date: ${now.toISOString()}, Start Date: ${startDate.toISOString()}`)
+    console.log(`[Sales by Location] Period: ${period}, UTC Now: ${nowUtc.toISOString()}, PH Date: ${phYear}-${phMonth+1}-${phDate}, Start Date: ${startDate.toISOString()}`)
 
     // OPTIMIZATION: Fetch ALL sales data in a single query instead of N queries (one per location)
     // This eliminates the N+1 query problem
