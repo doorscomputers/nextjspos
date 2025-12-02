@@ -269,29 +269,34 @@ export default function POSEnhancedPage() {
       const locationStock = variation.stocks?.find((s: any) => s.locationId === locationId)
       const stockQty = locationStock?.quantity || 0
 
+      // Use cart item structure that matches the rest of the POS page
       newItems.push({
-        id: product.id,
-        variationId: variation.id,
+        productId: product.id,
+        productVariationId: variation.id,
         name: product.name + (variation.name ? ` - ${variation.name}` : ''),
-        sku: product.sku + (variation.subSku ? `-${variation.subSku}` : ''),
-        price: Number(item.customPrice), // Use package custom price
-        originalPrice: Number(item.originalPrice),
-        quantity: Number(item.quantity),
-        stock: stockQty,
-        total: Number(item.customPrice) * Number(item.quantity),
-        imageUrl: product.imageUrl,
-        enableSerialNumber: product.enableSerialNumber,
-        serialNumbers: [],
+        sku: variation.sku || product.sku,
+        unitPrice: Number(item.customPrice) || 0, // Use package custom price
+        originalPrice: Number(item.originalPrice) || Number(item.customPrice) || 0,
+        quantity: Number(item.quantity) || 1,
+        displayQuantity: Number(item.quantity) || 1,
         selectedUnitId: null,
-        selectedUnitMultiplier: 1,
+        selectedUnitName: null,
+        stock: stockQty,
+        imageUrl: product.imageUrl,
+        requiresSerial: product.enableSerialNumber || false,
+        serialNumberIds: [],
         isFreebie: false,
-        freebieReason: ''
+        freebieReason: '',
+        itemDiscountType: null,
+        itemDiscountValue: 0,
+        itemDiscountAmount: 0
       })
     })
 
     // Add items to cart (merge with existing if any)
     setCart(prev => [...prev, ...newItems])
     setShowPackageDialog(false)
+    toast.success(`Loaded ${newItems.length} items from "${template.name}"`)
   }
 
   // Fetch products after shift is loaded
