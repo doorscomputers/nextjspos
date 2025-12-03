@@ -153,6 +153,7 @@ export async function GET(request: NextRequest) {
           productVariationId: true,
           quantity: true,
           unitPrice: true,
+          discountAmount: true,
           serialNumbers: true,
           remark: true,
           sale: {
@@ -232,6 +233,8 @@ export async function GET(request: NextRequest) {
         }
       }
 
+      const discountAmount = typeof item.discountAmount === 'number' ? item.discountAmount : parseFloat(item.discountAmount?.toString() || '0')
+
       return {
         id: item.id,
         saleId: item.saleId,
@@ -244,6 +247,7 @@ export async function GET(request: NextRequest) {
         category: productInfo?.category?.name || 'N/A',
         quantity,
         price: unitPrice,
+        discountAmount,
         amount,
         customer: item.sale?.customer?.name || 'Walk-in Customer',
         location: locationMap.get(item.sale?.locationId ?? 0) || 'N/A',

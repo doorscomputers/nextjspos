@@ -251,20 +251,20 @@ export default function SalesPerItemReport() {
   }
 
   return (
-    <div className="p-6 space-y-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <div className="p-6 space-y-6 min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Sales Per Item Report (Admin)</h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-1">Detailed line item view with filters</p>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-900 via-orange-800 to-amber-900 dark:from-amber-100 dark:via-orange-300 dark:to-amber-100 bg-clip-text text-transparent">Sales Per Item Report (Admin)</h1>
+          <p className="text-amber-700 dark:text-amber-300 mt-1">Detailed line item view with filters</p>
         </div>
-        <Link href="/dashboard/reports" className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
+        <Link href="/dashboard/reports" className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 shadow-sm transition-all">
           Back to Reports
         </Link>
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-        <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">Filters</h2>
+      <div className="bg-white dark:bg-amber-900/30 p-6 rounded-lg shadow-sm border border-amber-200 dark:border-amber-700">
+        <h2 className="text-lg font-semibold mb-4 text-amber-900 dark:text-amber-100">Filters</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Date Preset Dropdown */}
@@ -503,6 +503,22 @@ export default function SalesPerItemReport() {
               alignment="right"
               width={120}
               cssClass="font-semibold"
+            />
+            <Column
+              dataField="discountAmount"
+              caption="Discount"
+              dataType="number"
+              alignment="right"
+              width={100}
+              cellRender={(cellData: any) => {
+                const discount = cellData.value
+                if (!discount || discount === 0) return <span className="text-gray-400">-</span>
+                return (
+                  <span className="text-orange-600 dark:text-orange-400">
+                    -₱{discount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                )
+              }}
             />
             <Column
               dataField="serialNumbers"

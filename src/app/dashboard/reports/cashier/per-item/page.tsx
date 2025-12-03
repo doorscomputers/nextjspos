@@ -264,6 +264,22 @@ export default function CashierSalesPerItemPage() {
                 width={120}
                 cssClass="font-semibold"
               />
+              <Column
+                dataField="discountAmount"
+                caption="Discount"
+                dataType="number"
+                alignment="right"
+                width={100}
+                cellRender={(cellData: any) => {
+                  const discount = cellData.value
+                  if (!discount || discount === 0) return <span className="text-gray-400">-</span>
+                  return (
+                    <span className="text-orange-600 dark:text-orange-400">
+                      -₱{discount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  )
+                }}
+              />
 
               <Summary>
                 <TotalItem column="quantity" summaryType="sum" valueFormat="#,##0.##" />
