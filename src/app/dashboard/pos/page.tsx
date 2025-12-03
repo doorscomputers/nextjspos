@@ -2021,9 +2021,11 @@ export default function POSEnhancedPage() {
           quantity: item.quantity,  // ALWAYS in base unit for inventory
           unitPrice: item.unitPrice,
           isFreebie: item.isFreebie,
-          // Only set requiresSerial=true if user actually added serial numbers
-          requiresSerial: (item.serialNumberIds && item.serialNumberIds.length > 0) ? true : false,
+          // Set requiresSerial=true if user added serial numbers (via IDs or manual text entry)
+          requiresSerial: (item.serialNumberIds && item.serialNumberIds.length > 0) ||
+                          (item.serialNumbers && item.serialNumbers.length > 0),
           serialNumberIds: item.serialNumberIds || [],
+          serialNumbers: item.serialNumbers || [],  // Manual text entries
           // UOM fields - for display/reporting
           subUnitId: item.subUnitId || null,
           subUnitPrice: item.subUnitPrice || null,

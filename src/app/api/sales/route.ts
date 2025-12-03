@@ -998,9 +998,13 @@ export async function POST(request: NextRequest) {
           throw new Error(`Product variation ${item.productVariationId} not found`)
         }
 
-        // PERFORMANCE OPTIMIZATION: Prepare serial numbers data using pre-fetched map (no DB query needed)
+        // Handle serial numbers from BOTH sources:
+        // 1. serialNumberIds - database-linked serial numbers (with inventory tracking)
+        // 2. serialNumbers - manually entered text serial numbers (for display only)
         let serialNumbersData = null
-        if (item.requiresSerial && item.serialNumberIds) {
+
+        // Priority 1: Database-linked serial numbers (with full tracking)
+        if (item.serialNumberIds && item.serialNumberIds.length > 0) {
           // Use pre-fetched serial number data from serialNumbersMap
           serialNumbersData = item.serialNumberIds.map((id: any) => {
             const sn = serialNumbersMap.get(Number(id))
@@ -1010,6 +1014,12 @@ export async function POST(request: NextRequest) {
               imei: sn.imei,
             } : null
           }).filter(Boolean)
+        }
+        // Priority 2: Manual text entries (no database tracking, just stored for display)
+        else if (item.serialNumbers && item.serialNumbers.length > 0) {
+          serialNumbersData = item.serialNumbers.map((sn: any) => ({
+            serialNumber: typeof sn === 'string' ? sn : (sn.serialNumber || ''),
+          }))
         }
 
         // Per-item discount fields
