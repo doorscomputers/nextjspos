@@ -114,6 +114,8 @@ export async function GET(request: NextRequest) {
               productVariationId: true,
               quantity: true,
               unitPrice: true,
+              discountAmount: true,
+              discountType: true,
               serialNumbers: true,
               product: {
                 select: {
@@ -172,6 +174,7 @@ export async function GET(request: NextRequest) {
         items: sale.items.map(item => {
           const quantity = parseFloat(item.quantity.toString())
           const unitPrice = parseFloat(item.unitPrice.toString())
+          const discountAmount = item.discountAmount ? parseFloat(item.discountAmount.toString()) : 0
           const lineTotal = quantity * unitPrice // Calculate lineTotal from quantity * unitPrice
 
           return {
@@ -180,6 +183,8 @@ export async function GET(request: NextRequest) {
             productVariationId: item.productVariationId,
             quantity,
             unitPrice,
+            discountAmount,
+            discountType: item.discountType,
             lineTotal,
             serialNumbers: item.serialNumbers,
             product: item.product

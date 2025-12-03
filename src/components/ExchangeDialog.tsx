@@ -25,6 +25,8 @@ interface SaleItem {
   productVariationId: number
   quantity: number
   unitPrice: number
+  discountAmount?: number
+  discountType?: string
   lineTotal: number
   product: {
     name: string
@@ -61,6 +63,7 @@ interface ExchangeItem {
   productName: string
   quantity: number
   unitPrice: number
+  originalPrice: number
 }
 
 export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSaleId }: ExchangeDialogProps) {
@@ -285,12 +288,14 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
       return
     }
 
+    const price = parseFloat(variationToUse.sellingPrice?.toString() || '0')
     const newItem: ExchangeItem = {
       productId: product.id,
       productVariationId: variationToUse.id,
       productName: variation ? `${product.name} - ${variation.name}` : product.name,
       quantity: 1,
-      unitPrice: parseFloat(variationToUse.sellingPrice?.toString() || '0'),
+      unitPrice: price,
+      originalPrice: price,
     }
 
     setExchangeItems([...exchangeItems, newItem])
@@ -305,6 +310,12 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   const handleUpdateExchangeQuantity = (index: number, newQuantity: number) => {
     setExchangeItems(exchangeItems.map((item, i) =>
       i === index ? { ...item, quantity: Math.max(1, newQuantity) } : item
+    ))
+  }
+
+  const handleUpdateExchangePrice = (index: number, newPrice: number) => {
+    setExchangeItems(exchangeItems.map((item, i) =>
+      i === index ? { ...item, unitPrice: Math.max(0, newPrice) } : item
     ))
   }
 
@@ -486,7 +497,28 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                             <div className="flex-1">
                               <p className="font-medium text-sm">{item.productVariation?.name || item.product.name}</p>
                               <p className="text-xs text-gray-600 dark:text-gray-400">
-                                ₱{parseFloat(item.unitPrice.toString()).toFixed(2)} × {item.quantity}
+                                {item.discountAmount && parseFloat(item.discountAmount.toString()) > 0 ? (
+                                  <>
+                                    <span className="line-through text-gray-400">
+                                      ₱{(parseFloat(item.unitPrice.toString()) + parseFloat(item.discountAmount.toString())).toFixed(2)}
+                                    </span>
+                                    {' → '}
+                                    <span className="text-green-600 dark:text-green-400">
+                                      ₱{parseFloat(item.unitPrice.toString()).toFixed(2)}
+                                    </span>
+                                    <span className="ml-1 text-orange-500">
+                                      ({item.discountType || 'Discounted'})
+                                    </span>
+                                    {' × '}{item.quantity}
+                                  </>
+                                ) : parseFloat(item.unitPrice.toString()) === 0 ? (
+                                  <>
+                                    <span className="text-purple-600 dark:text-purple-400 font-medium">₱0.00 (Freebie)</span>
+                                    {' × '}{item.quantity}
+                                  </>
+                                ) : (
+                                  <>₱{parseFloat(item.unitPrice.toString()).toFixed(2)} × {item.quantity}</>
+                                )}
                               </p>
                             </div>
 
@@ -591,7 +623,6 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm leading-tight">{item.productName}</p>
-                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">₱{item.unitPrice.toFixed(2)} each</p>
                           </div>
                           <Button
                             size="icon-sm"
@@ -601,6 +632,26 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
+                        </div>
+                        {/* Price input - editable */}
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs text-gray-600 dark:text-gray-400">Price:</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-sm">₱</span>
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item.unitPrice}
+                              onChange={(e) => handleUpdateExchangePrice(index, parseFloat(e.target.value) || 0)}
+                              className="w-24 h-8 text-sm"
+                            />
+                          </div>
+                          {item.unitPrice !== item.originalPrice && (
+                            <span className="text-xs text-orange-500">
+                              (was ₱{item.originalPrice.toFixed(2)})
+                            </span>
+                          )}
                         </div>
                         {/* Quantity controls - bottom row */}
                         <div className="flex items-center justify-center gap-2 pt-2 border-t">
