@@ -269,11 +269,11 @@ export default function SalesPerItemReport() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Date Preset Dropdown */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Date Range Preset</label>
+            <label className="block text-sm font-medium text-amber-800 dark:text-amber-200 mb-2">Date Range Preset</label>
             <select
               value={datePreset}
               onChange={(e) => setDateRange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+              className="w-full px-3 py-2 border border-amber-300 dark:border-amber-600 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             >
               <option value="today">Today</option>
               <option value="yesterday">Yesterday</option>
@@ -291,7 +291,7 @@ export default function SalesPerItemReport() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Start Date</label>
+            <label className="block text-sm font-medium text-amber-800 dark:text-amber-200 mb-2">Start Date</label>
             <input
               type="date"
               value={startDate}
@@ -299,11 +299,11 @@ export default function SalesPerItemReport() {
                 setStartDate(e.target.value)
                 setDatePreset('custom')
               }}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+              className="w-full px-3 py-2 border border-amber-300 dark:border-amber-600 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">End Date</label>
+            <label className="block text-sm font-medium text-amber-800 dark:text-amber-200 mb-2">End Date</label>
             <input
               type="date"
               value={endDate}
@@ -311,20 +311,20 @@ export default function SalesPerItemReport() {
                 setEndDate(e.target.value)
                 setDatePreset('custom')
               }}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+              className="w-full px-3 py-2 border border-amber-300 dark:border-amber-600 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Location</label>
+            <label className="block text-sm font-medium text-amber-800 dark:text-amber-200 mb-2">Location</label>
             {isCashierMode ? (
-              <div className="px-3 py-2 bg-blue-50 rounded-md border border-blue-200 text-sm font-semibold text-blue-900">
+              <div className="px-3 py-2 bg-amber-50 dark:bg-amber-900/30 rounded-md border border-amber-200 dark:border-amber-700 text-sm font-semibold text-amber-900 dark:text-amber-100">
                 {enforcedLocationName || 'Assigned Location'}
               </div>
             ) : (
               <select
                 value={locationId}
                 onChange={(e) => setLocationId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                className="w-full px-3 py-2 border border-amber-300 dark:border-amber-600 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
               >
                 {hasAccessToAll && (
                   <option value="">All Locations</option>
@@ -336,11 +336,11 @@ export default function SalesPerItemReport() {
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Category</label>
+            <label className="block text-sm font-medium text-amber-800 dark:text-amber-200 mb-2">Category</label>
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+              className="w-full px-3 py-2 border border-amber-300 dark:border-amber-600 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             >
               <option value="">All Categories</option>
               {categories.map((cat) => (
@@ -354,26 +354,27 @@ export default function SalesPerItemReport() {
       {/* Summary */}
       {summary && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-lg shadow-lg text-white">
-            <div className="text-sm opacity-90">Total Items</div>
-            <div className="text-3xl font-bold mt-2">{summary.totalItems || 0}</div>
+          <div className="bg-white dark:bg-amber-900/30 p-6 rounded-lg shadow-lg border border-amber-200 dark:border-amber-700">
+            <div className="text-sm text-amber-700 dark:text-amber-300">Total Items</div>
+            <div className="text-3xl font-bold mt-2 text-amber-900 dark:text-amber-100">{summary.totalItems || 0}</div>
           </div>
-          <div className="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-lg shadow-lg text-white">
-            <div className="text-sm opacity-90">Qty Sold</div>
-            <div className="text-3xl font-bold mt-2">{summary.totalQuantitySold?.toLocaleString() || 0}</div>
+          <div className="bg-white dark:bg-amber-900/30 p-6 rounded-lg shadow-lg border border-amber-200 dark:border-amber-700">
+            <div className="text-sm text-amber-700 dark:text-amber-300">Qty Sold</div>
+            <div className="text-3xl font-bold mt-2 text-amber-900 dark:text-amber-100">{summary.totalQuantitySold?.toLocaleString() || 0}</div>
           </div>
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-lg shadow-lg text-white">
-            <div className="text-sm opacity-90">Total Revenue</div>
-            <div className="text-3xl font-bold mt-2">₱{summary.totalRevenue?.toLocaleString() || 0}</div>
+          <div className="bg-white dark:bg-amber-900/30 p-6 rounded-lg shadow-lg border border-amber-200 dark:border-amber-700">
+            <div className="text-sm text-amber-700 dark:text-amber-300">Total Revenue</div>
+            <div className="text-3xl font-bold mt-2 text-emerald-600 dark:text-emerald-400">₱{summary.totalRevenue?.toLocaleString() || 0}</div>
           </div>
         </div>
       )}
 
       {/* DevExtreme DataGrid */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden p-4">
+      <div className="bg-white dark:bg-amber-900/30 rounded-lg shadow-lg border border-amber-200 dark:border-amber-700 overflow-hidden p-4">
         {loading ? (
-          <div className="flex items-center justify-center h-96">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="flex flex-col items-center justify-center h-96">
+            <div className="w-12 h-12 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin dark:border-amber-900 dark:border-t-amber-400"></div>
+            <p className="mt-4 text-amber-700 font-medium dark:text-amber-300">Loading data...</p>
           </div>
         ) : (
           <DataGrid

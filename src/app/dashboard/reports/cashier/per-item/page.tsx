@@ -109,42 +109,43 @@ export default function CashierSalesPerItemPage() {
   }
 
   return (
-    <div className="space-y-6 p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
+    <div className="space-y-6 p-6 min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+      <div className="bg-white dark:bg-amber-900/30 p-4 rounded-lg shadow border border-amber-200 dark:border-amber-700">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Sales Per Item (Cashier)</h1>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-amber-900 via-orange-800 to-amber-900 dark:from-amber-100 dark:via-orange-300 dark:to-amber-100 bg-clip-text text-transparent">Sales Per Item (Cashier)</h1>
             <div className="flex items-center gap-2 mt-1">
-              <MapPinIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              <span className="text-sm text-gray-600 dark:text-gray-400">Location: <strong>{userLocationName}</strong></span>
+              <MapPinIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <span className="text-sm text-amber-700 dark:text-amber-300">Location: <strong>{userLocationName}</strong></span>
             </div>
           </div>
           <div className="flex gap-2">
             <div>
-              <Label className="text-xs">From</Label>
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <Label className="text-xs text-amber-800 dark:text-amber-200">From</Label>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border-amber-300 dark:border-amber-600 focus:ring-amber-500" />
             </div>
             <div>
-              <Label className="text-xs">To</Label>
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <Label className="text-xs text-amber-800 dark:text-amber-200">To</Label>
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border-amber-300 dark:border-amber-600 focus:ring-amber-500" />
             </div>
           </div>
         </div>
       </div>
 
       {/* DevExtreme DataGrid */}
-      <Card>
+      <Card className="border-amber-200 dark:border-amber-700 dark:bg-amber-900/30">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-amber-900 dark:text-amber-100">
             <span>Items Sold</span>
-            <span className="text-sm font-normal text-gray-500 dark:text-gray-400">({items.length} products)</span>
+            <span className="text-sm font-normal text-amber-600 dark:text-amber-400">({items.length} products)</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex items-center justify-center h-96">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="flex flex-col items-center justify-center h-96">
+              <div className="w-12 h-12 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin dark:border-amber-900 dark:border-t-amber-400"></div>
+              <p className="mt-4 text-amber-700 font-medium dark:text-amber-300">Loading data...</p>
             </div>
           ) : (
             <DataGrid
