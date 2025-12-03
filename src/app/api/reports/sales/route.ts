@@ -210,6 +210,20 @@ export async function GET(request: NextRequest) {
       items: sale.items.map((item) => {
         const product = productMap.get(item.productId)
         const variation = variationMap.get(item.productVariationId)
+        // Parse serial numbers from JSON
+        let serialNumbersDisplay = ''
+        if (item.serialNumbers) {
+          try {
+            const snArray = typeof item.serialNumbers === 'string'
+              ? JSON.parse(item.serialNumbers)
+              : item.serialNumbers
+            if (Array.isArray(snArray)) {
+              serialNumbersDisplay = snArray.map((sn: any) => sn.serialNumber || sn).join(', ')
+            }
+          } catch (e) {
+            serialNumbersDisplay = ''
+          }
+        }
         return {
           productName: product?.name || `Product #${item.productId}`,
           variationName: variation?.name || `Variation #${item.productVariationId}`,
@@ -219,6 +233,7 @@ export async function GET(request: NextRequest) {
           // Only include unitCost if user has permission
           ...(canViewCost && { unitCost: parseFloat(item.unitCost.toString()) }),
           total: parseFloat(item.quantity.toString()) * parseFloat(item.unitPrice.toString()),
+          serialNumbers: serialNumbersDisplay,
         }
       }),
       notes: sale.notes,

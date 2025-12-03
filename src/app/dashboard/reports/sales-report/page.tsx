@@ -58,6 +58,7 @@ interface SaleItem {
   unitPrice: number
   unitCost: number
   total: number
+  serialNumbers?: string
 }
 
 interface Sale {
@@ -448,6 +449,9 @@ export default function SalesReportPage() {
                 <th className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">
                   Total
                 </th>
+                <th className="px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-300">
+                  Serial Numbers
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -472,6 +476,9 @@ export default function SalesReportPage() {
                   )}
                   <td className="px-4 py-2 text-right font-semibold text-gray-900 dark:text-white">
                     {formatCurrency(item.total)}
+                  </td>
+                  <td className="px-4 py-2 text-left text-gray-600 dark:text-gray-400 text-xs">
+                    {item.serialNumbers || '-'}
                   </td>
                 </tr>
               ))}
@@ -782,6 +789,20 @@ export default function SalesReportPage() {
                 caption="Invoice #"
                 minWidth={150}
                 cssClass="font-medium"
+              />
+              <Column
+                dataField="notes"
+                caption="Remarks"
+                minWidth={150}
+                cellRender={(cellData: any) => {
+                  const notes = cellData.value
+                  if (!notes) return <span className="text-gray-400">-</span>
+                  return (
+                    <span className="text-gray-700 dark:text-gray-300 text-sm" title={notes}>
+                      {notes.length > 30 ? notes.substring(0, 30) + '...' : notes}
+                    </span>
+                  )
+                }}
               />
               <Column
                 dataField="saleDate"
