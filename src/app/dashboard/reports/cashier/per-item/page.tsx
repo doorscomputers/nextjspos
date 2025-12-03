@@ -205,6 +205,16 @@ export default function CashierSalesPerItemPage() {
                 }}
               />
               <Column
+                dataField="serialNumbers"
+                caption="Serial Numbers"
+                minWidth={150}
+              />
+              <Column
+                dataField="remarks"
+                caption="Remarks"
+                minWidth={180}
+              />
+              <Column
                 dataField="customer"
                 caption="Customer"
                 minWidth={150}
