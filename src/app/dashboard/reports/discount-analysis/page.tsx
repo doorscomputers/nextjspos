@@ -82,15 +82,22 @@ export default function DiscountAnalysisReport() {
       if (endDate) params.set('endDate', endDate)
       if (locationId) params.set('locationId', locationId)
 
+      console.log('[Discount Report] Fetching with params:', params.toString())
+
       const res = await fetch(`/api/reports/discount-analysis?${params}`)
+      const data = await res.json()
+
+      console.log('[Discount Report] Response:', res.status, data)
+
       if (res.ok) {
-        const data = await res.json()
         setSummary(data.summary || {})
         setBreakdown(data.breakdown || {})
         setTrend(data.trend || [])
+      } else {
+        console.error('[Discount Report] API Error:', data.error || data)
       }
     } catch (error) {
-      console.error('Error:', error)
+      console.error('[Discount Report] Fetch Error:', error)
     } finally {
       setLoading(false)
     }

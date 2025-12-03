@@ -15,11 +15,23 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get('endDate')
     const locationId = searchParams.get('locationId') ? parseInt(searchParams.get('locationId')!) : null
 
+    // Get businessId - handle both string and number types
+    const sessionUser = session.user as { businessId?: string | number }
+    const businessId = typeof sessionUser.businessId === 'string'
+      ? parseInt(sessionUser.businessId)
+      : sessionUser.businessId
+
+    if (!businessId) {
+      return NextResponse.json({ error: 'Invalid business context' }, { status: 400 })
+    }
+
+    console.log('[Discount Analysis] Query params:', { startDate, endDate, locationId, businessId })
+
     // Build where clause for sales with discounts
     // CRITICAL: Exclude voided sales AND exchange/replacement transactions
     // Exchange discountAmount represents returned item value, NOT an actual discount
     const where: any = {
-      businessId: parseInt(session.user.businessId),
+      businessId,
       status: { not: 'voided' }, // Fixed: status is lowercase in database
       discountAmount: { gt: 0 },
       saleType: 'regular', // Only count discounts from regular sales (exclude exchange/replacement)
@@ -40,12 +52,14 @@ export async function GET(request: NextRequest) {
 
     // Location filtering
     if (locationId) {
-      where.locationId = parseInt(locationId)
+      where.locationId = locationId
     }
 
     // Get all sales (with and without discounts) for comparison
     const allSalesWhere = { ...where }
     delete allSalesWhere.discountAmount
+
+    console.log('[Discount Analysis] Where clause:', JSON.stringify(where, null, 2))
 
     const [discountedSales, allSales] = await Promise.all([
       prisma.sale.findMany({
@@ -79,6 +93,8 @@ export async function GET(request: NextRequest) {
         _count: true,
       }),
     ])
+
+    console.log('[Discount Analysis] Found', discountedSales.length, 'discounted sales, allSales count:', allSales._count)
 
     // Group discounts by type (if you have discount type field, otherwise by discount amount ranges)
     const discountTypes = new Map()
