@@ -55,10 +55,15 @@ export async function recordCashSale(params: {
     throw new Error('Required accounts not found. Please initialize Chart of Accounts first.')
   }
 
+  // Generate unique entry number for journal entry
+  const entryNumber = `JE-SALE-${saleId}-${Date.now()}`
+
   // Create journal entry
   const entry = await client.journalEntry.create({
     data: {
       businessId,
+      entryNumber,
+      entryType: 'automated',
       entryDate: saleDate,
       description: `Cash Sale - Invoice ${invoiceNumber}`,
       referenceNumber: invoiceNumber,
@@ -153,10 +158,15 @@ export async function recordCreditSale(params: {
     throw new Error('Required accounts not found. Please initialize Chart of Accounts first.')
   }
 
+  // Generate unique entry number for journal entry
+  const entryNumber = `JE-CREDIT-${saleId}-${Date.now()}`
+
   // Create journal entry
   const entry = await client.journalEntry.create({
     data: {
       businessId,
+      entryNumber,
+      entryType: 'automated',
       entryDate: saleDate,
       description: `Credit Sale - Invoice ${invoiceNumber}`,
       referenceNumber: invoiceNumber,
@@ -242,10 +252,15 @@ export async function recordCustomerPayment(params: {
     throw new Error('Required accounts not found.')
   }
 
+  // Generate unique entry number for journal entry
+  const entryNumber = `JE-PMT-${paymentId}-${Date.now()}`
+
   // Create journal entry
   const entry = await prisma.journalEntry.create({
     data: {
       businessId,
+      entryNumber,
+      entryType: 'automated',
       entryDate: paymentDate,
       description: `Payment Received${referenceNumber ? ` - ${referenceNumber}` : ''}`,
       referenceNumber: referenceNumber || null,
@@ -313,10 +328,15 @@ export async function recordPurchase(params: {
     throw new Error('Required accounts not found.')
   }
 
+  // Generate unique entry number for journal entry
+  const entryNumber = `JE-PUR-${purchaseId}-${Date.now()}`
+
   // Create journal entry
   const entry = await prisma.journalEntry.create({
     data: {
       businessId,
+      entryNumber,
+      entryType: 'automated',
       entryDate: purchaseDate,
       description: `Purchase from Supplier${referenceNumber ? ` - ${referenceNumber}` : ''}`,
       referenceNumber: referenceNumber || null,
@@ -383,10 +403,15 @@ export async function recordSupplierPayment(params: {
     throw new Error('Required accounts not found.')
   }
 
+  // Generate unique entry number for journal entry
+  const entryNumber = `JE-SPY-${paymentId}-${Date.now()}`
+
   // Create journal entry
   const entry = await prisma.journalEntry.create({
     data: {
       businessId,
+      entryNumber,
+      entryType: 'automated',
       entryDate: paymentDate,
       description: `Payment to Supplier${referenceNumber ? ` - ${referenceNumber}` : ''}`,
       referenceNumber: referenceNumber || null,
