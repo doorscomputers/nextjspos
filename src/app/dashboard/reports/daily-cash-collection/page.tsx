@@ -476,6 +476,7 @@ export default function DailyCashCollectionPage() {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   )
 }
