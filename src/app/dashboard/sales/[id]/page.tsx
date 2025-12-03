@@ -30,9 +30,8 @@ interface SaleItem {
   quantity: number
   unitPrice: number
   unitCost: number
-  taxAmount: number
+  taxAmount?: number
   discountAmount: number
-  totalPrice: number
   serialNumbers: any
   product?: {
     id: number
@@ -471,7 +470,7 @@ export default function SaleDetailsPage() {
                   <td className="text-right py-3 px-2">{formatCurrency(item.unitPrice)}</td>
                   <td className="text-right py-3 px-2">{formatCurrency(item.taxAmount)}</td>
                   <td className="text-right py-3 px-2">{formatCurrency(item.discountAmount)}</td>
-                  <td className="text-right py-3 px-2 font-semibold">{formatCurrency(item.totalPrice)}</td>
+                  <td className="text-right py-3 px-2 font-semibold">{formatCurrency((Number(item.quantity) * Number(item.unitPrice)) - Number(item.discountAmount || 0))}</td>
                 </tr>
               ))}
             </tbody>
