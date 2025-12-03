@@ -709,15 +709,15 @@ export async function POST(request: NextRequest) {
     const hasAccessAllLocations = user.permissions?.includes(PERMISSIONS.ACCESS_ALL_LOCATIONS)
     const userLocationIds = (session.user as any).locationIds || []
 
-    // Build shift query
+    // Build shift query - Look for shift at the SPECIFIC sale location
+    console.log('[SALES] Building shift query - userId:', userIdNumber, 'businessId:', businessIdNumber, 'saleLocationId:', locationIdNumber)
     const shiftWhereClause: any = {
       userId: userIdNumber,
       status: 'open',
       businessId: businessIdNumber,
+      locationId: locationIdNumber, // Shift must be at the SAME location as the sale
     }
-    if (userLocationIds.length > 0) {
-      shiftWhereClause.locationId = { in: userLocationIds }
-    }
+    console.log('[SALES] Shift where clause:', JSON.stringify(shiftWhereClause))
 
     // Execute all validation queries in parallel
     const [location, userLocation, currentShift, customer] = await Promise.all([
@@ -765,9 +765,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    console.log('[SALES] Shift check - currentShift:', currentShift ? `ID ${currentShift.id} at location ${currentShift.locationId}` : 'NULL')
     if (!currentShift) {
+      console.log('[SALES] FAILED: No shift found for user', user.id, 'at location', locationIdNumber)
       return NextResponse.json(
-        { error: 'No open shift found. Please start your shift before making sales.' },
+        { error: `No open shift found at this location. Please start your shift at location ID ${locationIdNumber} before making sales.` },
         { status: 400 }
       )
     }
