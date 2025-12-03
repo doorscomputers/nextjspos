@@ -16,6 +16,8 @@ import {
   DocumentTextIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
+  ArrowPathIcon,
+  TableCellsIcon,
 } from '@heroicons/react/24/outline'
 
 interface Customer {
@@ -34,6 +36,20 @@ interface OBInvoice {
   paidAmount: number
   remainingBalance: number
   notes: string | null
+  createdAt: string
+}
+
+interface OBInvoiceListItem {
+  id: number
+  invoiceNumber: string
+  customerId: number
+  customerName: string
+  customerMobile: string
+  totalAmount: number
+  paidAmount: number
+  remainingBalance: number
+  notes: string | null
+  saleDate: string
   createdAt: string
 }
 
@@ -65,12 +81,23 @@ export default function OpeningBalancePage() {
     previousAmount: number
   } | null>(null)
 
+  // OB Invoice List
+  const [obInvoices, setObInvoices] = useState<OBInvoiceListItem[]>([])
+  const [loadingList, setLoadingList] = useState(false)
+  const [listSummary, setListSummary] = useState({
+    total: 0,
+    totalBalance: 0,
+    totalPaid: 0,
+    totalRemaining: 0,
+  })
+
   // Check permission
   const hasPermission = can(PERMISSIONS.CUSTOMER_UPDATE)
 
-  // Fetch all customers on mount
+  // Fetch all customers and OB invoices on mount
   useEffect(() => {
     fetchCustomers()
+    fetchOBInvoices()
   }, [])
 
   const fetchCustomers = async () => {
@@ -86,6 +113,27 @@ export default function OpeningBalancePage() {
       toast.error('Failed to load customers')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchOBInvoices = async () => {
+    setLoadingList(true)
+    try {
+      const res = await fetch('/api/customers/opening-balance')
+      if (res.ok) {
+        const data = await res.json()
+        setObInvoices(data.invoices || [])
+        setListSummary({
+          total: data.total || 0,
+          totalBalance: data.totalBalance || 0,
+          totalPaid: data.totalPaid || 0,
+          totalRemaining: data.totalRemaining || 0,
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching OB invoices:', error)
+    } finally {
+      setLoadingList(false)
     }
   }
 
@@ -195,6 +243,9 @@ export default function OpeningBalancePage() {
 
         // Refresh customers to get updated AR balance
         fetchCustomers()
+
+        // Refresh the OB invoice list
+        fetchOBInvoices()
       } else {
         toast.error(data.error || 'Failed to process opening balance')
       }
@@ -492,6 +543,136 @@ export default function OpeningBalancePage() {
                   </p>
                 </div>
               </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Opening Balance List */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <TableCellsIcon className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+              <div>
+                <CardTitle className="text-lg">Opening Balance Invoices</CardTitle>
+                <CardDescription>
+                  All encoded opening balances ({listSummary.total} records)
+                </CardDescription>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchOBInvoices}
+              disabled={loadingList}
+              className="gap-2"
+            >
+              <ArrowPathIcon className={`h-4 w-4 ${loadingList ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <p className="text-xs text-blue-600 dark:text-blue-400">Total Records</p>
+              <p className="text-xl font-bold text-blue-900 dark:text-blue-100">
+                {listSummary.total}
+              </p>
+            </div>
+            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+              <p className="text-xs text-amber-600 dark:text-amber-400">Total Balance</p>
+              <p className="text-xl font-bold text-amber-900 dark:text-amber-100">
+                {formatCurrency(listSummary.totalBalance)}
+              </p>
+            </div>
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+              <p className="text-xs text-green-600 dark:text-green-400">Total Paid</p>
+              <p className="text-xl font-bold text-green-900 dark:text-green-100">
+                {formatCurrency(listSummary.totalPaid)}
+              </p>
+            </div>
+            <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+              <p className="text-xs text-red-600 dark:text-red-400">Total Remaining</p>
+              <p className="text-xl font-bold text-red-900 dark:text-red-100">
+                {formatCurrency(listSummary.totalRemaining)}
+              </p>
+            </div>
+          </div>
+
+          {/* Table */}
+          {loadingList ? (
+            <div className="text-center py-8 text-gray-500">Loading...</div>
+          ) : obInvoices.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No opening balance invoices found. Use the form above to add one.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-700">
+                    <th className="text-left py-3 px-2 font-medium text-gray-600 dark:text-gray-400">
+                      Invoice #
+                    </th>
+                    <th className="text-left py-3 px-2 font-medium text-gray-600 dark:text-gray-400">
+                      Customer
+                    </th>
+                    <th className="text-right py-3 px-2 font-medium text-gray-600 dark:text-gray-400">
+                      Total
+                    </th>
+                    <th className="text-right py-3 px-2 font-medium text-gray-600 dark:text-gray-400">
+                      Paid
+                    </th>
+                    <th className="text-right py-3 px-2 font-medium text-gray-600 dark:text-gray-400">
+                      Remaining
+                    </th>
+                    <th className="text-left py-3 px-2 font-medium text-gray-600 dark:text-gray-400">
+                      Date
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {obInvoices.map((inv) => (
+                    <tr
+                      key={inv.id}
+                      className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                    >
+                      <td className="py-3 px-2 font-mono text-blue-600 dark:text-blue-400">
+                        {inv.invoiceNumber}
+                      </td>
+                      <td className="py-3 px-2">
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {inv.customerName}
+                          </p>
+                          {inv.customerMobile && (
+                            <p className="text-xs text-gray-500">{inv.customerMobile}</p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-2 text-right font-medium text-gray-900 dark:text-white">
+                        {formatCurrency(inv.totalAmount)}
+                      </td>
+                      <td className="py-3 px-2 text-right text-green-600 dark:text-green-400">
+                        {formatCurrency(inv.paidAmount)}
+                      </td>
+                      <td className="py-3 px-2 text-right font-bold text-red-600 dark:text-red-400">
+                        {formatCurrency(inv.remainingBalance)}
+                      </td>
+                      <td className="py-3 px-2 text-gray-500 dark:text-gray-400">
+                        {new Date(inv.createdAt).toLocaleDateString('en-PH', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>

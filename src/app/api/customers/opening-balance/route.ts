@@ -219,7 +219,8 @@ export async function POST(request: NextRequest) {
 /**
  * GET /api/customers/opening-balance?customerId=123
  *
- * Gets the opening balance invoice details for a customer (if any exists)
+ * If customerId provided: Gets the opening balance invoice for that customer
+ * If no customerId: Gets ALL opening balance invoices for the business
  */
 export async function GET(request: NextRequest) {
   try {
@@ -235,57 +236,100 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const customerId = searchParams.get('customerId')
 
-    if (!customerId) {
-      return NextResponse.json(
-        { error: 'Customer ID is required' },
-        { status: 400 }
-      )
+    // If customerId provided, return single customer's OB invoice
+    if (customerId) {
+      const customerIdNum = parseInt(customerId)
+
+      const obInvoice = await prisma.sale.findFirst({
+        where: {
+          businessId,
+          customerId: customerIdNum,
+          invoiceNumber: { startsWith: 'OB-' },
+          deletedAt: null,
+          status: { notIn: ['cancelled', 'voided'] },
+        },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          totalAmount: true,
+          paidAmount: true,
+          notes: true,
+          saleDate: true,
+          createdAt: true,
+        },
+      })
+
+      if (!obInvoice) {
+        return NextResponse.json({
+          exists: false,
+          invoice: null,
+        })
+      }
+
+      const totalAmount = parseFloat(obInvoice.totalAmount.toString())
+      const paidAmount = parseFloat(obInvoice.paidAmount?.toString() || '0')
+
+      return NextResponse.json({
+        exists: true,
+        invoice: {
+          id: obInvoice.id,
+          invoiceNumber: obInvoice.invoiceNumber,
+          totalAmount,
+          paidAmount,
+          remainingBalance: totalAmount - paidAmount,
+          notes: obInvoice.notes,
+          saleDate: obInvoice.saleDate,
+          createdAt: obInvoice.createdAt,
+        },
+      })
     }
 
-    const customerIdNum = parseInt(customerId)
-
-    // Find existing OB invoice
-    const obInvoice = await prisma.sale.findFirst({
+    // No customerId - return ALL OB invoices for the business
+    const obInvoices = await prisma.sale.findMany({
       where: {
         businessId,
-        customerId: customerIdNum,
         invoiceNumber: { startsWith: 'OB-' },
         deletedAt: null,
         status: { notIn: ['cancelled', 'voided'] },
       },
-      select: {
-        id: true,
-        invoiceNumber: true,
-        totalAmount: true,
-        paidAmount: true,
-        notes: true,
-        saleDate: true,
-        createdAt: true,
+      include: {
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            mobile: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
       },
     })
 
-    if (!obInvoice) {
-      return NextResponse.json({
-        exists: false,
-        invoice: null,
-      })
-    }
-
-    const totalAmount = parseFloat(obInvoice.totalAmount.toString())
-    const paidAmount = parseFloat(obInvoice.paidAmount?.toString() || '0')
-
-    return NextResponse.json({
-      exists: true,
-      invoice: {
-        id: obInvoice.id,
-        invoiceNumber: obInvoice.invoiceNumber,
+    const invoices = obInvoices.map((inv) => {
+      const totalAmount = parseFloat(inv.totalAmount.toString())
+      const paidAmount = parseFloat(inv.paidAmount?.toString() || '0')
+      return {
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        customerId: inv.customerId,
+        customerName: inv.customer?.name || 'Unknown',
+        customerMobile: inv.customer?.mobile || '',
         totalAmount,
         paidAmount,
         remainingBalance: totalAmount - paidAmount,
-        notes: obInvoice.notes,
-        saleDate: obInvoice.saleDate,
-        createdAt: obInvoice.createdAt,
-      },
+        notes: inv.notes,
+        saleDate: inv.saleDate,
+        createdAt: inv.createdAt,
+      }
+    })
+
+    return NextResponse.json({
+      invoices,
+      total: invoices.length,
+      totalBalance: invoices.reduce((sum, inv) => sum + inv.totalAmount, 0),
+      totalPaid: invoices.reduce((sum, inv) => sum + inv.paidAmount, 0),
+      totalRemaining: invoices.reduce((sum, inv) => sum + inv.remainingBalance, 0),
     })
   } catch (error) {
     console.error('[Opening Balance GET] Error:', error)
