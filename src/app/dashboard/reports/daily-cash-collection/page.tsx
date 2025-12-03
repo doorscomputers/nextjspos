@@ -267,10 +267,10 @@ export default function DailyCashCollectionPage() {
                 className="grid grid-cols-3 gap-2 px-3 py-1.5 text-sm"
               >
                 <span className="truncate">
-                  {detail.customerName || "-"}
+                  {detail.customerName || detail.saleInvoice || "Walk-in"}
                 </span>
                 <span className="text-center truncate">
-                  {detail.referenceNumber || "-"}
+                  {detail.referenceNumber || (paymentType.paymentMethod === "cash" ? detail.saleInvoice : "-")}
                 </span>
                 <span className="text-right font-medium">
                   {formatCurrency(detail.amount)}
