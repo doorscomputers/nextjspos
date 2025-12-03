@@ -2014,7 +2014,7 @@ export default function POSEnhancedPage() {
       const saleData: any = {
         locationId: currentShift.locationId,
         customerId: selectedCustomer?.id,
-        saleDate: new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' })).toISOString(),
+        saleDate: new Date(Date.now() + (8 * 60 * 60 * 1000)).toISOString(), // Manila is UTC+8
         items: cart.map((item) => ({
           productId: item.productId,
           productVariationId: item.productVariationId,
