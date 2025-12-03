@@ -697,6 +697,23 @@ export async function PUT(
       // Since type changes are blocked (line 250-255), this code was incorrectly
       // soft-deleting variations on every single/combo product edit
 
+      // Handle single product variation updates (sync prices to default variation)
+      if (type === 'single' && existingProduct.variations.length > 0) {
+        const defaultVariation = existingProduct.variations.find(v => v.isDefault) || existingProduct.variations[0]
+
+        // Update the default variation with the product's prices
+        await tx.productVariation.update({
+          where: { id: defaultVariation.id },
+          data: {
+            purchasePrice: purchasePrice ? parseFloat(purchasePrice) : defaultVariation.purchasePrice,
+            sellingPrice: sellingPrice ? parseFloat(sellingPrice) : defaultVariation.sellingPrice,
+            sku: finalSku // Keep SKU in sync
+          }
+        })
+
+        console.log(`[Product Edit] 📦 Single product: Updated default variation prices - Purchase: ${purchasePrice}, Selling: ${sellingPrice}`)
+      }
+
       // Handle combo items for combo products
       if (type === 'combo' && comboItems && Array.isArray(comboItems)) {
         // Delete all existing combo items
