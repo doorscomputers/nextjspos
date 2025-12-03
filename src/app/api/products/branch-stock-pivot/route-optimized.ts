@@ -279,7 +279,7 @@ export async function POST(request: NextRequest) {
     )
 
     // Get all active locations
-    const allLocations = await prisma.businessLocation.findMany({
+    const allLocationsRaw = await prisma.businessLocation.findMany({
       where: {
         businessId,
         deletedAt: null,
@@ -289,9 +289,24 @@ export async function POST(request: NextRequest) {
         id: true,
         name: true,
       },
-      orderBy: {
-        name: 'asc',
-      },
+    })
+
+    // Custom sort order: Main Warehouse, Main Store, Bambang, Tuguegarao, then alphabetical for others
+    const locationOrder = ['Main Warehouse', 'Main Store', 'Bambang', 'Tuguegarao']
+    const allLocations = allLocationsRaw.sort((a, b) => {
+      const aIndex = locationOrder.indexOf(a.name)
+      const bIndex = locationOrder.indexOf(b.name)
+
+      // If both are in the custom order, sort by that order
+      if (aIndex !== -1 && bIndex !== -1) {
+        return aIndex - bIndex
+      }
+      // If only a is in custom order, a comes first
+      if (aIndex !== -1) return -1
+      // If only b is in custom order, b comes first
+      if (bIndex !== -1) return 1
+      // Otherwise sort alphabetically
+      return a.name.localeCompare(b.name)
     })
 
     // Transform rows
