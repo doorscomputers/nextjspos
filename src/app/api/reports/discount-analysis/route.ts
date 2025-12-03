@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
               name: true,
             },
           },
-          user: {
+          creator: {
             select: {
               username: true,
               firstName: true,
@@ -157,9 +157,9 @@ export async function GET(request: NextRequest) {
       locData.totalSales += totalAmt
 
       // Track by cashier
-      const cashierId = sale.userId
-      const cashierName = sale.user
-        ? `${sale.user.firstName || ''} ${sale.user.lastName || ''}`.trim() || sale.user.username
+      const cashierId = sale.createdBy
+      const cashierName = sale.creator
+        ? `${sale.creator.firstName || ''} ${sale.creator.lastName || ''}`.trim() || sale.creator.username
         : 'Unknown'
       if (!cashierDiscounts.has(cashierId)) {
         cashierDiscounts.set(cashierId, {
