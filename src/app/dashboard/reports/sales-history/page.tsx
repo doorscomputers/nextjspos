@@ -825,10 +825,9 @@ export default function SalesHistoryPage() {
                 cssClass="font-medium"
               />
               <Column
-                dataField="productNames"
-                caption="Products"
-                visible={false}
-                allowSearch={true}
+                dataField="remarks"
+                caption="Remarks"
+                minWidth={180}
               />
               <Column
                 dataField="saleDateTime"
