@@ -427,17 +427,72 @@ export async function POST(
         },
       })
 
+      // Build return items with product details for receipt printing
+      const returnItemsForReceipt = await Promise.all(
+        returnItems.map(async (returnItem: any) => {
+          const saleItem = sale.items.find((item) => item.id === returnItem.saleItemId)
+          if (!saleItem) return null
+
+          // Fetch product and variation names
+          const product = await prisma.product.findUnique({
+            where: { id: saleItem.productId },
+            select: { name: true, sku: true }
+          })
+          const variation = await prisma.productVariation.findUnique({
+            where: { id: saleItem.productVariationId },
+            select: { name: true, sku: true }
+          })
+
+          return {
+            productName: variation?.name || product?.name || `Product #${saleItem.productId}`,
+            sku: variation?.sku || product?.sku || '',
+            quantity: returnItem.quantity,
+            unitPrice: parseFloat(saleItem.unitPrice.toString()),
+          }
+        })
+      ).then(items => items.filter(Boolean))
+
+      // Build exchange items with product details for receipt printing
+      const exchangeItemsForReceipt = await Promise.all(
+        exchangeItems.map(async (exchangeItem: any) => {
+          // Fetch product and variation names
+          const product = await prisma.product.findUnique({
+            where: { id: exchangeItem.productId },
+            select: { name: true, sku: true }
+          })
+          const variation = await prisma.productVariation.findUnique({
+            where: { id: exchangeItem.productVariationId },
+            select: { name: true, sku: true }
+          })
+
+          return {
+            productName: variation?.name || product?.name || `Product #${exchangeItem.productId}`,
+            sku: variation?.sku || product?.sku || '',
+            quantity: exchangeItem.quantity,
+            unitPrice: parseFloat(exchangeItem.unitPrice),
+          }
+        })
+      )
+
       return NextResponse.json({
         success: true,
         message: 'Exchange processed successfully',
         exchangeSale: result.exchangeSale,
         exchangeNumber: result.exchangeNumber,
+        originalInvoiceNumber: sale.invoiceNumber,
         returnTotal,
         exchangeTotal,
         priceDifference: result.priceDifference,
         customerPaysMore: result.customerPaysMore,
         customerGetsCredit: result.customerGetsCredit,
         paymentAmount: actualPayment,
+        paymentMethod: paymentMethod || 'cash',
+        reason: exchangeReason,
+        // Include item details for receipt printing
+        returnItems: returnItemsForReceipt,
+        exchangeItems: exchangeItemsForReceipt,
+        createdAt: new Date().toISOString(),
+        locationId: sale.locationId,
       })
     } catch (error: any) {
       console.error('Error processing exchange:', error)
