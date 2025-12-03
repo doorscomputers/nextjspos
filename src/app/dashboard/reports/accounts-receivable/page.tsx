@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import {
@@ -81,6 +82,7 @@ interface Summary {
 
 export default function AccountsReceivablePage() {
   const { data: session } = useSession();
+  const router = useRouter();
   const dataGridRef = useRef<DataGrid>(null);
 
   // Filter states
@@ -312,8 +314,13 @@ export default function AccountsReceivablePage() {
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {customer.invoices.map((invoice: any) => (
                 <tr key={invoice.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td className="px-4 py-2 font-medium text-gray-900 dark:text-white">
-                    {invoice.invoiceNumber}
+                  <td className="px-4 py-2 font-medium">
+                    <button
+                      onClick={() => router.push(`/dashboard/sales/${invoice.id}`)}
+                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline font-medium"
+                    >
+                      {invoice.invoiceNumber}
+                    </button>
                   </td>
                   <td className="px-4 py-2 text-gray-700 dark:text-gray-300">
                     {new Date(invoice.saleDate).toLocaleDateString()}

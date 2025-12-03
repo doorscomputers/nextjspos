@@ -34,7 +34,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const businessId = session.user.businessId
+    const businessId = parseInt(session.user.businessId)
+    if (!Number.isInteger(businessId)) {
+      return NextResponse.json({ error: "Invalid business context" }, { status: 400 })
+    }
     const searchParams = request.nextUrl.searchParams
     const dateParam = searchParams.get("date")
     const locationId = searchParams.get("locationId")
@@ -225,10 +228,11 @@ export async function GET(request: NextRequest) {
         generatedBy: session.user.name || session.user.username,
       },
     })
-  } catch (error) {
-    console.error("Error fetching daily cash collection:", error)
+  } catch (error: any) {
+    console.error("Error fetching daily cash collection:", error?.message || error)
+    console.error("Stack:", error?.stack)
     return NextResponse.json(
-      { error: "Failed to fetch daily cash collection report" },
+      { error: "Failed to fetch daily cash collection report", details: error?.message },
       { status: 500 }
     )
   }
