@@ -856,32 +856,40 @@ export async function POST(request: NextRequest) {
       }
 
       // If serial numbers required, validate them using batch-fetched data
+      // Note: requiresSerial can be true for database-linked serials (serialNumberIds) OR manual text serials (serialNumbers)
       if (item.requiresSerial) {
-        if (!item.serialNumberIds || item.serialNumberIds.length === 0) {
+        const hasDbSerials = item.serialNumberIds && item.serialNumberIds.length > 0
+        const hasManualSerials = item.serialNumbers && item.serialNumbers.length > 0
+
+        // Must have at least one type of serial numbers
+        if (!hasDbSerials && !hasManualSerials) {
           return NextResponse.json(
             { error: `Serial numbers required for item ${item.productId}` },
             { status: 400 }
           )
         }
 
-        if (item.serialNumberIds.length !== quantity) {
-          return NextResponse.json(
-            {
-              error: `Serial number count mismatch for item ${item.productId}. Expected: ${quantity}, Provided: ${item.serialNumberIds.length}`,
-            },
-            { status: 400 }
-          )
-        }
-
-        // Verify serial numbers exist and are available (using pre-fetched map)
-        for (const serialNumberId of item.serialNumberIds) {
-          const serialNumber = serialNumbersMap.get(Number(serialNumberId))
-
-          if (!serialNumber || serialNumber.productVariationId !== Number(item.productVariationId)) {
+        // Only validate database-linked serial numbers (manual ones don't need validation)
+        if (hasDbSerials) {
+          if (item.serialNumberIds.length !== quantity) {
             return NextResponse.json(
-              { error: `Serial number ${serialNumberId} not available for sale` },
+              {
+                error: `Serial number count mismatch for item ${item.productId}. Expected: ${quantity}, Provided: ${item.serialNumberIds.length}`,
+              },
               { status: 400 }
             )
+          }
+
+          // Verify serial numbers exist and are available (using pre-fetched map)
+          for (const serialNumberId of item.serialNumberIds) {
+            const serialNumber = serialNumbersMap.get(Number(serialNumberId))
+
+            if (!serialNumber || serialNumber.productVariationId !== Number(item.productVariationId)) {
+              return NextResponse.json(
+                { error: `Serial number ${serialNumberId} not available for sale` },
+                { status: 400 }
+              )
+            }
           }
         }
       }
