@@ -470,6 +470,7 @@ export async function GET(request: NextRequest) {
           totalAmount: parseFloat(sale.totalAmount.toString()),
           discountAmount: parseFloat(sale.discountAmount.toString()),
           discountType: sale.discountType,
+          notes: sale.notes || '', // Remarks field
           status: sale.status, // Include status to show voided sales
           isARPayment, // Flag to indicate this is an AR payment transaction
           payments: sale.payments.map((p) => ({
@@ -480,6 +481,20 @@ export async function GET(request: NextRequest) {
           items: sale.items.map((item) => {
             const product = productMap.get(item.productId)
             const variation = variationMap.get(item.productVariationId)
+            // Parse serial numbers from JSON
+            let serialNumbersDisplay = ''
+            if (item.serialNumbers) {
+              try {
+                const snArray = typeof item.serialNumbers === 'string'
+                  ? JSON.parse(item.serialNumbers)
+                  : item.serialNumbers
+                if (Array.isArray(snArray)) {
+                  serialNumbersDisplay = snArray.map((sn: any) => sn.serialNumber || sn).join(', ')
+                }
+              } catch (e) {
+                serialNumbersDisplay = ''
+              }
+            }
             return {
               productName: product?.name || 'Unknown Product',
               variationName: variation?.name || 'Unknown Variation',
@@ -487,6 +502,9 @@ export async function GET(request: NextRequest) {
               quantity: parseFloat(item.quantity.toString()),
               unitPrice: parseFloat(item.unitPrice.toString()),
               total: parseFloat(item.quantity.toString()) * parseFloat(item.unitPrice.toString()),
+              discountAmount: parseFloat(item.discountAmount?.toString() || '0'),
+              remark: item.remark || '',
+              serialNumbers: serialNumbersDisplay,
             }
           }),
         }

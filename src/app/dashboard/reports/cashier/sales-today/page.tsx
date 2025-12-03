@@ -85,6 +85,7 @@ interface SalesTodayData {
     totalAmount: number
     discountAmount: number
     discountType: string | null
+    notes: string
     payments: Array<{ method: string; amount: number }>
     itemCount: number
     items: Array<{
@@ -94,6 +95,9 @@ interface SalesTodayData {
       quantity: number
       unitPrice: number
       total: number
+      discountAmount: number
+      remark: string
+      serialNumbers: string
     }>
   }>
 }
@@ -202,7 +206,7 @@ export default function CashierSalesTodayPage() {
           showRowLines={true}
           columnAutoWidth={true}
         >
-          <Column dataField="productName" caption="Product" />
+          <Column dataField="productName" caption="Product" minWidth={200} />
           <Column dataField="variationName" caption="Variation" width={120} />
           <Column dataField="sku" caption="SKU" width={120} />
           <Column
@@ -222,6 +226,23 @@ export default function CashierSalesTodayPage() {
             width={120}
           />
           <Column
+            dataField="discountAmount"
+            caption="Discount"
+            dataType="number"
+            format="₱#,##0.00"
+            alignment="right"
+            width={100}
+            cellRender={(cellData: any) => {
+              const discount = cellData.value
+              if (!discount || discount === 0) return <span className="text-gray-400">-</span>
+              return (
+                <span className="text-orange-600 dark:text-orange-400">
+                  -{formatCurrency(discount)}
+                </span>
+              )
+            }}
+          />
+          <Column
             dataField="total"
             caption="Total"
             dataType="number"
@@ -229,6 +250,34 @@ export default function CashierSalesTodayPage() {
             alignment="right"
             width={120}
             cssClass="font-semibold"
+          />
+          <Column
+            dataField="serialNumbers"
+            caption="Serial Numbers"
+            minWidth={180}
+            cellRender={(cellData: any) => {
+              const serials = cellData.value
+              if (!serials) return <span className="text-gray-400">-</span>
+              return (
+                <span className="text-xs text-gray-600 dark:text-gray-400" title={serials}>
+                  {serials.length > 40 ? serials.substring(0, 40) + '...' : serials}
+                </span>
+              )
+            }}
+          />
+          <Column
+            dataField="remark"
+            caption="Remark"
+            minWidth={150}
+            cellRender={(cellData: any) => {
+              const remark = cellData.value
+              if (!remark) return <span className="text-gray-400">-</span>
+              return (
+                <span className="text-xs text-gray-600 dark:text-gray-400" title={remark}>
+                  {remark.length > 30 ? remark.substring(0, 30) + '...' : remark}
+                </span>
+              )
+            }}
           />
         </DataGrid>
       </div>
@@ -496,6 +545,20 @@ export default function CashierSalesTodayPage() {
                 dataField="invoiceNumber"
                 caption="Invoice #"
                 width={140}
+              />
+              <Column
+                dataField="notes"
+                caption="Remarks"
+                minWidth={150}
+                cellRender={(cellData: any) => {
+                  const notes = cellData.value
+                  if (!notes) return <span className="text-gray-400">-</span>
+                  return (
+                    <span className="text-gray-700 dark:text-gray-300 text-sm" title={notes}>
+                      {notes.length > 30 ? notes.substring(0, 30) + '...' : notes}
+                    </span>
+                  )
+                }}
               />
               <Column
                 dataField="saleDate"
