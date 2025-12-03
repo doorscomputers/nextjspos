@@ -478,6 +478,12 @@ export async function GET(request: NextRequest) {
         notes: sale.notes,
         remarks: sale.notes || '',
         itemCount: sale.items.length,
+        // Concatenate all product names and SKUs for searchability
+        productNames: sale.items.map((item) => {
+          const variation = variationMap[item.productVariationId]
+          const product = variation ? productMap[variation.productId] : productMap[item.productId]
+          return `${product?.name || ''} ${variation?.sku || ''}`
+        }).join(', '),
         items: sale.items.map((item) => {
           const variation = variationMap[item.productVariationId]
           const product = variation ? productMap[variation.productId] : productMap[item.productId]
