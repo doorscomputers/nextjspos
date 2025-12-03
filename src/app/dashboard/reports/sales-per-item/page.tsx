@@ -488,6 +488,18 @@ export default function SalesPerItemReport() {
               width={120}
               cssClass="font-semibold"
             />
+            <Column
+              dataField="serialNumbers"
+              caption="Serial Numbers"
+              minWidth={150}
+              allowFiltering={true}
+            />
+            <Column
+              dataField="remarks"
+              caption="Remarks"
+              minWidth={200}
+              allowFiltering={true}
+            />
 
             <Summary>
               <TotalItem column="quantity" summaryType="sum" valueFormat="#,##0.##" />

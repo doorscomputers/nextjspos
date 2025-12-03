@@ -146,7 +146,15 @@ export async function GET(request: NextRequest) {
     const [saleItems, locations] = await Promise.all([
       prisma.saleItem.findMany({
         where: itemWhere,
-        include: {
+        select: {
+          id: true,
+          saleId: true,
+          productId: true,
+          productVariationId: true,
+          quantity: true,
+          unitPrice: true,
+          serialNumbers: true,
+          remark: true,
           sale: {
             select: {
               id: true,
@@ -213,6 +221,17 @@ export async function GET(request: NextRequest) {
       const unitPrice = typeof item.unitPrice === 'number' ? item.unitPrice : parseFloat(item.unitPrice?.toString() || '0')
       const amount = quantity * unitPrice
 
+      // Parse serial numbers from JSON array to comma-separated string
+      let serialNumbersStr = ''
+      if (item.serialNumbers) {
+        try {
+          const serialArr = Array.isArray(item.serialNumbers) ? item.serialNumbers : JSON.parse(String(item.serialNumbers))
+          serialNumbersStr = Array.isArray(serialArr) ? serialArr.join(', ') : ''
+        } catch {
+          serialNumbersStr = ''
+        }
+      }
+
       return {
         id: item.id,
         saleId: item.saleId,
@@ -229,6 +248,8 @@ export async function GET(request: NextRequest) {
         customer: item.sale?.customer?.name || 'Walk-in Customer',
         location: locationMap.get(item.sale?.locationId ?? 0) || 'N/A',
         cashier: item.sale?.creator ? `${item.sale.creator.firstName} ${item.sale.creator.surname}` : 'Unknown',
+        serialNumbers: serialNumbersStr,
+        remarks: item.remark || '',
       }
     })
 
