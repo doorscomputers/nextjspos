@@ -57,6 +57,7 @@ interface SaleItem {
   quantity: number
   unitPrice: number
   unitCost: number
+  discountAmount: number
   total: number
   serialNumbers?: string
 }
@@ -441,6 +442,9 @@ export default function SalesReportPage() {
                 <th className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">
                   Price
                 </th>
+                <th className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">
+                  Discount
+                </th>
                 {can(PERMISSIONS.SELL_VIEW_COST) && (
                   <th className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">
                     Cost
@@ -468,6 +472,15 @@ export default function SalesReportPage() {
                   </td>
                   <td className="px-4 py-2 text-right text-gray-900 dark:text-white">
                     {formatCurrency(item.unitPrice)}
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    {item.discountAmount > 0 ? (
+                      <span className="text-orange-600 dark:text-orange-400">
+                        -{formatCurrency(item.discountAmount)}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
                   {can(PERMISSIONS.SELL_VIEW_COST) && (
                     <td className="px-4 py-2 text-right text-gray-700 dark:text-gray-300">

@@ -232,6 +232,7 @@ export async function GET(request: NextRequest) {
           unitPrice: parseFloat(item.unitPrice.toString()),
           // Only include unitCost if user has permission
           ...(canViewCost && { unitCost: parseFloat(item.unitCost.toString()) }),
+          discountAmount: parseFloat(item.discountAmount?.toString() || '0'),
           total: parseFloat(item.quantity.toString()) * parseFloat(item.unitPrice.toString()),
           serialNumbers: serialNumbersDisplay,
         }
