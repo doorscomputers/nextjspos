@@ -38,6 +38,7 @@ import Chart, {
   Title,
   Tooltip as ChartTooltip,
   Grid,
+  Label as ChartLabel,
 } from 'devextreme-react/chart'
 import PieChart, {
   Series as PieSeries,
@@ -622,6 +623,7 @@ export default function DashboardPageV2() {
                     ))}
                     <ArgumentAxis>
                       <Grid visible={true} />
+                      <ChartLabel visible={false} />
                     </ArgumentAxis>
                     <ValueAxis>
                       <Grid visible={true} />
