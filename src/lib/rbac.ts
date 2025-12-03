@@ -311,6 +311,7 @@ export const PERMISSIONS = {
   REPORT_DAILY_CASH_COLLECTION: 'report.daily_cash_collection', // Daily cash collection report with denominations
   REPORT_SALES_BY_HOUR: 'report.sales_by_hour', // Hourly sales breakdown for peak hours analysis
   REPORT_VOID_REFUND_ANALYSIS: 'report.void_refund_analysis', // Voided and refunded transactions tracking
+  REPORT_EXCHANGE_ITEMS: 'report.exchange_items', // Exchange transactions report
   REPORT_SALES_BY_PERSONNEL: 'report.sales_by_personnel', // Sales performance by sales personnel
 
   // Sales Personnel Management
@@ -1317,6 +1318,7 @@ export const DEFAULT_ROLES = {
       // Operational analysis reports
       PERMISSIONS.REPORT_SALES_BY_HOUR,
       PERMISSIONS.REPORT_VOID_REFUND_ANALYSIS,
+      PERMISSIONS.REPORT_EXCHANGE_ITEMS,
       // Cashier-only reports section
       PERMISSIONS.CASHIER_REPORTS_VIEW,
       // Sales Personnel - view only for dropdown selection

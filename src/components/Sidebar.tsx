@@ -914,6 +914,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               icon: ExclamationTriangleIcon,
               permission: PERMISSIONS.REPORT_VOID_REFUND_ANALYSIS,
             },
+            {
+              key: "exchange_items_report",
+              name: "Exchange Items Report",
+              href: "/dashboard/reports/exchange-items",
+              icon: ArrowsRightLeftIcon,
+              permission: PERMISSIONS.REPORT_EXCHANGE_ITEMS,
+            },
           ],
         },
         {
