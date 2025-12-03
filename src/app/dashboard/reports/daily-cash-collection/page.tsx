@@ -113,25 +113,36 @@ export default function DailyCashCollectionPage() {
   const [reportData, setReportData] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(false)
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"))
-  const [selectedLocation, setSelectedLocation] = useState<string>("all")
+  const [selectedLocation, setSelectedLocation] = useState<string>("")
   const [locations, setLocations] = useState<Location[]>([])
   const printRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetchLocations()
-    fetchReport()
   }, [])
 
   useEffect(() => {
-    fetchReport()
+    if (selectedLocation) {
+      fetchReport()
+    }
   }, [selectedDate, selectedLocation])
 
   const fetchLocations = async () => {
     try {
-      const response = await fetch("/api/locations")
+      // Use user-locations API for better access control
+      const response = await fetch("/api/user-locations")
       if (response.ok) {
         const data = await response.json()
-        setLocations(data.locations || [])
+        const userLocations = Array.isArray(data.locations) ? data.locations : []
+        // Filter out warehouse locations
+        const filteredLocations = userLocations.filter((loc: Location) =>
+          loc?.name && !loc.name.toLowerCase().includes('warehouse')
+        )
+        setLocations(filteredLocations)
+        // Auto-select first location if none selected
+        if (filteredLocations.length > 0 && !selectedLocation) {
+          setSelectedLocation(filteredLocations[0].id.toString())
+        }
       }
     } catch (error) {
       console.error("Error fetching locations:", error)
@@ -139,12 +150,12 @@ export default function DailyCashCollectionPage() {
   }
 
   const fetchReport = async () => {
+    if (!selectedLocation) return
+
     try {
       setLoading(true)
       const params = new URLSearchParams({ date: selectedDate })
-      if (selectedLocation !== "all") {
-        params.append("locationId", selectedLocation)
-      }
+      params.append("locationId", selectedLocation)
 
       const response = await fetch(`/api/reports/daily-cash-collection?${params.toString()}`)
       if (!response.ok) throw new Error("Failed to fetch report")
@@ -316,10 +327,9 @@ export default function DailyCashCollectionPage() {
               <Select value={selectedLocation} onValueChange={setSelectedLocation}>
                 <SelectTrigger>
                   <MapPinIcon className="h-4 w-4 mr-2 text-gray-400" />
-                  <SelectValue placeholder="All Locations" />
+                  <SelectValue placeholder="Select Location" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Locations</SelectItem>
                   {locations.map((loc) => (
                     <SelectItem key={loc.id} value={loc.id.toString()}>
                       {loc.name}
