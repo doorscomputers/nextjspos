@@ -104,10 +104,14 @@ export async function GET(request: NextRequest) {
     const dailyDiscounts = new Map()
 
     discountedSales.forEach((sale) => {
+      // Convert Decimal to number for arithmetic
+      const discountAmt = parseFloat(sale.discountAmount?.toString() || '0')
+      const totalAmt = parseFloat(sale.totalAmount?.toString() || '0')
+
       // Determine discount type based on percentage
       const discountPercent =
-        sale.totalAmount > 0
-          ? (sale.discountAmount / (sale.totalAmount + sale.discountAmount)) * 100
+        totalAmt > 0
+          ? (discountAmt / (totalAmt + discountAmt)) * 100
           : 0
 
       let discountType = 'Other'
@@ -134,8 +138,8 @@ export async function GET(request: NextRequest) {
       }
       const typeData = discountTypes.get(discountType)
       typeData.count++
-      typeData.totalDiscount += sale.discountAmount
-      typeData.totalSales += sale.totalAmount
+      typeData.totalDiscount += discountAmt
+      typeData.totalSales += totalAmt
 
       // Track by location
       const locName = sale.location?.name || 'N/A'
@@ -149,8 +153,8 @@ export async function GET(request: NextRequest) {
       }
       const locData = locationDiscounts.get(locName)
       locData.count++
-      locData.totalDiscount += sale.discountAmount
-      locData.totalSales += sale.totalAmount
+      locData.totalDiscount += discountAmt
+      locData.totalSales += totalAmt
 
       // Track by cashier
       const cashierId = sale.userId
@@ -168,8 +172,8 @@ export async function GET(request: NextRequest) {
       }
       const cashierData = cashierDiscounts.get(cashierId)
       cashierData.count++
-      cashierData.totalDiscount += sale.discountAmount
-      cashierData.totalSales += sale.totalAmount
+      cashierData.totalDiscount += discountAmt
+      cashierData.totalSales += totalAmt
 
       // Track by customer (for customers with discounts)
       if (sale.customerId && sale.customer) {
@@ -185,8 +189,8 @@ export async function GET(request: NextRequest) {
         }
         const customerData = customerDiscounts.get(customerId)
         customerData.count++
-        customerData.totalDiscount += sale.discountAmount
-        customerData.totalSales += sale.totalAmount
+        customerData.totalDiscount += discountAmt
+        customerData.totalSales += totalAmt
       }
 
       // Track daily discounts
@@ -201,8 +205,8 @@ export async function GET(request: NextRequest) {
       }
       const dailyData = dailyDiscounts.get(dateKey)
       dailyData.count++
-      dailyData.totalDiscount += sale.discountAmount
-      dailyData.totalSales += sale.totalAmount
+      dailyData.totalDiscount += discountAmt
+      dailyData.totalSales += totalAmt
     })
 
     // Calculate percentages
@@ -237,10 +241,10 @@ export async function GET(request: NextRequest) {
       .map(calculateWithPercentage)
       .sort((a, b) => a.date.localeCompare(b.date))
 
-    // Calculate summary
-    const totalDiscountAmount = allSales._sum.discountAmount || 0
-    const totalSalesAmount = allSales._sum.totalAmount || 0
-    const totalTransactions = allSales._count
+    // Calculate summary - convert Decimal to number
+    const totalDiscountAmount = parseFloat(allSales._sum.discountAmount?.toString() || '0')
+    const totalSalesAmount = parseFloat(allSales._sum.totalAmount?.toString() || '0')
+    const totalTransactions = allSales._count || 0
     const discountedTransactions = discountedSales.length
 
     const summary = {
@@ -248,7 +252,7 @@ export async function GET(request: NextRequest) {
       totalSalesAmount,
       totalTransactions,
       discountedTransactions,
-      discountRate: (discountedTransactions / totalTransactions) * 100,
+      discountRate: totalTransactions > 0 ? (discountedTransactions / totalTransactions) * 100 : 0,
       averageDiscount:
         discountedTransactions > 0 ? totalDiscountAmount / discountedTransactions : 0,
       discountImpact:

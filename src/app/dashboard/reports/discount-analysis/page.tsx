@@ -330,28 +330,37 @@ export default function DiscountAnalysisReport() {
       </div>
 
       {/* Summary Cards */}
-      {summary && (
+      {loading ? (
+        <div className="flex items-center justify-center h-32">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-3 text-gray-600">Loading discount data...</span>
+        </div>
+      ) : summary ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-gradient-to-br from-red-500 to-red-600 p-6 rounded-lg shadow-lg text-white">
             <div className="text-sm opacity-90">Total Discounts</div>
-            <div className="text-3xl font-bold mt-2">₱{summary.totalDiscountAmount?.toLocaleString()}</div>
-            <div className="text-xs mt-1 opacity-80">{summary.discountedTransactions} transactions</div>
+            <div className="text-3xl font-bold mt-2">₱{(summary.totalDiscountAmount || 0).toLocaleString()}</div>
+            <div className="text-xs mt-1 opacity-80">{summary.discountedTransactions || 0} transactions</div>
           </div>
           <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-6 rounded-lg shadow-lg text-white">
             <div className="text-sm opacity-90">Discount Rate</div>
-            <div className="text-3xl font-bold mt-2">{summary.discountRate?.toFixed(1)}%</div>
-            <div className="text-xs mt-1 opacity-80">{summary.discountedTransactions} / {summary.totalTransactions} sales</div>
+            <div className="text-3xl font-bold mt-2">{(summary.discountRate || 0).toFixed(1)}%</div>
+            <div className="text-xs mt-1 opacity-80">{summary.discountedTransactions || 0} / {summary.totalTransactions || 0} sales</div>
           </div>
           <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 p-6 rounded-lg shadow-lg text-white">
             <div className="text-sm opacity-90">Average Discount</div>
-            <div className="text-3xl font-bold mt-2">₱{summary.averageDiscount?.toLocaleString()}</div>
+            <div className="text-3xl font-bold mt-2">₱{(summary.averageDiscount || 0).toLocaleString()}</div>
             <div className="text-xs mt-1 opacity-80">Per discounted transaction</div>
           </div>
           <div className="bg-gradient-to-br from-pink-500 to-pink-600 p-6 rounded-lg shadow-lg text-white">
             <div className="text-sm opacity-90">Discount Impact</div>
-            <div className="text-3xl font-bold mt-2">{summary.discountImpact?.toFixed(1)}%</div>
+            <div className="text-3xl font-bold mt-2">{(summary.discountImpact || 0).toFixed(1)}%</div>
             <div className="text-xs mt-1 opacity-80">Of total sales value</div>
           </div>
+        </div>
+      ) : (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 text-center">
+          <p className="text-yellow-800 dark:text-yellow-200">No discount data found for the selected filters. Try adjusting the date range or location.</p>
         </div>
       )}
 
