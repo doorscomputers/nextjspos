@@ -243,16 +243,16 @@ export default function DailyCashCollectionPage() {
     }
 
     return (
-      <div className="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden">
-        <div className="bg-gray-100 dark:bg-gray-700 px-3 py-2 border-b border-gray-300 dark:border-gray-600">
-          <div className="flex items-center gap-2 font-semibold text-sm">
+      <div className="border border-amber-200 dark:border-amber-700 rounded-lg overflow-hidden">
+        <div className="bg-amber-100 dark:bg-amber-900/40 px-3 py-2 border-b border-amber-200 dark:border-amber-700">
+          <div className="flex items-center gap-2 font-semibold text-sm text-amber-900 dark:text-amber-100">
             {getPaymentMethodIcon(paymentType.paymentMethod)}
             {getPaymentMethodLabel(paymentType.paymentMethod).toUpperCase()}
           </div>
         </div>
-        <div className="divide-y divide-gray-200 dark:divide-gray-600">
+        <div className="divide-y divide-amber-100 dark:divide-amber-800">
           {/* Header */}
-          <div className="grid grid-cols-3 gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-800 text-xs font-medium text-gray-500 dark:text-gray-400">
+          <div className="grid grid-cols-3 gap-2 px-3 py-1.5 bg-amber-50/50 dark:bg-amber-900/20 text-xs font-medium text-amber-700 dark:text-amber-400">
             <span>REF/PAYER</span>
             <span className="text-center">
               {paymentType.paymentMethod === "check" ? "CHECK NO." : "REF NO."}
@@ -278,12 +278,12 @@ export default function DailyCashCollectionPage() {
               </div>
             ))
           ) : (
-            <div className="px-3 py-3 text-center text-sm text-gray-400">
+            <div className="px-3 py-3 text-center text-sm text-amber-500 dark:text-amber-500">
               No transactions
             </div>
           )}
           {/* Total */}
-          <div className="grid grid-cols-3 gap-2 px-3 py-2 bg-gray-50 dark:bg-gray-800 font-semibold text-sm">
+          <div className="grid grid-cols-3 gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/30 font-semibold text-sm text-amber-900 dark:text-amber-100">
             <span>TOTAL</span>
             <span></span>
             <span className="text-right">{formatCurrency(paymentType.total)}</span>
@@ -294,95 +294,96 @@ export default function DailyCashCollectionPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6 max-w-7xl">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold mb-2">Daily Cash Collection Report</h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          View daily collection breakdown by denomination and payment type
-        </p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50/30 to-amber-50 dark:from-amber-950 dark:via-orange-900 dark:to-amber-950 p-4 md:p-6">
+      <div className="container mx-auto max-w-7xl">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-amber-900 via-orange-800 to-amber-900 dark:from-amber-100 dark:via-orange-300 dark:to-amber-100 bg-clip-text text-transparent">Daily Cash Collection Report</h1>
+          <p className="text-amber-700 dark:text-amber-300 mt-1">
+            View daily collection breakdown by denomination and payment type
+          </p>
+        </div>
 
-      {/* Filters */}
-      <Card className="mb-6 no-print">
-        <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4 items-end">
-            {/* Date Picker */}
-            <div className="w-full md:w-48">
-              <label className="block text-sm font-medium mb-1.5">Report Date</label>
-              <div className="relative">
-                <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="pl-10"
-                />
+        {/* Filters */}
+        <Card className="mb-6 no-print border-amber-200 dark:border-amber-700 dark:bg-amber-900/30">
+          <CardContent className="p-4">
+            <div className="flex flex-col md:flex-row gap-4 items-end">
+              {/* Date Picker */}
+              <div className="w-full md:w-48">
+                <label className="block text-sm font-medium mb-1.5 text-amber-800 dark:text-amber-200">Report Date</label>
+                <div className="relative">
+                  <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-amber-500" />
+                  <Input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="pl-10 border-amber-300 dark:border-amber-600 focus:ring-amber-500"
+                  />
+                </div>
+              </div>
+
+              {/* Location Filter */}
+              <div className="w-full md:w-56">
+                <label className="block text-sm font-medium mb-1.5 text-amber-800 dark:text-amber-200">Location</label>
+                <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                  <SelectTrigger className="border-amber-300 dark:border-amber-600">
+                    <MapPinIcon className="h-4 w-4 mr-2 text-amber-500" />
+                    <SelectValue placeholder="Select Location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id.toString()}>
+                        {loc.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 ml-auto">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchReport}
+                  disabled={loading}
+                  className="gap-2"
+                >
+                  <ArrowPathIcon className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                  Refresh
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={exportToExcel}
+                  disabled={!reportData}
+                  className="gap-2 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400"
+                >
+                  <DocumentArrowDownIcon className="h-4 w-4" />
+                  Export
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePrint()}
+                  disabled={!reportData}
+                  className="gap-2 hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
+                >
+                  <PrinterIcon className="h-4 w-4" />
+                  Print
+                </Button>
               </div>
             </div>
-
-            {/* Location Filter */}
-            <div className="w-full md:w-56">
-              <label className="block text-sm font-medium mb-1.5">Location</label>
-              <Select value={selectedLocation} onValueChange={setSelectedLocation}>
-                <SelectTrigger>
-                  <MapPinIcon className="h-4 w-4 mr-2 text-gray-400" />
-                  <SelectValue placeholder="Select Location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((loc) => (
-                    <SelectItem key={loc.id} value={loc.id.toString()}>
-                      {loc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-2 ml-auto">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchReport}
-                disabled={loading}
-                className="gap-2"
-              >
-                <ArrowPathIcon className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-                Refresh
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={exportToExcel}
-                disabled={!reportData}
-                className="gap-2 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400"
-              >
-                <DocumentArrowDownIcon className="h-4 w-4" />
-                Export
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handlePrint()}
-                disabled={!reportData}
-                className="gap-2 hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
-              >
-                <PrinterIcon className="h-4 w-4" />
-                Print
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
       {/* Report Content */}
       {loading ? (
         <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="w-12 h-12 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin dark:border-amber-900 dark:border-t-amber-400"></div>
         </div>
       ) : reportData ? (
-        <div ref={printRef} className="bg-white dark:bg-gray-900 p-4 md:p-6 rounded-lg">
+        <div ref={printRef} className="bg-white dark:bg-amber-900/30 p-4 md:p-6 rounded-lg shadow border border-amber-200 dark:border-amber-700">
           {/* Print Header */}
           <div className="text-center mb-6 print:block hidden">
             <h2 className="text-xl font-bold">{reportData.businessName}</h2>
@@ -397,17 +398,17 @@ export default function DailyCashCollectionPage() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
             {/* Left Column - Cash Denominations */}
             <div className="lg:col-span-3">
-              <Card className="h-full">
-                <CardHeader className="py-3 px-4 bg-green-50 dark:bg-green-900/20">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <BanknotesIcon className="h-5 w-5 text-green-600" />
+              <Card className="h-full border-amber-200 dark:border-amber-700">
+                <CardHeader className="py-3 px-4 bg-amber-50 dark:bg-amber-900/40">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2 text-amber-900 dark:text-amber-100">
+                    <BanknotesIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                     CASH DENOMINATIONS
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
+                      <tr className="border-b border-amber-200 dark:border-amber-700 bg-amber-50/50 dark:bg-amber-900/20">
                         <th className="text-left py-2 px-3 font-medium">DENOM</th>
                         <th className="text-center py-2 px-3 font-medium">QTY</th>
                         <th className="text-right py-2 px-3 font-medium">AMOUNT</th>
@@ -415,7 +416,7 @@ export default function DailyCashCollectionPage() {
                     </thead>
                     <tbody>
                       {reportData.denominations.map((d) => (
-                        <tr key={d.denomination} className="border-b dark:border-gray-700">
+                        <tr key={d.denomination} className="border-b border-amber-100 dark:border-amber-800">
                           <td className="py-1.5 px-3">
                             {d.denomination >= 1 ? d.denomination.toLocaleString() : d.denomination}
                           </td>
@@ -429,7 +430,7 @@ export default function DailyCashCollectionPage() {
                       ))}
                     </tbody>
                     <tfoot>
-                      <tr className="bg-green-50 dark:bg-green-900/20 font-semibold">
+                      <tr className="bg-amber-50 dark:bg-amber-900/40 font-semibold text-amber-900 dark:text-amber-100">
                         <td className="py-2 px-3">TOTAL</td>
                         <td className="py-2 px-3 text-center">{reportData.totalDenominationCount}</td>
                         <td className="py-2 px-3 text-right">{formatCurrency(reportData.totalDenominationAmount)}</td>
@@ -440,12 +441,12 @@ export default function DailyCashCollectionPage() {
               </Card>
 
               {/* Collection Summary */}
-              <Card className="mt-4">
-                <CardContent className="p-4 bg-blue-50 dark:bg-blue-900/20">
-                  <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+              <Card className="mt-4 border-amber-200 dark:border-amber-700">
+                <CardContent className="p-4 bg-amber-100 dark:bg-amber-900/40">
+                  <div className="text-sm font-medium text-amber-700 dark:text-amber-300 mb-1">
                     TOTAL COLLECTION
                   </div>
-                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  <div className="text-2xl font-bold text-amber-800 dark:text-amber-200">
                     ₱{formatCurrency(reportData.grandTotal)}
                   </div>
                 </CardContent>
@@ -463,14 +464,14 @@ export default function DailyCashCollectionPage() {
           </div>
 
           {/* Footer */}
-          <div className="mt-6 pt-4 border-t dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400 flex justify-between">
+          <div className="mt-6 pt-4 border-t border-amber-200 dark:border-amber-700 text-xs text-amber-600 dark:text-amber-400 flex justify-between">
             <span>Generated by: {reportData.generatedBy}</span>
             <span>Generated at: {format(new Date(reportData.generatedAt), "MMM dd, yyyy hh:mm a")}</span>
           </div>
         </div>
       ) : (
-        <Card>
-          <CardContent className="py-12 text-center text-gray-500 dark:text-gray-400">
+        <Card className="border-amber-200 dark:border-amber-700 dark:bg-amber-900/30">
+          <CardContent className="py-12 text-center text-amber-600 dark:text-amber-400">
             No data available. Select a date and location to view the report.
           </CardContent>
         </Card>
