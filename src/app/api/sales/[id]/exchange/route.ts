@@ -8,6 +8,7 @@ import { addStock, bulkUpdateStock, StockTransactionType } from '@/lib/stockOper
 import { withIdempotency } from '@/lib/idempotency'
 import { getNextExchangeNumber } from '@/lib/atomicNumbers'
 import { incrementShiftTotalsForExchange } from '@/lib/shift-running-totals'
+import { getManilaDate } from '@/lib/timezone'
 
 /**
  * POST /api/sales/[id]/exchange - Process an exchange for a sale
@@ -197,7 +198,7 @@ export async function POST(
             customerId: sale.customerId,
             locationId: currentLocationId, // Use current location, not original sale location
             returnNumber: `RTN-${exchangeNumber}`,
-            returnDate: new Date(),
+            returnDate: getManilaDate(),
             notes: exchangeReason, // Reason for exchange stored in notes field
             totalRefundAmount: returnTotal, // Total refund value for the exchange
             status: 'exchanged', // Mark as exchanged, not refunded
@@ -288,7 +289,7 @@ export async function POST(
             locationId: currentLocationId, // Exchange processed at current location, not original sale location
             customerId: sale.customerId,
             invoiceNumber: exchangeNumber,
-            saleDate: new Date(),
+            saleDate: getManilaDate(),
             saleType: 'exchange', // Mark as exchange transaction
             status: 'completed',
             subtotal: exchangeTotal, // Value of new items issued
@@ -347,7 +348,7 @@ export async function POST(
                 data: {
                   status: 'sold',
                   saleId: exchangeSale.id,
-                  soldAt: new Date(),
+                  soldAt: getManilaDate(),
                   soldTo: sale.customer?.name || 'Walk-in Customer',
                 },
               })
@@ -378,7 +379,7 @@ export async function POST(
               saleId: exchangeSale.id,
               paymentMethod: paymentMethod || 'cash',
               amount: actualPayment,
-              paidAt: new Date(),
+              paidAt: getManilaDate(),
               shiftId: shiftIdForExchange, // Link to CURRENT shift for Z Reading
               collectedBy: parseInt(user.id), // User who processed exchange
               referenceNumber: `EX-${exchangeNumber}`, // Exchange reference

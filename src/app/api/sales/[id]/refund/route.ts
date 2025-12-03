@@ -7,6 +7,7 @@ import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 import { addStock, StockTransactionType } from '@/lib/stockOperations'
 import bcrypt from 'bcryptjs'
 import { sendRefundTransactionAlert } from '@/lib/email'
+import { getManilaDate } from '@/lib/timezone'
 import { sendTelegramRefundTransactionAlert } from '@/lib/telegram'
 import { withIdempotency } from '@/lib/idempotency'
 import { getNextReturnNumber } from '@/lib/atomicNumbers'
@@ -172,7 +173,7 @@ export async function POST(
           customerId: sale.customerId,
           locationId: sale.locationId,
           returnNumber,
-          returnDate: new Date(),
+          returnDate: getManilaDate(),
           reason: refundReason,
           refundAmount: refundTotal,
           status: 'completed',

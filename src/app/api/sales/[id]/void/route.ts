@@ -7,6 +7,7 @@ import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 import { addStock, StockTransactionType } from '@/lib/stockOperations'
 import bcrypt from 'bcryptjs'
 import { sendVoidTransactionAlert } from '@/lib/email'
+import { getManilaDate } from '@/lib/timezone'
 import { sendTelegramVoidTransactionAlert } from '@/lib/telegram'
 import { decrementShiftTotalsForVoid } from '@/lib/shift-running-totals'
 
@@ -212,7 +213,7 @@ export async function POST(
           originalAmount: sale.totalAmount,
           voidedBy: userIdNumber,
           approvedBy: authorizingUserId, // Manager or current user (for RFID)
-          approvedAt: new Date(),
+          approvedAt: getManilaDate(),
           requiresManagerApproval: authMethod === 'password', // true for password, false for RFID
         },
       })

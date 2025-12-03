@@ -572,7 +572,7 @@ export default function TransferDetailPage() {
       })
 
       console.log('🔍 Quick Receive - Payload:', {
-        receivedDate: new Date().toISOString(),
+        receivedDate: new Date(Date.now() + (8 * 60 * 60 * 1000)).toISOString(), // Manila is UTC+8
         items: receiveItems,
         notes: 'Quick receive - all items accepted'
       })
@@ -581,7 +581,7 @@ export default function TransferDetailPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          receivedDate: new Date().toISOString(),
+          receivedDate: new Date(Date.now() + (8 * 60 * 60 * 1000)).toISOString(), // Manila is UTC+8
           items: receiveItems,
           notes: 'Quick receive - all items accepted'
         })
