@@ -550,6 +550,13 @@ export async function POST(request: NextRequest) {
       console.log('- customerId:', customerId, 'type:', typeof customerId)
       console.log('- items count:', items?.length)
       console.log('- payments count:', payments?.length)
+      // DEBUG: Log full items data including serialNumbers
+      console.log('- items detail:', JSON.stringify(items?.map((item: any) => ({
+        productId: item.productId,
+        requiresSerial: item.requiresSerial,
+        serialNumberIds: item.serialNumberIds,
+        serialNumbers: item.serialNumbers,
+      }))))
     }
 
     const locationIdNumber = Number(locationId)
@@ -845,7 +852,9 @@ export async function POST(request: NextRequest) {
       const isNotForSellingItem = item.notForSelling || false
       if (!isNotForSellingItem) {
         const availability = stockAvailabilityMap.get(Number(item.productVariationId))
+        console.log('[SALES] Stock check for variation', item.productVariationId, ':', availability)
         if (!availability || !availability.available) {
+          console.log('[SALES] FAILED: Insufficient stock')
           return NextResponse.json(
             {
               error: `Insufficient stock for item ${item.productId}. Available: ${availability?.currentStock ?? 0}, Required: ${quantity}`,
@@ -855,44 +864,44 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // If serial numbers required, validate them using batch-fetched data
-      // Note: requiresSerial can be true for database-linked serials (serialNumberIds) OR manual text serials (serialNumbers)
-      if (item.requiresSerial) {
-        const hasDbSerials = item.serialNumberIds && item.serialNumberIds.length > 0
-        const hasManualSerials = item.serialNumbers && item.serialNumbers.length > 0
+      // Serial number validation - ONLY validate database-linked serial numbers
+      // Manual text serial numbers (item.serialNumbers) are stored as-is without validation
+      const hasDbSerials = item.serialNumberIds && item.serialNumberIds.length > 0
 
-        // Must have at least one type of serial numbers
-        if (!hasDbSerials && !hasManualSerials) {
+      // DEBUG: Log serial number data
+      console.log('[SALES] Serial number data for item', item.productId, ':', {
+        requiresSerial: item.requiresSerial,
+        serialNumberIds: item.serialNumberIds,
+        serialNumbers: item.serialNumbers,
+        hasDbSerials
+      })
+
+      // Only validate database-linked serial numbers (from product serial tracking feature)
+      if (hasDbSerials) {
+        if (item.serialNumberIds.length !== quantity) {
+          console.log('[SALES] FAILED: Serial count mismatch')
           return NextResponse.json(
-            { error: `Serial numbers required for item ${item.productId}` },
+            {
+              error: `Serial number count mismatch for item ${item.productId}. Expected: ${quantity}, Provided: ${item.serialNumberIds.length}`,
+            },
             { status: 400 }
           )
         }
 
-        // Only validate database-linked serial numbers (manual ones don't need validation)
-        if (hasDbSerials) {
-          if (item.serialNumberIds.length !== quantity) {
+        // Verify serial numbers exist and are available (using pre-fetched map)
+        for (const serialNumberId of item.serialNumberIds) {
+          const serialNumber = serialNumbersMap.get(Number(serialNumberId))
+
+          if (!serialNumber || serialNumber.productVariationId !== Number(item.productVariationId)) {
+            console.log('[SALES] FAILED: Serial number not available')
             return NextResponse.json(
-              {
-                error: `Serial number count mismatch for item ${item.productId}. Expected: ${quantity}, Provided: ${item.serialNumberIds.length}`,
-              },
+              { error: `Serial number ${serialNumberId} not available for sale` },
               { status: 400 }
             )
           }
-
-          // Verify serial numbers exist and are available (using pre-fetched map)
-          for (const serialNumberId of item.serialNumberIds) {
-            const serialNumber = serialNumbersMap.get(Number(serialNumberId))
-
-            if (!serialNumber || serialNumber.productVariationId !== Number(item.productVariationId)) {
-              return NextResponse.json(
-                { error: `Serial number ${serialNumberId} not available for sale` },
-                { status: 400 }
-              )
-            }
-          }
         }
       }
+      // Note: Manual serial numbers (item.serialNumbers) are saved to sale items without validation
 
       // UOM FIX: Use displayQuantity (selected unit) * unitPrice (price per selected unit)
       // Example: 1 Roll * ₱3000/Roll = ₱3000 (NOT 60 meters * ₱3000 = ₱180,000)
