@@ -175,6 +175,20 @@ export async function POST(
         // Get user's current location from session (where exchange is being processed)
         const currentLocationId = parseInt(user.currentLocationId) || sale.locationId
 
+        // Get the CURRENT cashier's open shift (not the original sale's shift)
+        // This ensures the exchange appears in the current Z Reading
+        const currentShift = await tx.cashierShift.findFirst({
+          where: {
+            userId: parseInt(user.id),
+            status: 'open',
+            businessId: parseInt(user.businessId),
+            locationId: currentLocationId,
+          },
+        })
+
+        // Use current shift if available, otherwise fall back to original sale's shift
+        const shiftIdForExchange = currentShift?.id || sale.shiftId
+
         // 1. Create customer return record for returned items
         const customerReturn = await tx.customerReturn.create({
           data: {
@@ -283,7 +297,7 @@ export async function POST(
             totalAmount: Math.max(priceDifference, 0), // Only positive difference (what customer owes)
             paidAmount: customerPaysMore ? actualPayment : 0, // Amount actually paid
             createdBy: parseInt(user.id),
-            shiftId: sale.shiftId, // Link to same shift
+            shiftId: shiftIdForExchange, // Link to CURRENT shift for Z Reading
             // Link to original sale
             notes: notes || `Exchange for original sale ${sale.invoiceNumber}. Reason: ${exchangeReason}`,
           },
@@ -365,7 +379,7 @@ export async function POST(
               paymentMethod: paymentMethod || 'cash',
               amount: actualPayment,
               paidAt: new Date(),
-              shiftId: sale.shiftId, // Link to same shift
+              shiftId: shiftIdForExchange, // Link to CURRENT shift for Z Reading
               collectedBy: parseInt(user.id), // User who processed exchange
               referenceNumber: `EX-${exchangeNumber}`, // Exchange reference
             },
@@ -373,10 +387,10 @@ export async function POST(
         }
 
         // 7. Update shift running totals for exchange
-        // Net cash impact = payment received (if customer pays more) or 0 (if customer gets credit)
-        if (sale.shiftId) {
+        // IMPORTANT: Use CURRENT shift so exchange appears in current Z Reading
+        if (shiftIdForExchange) {
           await incrementShiftTotalsForExchange(
-            sale.shiftId,
+            shiftIdForExchange, // CURRENT shift, not original sale's shift
             exchangeTotal,      // Total of new items issued
             returnTotal,        // Total of items returned
             actualPayment,      // Actual cash collected from customer
