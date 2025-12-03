@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { usePermissions } from "@/hooks/usePermissions"
 import { PERMISSIONS } from "@/lib/rbac"
 import { formatCurrency } from "@/lib/currencyUtils"
@@ -33,6 +34,7 @@ import 'devextreme/dist/css/dx.light.css'
 
 export default function CashierSalesPerItemPage() {
   const { can } = usePermissions()
+  const router = useRouter()
 
   if (!can(PERMISSIONS.SALES_REPORT_PER_ITEM)) {
     return <div className="text-center py-12"><p className="text-red-600 dark:text-red-400">Access denied</p></div>
@@ -186,6 +188,21 @@ export default function CashierSalesPerItemPage() {
                 caption="Invoice #"
                 minWidth={150}
                 cssClass="font-medium"
+                cellRender={(cellData: any) => {
+                  const saleId = cellData.data?.saleId
+                  const invoiceNumber = cellData.value
+                  if (saleId) {
+                    return (
+                      <button
+                        onClick={() => router.push(`/dashboard/sales/${saleId}`)}
+                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline font-medium"
+                      >
+                        {invoiceNumber}
+                      </button>
+                    )
+                  }
+                  return invoiceNumber
+                }}
               />
               <Column
                 dataField="customer"

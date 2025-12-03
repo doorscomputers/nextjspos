@@ -507,6 +507,18 @@ export async function GET(request: NextRequest) {
         items: sale.items.map((item) => {
           const product = productMap[item.productId]
           const variation = item.productVariationId ? variationMap[item.productVariationId] : null
+
+          // Parse serial numbers from JSON array
+          let serialNumbersStr = ''
+          if (item.serialNumbers) {
+            try {
+              const serialArr = Array.isArray(item.serialNumbers) ? item.serialNumbers : JSON.parse(String(item.serialNumbers))
+              serialNumbersStr = Array.isArray(serialArr) ? serialArr.join(', ') : ''
+            } catch {
+              serialNumbersStr = ''
+            }
+          }
+
           return {
             productName: product?.name || 'Unknown Product',
             variationName: variation?.name || 'Standard',
@@ -515,6 +527,8 @@ export async function GET(request: NextRequest) {
             unitPrice: parseFloat(item.unitPrice.toString()),
             unitCost: parseFloat(item.unitCost.toString()),
             total: parseFloat(item.quantity.toString()) * parseFloat(item.unitPrice.toString()),
+            serialNumbers: serialNumbersStr,
+            remarks: item.remark || '',
           }
         }),
         payments: sale.payments.map((p) => ({
@@ -763,6 +777,18 @@ export async function GET(request: NextRequest) {
       const itemsData = items.map((item) => {
         const product = productMap[item.productId]
         const variation = item.productVariationId ? variationMap[item.productVariationId] : null
+
+        // Parse serial numbers from JSON array
+        let serialNumbersStr = ''
+        if (item.serialNumbers) {
+          try {
+            const serialArr = Array.isArray(item.serialNumbers) ? item.serialNumbers : JSON.parse(String(item.serialNumbers))
+            serialNumbersStr = Array.isArray(serialArr) ? serialArr.join(', ') : ''
+          } catch {
+            serialNumbersStr = ''
+          }
+        }
+
         return {
           id: item.id,
           invoiceNumber: item.sale.invoiceNumber,
@@ -787,6 +813,8 @@ export async function GET(request: NextRequest) {
           total: parseFloat(item.quantity.toString()) * parseFloat(item.unitPrice.toString()),
           profit: (parseFloat(item.quantity.toString()) * parseFloat(item.unitPrice.toString())) -
                   (parseFloat(item.quantity.toString()) * parseFloat(item.unitCost.toString())),
+          serialNumbers: serialNumbersStr,
+          remarks: item.remark || '',
         }
       })
 

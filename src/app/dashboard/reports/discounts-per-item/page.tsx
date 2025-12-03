@@ -21,6 +21,8 @@ interface Transaction {
   unitPrice: number
   discountAmount: number
   totalPrice: number
+  serialNumbers: string
+  remarks: string
 }
 
 interface ProductDiscount {
@@ -504,6 +506,8 @@ export default function DiscountsPerItemReport() {
                                   <th className="text-right py-2 px-2">Unit Price</th>
                                   <th className="text-right py-2 px-2">Discount</th>
                                   <th className="text-right py-2 px-2">Total</th>
+                                  <th className="text-left py-2 px-2">Serial Numbers</th>
+                                  <th className="text-left py-2 px-2">Remarks</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -518,6 +522,8 @@ export default function DiscountsPerItemReport() {
                                       {formatCurrency(trans.discountAmount)}
                                     </td>
                                     <td className="py-2 px-2 text-right">{formatCurrency(trans.totalPrice)}</td>
+                                    <td className="py-2 px-2">{trans.serialNumbers || '-'}</td>
+                                    <td className="py-2 px-2">{trans.remarks || '-'}</td>
                                   </tr>
                                 ))}
                               </tbody>

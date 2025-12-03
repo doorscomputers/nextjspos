@@ -49,7 +49,15 @@ export async function GET(request: NextRequest) {
         sale: where,
         discountAmount: { gt: 0 },
       },
-      include: {
+      select: {
+        id: true,
+        productId: true,
+        productVariationId: true,
+        quantity: true,
+        unitPrice: true,
+        discountAmount: true,
+        serialNumbers: true,
+        remark: true,
         sale: {
           select: {
             id: true,
@@ -100,6 +108,8 @@ export async function GET(request: NextRequest) {
         unitPrice: number
         discountAmount: number
         totalPrice: number
+        serialNumbers: string
+        remarks: string
       }>
     }>()
 
@@ -122,18 +132,37 @@ export async function GET(request: NextRequest) {
       }
 
       const data = productDiscounts.get(productId)!
-      data.totalQuantity += item.quantity
-      data.totalDiscount += item.discountAmount
-      data.totalSalesValue += item.totalPrice + item.discountAmount // Original value before discount
+      const qty = parseFloat(item.quantity?.toString() || '0')
+      const price = parseFloat(item.unitPrice?.toString() || '0')
+      const discount = parseFloat(item.discountAmount?.toString() || '0')
+      const totalPrice = (qty * price) - discount
+
+      data.totalQuantity += qty
+      data.totalDiscount += discount
+      data.totalSalesValue += totalPrice + discount // Original value before discount
       data.transactionCount++
+
+      // Parse serial numbers from JSON array
+      let serialNumbersStr = ''
+      if (item.serialNumbers) {
+        try {
+          const serialArr = Array.isArray(item.serialNumbers) ? item.serialNumbers : JSON.parse(String(item.serialNumbers))
+          serialNumbersStr = Array.isArray(serialArr) ? serialArr.join(', ') : ''
+        } catch {
+          serialNumbersStr = ''
+        }
+      }
+
       data.transactions.push({
         invoiceNumber: item.sale.invoiceNumber,
         saleDate: item.sale.saleDate.toISOString(),
         locationName: item.sale.location?.name || 'N/A',
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        discountAmount: item.discountAmount,
-        totalPrice: item.totalPrice,
+        quantity: qty,
+        unitPrice: price,
+        discountAmount: discount,
+        totalPrice: totalPrice,
+        serialNumbers: serialNumbersStr,
+        remarks: item.remark || '',
       })
     })
 

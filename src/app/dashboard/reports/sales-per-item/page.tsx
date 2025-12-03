@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import DataGrid, {
   Column,
@@ -30,6 +30,7 @@ import 'devextreme/dist/css/dx.light.css'
 
 export default function SalesPerItemReport() {
   const pathname = usePathname()
+  const router = useRouter()
   const isCashierMode = pathname?.includes('/dashboard/cashier-reports/') ?? false
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<any[]>([])
@@ -437,6 +438,21 @@ export default function SalesPerItemReport() {
               caption="Invoice #"
               minWidth={150}
               cssClass="font-medium"
+              cellRender={(cellData: any) => {
+                const saleId = cellData.data?.saleId
+                const invoiceNumber = cellData.value
+                if (saleId) {
+                  return (
+                    <button
+                      onClick={() => router.push(`/dashboard/sales/${saleId}`)}
+                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline font-medium"
+                    >
+                      {invoiceNumber}
+                    </button>
+                  )
+                }
+                return invoiceNumber
+              }}
             />
             <Column
               dataField="customer"

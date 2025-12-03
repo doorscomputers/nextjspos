@@ -56,6 +56,8 @@ interface SaleItem {
   unitPrice: number
   unitCost: number
   total: number
+  serialNumbers?: string
+  remarks?: string
 }
 
 interface Sale {
@@ -394,6 +396,8 @@ export default function SalesHistoryPage() {
                     <th className="px-4 py-2 text-right font-semibold text-amber-800 dark:text-amber-200">Qty</th>
                     <th className="px-4 py-2 text-right font-semibold text-amber-800 dark:text-amber-200">Price</th>
                     <th className="px-4 py-2 text-right font-semibold text-amber-800 dark:text-amber-200">Total</th>
+                    <th className="px-4 py-2 text-left font-semibold text-amber-800 dark:text-amber-200">Serial Numbers</th>
+                    <th className="px-4 py-2 text-left font-semibold text-amber-800 dark:text-amber-200">Remarks</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-amber-900/30 divide-y divide-amber-200 dark:divide-amber-700">
@@ -410,6 +414,8 @@ export default function SalesHistoryPage() {
                       <td className="px-4 py-2 text-right font-semibold text-gray-900 dark:text-white">
                         {formatCurrency(item.total)}
                       </td>
+                      <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{item.serialNumbers || '-'}</td>
+                      <td className="px-4 py-2 text-gray-700 dark:text-gray-300">{item.remarks || '-'}</td>
                     </tr>
                   ))}
                 </tbody>

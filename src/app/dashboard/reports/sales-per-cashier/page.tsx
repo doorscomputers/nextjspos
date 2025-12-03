@@ -830,6 +830,8 @@ export default function SalesPerCashierReport() {
                 width={120}
                 cellRender={renderStatusBadge}
               />
+              <Column dataField="serialNumbers" caption="Serial Numbers" minWidth={150} />
+              <Column dataField="remarks" caption="Remarks" minWidth={200} />
 
               <Summary>
                 <TotalItem column="invoiceNumber" summaryType="count" displayFormat="Total: {0} items" />

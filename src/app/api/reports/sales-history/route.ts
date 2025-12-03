@@ -482,6 +482,17 @@ export async function GET(request: NextRequest) {
           const variation = variationMap[item.productVariationId]
           const product = variation ? productMap[variation.productId] : productMap[item.productId]
 
+          // Parse serial numbers from JSON array
+          let serialNumbersStr = ''
+          if (item.serialNumbers) {
+            try {
+              const serialArr = Array.isArray(item.serialNumbers) ? item.serialNumbers : JSON.parse(String(item.serialNumbers))
+              serialNumbersStr = Array.isArray(serialArr) ? serialArr.join(', ') : ''
+            } catch {
+              serialNumbersStr = ''
+            }
+          }
+
           return {
             productName: product?.name || 'Unknown Product',
             variationName: variation?.name || 'Standard',
@@ -490,6 +501,8 @@ export async function GET(request: NextRequest) {
             unitPrice: parseFloat(item.unitPrice.toString()),
             unitCost: parseFloat(item.unitCost.toString()),
             total: parseFloat(item.quantity.toString()) * parseFloat(item.unitPrice.toString()),
+            serialNumbers: serialNumbersStr,
+            remarks: item.remark || '',
           }
         }),
         payments: sale.payments.map((p) => ({
