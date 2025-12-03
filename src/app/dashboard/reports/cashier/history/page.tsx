@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 import { usePermissions } from "@/hooks/usePermissions"
 import { PERMISSIONS } from "@/lib/rbac"
@@ -60,6 +61,7 @@ interface SalesHistoryData {
 export default function CashierSalesHistoryPage() {
   const { can } = usePermissions()
   const { data: session } = useSession()
+  const router = useRouter()
 
   if (!can(PERMISSIONS.REPORT_SALES_HISTORY)) {
     return (
@@ -356,6 +358,21 @@ export default function CashierSalesHistoryPage() {
                 caption="Invoice #"
                 minWidth={150}
                 cssClass="font-medium"
+                cellRender={(cellData: any) => {
+                  const saleId = cellData.data?.id
+                  const invoiceNumber = cellData.value
+                  if (saleId) {
+                    return (
+                      <button
+                        onClick={() => router.push(`/dashboard/sales/${saleId}`)}
+                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline font-medium"
+                      >
+                        {invoiceNumber}
+                      </button>
+                    )
+                  }
+                  return invoiceNumber
+                }}
               />
               <Column
                 dataField="customer"
