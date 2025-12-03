@@ -457,8 +457,14 @@ export async function POST(
             select: { name: true, sku: true }
           })
 
+          // Build display name - use product name, add variation if not "Default"
+          const variationName = variation?.name && variation.name.toLowerCase() !== 'default' ? variation.name : null
+          const productName = variationName
+            ? `${product?.name || ''} - ${variationName}`
+            : (product?.name || `Product #${saleItem.productId}`)
+
           return {
-            productName: variation?.name || product?.name || `Product #${saleItem.productId}`,
+            productName,
             sku: variation?.sku || product?.sku || '',
             quantity: returnItem.quantity,
             unitPrice: parseFloat(saleItem.unitPrice.toString()),
@@ -479,8 +485,14 @@ export async function POST(
             select: { name: true, sku: true }
           })
 
+          // Build display name - use product name, add variation if not "Default"
+          const variationName = variation?.name && variation.name.toLowerCase() !== 'default' ? variation.name : null
+          const productName = variationName
+            ? `${product?.name || ''} - ${variationName}`
+            : (product?.name || `Product #${exchangeItem.productId}`)
+
           return {
-            productName: variation?.name || product?.name || `Product #${exchangeItem.productId}`,
+            productName,
             sku: variation?.sku || product?.sku || '',
             quantity: exchangeItem.quantity,
             unitPrice: parseFloat(exchangeItem.unitPrice),
