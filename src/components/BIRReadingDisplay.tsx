@@ -1176,7 +1176,7 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                   )}
                   <div className="line total-line">
                     <span className="line-label font-bold">= Total Physical Count:</span>
-                    <span className="line-value font-bold">{formatCurrency(zReading.endingCash)}</span>
+                    <span className="line-value font-bold">{formatCurrency(zReading.cashDenominations?.totalAmount || zReading.endingCash)}</span>
                   </div>
                 </div>
               )}
@@ -1199,10 +1199,10 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                 <div className="p-2 bg-green-50 dark:bg-green-950 rounded mb-2">
                   <div className="line">
                     <span className="line-label font-semibold">B. Physical Count (Actual):</span>
-                    <span className="line-value font-semibold">{formatCurrency(zReading.endingCash)}</span>
+                    <span className="line-value font-semibold">{formatCurrency(zReading.cashDenominations?.totalAmount || zReading.endingCash)}</span>
                   </div>
                   <div className="text-xs text-gray-600 ml-4">
-                    (Cash denominations counted by cashier: ₱{zReading.endingCash.toFixed(2)})
+                    (Cash denominations counted by cashier: ₱{(zReading.cashDenominations?.totalAmount || zReading.endingCash).toFixed(2)})
                   </div>
                 </div>
 
@@ -1210,30 +1210,37 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                   <div className="line">
                     <span className="line-label font-semibold">C. Variance (B - A):</span>
                     <span className="line-value font-semibold">
-                      {(zReading.cashVariance ?? 0) >= 0 ? '+' : ''}{formatCurrency(zReading.cashVariance ?? 0)}
+                      {((zReading.cashDenominations?.totalAmount || zReading.endingCash) - zReading.expectedCash) >= 0 ? '+' : ''}{formatCurrency((zReading.cashDenominations?.totalAmount || zReading.endingCash) - zReading.expectedCash)}
                     </span>
                   </div>
                   <div className="text-xs text-gray-600 ml-4">
-                    {formatCurrency(zReading.endingCash)} minus {formatCurrency(zReading.expectedCash)} = {formatCurrency(zReading.cashVariance ?? 0)}
+                    {formatCurrency(zReading.cashDenominations?.totalAmount || zReading.endingCash)} minus {formatCurrency(zReading.expectedCash)} = {formatCurrency((zReading.cashDenominations?.totalAmount || zReading.endingCash) - zReading.expectedCash)}
                   </div>
                 </div>
 
-                <div className={`line total-line p-3 rounded ${
-                  Math.abs(zReading.cashVariance ?? 0) < 0.01
-                    ? 'bg-green-100 dark:bg-green-900'
-                    : (zReading.cashVariance ?? 0) > 0
-                      ? 'bg-blue-100 dark:bg-blue-900'
-                      : 'bg-red-100 dark:bg-red-900'
-                }`}>
-                  <span className="line-label font-bold text-lg">SHORT/OVER:</span>
-                  <span className="line-value font-bold text-lg">
-                    {Math.abs(zReading.cashVariance ?? 0) < 0.01
-                      ? 'BALANCED ✓'
-                      : (zReading.cashVariance ?? 0) > 0
-                        ? `${formatCurrency(Math.abs(zReading.cashVariance ?? 0))}+ (OVER)`
-                        : `${formatCurrency(Math.abs(zReading.cashVariance ?? 0))}- (SHORT)`}
-                  </span>
-                </div>
+                {(() => {
+                  // Calculate variance using cash denominations total if available
+                  const physicalCash = zReading.cashDenominations?.totalAmount || zReading.endingCash;
+                  const variance = physicalCash - zReading.expectedCash;
+                  return (
+                    <div className={`line total-line p-3 rounded ${
+                      Math.abs(variance) < 0.01
+                        ? 'bg-green-100 dark:bg-green-900'
+                        : variance > 0
+                          ? 'bg-blue-100 dark:bg-blue-900'
+                          : 'bg-red-100 dark:bg-red-900'
+                    }`}>
+                      <span className="line-label font-bold text-lg">SHORT/OVER:</span>
+                      <span className="line-value font-bold text-lg">
+                        {Math.abs(variance) < 0.01
+                          ? 'BALANCED ✓'
+                          : variance > 0
+                            ? `${formatCurrency(Math.abs(variance))}+ (OVER)`
+                            : `${formatCurrency(Math.abs(variance))}- (SHORT)`}
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 <div className="text-xs mt-3 p-2 bg-gray-100 dark:bg-gray-800 rounded">
                   <div className="font-semibold mb-1">Understanding Short/Over:</div>
