@@ -989,6 +989,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               icon: BanknotesIcon,
               permission: PERMISSIONS.REPORT_DAILY_CASH_COLLECTION,
             },
+            {
+              key: "cashier_non_sales_cash",
+              name: "Non-Sales Cash",
+              href: "/dashboard/reports/cash-in-out",
+              icon: CurrencyDollarIcon,
+              permission: PERMISSIONS.REPORT_CASH_IN_OUT,
+            },
             // Hidden: Payment Collections report (redundant with Receivable Payments)
             // {
             //   key: "cashier_payment_collections",
