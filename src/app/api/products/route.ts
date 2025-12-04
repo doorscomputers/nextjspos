@@ -335,7 +335,8 @@ export async function GET(request: NextRequest) {
         sellingPrice: Number(variation.sellingPrice),
         variationLocationDetails: variation.variationLocationDetails.map(detail => ({
           ...detail,
-          qtyAvailable: Number(detail.qtyAvailable)
+          qtyAvailable: Number(detail.qtyAvailable),
+          sellingPrice: detail.sellingPrice ? Number(detail.sellingPrice) : null
         }))
       }))
     }))

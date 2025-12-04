@@ -280,7 +280,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
     }
   }
 
-  const handleAddExchangeItem = (product: any, variation?: any) => {
+  const handleAddExchangeItem = (product: any, variation?: any, locationPrice?: number) => {
     const variationToUse = variation || product.variations?.[0]
 
     if (!variationToUse) {
@@ -288,7 +288,8 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
       return
     }
 
-    const price = parseFloat(variationToUse.sellingPrice?.toString() || '0')
+    // Use location-specific price if provided, otherwise fallback to base variation price
+    const price = locationPrice || parseFloat(variationToUse.sellingPrice?.toString() || '0')
     const newItem: ExchangeItem = {
       productId: product.id,
       productVariationId: variationToUse.id,
@@ -574,6 +575,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                             const filterLocationId = currentLocationId || sale?.locationId
                             let maxAvailableStock = 0
                             let bestVariation = product.variations?.[0]
+                            let locationPrice = 0
 
                             if (filterLocationId && product.variations) {
                               product.variations.forEach((variation: any) => {
@@ -586,6 +588,8 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                                     if (stock > maxAvailableStock) {
                                       maxAvailableStock = stock
                                       bestVariation = variation
+                                      // Use location-specific price, fallback to base variation price
+                                      locationPrice = Number(locationStock.sellingPrice) || Number(variation.sellingPrice) || 0
                                     }
                                   }
                                 }
@@ -598,13 +602,13 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                               <div
                                 key={product.id}
                                 className="p-3 hover:bg-blue-50 dark:hover:bg-blue-900 cursor-pointer border-b last:border-b-0"
-                                onClick={() => handleAddExchangeItem(product, bestVariation)}
+                                onClick={() => handleAddExchangeItem(product, bestVariation, locationPrice)}
                               >
                                 <p className="font-medium text-sm">{product.name}</p>
                                 <div className="flex justify-between text-xs mt-1">
                                   <span className="text-gray-600">Stock: {maxAvailableStock}</span>
                                   <span className="text-green-600 font-bold">
-                                    ₱{parseFloat(bestVariation?.sellingPrice || 0).toFixed(2)}
+                                    ₱{locationPrice.toFixed(2)}
                                   </span>
                                 </div>
                               </div>
