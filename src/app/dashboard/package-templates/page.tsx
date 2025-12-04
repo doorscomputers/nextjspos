@@ -116,7 +116,8 @@ export default function PackageTemplatesPage() {
     productId: number
     productVariationId: number
     quantity: number
-    originalPrice: number
+    cost: number
+    markupPercent: number
     customPrice: number
     productName: string
     productSku: string
@@ -241,15 +242,21 @@ export default function PackageTemplatesPage() {
         categoryId: template.categoryId?.toString() || '',
         isActive: template.isActive
       })
-      setTemplateItems(template.items.map(item => ({
-        productId: item.productId,
-        productVariationId: item.productVariationId,
-        quantity: Number(item.quantity),
-        originalPrice: Number(item.originalPrice),
-        customPrice: Number(item.customPrice),
-        productName: item.product.name,
-        productSku: item.product.sku
-      })))
+      setTemplateItems(template.items.map(item => {
+        const cost = Number(item.originalPrice) // originalPrice stores cost
+        const customPrice = Number(item.customPrice)
+        const markupPercent = cost > 0 ? Math.round(((customPrice - cost) / cost) * 100) : 0
+        return {
+          productId: item.productId,
+          productVariationId: item.productVariationId,
+          quantity: Number(item.quantity),
+          cost,
+          markupPercent,
+          customPrice,
+          productName: item.product.name,
+          productSku: item.product.sku
+        }
+      }))
     } else {
       setEditingTemplate(null)
       setTemplateForm({
@@ -295,7 +302,7 @@ export default function PackageTemplatesPage() {
             productId: item.productId,
             productVariationId: item.productVariationId,
             quantity: item.quantity,
-            originalPrice: item.originalPrice,
+            originalPrice: item.cost, // Store cost as originalPrice
             customPrice: item.customPrice
           }))
         })
@@ -384,12 +391,17 @@ export default function PackageTemplatesPage() {
     const displayName = variation.product.name + (variation.name ? ` - ${variation.name}` : '')
     const displaySku = variation.subSku || variation.product.sku || `VAR-${variation.id}`
 
+    const cost = Number(variation.defaultPurchasePrice) || 0
+    const defaultMarkup = 30 // Default 30% markup
+    const customPrice = Math.round(cost * (1 + defaultMarkup / 100))
+
     setTemplateItems([...templateItems, {
       productId: variation.productId,
       productVariationId: variation.id,
       quantity: 1,
-      originalPrice: Number(variation.defaultSellingPrice) || 0,
-      customPrice: Number(variation.defaultSellingPrice) || 0,
+      cost,
+      markupPercent: defaultMarkup,
+      customPrice,
       productName: displayName,
       productSku: displaySku
     }])
@@ -401,9 +413,21 @@ export default function PackageTemplatesPage() {
     setTemplateItems(templateItems.filter((_, i) => i !== index))
   }
 
-  const updateTemplateItem = (index: number, field: 'quantity' | 'customPrice', value: number) => {
+  const updateTemplateItem = (index: number, field: 'quantity' | 'markupPercent' | 'customPrice', value: number) => {
     const updated = [...templateItems]
-    updated[index][field] = value
+    if (field === 'markupPercent') {
+      updated[index].markupPercent = value
+      // Recalculate custom price based on cost and markup
+      updated[index].customPrice = Math.round(updated[index].cost * (1 + value / 100))
+    } else if (field === 'customPrice') {
+      updated[index].customPrice = value
+      // Recalculate markup based on cost and custom price
+      if (updated[index].cost > 0) {
+        updated[index].markupPercent = Math.round(((value - updated[index].cost) / updated[index].cost) * 100)
+      }
+    } else {
+      updated[index][field] = value
+    }
     setTemplateItems(updated)
   }
 
@@ -446,15 +470,21 @@ export default function PackageTemplatesPage() {
       categoryId: template.categoryId?.toString() || '',
       isActive: true
     })
-    setTemplateItems(template.items.map(item => ({
-      productId: item.productId,
-      productVariationId: item.productVariationId,
-      quantity: Number(item.quantity),
-      originalPrice: Number(item.originalPrice),
-      customPrice: Number(item.customPrice),
-      productName: item.product.name,
-      productSku: item.product.sku
-    })))
+    setTemplateItems(template.items.map(item => {
+      const cost = Number(item.originalPrice) // originalPrice stores cost
+      const customPrice = Number(item.customPrice)
+      const markupPercent = cost > 0 ? Math.round(((customPrice - cost) / cost) * 100) : 0
+      return {
+        productId: item.productId,
+        productVariationId: item.productVariationId,
+        quantity: Number(item.quantity),
+        cost,
+        markupPercent,
+        customPrice,
+        productName: item.product.name,
+        productSku: item.product.sku
+      }
+    }))
     setShowTemplateDialog(true)
   }
 
@@ -464,10 +494,10 @@ export default function PackageTemplatesPage() {
     : templates.filter(t => t.categoryId?.toString() === activeTab)
 
   // Calculate totals
-  const totalOriginal = templateItems.reduce((sum, item) => sum + (item.originalPrice * item.quantity), 0)
+  const totalCost = templateItems.reduce((sum, item) => sum + (item.cost * item.quantity), 0)
   const totalCustom = templateItems.reduce((sum, item) => sum + (item.customPrice * item.quantity), 0)
-  const savings = totalOriginal - totalCustom
-  const savingsPercent = totalOriginal > 0 ? ((savings / totalOriginal) * 100).toFixed(1) : '0'
+  const totalProfit = totalCustom - totalCost
+  const avgMarkup = totalCost > 0 ? ((totalProfit / totalCost) * 100).toFixed(1) : '0'
 
   // Export handlers
   const handleExport = (format: 'excel' | 'csv') => {
@@ -843,8 +873,8 @@ export default function PackageTemplatesPage() {
                         {variation.name && <span className="text-gray-500"> - {variation.name}</span>}
                         <span className="text-xs text-gray-400 ml-2">[{variation.subSku || variation.product.sku}]</span>
                       </div>
-                      <span className="text-green-600 font-medium">
-                        {new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(variation.defaultSellingPrice) || 0)}
+                      <span className="text-orange-600 font-medium">
+                        Cost: {new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(variation.defaultPurchasePrice) || 0)}
                       </span>
                     </div>
                   ))}
@@ -865,11 +895,12 @@ export default function PackageTemplatesPage() {
                     <thead className="bg-gray-100 dark:bg-gray-800">
                       <tr>
                         <th className="p-2 text-left">Product</th>
-                        <th className="p-2 text-center w-20">Qty</th>
-                        <th className="p-2 text-right w-32">Original</th>
-                        <th className="p-2 text-right w-32">Custom Price</th>
-                        <th className="p-2 text-right w-32">Line Total</th>
-                        <th className="p-2 text-center w-16"></th>
+                        <th className="p-2 text-center w-16">Qty</th>
+                        <th className="p-2 text-right w-24">Cost</th>
+                        <th className="p-2 text-center w-24">Markup %</th>
+                        <th className="p-2 text-right w-28">Sell Price</th>
+                        <th className="p-2 text-right w-28">Line Total</th>
+                        <th className="p-2 text-center w-12"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -883,20 +914,33 @@ export default function PackageTemplatesPage() {
                             <Input
                               type="number"
                               min="1"
-                              className="w-16 text-center"
+                              className="w-14 text-center"
                               value={item.quantity}
                               onChange={(e) => updateTemplateItem(index, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
                             />
                           </td>
-                          <td className="p-2 text-right text-gray-500">
-                            {new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(item.originalPrice)}
+                          <td className="p-2 text-right text-orange-600 font-medium">
+                            {new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(item.cost)}
+                          </td>
+                          <td className="p-2">
+                            <div className="flex items-center justify-center">
+                              <Input
+                                type="number"
+                                min="0"
+                                step="1"
+                                className="w-16 text-center"
+                                value={item.markupPercent}
+                                onChange={(e) => updateTemplateItem(index, 'markupPercent', parseInt(e.target.value) || 0)}
+                              />
+                              <span className="ml-1 text-gray-500">%</span>
+                            </div>
                           </td>
                           <td className="p-2">
                             <Input
                               type="number"
                               min="0"
-                              step="0.01"
-                              className="w-28 text-right"
+                              step="1"
+                              className="w-24 text-right"
                               value={item.customPrice}
                               onChange={(e) => updateTemplateItem(index, 'customPrice', Math.max(0, parseFloat(e.target.value) || 0))}
                             />
@@ -926,9 +970,9 @@ export default function PackageTemplatesPage() {
             {templateItems.length > 0 && (
               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Total Original Price:</span>
-                  <span className="line-through text-gray-500">
-                    {new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(totalOriginal)}
+                  <span className="text-gray-600 dark:text-gray-400">Total Cost:</span>
+                  <span className="text-orange-600 font-medium">
+                    {new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(totalCost)}
                   </span>
                 </div>
                 <div className="flex justify-between text-lg font-bold">
@@ -937,11 +981,15 @@ export default function PackageTemplatesPage() {
                     {new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(totalCustom)}
                   </span>
                 </div>
-                <div className="flex justify-between text-purple-600">
-                  <span>Customer Savings:</span>
-                  <span>
-                    {new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(savings)} ({savingsPercent}%)
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Total Profit:</span>
+                  <span className={`font-medium ${totalProfit >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                    {new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(totalProfit)}
                   </span>
+                </div>
+                <div className="flex justify-between text-purple-600">
+                  <span>Average Markup:</span>
+                  <span className="font-semibold">{avgMarkup}%</span>
                 </div>
               </div>
             )}
