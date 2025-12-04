@@ -493,7 +493,16 @@ export async function GET(request: NextRequest) {
           if (item.serialNumbers) {
             try {
               const serialArr = Array.isArray(item.serialNumbers) ? item.serialNumbers : JSON.parse(String(item.serialNumbers))
-              serialNumbersStr = Array.isArray(serialArr) ? serialArr.join(', ') : ''
+              if (Array.isArray(serialArr)) {
+                // Handle both string arrays and object arrays (with serialNumber property)
+                serialNumbersStr = serialArr.map((sn: any) => {
+                  if (typeof sn === 'string') return sn
+                  if (typeof sn === 'object' && sn !== null) {
+                    return sn.serialNumber || sn.serial_number || sn.number || sn.code || JSON.stringify(sn)
+                  }
+                  return String(sn)
+                }).join(', ')
+              }
             } catch {
               serialNumbersStr = ''
             }
