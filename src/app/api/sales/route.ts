@@ -1314,6 +1314,7 @@ export async function POST(request: NextRequest) {
                 id: true,
                 name: true,
                 sku: true,
+                enableStock: true,
               },
             },
           },

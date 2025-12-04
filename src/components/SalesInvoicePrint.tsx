@@ -632,13 +632,17 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
                 </span>
               </div>
 
-              {/* Total Quantity */}
+              {/* Total Quantity - excludes non-inventory products (enableStock === false) */}
               <div className="flex justify-between py-1">
                 <span className={`text-gray-700 font-semibold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
                   Total Quantity:
                 </span>
                 <span className={`text-gray-900 font-bold ${paperSize === '80mm' ? 'text-xs' : 'text-sm'}`}>
-                  {sale.items?.reduce((sum: number, item: any) => sum + parseFloat(item.quantity || 0), 0) || 0}
+                  {sale.items?.reduce((sum: number, item: any) => {
+                    // Exclude non-inventory products (enableStock === false)
+                    if (item.product?.enableStock === false) return sum
+                    return sum + parseFloat(item.quantity || 0)
+                  }, 0) || 0}
                 </span>
               </div>
 

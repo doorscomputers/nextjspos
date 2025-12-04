@@ -64,6 +64,7 @@ export async function GET(
                 id: true,
                 name: true,
                 sku: true,
+                enableStock: true,
               },
             },
           },
