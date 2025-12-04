@@ -135,6 +135,14 @@ export default function BulkPriceImportPage() {
         body: formData,
       })
 
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text()
+        console.error('Non-JSON response:', text)
+        throw new Error('Server error: ' + (text.substring(0, 100) || 'Unknown error'))
+      }
+
       const data = await response.json()
 
       if (!response.ok) {
@@ -171,6 +179,14 @@ export default function BulkPriceImportPage() {
         method: 'POST',
         body: formData,
       })
+
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type')
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text()
+        console.error('Non-JSON response:', text)
+        throw new Error('Server error: ' + (text.substring(0, 100) || 'Unknown error'))
+      }
 
       const data = await response.json()
 

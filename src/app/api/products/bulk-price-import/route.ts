@@ -105,7 +105,15 @@ function getNewPrice(row: any): number | null {
  */
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
+    // Wrap the entire handler in try-catch for edge cases
+    let session
+    try {
+      session = await getServerSession(authOptions)
+    } catch (authError) {
+      console.error('Auth error:', authError)
+      return NextResponse.json({ error: 'Authentication failed' }, { status: 500 })
+    }
+
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -120,7 +128,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid business context' }, { status: 400 })
     }
 
-    const formData = await request.formData()
+    let formData
+    try {
+      formData = await request.formData()
+    } catch (formError) {
+      console.error('FormData parse error:', formError)
+      return NextResponse.json({ error: 'Failed to parse form data' }, { status: 400 })
+    }
+
     const file = formData.get('file') as File
     const isPreview = formData.get('preview') === 'true'
 
@@ -144,12 +159,18 @@ export async function POST(request: Request) {
     const now = new Date()
 
     // Get all locations for this business
-    const allLocations = await prisma.businessLocation.findMany({
-      where: { businessId },
-      select: { id: true, name: true },
-    })
+    let allLocations
+    try {
+      allLocations = await prisma.businessLocation.findMany({
+        where: { businessId },
+        select: { id: true, name: true },
+      })
+    } catch (dbError) {
+      console.error('Database error fetching locations:', dbError)
+      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
+    }
 
-    if (allLocations.length === 0) {
+    if (!allLocations || allLocations.length === 0) {
       return NextResponse.json({ error: 'No business locations found' }, { status: 400 })
     }
 
