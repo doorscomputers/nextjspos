@@ -860,6 +860,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               permission: PERMISSIONS.REPORT_SALES_TODAY,
             },
             {
+              key: "sales_detail",
+              name: "Sales Detail (Print)",
+              href: "/dashboard/reports/sales-detail",
+              icon: DocumentTextIcon,
+              permission: PERMISSIONS.REPORT_SALES_TODAY,
+            },
+            {
               key: "sales_history",
               name: "Sales History",
               href: "/dashboard/reports/sales-history",
