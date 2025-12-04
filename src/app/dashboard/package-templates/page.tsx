@@ -677,36 +677,36 @@ export default function PackageTemplatesPage() {
                     <div className="flex items-center justify-center gap-1">
                       {can(PERMISSIONS.PACKAGE_TEMPLATE_CREATE) && (
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-8 w-8 hover:border-purple-500 hover:text-purple-700 hover:bg-purple-50 dark:hover:text-purple-400 dark:hover:bg-purple-950"
                           onClick={() => duplicateTemplate(data)}
-                          title="Duplicate"
+                          title="Duplicate Package"
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
                       )}
                       {can(PERMISSIONS.PACKAGE_TEMPLATE_EDIT) && (
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-8 w-8 hover:border-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-950"
                           onClick={() => openTemplateDialog(data)}
-                          title="Edit"
+                          title="Edit Package"
                         >
                           <Edit2 className="h-4 w-4" />
                         </Button>
                       )}
                       {can(PERMISSIONS.PACKAGE_TEMPLATE_DELETE) && (
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="icon"
-                          className="h-8 w-8 text-red-600 hover:text-red-700"
+                          className="h-8 w-8 hover:border-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-950"
                           onClick={() => {
                             setDeletingItem({ type: 'template', item: data })
                             setShowDeleteConfirm(true)
                           }}
-                          title="Delete"
+                          title="Delete Package"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
