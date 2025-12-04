@@ -5,7 +5,6 @@ import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS, isSuperAdmin } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 import { getManilaDate } from '@/lib/timezone'
-import { sendTelegramStockTransferAlert } from '@/lib/telegram'
 
 // GET - List all stock transfers
 export async function GET(request: NextRequest) {
@@ -416,29 +415,6 @@ export async function POST(request: NextRequest) {
           }
         },
       },
-    })
-
-    // Send Telegram notification for transfer creation (async - don't block response)
-    const userDisplayName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || `User#${userId}`
-    const totalQuantity = items.reduce((sum: number, item: any) => sum + parseFloat(item.quantity), 0)
-
-    // Fire and forget - don't await Telegram (saves 500ms)
-    sendTelegramStockTransferAlert({
-      transferNumber,
-      fromLocation: fromLocation.name,
-      toLocation: toLocation.name,
-      itemCount: items.length,
-      totalQuantity,
-      status: 'draft',
-      createdBy: userDisplayName,
-      timestamp: new Date(),
-      items: completeTransfer?.items.slice(0, 3).map(item => ({
-        productName: item.product.name,
-        variationName: item.productVariation.name,
-        quantity: parseFloat(item.quantity.toString())
-      })) || []
-    }).catch(telegramError => {
-      console.error('Telegram notification failed (async):', telegramError)
     })
 
     return NextResponse.json({ transfer: completeTransfer }, { status: 201 })
