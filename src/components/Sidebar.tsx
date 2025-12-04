@@ -42,6 +42,7 @@ import {
   QuestionMarkCircleIcon,
   ArrowsRightLeftIcon,
   BanknotesIcon,
+  DocumentArrowUpIcon,
 } from "@heroicons/react/24/outline"
 
 interface MenuItem {
@@ -528,6 +529,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
           href: "/dashboard/products/bulk-price-editor",
           icon: CurrencyDollarIcon,
           permission: PERMISSIONS.PRODUCT_PRICE_BULK_EDIT,
+        },
+        {
+          key: "bulk_price_import",
+          name: "Bulk Price Import",
+          href: "/dashboard/products/bulk-price-import",
+          icon: DocumentArrowUpIcon,
+          permission: PERMISSIONS.PRODUCT_PRICE_IMPORT,
         },
         {
           key: "pricing_settings",
