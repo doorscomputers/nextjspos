@@ -124,9 +124,12 @@ export async function POST(request: Request) {
     const userId = Number(session.user.id)
     const now = new Date()
 
-    // Get all locations for this business (single query)
+    // Get only ACTIVE locations for this business (single query)
     const allLocations = await prisma.businessLocation.findMany({
-      where: { businessId },
+      where: {
+        businessId,
+        isActive: true,  // Only update prices for active locations
+      },
       select: { id: true, name: true },
     })
 
