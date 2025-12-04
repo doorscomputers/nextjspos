@@ -784,6 +784,7 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                   <span className="line-label">End. VOID #:</span>
                   <span className="line-value">{zReading.endingVoidNumber || 'No Voids'}</span>
                 </div>
+                {/* Temporarily hidden - return numbers showing without exchange data being tracked
                 <div className="line">
                   <span className="line-label">Beg. RETURN #:</span>
                   <span className="line-value">{zReading.beginningReturnNumber || 'No Returns'}</span>
@@ -792,6 +793,7 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                   <span className="line-label">End. RETURN #:</span>
                   <span className="line-value">{zReading.endingReturnNumber || 'No Returns'}</span>
                 </div>
+                */}
                 <div className="line">
                   <span className="line-label">Reset Counter No.</span>
                   <span className="line-value">{zReading.resetCounter}</span>
