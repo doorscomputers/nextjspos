@@ -954,6 +954,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               permission: PERMISSIONS.REPORT_SALES_TODAY,
             },
             {
+              key: "cashier_sales_detail",
+              name: "Sales Detail (Print)",
+              href: "/dashboard/reports/sales-detail",
+              icon: DocumentTextIcon,
+              permission: PERMISSIONS.REPORT_SALES_TODAY,
+            },
+            {
               key: "cashier_sales_history",
               name: "Sales History (Cashier)",
               href: "/dashboard/reports/cashier/history",
