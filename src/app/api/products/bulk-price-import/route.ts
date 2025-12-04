@@ -11,25 +11,35 @@ import Papa from 'papaparse'
  * Helper function to parse file data
  */
 async function parseFileData(file: File): Promise<any[]> {
-  const arrayBuffer = await file.arrayBuffer()
-  const buffer = Buffer.from(arrayBuffer)
-  const fileName = file.name.toLowerCase()
+  try {
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    const fileName = file.name.toLowerCase()
 
-  if (fileName.endsWith('.csv')) {
-    const text = buffer.toString('utf-8')
-    const result = Papa.parse(text, {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: (header) => header.trim(),
-    })
-    return result.data
-  } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-    const workbook = XLSX.read(buffer, { type: 'buffer' })
-    const sheetName = workbook.SheetNames[0]
-    const worksheet = workbook.Sheets[sheetName]
-    return XLSX.utils.sheet_to_json(worksheet)
-  } else {
-    throw new Error('Invalid file type. Please upload CSV or XLSX file.')
+    if (fileName.endsWith('.csv')) {
+      const text = buffer.toString('utf-8')
+      const result = Papa.parse(text, {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (header) => header.trim(),
+      })
+
+      if (result.errors && result.errors.length > 0) {
+        console.error('CSV Parse errors:', result.errors)
+      }
+
+      return result.data || []
+    } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+      const workbook = XLSX.read(buffer, { type: 'buffer' })
+      const sheetName = workbook.SheetNames[0]
+      const worksheet = workbook.Sheets[sheetName]
+      return XLSX.utils.sheet_to_json(worksheet) || []
+    } else {
+      throw new Error('Invalid file type. Please upload CSV or XLSX file.')
+    }
+  } catch (error) {
+    console.error('Error parsing file:', error)
+    throw new Error(`Failed to parse file: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
 
