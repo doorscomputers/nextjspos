@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     const cashierIdParam = searchParams.get('cashierId')
     const typeParam = searchParams.get('type') // 'cash_in', 'cash_out', or 'all'
     const searchParam = searchParams.get('search') || ''
+    const filterByCurrentUser = searchParams.get('filterByCurrentUser') === 'true'
 
     // Default date range: last 30 days
     const today = new Date()
@@ -81,6 +82,11 @@ export async function GET(request: NextRequest) {
         contains: searchParam,
         mode: 'insensitive',
       }
+    }
+
+    // Filter by current user (for cashier-specific reports)
+    if (filterByCurrentUser) {
+      cashInOutWhere.createdBy = parseInt(user.id)
     }
 
     // Fetch cash in/out records

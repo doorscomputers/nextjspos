@@ -992,7 +992,7 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
             {
               key: "cashier_non_sales_cash",
               name: "Non-Sales Cash",
-              href: "/dashboard/reports/cash-in-out",
+              href: "/dashboard/reports/cashier/non-sales-cash",
               icon: CurrencyDollarIcon,
               permission: PERMISSIONS.REPORT_CASH_IN_OUT,
             },

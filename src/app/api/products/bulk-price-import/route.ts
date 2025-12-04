@@ -11,35 +11,25 @@ import Papa from 'papaparse'
  * Helper function to parse file data
  */
 async function parseFileData(file: File): Promise<any[]> {
-  try {
-    const arrayBuffer = await file.arrayBuffer()
-    const buffer = Buffer.from(arrayBuffer)
-    const fileName = file.name.toLowerCase()
+  const arrayBuffer = await file.arrayBuffer()
+  const buffer = Buffer.from(arrayBuffer)
+  const fileName = file.name.toLowerCase()
 
-    if (fileName.endsWith('.csv')) {
-      const text = buffer.toString('utf-8')
-      const result = Papa.parse(text, {
-        header: true,
-        skipEmptyLines: true,
-        transformHeader: (header) => header.trim(),
-      })
-
-      if (result.errors && result.errors.length > 0) {
-        console.error('CSV Parse errors:', result.errors)
-      }
-
-      return result.data || []
-    } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-      const workbook = XLSX.read(buffer, { type: 'buffer' })
-      const sheetName = workbook.SheetNames[0]
-      const worksheet = workbook.Sheets[sheetName]
-      return XLSX.utils.sheet_to_json(worksheet) || []
-    } else {
-      throw new Error('Invalid file type. Please upload CSV or XLSX file.')
-    }
-  } catch (error) {
-    console.error('Error parsing file:', error)
-    throw new Error(`Failed to parse file: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  if (fileName.endsWith('.csv')) {
+    const text = buffer.toString('utf-8')
+    const result = Papa.parse(text, {
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: (header) => header.trim(),
+    })
+    return result.data || []
+  } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+    const workbook = XLSX.read(buffer, { type: 'buffer' })
+    const sheetName = workbook.SheetNames[0]
+    const worksheet = workbook.Sheets[sheetName]
+    return XLSX.utils.sheet_to_json(worksheet) || []
+  } else {
+    throw new Error('Invalid file type. Please upload CSV or XLSX file.')
   }
 }
 
@@ -93,32 +83,15 @@ function getNewPrice(row: any): number | null {
 
 /**
  * POST /api/products/bulk-price-import
- * Import product prices from CSV/XLSX file
- *
- * Modes:
- * - preview=true: Parse file and show old vs new prices WITHOUT saving (dry run)
- * - preview=false or not set: Actually apply the price changes
- *
- * Expected columns:
- * - Item Name (or Product Name, Name) - Required
- * - New Selling Price (or Selling Price, Price) - Required
+ * Import product prices from CSV/XLSX file - OPTIMIZED for speed
  */
 export async function POST(request: Request) {
   try {
-    // Wrap the entire handler in try-catch for edge cases
-    let session
-    try {
-      session = await getServerSession(authOptions)
-    } catch (authError) {
-      console.error('Auth error:', authError)
-      return NextResponse.json({ error: 'Authentication failed' }, { status: 500 })
-    }
-
+    const session = await getServerSession(authOptions)
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Permission check
     if (!hasPermission(session.user, PERMISSIONS.PRODUCT_PRICE_IMPORT)) {
       return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
     }
@@ -128,14 +101,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid business context' }, { status: 400 })
     }
 
-    let formData
-    try {
-      formData = await request.formData()
-    } catch (formError) {
-      console.error('FormData parse error:', formError)
-      return NextResponse.json({ error: 'Failed to parse form data' }, { status: 400 })
-    }
-
+    const formData = await request.formData()
     const file = formData.get('file') as File
     const isPreview = formData.get('preview') === 'true'
 
@@ -158,23 +124,80 @@ export async function POST(request: Request) {
     const userId = Number(session.user.id)
     const now = new Date()
 
-    // Get all locations for this business
-    let allLocations
-    try {
-      allLocations = await prisma.businessLocation.findMany({
-        where: { businessId },
-        select: { id: true, name: true },
-      })
-    } catch (dbError) {
-      console.error('Database error fetching locations:', dbError)
-      return NextResponse.json({ error: 'Database connection failed' }, { status: 500 })
-    }
+    // Get all locations for this business (single query)
+    const allLocations = await prisma.businessLocation.findMany({
+      where: { businessId },
+      select: { id: true, name: true },
+    })
 
-    if (!allLocations || allLocations.length === 0) {
+    if (allLocations.length === 0) {
       return NextResponse.json({ error: 'No business locations found' }, { status: 400 })
     }
 
-    // Arrays to collect results
+    // Extract all item names from CSV
+    const itemNamesFromCsv: string[] = []
+    const rowDataMap = new Map<string, { row: number; newPrice: number }>()
+    const errors: Array<{ row: number; itemName?: string; error: string }> = []
+
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i]
+      const itemName = getItemName(row)
+      const newPrice = getNewPrice(row)
+
+      if (!itemName) {
+        errors.push({ row: i + 2, error: 'Item Name is required' })
+        continue
+      }
+
+      if (newPrice === null) {
+        const rawValue = row['New Selling Price'] || row['Selling Price'] || row['Price']
+        errors.push({
+          row: i + 2,
+          itemName,
+          error: rawValue ? `Invalid price value: ${rawValue}` : 'New Selling Price is required'
+        })
+        continue
+      }
+
+      const lowerName = itemName.toLowerCase()
+      itemNamesFromCsv.push(lowerName)
+      rowDataMap.set(lowerName, { row: i + 2, newPrice })
+    }
+
+    // Fetch ALL matching products in ONE query
+    const products = await prisma.product.findMany({
+      where: {
+        businessId,
+      },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        variations: {
+          select: {
+            id: true,
+            variationLocationDetails: {
+              where: {
+                locationId: { in: allLocations.map(l => l.id) }
+              },
+              select: {
+                id: true,
+                locationId: true,
+                sellingPrice: true,
+              },
+            },
+          },
+        },
+      },
+    })
+
+    // Create lookup map (lowercase name -> product)
+    const productMap = new Map<string, typeof products[0]>()
+    for (const product of products) {
+      productMap.set(product.name.toLowerCase(), product)
+    }
+
+    // Process results
     const previewItems: Array<{
       row: number
       itemName: string
@@ -186,174 +209,51 @@ export async function POST(request: Request) {
       status: 'will_update' | 'no_change'
     }> = []
 
-    const results: Array<{
-      row: number
-      itemName: string
+    const toUpdate: Array<{
+      product: typeof products[0]
       newPrice: number
-      locationsUpdated: number
-      variationsUpdated: number
-    }> = []
-
-    const errors: Array<{
       row: number
-      itemName?: string
-      error: string
-      data?: any
     }> = []
 
-    const priceChanges: Array<{
-      productName: string
-      productSku: string
-      locationName: string
-      oldPrice: number
-      newPrice: number
-    }> = []
+    // Match CSV items with products
+    for (const [lowerName, { row, newPrice }] of rowDataMap) {
+      const product = productMap.get(lowerName)
 
-    // Process each row
-    for (let i = 0; i < data.length; i++) {
-      const row: any = data[i]
+      if (!product) {
+        errors.push({ row, itemName: lowerName, error: 'Product not found' })
+        continue
+      }
 
-      try {
-        const itemName = getItemName(row)
-        const newPrice = getNewPrice(row)
+      if (!product.variations || product.variations.length === 0) {
+        errors.push({ row, itemName: product.name, error: 'Product has no variations' })
+        continue
+      }
 
-        if (!itemName) {
-          errors.push({ row: i + 2, error: 'Item Name is required', data: row })
-          continue
-        }
+      // Get current price from first variation's first location
+      const firstVariation = product.variations[0]
+      const firstLocationDetail = firstVariation.variationLocationDetails.find(
+        d => d.locationId === allLocations[0]?.id
+      )
+      const currentPrice = firstLocationDetail ? Number(firstLocationDetail.sellingPrice || 0) : 0
+      const priceDiff = newPrice - currentPrice
 
-        if (newPrice === null) {
-          const rawValue = row['New Selling Price'] || row['Selling Price'] || row['Price']
-          errors.push({
-            row: i + 2,
-            itemName,
-            error: rawValue ? `Invalid price value: ${rawValue}` : 'New Selling Price is required'
-          })
-          continue
-        }
-
-        // Find product by name (case-insensitive)
-        const product = await prisma.product.findFirst({
-          where: {
-            businessId,
-            name: {
-              equals: itemName,
-              mode: 'insensitive',
-            },
-          },
-          include: {
-            variations: {
-              select: {
-                id: true,
-                name: true,
-                variationLocationDetails: {
-                  select: {
-                    id: true,
-                    locationId: true,
-                    sellingPrice: true,
-                  },
-                },
-              },
-            },
-          },
-        })
-
-        if (!product) {
-          errors.push({ row: i + 2, itemName, error: 'Product not found' })
-          continue
-        }
-
-        if (!product.variations || product.variations.length === 0) {
-          errors.push({ row: i + 2, itemName, error: 'Product has no variations' })
-          continue
-        }
-
-        // Get current price (use first variation's first location as reference)
-        const firstVariation = product.variations[0]
-        const firstLocationDetail = firstVariation.variationLocationDetails.find(
-          d => d.locationId === allLocations[0]?.id
-        )
-        const currentPrice = firstLocationDetail ? Number(firstLocationDetail.sellingPrice || 0) : 0
-
-        // PREVIEW MODE: Just collect data, don't save
-        if (isPreview) {
-          const priceDiff = newPrice - currentPrice
-          previewItems.push({
-            row: i + 2,
-            itemName: product.name, // Use actual product name from DB
-            oldPrice: currentPrice,
-            newPrice: newPrice,
-            priceDifference: priceDiff,
-            productId: product.id,
-            variationIds: product.variations.map(v => v.id),
-            status: priceDiff !== 0 ? 'will_update' : 'no_change',
-          })
-          continue
-        }
-
-        // ACTUAL UPDATE MODE: Apply changes
-        let updatedCount = 0
-        for (const variation of product.variations) {
-          for (const location of allLocations) {
-            const existingDetail = variation.variationLocationDetails.find(
-              d => d.locationId === location.id
-            )
-            const oldPrice = existingDetail ? Number(existingDetail.sellingPrice || 0) : 0
-
-            await prisma.variationLocationDetails.upsert({
-              where: {
-                productVariationId_locationId: {
-                  productVariationId: variation.id,
-                  locationId: location.id,
-                },
-              },
-              update: {
-                sellingPrice: newPrice,
-                lastPriceUpdate: now,
-                lastPriceUpdatedBy: userId,
-              },
-              create: {
-                productId: product.id,
-                productVariationId: variation.id,
-                locationId: location.id,
-                qtyAvailable: 0,
-                sellingPrice: newPrice,
-                lastPriceUpdate: now,
-                lastPriceUpdatedBy: userId,
-              },
-            })
-
-            updatedCount++
-
-            if (oldPrice !== newPrice) {
-              priceChanges.push({
-                productName: product.name,
-                productSku: product.sku || 'N/A',
-                locationName: location.name,
-                oldPrice,
-                newPrice,
-              })
-            }
-          }
-        }
-
-        results.push({
-          row: i + 2,
+      if (isPreview) {
+        previewItems.push({
+          row,
           itemName: product.name,
+          oldPrice: currentPrice,
           newPrice,
-          locationsUpdated: allLocations.length,
-          variationsUpdated: product.variations.length,
+          priceDifference: priceDiff,
+          productId: product.id,
+          variationIds: product.variations.map(v => v.id),
+          status: priceDiff !== 0 ? 'will_update' : 'no_change',
         })
-      } catch (error) {
-        console.error(`Error processing row ${i + 2}:`, error)
-        errors.push({
-          row: i + 2,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        })
+      } else {
+        toUpdate.push({ product, newPrice, row })
       }
     }
 
-    // PREVIEW MODE: Return preview data without saving
+    // PREVIEW MODE: Return preview data
     if (isPreview) {
       const willUpdate = previewItems.filter(p => p.status === 'will_update').length
       const noChange = previewItems.filter(p => p.status === 'no_change').length
@@ -376,20 +276,88 @@ export async function POST(request: Request) {
       })
     }
 
-    // ACTUAL UPDATE: Send Telegram notification
-    if (priceChanges.length > 0) {
-      try {
-        const changedBy = session.user.name || session.user.username || 'Unknown User'
-        await sendTelegramBulkPriceChangeAlert({
-          changedBy,
-          totalProducts: results.length,
-          changeType: 'Bulk Price Import',
-          timestamp: now,
-          sampleChanges: priceChanges.slice(0, 5),
+    // ACTUAL UPDATE MODE: Use batch operations
+    const results: Array<{
+      row: number
+      itemName: string
+      newPrice: number
+      locationsUpdated: number
+      variationsUpdated: number
+    }> = []
+
+    const priceChanges: Array<{
+      productName: string
+      productSku: string
+      locationName: string
+      oldPrice: number
+      newPrice: number
+    }> = []
+
+    // Process updates in a transaction for consistency
+    await prisma.$transaction(async (tx) => {
+      for (const { product, newPrice, row } of toUpdate) {
+        for (const variation of product.variations) {
+          for (const location of allLocations) {
+            const existingDetail = variation.variationLocationDetails.find(
+              d => d.locationId === location.id
+            )
+            const oldPrice = existingDetail ? Number(existingDetail.sellingPrice || 0) : 0
+
+            await tx.variationLocationDetails.upsert({
+              where: {
+                productVariationId_locationId: {
+                  productVariationId: variation.id,
+                  locationId: location.id,
+                },
+              },
+              update: {
+                sellingPrice: newPrice,
+                lastPriceUpdate: now,
+                lastPriceUpdatedBy: userId,
+              },
+              create: {
+                productId: product.id,
+                productVariationId: variation.id,
+                locationId: location.id,
+                qtyAvailable: 0,
+                sellingPrice: newPrice,
+                lastPriceUpdate: now,
+                lastPriceUpdatedBy: userId,
+              },
+            })
+
+            if (oldPrice !== newPrice) {
+              priceChanges.push({
+                productName: product.name,
+                productSku: product.sku || 'N/A',
+                locationName: location.name,
+                oldPrice,
+                newPrice,
+              })
+            }
+          }
+        }
+
+        results.push({
+          row,
+          itemName: product.name,
+          newPrice,
+          locationsUpdated: allLocations.length,
+          variationsUpdated: product.variations.length,
         })
-      } catch (telegramError) {
-        console.error('Failed to send Telegram notification:', telegramError)
       }
+    })
+
+    // Send Telegram notification (don't await to save time)
+    if (priceChanges.length > 0) {
+      const changedBy = session.user.name || session.user.username || 'Unknown User'
+      sendTelegramBulkPriceChangeAlert({
+        changedBy,
+        totalProducts: results.length,
+        changeType: 'Bulk Price Import',
+        timestamp: now,
+        sampleChanges: priceChanges.slice(0, 5),
+      }).catch(err => console.error('Telegram error:', err))
     }
 
     return NextResponse.json({
@@ -438,12 +406,7 @@ export async function GET() {
     ]
 
     const worksheet = XLSX.utils.json_to_sheet(template)
-
-    // Set column widths
-    worksheet['!cols'] = [
-      { wch: 40 }, // Item Name
-      { wch: 20 }, // New Selling Price
-    ]
+    worksheet['!cols'] = [{ wch: 40 }, { wch: 20 }]
 
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Price Import')
@@ -459,10 +422,7 @@ export async function GET() {
   } catch (error) {
     console.error('Template download error:', error)
     return NextResponse.json(
-      {
-        error: 'Failed to generate template',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
+      { error: 'Failed to generate template' },
       { status: 500 }
     )
   }

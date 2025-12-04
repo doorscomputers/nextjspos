@@ -17,7 +17,7 @@
   },
   "functions": {
     "src/app/api/products/bulk-price-import/route.ts": {
-      "maxDuration": 60
+      "maxDuration": 120
     },
     "src/app/api/purchases/receipts/*/approve/route.ts": {
       "maxDuration": 120
