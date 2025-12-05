@@ -121,35 +121,14 @@ export default function SalesPage() {
     try {
       setLoading(true)
 
-      // For "due" filter, fetch ALL sales to match dashboard Invoice Due total
-      const limit = statusFilter === 'due' ? '10000' : '200'
-
-      const params = new URLSearchParams({
-        page: '1',
-        limit: limit,
-      })
-
-      // For "due" filter, we need all non-voided sales and filter client-side for balances
+      // For "due" filter, use dedicated endpoint that matches dashboard calculation exactly
       if (statusFilter === 'due') {
-        // Don't filter by status - we'll filter client-side by balance
-        params.append('excludeVoided', 'true')
-      } else if (statusFilter && statusFilter !== 'all') {
-        params.append('status', statusFilter)
-      }
+        const response = await fetch('/api/sales/due')
+        const data = await response.json()
 
-      const response = await fetch(`/api/sales?${params}`)
-      const data = await response.json()
-
-      if (response.ok) {
-        let salesData = data.sales || []
-
-        // Transform data for DevExtreme DataGrid
-        let transformedData: GridSale[] = salesData.map((sale: any) => {
-          const totalAmount = parseFloat(sale.totalAmount?.toString() || '0')
-          const paidAmount = parseFloat(sale.paidAmount?.toString() || '0')
-          const balanceAmount = Math.max(0, totalAmount - paidAmount)
-
-          return {
+        if (response.ok) {
+          // Transform data for DevExtreme DataGrid
+          const transformedData: GridSale[] = (data.sales || []).map((sale: any) => ({
             id: sale.id,
             invoiceNumber: sale.invoiceNumber,
             saleDate: new Date(sale.saleDate),
@@ -158,32 +137,74 @@ export default function SalesPage() {
             itemCount: sale.items?.length || 0,
             subtotal: sale.subtotal,
             discountAmount: sale.discountAmount,
-            totalAmount: totalAmount,
-            paidAmount: paidAmount,
-            balanceAmount: balanceAmount,
+            totalAmount: sale.totalAmount,
+            paidAmount: sale.paidAmount,
+            balanceAmount: sale.balanceAmount,
             paymentSummary: sale.payments && sale.payments.length > 0
-              ? sale.payments.map((p: any) => `${getPaymentMethodLabel(p.paymentMethod)}: ${formatCurrencyWithComma(p.amount)}`).join(', ')
+              ? sale.payments.map((p: any) => `${getPaymentMethodLabel(p.paymentMethod)}: ${formatCurrencyWithComma(parseFloat(p.amount?.toString() || '0'))}`).join(', ')
               : 'No payment',
             status: sale.status,
             statusBadge: sale.status,
-          }
+          }))
+
+          setSales(data.sales || [])
+          setTotalSales(data.summary?.count || transformedData.length)
+          setGridData(transformedData)
+
+          // Log for verification - total should match dashboard Invoice Due
+          console.log('[Sales Due] Total Invoice Due:', data.summary?.totalInvoiceDue, 'Count:', data.summary?.count)
+        } else {
+          toast.error(data.error || 'Failed to fetch sales due')
+        }
+      } else {
+        // Regular sales fetch with pagination
+        const params = new URLSearchParams({
+          page: '1',
+          limit: '200',
         })
 
-        // If "due" filter is selected, filter to show only sales with balance > 0
-        // and exclude walk-in customers (matching dashboard Invoice Due logic)
-        if (statusFilter === 'due') {
-          transformedData = transformedData.filter(sale =>
-            sale.balanceAmount > 0 &&
-            sale.customerName.toLowerCase() !== 'walk-in customer' &&
-            !sale.customerName.toLowerCase().includes('walk-in')
-          )
+        if (statusFilter && statusFilter !== 'all') {
+          params.append('status', statusFilter)
         }
 
-        setSales(salesData)
-        setTotalSales(transformedData.length)
-        setGridData(transformedData)
-      } else {
-        toast.error(data.error || 'Failed to fetch sales')
+        const response = await fetch(`/api/sales?${params}`)
+        const data = await response.json()
+
+        if (response.ok) {
+          const salesData = data.sales || []
+
+          // Transform data for DevExtreme DataGrid
+          const transformedData: GridSale[] = salesData.map((sale: any) => {
+            const totalAmount = parseFloat(sale.totalAmount?.toString() || '0')
+            const paidAmount = parseFloat(sale.paidAmount?.toString() || '0')
+            const balanceAmount = Math.max(0, totalAmount - paidAmount)
+
+            return {
+              id: sale.id,
+              invoiceNumber: sale.invoiceNumber,
+              saleDate: new Date(sale.saleDate),
+              customerName: sale.customer?.name || 'Walk-in Customer',
+              customerMobile: sale.customer?.mobile || null,
+              itemCount: sale.items?.length || 0,
+              subtotal: sale.subtotal,
+              discountAmount: sale.discountAmount,
+              totalAmount: totalAmount,
+              paidAmount: paidAmount,
+              balanceAmount: balanceAmount,
+              paymentSummary: sale.payments && sale.payments.length > 0
+                ? sale.payments.map((p: any) => `${getPaymentMethodLabel(p.paymentMethod)}: ${formatCurrencyWithComma(parseFloat(p.amount?.toString() || '0'))}`).join(', ')
+                : 'No payment',
+              status: sale.status,
+              statusBadge: sale.status,
+            }
+          })
+
+          setSales(salesData)
+          setTotalSales(transformedData.length)
+          setGridData(transformedData)
+        } else {
+          toast.error(data.error || 'Failed to fetch sales')
+        }
       }
     } catch (error) {
       console.error('Error fetching sales:', error)
