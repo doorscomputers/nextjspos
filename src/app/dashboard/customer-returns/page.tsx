@@ -128,7 +128,7 @@ export default function CustomerReturnsPage() {
       { header: 'Invoice #', key: 'sale', formatter: (val: any) => val.invoiceNumber },
       { header: 'Customer', key: 'customer', formatter: (val: any) => val?.name || 'N/A' },
       { header: 'Items', key: 'items', formatter: (val: any[]) => val.length.toString() },
-      { header: 'Refund Amount', key: 'totalRefundAmount', formatter: (val: number) => `$${val.toFixed(2)}` },
+      { header: 'Refund Amount', key: 'totalRefundAmount', formatter: (val: any) => `₱${parseFloat(String(val || 0)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
       { header: 'Status', key: 'status' },
     ]
 
@@ -155,8 +155,9 @@ export default function CustomerReturnsPage() {
     })
   }
 
-  const formatCurrency = (amount: number) => {
-    return `$${amount.toFixed(2)}`
+  const formatCurrency = (amount: number | string | null | undefined) => {
+    const num = parseFloat(String(amount || 0))
+    return `₱${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   }
 
   const getStatusBadge = (status: string) => {
