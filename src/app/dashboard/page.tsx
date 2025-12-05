@@ -381,6 +381,7 @@ export default function DashboardPageV2() {
       color: "from-amber-600 to-orange-700",
       textColor: "text-amber-700",
       permission: PERMISSIONS.SELL_VIEW,
+      href: "/dashboard/sales",
     },
     {
       name: "Net Amount",
@@ -389,6 +390,7 @@ export default function DashboardPageV2() {
       color: "from-green-500 to-green-600",
       textColor: "text-green-600",
       permission: PERMISSIONS.SELL_VIEW,
+      href: "/dashboard/sales",
     },
     {
       name: "Invoice Due",
@@ -398,6 +400,7 @@ export default function DashboardPageV2() {
       textColor: "text-orange-600",
       permission: PERMISSIONS.SELL_VIEW,
       hideFromCashier: true, // Hide AR tracking from cashiers
+      href: "/dashboard/sales?paymentStatus=partial,due",
     },
     {
       name: "Total Sell Return",
@@ -406,6 +409,7 @@ export default function DashboardPageV2() {
       color: "from-red-500 to-red-600",
       textColor: "text-red-600",
       permission: PERMISSIONS.CUSTOMER_RETURN_VIEW,
+      href: "/dashboard/customer-returns",
     },
     {
       name: "Total Purchase",
@@ -414,6 +418,7 @@ export default function DashboardPageV2() {
       color: "from-yellow-700 to-amber-800",
       textColor: "text-yellow-800",
       permission: PERMISSIONS.PURCHASE_VIEW,
+      href: "/dashboard/purchases",
     },
     {
       name: "Purchase Due",
@@ -422,6 +427,7 @@ export default function DashboardPageV2() {
       color: "from-yellow-500 to-yellow-600",
       textColor: "text-yellow-600",
       permission: PERMISSIONS.PURCHASE_VIEW,
+      href: "/dashboard/purchases?paymentStatus=partial,due",
     },
     {
       name: "Total Supplier Return",
@@ -430,6 +436,7 @@ export default function DashboardPageV2() {
       color: "from-pink-500 to-pink-600",
       textColor: "text-pink-600",
       permission: PERMISSIONS.SUPPLIER_RETURN_VIEW,
+      href: "/dashboard/supplier-returns",
     },
     {
       name: "Expense",
@@ -438,6 +445,7 @@ export default function DashboardPageV2() {
       color: "from-stone-600 to-neutral-700",
       textColor: "text-stone-700",
       permission: PERMISSIONS.EXPENSE_VIEW,
+      href: "/dashboard/expenses",
     },
   ]
 
@@ -550,7 +558,20 @@ export default function DashboardPageV2() {
           {filteredMetrics.map((metric) => {
             const Icon = metric.icon
             return (
-              <div key={metric.name} className={`relative overflow-hidden rounded-lg shadow-lg bg-gradient-to-br ${metric.color} p-6 text-white hover:shadow-xl transition-all duration-200 hover:scale-105`}>
+              <div
+                key={metric.name}
+                role="button"
+                tabIndex={0}
+                onClick={() => router.push(metric.href)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    router.push(metric.href)
+                  }
+                }}
+                className={`relative overflow-hidden rounded-lg shadow-lg bg-gradient-to-br ${metric.color} p-6 text-white hover:shadow-xl transition-all duration-200 hover:scale-105 cursor-pointer hover:ring-2 hover:ring-white/50 focus:outline-none focus:ring-2 focus:ring-white/50`}
+                title={`Click to view ${metric.name} details`}
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <p className="text-sm font-medium opacity-90">{metric.name}</p>
