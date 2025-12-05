@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { EyeIcon, XMarkIcon, PrinterIcon } from '@heroicons/react/24/outline'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -74,6 +75,8 @@ interface GridSale {
   subtotal: number
   discountAmount: number
   totalAmount: number
+  paidAmount: number
+  balanceAmount: number
   paymentSummary: string
   status: string
   statusBadge: string
@@ -81,10 +84,12 @@ interface GridSale {
 
 export default function SalesPage() {
   const { can } = usePermissions()
+  const searchParams = useSearchParams()
   const [sales, setSales] = useState<Sale[]>([])
   const [gridData, setGridData] = useState<GridSale[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [initialized, setInitialized] = useState(false)
   const dataGridRef = useRef<DataGrid>(null)
 
   // Pagination state
@@ -96,19 +101,35 @@ export default function SalesPage() {
   const [showReprintModal, setShowReprintModal] = useState(false)
   const [saleToReprint, setSaleToReprint] = useState<any>(null)
 
+  // Initialize filter from URL params
   useEffect(() => {
-    fetchSales()
-  }, [statusFilter, currentPage, itemsPerPage])
+    const paymentStatus = searchParams.get('paymentStatus')
+    if (paymentStatus === 'partial,due') {
+      // When coming from Dashboard Invoice Due card, show sales with balance due
+      setStatusFilter('due')
+    }
+    setInitialized(true)
+  }, [searchParams])
+
+  useEffect(() => {
+    if (initialized) {
+      fetchSales()
+    }
+  }, [statusFilter, currentPage, itemsPerPage, initialized])
 
   const fetchSales = async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams({
         page: '1',
-        limit: '50', // PHASE 1 OPTIMIZATION: Fetch initial batch of 50 sales for better performance
+        limit: '200', // Increased limit to get more data for Due filter
       })
 
-      if (statusFilter && statusFilter !== 'all') {
+      // For "due" filter, we need all non-voided sales and filter client-side for balances
+      if (statusFilter === 'due') {
+        // Don't filter by status - we'll filter client-side by balance
+        params.append('excludeVoided', 'true')
+      } else if (statusFilter && statusFilter !== 'all') {
         params.append('status', statusFilter)
       }
 
@@ -116,27 +137,46 @@ export default function SalesPage() {
       const data = await response.json()
 
       if (response.ok) {
-        setSales(data.sales || [])
-        setTotalSales(data.total || 0)
+        let salesData = data.sales || []
 
         // Transform data for DevExtreme DataGrid
-        const transformedData: GridSale[] = (data.sales || []).map((sale: Sale) => ({
-          id: sale.id,
-          invoiceNumber: sale.invoiceNumber,
-          saleDate: new Date(sale.saleDate),
-          customerName: sale.customer?.name || 'Walk-in Customer',
-          customerMobile: sale.customer?.mobile || null,
-          itemCount: sale.items.length,
-          subtotal: sale.subtotal,
-          discountAmount: sale.discountAmount,
-          totalAmount: sale.totalAmount,
-          paymentSummary: sale.payments.length > 0
-            ? sale.payments.map(p => `${getPaymentMethodLabel(p.paymentMethod)}: ${formatCurrency(p.amount)}`).join(', ')
-            : 'No payment',
-          status: sale.status,
-          statusBadge: sale.status,
-        }))
+        let transformedData: GridSale[] = salesData.map((sale: any) => {
+          const totalAmount = parseFloat(sale.totalAmount?.toString() || '0')
+          const paidAmount = parseFloat(sale.paidAmount?.toString() || '0')
+          const balanceAmount = Math.max(0, totalAmount - paidAmount)
 
+          return {
+            id: sale.id,
+            invoiceNumber: sale.invoiceNumber,
+            saleDate: new Date(sale.saleDate),
+            customerName: sale.customer?.name || 'Walk-in Customer',
+            customerMobile: sale.customer?.mobile || null,
+            itemCount: sale.items?.length || 0,
+            subtotal: sale.subtotal,
+            discountAmount: sale.discountAmount,
+            totalAmount: totalAmount,
+            paidAmount: paidAmount,
+            balanceAmount: balanceAmount,
+            paymentSummary: sale.payments && sale.payments.length > 0
+              ? sale.payments.map((p: any) => `${getPaymentMethodLabel(p.paymentMethod)}: ${formatCurrencyWithComma(p.amount)}`).join(', ')
+              : 'No payment',
+            status: sale.status,
+            statusBadge: sale.status,
+          }
+        })
+
+        // If "due" filter is selected, filter to show only sales with balance > 0
+        // and exclude walk-in customers (matching dashboard Invoice Due logic)
+        if (statusFilter === 'due') {
+          transformedData = transformedData.filter(sale =>
+            sale.balanceAmount > 0 &&
+            sale.customerName.toLowerCase() !== 'walk-in customer' &&
+            !sale.customerName.toLowerCase().includes('walk-in')
+          )
+        }
+
+        setSales(salesData)
+        setTotalSales(transformedData.length)
         setGridData(transformedData)
       } else {
         toast.error(data.error || 'Failed to fetch sales')
@@ -219,6 +259,16 @@ export default function SalesPage() {
       return '0.00'
     }
     return Number(amount).toFixed(2)
+  }
+
+  const formatCurrencyWithComma = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined || isNaN(Number(amount))) {
+      return '0.00'
+    }
+    return Number(amount).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })
   }
 
   // DevExtreme Export Handler
@@ -373,11 +423,12 @@ export default function SalesPage() {
       <div className="flex items-center gap-4">
         <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter by Status:</label>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600">
+          <SelectTrigger className="w-56 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
             <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="due">Due (With Balance)</SelectItem>
             <SelectItem value="completed">Completed</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="voided">Voided</SelectItem>
@@ -482,7 +533,21 @@ export default function SalesPage() {
             cssClass="bg-green-50 dark:bg-green-900/20"
             cellRender={(data) => (
               <span className="font-semibold text-green-800 dark:text-green-300">
-                {formatCurrency(data.value)}
+                {formatCurrencyWithComma(data.value)}
+              </span>
+            )}
+          />
+          <Column
+            dataField="balanceAmount"
+            caption="Balance Due"
+            dataType="number"
+            format="#,##0.00"
+            width={120}
+            alignment="right"
+            visible={statusFilter === 'due'}
+            cellRender={(data) => (
+              <span className={`font-semibold ${data.value > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500'}`}>
+                {formatCurrencyWithComma(data.value)}
               </span>
             )}
           />
@@ -530,6 +595,7 @@ export default function SalesPage() {
             <TotalItem column="subtotal" summaryType="sum" valueFormat="#,##0.00" displayFormat="{0}" />
             <TotalItem column="discountAmount" summaryType="sum" valueFormat="#,##0.00" displayFormat="{0}" />
             <TotalItem column="totalAmount" summaryType="sum" valueFormat="#,##0.00" displayFormat="{0}" />
+            <TotalItem column="balanceAmount" summaryType="sum" valueFormat="#,##0.00" displayFormat="{0}" />
           </Summary>
         </DataGrid>
 

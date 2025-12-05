@@ -387,6 +387,12 @@ export async function GET(request: NextRequest) {
       where.status = status
     }
 
+    // Exclude voided sales (used for Due filter from dashboard)
+    const excludeVoided = searchParams.get('excludeVoided')
+    if (excludeVoided === 'true') {
+      where.status = { notIn: ['voided', 'cancelled'] }
+    }
+
     if (customerId) {
       where.customerId = parseInt(customerId)
     }
