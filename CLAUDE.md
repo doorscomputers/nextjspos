@@ -160,13 +160,6 @@ Import from `src/lib/prisma.ts` (handles singleton pattern for dev/prod)
 3. Update `DATABASE_URL` in `.env`
 4. Run `npm run db:push` then `npm run db:seed`
 
-### MySQL (alternative)
-
-1. Ensure MySQL running (e.g., XAMPP)
-2. Update `prisma/schema.prisma`: change `provider = "mysql"`
-3. Update `DATABASE_URL` to MySQL format
-4. Run `npm run db:push` then `npm run db:seed`
-
 ## Common Workflows
 
 ### Adding New Features
@@ -184,6 +177,7 @@ Import from `src/lib/prisma.ts` (handles singleton pattern for dev/prod)
 2. Run `npx prisma generate` to update Prisma Client types
 3. Run `npm run db:push` to sync database
 4. Update seed file if needed: `prisma/seed.ts`
+5. Be careful not to mess the RBAC, Users and ROles Permissions
 
 ### Testing Different User Roles
 
@@ -191,6 +185,7 @@ Import from `src/lib/prisma.ts` (handles singleton pattern for dev/prod)
 2. Login with different demo accounts to see role-based UI
 3. Check sidebar menu visibility based on permissions
 4. Verify API authorization in route handlers
+5. Be careful not to mess the RBAC, Users and ROles Permissions
 
 - No More Errors on UI Designs
 - add to memory. please save this because I will import the latest csv with updated quantities in the coming days
@@ -210,12 +205,14 @@ Import from `src/lib/prisma.ts` (handles singleton pattern for dev/prod)
 **IMPORTANT**: All buttons across the application must follow these professional styling guidelines:
 
 #### Button Component (`src/components/ui/button.tsx`)
+
 - Use the enhanced button variants with shadows, rounded corners, and hover effects
 - Available variants: `default`, `destructive`, `outline`, `secondary`, `ghost`, `link`, `success`
 - Available sizes: `default`, `sm`, `lg`, `icon`, `icon-sm`, `icon-lg`
 - All buttons have subtle press animation (`active:scale-[0.98]`)
 
 #### Export/Action Buttons (CSV, Excel, PDF, Print)
+
 ```tsx
 <Button variant="outline" size="sm" onClick={() => handleExport("csv")}
   className="gap-2 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400">
@@ -243,6 +240,7 @@ Import from `src/lib/prisma.ts` (handles singleton pattern for dev/prod)
 ```
 
 #### Primary Action Buttons (Add, Create, Save)
+
 ```tsx
 <Button variant="success" size="sm" className="gap-2" onClick={handleCreate}>
   <PlusIcon className="h-4 w-4" />
@@ -257,8 +255,11 @@ Import from `src/lib/prisma.ts` (handles singleton pattern for dev/prod)
 ```
 
 #### Edit and Delete Actions (Table Rows)
+
 ```tsx
-{/* Edit Button */}
+{
+  /* Edit Button */
+}
 <Button
   size="icon-sm"
   variant="outline"
@@ -267,9 +268,11 @@ Import from `src/lib/prisma.ts` (handles singleton pattern for dev/prod)
   title="Edit item"
 >
   <PencilIcon className="h-4 w-4" />
-</Button>
+</Button>;
 
-{/* Delete Button */}
+{
+  /* Delete Button */
+}
 <Button
   size="icon-sm"
   variant="outline"
@@ -278,10 +281,11 @@ Import from `src/lib/prisma.ts` (handles singleton pattern for dev/prod)
   title="Delete item"
 >
   <TrashIcon className="h-4 w-4" />
-</Button>
+</Button>;
 ```
 
 #### Cancel/Secondary Buttons
+
 ```tsx
 <Button variant="outline" size="default" onClick={handleCancel}>
   Cancel
@@ -289,6 +293,7 @@ Import from `src/lib/prisma.ts` (handles singleton pattern for dev/prod)
 ```
 
 #### Button Guidelines Summary
+
 1. ✅ Use `variant="success"` for primary actions (Add, Create, Save, Submit)
 2. ✅ Use `variant="outline"` for secondary actions (Export, Edit, Delete, Cancel)
 3. ✅ Use `size="sm"` for toolbar buttons, `size="default"` for dialog buttons
@@ -308,5 +313,6 @@ On this Project, Only the Main Warehouse will process Purchase orders
 
 1. Consistent report creation with Print , Export to Pdf and Excel
 2. For list Reports use the
+
 - SOD settings should be dynamic
 - Please take note of the RBAC , menus permission and Suers and Roles so that there will be no errors in the future

@@ -120,9 +120,13 @@ export default function SalesPage() {
   const fetchSales = async () => {
     try {
       setLoading(true)
+
+      // For "due" filter, fetch ALL sales to match dashboard Invoice Due total
+      const limit = statusFilter === 'due' ? '10000' : '200'
+
       const params = new URLSearchParams({
         page: '1',
-        limit: '200', // Increased limit to get more data for Due filter
+        limit: limit,
       })
 
       // For "due" filter, we need all non-voided sales and filter client-side for balances
