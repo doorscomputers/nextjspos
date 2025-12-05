@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       if (endDate) where.returnDate.lte = new Date(endDate)
     }
 
-    const [returns, total] = await Promise.all([
+    const [returns, total, totalRefundAggregate] = await Promise.all([
       prisma.customerReturn.findMany({
         where,
         include: {
@@ -88,6 +88,11 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
       prisma.customerReturn.count({ where }),
+      // Total refund amount - matches dashboard calculation exactly
+      prisma.customerReturn.aggregate({
+        where: { businessId: parseInt(businessId) },  // Use same filter as dashboard (businessId only)
+        _sum: { totalRefundAmount: true },
+      }),
     ])
 
     return NextResponse.json({
@@ -97,6 +102,9 @@ export async function GET(request: NextRequest) {
         page,
         limit,
         totalPages: Math.ceil(total / limit),
+      },
+      summary: {
+        totalRefundAmount: parseFloat(totalRefundAggregate._sum.totalRefundAmount?.toString() || '0'),
       },
     })
   } catch (error) {

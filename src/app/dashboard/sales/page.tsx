@@ -17,12 +17,12 @@ import DataGrid, {
   FilterRow,
   HeaderFilter,
   Paging,
+  Pager,
   SearchPanel,
   ColumnChooser,
   ColumnFixing,
   StateStoring,
   LoadPanel,
-  Scrolling,
   Selection,
   Toolbar,
   Item as ToolbarItem,
@@ -479,7 +479,6 @@ export default function SalesPage() {
         >
           <StateStoring enabled={true} type="localStorage" storageKey="salesListState" />
           <LoadPanel enabled={true} />
-          <Scrolling mode="virtual" />
           <Selection mode="multiple" showCheckBoxesMode="onClick" />
           <Export enabled={true} formats={['xlsx', 'pdf']} allowExportSelectedData={true} />
           <ColumnChooser enabled={true} mode="select" />
@@ -487,7 +486,16 @@ export default function SalesPage() {
           <SearchPanel visible={true} width={300} placeholder="Search sales..." highlightCaseSensitive={false} />
           <FilterRow visible={true} />
           <HeaderFilter visible={true} />
-          <Paging defaultPageSize={20} />
+          <Paging enabled={true} defaultPageSize={20} />
+          <Pager
+            visible={true}
+            showPageSizeSelector={true}
+            allowedPageSizes={[10, 20, 50, 100]}
+            showInfo={true}
+            showNavigationButtons={true}
+            displayMode="full"
+            infoText="Page {0} of {1} ({2} items)"
+          />
 
           <Toolbar>
             <ToolbarItem name="searchPanel" />

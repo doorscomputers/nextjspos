@@ -65,6 +65,9 @@ export default function CustomerReturnsPage() {
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [totalReturns, setTotalReturns] = useState(0)
 
+  // Summary state - matches dashboard Total Sell Return
+  const [totalRefundAmount, setTotalRefundAmount] = useState(0)
+
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'returnNumber', 'date', 'invoice', 'customer', 'items', 'refundAmount', 'status', 'actions'
@@ -97,6 +100,7 @@ export default function CustomerReturnsPage() {
       if (response.ok) {
         setReturns(data.returns || [])
         setTotalReturns(data.pagination?.total || 0)
+        setTotalRefundAmount(data.summary?.totalRefundAmount || 0)
       } else {
         toast.error(data.error || 'Failed to fetch customer returns')
       }
@@ -249,6 +253,22 @@ export default function CustomerReturnsPage() {
           <DocumentTextIcon className="w-4 h-4 mr-2" />
           Export PDF
         </Button>
+      </div>
+
+      {/* Summary Card - Matches Dashboard Total Sell Return */}
+      <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-lg shadow p-4 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-red-100">Total Sell Return</p>
+            <p className="text-2xl font-bold">{formatCurrency(totalRefundAmount)}</p>
+            <p className="text-xs text-red-200 mt-1">Matches dashboard metric card</p>
+          </div>
+          <div className="p-3 bg-white/20 rounded-full">
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+            </svg>
+          </div>
+        </div>
       </div>
 
       {/* Table */}
