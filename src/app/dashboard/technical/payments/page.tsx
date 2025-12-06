@@ -5,7 +5,12 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { useUserPrimaryLocation } from '@/hooks/useUserPrimaryLocation'
 import { PERMISSIONS } from '@/lib/rbac'
 import { toast } from 'sonner'
-import { RefreshCw, DollarSign, Printer, XCircle, Plus } from 'lucide-react'
+import { RefreshCw, Printer, XCircle, Plus } from 'lucide-react'
+
+// Peso Sign Icon Component
+const PesoSign = ({ className }: { className?: string }) => (
+  <span className={className} style={{ fontWeight: 'bold', fontFamily: 'system-ui' }}>₱</span>
+)
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -407,7 +412,7 @@ export default function ServicePaymentsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div className="space-y-1">
             <div className="flex items-center gap-3">
-              <DollarSign className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+              <PesoSign className="w-8 h-8 text-amber-600 dark:text-amber-400 text-3xl flex items-center justify-center" />
               <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-amber-900 via-orange-800 to-amber-900 bg-clip-text text-transparent dark:from-amber-100 dark:via-orange-300 dark:to-amber-100">
                 Service Payments
               </h1>
@@ -451,7 +456,7 @@ export default function ServicePaymentsPage() {
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-amber-100 rounded-lg dark:bg-amber-900/30">
-                  <DollarSign className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                  <PesoSign className="w-6 h-6 text-amber-600 dark:text-amber-400 text-2xl flex items-center justify-center" />
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Total Payments</p>
@@ -465,7 +470,7 @@ export default function ServicePaymentsPage() {
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-emerald-100 rounded-lg dark:bg-emerald-900/30">
-                  <DollarSign className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                  <PesoSign className="w-6 h-6 text-emerald-600 dark:text-emerald-400 text-2xl flex items-center justify-center" />
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Total Amount</p>
@@ -481,7 +486,7 @@ export default function ServicePaymentsPage() {
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-yellow-100 rounded-lg dark:bg-yellow-900/30">
-                  <DollarSign className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+                  <PesoSign className="w-6 h-6 text-yellow-600 dark:text-yellow-400 text-2xl flex items-center justify-center" />
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Today's Payments</p>
