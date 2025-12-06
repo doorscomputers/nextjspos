@@ -109,6 +109,26 @@ export default function CreatePurchaseOrderPage() {
   const [newSupplierEmail, setNewSupplierEmail] = useState('')
   const [addingSupplier, setAddingSupplier] = useState(false)
 
+  // Quick Add Product Modal
+  const [showProductModal, setShowProductModal] = useState(false)
+  const [productForm, setProductForm] = useState({
+    name: '',
+    sku: '',
+    purchasePrice: '',
+    sellingPrice: '',
+    unitId: '',
+    categoryId: '',
+    brandId: '',
+  })
+  const [productFormError, setProductFormError] = useState('')
+  const [savingProduct, setSavingProduct] = useState(false)
+
+  // Dropdown data for Quick Add Product
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([])
+  const [brands, setBrands] = useState<{ id: number; name: string }[]>([])
+  const [units, setUnits] = useState<{ id: number; name: string; shortName: string }[]>([])
+  const [loadingDropdowns, setLoadingDropdowns] = useState(false)
+
   // Form state
   const [supplierId, setSupplierId] = useState('')
   // Location state managed by useUserPrimaryLocation hook (locationId is from session, instant!)
@@ -326,6 +346,133 @@ export default function CreatePurchaseOrderPage() {
       toast.error('Failed to add supplier')
     } finally {
       setAddingSupplier(false)
+    }
+  }
+
+  // Fetch dropdown data for Quick Add Product modal
+  const fetchProductDropdowns = async () => {
+    if (categories.length > 0 && brands.length > 0 && units.length > 0) {
+      return // Already loaded
+    }
+
+    try {
+      setLoadingDropdowns(true)
+      const [categoriesRes, brandsRes, unitsRes] = await Promise.all([
+        fetch('/api/categories'),
+        fetch('/api/brands'),
+        fetch('/api/units'),
+      ])
+
+      const [categoriesData, brandsData, unitsData] = await Promise.all([
+        categoriesRes.json(),
+        brandsRes.json(),
+        unitsRes.json(),
+      ])
+
+      if (categoriesRes.ok) {
+        setCategories(categoriesData.categories || categoriesData || [])
+      }
+      if (brandsRes.ok) {
+        setBrands(brandsData.brands || brandsData || [])
+      }
+      if (unitsRes.ok) {
+        setUnits(unitsData.units || unitsData || [])
+      }
+    } catch (error) {
+      console.error('Error fetching dropdown data:', error)
+    } finally {
+      setLoadingDropdowns(false)
+    }
+  }
+
+  // Handle Quick Add Product
+  const handleQuickAddProduct = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setProductFormError('')
+
+    // Validation
+    if (!productForm.name.trim()) {
+      setProductFormError('Product name is required')
+      return
+    }
+    if (!productForm.unitId) {
+      setProductFormError('Unit is required')
+      return
+    }
+    const purchasePrice = parseFloat(productForm.purchasePrice)
+    const sellingPrice = parseFloat(productForm.sellingPrice)
+    if (isNaN(purchasePrice) || purchasePrice <= 0) {
+      setProductFormError('Purchase price must be greater than 0')
+      return
+    }
+    if (isNaN(sellingPrice) || sellingPrice <= 0) {
+      setProductFormError('Selling price must be greater than 0')
+      return
+    }
+    if (sellingPrice < purchasePrice) {
+      setProductFormError('Selling price cannot be lower than purchase price')
+      return
+    }
+
+    setSavingProduct(true)
+    try {
+      // Step 1: Create the product
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: productForm.name.trim(),
+          type: 'single',
+          sku: productForm.sku.trim() || undefined,
+          unitId: parseInt(productForm.unitId),
+          categoryId: productForm.categoryId ? parseInt(productForm.categoryId) : undefined,
+          brandId: productForm.brandId ? parseInt(productForm.brandId) : undefined,
+          purchasePrice,
+          sellingPrice,
+          enableStock: true,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create product')
+
+      toast.success(`Product "${productForm.name}" created successfully!`)
+
+      // Step 2: Fetch the complete product with variations (POST doesn't return variations)
+      // This is needed because UnifiedProductSearch needs variations for selection
+      const productRes = await fetch(`/api/products/${data.product.id}?forTransaction=true`)
+      const productData = await productRes.json()
+
+      if (productRes.ok && productData.product) {
+        // ADD COMPLETE PRODUCT TO allProducts STATE (makes it immediately searchable)
+        setAllProducts(prev => [...prev, productData.product])
+      } else {
+        // Fallback: construct minimal product structure if fetch fails
+        const newProduct = {
+          ...data.product,
+          variations: [{
+            id: data.product.id, // Use product id as placeholder
+            productId: data.product.id,
+            name: 'Default',
+            sku: data.product.sku,
+            defaultPurchasePrice: purchasePrice,
+            defaultSellingPrice: sellingPrice,
+            enableSerialNumber: false,
+            variationLocationDetails: []
+          }]
+        }
+        setAllProducts(prev => [...prev, newProduct])
+      }
+
+      // Reset form and close modal
+      setProductForm({ name: '', sku: '', purchasePrice: '', sellingPrice: '', unitId: '', categoryId: '', brandId: '' })
+      setProductFormError('')
+      setShowProductModal(false)
+
+    } catch (err: any) {
+      setProductFormError(err.message)
+    } finally {
+      setSavingProduct(false)
     }
   }
 
@@ -726,8 +873,25 @@ export default function CreatePurchaseOrderPage() {
           <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Add Products</h2>
 
           <div className="space-y-4">
-            {/* Clear All button when items exist */}
-            <div className="flex items-center gap-3">
+            {/* Quick Add Product and Clear All buttons */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowProductModal(true)
+                  fetchProductDropdowns()
+                }}
+                className="gap-1 bg-gradient-to-r from-green-50 to-emerald-50 border-green-200
+                           hover:from-green-100 hover:to-emerald-100 hover:border-green-300
+                           dark:from-green-900/20 dark:to-emerald-900/20 dark:border-green-700
+                           dark:hover:from-green-900/30 dark:hover:to-emerald-900/30"
+              >
+                <PlusIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <span className="text-green-700 dark:text-green-300">Quick Add Product</span>
+              </Button>
+
               {items.length > 0 && (
                 <Button
                   type="button"
@@ -1057,6 +1221,182 @@ export default function CreatePurchaseOrderPage() {
               {addingSupplier ? 'Adding...' : 'Add Supplier'}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Add Product Dialog */}
+      <Dialog open={showProductModal} onOpenChange={setShowProductModal}>
+        <DialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900 dark:text-white text-xl">Quick Add New Product</DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-400">
+              Create a new product. It will be immediately available for selection.
+              <br />
+              <span className="text-xs text-blue-600 dark:text-blue-400">Products are created with zero inventory.</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleQuickAddProduct} className="space-y-4 py-2">
+            {productFormError && (
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400 text-sm">
+                {productFormError}
+              </div>
+            )}
+
+            {/* Product Name */}
+            <div className="space-y-2">
+              <Label htmlFor="productName" className="text-gray-900 dark:text-gray-200 font-medium">
+                Product Name <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="productName"
+                value={productForm.name}
+                onChange={(e) => setProductForm(p => ({ ...p, name: e.target.value }))}
+                placeholder="Enter product name"
+                className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                required
+              />
+            </div>
+
+            {/* SKU (optional) */}
+            <div className="space-y-2">
+              <Label htmlFor="productSku" className="text-gray-900 dark:text-gray-200 font-medium">
+                SKU <span className="text-xs text-gray-500">(optional, auto-generated if empty)</span>
+              </Label>
+              <Input
+                id="productSku"
+                value={productForm.sku}
+                onChange={(e) => setProductForm(p => ({ ...p, sku: e.target.value }))}
+                placeholder="Auto-generated if empty"
+                className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+              />
+            </div>
+
+            {/* Unit dropdown */}
+            <div className="space-y-2">
+              <Label htmlFor="productUnit" className="text-gray-900 dark:text-gray-200 font-medium">
+                Unit <span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={productForm.unitId}
+                onValueChange={(value) => setProductForm(p => ({ ...p, unitId: value }))}
+              >
+                <SelectTrigger className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white">
+                  <SelectValue placeholder={loadingDropdowns ? "Loading..." : "Select Unit"} />
+                </SelectTrigger>
+                <SelectContent className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
+                  {units.map(u => (
+                    <SelectItem key={u.id} value={u.id.toString()} className="text-gray-900 dark:text-white">
+                      {u.name} {u.shortName && `(${u.shortName})`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Category dropdown (optional) */}
+            <div className="space-y-2">
+              <Label htmlFor="productCategory" className="text-gray-900 dark:text-gray-200 font-medium">
+                Category <span className="text-xs text-gray-500">(optional)</span>
+              </Label>
+              <Select
+                value={productForm.categoryId}
+                onValueChange={(value) => setProductForm(p => ({ ...p, categoryId: value }))}
+              >
+                <SelectTrigger className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white">
+                  <SelectValue placeholder={loadingDropdowns ? "Loading..." : "Select Category"} />
+                </SelectTrigger>
+                <SelectContent className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
+                  {categories.map(c => (
+                    <SelectItem key={c.id} value={c.id.toString()} className="text-gray-900 dark:text-white">
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Brand dropdown (optional) */}
+            <div className="space-y-2">
+              <Label htmlFor="productBrand" className="text-gray-900 dark:text-gray-200 font-medium">
+                Brand <span className="text-xs text-gray-500">(optional)</span>
+              </Label>
+              <Select
+                value={productForm.brandId}
+                onValueChange={(value) => setProductForm(p => ({ ...p, brandId: value }))}
+              >
+                <SelectTrigger className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white">
+                  <SelectValue placeholder={loadingDropdowns ? "Loading..." : "Select Brand"} />
+                </SelectTrigger>
+                <SelectContent className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
+                  {brands.map(b => (
+                    <SelectItem key={b.id} value={b.id.toString()} className="text-gray-900 dark:text-white">
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Pricing */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="purchasePrice" className="text-gray-900 dark:text-gray-200 font-medium">
+                  Purchase Price (₱) <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="purchasePrice"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={productForm.purchasePrice}
+                  onChange={(e) => setProductForm(p => ({ ...p, purchasePrice: e.target.value }))}
+                  placeholder="0.00"
+                  className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sellingPrice" className="text-gray-900 dark:text-gray-200 font-medium">
+                  Selling Price (₱) <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="sellingPrice"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={productForm.sellingPrice}
+                  onChange={(e) => setProductForm(p => ({ ...p, sellingPrice: e.target.value }))}
+                  placeholder="0.00"
+                  className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
+                  required
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowProductModal(false)
+                  setProductFormError('')
+                  setProductForm({ name: '', sku: '', purchasePrice: '', sellingPrice: '', unitId: '', categoryId: '', brandId: '' })
+                }}
+                disabled={savingProduct}
+                className="px-6 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-700 dark:hover:to-gray-600 border-2 border-gray-300 dark:border-gray-600 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-medium text-gray-700 dark:text-gray-200"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={savingProduct}
+                className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingProduct ? 'Creating...' : 'Add Product'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
