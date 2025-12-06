@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { usePermissions } from "@/hooks/usePermissions"
 import { PERMISSIONS } from "@/lib/rbac"
 import { formatCurrency } from "@/lib/currencyUtils"
@@ -50,6 +51,7 @@ import PieChart, {
 import { toast } from 'sonner'
 
 const CASHIER_ROLES = ['Sales Cashier', 'Cashier (Legacy)'] as const
+const TECHNICIAN_ROLES = ['Technician', 'Technician Manager'] as const
 
 interface DashboardStats {
   metrics: {
@@ -165,6 +167,14 @@ export default function DashboardPageV2() {
       checkShiftAndRedirect()
     }
   }, [user, hasAnyRole, can, router])
+
+  // AUTO-REDIRECT: Technicians go to Technical Services dashboard (no access to sales dashboard)
+  useEffect(() => {
+    if (user && hasAnyRole([...TECHNICIAN_ROLES])) {
+      console.log('[Dashboard] Redirecting technician to Technical Services dashboard')
+      router.push('/dashboard/technical')
+    }
+  }, [user, hasAnyRole, router])
 
   // OPTIMIZED: Fetch locations and initial data in parallel on mount
   useEffect(() => {
@@ -777,10 +787,18 @@ export default function DashboardPageV2() {
           {can(PERMISSIONS.SELL_VIEW) && (
           <Card className="shadow-lg">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                Sales Payment Due
-                <span className="text-xs text-gray-500 font-normal ml-2">(Click row to view details)</span>
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  Sales Payment Due
+                  <span className="text-xs text-gray-500 font-normal ml-2">(Top 10 recent)</span>
+                </CardTitle>
+                <Link
+                  href="/dashboard/sales?paymentStatus=partial,due"
+                  className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
+                >
+                  View All →
+                </Link>
+              </div>
             </CardHeader>
             <CardContent>
               <DataGrid
@@ -807,9 +825,6 @@ export default function DashboardPageV2() {
                   format="₱#,##0.00"
                   alignment="right"
                 />
-                <Summary>
-                  <TotalItem column="amount" summaryType="sum" valueFormat="₱#,##0.00" />
-                </Summary>
               </DataGrid>
             </CardContent>
           </Card>
