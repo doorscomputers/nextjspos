@@ -128,6 +128,21 @@ export default function CreatePurchaseOrderPage() {
   const [brands, setBrands] = useState<{ id: number; name: string }[]>([])
   const [units, setUnits] = useState<{ id: number; name: string; shortName: string }[]>([])
   const [loadingDropdowns, setLoadingDropdowns] = useState(false)
+  const [categorySearch, setCategorySearch] = useState('')
+  const [brandSearch, setBrandSearch] = useState('')
+
+  // Filtered categories and brands for search
+  const filteredCategories = useMemo(() => {
+    if (!categorySearch.trim()) return categories
+    const searchLower = categorySearch.toLowerCase()
+    return categories.filter(c => c.name.toLowerCase().includes(searchLower))
+  }, [categories, categorySearch])
+
+  const filteredBrands = useMemo(() => {
+    if (!brandSearch.trim()) return brands
+    const searchLower = brandSearch.toLowerCase()
+    return brands.filter(b => b.name.toLowerCase().includes(searchLower))
+  }, [brands, brandSearch])
 
   // Form state
   const [supplierId, setSupplierId] = useState('')
@@ -376,7 +391,21 @@ export default function CreatePurchaseOrderPage() {
         setBrands(brandsData.brands || brandsData || [])
       }
       if (unitsRes.ok) {
-        setUnits(unitsData.units || unitsData || [])
+        const unitsList = unitsData.units || unitsData || []
+        setUnits(unitsList)
+
+        // Auto-select "Piece" unit if available and not already set
+        if (!productForm.unitId) {
+          const pieceUnit = unitsList.find((u: any) =>
+            u.name.toLowerCase() === 'piece' ||
+            u.name.toLowerCase() === 'pcs' ||
+            u.shortName?.toLowerCase() === 'pc' ||
+            u.shortName?.toLowerCase() === 'pcs'
+          )
+          if (pieceUnit) {
+            setProductForm(p => ({ ...p, unitId: pieceUnit.id.toString() }))
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching dropdown data:', error)
@@ -401,16 +430,20 @@ export default function CreatePurchaseOrderPage() {
     }
     const purchasePrice = parseFloat(productForm.purchasePrice)
     const sellingPrice = parseFloat(productForm.sellingPrice)
-    if (isNaN(purchasePrice) || purchasePrice <= 0) {
+    if (isNaN(purchasePrice) || purchasePrice < 0) {
+      setProductFormError('Purchase price cannot be negative')
+      return
+    }
+    if (purchasePrice === 0) {
       setProductFormError('Purchase price must be greater than 0')
       return
     }
-    if (isNaN(sellingPrice) || sellingPrice <= 0) {
-      setProductFormError('Selling price must be greater than 0')
+    if (isNaN(sellingPrice) || sellingPrice < 0) {
+      setProductFormError('Selling price cannot be negative')
       return
     }
-    if (sellingPrice < purchasePrice) {
-      setProductFormError('Selling price cannot be lower than purchase price')
+    if (sellingPrice <= purchasePrice) {
+      setProductFormError('Selling price must be higher than purchase price')
       return
     }
 
@@ -467,6 +500,8 @@ export default function CreatePurchaseOrderPage() {
       // Reset form and close modal
       setProductForm({ name: '', sku: '', purchasePrice: '', sellingPrice: '', unitId: '', categoryId: '', brandId: '' })
       setProductFormError('')
+      setCategorySearch('')
+      setBrandSearch('')
       setShowProductModal(false)
 
     } catch (err: any) {
@@ -1272,29 +1307,21 @@ export default function CreatePurchaseOrderPage() {
               />
             </div>
 
-            {/* Unit dropdown */}
+            {/* Unit field - Fixed to Piece (read-only) */}
             <div className="space-y-2">
               <Label htmlFor="productUnit" className="text-gray-900 dark:text-gray-200 font-medium">
                 Unit <span className="text-red-500">*</span>
               </Label>
-              <Select
-                value={productForm.unitId}
-                onValueChange={(value) => setProductForm(p => ({ ...p, unitId: value }))}
-              >
-                <SelectTrigger className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white">
-                  <SelectValue placeholder={loadingDropdowns ? "Loading..." : "Select Unit"} />
-                </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
-                  {units.map(u => (
-                    <SelectItem key={u.id} value={u.id.toString()} className="text-gray-900 dark:text-white">
-                      {u.name} {u.shortName && `(${u.shortName})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="productUnit"
+                value={units.find(u => u.id.toString() === productForm.unitId)?.name || 'Piece'}
+                disabled
+                className="bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 cursor-not-allowed"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400">Unit is fixed to Piece for quick add</p>
             </div>
 
-            {/* Category dropdown (optional) */}
+            {/* Category dropdown with search (optional) */}
             <div className="space-y-2">
               <Label htmlFor="productCategory" className="text-gray-900 dark:text-gray-200 font-medium">
                 Category <span className="text-xs text-gray-500">(optional)</span>
@@ -1307,16 +1334,28 @@ export default function CreatePurchaseOrderPage() {
                   <SelectValue placeholder={loadingDropdowns ? "Loading..." : "Select Category"} />
                 </SelectTrigger>
                 <SelectContent className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
-                  {categories.map(c => (
-                    <SelectItem key={c.id} value={c.id.toString()} className="text-gray-900 dark:text-white">
-                      {c.name}
-                    </SelectItem>
-                  ))}
+                  <div className="px-2 py-1.5 sticky top-0 bg-white dark:bg-gray-800">
+                    <Input
+                      placeholder="Search category..."
+                      value={categorySearch}
+                      onChange={(e) => setCategorySearch(e.target.value)}
+                      className="h-8 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                    />
+                  </div>
+                  {filteredCategories.length === 0 ? (
+                    <div className="px-2 py-2 text-sm text-gray-500 dark:text-gray-400">No categories found</div>
+                  ) : (
+                    filteredCategories.map(c => (
+                      <SelectItem key={c.id} value={c.id.toString()} className="text-gray-900 dark:text-white">
+                        {c.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Brand dropdown (optional) */}
+            {/* Brand dropdown with search (optional) */}
             <div className="space-y-2">
               <Label htmlFor="productBrand" className="text-gray-900 dark:text-gray-200 font-medium">
                 Brand <span className="text-xs text-gray-500">(optional)</span>
@@ -1329,11 +1368,23 @@ export default function CreatePurchaseOrderPage() {
                   <SelectValue placeholder={loadingDropdowns ? "Loading..." : "Select Brand"} />
                 </SelectTrigger>
                 <SelectContent className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
-                  {brands.map(b => (
-                    <SelectItem key={b.id} value={b.id.toString()} className="text-gray-900 dark:text-white">
-                      {b.name}
-                    </SelectItem>
-                  ))}
+                  <div className="px-2 py-1.5 sticky top-0 bg-white dark:bg-gray-800">
+                    <Input
+                      placeholder="Search brand..."
+                      value={brandSearch}
+                      onChange={(e) => setBrandSearch(e.target.value)}
+                      className="h-8 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                    />
+                  </div>
+                  {filteredBrands.length === 0 ? (
+                    <div className="px-2 py-2 text-sm text-gray-500 dark:text-gray-400">No brands found</div>
+                  ) : (
+                    filteredBrands.map(b => (
+                      <SelectItem key={b.id} value={b.id.toString()} className="text-gray-900 dark:text-white">
+                        {b.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -1348,9 +1399,17 @@ export default function CreatePurchaseOrderPage() {
                   id="purchasePrice"
                   type="number"
                   step="0.01"
-                  min="0.01"
+                  min="0"
                   value={productForm.purchasePrice}
-                  onChange={(e) => setProductForm(p => ({ ...p, purchasePrice: e.target.value }))}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value === '' || parseFloat(value) >= 0) {
+                      setProductForm(p => ({ ...p, purchasePrice: value }))
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === '-' || e.key === 'e') e.preventDefault()
+                  }}
                   placeholder="0.00"
                   className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                   required
@@ -1364,13 +1423,22 @@ export default function CreatePurchaseOrderPage() {
                   id="sellingPrice"
                   type="number"
                   step="0.01"
-                  min="0.01"
+                  min="0"
                   value={productForm.sellingPrice}
-                  onChange={(e) => setProductForm(p => ({ ...p, sellingPrice: e.target.value }))}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (value === '' || parseFloat(value) >= 0) {
+                      setProductForm(p => ({ ...p, sellingPrice: value }))
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === '-' || e.key === 'e') e.preventDefault()
+                  }}
                   placeholder="0.00"
                   className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white"
                   required
                 />
+                <p className="text-xs text-gray-500 dark:text-gray-400">Must be higher than purchase price</p>
               </div>
             </div>
 
@@ -1382,6 +1450,8 @@ export default function CreatePurchaseOrderPage() {
                   setShowProductModal(false)
                   setProductFormError('')
                   setProductForm({ name: '', sku: '', purchasePrice: '', sellingPrice: '', unitId: '', categoryId: '', brandId: '' })
+                  setCategorySearch('')
+                  setBrandSearch('')
                 }}
                 disabled={savingProduct}
                 className="px-6 py-2.5 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-700 dark:hover:to-gray-600 border-2 border-gray-300 dark:border-gray-600 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-medium text-gray-700 dark:text-gray-200"
