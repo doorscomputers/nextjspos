@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
+import { useUserPrimaryLocation } from '@/hooks/useUserPrimaryLocation'
 import { PERMISSIONS } from '@/lib/rbac'
 import { toast } from 'sonner'
 import { RefreshCw, DollarSign, Printer, XCircle, Plus } from 'lucide-react'
@@ -67,6 +68,7 @@ interface BusinessLocation {
 
 export default function ServicePaymentsPage() {
   const { can, user } = usePermissions()
+  const { locationId: userLocationId, location: userLocation } = useUserPrimaryLocation()
   const [payments, setPayments] = useState<ServicePayment[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -180,10 +182,10 @@ export default function ServicePaymentsPage() {
 
   // Open add payment dialog - show immediately, load data in background
   const handleOpenAddPayment = () => {
-    // Reset form and show dialog immediately
+    // Reset form and show dialog immediately - auto-set location from user's primary location
     setPaymentForm({
       jobOrderId: '',
-      locationId: '',
+      locationId: userLocationId ? userLocationId.toString() : '',
       amount: '',
       paymentMethod: 'cash',
       referenceNumber: '',
