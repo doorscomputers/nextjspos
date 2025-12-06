@@ -195,9 +195,7 @@ export async function POST(
         data: {
           status: 'voided',
         },
-      }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+      })
 
       // NOTE: Customer balances are calculated dynamically from sales
       // When a sale is voided, it's automatically excluded from AR calculations
