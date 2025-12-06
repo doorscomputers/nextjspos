@@ -1321,27 +1321,28 @@ export default function CreatePurchaseOrderPage() {
               <p className="text-xs text-gray-500 dark:text-gray-400">Unit is fixed to Piece for quick add</p>
             </div>
 
-            {/* Category dropdown with search (optional) */}
+            {/* Category with search input above dropdown (optional) */}
             <div className="space-y-2">
               <Label htmlFor="productCategory" className="text-gray-900 dark:text-gray-200 font-medium">
                 Category <span className="text-xs text-gray-500">(optional)</span>
               </Label>
+              <Input
+                placeholder="🔍 Type to search categories..."
+                value={categorySearch}
+                onChange={(e) => setCategorySearch(e.target.value)}
+                className="h-9 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white mb-1"
+              />
               <Select
                 value={productForm.categoryId}
-                onValueChange={(value) => setProductForm(p => ({ ...p, categoryId: value }))}
+                onValueChange={(value) => {
+                  setProductForm(p => ({ ...p, categoryId: value }))
+                  setCategorySearch('')
+                }}
               >
                 <SelectTrigger className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white">
                   <SelectValue placeholder={loadingDropdowns ? "Loading..." : "Select Category"} />
                 </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
-                  <div className="px-2 py-1.5 sticky top-0 bg-white dark:bg-gray-800">
-                    <Input
-                      placeholder="Search category..."
-                      value={categorySearch}
-                      onChange={(e) => setCategorySearch(e.target.value)}
-                      className="h-8 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
-                    />
-                  </div>
+                <SelectContent className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 max-h-[200px]">
                   {filteredCategories.length === 0 ? (
                     <div className="px-2 py-2 text-sm text-gray-500 dark:text-gray-400">No categories found</div>
                   ) : (
@@ -1355,27 +1356,28 @@ export default function CreatePurchaseOrderPage() {
               </Select>
             </div>
 
-            {/* Brand dropdown with search (optional) */}
+            {/* Brand with search input above dropdown (optional) */}
             <div className="space-y-2">
               <Label htmlFor="productBrand" className="text-gray-900 dark:text-gray-200 font-medium">
                 Brand <span className="text-xs text-gray-500">(optional)</span>
               </Label>
+              <Input
+                placeholder="🔍 Type to search brands..."
+                value={brandSearch}
+                onChange={(e) => setBrandSearch(e.target.value)}
+                className="h-9 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white mb-1"
+              />
               <Select
                 value={productForm.brandId}
-                onValueChange={(value) => setProductForm(p => ({ ...p, brandId: value }))}
+                onValueChange={(value) => {
+                  setProductForm(p => ({ ...p, brandId: value }))
+                  setBrandSearch('')
+                }}
               >
                 <SelectTrigger className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white">
                   <SelectValue placeholder={loadingDropdowns ? "Loading..." : "Select Brand"} />
                 </SelectTrigger>
-                <SelectContent className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
-                  <div className="px-2 py-1.5 sticky top-0 bg-white dark:bg-gray-800">
-                    <Input
-                      placeholder="Search brand..."
-                      value={brandSearch}
-                      onChange={(e) => setBrandSearch(e.target.value)}
-                      className="h-8 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
-                    />
-                  </div>
+                <SelectContent className="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 max-h-[200px]">
                   {filteredBrands.length === 0 ? (
                     <div className="px-2 py-2 text-sm text-gray-500 dark:text-gray-400">No brands found</div>
                   ) : (
