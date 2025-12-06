@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Check permission
-    if (!hasPermission(session.user, PERMISSIONS.TECHNICIAN_VIEW)) {
+    if (!hasPermission(session.user, PERMISSIONS.TECHNICIAN_PERFORMANCE_VIEW)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

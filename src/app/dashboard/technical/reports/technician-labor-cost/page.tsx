@@ -202,7 +202,7 @@ export default function TechnicianLaborCostReportPage() {
   useEffect(() => {
     if (!user) return
 
-    if (!can(PERMISSIONS.TECHNICIAN_VIEW)) {
+    if (!can(PERMISSIONS.TECHNICIAN_PERFORMANCE_VIEW)) {
       toast.error('You do not have permission to view this report')
       setLoading(false)
       return

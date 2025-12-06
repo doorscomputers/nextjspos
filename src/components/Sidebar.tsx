@@ -1472,7 +1472,7 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               name: "Technician Labor Cost",
               href: "/dashboard/technical/reports/technician-labor-cost",
               icon: CurrencyDollarIcon,
-              permission: PERMISSIONS.TECHNICIAN_VIEW,
+              permission: PERMISSIONS.TECHNICIAN_PERFORMANCE_VIEW,
             },
             {
               key: "service_analytics",
