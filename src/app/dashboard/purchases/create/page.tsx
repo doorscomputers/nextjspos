@@ -969,7 +969,7 @@ export default function CreatePurchaseOrderPage() {
                   Supplier: {Array.isArray(suppliers) ? suppliers.find(s => s.id.toString() === supplierId)?.name || 'Unknown' : 'Unknown'}
                 </p>
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  Receiving Location: {Array.isArray(locations) ? locations.find(l => l.id.toString() === warehouseLocationId)?.name || 'Unknown' : 'Unknown'}
+                  Receiving Location: {warehouseLocationName || 'Unknown'}
                 </p>
               </div>
               <p className="text-sm mt-2">
