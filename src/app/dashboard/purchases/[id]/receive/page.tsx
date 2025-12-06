@@ -393,6 +393,66 @@ export default function ReceiveGoodsPage() {
     )
   }
 
+  // Check if PO is cancelled - cannot receive goods for cancelled POs
+  if (purchase.status === 'cancelled') {
+    return (
+      <div className="p-8 max-w-2xl mx-auto">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <XMarkIcon className="h-8 w-8 text-red-500" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-red-800">Cannot Receive Goods</h3>
+              <p className="mt-2 text-red-700">
+                This Purchase Order (<strong>{purchase.purchaseOrderNumber}</strong>) has been cancelled.
+                You cannot create a Goods Receipt Note (GRN) for a cancelled purchase order.
+              </p>
+              <div className="mt-4">
+                <Link href={`/dashboard/purchases/${purchaseId}`}>
+                  <Button variant="outline" className="border-red-300 text-red-700 hover:bg-red-100">
+                    <ArrowLeftIcon className="w-4 h-4 mr-2" />
+                    Back to Purchase Order
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Check if PO is already fully received
+  if (purchase.status === 'received') {
+    return (
+      <div className="p-8 max-w-2xl mx-auto">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <CheckCircleIcon className="h-8 w-8 text-green-500" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-green-800">Already Fully Received</h3>
+              <p className="mt-2 text-green-700">
+                This Purchase Order (<strong>{purchase.purchaseOrderNumber}</strong>) has already been fully received.
+                No more goods can be added.
+              </p>
+              <div className="mt-4">
+                <Link href={`/dashboard/purchases/${purchaseId}`}>
+                  <Button variant="outline" className="border-green-300 text-green-700 hover:bg-green-100">
+                    <ArrowLeftIcon className="w-4 h-4 mr-2" />
+                    Back to Purchase Order
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}

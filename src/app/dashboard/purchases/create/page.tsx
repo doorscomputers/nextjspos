@@ -399,6 +399,7 @@ export default function CreatePurchaseOrderPage() {
           const pieceUnit = unitsList.find((u: any) =>
             u.name.toLowerCase() === 'piece' ||
             u.name.toLowerCase() === 'pcs' ||
+            u.name.toLowerCase().includes('piece') ||
             u.shortName?.toLowerCase() === 'pc' ||
             u.shortName?.toLowerCase() === 'pcs'
           )
@@ -497,8 +498,18 @@ export default function CreatePurchaseOrderPage() {
         setAllProducts(prev => [...prev, newProduct])
       }
 
-      // Reset form and close modal
-      setProductForm({ name: '', sku: '', purchasePrice: '', sellingPrice: '', unitId: '', categoryId: '', brandId: '' })
+      // Reset form but KEEP the unitId (Piece unit should stay selected)
+      // Find the Piece unit ID to preserve it (broader search)
+      const pieceUnit = units.find((u: any) =>
+        u.name.toLowerCase() === 'piece' ||
+        u.name.toLowerCase() === 'pcs' ||
+        u.name.toLowerCase().includes('piece') ||
+        u.shortName?.toLowerCase() === 'pc' ||
+        u.shortName?.toLowerCase() === 'pcs'
+      )
+      const pieceUnitId = pieceUnit ? pieceUnit.id.toString() : ''
+
+      setProductForm({ name: '', sku: '', purchasePrice: '', sellingPrice: '', unitId: pieceUnitId, categoryId: '', brandId: '' })
       setProductFormError('')
       setCategorySearch('')
       setBrandSearch('')
@@ -915,6 +926,19 @@ export default function CreatePurchaseOrderPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
+                  // Ensure Piece unit is set when opening modal
+                  if (units.length > 0 && !productForm.unitId) {
+                    const pieceUnit = units.find((u: any) =>
+                      u.name.toLowerCase() === 'piece' ||
+                      u.name.toLowerCase() === 'pcs' ||
+                      u.name.toLowerCase().includes('piece') ||
+                      u.shortName?.toLowerCase() === 'pc' ||
+                      u.shortName?.toLowerCase() === 'pcs'
+                    )
+                    if (pieceUnit) {
+                      setProductForm(p => ({ ...p, unitId: pieceUnit.id.toString() }))
+                    }
+                  }
                   setShowProductModal(true)
                   fetchProductDropdowns()
                 }}

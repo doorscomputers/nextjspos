@@ -101,6 +101,10 @@ export default function PurchaseDetailPage() {
   const [showCloseDialog, setShowCloseDialog] = useState(false)
   const [closeReason, setCloseReason] = useState('')
 
+  // For cancelling PO
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
+
   // For emailing to supplier
   const [showEmailDialog, setShowEmailDialog] = useState(false)
   const [emailSending, setEmailSending] = useState(false)
@@ -378,6 +382,42 @@ export default function PurchaseDetailPage() {
     }
   }
 
+  const handleCancelPurchaseOrder = async () => {
+    if (!purchase) return
+
+    if (!cancelReason.trim()) {
+      toast.error('Please provide a reason for cancelling the purchase order')
+      return
+    }
+
+    try {
+      setActionLoading(true)
+      const response = await fetch(`/api/purchases/${purchaseId}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reason: cancelReason,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success('Purchase order cancelled successfully!')
+        setShowCancelDialog(false)
+        setCancelReason('')
+        fetchPurchase()
+      } else {
+        toast.error(data.error || 'Failed to cancel purchase order')
+      }
+    } catch (error) {
+      console.error('Error cancelling purchase order:', error)
+      toast.error('Failed to cancel purchase order')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   const handlePrint = () => {
     window.print()
   }
@@ -518,6 +558,7 @@ export default function PurchaseDetailPage() {
 
   const canReceive = purchase.status !== 'received' && purchase.status !== 'cancelled'
   const canClose = purchase.status === 'partially_received' && can(PERMISSIONS.PURCHASE_UPDATE)
+  const canCancel = purchase.status === 'pending' && (can(PERMISSIONS.PURCHASE_DELETE) || can(PERMISSIONS.PURCHASE_UPDATE))
 
   const businessName = purchase.business?.name || user?.businessName || 'Company Name'
   const businessAddress =
@@ -618,6 +659,13 @@ export default function PurchaseDetailPage() {
             <Button variant="outline" onClick={() => setShowCloseDialog(true)} className="border-orange-500 text-orange-600 hover:bg-orange-50 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
               <LockClosedIcon className="w-4 h-4 mr-2" />
               Close PO (Partial Delivery)
+            </Button>
+          )}
+
+          {canCancel && (
+            <Button variant="outline" onClick={() => setShowCancelDialog(true)} className="border-red-500 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105">
+              <XMarkIcon className="w-4 h-4 mr-2" />
+              Cancel PO
             </Button>
           )}
 
@@ -726,6 +774,76 @@ export default function PurchaseDetailPage() {
                   </Button>
                   <Button variant="outline" onClick={() => setShowCloseDialog(false)}>
                     Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel PO Dialog */}
+      {showCancelDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-red-600 dark:text-red-400">Cancel Purchase Order</h3>
+                <button
+                  onClick={() => setShowCancelDialog(false)}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                >
+                  <XMarkIcon className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                  <h4 className="font-semibold text-red-800 dark:text-red-300 mb-2">⚠️ Warning</h4>
+                  <ul className="text-sm text-red-700 dark:text-red-400 space-y-1">
+                    <li>• This will permanently cancel the purchase order</li>
+                    <li>• The PO cannot be received after cancellation</li>
+                    <li>• This action cannot be undone</li>
+                  </ul>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg text-sm">
+                  <p className="text-gray-600 dark:text-gray-300">
+                    <strong>PO Number:</strong> {purchase.purchaseOrderNumber}
+                  </p>
+                  <p className="text-gray-600 dark:text-gray-300">
+                    <strong>Supplier:</strong> {purchase.supplier.name}
+                  </p>
+                  <p className="text-gray-600 dark:text-gray-300">
+                    <strong>Total Amount:</strong> {formatCurrency(purchase.totalAmount)}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Reason for cancellation <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="e.g., Supplier unable to fulfill order, Found better price, Order placed in error..."
+                    required
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-4 border-t dark:border-gray-600">
+                  <Button
+                    onClick={handleCancelPurchaseOrder}
+                    disabled={actionLoading}
+                    className="bg-red-600 hover:bg-red-700 text-white"
+                  >
+                    <XMarkIcon className="w-4 h-4 mr-2" />
+                    {actionLoading ? 'Cancelling...' : 'Cancel Purchase Order'}
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowCancelDialog(false)}>
+                    Keep PO
                   </Button>
                 </div>
               </div>

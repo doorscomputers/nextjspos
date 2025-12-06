@@ -433,8 +433,8 @@ export default function AddProductPage() {
         unit.name === 'Piece(s)' ||
         unit.name === 'Pieces' ||
         unit.name.toLowerCase().includes('piece') ||
-        unit.shortName === 'Pcs' ||
-        unit.shortName === 'Pc'
+        unit.shortName?.toLowerCase() === 'pcs' ||
+        unit.shortName?.toLowerCase() === 'pc'
       )
 
       setFormData(prev => {
@@ -485,15 +485,29 @@ export default function AddProductPage() {
         if (action === 'save-and-stock') {
           router.push(`/dashboard/products/${data.product.id}/opening-stock`)
         } else if (action === 'save-and-add') {
-          // Reset form for new product
+          // Find the Piece unit for default selection
+          const pieceUnit = units.find((unit: Unit) =>
+            unit.name === 'Piece(s)' ||
+            unit.name === 'Pieces' ||
+            unit.name.toLowerCase().includes('piece') ||
+            unit.shortName?.toLowerCase() === 'pcs' ||
+            unit.shortName?.toLowerCase() === 'pc'
+          )
+
+          // Find the Standard VAT for default selection
+          const standardVAT = taxRates.find((tax: TaxRate) =>
+            tax.name === 'Standard VAT (12%)' || (tax.name.includes('Standard VAT') && tax.amount === 12)
+          )
+
+          // Reset form for new product with defaults restored
           setFormData({
             name: '',
             type: 'single',
             categoryId: '',
             subCategoryId: '',
             brandId: '',
-            unitId: '',
-            taxId: '',
+            unitId: pieceUnit ? pieceUnit.id.toString() : '',
+            taxId: standardVAT ? standardVAT.id.toString() : '',
             taxType: 'inclusive',
             sku: '',
             barcodeType: 'Code128',
