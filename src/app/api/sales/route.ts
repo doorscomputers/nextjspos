@@ -941,6 +941,77 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ============================================================================
+    // DUPLICATE SALE DETECTION (CRITICAL - Prevents double entry on slow networks)
+    // ============================================================================
+    // If user refreshes page or opens new tab during slow network, a second request
+    // may be sent with a different idempotency key. This check catches that scenario
+    // by looking for identical sales created in the last 60 seconds.
+    const DUPLICATE_WINDOW_MS = 60 * 1000 // 60 seconds
+    const duplicateCheckTime = new Date(Date.now() - DUPLICATE_WINDOW_MS)
+
+    // Create a fingerprint of the sale items for comparison
+    const itemsFingerprint = items
+      .map((item: any) => `${item.productVariationId}:${item.quantity}:${item.unitPrice}`)
+      .sort()
+      .join('|')
+
+    // Look for recent sales with same total from same user at same location
+    const recentSimilarSales = await prisma.sale.findMany({
+      where: {
+        businessId: businessIdNumber,
+        locationId: locationIdNumber,
+        createdBy: userIdNumber,
+        totalAmount: {
+          gte: totalAmount - 0.01,
+          lte: totalAmount + 0.01,
+        },
+        createdAt: {
+          gte: duplicateCheckTime,
+        },
+        deletedAt: null,
+      },
+      include: {
+        items: {
+          select: {
+            productVariationId: true,
+            quantity: true,
+            unitPrice: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5, // Only check last 5 similar sales
+    })
+
+    // Check if any recent sale has identical items
+    for (const recentSale of recentSimilarSales) {
+      const recentFingerprint = recentSale.items
+        .map((item) => `${item.productVariationId}:${item.quantity}:${item.unitPrice}`)
+        .sort()
+        .join('|')
+
+      if (recentFingerprint === itemsFingerprint) {
+        // Calculate time since duplicate
+        const secondsAgo = Math.round((Date.now() - recentSale.createdAt.getTime()) / 1000)
+
+        console.warn(`[SALES] DUPLICATE BLOCKED: Sale identical to ${recentSale.invoiceNumber} (${secondsAgo}s ago)`)
+        console.warn(`[SALES] User: ${userIdNumber}, Location: ${locationIdNumber}, Total: ${totalAmount}`)
+
+        return NextResponse.json(
+          {
+            error: 'Duplicate sale detected',
+            message: `An identical sale (${recentSale.invoiceNumber}) was just processed ${secondsAgo} seconds ago. If this was intentional, please wait 60 seconds before creating another identical sale.`,
+            existingInvoice: recentSale.invoiceNumber,
+            existingSaleId: recentSale.id,
+            duplicateWindowSeconds: 60,
+          },
+          { status: 409 } // HTTP 409 Conflict
+        )
+      }
+    }
+    // ============================================================================
+
     // TRANSACTION IMPACT TRACKING: Step 1 - Capture inventory BEFORE transaction
     // PERFORMANCE: Optional tracking (adds 400ms-1s overhead). Disable for POS performance.
     const enableInventoryTracking = process.env.ENABLE_INVENTORY_IMPACT_TRACKING === 'true'

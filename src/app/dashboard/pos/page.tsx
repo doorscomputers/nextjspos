@@ -1835,10 +1835,37 @@ export default function POSEnhancedPage() {
   }
 
   const handleCheckout = async () => {
-    // Prevent double submission
+    // Prevent double submission (React state)
     if (isSubmitting) {
       console.log('[POS] Checkout already in progress - ignoring duplicate click')
       return
+    }
+
+    // Check localStorage protection (survives page refresh)
+    // Constants defined at top of function for access in finally block
+    const SALE_LOCK_KEY = 'pos_sale_in_progress'  // Must match in finally block
+    const LOCK_TIMEOUT_MS = 60000 // 60 seconds lock timeout
+    const existingLock = localStorage.getItem(SALE_LOCK_KEY)
+
+    if (existingLock) {
+      const lockData = JSON.parse(existingLock)
+      const lockAge = Date.now() - lockData.timestamp
+
+      if (lockAge < LOCK_TIMEOUT_MS) {
+        const secondsRemaining = Math.ceil((LOCK_TIMEOUT_MS - lockAge) / 1000)
+        alert(
+          `⚠️ SALE IN PROGRESS\n\n` +
+          `A sale was started ${Math.floor(lockAge / 1000)} seconds ago.\n` +
+          `Please wait ${secondsRemaining} more seconds before trying again.\n\n` +
+          `If you're certain the previous sale failed, wait for the timeout or refresh the page after ${secondsRemaining} seconds.`
+        )
+        console.log('[POS] Sale blocked by localStorage lock - previous sale still in progress')
+        return
+      } else {
+        // Lock expired, clear it
+        console.log('[POS] Clearing expired sale lock')
+        localStorage.removeItem(SALE_LOCK_KEY)
+      }
     }
 
     if (cart.length === 0) {
@@ -1961,6 +1988,14 @@ export default function POSEnhancedPage() {
     setLoading(true)
     setIsSubmitting(true) // Lock to prevent double submission
     setError('')
+
+    // Set localStorage lock BEFORE making API call (survives page refresh)
+    localStorage.setItem(SALE_LOCK_KEY, JSON.stringify({
+      timestamp: Date.now(),
+      cartTotal: calculateTotal(),
+      itemCount: cart.reduce((sum, item) => sum + item.quantity, 0),
+    }))
+    console.log('[POS] Sale lock set in localStorage')
 
     try {
       const subtotal = calculateSubtotal()
@@ -2139,6 +2174,9 @@ export default function POSEnhancedPage() {
     } finally {
       setLoading(false)
       setIsSubmitting(false) // Always release lock
+      // Clear localStorage lock on completion (success or failure)
+      localStorage.removeItem(SALE_LOCK_KEY)
+      console.log('[POS] Sale lock cleared from localStorage')
     }
   }
 

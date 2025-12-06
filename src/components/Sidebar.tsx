@@ -1468,6 +1468,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               permission: PERMISSIONS.TECHNICIAN_PERFORMANCE_VIEW,
             },
             {
+              key: "technician_labor_cost",
+              name: "Technician Labor Cost",
+              href: "/dashboard/technical/reports/technician-labor-cost",
+              icon: CurrencyDollarIcon,
+              permission: PERMISSIONS.TECHNICIAN_VIEW,
+            },
+            {
               key: "service_analytics",
               name: "Service Analytics",
               href: "/dashboard/technical/reports/analytics",

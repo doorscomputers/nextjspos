@@ -6,6 +6,45 @@
 // Track in-flight requests to prevent duplicate submissions
 const pendingRequests = new Map<string, Promise<Response>>()
 
+/**
+ * Generate a deterministic idempotency key based on request payload
+ * This ensures that the same request (even after page refresh) gets the same key
+ * Uses a 30-second time window to allow for slow network retries
+ */
+async function generateDeterministicIdempotencyKey(
+  url: string,
+  body: any
+): Promise<string> {
+  // Round timestamp to 30-second blocks (allows retry window)
+  const timeBlock = Math.floor(Date.now() / 30000)
+
+  // Create a consistent string from the payload
+  const payload = JSON.stringify({
+    url,
+    body,
+    timeBlock,
+  })
+
+  // Use Web Crypto API for hashing (available in browser)
+  if (typeof crypto !== 'undefined' && crypto.subtle) {
+    const encoder = new TextEncoder()
+    const data = encoder.encode(payload)
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+    const hashArray = Array.from(new Uint8Array(hashBuffer))
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+    return `idem_${hashHex.slice(0, 32)}`
+  }
+
+  // Fallback: simple string hash for environments without crypto.subtle
+  let hash = 0
+  for (let i = 0; i < payload.length; i++) {
+    const char = payload.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash = hash & hash // Convert to 32-bit integer
+  }
+  return `idem_${Math.abs(hash).toString(16)}_${timeBlock}`
+}
+
 // Offline queue for failed requests
 const offlineQueue: Array<{
   url: string
@@ -129,10 +168,11 @@ export async function apiPost<T = any>(
     throw new Error('No internet connection. Request has been queued and will be sent when connection is restored.')
   }
 
-  // Generate idempotency key (unless disabled)
+  // Generate deterministic idempotency key (unless disabled)
+  // This ensures the SAME request gets the SAME key, even after page refresh
   const idempotencyKey = options?.skipIdempotency
     ? undefined
-    : `${crypto.randomUUID()}`
+    : await generateDeterministicIdempotencyKey(url, body)
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

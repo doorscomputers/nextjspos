@@ -779,25 +779,25 @@ export default function CreateJobOrderPage() {
             <CardHeader>
               <CardTitle className="text-amber-900 dark:text-amber-100">Job Details</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Location - Auto-set from user */}
                 <div>
-                  <Label className="dark:text-gray-200">Location *</Label>
-                  <div className="mt-1 p-2.5 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md text-sm text-gray-900 dark:text-gray-100">
+                  <Label className="dark:text-gray-200 mb-2 block">Location *</Label>
+                  <div className="p-2.5 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md text-sm text-gray-900 dark:text-gray-100">
                     {userLocation?.name || locations.find(l => l.id.toString() === formData.locationId)?.name || 'Loading...'}
                   </div>
                 </div>
                 {/* Created Date - Auto-set, read-only */}
                 <div>
-                  <Label className="dark:text-gray-200">Created Date</Label>
-                  <div className="mt-1 p-2.5 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md text-sm text-gray-900 dark:text-gray-100">
+                  <Label className="dark:text-gray-200 mb-2 block">Created Date</Label>
+                  <div className="p-2.5 bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md text-sm text-gray-900 dark:text-gray-100">
                     {new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}
                   </div>
                 </div>
                 {/* Received Date - Editable */}
                 <div>
-                  <Label className="dark:text-gray-200">Received Date</Label>
+                  <Label className="dark:text-gray-200 mb-2 block">Received Date</Label>
                   <Input
                     type="date"
                     value={formData.receivedDate}
@@ -809,7 +809,7 @@ export default function CreateJobOrderPage() {
 
               {/* Item Description - Required */}
               <div>
-                <Label className="dark:text-gray-200">Item Description *</Label>
+                <Label className="dark:text-gray-200 mb-2 block">Item Description *</Label>
                 <Textarea
                   value={formData.itemDescription}
                   onChange={(e) => handleInputChange('itemDescription', e.target.value)}
@@ -824,14 +824,14 @@ export default function CreateJobOrderPage() {
 
               {/* Service Type */}
               <div>
-                <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center justify-between mb-2">
                   <Label className="dark:text-gray-200">Service Type *</Label>
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => setShowServiceTypeDialog(true)}
-                    className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                    className="h-7 px-3 text-xs bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100 hover:border-blue-400 dark:bg-blue-900/30 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/50"
                   >
                     <Plus className="w-3 h-3 mr-1" />
                     Quick Add
@@ -857,7 +857,7 @@ export default function CreateJobOrderPage() {
 
               {/* Product - Optional (for items in inventory) */}
               <div>
-                <Label className="dark:text-gray-200">
+                <Label className="dark:text-gray-200 mb-2 block">
                   Link to Inventory Product <span className="text-gray-400 text-xs font-normal">(optional)</span>
                 </Label>
                 <ProductSearchSelect
@@ -874,7 +874,7 @@ export default function CreateJobOrderPage() {
               {/* Variation - Only show if product selected */}
               {formData.productId && (
                 <div>
-                  <Label className="dark:text-gray-200">
+                  <Label className="dark:text-gray-200 mb-2 block">
                     Product Variation <span className="text-gray-400 text-xs font-normal">(optional)</span>
                   </Label>
                   <Select
@@ -897,7 +897,7 @@ export default function CreateJobOrderPage() {
 
               {/* Serial Number */}
               <div>
-                <Label className="dark:text-gray-200">Serial Number</Label>
+                <Label className="dark:text-gray-200 mb-2 block">Serial Number</Label>
                 <Input
                   value={formData.serialNumber}
                   onChange={(e) => handleInputChange('serialNumber', e.target.value)}
@@ -909,7 +909,7 @@ export default function CreateJobOrderPage() {
               {/* Priority and Est. Completion */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label className="dark:text-gray-200">Priority</Label>
+                  <Label className="dark:text-gray-200 mb-2 block">Priority</Label>
                   <Select value={formData.priority} onValueChange={(v) => handleInputChange('priority', v)}>
                     <SelectTrigger className="dark:bg-gray-700 dark:border-gray-600">
                       <SelectValue />
@@ -923,7 +923,7 @@ export default function CreateJobOrderPage() {
                   </Select>
                 </div>
                 <div>
-                  <Label className="dark:text-gray-200">Est. Completion</Label>
+                  <Label className="dark:text-gray-200 mb-2 block">Est. Completion</Label>
                   <Input
                     type="date"
                     value={formData.estimatedEndDate}
@@ -940,10 +940,10 @@ export default function CreateJobOrderPage() {
             <CardHeader>
               <CardTitle className="text-amber-900 dark:text-amber-100">Customer & Assignment</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5">
               {/* Customer */}
               <div>
-                <Label className="dark:text-gray-200">Existing Customer</Label>
+                <Label className="dark:text-gray-200 mb-2 block">Existing Customer</Label>
                 <SearchableSelect
                   options={customerOptions}
                   value={formData.customerId}
@@ -964,7 +964,7 @@ export default function CreateJobOrderPage() {
 
               {/* Customer Name */}
               <div>
-                <Label className="dark:text-gray-200">Customer Name *</Label>
+                <Label className="dark:text-gray-200 mb-2 block">Customer Name *</Label>
                 <Input
                   value={formData.customerName}
                   onChange={(e) => handleInputChange('customerName', e.target.value)}
@@ -976,7 +976,7 @@ export default function CreateJobOrderPage() {
               {/* Phone and Email */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label className="dark:text-gray-200">Phone</Label>
+                  <Label className="dark:text-gray-200 mb-2 block">Phone</Label>
                   <Input
                     value={formData.customerPhone}
                     onChange={(e) => handleInputChange('customerPhone', e.target.value)}
@@ -985,7 +985,7 @@ export default function CreateJobOrderPage() {
                   />
                 </div>
                 <div>
-                  <Label className="dark:text-gray-200">Email</Label>
+                  <Label className="dark:text-gray-200 mb-2 block">Email</Label>
                   <Input
                     type="email"
                     value={formData.customerEmail}
@@ -998,14 +998,14 @@ export default function CreateJobOrderPage() {
 
               {/* Technician */}
               <div>
-                <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center justify-between mb-2">
                   <Label className="dark:text-gray-200">Assign Technician</Label>
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={() => setShowTechnicianDialog(true)}
-                    className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                    className="h-7 px-3 text-xs bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100 hover:border-blue-400 dark:bg-blue-900/30 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/50"
                   >
                     <Plus className="w-3 h-3 mr-1" />
                     Quick Add
@@ -1032,7 +1032,7 @@ export default function CreateJobOrderPage() {
 
               {/* Labor Cost */}
               <div>
-                <Label className="dark:text-gray-200">Labor Cost (₱)</Label>
+                <Label className="dark:text-gray-200 mb-2 block">Labor Cost (₱)</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -1045,7 +1045,7 @@ export default function CreateJobOrderPage() {
 
               {/* Problem Description - Made bigger */}
               <div>
-                <Label className="dark:text-gray-200">Problem Description *</Label>
+                <Label className="dark:text-gray-200 mb-2 block">Problem Description *</Label>
                 <Textarea
                   value={formData.problemDescription}
                   onChange={(e) => handleInputChange('problemDescription', e.target.value)}
