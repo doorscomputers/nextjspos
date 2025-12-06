@@ -188,6 +188,7 @@ export async function POST(
     }
 
     // Void the sale and restore inventory in transaction
+    // Use 60 second timeout to handle multi-item voids with inventory restoration
     const result = await prisma.$transaction(async (tx) => {
       // Update sale status to voided
       const voidedSale = await tx.sale.update({
@@ -296,6 +297,9 @@ export async function POST(
       }
 
       return { voidedSale, voidTransaction }
+    }, {
+      timeout: 60000, // 60 seconds for multi-item voids
+      maxWait: 10000, // Max 10 seconds to acquire lock
     })
 
     // Create audit log
