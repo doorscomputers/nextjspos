@@ -479,17 +479,6 @@ export default function POSEnhancedPage() {
         return
       }
 
-      // Ctrl+P - Complete Sale
-      if (e.ctrlKey && (e.key === 'p' || e.key === 'P')) {
-        e.preventDefault()
-        if (cart.length > 0) {
-          handleCheckout()
-        } else {
-          setError('Cart is empty')
-          setTimeout(() => setError(''), 2000)
-        }
-        return
-      }
 
       // Ctrl+S - Focus Search Field
       if (e.ctrlKey && e.key === 's') {
@@ -3416,7 +3405,7 @@ export default function POSEnhancedPage() {
                     <span>Processing Sale...</span>
                   </div>
                 ) : (
-                  <>✅ COMPLETE SALE (Ctrl+P)</>
+                  <>✅ COMPLETE SALE</>
                 )}
               </Button>
             </div>
