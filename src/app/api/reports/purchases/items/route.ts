@@ -47,6 +47,9 @@ export async function GET(request: NextRequest) {
 
     if (status && status !== 'all') {
       purchaseWhere.status = status
+    } else {
+      // Exclude cancelled purchase orders by default
+      purchaseWhere.status = { not: 'CANCELLED' }
     }
 
     if (purchaseOrderNumber) {
