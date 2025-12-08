@@ -178,9 +178,13 @@ export default function SalesHistoryPage() {
     fetchCustomers()
   }, [])
 
+  // Only fetch report when page/sort changes AND user has already generated a report
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    fetchReport()
+    // Only auto-fetch if we have data already (meaning user has clicked Generate Report before)
+    if (reportData) {
+      fetchReport(true) // Skip location check for pagination/sorting
+    }
   }, [page, sortBy, sortOrder])
 
   const fetchLocations = async () => {
@@ -261,7 +265,13 @@ export default function SalesHistoryPage() {
     }
   }
 
-  const fetchReport = async () => {
+  const fetchReport = async (skipLocationCheck = false) => {
+    // Check if location is selected (unless explicitly skipped for pagination/sorting)
+    if (!skipLocationCheck && locationId === "all") {
+      alert("Please select a Location first to generate the report.")
+      return
+    }
+
     setLoading(true)
     try {
       const params = new URLSearchParams()
@@ -314,7 +324,7 @@ export default function SalesHistoryPage() {
     setSortBy("createdAt")
     setSortOrder("desc")
     setPage(1)
-    fetchReport()
+    setReportData(null) // Clear report data on reset
   }
 
   const renderStatusBadge = (cellData: { value?: string }) => {
@@ -777,8 +787,17 @@ export default function SalesHistoryPage() {
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
-          ) : reportData?.sales.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 dark:text-gray-400">No sales found</div>
+          ) : !reportData ? (
+            <div className="text-center py-12">
+              <div className="text-amber-600 dark:text-amber-400 text-lg font-semibold mb-2">
+                📍 Please Select a Location
+              </div>
+              <p className="text-gray-500 dark:text-gray-400">
+                Select a location from the filters above and click &quot;Generate Report&quot; to view sales history.
+              </p>
+            </div>
+          ) : reportData.sales.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">No sales found for the selected criteria</div>
           ) : (
             <DataGrid
               ref={dataGridRef}
