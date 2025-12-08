@@ -157,6 +157,12 @@ export default function SalesDetailPage() {
       const response = await fetch(`/api/reports/sales-today?${params.toString()}`)
       if (response.ok) {
         const data = await response.json()
+        // Sort sales by invoice number
+        if (data.sales) {
+          data.sales.sort((a: { invoiceNumber: string }, b: { invoiceNumber: string }) =>
+            a.invoiceNumber.localeCompare(b.invoiceNumber)
+          )
+        }
         setReportData(data)
       }
     } catch (error) {
