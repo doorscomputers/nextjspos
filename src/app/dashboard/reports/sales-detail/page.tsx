@@ -9,6 +9,7 @@ import {
   PrinterIcon,
   ArrowDownTrayIcon,
   DocumentTextIcon,
+  DocumentArrowDownIcon,
 } from "@heroicons/react/24/outline"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -22,6 +23,8 @@ import {
 } from "@/components/ui/select"
 import { Workbook } from 'exceljs'
 import { saveAs } from 'file-saver'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 interface SaleItem {
   productName: string
@@ -190,6 +193,89 @@ export default function SalesDetailPage() {
     document.title = `${safeLocationName}_Sales_Detail_${dateStr}_${timeStr}`
     window.print()
     document.title = originalTitle
+  }
+
+  const exportToPDF = () => {
+    if (!reportData || reportData.sales.length === 0) return
+
+    // Get location name for filename
+    const locName = locationId === "all"
+      ? "All_Locations"
+      : locations.find(l => String(l.id) === locationId)?.name || "Unknown"
+    const safeLocationName = locName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '')
+
+    // Get current date and time in Philippines timezone (12-hour format)
+    const nowPH = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }))
+    const dateStr = `${nowPH.getFullYear()}-${String(nowPH.getMonth() + 1).padStart(2, '0')}-${String(nowPH.getDate()).padStart(2, '0')}`
+    const hours = nowPH.getHours()
+    const minutes = nowPH.getMinutes()
+    const ampm = hours >= 12 ? 'PM' : 'AM'
+    const hour12 = hours % 12 || 12
+    const timeStr = `${hour12}${String(minutes).padStart(2, '0')}${ampm}`
+
+    const filename = `${safeLocationName}_Sales_Detail_${dateStr}_${timeStr}`
+
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    })
+
+    // Add title
+    doc.setFontSize(16)
+    doc.text('Sales Detail Report', 14, 15)
+    doc.setFontSize(10)
+    doc.text(`Date: ${selectedDate} | Location: ${locName}`, 14, 22)
+
+    // Prepare table data - flatten all items from all sales
+    const tableData: string[][] = []
+    reportData.sales.forEach(sale => {
+      sale.items.forEach((item, idx) => {
+        tableData.push([
+          idx === 0 ? sale.invoiceNumber : '',
+          idx === 0 ? sale.customer : '',
+          item.productName,
+          item.sku,
+          item.quantity.toString(),
+          formatCurrency(item.unitPrice),
+          formatCurrency(item.total),
+          idx === 0 ? sale.payments.map(p => p.method).join(', ') : ''
+        ])
+      })
+    })
+
+    // Add table
+    autoTable(doc, {
+      head: [['Invoice', 'Customer', 'Product', 'SKU', 'Qty', 'Price', 'Total', 'Payment']],
+      body: tableData,
+      startY: 28,
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+      },
+      headStyles: {
+        fillColor: [59, 130, 246],
+        textColor: 255,
+        fontStyle: 'bold',
+      },
+      alternateRowStyles: {
+        fillColor: [249, 250, 251],
+      },
+      columnStyles: {
+        4: { halign: 'right' },
+        5: { halign: 'right' },
+        6: { halign: 'right' },
+      },
+    })
+
+    // Add grand total at the end
+    const finalY = (doc as any).lastAutoTable.finalY || 28
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`Grand Total: ${formatCurrency(grandTotal)}`, 14, finalY + 10)
+
+    // Save PDF
+    doc.save(`${filename}.pdf`)
   }
 
   const exportToExcel = async () => {
@@ -386,13 +472,21 @@ export default function SalesDetailPage() {
             </SelectContent>
           </Select>
 
-          <Button variant="outline" size="sm" onClick={exportToExcel} disabled={!reportData?.sales.length}>
-            <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
+          <Button variant="outline" size="sm" onClick={exportToExcel} disabled={!reportData?.sales.length}
+            className="gap-2 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400">
+            <ArrowDownTrayIcon className="h-4 w-4" />
             Excel
           </Button>
 
-          <Button variant="outline" size="sm" onClick={handlePrint}>
-            <PrinterIcon className="h-4 w-4 mr-2" />
+          <Button variant="outline" size="sm" onClick={exportToPDF} disabled={!reportData?.sales.length}
+            className="gap-2 hover:border-red-500 hover:text-red-700 dark:hover:text-red-400">
+            <DocumentArrowDownIcon className="h-4 w-4" />
+            PDF
+          </Button>
+
+          <Button variant="outline" size="sm" onClick={handlePrint}
+            className="gap-2 hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400">
+            <PrinterIcon className="h-4 w-4" />
             Print
           </Button>
         </div>
