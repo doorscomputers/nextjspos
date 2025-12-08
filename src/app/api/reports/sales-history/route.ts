@@ -408,32 +408,58 @@ export async function GET(request: NextRequest) {
     > = {}
 
     if (productIds.length > 0) {
-      const products = await prisma.product.findMany({
-        where: {
-          id: { in: productIds },
-          deletedAt: null,
-          businessId: businessIdInt,
-        },
-        select: {
-          id: true,
-          name: true,
-          category: {
-            select: {
-              id: true,
-              name: true,
+      try {
+        // Try to fetch products with category
+        const products = await prisma.product.findMany({
+          where: {
+            id: { in: productIds },
+            deletedAt: null,
+            businessId: businessIdInt,
+          },
+          select: {
+            id: true,
+            name: true,
+            category: {
+              select: {
+                id: true,
+                name: true,
+              },
             },
           },
-        },
-      })
+        })
 
-      productMap = products.reduce((acc, product) => {
-        acc[product.id] = {
-          id: product.id,
-          name: product.name,
-          categoryName: product.category?.name || null,
-        }
-        return acc
-      }, {} as Record<number, { id: number; name: string; categoryName: string | null }>)
+        productMap = products.reduce((acc, product) => {
+          acc[product.id] = {
+            id: product.id,
+            name: product.name,
+            categoryName: product.category?.name || null,
+          }
+          return acc
+        }, {} as Record<number, { id: number; name: string; categoryName: string | null }>)
+      } catch (e) {
+        // Fallback: fetch products without category if relationship fails
+        console.warn('Failed to fetch products with category, falling back:', e)
+        const products = await prisma.product.findMany({
+          where: {
+            id: { in: productIds },
+            deletedAt: null,
+            businessId: businessIdInt,
+          },
+          select: {
+            id: true,
+            name: true,
+          },
+        })
+
+        productMap = products.reduce((acc, product) => {
+          acc[product.id] = {
+            id: product.id,
+            name: product.name,
+            categoryName: null,
+          }
+          return acc
+        }, {} as Record<number, { id: number; name: string; categoryName: string | null }>)
+      }
     }
 
     if (variationIds.length > 0) {
