@@ -80,6 +80,8 @@ interface Sale {
   discountType: string | null
   notes: string | null
   itemCount: number
+  salesPerson: string | null
+  categories: string
   items: SaleItem[]
   payments: Array<{
     method: string
@@ -845,6 +847,16 @@ export default function SalesHistoryPage() {
                 dataField="location"
                 caption="Location"
                 width={130}
+              />
+              <Column
+                dataField="salesPerson"
+                caption="Sales Person"
+                width={140}
+              />
+              <Column
+                dataField="categories"
+                caption="Category"
+                width={140}
               />
               <Column
                 dataField="status"

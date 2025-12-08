@@ -310,6 +310,13 @@ export async function GET(request: NextRequest) {
             email: true,
           },
         },
+        salesPersonnel: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
         items: true,
         payments: true,
       },
@@ -367,7 +374,7 @@ export async function GET(request: NextRequest) {
       )
     )
 
-    let productMap: Record<number, { id: number; name: string }> = {}
+    let productMap: Record<number, { id: number; name: string; categoryName: string | null }> = {}
     let variationMap: Record<
       number,
       { id: number; name: string; sku: string | null; productId: number }
@@ -383,13 +390,23 @@ export async function GET(request: NextRequest) {
         select: {
           id: true,
           name: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
       })
 
       productMap = products.reduce((acc, product) => {
-        acc[product.id] = product
+        acc[product.id] = {
+          id: product.id,
+          name: product.name,
+          categoryName: product.category?.name || null,
+        }
         return acc
-      }, {} as Record<number, { id: number; name: string }>)
+      }, {} as Record<number, { id: number; name: string; categoryName: string | null }>)
     }
 
     if (variationIds.length > 0) {
@@ -478,12 +495,21 @@ export async function GET(request: NextRequest) {
         notes: sale.notes,
         remarks: sale.notes || '',
         itemCount: sale.items.length,
+        salesPerson: sale.salesPersonnel
+          ? `${sale.salesPersonnel.firstName} ${sale.salesPersonnel.lastName}`
+          : null,
         // Concatenate all product names and SKUs for searchability
         productNames: sale.items.map((item) => {
           const variation = variationMap[item.productVariationId]
           const product = variation ? productMap[variation.productId] : productMap[item.productId]
           return `${product?.name || ''} ${variation?.sku || ''}`
         }).join(', '),
+        // Concatenate all unique categories for the sale
+        categories: [...new Set(sale.items.map((item) => {
+          const variation = variationMap[item.productVariationId]
+          const product = variation ? productMap[variation.productId] : productMap[item.productId]
+          return product?.categoryName || 'Uncategorized'
+        }))].join(', '),
         items: sale.items.map((item) => {
           const variation = variationMap[item.productVariationId]
           const product = variation ? productMap[variation.productId] : productMap[item.productId]
