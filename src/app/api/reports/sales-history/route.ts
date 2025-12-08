@@ -310,13 +310,6 @@ export async function GET(request: NextRequest) {
             email: true,
           },
         },
-        salesPersonnel: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
         items: true,
         payments: true,
       },
@@ -328,6 +321,40 @@ export async function GET(request: NextRequest) {
     const countPromise = prisma.sale.count({ where })
 
     const [sales, total] = await Promise.all([salesPromise, countPromise])
+
+    // Fetch sales personnel separately to avoid query failures if relationship doesn't exist
+    const salesPersonnelIds = Array.from(
+      new Set(
+        sales
+          .map((sale) => sale.salesPersonnelId)
+          .filter((id): id is number => typeof id === 'number')
+      )
+    )
+
+    let salesPersonnelMap: Record<number, { id: number; firstName: string; lastName: string }> = {}
+
+    if (salesPersonnelIds.length > 0) {
+      try {
+        const salesPersonnel = await prisma.salesPersonnel.findMany({
+          where: {
+            id: { in: salesPersonnelIds },
+            businessId: businessIdInt,
+          },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        })
+
+        salesPersonnelMap = salesPersonnel.reduce((acc, sp) => {
+          acc[sp.id] = sp
+          return acc
+        }, {} as Record<number, { id: number; firstName: string; lastName: string }>)
+      } catch (e) {
+        console.warn('Failed to fetch sales personnel:', e)
+      }
+    }
 
     const locationIds = Array.from(
       new Set(
@@ -495,8 +522,8 @@ export async function GET(request: NextRequest) {
         notes: sale.notes,
         remarks: sale.notes || '',
         itemCount: sale.items.length,
-        salesPerson: sale.salesPersonnel
-          ? `${sale.salesPersonnel.firstName} ${sale.salesPersonnel.lastName}`
+        salesPerson: sale.salesPersonnelId && salesPersonnelMap[sale.salesPersonnelId]
+          ? `${salesPersonnelMap[sale.salesPersonnelId].firstName} ${salesPersonnelMap[sale.salesPersonnelId].lastName}`
           : null,
         // Concatenate all product names and SKUs for searchability
         productNames: sale.items.map((item) => {
