@@ -392,7 +392,7 @@ export default function SalesPerItemReport() {
             wordWrapEnabled={false}
             onExporting={onExporting}
           >
-            <StateStoring enabled={true} type="localStorage" storageKey="admin-sales-per-item-grid-v2" />
+            <StateStoring enabled={true} type="localStorage" storageKey="admin-sales-per-item-grid-v3" />
             <Sorting mode="multiple" />
             <FilterRow visible={true} />
             <HeaderFilter visible={true} />
