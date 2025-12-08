@@ -514,17 +514,19 @@ export async function GET(request: NextRequest) {
 
     // Format sales data for response
     const salesData = sales.map((sale) => {
-      // Calculate payment total from all payments (exclude 'credit' placeholder for AR sales)
-      const paymentTotal = sale.payments
-        .filter((p) => p.paymentMethod !== 'credit') // Exclude credit marker payments
-        .reduce((sum, payment) => {
-          return sum + parseFloat(payment.amount.toString())
-        }, 0)
+      try {
+        // Calculate payment total from all payments (exclude 'credit' placeholder for AR sales)
+        const payments = sale.payments || []
+        const paymentTotal = payments
+          .filter((p) => p.paymentMethod !== 'credit') // Exclude credit marker payments
+          .reduce((sum, payment) => {
+            return sum + parseFloat(payment.amount.toString())
+          }, 0)
 
-      const totalAmount = parseFloat(sale.totalAmount.toString())
-      const balance = totalAmount - paymentTotal
+        const totalAmount = parseFloat(sale.totalAmount.toString())
+        const balance = totalAmount - paymentTotal
 
-      return {
+        return {
         id: sale.id,
         invoiceNumber: sale.invoiceNumber,
         saleDate: sale.saleDate.toISOString().split('T')[0],
@@ -547,23 +549,23 @@ export async function GET(request: NextRequest) {
         discountType: sale.discountType,
         notes: sale.notes,
         remarks: sale.notes || '',
-        itemCount: sale.items.length,
+        itemCount: (sale.items || []).length,
         salesPerson: sale.salesPersonnelId && salesPersonnelMap[sale.salesPersonnelId]
           ? `${salesPersonnelMap[sale.salesPersonnelId].firstName} ${salesPersonnelMap[sale.salesPersonnelId].lastName}`
           : null,
         // Concatenate all product names and SKUs for searchability
-        productNames: sale.items.map((item) => {
+        productNames: (sale.items || []).map((item) => {
           const variation = variationMap[item.productVariationId]
           const product = variation ? productMap[variation.productId] : productMap[item.productId]
           return `${product?.name || ''} ${variation?.sku || ''}`
         }).join(', '),
         // Concatenate all unique categories for the sale
-        categories: [...new Set(sale.items.map((item) => {
+        categories: [...new Set((sale.items || []).map((item) => {
           const variation = variationMap[item.productVariationId]
           const product = variation ? productMap[variation.productId] : productMap[item.productId]
           return product?.categoryName || 'Uncategorized'
         }))].join(', '),
-        items: sale.items.map((item) => {
+        items: (sale.items || []).map((item) => {
           const variation = variationMap[item.productVariationId]
           const product = variation ? productMap[variation.productId] : productMap[item.productId]
 
@@ -599,12 +601,46 @@ export async function GET(request: NextRequest) {
             remarks: item.remark || '',
           }
         }),
-        payments: sale.payments.map((p) => ({
+        payments: payments.map((p) => ({
           method: p.paymentMethod,
           amount: parseFloat(p.amount.toString()),
           referenceNumber: p.referenceNumber,
           paidAt: p.paidAt.toISOString(),
         })),
+        }
+      } catch (err) {
+        console.error('Error mapping sale:', sale.id, err)
+        // Return a minimal valid sale object to prevent breaking the whole response
+        return {
+          id: sale.id,
+          invoiceNumber: sale.invoiceNumber || 'Unknown',
+          saleDate: sale.saleDate?.toISOString().split('T')[0] || '',
+          saleDateTime: sale.createdAt?.toISOString() || '',
+          customer: 'Error loading',
+          customerId: null,
+          customerEmail: null,
+          customerMobile: null,
+          location: 'Error',
+          locationId: sale.locationId,
+          status: sale.status || 'unknown',
+          subtotal: 0,
+          taxAmount: 0,
+          discountAmount: 0,
+          shippingCost: 0,
+          totalAmount: 0,
+          paymentTotal: 0,
+          balance: 0,
+          paymentStatus: 'unknown',
+          discountType: null,
+          notes: null,
+          remarks: '',
+          itemCount: 0,
+          salesPerson: null,
+          productNames: '',
+          categories: 'Error',
+          items: [],
+          payments: [],
+        }
       }
     })
 

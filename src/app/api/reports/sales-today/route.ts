@@ -215,8 +215,10 @@ export async function GET(request: NextRequest) {
         })
       : []
 
-    // Combine today's sales with AR payment sales
-    const allSales = [...sales, ...arPaymentSales].sort((a, b) => {
+    // NOTE: AR payment sales (old invoices with payments today) are tracked separately
+    // in the arPaymentReceived metric. The sales list should only show sales from the selected date.
+    // This prevents confusion when viewing Sales Detail Report.
+    const allSales = sales.sort((a, b) => {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     })
 

@@ -801,7 +801,7 @@ export default function SalesHistoryPage() {
           ) : (
             <DataGrid
               ref={dataGridRef}
-              dataSource={reportData?.sales || []}
+              dataSource={reportData.sales}
               keyExpr="id"
               showBorders={true}
               showRowLines={true}
@@ -813,7 +813,7 @@ export default function SalesHistoryPage() {
               wordWrapEnabled={false}
               onExporting={onExporting}
             >
-              <StateStoring enabled={true} type="localStorage" storageKey="sales-history-grid-v2" />
+              <StateStoring enabled={true} type="localStorage" storageKey="sales-history-grid-v3" />
               <SearchPanel visible={true} width={240} placeholder="Search sales..." />
               <FilterRow visible={true} />
               <HeaderFilter visible={true} />
