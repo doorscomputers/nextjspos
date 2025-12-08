@@ -471,6 +471,11 @@ export default function SalesPerItemReport() {
               minWidth={150}
             />
             <Column
+              dataField="salesPersonnel"
+              caption="Sales Personnel"
+              minWidth={150}
+            />
+            <Column
               dataField="productName"
               caption="Product Name"
               minWidth={200}

@@ -177,6 +177,12 @@ export async function GET(request: NextRequest) {
                   username: true,
                 },
               },
+              salesPersonnel: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                },
+              },
             },
           },
         },
@@ -261,6 +267,9 @@ export async function GET(request: NextRequest) {
         customer: item.sale?.customer?.name || 'Walk-in Customer',
         location: locationMap.get(item.sale?.locationId ?? 0) || 'N/A',
         cashier: item.sale?.creator ? `${item.sale.creator.firstName} ${item.sale.creator.surname}` : 'Unknown',
+        salesPersonnel: item.sale?.salesPersonnel
+          ? `${item.sale.salesPersonnel.firstName} ${item.sale.salesPersonnel.lastName}`
+          : '',
         serialNumbers: serialNumbersStr,
         remarks: item.remark || '',
       }
