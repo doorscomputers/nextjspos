@@ -156,11 +156,27 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
     const printWindow = window.open('', '_blank')
     if (!printWindow) return
 
+    // Get location name from the reading data
+    const reading = readingType === 'x' ? xReading : zReading
+    const locName = reading?.locationName || "Unknown"
+    const safeLocationName = locName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '')
+
+    // Get current date and time in Philippines timezone (12-hour format)
+    const nowPH = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }))
+    const dateStr = `${nowPH.getFullYear()}-${String(nowPH.getMonth() + 1).padStart(2, '0')}-${String(nowPH.getDate()).padStart(2, '0')}`
+    const hours = nowPH.getHours()
+    const minutes = nowPH.getMinutes()
+    const ampm = hours >= 12 ? 'PM' : 'AM'
+    const hour12 = hours % 12 || 12
+    const timeStr = `${hour12}${String(minutes).padStart(2, '0')}${ampm}`
+
+    const printTitle = `${safeLocationName}_${readingType === 'x' ? 'X_Reading' : 'Z_Reading'}_${dateStr}_${timeStr}`
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>${readingType === 'x' ? 'X-READING REPORT' : 'Z-READING REPORT'}</title>
+          <title>${printTitle}</title>
           <style>
             @media print {
               @page {

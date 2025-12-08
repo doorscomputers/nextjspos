@@ -171,7 +171,25 @@ export default function SalesDetailPage() {
   }, [selectedDate, locationId])
 
   const handlePrint = () => {
+    // Get location name for filename
+    const locName = locationId === "all"
+      ? "All_Locations"
+      : locations.find(l => String(l.id) === locationId)?.name || "Unknown"
+    const safeLocationName = locName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '')
+
+    // Get current date and time in Philippines timezone (12-hour format)
+    const nowPH = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }))
+    const dateStr = `${nowPH.getFullYear()}-${String(nowPH.getMonth() + 1).padStart(2, '0')}-${String(nowPH.getDate()).padStart(2, '0')}`
+    const hours = nowPH.getHours()
+    const minutes = nowPH.getMinutes()
+    const ampm = hours >= 12 ? 'PM' : 'AM'
+    const hour12 = hours % 12 || 12
+    const timeStr = `${hour12}${String(minutes).padStart(2, '0')}${ampm}`
+
+    const originalTitle = document.title
+    document.title = `${safeLocationName}_Sales_Detail_${dateStr}_${timeStr}`
     window.print()
+    document.title = originalTitle
   }
 
   const exportToExcel = async () => {
@@ -298,9 +316,24 @@ export default function SalesDetailPage() {
     worksheet.getColumn('price').numFmt = '#,##0.00'
     worksheet.getColumn('total').numFmt = '#,##0.00'
 
+    // Get location name for filename
+    const locName = locationId === "all"
+      ? "All_Locations"
+      : locations.find(l => String(l.id) === locationId)?.name || "Unknown"
+    const safeLocationName = locName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '')
+
+    // Get current date and time in Philippines timezone (12-hour format)
+    const nowPH = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }))
+    const dateStr = `${nowPH.getFullYear()}-${String(nowPH.getMonth() + 1).padStart(2, '0')}-${String(nowPH.getDate()).padStart(2, '0')}`
+    const hours = nowPH.getHours()
+    const minutes = nowPH.getMinutes()
+    const ampm = hours >= 12 ? 'PM' : 'AM'
+    const hour12 = hours % 12 || 12
+    const timeStr = `${hour12}${String(minutes).padStart(2, '0')}${ampm}`
+
     const buffer = await workbook.xlsx.writeBuffer()
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-    saveAs(blob, `sales-detail-${selectedDate}.xlsx`)
+    saveAs(blob, `${safeLocationName}_Sales_Detail_${dateStr}_${timeStr}.xlsx`)
   }
 
   // Calculate grand total
