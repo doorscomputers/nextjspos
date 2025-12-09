@@ -259,7 +259,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
         saleItemId: item.id,
         quantity: item.quantity,
         productName: item.productVariation?.name || item.product.name,
-        unitPrice: parseFloat(item.unitPrice.toString()),
+        unitPrice: parseFloat(item.unitPrice.toString()) - parseFloat(item.discountAmount?.toString() || '0'),
       }])
     }
   }
@@ -501,11 +501,11 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                                 {item.discountAmount && parseFloat(item.discountAmount.toString()) > 0 ? (
                                   <>
                                     <span className="line-through text-gray-400">
-                                      ₱{(parseFloat(item.unitPrice.toString()) + parseFloat(item.discountAmount.toString())).toFixed(2)}
+                                      ₱{parseFloat(item.unitPrice.toString()).toFixed(2)}
                                     </span>
                                     {' → '}
                                     <span className="text-green-600 dark:text-green-400">
-                                      ₱{parseFloat(item.unitPrice.toString()).toFixed(2)}
+                                      ₱{(parseFloat(item.unitPrice.toString()) - parseFloat(item.discountAmount.toString())).toFixed(2)}
                                     </span>
                                     <span className="ml-1 text-orange-500">
                                       ({item.discountType || 'Discounted'})
