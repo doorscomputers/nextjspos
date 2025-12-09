@@ -93,6 +93,22 @@ export async function GET(request: Request) {
             pricePercentage: true,
           },
         },
+        // Get the most recent purchase for this variation
+        purchaseItems: {
+          select: {
+            purchase: {
+              select: {
+                purchaseDate: true,
+              },
+            },
+          },
+          orderBy: {
+            purchase: {
+              purchaseDate: 'desc',
+            },
+          },
+          take: 1,
+        },
       },
       orderBy: {
         product: {
@@ -131,6 +147,11 @@ export async function GET(request: Request) {
         locationPricesObj[`location_${location.id}`] = locationPrices.get(location.id) || null
       }
 
+      // Get the latest purchase date for this variation
+      const latestPurchaseDate = variation.purchaseItems.length > 0
+        ? variation.purchaseItems[0].purchase.purchaseDate
+        : null
+
       comparisonData.push({
         productVariationId: variation.id,
         productId: variation.product.id,
@@ -148,6 +169,7 @@ export async function GET(request: Request) {
         priceVariance,
         priceVariancePercent,
         hasVariance: priceVariance > 0,
+        latestPurchaseDate,
         ...locationPricesObj,
       })
     }

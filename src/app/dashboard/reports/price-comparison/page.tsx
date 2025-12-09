@@ -48,6 +48,7 @@ interface PriceComparisonData {
   priceVariance: number
   priceVariancePercent: number
   hasVariance: boolean
+  latestPurchaseDate: string | null
   [key: string]: any
 }
 
@@ -130,6 +131,15 @@ export default function PriceComparisonReportPage() {
     }
     const color = percent > 20 ? 'text-red-600 font-bold' : percent > 10 ? 'text-orange-600 font-semibold' : 'text-yellow-600'
     return <span className={color}>{percent.toFixed(2)}%</span>
+  }
+
+  const renderDateCell = (cellData: any) => {
+    const dateValue = cellData.value
+    if (!dateValue) {
+      return <span className="text-gray-400 italic">Not purchased yet</span>
+    }
+    const date = new Date(dateValue)
+    return <span>{date.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
   }
 
   if (!hasAccess) {
@@ -215,6 +225,16 @@ export default function PriceComparisonReportPage() {
             <Column dataField="brandName" caption="Brand" width={150} fixed={true} fixedPosition="left" />
 
             <Column
+              dataField="latestPurchaseDate"
+              caption="Latest Purchase"
+              dataType="date"
+              width={140}
+              cellRender={renderDateCell}
+              sortOrder="desc"
+              allowSorting={true}
+            />
+
+            <Column
               dataField="basePrice"
               caption="Base Price"
               dataType="number"
@@ -266,7 +286,6 @@ export default function PriceComparisonReportPage() {
               format={{ type: 'currency', currency: 'PHP' }}
               width={140}
               cellRender={renderVarianceCell}
-              sortOrder="desc"
             />
 
             <Column
