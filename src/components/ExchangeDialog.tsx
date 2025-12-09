@@ -97,6 +97,9 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   const [showPrintDialog, setShowPrintDialog] = useState(false)
   const [completedExchange, setCompletedExchange] = useState<any>(null)
 
+  // Previous exchanges warning
+  const [previousExchanges, setPreviousExchanges] = useState<any[]>([])
+
   // Load initial sale if provided
   useEffect(() => {
     if (isOpen && initialSaleId) {
@@ -116,6 +119,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
       setProductSearch('')
       setSearchResults([])
       setAllProducts([])
+      setPreviousExchanges([])
     }
   }, [isOpen])
 
@@ -209,6 +213,21 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
         }
 
         setSale(saleData)
+
+        // Check for previous exchanges on this invoice
+        try {
+          const exchangeRes = await fetch(`/api/sales/${saleData.id}/previous-exchanges`)
+          const exchangeData = await exchangeRes.json()
+          if (exchangeData.previousExchanges && exchangeData.previousExchanges.length > 0) {
+            setPreviousExchanges(exchangeData.previousExchanges)
+            toast.warning('Invoice Has Previous Exchange(s)', {
+              description: `This invoice has ${exchangeData.count} previous exchange(s). Please review before proceeding.`,
+              duration: 5000,
+            })
+          }
+        } catch (err) {
+          console.error('[Exchange] Error checking previous exchanges:', err)
+        }
       } else {
         toast.error('Sale Not Found', {
           description: `No sale found with invoice number "${invoiceNumberOrId}".`,
@@ -473,6 +492,33 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                   </div>
                 </div>
               </div>
+
+              {/* Previous Exchanges Warning */}
+              {previousExchanges.length > 0 && (
+                <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="font-medium text-orange-800 dark:text-orange-200">
+                        This invoice has {previousExchanges.length} previous exchange(s)
+                      </p>
+                      <div className="mt-2 space-y-2 text-sm text-orange-700 dark:text-orange-300">
+                        {previousExchanges.map((ex, idx) => (
+                          <div key={idx} className="border-l-2 border-orange-300 dark:border-orange-600 pl-3">
+                            <p className="font-medium">
+                              {new Date(ex.returnDate).toLocaleDateString()} - {ex.replacementInvoice || ex.returnNumber}
+                            </p>
+                            <p className="text-xs">Reason: {ex.reason || 'Not specified'}</p>
+                            <p className="text-xs">
+                              Items: {ex.items.map((item: any) => `${item.productName} (Qty: ${item.quantity})`).join(', ')}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Two Column Layout */}
               <div className="grid grid-cols-2 gap-6">
