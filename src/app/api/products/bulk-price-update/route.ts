@@ -246,6 +246,16 @@ export async function POST(request: Request) {
             })
           }
         }
+
+        // Also update the base variation price to keep it in sync
+        // This ensures reports using product_variations.selling_price show correct values
+        if (sellingPrice !== undefined) {
+          await prisma.productVariation.update({
+            where: { id: productVariationId },
+            data: { sellingPrice: sellingPrice },
+          })
+          console.log(`✅ Also updated base variation price for ${variation.product.name} to ${sellingPrice}`)
+        }
       } catch (error) {
         console.error(`Error updating price for variation ${productVariationId}:`, error)
         errors.push({
