@@ -315,15 +315,14 @@ export default function ProductsPage() {
   const [showRemoveModal, setShowRemoveModal] = useState(false)
   const [modalLocationName, setModalLocationName] = useState('')
 
-  // Client-side column filters (instant filtering of loaded records)
-  const [columnFilters, setColumnFilters] = useState({
+  // Column filter inputs (for debounced server-side filtering)
+  const [columnFilterInputs, setColumnFilterInputs] = useState({
     product: '',
     sku: '',
     category: '',
     brand: '',
     unit: '',
     type: '',
-    status: '',
     tax: ''
   })
 
@@ -729,68 +728,54 @@ export default function ProductsPage() {
     return '0.00'
   }
 
-  // Client-side filtering of loaded products (instant, no API calls)
-  const filteredProducts = useMemo(() => {
-    return products.filter(product => {
-      // Product name filter
-      if (columnFilters.product && !product.name.toLowerCase().includes(columnFilters.product.toLowerCase())) {
-        return false
-      }
-      // SKU filter
-      if (columnFilters.sku && !product.sku?.toLowerCase().includes(columnFilters.sku.toLowerCase())) {
-        return false
-      }
-      // Category filter
-      if (columnFilters.category && !product.category?.name.toLowerCase().includes(columnFilters.category.toLowerCase())) {
-        return false
-      }
-      // Brand filter
-      if (columnFilters.brand && !product.brand?.name.toLowerCase().includes(columnFilters.brand.toLowerCase())) {
-        return false
-      }
-      // Unit filter
-      if (columnFilters.unit && !product.unit?.shortName.toLowerCase().includes(columnFilters.unit.toLowerCase())) {
-        return false
-      }
-      // Type filter
-      if (columnFilters.type && columnFilters.type !== 'all' && product.type.toLowerCase() !== columnFilters.type.toLowerCase()) {
-        return false
-      }
-      // Status filter (client-side)
-      if (columnFilters.status === 'active' && !product.isActive) {
-        return false
-      }
-      if (columnFilters.status === 'inactive' && product.isActive) {
-        return false
-      }
-      // Tax filter
-      if (columnFilters.tax && !product.tax?.name.toLowerCase().includes(columnFilters.tax.toLowerCase())) {
-        return false
-      }
-      return true
-    })
-  }, [products, columnFilters])
+  // Debounced effect to sync column filter inputs to server-side filters
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters(prev => ({
+        ...prev,
+        search: columnFilterInputs.product,
+        sku: columnFilterInputs.sku,
+        categoryName: columnFilterInputs.category,
+        brandName: columnFilterInputs.brand,
+        unitName: columnFilterInputs.unit,
+        productType: columnFilterInputs.type,
+        taxName: columnFilterInputs.tax
+      }))
+    }, 500) // 500ms debounce for server-side search
+
+    return () => clearTimeout(timer)
+  }, [columnFilterInputs])
 
   // Check if any column filter is active
   const hasColumnFilters = useMemo(() => {
-    return Object.values(columnFilters).some(v => v !== '' && v !== 'all')
-  }, [columnFilters])
+    return Object.values(columnFilterInputs).some(v => v !== '' && v !== 'all')
+  }, [columnFilterInputs])
 
   // Clear all column filters
   const clearColumnFilters = () => {
-    setColumnFilters({
+    setColumnFilterInputs({
       product: '',
       sku: '',
       category: '',
       brand: '',
       unit: '',
       type: '',
-      status: '',
       tax: ''
     })
+    // Also clear the actual filters
+    setFilters(prev => ({
+      ...prev,
+      search: '',
+      sku: '',
+      categoryName: '',
+      brandName: '',
+      unitName: '',
+      productType: '',
+      taxName: ''
+    }))
   }
 
-  const paginatedProducts = filteredProducts
+  const paginatedProducts = products
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + paginatedProducts.length
 
@@ -1154,15 +1139,15 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Column Filter Summary - Shows when filtering loaded records */}
+      {/* Column Filter Summary - Shows when column filters are active */}
       {hasColumnFilters && (
         <div className="mb-4 flex items-center justify-between bg-blue-50 dark:bg-blue-900/30 px-4 py-2 rounded-lg border border-blue-200 dark:border-blue-800">
           <div className="flex items-center gap-2">
             <span className="text-blue-700 dark:text-blue-300 text-sm font-medium">
-              Showing {filteredProducts.length} of {products.length} loaded products
+              Showing {totalCount} matching products
             </span>
             <span className="text-blue-500 dark:text-blue-400 text-xs">
-              (Column filters active)
+              (Column filters active - searching all records)
             </span>
           </div>
           <Button
@@ -1295,7 +1280,7 @@ export default function ProductsPage() {
                   </SortableTableHead>
                 )}
               </TableRow>
-              {/* Column Filter Row - Client-side instant filtering */}
+              {/* Column Filter Row - Server-side filtering with debounce */}
               <TableRow className="bg-blue-50/80 dark:bg-blue-900/20 text-xs hover:bg-blue-50/80 dark:hover:bg-blue-900/20 border-b-2 border-blue-200 dark:border-blue-800">
                 <TableCell className="bg-blue-50/80 dark:bg-blue-900/20 text-center">
                   <span className="text-blue-600 dark:text-blue-400 text-[10px] font-medium">Filter</span>
@@ -1303,9 +1288,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('product') && (
                   <TableCell className="bg-blue-50/80 dark:bg-blue-900/20">
                     <Input
-                      value={columnFilters.product}
-                      onChange={(e) => setColumnFilters(prev => ({ ...prev, product: e.target.value }))}
-                      placeholder="Filter product..."
+                      value={columnFilterInputs.product}
+                      onChange={(e) => setColumnFilterInputs(prev => ({ ...prev, product: e.target.value }))}
+                      placeholder="Search all products..."
                       className="h-8 text-xs border-blue-200 dark:border-blue-700 focus:border-blue-400"
                     />
                   </TableCell>
@@ -1314,9 +1299,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('sku') && (
                   <TableCell className="bg-blue-50/80 dark:bg-blue-900/20">
                     <Input
-                      value={columnFilters.sku}
-                      onChange={(e) => setColumnFilters(prev => ({ ...prev, sku: e.target.value }))}
-                      placeholder="Filter SKU..."
+                      value={columnFilterInputs.sku}
+                      onChange={(e) => setColumnFilterInputs(prev => ({ ...prev, sku: e.target.value }))}
+                      placeholder="Search SKU..."
                       className="h-8 text-xs font-mono border-blue-200 dark:border-blue-700 focus:border-blue-400"
                     />
                   </TableCell>
@@ -1324,8 +1309,8 @@ export default function ProductsPage() {
                 {visibleColumns.includes('status') && (
                   <TableCell className="bg-blue-50/80 dark:bg-blue-900/20">
                     <Select
-                      value={columnFilters.status || 'all'}
-                      onValueChange={(value) => setColumnFilters(prev => ({ ...prev, status: value === 'all' ? '' : value }))}
+                      value={activeFilter}
+                      onValueChange={(value) => setActiveFilter(value as 'all' | 'active' | 'inactive')}
                     >
                       <SelectTrigger className="h-8 text-xs border-blue-200 dark:border-blue-700">
                         <SelectValue placeholder="All" />
@@ -1341,9 +1326,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('category') && (
                   <TableCell className="bg-blue-50/80 dark:bg-blue-900/20">
                     <Input
-                      value={columnFilters.category}
-                      onChange={(e) => setColumnFilters(prev => ({ ...prev, category: e.target.value }))}
-                      placeholder="Filter category..."
+                      value={columnFilterInputs.category}
+                      onChange={(e) => setColumnFilterInputs(prev => ({ ...prev, category: e.target.value }))}
+                      placeholder="Search category..."
                       className="h-8 text-xs border-blue-200 dark:border-blue-700 focus:border-blue-400"
                     />
                   </TableCell>
@@ -1351,9 +1336,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('brand') && (
                   <TableCell className="bg-blue-50/80 dark:bg-blue-900/20">
                     <Input
-                      value={columnFilters.brand}
-                      onChange={(e) => setColumnFilters(prev => ({ ...prev, brand: e.target.value }))}
-                      placeholder="Filter brand..."
+                      value={columnFilterInputs.brand}
+                      onChange={(e) => setColumnFilterInputs(prev => ({ ...prev, brand: e.target.value }))}
+                      placeholder="Search brand..."
                       className="h-8 text-xs border-blue-200 dark:border-blue-700 focus:border-blue-400"
                     />
                   </TableCell>
@@ -1361,9 +1346,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('unit') && (
                   <TableCell className="bg-blue-50/80 dark:bg-blue-900/20">
                     <Input
-                      value={columnFilters.unit}
-                      onChange={(e) => setColumnFilters(prev => ({ ...prev, unit: e.target.value }))}
-                      placeholder="Filter unit..."
+                      value={columnFilterInputs.unit}
+                      onChange={(e) => setColumnFilterInputs(prev => ({ ...prev, unit: e.target.value }))}
+                      placeholder="Search unit..."
                       className="h-8 text-xs border-blue-200 dark:border-blue-700 focus:border-blue-400"
                     />
                   </TableCell>
@@ -1380,8 +1365,8 @@ export default function ProductsPage() {
                 {visibleColumns.includes('type') && (
                   <TableCell className="bg-blue-50/80 dark:bg-blue-900/20">
                     <Select
-                      value={columnFilters.type || 'all'}
-                      onValueChange={(value) => setColumnFilters(prev => ({ ...prev, type: value === 'all' ? '' : value }))}
+                      value={columnFilterInputs.type || 'all'}
+                      onValueChange={(value) => setColumnFilterInputs(prev => ({ ...prev, type: value === 'all' ? '' : value }))}
                     >
                       <SelectTrigger className="h-8 text-xs border-blue-200 dark:border-blue-700">
                         <SelectValue placeholder="All types" />
@@ -1399,9 +1384,9 @@ export default function ProductsPage() {
                 {visibleColumns.includes('tax') && (
                   <TableCell className="bg-blue-50/80 dark:bg-blue-900/20">
                     <Input
-                      value={columnFilters.tax}
-                      onChange={(e) => setColumnFilters(prev => ({ ...prev, tax: e.target.value }))}
-                      placeholder="Filter tax..."
+                      value={columnFilterInputs.tax}
+                      onChange={(e) => setColumnFilterInputs(prev => ({ ...prev, tax: e.target.value }))}
+                      placeholder="Search tax..."
                       className="h-8 text-xs border-blue-200 dark:border-blue-700 focus:border-blue-400"
                     />
                   </TableCell>
