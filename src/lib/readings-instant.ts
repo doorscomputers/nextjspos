@@ -331,6 +331,7 @@ async function generateXReadingFromRunningTotals(
   const totalCard = parseFloat(shift.runningCardSales.toString()) + parseFloat(shift.runningArPaymentsCard.toString())
   const totalGcash = parseFloat(shift.runningGcashSales.toString()) + parseFloat(shift.runningArPaymentsGcash.toString())
   const totalPaymaya = parseFloat(shift.runningPaymayaSales.toString()) + parseFloat(shift.runningArPaymentsPaymaya.toString())
+  const totalNfc = parseFloat(shift.runningNfcSales?.toString() || '0') + parseFloat(shift.runningArPaymentsNfc?.toString() || '0')
   const totalBank = parseFloat(shift.runningBankSales.toString()) + parseFloat(shift.runningArPaymentsBank.toString())
   const totalCheck = parseFloat(shift.runningCheckSales.toString()) + parseFloat(shift.runningArPaymentsCheck.toString())
   const totalOther = parseFloat(shift.runningOtherPayments.toString()) + parseFloat(shift.runningArPaymentsOther.toString())
@@ -339,6 +340,7 @@ async function generateXReadingFromRunningTotals(
   if (totalCard > 0) paymentBreakdown['card'] = totalCard
   if (totalGcash > 0) paymentBreakdown['gcash'] = totalGcash
   if (totalPaymaya > 0) paymentBreakdown['paymaya'] = totalPaymaya
+  if (totalNfc > 0) paymentBreakdown['nfc'] = totalNfc
   if (totalBank > 0) paymentBreakdown['bank_transfer'] = totalBank
   if (totalCheck > 0) paymentBreakdown['check'] = totalCheck
   // REMOVED: Credit sales are NOT payments - tracked separately
@@ -349,7 +351,7 @@ async function generateXReadingFromRunningTotals(
   // Calculate clearer breakdown fields
   const cashFromSales = parseFloat(shift.runningCashSales.toString()) // Cash collected from direct sales only
   const creditSales = parseFloat(shift.runningCreditSales.toString()) // Track separately - NOT a payment received
-  const totalNonCashPayments = totalGcash + totalPaymaya + totalCheck + totalCard + totalBank + totalOther // REMOVED credit sales - they are unpaid!
+  const totalNonCashPayments = totalGcash + totalPaymaya + totalNfc + totalCheck + totalCard + totalBank + totalOther // REMOVED credit sales - they are unpaid!
   const totalPaymentsReceived = expectedCash + totalNonCashPayments // Actual payments only (excludes credit sales)
 
   const xReadingData: XReadingData = {

@@ -29,6 +29,7 @@ function normalizePaymentMethod(method: string): string {
     'bank': 'bank_transfer',
     'credit': 'credit',
     'other': 'other',
+    'nfc': 'nfc',
   }
 
   return methodMap[normalized] || normalized
@@ -128,6 +129,7 @@ export async function incrementShiftTotalsForSale(
     runningCardSales: { increment: paymentBreakdown['card'] || 0 },
     runningGcashSales: { increment: paymentBreakdown['gcash'] || 0 },
     runningPaymayaSales: { increment: paymentBreakdown['paymaya'] || 0 },
+    runningNfcSales: { increment: paymentBreakdown['nfc'] || 0 },
     runningBankSales: { increment: paymentBreakdown['bank_transfer'] || 0 },
     runningCheckSales: { increment: paymentBreakdown['check'] || 0 },
     runningCreditSales: { increment: paymentBreakdown['credit'] || 0 },
@@ -221,6 +223,7 @@ export async function decrementShiftTotalsForVoid(
     runningCardSales: { decrement: paymentBreakdown['card'] || 0 },
     runningGcashSales: { decrement: paymentBreakdown['gcash'] || 0 },
     runningPaymayaSales: { decrement: paymentBreakdown['paymaya'] || 0 },
+    runningNfcSales: { decrement: paymentBreakdown['nfc'] || 0 },
     runningBankSales: { decrement: paymentBreakdown['bank_transfer'] || 0 },
     runningCheckSales: { decrement: paymentBreakdown['check'] || 0 },
     runningCreditSales: { decrement: paymentBreakdown['credit'] || 0 },
@@ -373,6 +376,7 @@ export async function calculateRunningTotalsFromSales(
     runningCardSales: 0,
     runningGcashSales: 0,
     runningPaymayaSales: 0,
+    runningNfcSales: 0,
     runningBankSales: 0,
     runningCheckSales: 0,
     runningCreditSales: 0,
@@ -431,6 +435,7 @@ export async function calculateRunningTotalsFromSales(
         else if (method === 'card') totals.runningCardSales += amount
         else if (method === 'gcash') totals.runningGcashSales += amount
         else if (method === 'paymaya') totals.runningPaymayaSales += amount
+        else if (method === 'nfc') totals.runningNfcSales += amount
         else if (method === 'bank_transfer') totals.runningBankSales += amount
         else if (method === 'check') totals.runningCheckSales += amount
         else if (method === 'credit') totals.runningCreditSales += amount
@@ -475,6 +480,7 @@ export async function incrementShiftTotalsForARPayment(
     card: 'runningArPaymentsCard',
     gcash: 'runningArPaymentsGcash',
     paymaya: 'runningArPaymentsPaymaya',
+    nfc: 'runningArPaymentsNfc',
     bank_transfer: 'runningArPaymentsBank',
     check: 'runningArPaymentsCheck',
   }

@@ -2754,6 +2754,7 @@ model CashierShift {
   runningCardSales     Decimal @default(0) @map("running_card_sales") @db.Decimal(22, 4) // Credit/Debit card
   runningGcashSales    Decimal @default(0) @map("running_gcash_sales") @db.Decimal(22, 4) // GCash payments
   runningPaymayaSales  Decimal @default(0) @map("running_paymaya_sales") @db.Decimal(22, 4) // PayMaya payments
+  runningNfcSales      Decimal @default(0) @map("running_nfc_sales") @db.Decimal(22, 4) // NFC payments
   runningBankSales     Decimal @default(0) @map("running_bank_sales") @db.Decimal(22, 4) // Bank transfer
   runningCheckSales    Decimal @default(0) @map("running_check_sales") @db.Decimal(22, 4) // Check payments
   runningCreditSales   Decimal @default(0) @map("running_credit_sales") @db.Decimal(22, 4) // AR/Credit sales
@@ -2764,6 +2765,7 @@ model CashierShift {
   runningArPaymentsCard     Decimal @default(0) @map("running_ar_payments_card") @db.Decimal(22, 4) // AR paid by card
   runningArPaymentsGcash    Decimal @default(0) @map("running_ar_payments_gcash") @db.Decimal(22, 4) // AR paid via GCash
   runningArPaymentsPaymaya  Decimal @default(0) @map("running_ar_payments_paymaya") @db.Decimal(22, 4) // AR paid via PayMaya
+  runningArPaymentsNfc      Decimal @default(0) @map("running_ar_payments_nfc") @db.Decimal(22, 4) // AR paid via NFC
   runningArPaymentsBank     Decimal @default(0) @map("running_ar_payments_bank") @db.Decimal(22, 4) // AR paid via bank transfer
   runningArPaymentsCheck    Decimal @default(0) @map("running_ar_payments_check") @db.Decimal(22, 4) // AR paid by cheque
   runningArPaymentsOther    Decimal @default(0) @map("running_ar_payments_other") @db.Decimal(22, 4) // AR paid by other methods
