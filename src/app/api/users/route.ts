@@ -131,9 +131,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if username already exists
-    const existing = await prisma.user.findUnique({ where: { username } })
-    if (existing) {
+    const existingUsername = await prisma.user.findUnique({ where: { username } })
+    if (existingUsername) {
       return NextResponse.json({ error: 'Username already exists' }, { status: 400 })
+    }
+
+    // Check if email already exists (if email is provided)
+    if (email) {
+      const existingEmail = await prisma.user.findUnique({ where: { email } })
+      if (existingEmail) {
+        return NextResponse.json({ error: 'Email already exists. Please use a different email address.' }, { status: 400 })
+      }
     }
 
     // Use provided password or default to "123456"
@@ -177,8 +185,15 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ success: true, user: { id: newUser.id, username: newUser.username } }, { status: 201 })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating user:', error)
+
+    // Handle Prisma unique constraint errors
+    if (error?.code === 'P2002') {
+      const field = error?.meta?.target?.[0] || 'field'
+      return NextResponse.json({ error: `${field.charAt(0).toUpperCase() + field.slice(1)} already exists. Please use a different value.` }, { status: 400 })
+    }
+
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
