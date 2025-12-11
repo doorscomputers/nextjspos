@@ -460,8 +460,8 @@ export default function PackageTemplatesPage() {
     }
   }
 
-  // Duplicate template
-  const duplicateTemplate = (template: PackageTemplate) => {
+  // Duplicate template - fetch fresh purchase prices from product database
+  const duplicateTemplate = async (template: PackageTemplate) => {
     setEditingTemplate(null)
     setTemplateForm({
       name: `${template.name} (Copy)`,
@@ -470,21 +470,49 @@ export default function PackageTemplatesPage() {
       categoryId: template.categoryId?.toString() || '',
       isActive: true
     })
-    setTemplateItems(template.items.map(item => {
-      const cost = Number(item.originalPrice) // originalPrice stores cost
-      const customPrice = Number(item.customPrice)
-      const markupPercent = cost > 0 ? Math.round(((customPrice - cost) / cost) * 100) : 0
-      return {
-        productId: item.productId,
-        productVariationId: item.productVariationId,
-        quantity: Number(item.quantity),
-        cost,
-        markupPercent,
-        customPrice,
-        productName: item.product.name,
-        productSku: item.product.sku
-      }
-    }))
+
+    // Fetch fresh purchase prices for all products
+    const refreshedItems = await Promise.all(
+      template.items.map(async (item) => {
+        // Use existing product search API to get current price
+        let freshCost = Number(item.originalPrice) // fallback to stored value
+
+        try {
+          const response = await fetch(`/api/products/search?q=${encodeURIComponent(item.product.sku)}&limit=5`)
+          const data = await response.json()
+
+          if (data.products) {
+            // Find the matching variation by ID
+            for (const product of data.products) {
+              const variation = product.variations?.find((v: any) => v.id === item.productVariationId)
+              if (variation && variation.defaultPurchasePrice) {
+                freshCost = Number(variation.defaultPurchasePrice)
+                break
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching fresh price for', item.product.name, error)
+          // Keep using stored originalPrice as fallback
+        }
+
+        const customPrice = Number(item.customPrice)
+        const markupPercent = freshCost > 0 ? Math.round(((customPrice - freshCost) / freshCost) * 100) : 0
+
+        return {
+          productId: item.productId,
+          productVariationId: item.productVariationId,
+          quantity: Number(item.quantity),
+          cost: freshCost,
+          markupPercent,
+          customPrice,
+          productName: item.product.name,
+          productSku: item.product.sku
+        }
+      })
+    )
+
+    setTemplateItems(refreshedItems)
     setShowTemplateDialog(true)
   }
 
