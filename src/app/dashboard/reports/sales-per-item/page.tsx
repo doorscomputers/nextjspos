@@ -481,6 +481,11 @@ export default function SalesPerItemReport() {
               minWidth={200}
             />
             <Column
+              dataField="category"
+              caption="Category"
+              width={150}
+            />
+            <Column
               dataField="sku"
               caption="SKU"
               width={130}
