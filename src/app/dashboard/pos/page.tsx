@@ -247,7 +247,7 @@ export default function POSEnhancedPage() {
     }
   }
 
-  // Load package items into cart
+  // Load package items into cart - with consolidation and proper stock validation
   const loadPackageToCart = (template: any) => {
     if (!currentShift?.location?.id) {
       setError('No location selected')
@@ -255,48 +255,83 @@ export default function POSEnhancedPage() {
     }
 
     const locationId = currentShift.location.id
-    const newItems: any[] = []
+    let updatedCart = [...cart]
+    let itemsAdded = 0
+    let itemsUpdated = 0
 
-    template.items.forEach((item: any) => {
+    for (const item of template.items) {
       // Find the product in our products list to get stock and variation details
       const product = products.find((p: any) => p.id === item.productId)
-      if (!product) return
+      if (!product) continue
 
       const variation = product.variations?.find((v: any) => v.id === item.productVariationId)
-      if (!variation) return
+      if (!variation) continue
 
-      // Get stock for current location
-      const locationStock = variation.stocks?.find((s: any) => s.locationId === locationId)
-      const stockQty = locationStock?.quantity || 0
+      // Get stock for current location (use variationLocationDetails like addToCart does)
+      const locationStock = variation.variationLocationDetails?.find((s: any) => s.locationId === locationId)
+      const availableStock = product.notForSelling ? 999999 : parseFloat(locationStock?.qtyAvailable || '0')
+      const qtyToAdd = Number(item.quantity) || 1
 
-      // Use cart item structure that matches the rest of the POS page
-      newItems.push({
-        productId: product.id,
-        productVariationId: variation.id,
-        name: product.name + (variation.name ? ` - ${variation.name}` : ''),
-        sku: variation.sku || product.sku,
-        unitPrice: Number(item.customPrice) || 0, // Use package custom price
-        originalPrice: Number(item.originalPrice) || Number(item.customPrice) || 0,
-        quantity: Number(item.quantity) || 1,
-        displayQuantity: Number(item.quantity) || 1,
-        selectedUnitId: null,
-        selectedUnitName: null,
-        stock: stockQty,
-        imageUrl: product.imageUrl,
-        requiresSerial: product.enableSerialNumber || false,
-        serialNumberIds: [],
-        isFreebie: false,
-        freebieReason: '',
-        itemDiscountType: null,
-        itemDiscountValue: 0,
-        itemDiscountAmount: 0
-      })
-    })
+      // Check if this product variation already exists in cart (consolidate)
+      const existingIndex = updatedCart.findIndex(
+        (cartItem) => cartItem.productVariationId === variation.id && !cartItem.isFreebie
+      )
 
-    // Add items to cart (merge with existing if any)
-    setCart(prev => [...prev, ...newItems])
+      if (existingIndex >= 0) {
+        // Product exists in cart - increase quantity
+        const newQuantity = updatedCart[existingIndex].quantity + qtyToAdd
+
+        // Validate stock
+        if (newQuantity > availableStock && !product.notForSelling) {
+          setError(`Insufficient stock for "${product.name}"! Only ${availableStock} available.`)
+          setTimeout(() => setError(''), 4000)
+          continue
+        }
+
+        updatedCart[existingIndex].quantity = newQuantity
+        updatedCart[existingIndex].displayQuantity = newQuantity
+        itemsUpdated++
+      } else {
+        // New product - validate stock first
+        if (qtyToAdd > availableStock && !product.notForSelling) {
+          setError(`Insufficient stock for "${product.name}"! Only ${availableStock} available.`)
+          setTimeout(() => setError(''), 4000)
+          continue
+        }
+
+        // Add new item with correct availableStock property
+        updatedCart.push({
+          productId: product.id,
+          productVariationId: variation.id,
+          name: product.name + (variation.name ? ` - ${variation.name}` : ''),
+          sku: variation.sku || product.sku,
+          unitPrice: Number(item.customPrice) || 0, // Use package custom price
+          originalPrice: Number(item.originalPrice) || Number(item.customPrice) || 0,
+          quantity: qtyToAdd,
+          displayQuantity: qtyToAdd,
+          selectedUnitId: null,
+          selectedUnitName: null,
+          availableStock: availableStock, // FIXED: Use availableStock for updateQuantity compatibility
+          imageUrl: product.imageUrl,
+          requiresSerial: product.enableSerialNumber || false,
+          serialNumberIds: [],
+          isFreebie: false,
+          freebieReason: '',
+          itemDiscountType: null,
+          itemDiscountValue: 0,
+          itemDiscountAmount: 0,
+          notForSelling: product.notForSelling || false,
+        })
+        itemsAdded++
+      }
+    }
+
+    setCart(updatedCart)
     setShowPackageDialog(false)
-    toast.success(`Loaded ${newItems.length} items from "${template.name}"`)
+
+    if (itemsAdded > 0 || itemsUpdated > 0) {
+      toast.success(`Package "${template.name}": ${itemsAdded} added, ${itemsUpdated} updated`)
+    }
   }
 
   // Fetch products after shift is loaded
