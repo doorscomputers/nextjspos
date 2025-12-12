@@ -123,6 +123,7 @@ export default function PackageTemplatesPage() {
     productSku: string
   }>>([])
   const [savingTemplate, setSavingTemplate] = useState(false)
+  const [targetPackagePrice, setTargetPackagePrice] = useState<number>(0)
 
   // Product search state
   const [productSearch, setProductSearch] = useState('')
@@ -526,6 +527,44 @@ export default function PackageTemplatesPage() {
   const totalCustom = templateItems.reduce((sum, item) => sum + (item.customPrice * item.quantity), 0)
   const totalProfit = totalCustom - totalCost
   const avgMarkup = totalCost > 0 ? ((totalProfit / totalCost) * 100).toFixed(1) : '0'
+
+  // Sync targetPackagePrice with totalCustom when items change
+  useEffect(() => {
+    setTargetPackagePrice(totalCustom)
+  }, [totalCustom])
+
+  // Distribute package price proportionally across all items
+  const distributePackagePrice = (targetPrice: number) => {
+    if (templateItems.length === 0 || totalCost <= 0) return
+
+    // Show warning if selling at a loss
+    if (targetPrice < totalCost) {
+      toast.warning('Package price is below total cost - selling at a loss!')
+    }
+
+    // Calculate the total markup amount needed
+    const totalMarkupNeeded = targetPrice - totalCost
+
+    // Distribute markup proportionally based on each item's cost weight
+    const updated = templateItems.map(item => {
+      const itemTotalCost = item.cost * item.quantity
+      const costWeight = itemTotalCost / totalCost
+      const itemMarkupAmount = totalMarkupNeeded * costWeight
+      const itemNewTotal = itemTotalCost + itemMarkupAmount
+      const newCustomPrice = Math.round(itemNewTotal / item.quantity)
+      const newMarkupPercent = item.cost > 0
+        ? Math.round(((newCustomPrice - item.cost) / item.cost) * 100)
+        : 0
+
+      return {
+        ...item,
+        customPrice: newCustomPrice,
+        markupPercent: newMarkupPercent
+      }
+    })
+
+    setTemplateItems(updated)
+  }
 
   // Export handlers
   const handleExport = (format: 'excel' | 'csv') => {
@@ -1003,11 +1042,28 @@ export default function PackageTemplatesPage() {
                     {new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(totalCost)}
                   </span>
                 </div>
-                <div className="flex justify-between text-lg font-bold">
+                <div className="flex justify-between items-center text-lg font-bold">
                   <span>Package Price:</span>
-                  <span className="text-green-600">
-                    {new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(totalCustom)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-500">₱</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="1"
+                      className="w-32 text-right font-bold text-green-600"
+                      value={targetPackagePrice}
+                      onChange={(e) => setTargetPackagePrice(parseFloat(e.target.value) || 0)}
+                      onKeyDown={(e) => e.key === 'Enter' && distributePackagePrice(targetPackagePrice)}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => distributePackagePrice(targetPackagePrice)}
+                      title="Distribute this price proportionally across all items"
+                    >
+                      Apply
+                    </Button>
+                  </div>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600 dark:text-gray-400">Total Profit:</span>
