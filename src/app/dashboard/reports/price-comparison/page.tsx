@@ -118,23 +118,6 @@ export default function PriceComparisonReportPage() {
     return <span>₱{Number(price).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
   }
 
-  const renderVarianceCell = (cellData: any) => {
-    const variance = cellData.value || 0
-    if (variance === 0) {
-      return <span className="text-gray-500">₱0.00</span>
-    }
-    return <span className="text-red-600 font-semibold">₱{variance.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-  }
-
-  const renderVariancePercentCell = (cellData: any) => {
-    const percent = cellData.value || 0
-    if (percent === 0) {
-      return <span className="text-gray-500">0.00%</span>
-    }
-    const color = percent > 20 ? 'text-red-600 font-bold' : percent > 10 ? 'text-orange-600 font-semibold' : 'text-yellow-600'
-    return <span className={color}>{percent.toFixed(2)}%</span>
-  }
-
   const renderDateCell = (cellData: any) => {
     const dateValue = cellData.value
     if (!dateValue) {
@@ -287,51 +270,6 @@ export default function PriceComparisonReportPage() {
               cellRender={renderPriceCell}
             />
 
-            <Column
-              dataField="minPrice"
-              caption="Min Price"
-              dataType="number"
-              format={{ type: 'currency', currency: 'PHP' }}
-              width={120}
-              cellRender={renderPriceCell}
-            />
-
-            <Column
-              dataField="maxPrice"
-              caption="Max Price"
-              dataType="number"
-              format={{ type: 'currency', currency: 'PHP' }}
-              width={120}
-              cellRender={renderPriceCell}
-            />
-
-            <Column
-              dataField="avgPrice"
-              caption="Avg Price"
-              dataType="number"
-              format={{ type: 'currency', currency: 'PHP' }}
-              width={120}
-              cellRender={renderPriceCell}
-            />
-
-            <Column
-              dataField="priceVariance"
-              caption="Variance Amount"
-              dataType="number"
-              format={{ type: 'currency', currency: 'PHP' }}
-              width={140}
-              cellRender={renderVarianceCell}
-            />
-
-            <Column
-              dataField="priceVariancePercent"
-              caption="Variance %"
-              dataType="number"
-              format="#0.00'%'"
-              width={120}
-              cellRender={renderVariancePercentCell}
-            />
-
             {/* Dynamic location columns */}
             {displayLocations.map((location) => (
               <Column
@@ -347,18 +285,6 @@ export default function PriceComparisonReportPage() {
 
             <Summary>
               <TotalItem column="productName" summaryType="count" displayFormat="Total: {0} products" />
-              <TotalItem
-                column="avgPrice"
-                summaryType="avg"
-                valueFormat={{ type: 'currency', currency: 'PHP' }}
-                displayFormat="Avg: {0}"
-              />
-              <TotalItem
-                column="priceVariance"
-                summaryType="avg"
-                valueFormat={{ type: 'currency', currency: 'PHP' }}
-                displayFormat="Avg Variance: {0}"
-              />
             </Summary>
 
             <Toolbar>
@@ -382,15 +308,14 @@ export default function PriceComparisonReportPage() {
         {/* Help Section */}
         <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
           <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
-            📊 Understanding Price Variance
+            💡 How to Use
           </h3>
           <ul className="space-y-1 text-sm text-blue-800 dark:text-blue-200">
-            <li>• <strong>Variance Amount</strong>: Difference between highest and lowest price across locations</li>
-            <li>• <strong>Variance %</strong>: Variance as percentage of base price</li>
-            <li>• <strong className="text-red-600">High Variance (&gt;20%)</strong>: Requires review - pricing may be inconsistent</li>
-            <li>• <strong className="text-orange-600">Medium Variance (10-20%)</strong>: Monitor - acceptable regional pricing</li>
-            <li>• <strong className="text-yellow-600">Low Variance (&lt;10%)</strong>: Normal - minor pricing differences</li>
-            <li>• Use filters to find products with highest variance for price standardization</li>
+            <li>• <strong>Base Price</strong>: The default selling price for the product</li>
+            <li>• <strong>Cost Price</strong>: The purchase cost (for reference)</li>
+            <li>• <strong>Location Columns</strong>: Show the selling price at each branch</li>
+            <li>• Click <strong>"Edit Price"</strong> to update prices for any product</li>
+            <li>• Use the search bar or column filters to find specific products</li>
           </ul>
         </div>
       </div>
