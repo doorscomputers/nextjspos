@@ -129,6 +129,10 @@ export async function GET(request: NextRequest) {
     const sellingPriceMax = searchParams.get('sellingPriceMax') ? parseFloat(searchParams.get('sellingPriceMax')!) : undefined
     const taxName = searchParams.get('taxName')?.trim() || ''
 
+    // 🚀 PERFORMANCE: Filter products by stock at specific location (for transfers, POS)
+    const withStock = searchParams.get('withStock') === 'true'
+    const locationIdParam = searchParams.get('locationId')
+
     // Build where clause
     const whereClause: any = {
       businessId: parseInt(businessId),
@@ -148,6 +152,25 @@ export async function GET(request: NextRequest) {
     // Apply stock enabled filter (for reorder management pages)
     if (stockEnabledOnly) {
       whereClause.enableStock = true
+    }
+
+    // 🚀 PERFORMANCE: Filter only products with stock > 0 at specific location
+    // This dramatically reduces data for transfer pages (from 10,000 to ~hundreds)
+    if (withStock && locationIdParam) {
+      const locationId = parseInt(locationIdParam)
+      if (!isNaN(locationId)) {
+        whereClause.variations = {
+          some: {
+            deletedAt: null,
+            variationLocationDetails: {
+              some: {
+                locationId: locationId,
+                qtyAvailable: { gt: 0 }
+              }
+            }
+          }
+        }
+      }
     }
 
     // Apply multi-column filters

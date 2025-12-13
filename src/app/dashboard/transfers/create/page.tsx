@@ -137,22 +137,23 @@ export default function CreateTransferPage() {
     }
   }
 
-  // INSTANT SEARCH: Load ALL products once (EXACT POS PATTERN for instant search)
+  // INSTANT SEARCH: Load products with stock at this location (OPTIMIZED)
   const fetchAllProducts = async () => {
     if (!locationId) return
 
     try {
       setLoadingProducts(true)
-      console.log('🚀 [INSTANT SEARCH] Loading ALL products... (like POS)')
+      console.log('🚀 [INSTANT SEARCH] Loading products with stock at location', locationId)
 
-      // Use SAME endpoint as POS: /api/products?limit=10000&status=active
-      const response = await fetch('/api/products?limit=10000&status=active')
+      // 🚀 OPTIMIZED: Only fetch products with stock > 0 at THIS location
+      // This filters at database level, dramatically reducing data transfer
+      const response = await fetch(`/api/products?limit=10000&status=active&withStock=true&locationId=${locationId}`)
       const data = await response.json()
 
-      console.log(`📦 Fetched ${data.products?.length || 0} total products`)
+      console.log(`📦 Fetched ${data.products?.length || 0} products with stock`)
 
       if (data.products) {
-        // Filter for products with stock > 0 at THIS location (EXACT POS PATTERN)
+        // Process fetched products - they already have stock at this location
         const productsWithStock = data.products
           .map((p: any) => {
             // Add stock quantity to each variation for INSTANT access (no API call!)
@@ -176,7 +177,7 @@ export default function CreateTransferPage() {
           })
           .filter((p: any) => p.variations && p.variations.length > 0)  // Only products with stock
 
-        console.log(`✅ [INSTANT SEARCH] ${productsWithStock.length} products have stock at location ${locationId}`)
+        console.log(`✅ [INSTANT SEARCH] ${productsWithStock.length} products ready for transfer`)
 
         // Sort by name (like POS)
         const sortedProducts = productsWithStock.sort((a: any, b: any) =>
