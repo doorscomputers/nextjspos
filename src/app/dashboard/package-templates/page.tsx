@@ -568,6 +568,27 @@ export default function PackageTemplatesPage() {
       }
     })
 
+    // Fix rounding error: Adjust the last item to ensure total matches target exactly
+    const calculatedTotal = updated.reduce((sum, item) => sum + (item.customPrice * item.quantity), 0)
+    const roundingDifference = targetPrice - calculatedTotal
+
+    if (roundingDifference !== 0 && updated.length > 0) {
+      // Find the last item with quantity 1 for simplest adjustment, or use last item
+      const lastIndex = updated.length - 1
+      const lastItem = updated[lastIndex]
+
+      // Only adjust if the difference is small (rounding error, not a calculation bug)
+      if (Math.abs(roundingDifference) <= updated.length) {
+        updated[lastIndex] = {
+          ...lastItem,
+          customPrice: lastItem.customPrice + roundingDifference,
+          markupPercent: lastItem.cost > 0
+            ? Math.round((((lastItem.customPrice + roundingDifference) - lastItem.cost) / lastItem.cost) * 100)
+            : lastItem.markupPercent
+        }
+      }
+    }
+
     setTemplateItems(updated)
   }
 
