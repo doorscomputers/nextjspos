@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
+import { formatCurrency } from '@/lib/currencyUtils'
 
 interface Product {
   id: number
@@ -14,14 +15,16 @@ interface Product {
 
 interface ProductSearchProps {
   onProductSelect: (product: Product) => void
+  initialSku?: string // Optional pre-filled SKU from URL query params
 }
 
-export default function ProductSearch({ onProductSelect }: ProductSearchProps) {
-  const [skuInput, setSkuInput] = useState('')
+export default function ProductSearch({ onProductSelect, initialSku = '' }: ProductSearchProps) {
+  const [skuInput, setSkuInput] = useState(initialSku)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Product[]>([])
   const [searching, setSearching] = useState(false)
   const [searchMode, setSearchMode] = useState<'sku' | 'name'>('sku')
+  const [hasAutoSearched, setHasAutoSearched] = useState(false)
 
   // Search by SKU (exact match)
   const searchBySku = useCallback(async () => {
@@ -134,6 +137,18 @@ export default function ProductSearch({ onProductSelect }: ProductSearchProps) {
       setSearching(false)
     }
   }, [searchQuery])
+
+  // Auto-search when initialSku is provided from URL query params
+  useEffect(() => {
+    if (initialSku && !hasAutoSearched) {
+      setHasAutoSearched(true)
+      // Trigger search after a small delay to ensure component is mounted
+      const timer = setTimeout(() => {
+        searchBySku()
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [initialSku, hasAutoSearched, searchBySku])
 
   // Handle SKU input change
   const handleSkuChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -314,7 +329,7 @@ export default function ProductSearch({ onProductSelect }: ProductSearchProps) {
                   </div>
                   <div className="text-right ml-4">
                     <div className="font-medium text-gray-900 dark:text-gray-100">
-                      ₱{product.currentPrice.toFixed(2)}
+                      ₱{formatCurrency(product.currentPrice)}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-500">
                       Current price

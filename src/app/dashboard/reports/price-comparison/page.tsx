@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import DataGrid, {
@@ -53,6 +54,7 @@ interface PriceComparisonData {
 }
 
 export default function PriceComparisonReportPage() {
+  const router = useRouter()
   const { can } = usePermissions()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<PriceComparisonData[]>([])
@@ -142,6 +144,28 @@ export default function PriceComparisonReportPage() {
     return <span>{date.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
   }
 
+  // Handler for Edit Price button
+  const handleEditPrice = useCallback((sku: string) => {
+    router.push(`/dashboard/products/simple-price-editor?sku=${encodeURIComponent(sku)}`)
+  }, [router])
+
+  // Render Edit Price button
+  const renderEditPriceCell = useCallback((cellData: any) => {
+    const sku = cellData.data?.productSku
+    return (
+      <button
+        onClick={() => handleEditPrice(sku)}
+        className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded hover:bg-indigo-700 transition-colors flex items-center gap-1"
+        title={`Edit prices for ${sku}`}
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+        </svg>
+        Edit Price
+      </button>
+    )
+  }, [handleEditPrice])
+
   if (!hasAccess) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
@@ -220,6 +244,17 @@ export default function PriceComparisonReportPage() {
 
             <Column dataField="productName" caption="Product" width={250} fixed={true} fixedPosition="left" />
             <Column dataField="productSku" caption="SKU" width={120} fixed={true} fixedPosition="left" />
+            <Column
+              caption="Action"
+              width={110}
+              fixed={true}
+              fixedPosition="left"
+              cellRender={renderEditPriceCell}
+              allowFiltering={false}
+              allowSorting={false}
+              allowHeaderFiltering={false}
+              allowExporting={false}
+            />
             <Column dataField="variationName" caption="Variation" width={150} fixed={true} fixedPosition="left" />
             <Column dataField="categoryName" caption="Category" width={150} fixed={true} fixedPosition="left" />
             <Column dataField="brandName" caption="Brand" width={150} fixed={true} fixedPosition="left" />

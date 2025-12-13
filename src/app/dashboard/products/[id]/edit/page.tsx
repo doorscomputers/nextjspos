@@ -139,21 +139,8 @@ export default function EditProductPage() {
     }
   }, [formData.categoryId, categories])
 
-  // Auto-calculate selling price from margin percentage
-  useEffect(() => {
-    if (formData.purchasePrice && formData.marginPercentage) {
-      const purchase = parseFloat(formData.purchasePrice)
-      const margin = parseFloat(formData.marginPercentage)
-      if (!isNaN(purchase) && !isNaN(margin) && purchase > 0) {
-        const selling = purchase + (purchase * margin / 100)
-        setFormData(prev => ({ ...prev, sellingPrice: selling.toFixed(2) }))
-      }
-    }
-  }, [formData.purchasePrice, formData.marginPercentage])
-
-  // REMOVED: Auto-calculate margin percentage from selling price (caused infinite loop)
-  // The margin percentage should only be manually set by the user, then it calculates selling price
-  // Having both directions (margin→price AND price→margin) creates a computation cycle
+  // NOTE: Selling price auto-calculation removed - prices are now location-specific
+  // Users should edit prices via Price Comparison page → Simple Price Editor
 
   // Lazy load products only when product type is 'combo'
   useEffect(() => {
@@ -360,25 +347,12 @@ export default function EditProductPage() {
     setLoading(true)
 
     try {
-      // Validate pricing for single products
+      // Validate pricing for single products (only cost, selling prices are location-specific)
       if (formData.type === 'single') {
         const cost = parseFloat(formData.purchasePrice) || 0
-        const price = parseFloat(formData.sellingPrice) || 0
 
         if (cost <= 0) {
           alert('Purchase price (cost) must be greater than zero')
-          setLoading(false)
-          return
-        }
-
-        if (price <= 0) {
-          alert('Selling price must be greater than zero')
-          setLoading(false)
-          return
-        }
-
-        if (price < cost) {
-          alert('Selling price cannot be lower than purchase price (cost)')
           setLoading(false)
           return
         }
@@ -1181,10 +1155,10 @@ export default function EditProductPage() {
         {formData.type === 'single' && (
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Product Pricing</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Exc. Tax Purchase Price <span className="text-red-500">*</span>
+                  Exc. Tax Purchase Price (Cost) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -1201,43 +1175,20 @@ export default function EditProductPage() {
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Margin %</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.marginPercentage}
-                  onChange={(e) => setFormData({ ...formData, marginPercentage: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 bg-white"
-                  placeholder="0.00"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Exc. Tax Selling Price <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={formData.sellingPrice}
-                  onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 text-gray-900 bg-white ${
-                    parseFloat(formData.sellingPrice || '0') < parseFloat(formData.purchasePrice || '0') && formData.sellingPrice
-                      ? 'border-red-500 focus:ring-red-500'
-                      : 'border-gray-300 focus:ring-indigo-500'
-                  }`}
-                  placeholder="0.00"
-                  required
-                />
-                {parseFloat(formData.sellingPrice || '0') <= 0 && formData.sellingPrice && (
-                  <p className="mt-1 text-sm text-red-600">Selling price must be greater than zero</p>
-                )}
-                {parseFloat(formData.sellingPrice || '0') < parseFloat(formData.purchasePrice || '0') &&
-                 parseFloat(formData.sellingPrice || '0') > 0 && (
-                  <p className="mt-1 text-sm text-red-600 font-semibold">⚠️ Warning: Selling price is lower than purchase price!</p>
-                )}
+              {/* Location-specific pricing notice */}
+              <div className="flex items-center">
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 border border-amber-200 dark:border-amber-800 w-full">
+                  <h4 className="font-medium text-amber-900 dark:text-amber-100 mb-2">
+                    Location-Specific Pricing
+                  </h4>
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    Selling prices vary by location. To view and edit prices for all locations, go to{' '}
+                    <a href="/dashboard/reports/price-comparison" className="text-indigo-600 hover:underline font-medium">
+                      Reports → Price Comparison
+                    </a>{' '}
+                    and use the Simple Price Editor.
+                  </p>
+                </div>
               </div>
             </div>
           </div>

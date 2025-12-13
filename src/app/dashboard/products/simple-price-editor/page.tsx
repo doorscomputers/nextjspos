@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import notify from 'devextreme/ui/notify'
@@ -26,6 +27,9 @@ interface Location {
 }
 
 export default function SimplePriceEditorPage() {
+  const searchParams = useSearchParams()
+  const initialSku = searchParams.get('sku') || ''
+
   const { can, hasAnyRole, user } = usePermissions()
 
   // Check permissions
@@ -277,7 +281,7 @@ export default function SimplePriceEditorPage() {
               <span className="text-2xl">🔍</span>
               Step 1: Search Product
             </h2>
-            <ProductSearch onProductSelect={handleProductSelect} />
+            <ProductSearch onProductSelect={handleProductSelect} initialSku={initialSku} />
           </div>
 
           {/* Step 2: Product Review (shown only when product is selected) */}
