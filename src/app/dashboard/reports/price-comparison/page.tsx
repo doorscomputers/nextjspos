@@ -253,15 +253,6 @@ export default function PriceComparisonReportPage() {
             />
 
             <Column
-              dataField="basePrice"
-              caption="Base Price"
-              dataType="number"
-              format={{ type: 'currency', currency: 'PHP' }}
-              width={120}
-              cellRender={renderPriceCell}
-            />
-
-            <Column
               dataField="costPrice"
               caption="Cost Price"
               dataType="number"
@@ -311,7 +302,6 @@ export default function PriceComparisonReportPage() {
             💡 How to Use
           </h3>
           <ul className="space-y-1 text-sm text-blue-800 dark:text-blue-200">
-            <li>• <strong>Base Price</strong>: The default selling price for the product</li>
             <li>• <strong>Cost Price</strong>: The purchase cost (for reference)</li>
             <li>• <strong>Location Columns</strong>: Show the selling price at each branch</li>
             <li>• Click <strong>"Edit Price"</strong> to update prices for any product</li>
