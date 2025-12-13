@@ -238,7 +238,6 @@ export default function PriceComparisonReportPage() {
               allowHeaderFiltering={false}
               allowExporting={false}
             />
-            <Column dataField="variationName" caption="Variation" width={150} fixed={true} fixedPosition="left" />
             <Column dataField="categoryName" caption="Category" width={150} fixed={true} fixedPosition="left" />
             <Column dataField="brandName" caption="Brand" width={150} fixed={true} fixedPosition="left" />
 
