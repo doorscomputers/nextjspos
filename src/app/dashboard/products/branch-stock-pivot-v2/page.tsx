@@ -460,16 +460,6 @@ export default function BranchStockPivotV2Page() {
             alignment="right"
             cssClass="bg-amber-50 dark:bg-amber-900/20"
           />
-          <Column
-            dataField="price"
-            caption="Selling Price"
-            dataType="number"
-            format="₱#,##0.00"
-            width={130}
-            alignment="right"
-            cssClass="bg-blue-50 dark:bg-blue-900/20"
-          />
-
           {/* Dynamic Location Columns */}
           {locations.map((location) => (
             <Column
@@ -508,15 +498,6 @@ export default function BranchStockPivotV2Page() {
             cssClass="bg-yellow-50 dark:bg-yellow-900/20"
           />
           <Column
-            dataField="totalPrice"
-            caption="Total Price"
-            dataType="number"
-            format="₱#,##0.00"
-            width={130}
-            alignment="right"
-            cssClass="bg-blue-50 dark:bg-blue-900/20"
-          />
-          <Column
             dataField="isActive"
             caption="Status"
             width={100}
@@ -541,7 +522,6 @@ export default function BranchStockPivotV2Page() {
             <TotalItem column="itemCode" summaryType="count" displayFormat="Total: {0} items" />
             <TotalItem column="totalStock" summaryType="sum" valueFormat="#,##0" displayFormat="{0}" />
             <TotalItem column="totalCost" summaryType="sum" valueFormat="₱#,##0.00" displayFormat="{0}" />
-            <TotalItem column="totalPrice" summaryType="sum" valueFormat="₱#,##0.00" displayFormat="{0}" />
             {locations.map((location) => (
               <TotalItem
                 key={location.id}

@@ -247,9 +247,9 @@ export default function BranchStockPivotPage() {
         if (Array.isArray(data.locations)) {
           setLocations(data.locations)
           setVisibleColumns((prev) => {
-            const baseColumns = ['itemCode', 'itemName', 'supplier', 'category', 'brand', 'lastDeliveryDate', 'lastQtyDelivered', 'cost', 'price']
+            const baseColumns = ['itemCode', 'itemName', 'supplier', 'category', 'brand', 'lastDeliveryDate', 'lastQtyDelivered', 'cost']
             const locationColumns = data.locations.map((loc: { id: number }) => `location-${loc.id}`)
-            const defaultColumns = [...baseColumns, ...locationColumns, 'totalStocks', 'totalCost', 'totalPrice', 'active']
+            const defaultColumns = [...baseColumns, ...locationColumns, 'totalStocks', 'totalCost', 'active']
 
             const prevLocationColumns = prev.filter((column) => column.startsWith('location-'))
             const hasDifferentLocations =
