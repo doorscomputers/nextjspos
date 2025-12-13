@@ -334,12 +334,13 @@ export default function PackageTemplatesPage() {
 
     setSearchingProducts(true)
     try {
-      // Use optimized search mode with 'beginsWith' for faster index-based search
-      // If query looks like a SKU (mostly numbers), use SKU search; otherwise use name search
+      // Use optimized search mode
+      // If query looks like a SKU (mostly numbers), use exact SKU search
+      // Otherwise use 'contains' mode to search anywhere in product name
       const isLikelySku = /^\d{5,}$/.test(query.trim()) // 5+ digits = likely barcode/SKU
       const searchUrl = isLikelySku
         ? `/api/products/search?type=sku&query=${encodeURIComponent(query)}&limit=30`
-        : `/api/products/search?type=name&method=beginsWith&query=${encodeURIComponent(query)}&limit=30`
+        : `/api/products/search?type=name&method=contains&query=${encodeURIComponent(query)}&limit=30`
       const response = await fetch(searchUrl)
       const data = await response.json()
 
