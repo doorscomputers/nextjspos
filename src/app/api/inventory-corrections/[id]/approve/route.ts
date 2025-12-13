@@ -78,6 +78,13 @@ export async function POST(
       }, { status: 400 })
     }
 
+    // Check if user is trying to approve their own correction (self-approval restriction)
+    if (correction.createdBy === userIdNumber) {
+      return NextResponse.json({
+        error: 'You cannot approve your own inventory corrections. This requires approval from another user.'
+      }, { status: 403 })
+    }
+
     const recordedDifference = parseFloat(correction.difference.toString())
     const physicalCount = parseFloat(correction.physicalCount.toString())
     const systemCount = parseFloat(correction.systemCount.toString())

@@ -86,11 +86,19 @@ export async function POST(request: NextRequest) {
     const pendingCorrections = corrections.filter((c) => c.status === 'pending')
     const alreadyApproved = corrections.filter((c) => c.status === 'approved')
 
-    if (pendingCorrections.length === 0) {
+    // Filter out self-created corrections (users cannot approve their own corrections)
+    const selfCreated = pendingCorrections.filter((c) => c.createdBy === userIdNumber)
+    const approvableCorrections = pendingCorrections.filter((c) => c.createdBy !== userIdNumber)
+
+    if (approvableCorrections.length === 0) {
+      const errorMessage = selfCreated.length > 0
+        ? 'You cannot approve your own inventory corrections. All selected corrections were created by you.'
+        : 'All selected corrections are already approved'
       return NextResponse.json(
         {
-          error: 'All selected corrections are already approved',
+          error: errorMessage,
           alreadyApprovedCount: alreadyApproved.length,
+          selfCreatedCount: selfCreated.length,
         },
         { status: 400 },
       )
@@ -98,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     const approvalResults: Array<{ success: boolean; id: number; error?: string }> = []
 
-    for (const correction of pendingCorrections) {
+    for (const correction of approvableCorrections) {
       try {
         const recordedDifference = parseFloat(correction.difference.toString())
         const physicalCount = parseFloat(correction.physicalCount.toString())
@@ -247,14 +255,16 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      message: `Bulk approval completed. ${successful.length} approved, ${failed.length} failed, ${alreadyApproved.length} skipped (already approved)`,
+      message: `Bulk approval completed. ${successful.length} approved, ${failed.length} failed, ${alreadyApproved.length} skipped (already approved), ${selfCreated.length} skipped (self-created)`,
       results: {
         successCount: successful.length,
         failedCount: failed.length,
         skippedCount: alreadyApproved.length,
+        selfCreatedCount: selfCreated.length,
         successful,
         failed: failed.map((f) => ({ id: f.id, error: f.error || 'Unknown error' })),
         skipped: alreadyApproved.map((c) => c.id),
+        selfCreatedSkipped: selfCreated.map((c) => c.id),
       },
     })
   } catch (error: any) {

@@ -91,6 +91,13 @@ export async function POST(
       }, { status: 400 })
     }
 
+    // Check if user is trying to reject their own correction (self-rejection restriction)
+    if (correction.createdBy === userIdNumber) {
+      return NextResponse.json({
+        error: 'You cannot reject your own inventory corrections. This requires action from another user.'
+      }, { status: 403 })
+    }
+
     // Update the correction status to rejected
     const updatedCorrection = await prisma.inventoryCorrection.update({
       where: { id: correctionId },

@@ -339,10 +339,14 @@ export default function InventoryCorrectionsPage() {
 
   const renderActionsCell = (data: any) => {
     const correction = data.data as InventoryCorrection
+    // Check if current user created this correction (self-approval restriction)
+    const currentUserId = session?.user?.id ? Number(session.user.id) : null
+    const isOwnCorrection = currentUserId === correction.createdByUser?.id
+
     return (
       <div className="flex items-center justify-end gap-1.5">
-        {/* Approve Button - Prominent for pending corrections */}
-        {correction.status === 'pending' && can(PERMISSIONS.INVENTORY_CORRECTION_APPROVE) && (
+        {/* Approve Button - Hidden for own corrections (self-approval restriction) */}
+        {correction.status === 'pending' && can(PERMISSIONS.INVENTORY_CORRECTION_APPROVE) && !isOwnCorrection && (
           <Button
             variant="outline"
             size="sm"
@@ -355,8 +359,8 @@ export default function InventoryCorrectionsPage() {
           </Button>
         )}
 
-        {/* Reject Button - For mistakenly entered corrections */}
-        {correction.status === 'pending' && can(PERMISSIONS.INVENTORY_CORRECTION_REJECT) && (
+        {/* Reject Button - Hidden for own corrections (self-rejection restriction) */}
+        {correction.status === 'pending' && can(PERMISSIONS.INVENTORY_CORRECTION_REJECT) && !isOwnCorrection && (
           <Button
             variant="outline"
             size="sm"

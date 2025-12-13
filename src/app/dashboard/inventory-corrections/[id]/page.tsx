@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import { useRouter, useParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -57,6 +58,7 @@ interface InventoryCorrection {
 }
 
 export default function InventoryCorrectionDetailPage() {
+  const { data: session } = useSession()
   const router = useRouter()
   const params = useParams()
   const { can } = usePermissions()
@@ -64,6 +66,10 @@ export default function InventoryCorrectionDetailPage() {
   const [loading, setLoading] = useState(true)
 
   const correctionId = params.id as string
+
+  // Check if current user created this correction (self-approval restriction)
+  const currentUserId = session?.user?.id ? Number(session.user.id) : null
+  const isOwnCorrection = correction && currentUserId === correction.createdByUser?.id
 
   useEffect(() => {
     if (correctionId) {
@@ -227,7 +233,8 @@ export default function InventoryCorrectionDetailPage() {
       {/* Action Buttons */}
       {correction.status === 'pending' && (
         <div className="mb-6 flex gap-3">
-          {can(PERMISSIONS.INVENTORY_CORRECTION_APPROVE) && (
+          {/* Approve Button - Hidden for own corrections (self-approval restriction) */}
+          {can(PERMISSIONS.INVENTORY_CORRECTION_APPROVE) && !isOwnCorrection && (
             <Button onClick={handleApprove} className="bg-green-600 hover:bg-green-700">
               <CheckCircle className="h-4 w-4 mr-2" />
               Approve Correction

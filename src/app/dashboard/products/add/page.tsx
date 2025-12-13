@@ -424,9 +424,31 @@ export default function AddProductPage() {
       setAvailableProducts(productsData.products || [])
 
       // Set default tax to "Standard VAT (12%)" if available - only on initial load
-      const standardVAT = fetchedTaxRates.find((tax: TaxRate) =>
-        tax.name === 'Standard VAT (12%)' || (tax.name.includes('Standard VAT') && tax.amount === 12)
+      // Try multiple matching strategies:
+      // 1. Exact name match
+      // 2. Name contains "Standard VAT" with 12% amount
+      // 3. Name contains "VAT" with 12% amount
+      // 4. Any tax marked as default (isDefault: true)
+      // 5. Any tax with 12% amount
+      let standardVAT = fetchedTaxRates.find((tax: TaxRate) =>
+        tax.name === 'Standard VAT (12%)'
       )
+      if (!standardVAT) {
+        standardVAT = fetchedTaxRates.find((tax: TaxRate) =>
+          tax.name.toLowerCase().includes('standard vat') && tax.amount === 12
+        )
+      }
+      if (!standardVAT) {
+        standardVAT = fetchedTaxRates.find((tax: TaxRate) =>
+          tax.name.toLowerCase().includes('vat') && tax.amount === 12
+        )
+      }
+      if (!standardVAT) {
+        standardVAT = fetchedTaxRates.find((tax: any) => tax.isDefault === true)
+      }
+      if (!standardVAT) {
+        standardVAT = fetchedTaxRates.find((tax: TaxRate) => tax.amount === 12)
+      }
 
       // Set default unit to "Piece(s)" if available - only on initial load
       const pieceUnit = fetchedUnits.find((unit: Unit) =>
@@ -494,10 +516,26 @@ export default function AddProductPage() {
             unit.shortName?.toLowerCase() === 'pc'
           )
 
-          // Find the Standard VAT for default selection
-          const standardVAT = taxRates.find((tax: TaxRate) =>
-            tax.name === 'Standard VAT (12%)' || (tax.name.includes('Standard VAT') && tax.amount === 12)
+          // Find the Standard VAT for default selection (same logic as fetchMetadata)
+          let standardVAT = taxRates.find((tax: TaxRate) =>
+            tax.name === 'Standard VAT (12%)'
           )
+          if (!standardVAT) {
+            standardVAT = taxRates.find((tax: TaxRate) =>
+              tax.name.toLowerCase().includes('standard vat') && tax.amount === 12
+            )
+          }
+          if (!standardVAT) {
+            standardVAT = taxRates.find((tax: TaxRate) =>
+              tax.name.toLowerCase().includes('vat') && tax.amount === 12
+            )
+          }
+          if (!standardVAT) {
+            standardVAT = taxRates.find((tax: any) => tax.isDefault === true)
+          }
+          if (!standardVAT) {
+            standardVAT = taxRates.find((tax: TaxRate) => tax.amount === 12)
+          }
 
           // Reset form for new product with defaults restored
           setFormData({
@@ -909,41 +947,7 @@ export default function AddProductPage() {
           </div>
         </div>
 
-        {/* Tax Information Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Tax Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Tax */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Applicable Tax</label>
-              <select
-                value={formData.taxId}
-                onChange={(e) => setFormData({ ...formData, taxId: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-              >
-                <option value="">None</option>
-                {taxRates.map((tax) => (
-                  <option key={tax.id} value={tax.id}>{tax.name} ({tax.amount}%)</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Tax Type */}
-            {formData.taxId && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Selling Price Tax Type</label>
-                <select
-                  value={formData.taxType}
-                  onChange={(e) => setFormData({ ...formData, taxType: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                >
-                  <option value="inclusive">Inclusive</option>
-                  <option value="exclusive">Exclusive</option>
-                </select>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Tax Information is hidden - defaults to Standard VAT (12%) set in fetchMetadata */}
 
         {/* Pricing Card - Only for Single Products */}
         {formData.type === 'single' && (

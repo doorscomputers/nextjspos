@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { formatCurrency } from '@/lib/currencyUtils'
 
 interface Product {
   id: number
@@ -132,13 +133,13 @@ export default function PriceUpdateForm({
           <div>
             <div className="text-sm text-gray-600 dark:text-gray-400">Current Price</div>
             <div className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              ₱{currentPrice.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₱{formatCurrency(currentPrice)}
             </div>
           </div>
           <div>
             <div className="text-sm text-gray-600 dark:text-gray-400">Cost Price</div>
             <div className="text-xl font-bold text-gray-900 dark:text-gray-100">
-              ₱{costPrice.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₱{formatCurrency(costPrice)}
             </div>
           </div>
           <div>
@@ -191,7 +192,7 @@ export default function PriceUpdateForm({
               <div className={`text-xl font-bold ${
                 priceDifference > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
               }`}>
-                {priceDifference > 0 ? '+' : ''}₱{priceDifference.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {priceDifference > 0 ? '+' : ''}₱{formatCurrency(priceDifference)}
               </div>
             </div>
             <div>
@@ -216,7 +217,7 @@ export default function PriceUpdateForm({
             <div>
               <div className="text-sm text-blue-700 dark:text-blue-300">New Profit/Unit</div>
               <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
-                ₱{(parseFloat(newPrice) - costPrice).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ₱{formatCurrency(parseFloat(newPrice) - costPrice)}
               </div>
             </div>
           </div>
@@ -290,7 +291,7 @@ export default function PriceUpdateForm({
                 <div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">From</div>
                   <div className="font-semibold text-gray-900 dark:text-gray-100">
-                    ₱{currentPrice.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₱{formatCurrency(currentPrice)}
                   </div>
                 </div>
                 <div>
@@ -298,7 +299,7 @@ export default function PriceUpdateForm({
                   <div className={`font-semibold ${
                     priceDifference > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                   }`}>
-                    ₱{parseFloat(newPrice).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₱{formatCurrency(parseFloat(newPrice))}
                   </div>
                 </div>
               </div>
