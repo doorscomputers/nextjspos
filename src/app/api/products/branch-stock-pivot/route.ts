@@ -231,8 +231,9 @@ export async function POST(request: NextRequest) {
     const safePage = exportAll ? 1 : Math.min(requestedPage, totalPages)
     const offset = exportAll ? 0 : (safePage - 1) * effectiveLimit
 
-    // Get the latest location-specific price (MAX from variation_location_details)
-    // This ensures we show the most recently updated price, not the default variation price
+    // Get the location-specific price from variation_location_details if available
+    // Falls back to base ProductVariation.sellingPrice if no location-specific price exists
+    // Uses COALESCE with a subquery to get MAX selling price from active locations
     const dataQuery = `
       SELECT
         spv.variation_id,
@@ -253,7 +254,20 @@ export async function POST(request: NextRequest) {
         spv.total_stock,
         COALESCE(s.name, '') as supplier_name,
         COALESCE(pv.purchase_price, 0) as cost,
-        COALESCE(pv.selling_price, 0) as price,
+        COALESCE(
+          (SELECT vld.selling_price
+           FROM variation_location_details vld
+           INNER JOIN business_locations bl ON bl.id = vld.location_id
+           WHERE vld.product_variation_id = pv.id
+             AND vld.selling_price IS NOT NULL
+             AND vld.selling_price > 0
+             AND bl.is_active = true
+             AND bl.deleted_at IS NULL
+           ORDER BY bl.id ASC
+           LIMIT 1),
+          pv.selling_price,
+          0
+        ) as price,
         pv.last_purchase_date,
         COALESCE(pv.last_purchase_quantity, 0) as last_qty_delivered,
         COALESCE(pv.last_purchase_cost, 0) as last_purchase_cost,

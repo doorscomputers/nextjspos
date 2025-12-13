@@ -295,6 +295,18 @@ export async function GET(request: NextRequest) {
     console.log(`Supplier ID filter: ${supplierId || 'none'}`)
     console.log(`User: ${session.user.username}`)
 
+    // Get user's primary location for location-specific pricing (used for both exact and fuzzy search)
+    const primaryLocation = await prisma.businessLocation.findFirst({
+      where: {
+        businessId,
+        isActive: true,
+        deletedAt: null,
+      },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    })
+    const primaryLocationId = primaryLocation?.id
+
     // Step 1: Try exact SKU match first (EQUALS operator)
     const exactMatch = await prisma.product.findMany({
       where: {
@@ -325,6 +337,14 @@ export async function GET(request: NextRequest) {
             sku: { equals: searchTrimmed, mode: 'insensitive' },
             deletedAt: null,
           },
+          include: {
+            // Include location-specific pricing for consistency
+            variationLocationDetails: primaryLocationId ? {
+              where: { locationId: primaryLocationId },
+              select: { sellingPrice: true },
+              take: 1,
+            } : undefined,
+          },
           orderBy: { name: 'asc' },
         },
         // OPTIMIZATION: Include unit configuration for unit pricing
@@ -352,15 +372,21 @@ export async function GET(request: NextRequest) {
               id: product.id,
               name: product.name,
               categoryName: null,
-              variations: product.variations.map(v => {
+              variations: product.variations.map((v: any) => {
                 try {
+                  // Get location-specific price, fallback to base variation price
+                  const locationPrice = v.variationLocationDetails?.[0]?.sellingPrice
+                  const sellingPrice = locationPrice !== undefined && locationPrice !== null
+                    ? Number(locationPrice)
+                    : (v.sellingPrice ? Number(v.sellingPrice) : 0)
+
                   return {
                     id: v.id,
                     name: v.name,
                     sku: v.sku,
                     enableSerialNumber: Boolean(product.enableProductInfo),
                     defaultPurchasePrice: v.purchasePrice ? Number(v.purchasePrice) : 0,
-                    defaultSellingPrice: v.sellingPrice ? Number(v.sellingPrice) : 0,
+                    defaultSellingPrice: sellingPrice,
                   }
                 } catch (err) {
                   console.error('Error mapping variation:', err)
@@ -394,17 +420,6 @@ export async function GET(request: NextRequest) {
 
     // Step 2: No exact match - search by product name or variation name (CONTAINS operator)
     console.log('No exact SKU match found, trying fuzzy search...')
-
-    // Get user's primary location for location-specific pricing
-    const userLocation = await prisma.businessLocation.findFirst({
-      where: {
-        businessId,
-        isActive: true,
-      },
-      select: { id: true },
-      orderBy: { id: 'asc' },
-    })
-    const primaryLocationId = userLocation?.id
 
     const fuzzyMatches = await prisma.product.findMany({
       where: {
