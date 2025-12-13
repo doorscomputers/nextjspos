@@ -342,7 +342,7 @@ export default function AddProductPage() {
 
   const [formData, setFormData] = useState({
     name: '',
-    type: 'single',
+    type: 'single', // Locked to 'single' - no variable or combo products
     categoryId: '',
     subCategoryId: '',
     brandId: '',
@@ -356,7 +356,7 @@ export default function AddProductPage() {
     image: '',
     brochure: '',
     enableStock: true,
-    alertQuantity: '',
+    alertQuantity: '20', // Default alert quantity
     purchasePrice: '',
     sellingPrice: '',
     marginPercentage: '',
@@ -516,7 +516,7 @@ export default function AddProductPage() {
             image: '',
             brochure: '',
             enableStock: true,
-            alertQuantity: '',
+            alertQuantity: '20', // Default alert quantity
             purchasePrice: '',
             sellingPrice: '',
             marginPercentage: '',
@@ -683,36 +683,7 @@ export default function AddProductPage() {
       </div>
 
       <form onSubmit={(e) => handleSubmit(e, 'save')} className="space-y-6">
-        {/* Product Type Card */}
-        <div className="card-form-dark">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Product Type</h2>
-          <div>
-            <label className="label-form-dark">
-              Type <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={formData.type}
-              onChange={(e) => {
-                setFormData({ ...formData, type: e.target.value })
-                if (e.target.value === 'variable') {
-                  setVariations([{ name: '', sku: '', purchasePrice: '', sellingPrice: '', isDefault: true }])
-                  setComboItems([])
-                } else if (e.target.value === 'combo') {
-                  setComboItems([{ productId: '', quantity: '' }])
-                  setVariations([])
-                } else {
-                  setVariations([])
-                  setComboItems([])
-                }
-              }}
-              className="select-form-dark"
-            >
-              <option value="single">Single</option>
-              <option value="variable">Variable</option>
-              <option value="combo">Combo</option>
-            </select>
-          </div>
-        </div>
+        {/* Product Type is locked to 'single' - hidden from UI */}
 
         {/* Product Information Card */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 p-6">
@@ -843,31 +814,7 @@ export default function AddProductPage() {
               </div>
             </div>
 
-            {/* Unit with Quick Add */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Unit <span className="text-red-500">*</span></label>
-              <div className="flex gap-2">
-                <select
-                  value={formData.unitId}
-                  onChange={(e) => setFormData({ ...formData, unitId: e.target.value })}
-                  required
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
-                >
-                  <option value="">Please Select</option>
-                  {units.map((unit) => (
-                    <option key={unit.id} value={unit.id}>{unit.name} ({unit.shortName})</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => setShowUnitModal(true)}
-                  className="px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center"
-                  title="Quick add unit"
-                >
-                  <PlusIcon className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
+            {/* Unit is hidden - defaults to Piece (PC) set in fetchMetadata */}
 
             {/* Product Description WYSIWYG */}
             <div className="md:col-span-2">
@@ -923,30 +870,7 @@ export default function AddProductPage() {
               </label>
             </div>
 
-            {/* Weight */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Weight (kg)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.weight}
-                onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                placeholder="0.00"
-              />
-            </div>
-
-            {/* Service Staff Timer / Preparation Time */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Preparation Time (minutes)</label>
-              <input
-                type="number"
-                value={formData.preparationTime}
-                onChange={(e) => setFormData({ ...formData, preparationTime: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                placeholder="e.g., 15"
-              />
-            </div>
+            {/* Weight and Preparation Time are hidden - not needed for this business */}
 
             {/* Product Image */}
             <div>
