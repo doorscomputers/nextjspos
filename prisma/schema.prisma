@@ -4942,8 +4942,10 @@ model PackageTemplate {
   description String?  @db.Text
   sku         String?  @db.VarChar(100)
 
-  targetPrice Decimal  @map("target_price") @db.Decimal(22, 4)  // Package selling price
-  isActive    Boolean  @default(true) @map("is_active")
+  targetPrice   Decimal  @map("target_price") @db.Decimal(22, 4)  // Package selling price
+  markupPercent Decimal? @map("markup_percent") @db.Decimal(10, 2) // Overall markup % for simplified templates
+  templateType  String   @default("standard") @map("template_type") @db.VarChar(20) // "standard" or "simplified"
+  isActive      Boolean  @default(true) @map("is_active")
 
   createdBy   Int      @map("created_by")
   creator     User     @relation("PackageTemplateCreator", fields: [createdBy], references: [id])

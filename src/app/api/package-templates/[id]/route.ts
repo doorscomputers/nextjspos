@@ -80,7 +80,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { name, description, sku, categoryId, targetPrice, isActive, items } = body
+    const { name, description, sku, categoryId, targetPrice, markupPercent, templateType, isActive, items } = body
 
     // Verify template belongs to business
     const existing = await prisma.packageTemplate.findFirst({
@@ -105,6 +105,8 @@ export async function PUT(
           sku: sku !== undefined ? sku : existing.sku,
           categoryId: categoryId !== undefined ? (categoryId ? parseInt(categoryId) : null) : existing.categoryId,
           targetPrice: targetPrice !== undefined ? targetPrice : existing.targetPrice,
+          markupPercent: markupPercent !== undefined ? markupPercent : existing.markupPercent,
+          templateType: templateType !== undefined ? templateType : existing.templateType,
           isActive: isActive !== undefined ? isActive : existing.isActive
         }
       })

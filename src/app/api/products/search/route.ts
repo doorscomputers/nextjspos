@@ -178,34 +178,59 @@ export async function GET(request: NextRequest) {
           ? { startsWith: searchTrimmed, mode: 'insensitive' as const }
           : { contains: searchTrimmed, mode: 'insensitive' as const }
 
+        // Search across multiple fields: name, sku, description, variation name, variation sku
+        const searchOrConditions = [
+          { name: searchCondition },
+          { sku: searchCondition },
+          { description: searchCondition },
+          {
+            variations: {
+              some: {
+                OR: [
+                  { name: searchCondition },
+                  { sku: searchCondition }
+                ],
+                deletedAt: null
+              }
+            }
+          }
+        ]
+
         const whereConditions: any = {
           businessId,
           isActive: true,
           deletedAt: null,
-          name: searchCondition,
+          OR: searchOrConditions,
         }
 
         // Add stock filter for transfer/POS (only products with stock > 0 OR notForSelling items)
         if (withStock && locationId) {
-          // Use OR to include products that either have stock OR are "Not for Selling" (services/charges)
-          whereConditions.OR = [
+          // Need to combine search OR with stock filter using AND
+          whereConditions.AND = [
+            { OR: searchOrConditions },
             {
-              variations: {
-                some: {
-                  deletedAt: null,
-                  variationLocationDetails: {
+              OR: [
+                {
+                  variations: {
                     some: {
-                      locationId: parseInt(locationId),
-                      qtyAvailable: { gt: 0 },
+                      deletedAt: null,
+                      variationLocationDetails: {
+                        some: {
+                          locationId: parseInt(locationId),
+                          qtyAvailable: { gt: 0 },
+                        },
+                      },
                     },
                   },
                 },
-              },
-            },
-            {
-              notForSelling: true, // Always include service items regardless of stock
-            },
+                {
+                  notForSelling: true, // Always include service items regardless of stock
+                },
+              ]
+            }
           ]
+          // Remove top-level OR since we're using AND now
+          delete whereConditions.OR
         }
 
         const nameMatches = await prisma.product.findMany({

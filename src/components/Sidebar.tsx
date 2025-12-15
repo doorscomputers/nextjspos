@@ -507,6 +507,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
       key: "menu.package_templates",
       permission: PERMISSIONS.PACKAGE_TEMPLATE_VIEW,
     },
+    {
+      name: "Package Template 2",
+      href: "/dashboard/package-templates-2",
+      icon: CubeIcon,
+      key: "menu.package_templates_2",
+      permission: PERMISSIONS.PACKAGE_TEMPLATE_VIEW,
+    },
 
     // ========== PRICING MANAGEMENT ==========
     {
@@ -534,6 +541,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
           key: "bulk_price_import",
           name: "Bulk Price Import",
           href: "/dashboard/products/bulk-price-import",
+          icon: DocumentArrowUpIcon,
+          permission: PERMISSIONS.PRODUCT_PRICE_IMPORT,
+        },
+        {
+          key: "cost_price_import",
+          name: "Cost & Price Import",
+          href: "/dashboard/products/cost-price-import",
           icon: DocumentArrowUpIcon,
           permission: PERMISSIONS.PRODUCT_PRICE_IMPORT,
         },

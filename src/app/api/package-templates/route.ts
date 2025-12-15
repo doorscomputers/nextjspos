@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const categoryId = searchParams.get('categoryId')
     const activeOnly = searchParams.get('activeOnly') !== 'false'
+    const templateType = searchParams.get('templateType') // 'standard' or 'simplified'
 
     const whereClause: any = {
       businessId: businessId
@@ -35,6 +36,11 @@ export async function GET(request: NextRequest) {
 
     if (categoryId) {
       whereClause.categoryId = parseInt(categoryId)
+    }
+
+    // Filter by template type
+    if (templateType) {
+      whereClause.templateType = templateType
     }
 
     const templates = await prisma.packageTemplate.findMany({
@@ -85,7 +91,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { name, description, sku, categoryId, targetPrice, items } = body
+    const { name, description, sku, categoryId, targetPrice, markupPercent, templateType, items } = body
 
     if (!name || !items || items.length === 0) {
       return NextResponse.json({ error: 'Name and at least one item are required' }, { status: 400 })
@@ -102,6 +108,8 @@ export async function POST(request: NextRequest) {
           sku: sku || null,
           categoryId: categoryId ? parseInt(categoryId) : null,
           targetPrice: targetPrice || 0,
+          markupPercent: markupPercent !== undefined ? markupPercent : null,
+          templateType: templateType || 'standard',
           isActive: true,
           createdBy: userId
         }
