@@ -139,6 +139,45 @@ export default function MenuManagementPage() {
     }
   }
 
+  // Add Package Template 2 menu only
+  const addPackageTemplate2 = async () => {
+    try {
+      // Check if already exists
+      const existingMenu = menus.find(m => m.key === 'menu.package_templates_2')
+      if (existingMenu) {
+        notify('Package Template 2 menu already exists!', 'warning', 3000)
+        return
+      }
+
+      setLoading(true)
+      const res = await fetch('/api/settings/menu-management/menus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: 'menu.package_templates_2',
+          name: 'Package Template 2',
+          href: '/dashboard/package-templates-2',
+          icon: 'CubeIcon',
+          order: 101,
+          parentId: null
+        })
+      })
+
+      if (res.ok) {
+        notify('Package Template 2 menu added successfully!', 'success', 3000)
+        fetchMenus()
+      } else {
+        const data = await res.json()
+        notify(data.error || 'Failed to add Package Template 2', 'error', 3000)
+      }
+    } catch (error) {
+      console.error('Error adding Package Template 2:', error)
+      notify('Error adding Package Template 2', 'error', 3000)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Parent menu lookup data
   const parentMenus = menus.filter(m => m.parentId === null)
 
@@ -161,12 +200,21 @@ export default function MenuManagementPage() {
               {menus.length} menu items total
             </p>
           </div>
-          <Button
-            text="Sync All from Sidebar"
-            type="success"
-            icon="refresh"
-            onClick={syncAllMenus}
-          />
+          <div className="flex gap-2">
+            <Button
+              text="Add Package Template 2"
+              type="default"
+              icon="plus"
+              onClick={addPackageTemplate2}
+              disabled={menus.some(m => m.key === 'menu.package_templates_2')}
+            />
+            <Button
+              text="Sync All from Sidebar"
+              type="success"
+              icon="refresh"
+              onClick={syncAllMenus}
+            />
+          </div>
         </div>
 
         <DataGrid
