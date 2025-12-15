@@ -217,6 +217,12 @@ export const PERMISSION_DESCRIPTIONS: Record<string, string> = {
   'freebie.approve': 'Approve freebie requests',
   'freebie.view_log': 'View freebie history log',
 
+  // Package Templates
+  'package_template.view': 'View package templates (product bundles)',
+  'package_template.create': 'Create new package templates',
+  'package_template.edit': 'Edit existing package templates',
+  'package_template.delete': 'Delete package templates',
+
   // BIR Readings (Philippines)
   'x_reading': 'Generate X-Reading (mid-shift report)',
   'z_reading': 'Generate Z-Reading (end-of-day report)',
@@ -358,6 +364,7 @@ export const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   'expense_category': 'Expense categories',
   'void': 'Void/cancel transactions',
   'freebie': 'Free items/promotional items',
+  'package_template': 'Package templates (product bundles)',
   'x_reading': 'X-Reading reports (BIR)',
   'z_reading': 'Z-Reading reports (BIR)',
   'report': 'Reports and analytics',
