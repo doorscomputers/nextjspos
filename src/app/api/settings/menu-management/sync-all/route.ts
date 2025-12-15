@@ -326,6 +326,24 @@ export async function POST(req: NextRequest) {
         icon: 'Bot',
         order: 9,
         parentId: null
+      },
+
+      // Package Templates
+      {
+        key: 'menu.package_templates',
+        name: 'Package Templates',
+        href: '/dashboard/package-templates',
+        icon: 'CubeIcon',
+        order: 10,
+        parentId: null
+      },
+      {
+        key: 'menu.package_templates_2',
+        name: 'Package Template 2',
+        href: '/dashboard/package-templates-2',
+        icon: 'CubeIcon',
+        order: 11,
+        parentId: null
       }
     ]
 
