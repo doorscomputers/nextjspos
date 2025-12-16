@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
@@ -662,40 +662,56 @@ export default function PackageTemplatesPage() {
 
       {/* Main Content */}
       <Card>
-        <CardContent className="p-0">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full justify-start border-b rounded-none h-auto p-0">
-              <TabsTrigger
-                value="all"
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent"
-              >
-                All ({templates.length})
-              </TabsTrigger>
-              {categories.map(cat => (
-                <TabsTrigger
-                  key={cat.id}
-                  value={cat.id.toString()}
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-purple-600 data-[state=active]:bg-transparent"
-                >
-                  {cat.name} ({templates.filter(t => t.categoryId === cat.id).length})
-                  {can(PERMISSIONS.PACKAGE_TEMPLATE_EDIT) && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5 ml-1"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        openCategoryDialog(cat)
-                      }}
-                    >
-                      <Edit2 className="h-3 w-3" />
-                    </Button>
-                  )}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+        <CardContent className="p-4">
+          {/* Category Filter */}
+          <div className="flex flex-wrap items-center gap-3 mb-4 pb-4 border-b">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium whitespace-nowrap">Filter by Category:</Label>
+              <Select value={activeTab} onValueChange={setActiveTab}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    <span className="flex items-center gap-2">
+                      All Categories
+                      <Badge variant="secondary" className="ml-auto">{templates.length}</Badge>
+                    </span>
+                  </SelectItem>
+                  {categories.map(cat => (
+                    <SelectItem key={cat.id} value={cat.id.toString()}>
+                      <span className="flex items-center gap-2">
+                        {cat.name}
+                        <Badge variant="secondary" className="ml-auto">
+                          {templates.filter(t => t.categoryId === cat.id).length}
+                        </Badge>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            <div className="p-4">
+            {/* Active Filter Badge */}
+            {activeTab !== 'all' && (
+              <Badge
+                variant="default"
+                className="bg-purple-600 hover:bg-purple-700 cursor-pointer flex items-center gap-1"
+                onClick={() => setActiveTab('all')}
+              >
+                {categories.find(c => c.id.toString() === activeTab)?.name}
+                <X className="h-3 w-3" />
+              </Badge>
+            )}
+
+            {/* Quick Stats */}
+            <div className="ml-auto flex items-center gap-4 text-sm text-muted-foreground">
+              <span>Total: <strong className="text-foreground">{templates.length}</strong> packages</span>
+              <span>Categories: <strong className="text-foreground">{categories.length}</strong></span>
+            </div>
+          </div>
+
+          <div>
               <DataGrid
                 ref={dataGridRef}
                 dataSource={filteredTemplates}
@@ -817,8 +833,7 @@ export default function PackageTemplatesPage() {
                   </ToolbarItem>
                 </Toolbar>
               </DataGrid>
-            </div>
-          </Tabs>
+          </div>
         </CardContent>
       </Card>
 
