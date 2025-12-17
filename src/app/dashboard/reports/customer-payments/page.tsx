@@ -12,6 +12,11 @@ export default function CustomerPaymentsReport() {
   const [locations, setLocations] = useState<any[]>([])
   const [customers, setCustomers] = useState<any[]>([])
 
+  // Invoice Payment Details Modal
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null)
+  const [loadingInvoice, setLoadingInvoice] = useState(false)
+
   // Initialize with default date range (current month)
   const [startDate, setStartDate] = useState(() => {
     const date = new Date()
@@ -93,6 +98,25 @@ export default function CustomerPaymentsReport() {
   useEffect(() => {
     fetchPayments()
   }, [fetchPayments])
+
+  // Fetch invoice payment details for modal
+  const fetchInvoicePayments = async (invoiceId: number) => {
+    setLoadingInvoice(true)
+    try {
+      const res = await fetch(`/api/reports/invoice-payments/${invoiceId}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success) {
+          setSelectedInvoice(data.data)
+          setShowPaymentModal(true)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching invoice payments:', error)
+    } finally {
+      setLoadingInvoice(false)
+    }
+  }
 
   const setDateRange = (range: string) => {
     const today = new Date()
@@ -474,7 +498,16 @@ export default function CustomerPaymentsReport() {
                 payments.map((pmt, idx) => (
                   <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700">
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{new Date(pmt.paymentDate).toLocaleDateString()}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-blue-600 dark:text-blue-400">{pmt.invoice.invoiceNumber}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <button
+                        onClick={() => fetchInvoicePayments(pmt.invoice.id)}
+                        disabled={loadingInvoice}
+                        className="font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline cursor-pointer"
+                        title="Click to view all payments for this invoice"
+                      >
+                        {pmt.invoice.invoiceNumber}
+                      </button>
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
                       <div>{pmt.customer.name}</div>
                       {pmt.customer.mobile && (
@@ -502,6 +535,136 @@ export default function CustomerPaymentsReport() {
           </table>
         </div>
       </div>
+
+      {/* Invoice Payment Details Modal */}
+      {showPaymentModal && selectedInvoice && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 text-white">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-xl font-bold">Invoice Payment Details</h2>
+                  <p className="text-blue-100 text-sm mt-1">{selectedInvoice.invoice.invoiceNumber}</p>
+                </div>
+                <button
+                  onClick={() => setShowPaymentModal(false)}
+                  className="text-white/80 hover:text-white text-2xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+              {/* Invoice Summary */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 uppercase">Invoice Total</div>
+                  <div className="text-xl font-bold text-gray-900 dark:text-gray-100">₱{selectedInvoice.invoice.totalAmount.toLocaleString()}</div>
+                </div>
+                <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
+                  <div className="text-xs text-green-600 dark:text-green-400 uppercase">Total Paid</div>
+                  <div className="text-xl font-bold text-green-700 dark:text-green-300">₱{selectedInvoice.invoice.paidAmount.toLocaleString()}</div>
+                </div>
+                <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg">
+                  <div className="text-xs text-orange-600 dark:text-orange-400 uppercase">Balance</div>
+                  <div className="text-xl font-bold text-orange-700 dark:text-orange-300">₱{selectedInvoice.invoice.balance.toLocaleString()}</div>
+                </div>
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                  <div className="text-xs text-blue-600 dark:text-blue-400 uppercase">Status</div>
+                  <div className={`text-xl font-bold ${
+                    selectedInvoice.invoice.status === 'FULLY PAID'
+                      ? 'text-green-700 dark:text-green-300'
+                      : selectedInvoice.invoice.status === 'PARTIAL'
+                      ? 'text-yellow-700 dark:text-yellow-300'
+                      : 'text-red-700 dark:text-red-300'
+                  }`}>
+                    {selectedInvoice.invoice.status}
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer & Invoice Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Customer</h3>
+                  <div className="text-gray-700 dark:text-gray-300">{selectedInvoice.customer.name}</div>
+                  {selectedInvoice.customer.mobile && (
+                    <div className="text-sm text-gray-500 dark:text-gray-400">{selectedInvoice.customer.mobile}</div>
+                  )}
+                  {selectedInvoice.customer.email && (
+                    <div className="text-sm text-gray-500 dark:text-gray-400">{selectedInvoice.customer.email}</div>
+                  )}
+                </div>
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Invoice Info</h3>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <div>Sale Date: <span className="text-gray-900 dark:text-gray-100">{selectedInvoice.invoice.saleDate}</span></div>
+                    <div>Location: <span className="text-gray-900 dark:text-gray-100">{selectedInvoice.location.name}</span></div>
+                    <div>Created By: <span className="text-gray-900 dark:text-gray-100">{selectedInvoice.invoice.createdBy}</span></div>
+                    {selectedInvoice.creditAmount > 0 && (
+                      <div>Original Credit Amount: <span className="text-orange-600 dark:text-orange-400 font-semibold">₱{selectedInvoice.creditAmount.toLocaleString()}</span></div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment History Table */}
+              <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3">
+                  <h3 className="font-semibold text-gray-900 dark:text-gray-100">Payment History ({selectedInvoice.payments.length} payment{selectedInvoice.payments.length !== 1 ? 's' : ''})</h3>
+                </div>
+                {selectedInvoice.payments.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                    No payments recorded yet for this invoice.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <thead className="bg-gray-100 dark:bg-gray-600">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">#</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Date</th>
+                          <th className="px-4 py-2 text-center text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Method</th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Amount</th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Bal. Before</th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Bal. After</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Collected By</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {selectedInvoice.payments.map((payment: any) => (
+                          <tr key={payment.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{payment.paymentNumber}</td>
+                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{new Date(payment.paymentDate).toLocaleDateString()}</td>
+                            <td className="px-4 py-3 text-sm text-center">{getPaymentMethodBadge(payment.paymentMethod)}</td>
+                            <td className="px-4 py-3 text-sm text-right font-bold text-green-600 dark:text-green-400">₱{payment.amount.toLocaleString()}</td>
+                            <td className="px-4 py-3 text-sm text-right text-gray-600 dark:text-gray-400">₱{payment.balanceBefore.toLocaleString()}</td>
+                            <td className="px-4 py-3 text-sm text-right text-gray-900 dark:text-gray-100">₱{payment.balanceAfter.toLocaleString()}</td>
+                            <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{payment.collectedBy || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-gray-50 dark:bg-gray-700 px-6 py-4 flex justify-end">
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
