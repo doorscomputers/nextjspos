@@ -65,7 +65,7 @@ export default function PaymentReportPage() {
   useEffect(() => {
     const fetchLocations = async () => {
       try {
-        const response = await fetch("/api/business-locations");
+        const response = await fetch("/api/locations/all-active");
         const data = await response.json();
         if (data.success) {
           setLocations(data.data);
@@ -83,7 +83,10 @@ export default function PaymentReportPage() {
       try {
         const response = await fetch("/api/customers");
         const data = await response.json();
-        if (data.success) {
+        // API returns array directly, not { success, data }
+        if (Array.isArray(data)) {
+          setCustomers(data);
+        } else if (data.success && data.data) {
           setCustomers(data.data);
         }
       } catch (error) {
