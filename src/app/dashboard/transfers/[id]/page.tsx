@@ -130,6 +130,15 @@ export default function TransferDetailPage() {
   const [receiveJobProgress, setReceiveJobProgress] = useState(0)
   const [receiveJobTotal, setReceiveJobTotal] = useState(0)
 
+  // Edit mode for draft transfers
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [editItems, setEditItems] = useState<any[]>([])
+  const [editLoading, setEditLoading] = useState(false)
+  const [showAddItemDialog, setShowAddItemDialog] = useState(false)
+  const [productSearch, setProductSearch] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+
   useEffect(() => {
     fetchLocations()
     fetchUserLocations()
@@ -304,6 +313,126 @@ export default function TransferDetailPage() {
 
   const handleSubmitForCheck = () => {
     handleAction('submit-for-check', 'Transfer submitted for checking')
+  }
+
+  // Edit Mode Handlers for Draft Transfers
+  const handleEnterEditMode = () => {
+    if (!transfer) return
+    // Copy current items to edit state with stock info
+    const itemsCopy = transfer.items.map(item => ({
+      productId: item.productId,
+      productVariationId: item.productVariationId,
+      quantity: parseFloat(item.quantity),
+      product: item.product,
+      productVariation: item.productVariation,
+    }))
+    setEditItems(itemsCopy)
+    setIsEditMode(true)
+  }
+
+  const handleExitEditMode = () => {
+    setIsEditMode(false)
+    setEditItems([])
+    setShowAddItemDialog(false)
+    setProductSearch('')
+    setSearchResults([])
+  }
+
+  const handleEditQuantityChange = (index: number, newQuantity: number) => {
+    const updated = [...editItems]
+    updated[index].quantity = Math.max(1, newQuantity)
+    setEditItems(updated)
+  }
+
+  const handleRemoveEditItem = (index: number) => {
+    if (editItems.length <= 1) {
+      toast.error('Transfer must have at least one item')
+      return
+    }
+    const updated = editItems.filter((_, i) => i !== index)
+    setEditItems(updated)
+  }
+
+  const handleSearchProducts = async (query: string) => {
+    if (!transfer || query.length < 2) {
+      setSearchResults([])
+      return
+    }
+    setSearchLoading(true)
+    try {
+      const res = await fetch(`/api/products/search?q=${encodeURIComponent(query)}&locationId=${transfer.fromLocationId}&includeStock=true`)
+      if (res.ok) {
+        const data = await res.json()
+        // Filter out products already in edit items
+        const existingVariationIds = editItems.map(item => item.productVariationId)
+        const filtered = (data.products || data || []).filter((p: any) =>
+          p.variations?.some((v: any) => !existingVariationIds.includes(v.id) && (v.stockAtLocation || 0) > 0)
+        )
+        setSearchResults(filtered)
+      }
+    } catch (error) {
+      console.error('Error searching products:', error)
+    } finally {
+      setSearchLoading(false)
+    }
+  }
+
+  const handleAddEditItem = (product: any, variation: any) => {
+    // Check if already added
+    if (editItems.some(item => item.productVariationId === variation.id)) {
+      toast.error('This item is already in the transfer')
+      return
+    }
+    const newItem = {
+      productId: product.id,
+      productVariationId: variation.id,
+      quantity: 1,
+      product: { id: product.id, name: product.name, sku: product.sku },
+      productVariation: { id: variation.id, name: variation.name, sku: variation.sku },
+      availableStock: variation.stockAtLocation || 0,
+    }
+    setEditItems([...editItems, newItem])
+    setShowAddItemDialog(false)
+    setProductSearch('')
+    setSearchResults([])
+    toast.success(`Added ${product.name} - ${variation.name}`)
+  }
+
+  const handleSaveEditItems = async () => {
+    if (editItems.length === 0) {
+      toast.error('Transfer must have at least one item')
+      return
+    }
+    setEditLoading(true)
+    try {
+      const res = await fetch(`/api/transfers/${transferId}/update-items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: editItems.map(item => ({
+            productId: item.productId,
+            productVariationId: item.productVariationId,
+            quantity: item.quantity,
+          })),
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success('Transfer items updated successfully')
+        handleExitEditMode()
+        fetchTransfer() // Refresh transfer data
+      } else {
+        toast.error(data.error || 'Failed to update items')
+        if (data.details) {
+          data.details.forEach((msg: string) => toast.error(msg))
+        }
+      }
+    } catch (error: any) {
+      console.error('Error saving edit items:', error)
+      toast.error('Failed to save changes')
+    } finally {
+      setEditLoading(false)
+    }
   }
 
   const handleApprove = () => {
@@ -868,7 +997,7 @@ export default function TransferDetailPage() {
     // Last Verified Working: 2025-11-11 by Jay and Jheiron
     // ============================================================================
 
-    // Draft → Submit for Check
+    // Draft → Edit Transfer or Submit for Check
     // CRITICAL WORKFLOW: Only show to users ASSIGNED to ORIGIN location (FROM location)
     // Users at destination should NOT see this button - even with ACCESS_ALL_LOCATIONS
     // This enforces workflow ownership: only the origin location can submit transfers
@@ -879,6 +1008,15 @@ export default function TransferDetailPage() {
       const isAssignedToOrigin = primaryLocationId === transfer.fromLocationId || can(PERMISSIONS.ACCESS_ALL_LOCATIONS)
 
       if (isAssignedToOrigin) {
+        // Edit Transfer button - only in draft status, before submission
+        if (!isEditMode) {
+          actions.push({
+            label: 'Edit Transfer',
+            icon: PencilIcon,
+            onClick: handleEnterEditMode,
+            variant: 'outline' as const
+          })
+        }
         actions.push({
           label: 'Submit for Checking',
           icon: ClipboardDocumentCheckIcon,
@@ -1457,46 +1595,147 @@ export default function TransferDetailPage() {
 
           {/* Items */}
           <div className="bg-white p-6 rounded-lg shadow space-y-4">
-            <h2 className="text-lg font-semibold">Transfer Items ({transfer.items.length})</h2>
-            <div className="space-y-3">
-              {transfer.items.map((item) => (
-                <div key={item.id} className="p-4 border border-gray-200 rounded-lg">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <div className="font-medium">{item.product.name}</div>
-                      <div className="text-sm text-gray-500">
-                        {item.productVariation.name}
-                        {item.productVariation.sku && ` • SKU: ${item.productVariation.sku}`}
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold">
+                Transfer Items ({isEditMode ? editItems.length : transfer.items.length})
+              </h2>
+              {/* Edit Mode Action Buttons */}
+              {isEditMode && transfer.status === 'draft' && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAddItemDialog(true)}
+                    className="gap-1"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Item
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExitEditMode}
+                    disabled={editLoading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleSaveEditItems}
+                    disabled={editLoading || editItems.length === 0}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {editLoading ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Edit Mode Items */}
+            {isEditMode && transfer.status === 'draft' ? (
+              <div className="space-y-3">
+                {editItems.map((item, index) => (
+                  <div key={`edit-${item.productVariationId}-${index}`} className="p-4 border-2 border-blue-200 bg-blue-50 rounded-lg">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <div className="font-medium text-gray-900">{item.product.name}</div>
+                        <div className="text-sm text-gray-500">
+                          {item.productVariation.name}
+                          {item.productVariation.sku && ` • SKU: ${item.productVariation.sku}`}
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRemoveEditItem(index)}
+                        className="text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400"
+                        disabled={editItems.length <= 1}
+                        title={editItems.length <= 1 ? 'Transfer must have at least one item' : 'Remove item'}
+                      >
+                        <XMarkIcon className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <label className="text-sm text-gray-600">Quantity:</label>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditQuantityChange(index, item.quantity - 1)}
+                          disabled={item.quantity <= 1}
+                          className="h-8 w-8 p-0"
+                        >
+                          -
+                        </Button>
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => handleEditQuantityChange(index, parseInt(e.target.value) || 1)}
+                          className="w-20 h-8 text-center border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditQuantityChange(index, item.quantity + 1)}
+                          className="h-8 w-8 p-0"
+                        >
+                          +
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {item.verified && (
-                        <>
-                          <Badge variant="default">
-                            <CheckIcon className="w-3 h-3 mr-1" />
-                            Verified
-                          </Badge>
-                          {/* SECURITY: Edit button HIDDEN to prevent theft
-                              - Users could unverify, change quantity to lower amount, re-verify
-                              - Example: Verify 10 units, edit, change to 5, steal 5 units
-                              - Once verified, quantity is LOCKED until transfer completion
-                          */}
-                        </>
+                  </div>
+                ))}
+                {editItems.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    No items in transfer. Add items using the button above.
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Read-Only Items Display */
+              <div className="space-y-3">
+                {transfer.items.map((item) => (
+                  <div key={item.id} className="p-4 border border-gray-200 rounded-lg">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <div className="font-medium">{item.product.name}</div>
+                        <div className="text-sm text-gray-500">
+                          {item.productVariation.name}
+                          {item.productVariation.sku && ` • SKU: ${item.productVariation.sku}`}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {item.verified && (
+                          <>
+                            <Badge variant="default">
+                              <CheckIcon className="w-3 h-3 mr-1" />
+                              Verified
+                            </Badge>
+                            {/* SECURITY: Edit button HIDDEN to prevent theft
+                                - Users could unverify, change quantity to lower amount, re-verify
+                                - Example: Verify 10 units, edit, change to 5, steal 5 units
+                                - Once verified, quantity is LOCKED until transfer completion
+                            */}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-500">Quantity:</span>
+                        <span className="ml-2 font-medium">{item.quantity}</span>
+                      </div>
+                      {item.receivedQuantity !== null && (
+                        <div>
+                          <span className="text-gray-500">Received:</span>
+                          <span className="ml-2 font-medium">{item.receivedQuantity}</span>
+                        </div>
                       )}
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-500">Quantity:</span>
-                      <span className="ml-2 font-medium">{item.quantity}</span>
-                    </div>
-                    {item.receivedQuantity !== null && (
-                      <div>
-                        <span className="text-gray-500">Received:</span>
-                        <span className="ml-2 font-medium">{item.receivedQuantity}</span>
-                      </div>
-                    )}
-                  </div>
 
                   {/* Verification Input */}
                   {transfer.status === 'verifying' && !item.verified && can(PERMISSIONS.STOCK_TRANSFER_VERIFY) && (
@@ -1561,6 +1800,7 @@ export default function TransferDetailPage() {
                 </div>
               ))}
             </div>
+            )}
           </div>
         </div>
 
@@ -2422,6 +2662,90 @@ export default function TransferDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Add Item Dialog for Edit Mode */}
+      <AlertDialog open={showAddItemDialog} onOpenChange={setShowAddItemDialog}>
+        <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-gray-900 dark:text-white">Add Item to Transfer</AlertDialogTitle>
+            <AlertDialogDescription>
+              Search for products with available stock at {transfer?.fromLocationName || 'source location'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="flex-1 overflow-y-auto space-y-4 py-4">
+            {/* Search Input */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search products by name or SKU..."
+                value={productSearch}
+                onChange={(e) => {
+                  setProductSearch(e.target.value)
+                  handleSearchProducts(e.target.value)
+                }}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              />
+              {searchLoading && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
+
+            {/* Search Results */}
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {searchResults.length === 0 && productSearch.length >= 2 && !searchLoading && (
+                <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                  No products found with available stock
+                </div>
+              )}
+              {searchResults.map((product: any) => (
+                <div key={product.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                  <div className="font-medium text-gray-900 dark:text-white mb-2">{product.name}</div>
+                  <div className="space-y-2">
+                    {product.variations?.filter((v: any) =>
+                      !editItems.some(item => item.productVariationId === v.id) && (v.stockAtLocation || 0) > 0
+                    ).map((variation: any) => (
+                      <div
+                        key={variation.id}
+                        className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-2 rounded"
+                      >
+                        <div>
+                          <div className="text-sm text-gray-700 dark:text-gray-300">
+                            {variation.name}
+                            {variation.sku && <span className="text-gray-500 ml-2">SKU: {variation.sku}</span>}
+                          </div>
+                          <div className="text-xs text-green-600 dark:text-green-400">
+                            Available: {variation.stockAtLocation || 0}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => handleAddEditItem(product, variation)}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          Add
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowAddItemDialog(false)
+              setProductSearch('')
+              setSearchResults([])
+            }}>
+              Close
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
