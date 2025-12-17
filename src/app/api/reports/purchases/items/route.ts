@@ -104,6 +104,7 @@ export async function GET(request: NextRequest) {
               select: {
                 id: true,
                 name: true,
+                sku: true,
                 category: {
                   select: {
                     id: true,
@@ -195,7 +196,7 @@ export async function GET(request: NextRequest) {
         productId: item.productVariation.product.id,
         variationName: item.productVariation.name || 'N/A',
         variationId: item.productVariation.id,
-        sku: item.productVariation.sku,
+        sku: item.productVariation.product.sku || item.productVariation.sku,
         category: item.productVariation.product.category?.name || 'Uncategorized',
         categoryId: item.productVariation.product.category?.id || null,
         purchaseOrderNumber: item.purchase.purchaseOrderNumber,
