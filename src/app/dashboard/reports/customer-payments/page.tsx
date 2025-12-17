@@ -32,13 +32,18 @@ export default function CustomerPaymentsReport() {
 
   const fetchLocations = async () => {
     try {
-      const res = await fetch('/api/locations')
+      const res = await fetch('/api/locations/all-active')
       if (res.ok) {
         const data = await res.json()
-        setLocations(data.locations || [])
+        // API returns { success: true, data: locations }
+        if (data.success && data.data) {
+          setLocations(data.data)
+        } else if (Array.isArray(data)) {
+          setLocations(data)
+        }
       }
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Error fetching locations:', error)
     }
   }
 
@@ -47,10 +52,17 @@ export default function CustomerPaymentsReport() {
       const res = await fetch('/api/customers')
       if (res.ok) {
         const data = await res.json()
-        setCustomers(data.customers || [])
+        // API returns array directly, not { customers: [...] }
+        if (Array.isArray(data)) {
+          setCustomers(data)
+        } else if (data.customers) {
+          setCustomers(data.customers)
+        } else if (data.data) {
+          setCustomers(data.data)
+        }
       }
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Error fetching customers:', error)
     }
   }
 
