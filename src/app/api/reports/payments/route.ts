@@ -25,10 +25,13 @@ export async function GET(request: NextRequest) {
     const shiftId = searchParams.get("shiftId");
     const collectedBy = searchParams.get("collectedBy");
 
+    // Parse businessId to integer (session stores it as string)
+    const businessId = parseInt(String(session.user.businessId));
+
     // Build dynamic where clause
     const where: Prisma.SalePaymentWhereInput = {
       sale: {
-        businessId: session.user.businessId,
+        businessId: businessId,
         status: "completed", // Only include completed sales
       },
     };
