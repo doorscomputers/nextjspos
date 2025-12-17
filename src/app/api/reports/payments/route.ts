@@ -28,6 +28,9 @@ export async function GET(request: NextRequest) {
     // Parse businessId to integer (session stores it as string)
     const businessId = parseInt(String(session.user.businessId));
 
+    console.log("[Payment Report API] Session businessId:", session.user.businessId, "Parsed:", businessId);
+    console.log("[Payment Report API] Filters - startDate:", startDate, "endDate:", endDate, "locationId:", locationId);
+
     // Build dynamic where clause
     const where: Prisma.SalePaymentWhereInput = {
       sale: {
@@ -119,6 +122,9 @@ export async function GET(request: NextRequest) {
         paidAt: "desc",
       },
     });
+
+    console.log("[Payment Report API] Query returned", payments.length, "payments");
+    console.log("[Payment Report API] Where clause:", JSON.stringify(where, null, 2));
 
     // Calculate payment method totals
     const paymentMethodTotals = payments.reduce(
