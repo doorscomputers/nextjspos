@@ -381,7 +381,7 @@ export default function PaymentReportPage() {
               <option value="all">All Customers</option>
               {customers.map((cust) => (
                 <option key={cust.id} value={cust.id}>
-                  {cust.firstName} {cust.lastName}
+                  {cust.name || `${cust.firstName || ''} ${cust.lastName || ''}`.trim() || 'Unknown'}
                 </option>
               ))}
             </select>
