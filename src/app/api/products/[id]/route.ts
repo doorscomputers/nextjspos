@@ -453,20 +453,12 @@ export async function PUT(
     }
 
     // Validate pricing for single products
+    // NOTE: Only validate cost - selling prices are location-specific (via ProductLocationStock)
     if (type === 'single') {
       const cost = purchasePrice ? parseFloat(purchasePrice) : 0
-      const price = sellingPrice ? parseFloat(sellingPrice) : 0
 
       if (cost <= 0) {
         return NextResponse.json({ error: 'Purchase price (cost) must be greater than zero' }, { status: 400 })
-      }
-
-      if (price <= 0) {
-        return NextResponse.json({ error: 'Selling price must be greater than zero' }, { status: 400 })
-      }
-
-      if (price < cost) {
-        return NextResponse.json({ error: 'Selling price cannot be lower than purchase price (cost)' }, { status: 400 })
       }
     }
 
