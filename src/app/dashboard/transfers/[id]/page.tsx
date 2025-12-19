@@ -2131,36 +2131,57 @@ export default function TransferDetailPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Cancel Transfer Confirmation Dialog */}
+      {/* Cancel/Delete Transfer Confirmation Dialog */}
       <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
         <AlertDialogContent className="bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-gray-900 dark:text-white">Cancel Transfer</AlertDialogTitle>
+            <AlertDialogTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+              <ExclamationTriangleIcon className="w-6 h-6 text-red-600" />
+              {transfer?.status === 'draft' ? 'Delete Draft Transfer?' : 'Cancel Transfer?'}
+            </AlertDialogTitle>
             <AlertDialogDescription asChild>
-              <div className="space-y-3 text-gray-600 dark:text-gray-400">
-                <div className="text-base">
-                  Are you sure you want to cancel this transfer?
+              <div className="space-y-4 text-gray-600 dark:text-gray-400">
+                {/* Transfer Details */}
+                <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                  <div className="font-semibold text-gray-900 dark:text-white text-lg">
+                    {transfer?.transferNumber}
+                  </div>
+                  <div className="text-sm mt-1">
+                    {transfer?.fromLocationName} → {transfer?.toLocationName}
+                  </div>
+                  <div className="text-sm">
+                    {transfer?.items.length} item(s)
+                  </div>
                 </div>
+
+                <div className="text-base">
+                  {transfer?.status === 'draft'
+                    ? 'Are you sure you want to DELETE this draft transfer?'
+                    : 'Are you sure you want to CANCEL this transfer?'}
+                </div>
+
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4">
                   <div className="font-semibold text-red-900 dark:text-red-200 mb-2">
-                    ⚠️ This action cannot be undone
+                    ⚠️ WARNING: This action CANNOT be undone!
                   </div>
                   <div className="text-sm text-red-800 dark:text-red-300">
-                    The transfer will be permanently cancelled and cannot be recovered.
+                    {transfer?.status === 'draft'
+                      ? 'The draft transfer will be permanently DELETED. You will need to create a new transfer from scratch.'
+                      : 'The transfer will be permanently cancelled and any reserved stock will be released.'}
                   </div>
                 </div>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="shadow-md hover:shadow-lg transition-all duration-200">
-              No, Keep Transfer
+            <AlertDialogCancel className="shadow-md hover:shadow-lg transition-all duration-200 font-medium">
+              No, Go Back
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleCancelConfirmed}
               className="bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
             >
-              Yes, Cancel Transfer
+              {transfer?.status === 'draft' ? 'Yes, DELETE Draft' : 'Yes, Cancel Transfer'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
