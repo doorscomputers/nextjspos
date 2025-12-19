@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
-import { ArrowLeftIcon, CheckIcon, XMarkIcon, TruckIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ArrowDownTrayIcon, TableCellsIcon, PencilIcon, ExclamationTriangleIcon, PrinterIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, CheckIcon, XMarkIcon, TruckIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ArrowDownTrayIcon, TableCellsIcon, PencilIcon, ExclamationTriangleIcon, PrinterIcon, TrashIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 
 interface Transfer {
@@ -1657,14 +1657,15 @@ export default function TransferDetailPage() {
                         </div>
                       </div>
                       <Button
-                        variant="outline"
+                        variant="destructive"
                         size="sm"
                         onClick={() => handleRemoveEditItem(index)}
-                        className="text-red-600 border-red-300 hover:bg-red-50 hover:border-red-400"
+                        className="gap-1 bg-red-600 hover:bg-red-700 text-white font-medium shadow-sm"
                         disabled={editItems.length <= 1}
-                        title={editItems.length <= 1 ? 'Transfer must have at least one item' : 'Remove item'}
+                        title={editItems.length <= 1 ? 'Transfer must have at least one item' : 'Remove item from transfer'}
                       >
-                        <XMarkIcon className="w-4 h-4" />
+                        <TrashIcon className="w-4 h-4" />
+                        Remove
                       </Button>
                     </div>
                     <div className="flex items-center gap-4">
