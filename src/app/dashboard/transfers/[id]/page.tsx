@@ -1117,9 +1117,9 @@ export default function TransferDetailPage() {
 
     // Cancel - available for draft, pending_check, checked, in_transit
     if (['draft', 'pending_check', 'checked', 'in_transit'].includes(status) &&
-      can(PERMISSIONS.STOCK_TRANSFER_DELETE)) {
+      can(PERMISSIONS.STOCK_TRANSFER_CANCEL)) {
       actions.push({
-        label: 'Cancel Transfer',
+        label: status === 'draft' ? 'Delete Draft' : 'Cancel Transfer',
         icon: XMarkIcon,
         onClick: handleCancelClick,
         variant: 'destructive' as const
