@@ -105,21 +105,21 @@ export async function POST(
     // Validate stock availability at source location for each item
     const stockChecks = await Promise.all(
       items.map(async (item: any) => {
-        const inventory = await prisma.inventory.findFirst({
-          where: {
-            productVariationId: parseInt(item.productVariationId),
-            locationId: transfer.fromLocationId,
+        // Get variation with product info and stock at source location
+        const variation = await prisma.productVariation.findUnique({
+          where: { id: parseInt(item.productVariationId) },
+          include: {
+            product: true,
+            variationLocationDetails: {
+              where: { locationId: transfer.fromLocationId },
+              take: 1,
+            },
           },
         })
 
-        const availableStock = inventory ? parseFloat(inventory.quantity.toString()) : 0
+        const stockRecord = variation?.variationLocationDetails?.[0]
+        const availableStock = stockRecord ? parseFloat(stockRecord.qtyAvailable.toString()) : 0
         const requestedQty = parseFloat(item.quantity)
-
-        // Get product name for error message
-        const variation = await prisma.productVariation.findUnique({
-          where: { id: parseInt(item.productVariationId) },
-          include: { product: true },
-        })
 
         return {
           productId: item.productId,
