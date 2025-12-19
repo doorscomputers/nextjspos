@@ -291,8 +291,17 @@ export default function TransferDetailPage() {
         }
 
         // Show error only if verification failed or not applicable
-        const errorMessage = result.error || result.details || `Failed to ${successMessage.toLowerCase()}`
-        toast.error(errorMessage)
+        const errorMessage = result.error || `Failed to ${successMessage.toLowerCase()}`
+        toast.error(errorMessage, { duration: 5000 })
+
+        // If there are detailed errors (e.g., stock issues), show them
+        if (result.details && Array.isArray(result.details)) {
+          result.details.forEach((detail: string, index: number) => {
+            setTimeout(() => {
+              toast.error(detail, { duration: 6000 })
+            }, (index + 1) * 300) // Stagger the toasts
+          })
+        }
 
         // Log detailed error for debugging
         console.error(`API Error (${endpoint}):`, {

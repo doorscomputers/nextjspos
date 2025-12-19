@@ -37,7 +37,7 @@ export async function POST(
     const transfer = await prisma.stockTransfer.findFirst({
       where: {
         id: transferId,
-        businessId: parseInt(businessId),
+        businessId,
         deletedAt: null,
       },
       include: {
@@ -65,6 +65,52 @@ export async function POST(
       )
     }
 
+    // Validate stock availability at source location for each item
+    // This prevents submitting transfers for items that have been sold/transferred since draft creation
+    const stockChecks = await Promise.all(
+      transfer.items.map(async (item) => {
+        const inventory = await prisma.inventory.findFirst({
+          where: {
+            productVariationId: item.productVariationId,
+            locationId: transfer.fromLocationId,
+          },
+        })
+
+        const availableStock = inventory ? parseFloat(inventory.quantity.toString()) : 0
+        const requestedQty = parseFloat(item.quantity.toString())
+
+        // Get product name for error message
+        const variation = await prisma.productVariation.findUnique({
+          where: { id: item.productVariationId },
+          include: { product: true },
+        })
+
+        return {
+          productId: item.productId,
+          productVariationId: item.productVariationId,
+          productName: variation?.product?.name || 'Unknown',
+          variationName: variation?.name || 'Default',
+          requestedQty,
+          availableStock,
+          isValid: requestedQty <= availableStock,
+        }
+      })
+    )
+
+    const invalidItems = stockChecks.filter(check => !check.isValid)
+    if (invalidItems.length > 0) {
+      const errorMessages = invalidItems.map(
+        item => `${item.productName} (${item.variationName}): requested ${item.requestedQty}, available ${item.availableStock}`
+      )
+      return NextResponse.json(
+        {
+          error: 'Insufficient stock for some items. Stock may have changed since this draft was created.',
+          details: errorMessages,
+        },
+        { status: 400 }
+      )
+    }
+
     // Update status
     const updatedTransfer = await prisma.stockTransfer.update({
       where: { id: transferId },
@@ -75,8 +121,8 @@ export async function POST(
 
     // Create audit log
     await createAuditLog({
-      businessId: parseInt(businessId),
-      userId: parseInt(userId),
+      businessId,
+      userId,
       username: user.username,
       action: 'transfer_submit' as AuditAction,
       entityType: EntityType.STOCK_TRANSFER,
