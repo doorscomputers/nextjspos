@@ -369,14 +369,21 @@ export default function TransferDetailPage() {
     }
     setSearchLoading(true)
     try {
-      const res = await fetch(`/api/products/search?q=${encodeURIComponent(query)}&locationId=${transfer.fromLocationId}&includeStock=true`)
+      // Use optimized API mode with proper stock filtering at source location
+      const res = await fetch(
+        `/api/products/search?type=name&query=${encodeURIComponent(query)}&method=contains&locationId=${transfer.fromLocationId}&withStock=true`
+      )
       if (res.ok) {
         const data = await res.json()
-        // Filter out products already in edit items
+        // Filter out products already in edit items and map stock field
         const existingVariationIds = editItems.map(item => item.productVariationId)
-        const filtered = (data.products || data || []).filter((p: any) =>
-          p.variations?.some((v: any) => !existingVariationIds.includes(v.id) && (v.stockAtLocation || 0) > 0)
-        )
+        const filtered = (data.products || []).map((p: any) => ({
+          ...p,
+          variations: p.variations?.map((v: any) => ({
+            ...v,
+            stockAtLocation: v.stock || 0  // Map 'stock' field to 'stockAtLocation'
+          })).filter((v: any) => !existingVariationIds.includes(v.id) && (v.stock || 0) > 0)
+        })).filter((p: any) => p.variations?.length > 0)
         setSearchResults(filtered)
       }
     } catch (error) {
