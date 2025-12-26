@@ -109,8 +109,12 @@ export default function TransfersDevExtremePage() {
     try {
       setLoading(true)
       // OPTIMIZED: Removed includeDetails=true (6 extra user queries not needed for list view)
-      const statusParam = statusFilter ? `?status=${statusFilter}` : ''
-      const response = await fetch(`/api/transfers${statusParam}`)
+      // Fetch all transfers (limit=1000) for client-side DataGrid filtering/sorting
+      const params = new URLSearchParams()
+      if (statusFilter) params.append('status', statusFilter)
+      params.append('limit', '1000')
+      const queryString = params.toString() ? `?${params.toString()}` : ''
+      const response = await fetch(`/api/transfers${queryString}`)
       if (response.ok) {
         const data = await response.json()
         setTransfers(data || [])
