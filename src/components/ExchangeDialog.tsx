@@ -429,7 +429,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-[95vw] w-[1400px] max-h-[90vh] p-0 flex flex-col">
+        <DialogContent className="sm:max-w-none max-w-[95vw] w-[900px] max-h-[90vh] p-0 flex flex-col">
         <DialogHeader className="px-6 pt-6 pb-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <ArrowLeftRight className="h-5 w-5" />
