@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
+import { decrementShiftTotalsForVoid } from '@/lib/shift-running-totals'
+import { getManilaDate } from '@/lib/timezone'
 
 /**
  * GET /api/sales/[id]
@@ -122,13 +124,23 @@ export async function DELETE(
     const { id } = await params
     const saleId = parseInt(id)
 
-    // Fetch the sale with all its details
+    // Fetch the sale with all its details (including shiftId for running totals)
     const sale = await prisma.sale.findFirst({
       where: {
         id: saleId,
         businessId: parseInt(businessId),
       },
-      include: {
+      select: {
+        id: true,
+        businessId: true,
+        locationId: true,
+        shiftId: true,
+        invoiceNumber: true,
+        status: true,
+        subtotal: true,
+        totalAmount: true,
+        discountAmount: true,
+        discountType: true,
         items: true,
         payments: true,
       },
@@ -235,6 +247,40 @@ export async function DELETE(
             }
           }
         }
+      }
+
+      // Create VoidTransaction record for audit trail
+      await tx.voidTransaction.create({
+        data: {
+          businessId: parseInt(businessId),
+          locationId: sale.locationId,
+          saleId: sale.id,
+          voidReason: 'Voided via DELETE endpoint',
+          originalAmount: sale.totalAmount,
+          voidedBy: parseInt(userId),
+          approvedBy: parseInt(userId), // Self-approved via DELETE (no manager auth required)
+          approvedAt: getManilaDate(),
+          requiresManagerApproval: false,
+        },
+      })
+
+      // CRITICAL FIX: Decrement shift running totals for voided sale
+      // This ensures cash totals match physical drawer
+      if (sale.shiftId) {
+        await decrementShiftTotalsForVoid(
+          sale.shiftId,
+          {
+            subtotal: parseFloat(sale.subtotal.toString()),
+            totalAmount: parseFloat(sale.totalAmount.toString()),
+            discountAmount: parseFloat(sale.discountAmount.toString()),
+            discountType: sale.discountType,
+            payments: sale.payments.map((p: any) => ({
+              paymentMethod: p.paymentMethod,
+              amount: parseFloat(p.amount.toString()),
+            })),
+          },
+          tx  // Pass transaction client for atomicity
+        )
       }
     }, {
       timeout: 30000, // 30 seconds timeout

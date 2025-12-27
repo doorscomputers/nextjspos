@@ -65,8 +65,10 @@ export async function GET(request: NextRequest) {
         sale: {
           businessId,
           ...locationFilter,
+          // CRITICAL FIX: Filter out BOTH cancelled AND voided sales
+          // Voided sales should not be counted in cash collection reports
           status: {
-            not: "cancelled",
+            notIn: ["cancelled", "voided"],
           },
         },
       },

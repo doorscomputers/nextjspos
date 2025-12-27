@@ -190,6 +190,25 @@ export async function POST(
     // Void the sale and restore inventory in transaction
     // Use 60 second timeout to handle multi-item voids with inventory restoration
     const result = await prisma.$transaction(async (tx) => {
+      // RACE CONDITION PROTECTION: Re-fetch sale inside transaction with fresh status
+      // This prevents double-void if two requests arrive simultaneously
+      const freshSale = await tx.sale.findUnique({
+        where: { id: saleId },
+        select: { status: true },
+      })
+
+      if (!freshSale) {
+        throw new Error('Sale not found')
+      }
+
+      // Double-check status inside transaction (atomic check)
+      if (freshSale.status === 'voided') {
+        throw new Error('ALREADY_VOIDED')
+      }
+      if (freshSale.status === 'cancelled') {
+        throw new Error('SALE_CANCELLED')
+      }
+
       // Update sale status to voided
       const voidedSale = await tx.sale.update({
         where: { id: saleId },
@@ -357,6 +376,21 @@ export async function POST(
     })
   } catch (error: any) {
     console.error('Error voiding sale:', error)
+
+    // Handle specific race condition errors
+    if (error.message === 'ALREADY_VOIDED') {
+      return NextResponse.json(
+        { error: 'Sale is already voided (concurrent void detected)' },
+        { status: 400 }
+      )
+    }
+    if (error.message === 'SALE_CANCELLED') {
+      return NextResponse.json(
+        { error: 'Cannot void a cancelled sale' },
+        { status: 400 }
+      )
+    }
+
     return NextResponse.json(
       { error: 'Failed to void sale', details: error.message },
       { status: 500 }
