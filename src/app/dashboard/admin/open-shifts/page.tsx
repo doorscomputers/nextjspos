@@ -401,9 +401,12 @@ export default function OpenShiftsPage() {
 
           <Paging defaultPageSize={20} />
           <Pager
+            visible={true}
+            displayMode="full"
             showPageSizeSelector={true}
             allowedPageSizes={[10, 20, 50, 100]}
             showInfo={true}
+            showNavigationButtons={true}
           />
 
           <Column dataField="shiftNumber" caption="Shift Number" width={150} />

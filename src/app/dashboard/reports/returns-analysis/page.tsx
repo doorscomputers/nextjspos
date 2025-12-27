@@ -435,6 +435,7 @@ export default function ReturnsAnalysisReport() {
             <Paging defaultPageSize={50} />
             <Pager
               visible={true}
+              displayMode="full"
               showPageSizeSelector={true}
               allowedPageSizes={[20, 50, 100, 200]}
               showInfo={true}

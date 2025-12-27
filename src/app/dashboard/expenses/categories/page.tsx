@@ -381,6 +381,7 @@ export default function ExpenseCategoriesPage() {
               <Paging enabled={true} defaultPageSize={20} />
               <Pager
                 visible={true}
+                displayMode="full"
                 allowedPageSizes={[10, 20, 50, 100]}
                 showPageSizeSelector={true}
                 showNavigationButtons={true}

@@ -214,6 +214,7 @@ export default function PriceComparisonReportPage() {
             <Paging defaultPageSize={20} />
             <Pager
               visible={true}
+              displayMode="full"
               showPageSizeSelector={true}
               allowedPageSizes={[20, 50, 100, 200]}
               showInfo={true}

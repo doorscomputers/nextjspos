@@ -586,6 +586,7 @@ export default function TechniciansPage() {
               <Paging defaultPageSize={10} />
               <Pager
                 visible={true}
+                displayMode="full"
                 showPageSizeSelector={true}
                 allowedPageSizes={[10, 20, 30, 40, 50]}
                 showInfo={true}

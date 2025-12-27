@@ -423,7 +423,7 @@ export default function MyTransfersReport() {
             <ColumnFixing enabled />
             <Sorting mode="multiple" />
             <Paging defaultPageSize={10} />
-            <Pager visible allowedPageSizes={[10, 20, 30, 40, 50]} showPageSizeSelector showInfo showNavigationButtons />
+            <Pager visible displayMode="full" allowedPageSizes={[10, 20, 30, 40, 50]} showPageSizeSelector showInfo showNavigationButtons />
 
             <Column dataField="transferNumber" caption="Transfer #" width={150} fixed />
             <Column dataField="transferDateFormatted" caption="Transfer Date" dataType="date" width={120} />

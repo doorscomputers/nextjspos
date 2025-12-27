@@ -404,6 +404,7 @@ export default function SalesPerItemReport() {
             <Paging defaultPageSize={10} />
             <Pager
               visible={true}
+              displayMode="full"
               allowedPageSizes={[10, 20, 30, 40, 50]}
               showPageSizeSelector={true}
               showInfo={true}

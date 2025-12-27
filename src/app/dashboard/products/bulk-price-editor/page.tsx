@@ -1023,6 +1023,7 @@ export default function BulkPriceEditorPage() {
             <Paging defaultPageSize={100} />
             <Pager
               visible={true}
+              displayMode="full"
               showPageSizeSelector={true}
               allowedPageSizes={[20, 50, 100, 200]}
               showInfo={true}

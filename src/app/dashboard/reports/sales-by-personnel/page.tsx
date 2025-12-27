@@ -520,7 +520,7 @@ export default function SalesByPersonnelReport() {
               className="dx-card"
             >
               <Paging defaultPageSize={20} />
-              <Pager visible={true} showPageSizeSelector={true} allowedPageSizes={[10, 20, 50]} showInfo={true} />
+              <Pager visible={true} displayMode="full" showPageSizeSelector={true} allowedPageSizes={[10, 20, 50]} showInfo={true} showNavigationButtons={true} />
               <FilterRow visible={true} />
               <HeaderFilter visible={true} />
               <Sorting mode="multiple" />
@@ -553,7 +553,7 @@ export default function SalesByPersonnelReport() {
               className="dx-card"
             >
               <Paging defaultPageSize={20} />
-              <Pager visible={true} showPageSizeSelector={true} allowedPageSizes={[10, 20, 50, 100]} showInfo={true} />
+              <Pager visible={true} displayMode="full" showPageSizeSelector={true} allowedPageSizes={[10, 20, 50, 100]} showInfo={true} showNavigationButtons={true} />
               <FilterRow visible={true} />
               <HeaderFilter visible={true} />
               <SearchPanel visible={true} width={250} placeholder="Search..." />

@@ -291,6 +291,7 @@ export default function MyLocationPricingPage() {
             <Paging defaultPageSize={100} />
             <Pager
               visible={true}
+              displayMode="full"
               allowedPageSizes={[50, 100, 200, 'all']}
               showPageSizeSelector={true}
               showInfo={true}

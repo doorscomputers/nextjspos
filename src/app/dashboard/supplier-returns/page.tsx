@@ -265,6 +265,7 @@ export default function SupplierReturnsPage() {
         <Paging enabled={true} defaultPageSize={20} />
         <Pager
           visible={true}
+          displayMode="full"
           showPageSizeSelector={true}
           allowedPageSizes={[10, 20, 50, 100]}
           showInfo={true}
