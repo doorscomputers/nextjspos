@@ -139,7 +139,10 @@ export async function POST(
           )
         }
 
-        returnTotal += returnQty * parseFloat(saleItem.unitPrice.toString())
+        // Account for discounts on return items (e.g., freebies at ₱0.00)
+        const itemDiscount = parseFloat(saleItem.discountAmount?.toString() || '0')
+        const effectivePrice = parseFloat(saleItem.unitPrice.toString()) - itemDiscount
+        returnTotal += returnQty * effectivePrice
       }
 
       // Calculate exchange items total
