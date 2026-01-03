@@ -581,7 +581,6 @@ export default function SalesHistoryPage() {
                 setStartDate(e.target.value)
                 if (e.target.value) setDateRange("custom")
               }}
-              disabled={dateRange !== "custom"}
               className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             />
           </div>
@@ -596,7 +595,6 @@ export default function SalesHistoryPage() {
                 setEndDate(e.target.value)
                 if (e.target.value) setDateRange("custom")
               }}
-              disabled={dateRange !== "custom"}
               className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
             />
           </div>
