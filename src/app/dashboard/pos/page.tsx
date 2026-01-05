@@ -31,6 +31,7 @@ export default function POSEnhancedPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const cashIOSubmittingRef = useRef(false) // Prevent double submission for Cash In/Out
 
   // State Management
   const [loading, setLoading] = useState(false)
@@ -1484,6 +1485,9 @@ export default function POSEnhancedPage() {
   }
 
   const handleCashIn = async () => {
+    // Prevent double submission using ref (synchronous check)
+    if (cashIOSubmittingRef.current) return
+
     if (!cashIOAmount || parseFloat(cashIOAmount) <= 0) {
       setError('Please enter a valid amount')
       return
@@ -1498,6 +1502,8 @@ export default function POSEnhancedPage() {
     )
     if (!confirmed) return
 
+    // Set ref BEFORE async state update to prevent race condition
+    cashIOSubmittingRef.current = true
     setCashIOSubmitting(true)
     try {
       const res = await fetch('/api/cash/in', {
@@ -1531,11 +1537,15 @@ export default function POSEnhancedPage() {
       setError(errorMessage)
       alert(`Cash In Error: ${errorMessage}`)
     } finally {
+      cashIOSubmittingRef.current = false
       setCashIOSubmitting(false)
     }
   }
 
   const handleCashOut = async () => {
+    // Prevent double submission using ref (synchronous check)
+    if (cashIOSubmittingRef.current) return
+
     if (!cashIOAmount || parseFloat(cashIOAmount) <= 0) {
       setError('Please enter a valid amount')
       return
@@ -1555,6 +1565,8 @@ export default function POSEnhancedPage() {
     )
     if (!confirmed) return
 
+    // Set ref BEFORE async state update to prevent race condition
+    cashIOSubmittingRef.current = true
     setCashIOSubmitting(true)
     try {
       const res = await fetch('/api/cash/out', {
@@ -1588,6 +1600,7 @@ export default function POSEnhancedPage() {
       setError(errorMessage)
       alert(`Cash Out Error: ${errorMessage}`)
     } finally {
+      cashIOSubmittingRef.current = false
       setCashIOSubmitting(false)
     }
   }
