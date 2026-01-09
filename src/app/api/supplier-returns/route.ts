@@ -334,7 +334,16 @@ export async function POST(request: NextRequest) {
       console.error('Failed to send supplier return Telegram alert:', err)
     })
 
-    return NextResponse.json({ return: completeReturn }, { status: 201 })
+    // Format response with product data in items (matching [id]/route.ts pattern)
+    const formattedReturn = completeReturn ? {
+      ...completeReturn,
+      items: completeReturn.items.map((item) => ({
+        ...item,
+        product: { id: item.productId, name: productMap[item.productId] || 'Unknown Product' },
+      })),
+    } : null
+
+    return NextResponse.json({ return: formattedReturn }, { status: 201 })
   } catch (error) {
     console.error('Error creating supplier return:', error)
     return NextResponse.json(
