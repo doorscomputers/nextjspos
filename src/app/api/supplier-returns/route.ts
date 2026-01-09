@@ -283,14 +283,25 @@ export async function POST(request: NextRequest) {
       where: { id: supplierReturn.id },
       include: {
         supplier: true,
-        items: {
-          include: {
-            product: { select: { name: true } },
-          },
-        },
+        items: true,
         location: { select: { name: true } },
       },
     })
+
+    // Fetch product names separately (SupplierReturnItem has no product relation)
+    const productIds = completeReturn?.items?.map((item) => item.productId) || []
+    let productMap: Record<number, string> = {}
+
+    if (productIds.length > 0) {
+      const products = await prisma.product.findMany({
+        where: { id: { in: productIds } },
+        select: { id: true, name: true },
+      })
+      productMap = products.reduce((acc, p) => {
+        acc[p.id] = p.name
+        return acc
+      }, {} as Record<number, string>)
+    }
 
     // Get user display name for notifications
     const userDisplayName = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || `User#${userId}`
@@ -307,7 +318,7 @@ export async function POST(request: NextRequest) {
       locationName: completeReturn?.location?.name || 'Unknown Location',
       timestamp: new Date(),
       items: completeReturn?.items?.map((item: any) => ({
-        productName: item.product?.name || 'Unknown Product',
+        productName: productMap[item.productId] || 'Unknown Product',
         quantity: Number(item.quantity),
         unitCost: Number(item.unitCost),
       })),
