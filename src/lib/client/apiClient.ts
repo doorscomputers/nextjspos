@@ -227,10 +227,22 @@ export async function apiPost<T = any>(
         ...options,
       })
         .then(async (response) => {
-          // Check if this was a replayed response
+          // Check if this was a replayed response (idempotency cache hit)
           const isReplay = response.headers.get('X-Idempotent-Replay') === 'true'
           if (isReplay) {
-            console.log(`[API Client] Received replayed response for ${url}`)
+            console.log(`[API Client] Received replayed response for ${url} (idempotency cache hit)`)
+          }
+
+          // Handle 429 "Request in progress" - another identical request is being processed
+          if (response.status === 429) {
+            const retryAfter = parseInt(response.headers.get('Retry-After') || '5')
+            const errorData = await response.json().catch(() => ({ error: 'Request in progress' }))
+            console.log(`[API Client] Request in progress (429), will retry in ${retryAfter}s`)
+            // Throw special error that will trigger a retry with delay
+            const error = new Error(`REQUEST_IN_PROGRESS:${retryAfter}`)
+            ;(error as any).retryAfter = retryAfter
+            ;(error as any).isInProgress = true
+            throw error
           }
 
           if (!response.ok) {
@@ -261,6 +273,14 @@ export async function apiPost<T = any>(
       if (error.message.includes('Unauthorized') || error.message.includes('Forbidden')) {
         console.error(`[API Client] Non-retryable error for ${url}:`, error.message)
         throw error
+      }
+
+      // Special handling for 429 "Request in progress" - use server-specified delay
+      if (error.isInProgress && error.retryAfter) {
+        const serverDelay = error.retryAfter * 1000 // Convert to milliseconds
+        console.log(`[API Client] Another request is processing, waiting ${serverDelay}ms before retry...`)
+        await sleep(serverDelay)
+        continue // Retry immediately after waiting
       }
 
       // If not last attempt, wait and retry

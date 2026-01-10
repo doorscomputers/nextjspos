@@ -4,16 +4,21 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 
 /**
- * Idempotency middleware - Prevents duplicate submissions on unreliable networks
+ * Idempotency middleware - Prevents duplicate submissions using ATOMIC lock-first approach
  *
- * Usage:
- * ```typescript
- * export async function POST(request: NextRequest) {
- *   return withIdempotency(request, '/api/sales', async () => {
- *     // Your endpoint logic here
- *   })
- * }
- * ```
+ * CRITICAL FIX: The previous implementation had a race condition where two concurrent
+ * requests could both pass the "check if key exists" step before either had saved.
+ *
+ * NEW APPROACH (Atomic Lock-First):
+ * 1. INSERT the idempotency key FIRST with status='processing' (atomic database operation)
+ * 2. Only ONE request can claim the key - database ensures atomicity
+ * 3. If INSERT fails (key exists), check status:
+ *    - 'processing' → Return 429 "Request in progress"
+ *    - 'completed' → Return cached response
+ *    - 'failed' → Allow retry
+ * 4. After handler completes, UPDATE status to 'completed' with response
+ *
+ * This eliminates the race condition because INSERT with ON CONFLICT is atomic at DB level.
  */
 export async function withIdempotency(
   request: NextRequest,
@@ -22,7 +27,7 @@ export async function withIdempotency(
 ): Promise<NextResponse> {
   const idempotencyKey = request.headers.get('Idempotency-Key')
 
-  // If no idempotency key provided, process normally
+  // If no idempotency key provided, process normally (backwards compatible)
   if (!idempotencyKey) {
     return await handler()
   }
@@ -38,94 +43,157 @@ export async function withIdempotency(
   const userId = parseInt(user.id)
 
   try {
-    // Check if this request was already processed
+    // STEP 1: Try to CLAIM the idempotency key atomically
+    // This is the critical fix - only ONE request can succeed here
+    const claimed = await prisma.$queryRaw<Array<{ id: number }>>`
+      INSERT INTO idempotency_keys (key, business_id, user_id, endpoint, status, expires_at)
+      VALUES (${idempotencyKey}, ${businessId}, ${userId}, ${endpoint}, 'processing',
+              NOW() + INTERVAL '24 hours')
+      ON CONFLICT (key) DO NOTHING
+      RETURNING id
+    `
+
+    // STEP 2: If we successfully claimed the key, process the request
+    if (claimed && claimed.length > 0) {
+      const keyId = claimed[0].id
+      console.log(`[Idempotency] Claimed key ${idempotencyKey.slice(0, 20)}... (id=${keyId})`)
+
+      try {
+        // Process the actual request
+        const response = await handler()
+        const responseClone = response.clone()
+        const responseBody = await responseClone.json()
+
+        // STEP 3: Update with response (mark as completed)
+        await prisma.$executeRaw`
+          UPDATE idempotency_keys
+          SET status = 'completed',
+              response_status = ${response.status},
+              response_body = ${JSON.stringify(responseBody)}
+          WHERE id = ${keyId}
+        `
+
+        console.log(`[Idempotency] Completed key ${idempotencyKey.slice(0, 20)}... status=${response.status}`)
+
+        // Return the response with idempotency header
+        return NextResponse.json(responseBody, {
+          status: response.status,
+          headers: {
+            'X-Idempotent-Created': 'true',
+          },
+        })
+      } catch (handlerError) {
+        // Handler failed - mark as failed so retries can try again
+        console.error(`[Idempotency] Handler failed for key ${idempotencyKey.slice(0, 20)}...:`, handlerError)
+        await prisma.$executeRaw`
+          UPDATE idempotency_keys SET status = 'failed' WHERE id = ${keyId}
+        `
+        throw handlerError
+      }
+    }
+
+    // STEP 4: Key already exists (we didn't claim it) - check its status
+    console.log(`[Idempotency] Key ${idempotencyKey.slice(0, 20)}... already exists, checking status`)
+
     const existing = await prisma.$queryRaw<
       Array<{
-        id: number
-        response_status: number
-        response_body: any
+        status: string
+        response_status: number | null
+        response_body: string | null
         created_at: Date
       }>
-    >`SELECT id, response_status, response_body, created_at
+    >`
+      SELECT status, response_status, response_body, created_at
       FROM idempotency_keys
       WHERE key = ${idempotencyKey}
         AND business_id = ${businessId}
-      LIMIT 1`
+      LIMIT 1
+    `
 
     if (existing && existing.length > 0) {
-      const cached = existing[0]
+      const record = existing[0]
 
-      // Return cached response
-      return new NextResponse(JSON.stringify(cached.response_body), {
-        status: cached.response_status,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Idempotent-Replay': 'true',
-          'X-Original-Request-Time': cached.created_at.toISOString(),
-        },
-      })
-    }
-
-    // Process the request
-    const response = await handler()
-    const responseClone = response.clone()
-    const responseBody = await responseClone.json()
-
-    // Cache the result for 24 hours
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
-
-    try {
-      // Store idempotency key (use raw query to avoid Prisma schema dependency)
-      await prisma.$executeRaw`
-        INSERT INTO idempotency_keys (
-          key,
-          business_id,
-          user_id,
-          endpoint,
-          request_body,
-          response_status,
-          response_body,
-          expires_at
-        ) VALUES (
-          ${idempotencyKey},
-          ${businessId},
-          ${userId},
-          ${endpoint},
-          ${JSON.stringify(await request.json().catch(() => null))},
-          ${response.status},
-          ${JSON.stringify(responseBody)},
-          ${expiresAt}
+      if (record.status === 'processing') {
+        // Another request is still processing - tell client to wait and retry
+        console.warn(`[Idempotency] BLOCKED: Key ${idempotencyKey.slice(0, 20)}... is still processing`)
+        return NextResponse.json(
+          {
+            error: 'Request already in progress',
+            message: 'Another identical request is being processed. Please wait and try again.',
+            retryAfter: 5,
+          },
+          {
+            status: 429,
+            headers: {
+              'Retry-After': '5',
+              'X-Idempotent-Processing': 'true',
+            },
+          }
         )
-        ON CONFLICT (key) DO NOTHING
-      `
-    } catch (cacheError) {
-      // Log but don't fail the request if caching fails
-      console.error('Failed to cache idempotency key:', cacheError)
+      }
+
+      if (record.status === 'completed' && record.response_body) {
+        // Return cached response - this is a duplicate request
+        console.log(`[Idempotency] REPLAY: Returning cached response for key ${idempotencyKey.slice(0, 20)}...`)
+        try {
+          const cachedBody = JSON.parse(record.response_body)
+          return NextResponse.json(cachedBody, {
+            status: record.response_status || 200,
+            headers: {
+              'X-Idempotent-Replay': 'true',
+              'X-Original-Request-Time': record.created_at.toISOString(),
+            },
+          })
+        } catch (parseError) {
+          console.error('[Idempotency] Failed to parse cached response, processing normally')
+          // Fall through to process normally
+        }
+      }
+
+      if (record.status === 'failed') {
+        // Previous request failed - allow retry by deleting the failed record
+        console.log(`[Idempotency] Previous request failed, allowing retry for key ${idempotencyKey.slice(0, 20)}...`)
+        await prisma.$executeRaw`
+          DELETE FROM idempotency_keys WHERE key = ${idempotencyKey} AND business_id = ${businessId}
+        `
+        // Fall through to process normally
+      }
     }
 
-    // Return original response
-    return NextResponse.json(responseBody, {
-      status: response.status,
-      headers: {
-        'X-Idempotent-Created': 'true',
-      },
-    })
+    // If we get here, process the request normally (shouldn't happen often)
+    console.warn(`[Idempotency] Unexpected state for key ${idempotencyKey.slice(0, 20)}..., processing normally`)
+    return await handler()
   } catch (error) {
-    console.error('Idempotency middleware error:', error)
-    // On error, process the request normally (fail-safe)
+    console.error('[Idempotency] Middleware error:', error)
+    // On middleware error, fail-safe by processing the request normally
+    // This ensures the system remains functional even if idempotency has issues
     return await handler()
   }
 }
 
 /**
  * Cleanup expired idempotency keys
- * Call this periodically (e.g., via cron job)
+ * Call this periodically (e.g., via cron job or on-demand cleanup)
  */
 export async function cleanupExpiredIdempotencyKeys(): Promise<number> {
   const result = await prisma.$executeRaw`
     DELETE FROM idempotency_keys
     WHERE expires_at < CURRENT_TIMESTAMP
   `
+  return result
+}
+
+/**
+ * Cleanup stale 'processing' keys that were never completed
+ * Call this to recover from crashed requests (e.g., server restart during processing)
+ */
+export async function cleanupStaleProcessingKeys(maxAgeMinutes: number = 10): Promise<number> {
+  const result = await prisma.$executeRaw`
+    DELETE FROM idempotency_keys
+    WHERE status = 'processing'
+      AND created_at < NOW() - INTERVAL '${maxAgeMinutes} minutes'
+  `
+  console.log(`[Idempotency] Cleaned up ${result} stale processing keys`)
   return result
 }
 

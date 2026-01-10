@@ -83,6 +83,7 @@ model User {
   menuPermissions              UserMenuPermission[]
   pricingAlerts                PricingAlert[]             @relation("PricingAlertUser")
   collectedARPayments          SalePayment[]              @relation("ARPaymentCollector")
+  priceChangeHistory           PriceChangeHistory[]       @relation("PriceChangeUser")
 
   // Accounting Module Relations
   closedPeriods          FiscalPeriod[]       @relation("PeriodClosedBy")
@@ -274,6 +275,9 @@ model Business {
   packageCategories PackageCategory[]
   packageTemplates  PackageTemplate[]
 
+  // Price Change Audit
+  priceChangeHistory PriceChangeHistory[]
+
   @@map("business")
 }
 
@@ -332,6 +336,9 @@ model BusinessLocation {
   serviceWarrantyClaims ServiceWarrantyClaim[] @relation("LocationServiceWarrantyClaims")
   repairJobOrders       RepairJobOrder[]       @relation("LocationRepairJobOrders")
   serviceRepairPayments ServiceRepairPayment[] @relation("LocationServiceRepairPayments")
+
+  // Price Change Audit
+  priceChangeHistory PriceChangeHistory[]
 
   @@index([businessId])
   @@index([printerId])
@@ -620,21 +627,24 @@ model ExchangeSequence {
 }
 
 // Idempotency keys for preventing duplicate submissions
+// Uses atomic lock-first approach: INSERT first with status='processing', then UPDATE when complete
 model IdempotencyKey {
   id             Int      @id @default(autoincrement())
   key            String   @unique
   businessId     Int      @map("business_id")
   userId         Int      @map("user_id")
   endpoint       String
+  status         String   @default("processing") // processing | completed | failed
   requestBody    String?  @map("request_body") @db.Text
-  responseStatus Int      @map("response_status")
-  responseBody   String   @map("response_body") @db.Text
+  responseStatus Int?     @map("response_status") // Nullable - not set during 'processing'
+  responseBody   String?  @map("response_body") @db.Text // Nullable - not set during 'processing'
   expiresAt      DateTime @map("expires_at")
   createdAt      DateTime @default(now()) @map("created_at")
 
   @@index([businessId])
   @@index([userId])
   @@index([expiresAt])
+  @@index([key, businessId]) // For faster lookups during idempotency checks
   @@map("idempotency_keys")
 }
 
@@ -1060,6 +1070,9 @@ model ProductVariation {
   serviceWarrantyClaims ServiceWarrantyClaim[] @relation("VariationServiceWarrantyClaims")
   repairJobOrders       RepairJobOrder[]       @relation("VariationRepairJobOrders")
   repairJobOrderParts   RepairJobOrderPart[]   @relation("VariationJobOrderParts")
+
+  // Price Change Audit
+  priceChangeHistory PriceChangeHistory[]
 
   @@unique([businessId, sku]) // SKU must be unique within each business
   @@index([productId])
@@ -3018,9 +3031,9 @@ model VoidTransaction {
 
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@unique([saleId]) // CRITICAL: Prevent duplicate void records - each sale can only be voided once
   @@index([businessId])
   @@index([locationId])
-  @@index([saleId])
   @@index([voidedBy])
   @@map("void_transactions")
 }
@@ -4979,4 +4992,43 @@ model PackageTemplateItem {
   @@index([packageTemplateId])
   @@index([productId])
   @@map("package_template_items")
+}
+
+// ============================================
+// PRICE CHANGE AUDIT HISTORY
+// ============================================
+
+model PriceChangeHistory {
+  id                 Int      @id @default(autoincrement())
+  businessId         Int      @map("business_id")
+  productVariationId Int      @map("product_variation_id")
+  locationId         Int?     @map("location_id")
+
+  // Price tracking
+  oldPrice           Decimal? @map("old_price") @db.Decimal(20, 2)
+  newPrice           Decimal  @map("new_price") @db.Decimal(20, 2)
+
+  // Audit fields
+  changedBy          Int      @map("changed_by")
+  changeSource       String   @map("change_source") @db.VarChar(50) // 'bulk_update', 'bulk_import', 'manual', 'script'
+
+  // Optional context
+  sku                String?  @db.VarChar(191)
+  productName        String?  @map("product_name") @db.VarChar(500)
+
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  // Relations
+  business           Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  productVariation   ProductVariation @relation(fields: [productVariationId], references: [id], onDelete: Cascade)
+  businessLocation   BusinessLocation? @relation(fields: [locationId], references: [id])
+  user               User             @relation("PriceChangeUser", fields: [changedBy], references: [id])
+
+  @@index([businessId])
+  @@index([productVariationId])
+  @@index([locationId])
+  @@index([changedBy])
+  @@index([createdAt])
+  @@index([changeSource])
+  @@map("price_change_history")
 }
