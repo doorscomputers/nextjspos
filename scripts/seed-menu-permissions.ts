@@ -72,6 +72,24 @@ const menuItems = [
   { key: 'help_center', name: 'Help Center', href: '/dashboard/help', parentKey: null, order: 10 },
   { key: 'notifications', name: 'Notifications', href: '/dashboard/notifications', parentKey: null, order: 11 },
   { key: 'my_profile', name: 'My Profile', href: '/dashboard/profile', parentKey: null, order: 12 },
+
+  // Reports
+  { key: 'reports', name: 'Reports', href: '#', parentKey: null, order: 13 },
+
+  // Financial Reports (under Reports)
+  { key: 'financial_reports', name: 'Financial Reports', href: '#', parentKey: 'reports', order: 1 },
+  { key: 'profit_loss_report', name: 'Profit / Loss Report', href: '/dashboard/reports/profit-loss', parentKey: 'financial_reports', order: 1 },
+  { key: 'purchase_sale_report', name: 'Purchase & Sale Report', href: '/dashboard/reports/purchase-sale', parentKey: 'financial_reports', order: 2 },
+  { key: 'profitability_cogs', name: 'Profitability & COGS', href: '/dashboard/reports/profitability', parentKey: 'financial_reports', order: 3 },
+  { key: 'net_profit_report', name: 'Net Profit Report', href: '/dashboard/reports/profit', parentKey: 'financial_reports', order: 4 },
+  { key: 'cash_in_out_report', name: 'Cash In/Out Report', href: '/dashboard/reports/cash-in-out', parentKey: 'financial_reports', order: 5 },
+  { key: 'unpaid_invoices', name: 'Unpaid Invoices', href: '/dashboard/reports/unpaid-invoices', parentKey: 'financial_reports', order: 6 },
+  { key: 'customer_payments', name: 'Customer Payments', href: '/dashboard/reports/customer-payments', parentKey: 'financial_reports', order: 7 },
+  { key: 'accounts_receivable', name: 'Accounts Receivable', href: '/dashboard/reports/accounts-receivable', parentKey: 'financial_reports', order: 8 },
+  { key: 'product_purchase_history', name: 'Product Purchase History', href: '/dashboard/reports/product-purchase-history', parentKey: 'financial_reports', order: 9 },
+  { key: 'purchase_returns_report', name: 'Purchase Returns Report', href: '/dashboard/reports/purchase-returns', parentKey: 'financial_reports', order: 10 },
+  { key: 'returns_analysis', name: 'Returns Analysis', href: '/dashboard/reports/returns-analysis', parentKey: 'financial_reports', order: 11 },
+  { key: 'gl_journal_entries', name: 'GL Journal Entries', href: '/dashboard/reports/gl-entries', parentKey: 'financial_reports', order: 12 },
 ]
 
 async function main() {

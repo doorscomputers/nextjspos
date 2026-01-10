@@ -212,11 +212,12 @@ const COMPLETE_MENU_STRUCTURE = [
   { key: 'cash_in_out_report', name: 'Cash In/Out Report', href: '/dashboard/reports/financial/cash-in-out', order: 5, parentKey: 'financial_reports' },
   { key: 'unpaid_invoices', name: 'Unpaid Invoices', href: '/dashboard/reports/financial/unpaid-invoices', order: 6, parentKey: 'financial_reports' },
   { key: 'customer_payments', name: 'Customer Payments', href: '/dashboard/reports/financial/customer-payments', order: 7, parentKey: 'financial_reports' },
-  { key: 'product_purchase_history', name: 'Product Purchase History', href: '/dashboard/reports/financial/product-purchase-history', order: 8, parentKey: 'financial_reports' },
-  { key: 'purchase_returns_report', name: 'Purchase Returns Report', href: '/dashboard/reports/financial/purchase-returns', order: 9, parentKey: 'financial_reports' },
-  { key: 'returns_analysis', name: 'Returns Analysis', href: '/dashboard/reports/financial/returns-analysis', order: 10, parentKey: 'financial_reports' },
-  { key: 'expense_reports_parent', name: 'Expense Reports', href: null, order: 11, parentKey: 'financial_reports' },
-  { key: 'gl_journal_entries', name: 'GL Journal Entries', href: '/dashboard/reports/financial/gl-journal', order: 12, parentKey: 'financial_reports' },
+  { key: 'accounts_receivable', name: 'Accounts Receivable', href: '/dashboard/reports/accounts-receivable', order: 8, parentKey: 'financial_reports' },
+  { key: 'product_purchase_history', name: 'Product Purchase History', href: '/dashboard/reports/financial/product-purchase-history', order: 9, parentKey: 'financial_reports' },
+  { key: 'purchase_returns_report', name: 'Purchase Returns Report', href: '/dashboard/reports/financial/purchase-returns', order: 10, parentKey: 'financial_reports' },
+  { key: 'returns_analysis', name: 'Returns Analysis', href: '/dashboard/reports/financial/returns-analysis', order: 11, parentKey: 'financial_reports' },
+  { key: 'expense_reports_parent', name: 'Expense Reports', href: null, order: 12, parentKey: 'financial_reports' },
+  { key: 'gl_journal_entries', name: 'GL Journal Entries', href: '/dashboard/reports/financial/gl-journal', order: 13, parentKey: 'financial_reports' },
 
   // Compliance Reports Grandchildren
   { key: 'bir_daily_sales_summary', name: 'BIR Daily Sales Summary', href: '/dashboard/reports/compliance/bir-daily', order: 1, parentKey: 'compliance_reports' },
