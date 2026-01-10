@@ -369,13 +369,13 @@ export default function AccountsReceivablePage() {
     );
   };
 
-  // Export to Excel
-  const handleExportExcel = useCallback(() => {
+  // Export to Excel - for DevExtreme built-in export button
+  const onExporting = useCallback((e: any) => {
     const workbook = new Workbook();
     const worksheet = workbook.addWorksheet("Accounts Receivable");
 
     exportDataGrid({
-      component: dataGridRef.current?.instance,
+      component: e.component,
       worksheet: worksheet,
       autoFilterEnabled: true,
       customizeCell: ({ gridCell, excelCell }: any) => {
@@ -396,100 +396,154 @@ export default function AccountsReceivablePage() {
       workbook.xlsx.writeBuffer().then((buffer) => {
         saveAs(
           new Blob([buffer], { type: "application/octet-stream" }),
-          `Accounts_Receivable_${new Date().toLocaleDateString()}.xlsx`
+          `Accounts_Receivable_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`
         );
+        toast.success("Exported to Excel");
       });
     });
 
-    toast.success("Exported to Excel");
+    e.cancel = true; // Prevent default export behavior
+  }, []);
+
+  // Export to Excel - for custom button click
+  const handleExportExcel = useCallback(() => {
+    const instance = dataGridRef.current?.instance;
+    if (!instance) {
+      toast.error("DataGrid not ready. Please try again.");
+      return;
+    }
+
+    const workbook = new Workbook();
+    const worksheet = workbook.addWorksheet("Accounts Receivable");
+
+    exportDataGrid({
+      component: instance,
+      worksheet: worksheet,
+      autoFilterEnabled: true,
+      customizeCell: ({ gridCell, excelCell }: any) => {
+        if (gridCell.rowType === "data") {
+          // Format currency cells
+          if (
+            gridCell.column.dataField === "totalAmount" ||
+            gridCell.column.dataField === "totalPaid" ||
+            gridCell.column.dataField === "outstandingBalance" ||
+            gridCell.column.dataField === "creditLimit" ||
+            gridCell.column.dataField?.startsWith("aging.")
+          ) {
+            excelCell.numFmt = "₱#,##0.00";
+          }
+        }
+      },
+    }).then(() => {
+      workbook.xlsx.writeBuffer().then((buffer) => {
+        saveAs(
+          new Blob([buffer], { type: "application/octet-stream" }),
+          `Accounts_Receivable_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`
+        );
+        toast.success("Exported to Excel");
+      });
+    }).catch((error) => {
+      console.error("Excel export error:", error);
+      toast.error("Failed to export to Excel");
+    });
   }, []);
 
   // Export to PDF
-  const handleExportPDF = () => {
-    const doc = new jsPDF("landscape");
-    const pageWidth = doc.internal.pageSize.getWidth();
-
-    // Header
-    doc.setFontSize(16);
-    doc.text("Accounts Receivable Report", pageWidth / 2, 15, { align: "center" });
-
-    doc.setFontSize(10);
-    doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, 22, {
-      align: "center",
-    });
-
-    // Summary
-    if (summary) {
-      doc.setFontSize(9);
-      doc.text(`Total Outstanding: ₱${summary.totalOutstanding.toFixed(2)}`, 14, 30);
-      doc.text(`Total Customers: ${summary.totalCustomers}`, 14, 35);
+  const handleExportPDF = useCallback(() => {
+    if (!customers || customers.length === 0) {
+      toast.error("No data to export. Please generate the report first.");
+      return;
     }
 
-    // Table data
-    const tableData = customers.map((c) => [
-      c.customerName,
-      c.email || "-",
-      c.mobile || "-",
-      c.creditLimit ? c.creditLimit.toFixed(2) : "Unlimited",
-      c.totalInvoices.toString(),
-      c.totalAmount.toFixed(2),
-      c.totalPaid.toFixed(2),
-      c.outstandingBalance.toFixed(2),
-      c.oldestInvoiceDays.toString(),
-      c.aging.current.toFixed(2),
-      c.aging.days31_60.toFixed(2),
-      c.aging.days61_90.toFixed(2),
-      c.aging.over90.toFixed(2),
-    ]);
+    try {
+      const doc = new jsPDF("landscape");
+      const pageWidth = doc.internal.pageSize.getWidth();
 
-    (doc as any).autoTable({
-      startY: 42,
-      head: [
-        [
-          "Customer",
-          "Email",
-          "Mobile",
-          "Credit Limit",
-          "Invoices",
-          "Total",
-          "Paid",
-          "Balance",
-          "Oldest",
-          "0-30",
-          "31-60",
-          "61-90",
-          "90+",
+      // Header
+      doc.setFontSize(16);
+      doc.text("Accounts Receivable Report", pageWidth / 2, 15, { align: "center" });
+
+      doc.setFontSize(10);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, 22, {
+        align: "center",
+      });
+
+      // Summary
+      if (summary) {
+        doc.setFontSize(9);
+        doc.text(`Total Outstanding: ₱${summary.totalOutstanding.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`, 14, 30);
+        doc.text(`Total Customers: ${summary.totalCustomers}`, 14, 35);
+      }
+
+      // Table data
+      const tableData = customers.map((c) => [
+        c.customerName,
+        c.email || "-",
+        c.mobile || "-",
+        c.creditLimit ? c.creditLimit.toLocaleString('en-PH', { minimumFractionDigits: 2 }) : "Unlimited",
+        c.totalInvoices.toString(),
+        c.totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+        c.totalPaid.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+        c.outstandingBalance.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+        c.oldestInvoiceDays.toString(),
+        c.aging.current.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+        c.aging.days31_60.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+        c.aging.days61_90.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+        c.aging.over90.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+      ]);
+
+      (doc as any).autoTable({
+        startY: 42,
+        head: [
+          [
+            "Customer",
+            "Email",
+            "Mobile",
+            "Credit Limit",
+            "Invoices",
+            "Total",
+            "Paid",
+            "Balance",
+            "Oldest",
+            "0-30",
+            "31-60",
+            "61-90",
+            "90+",
+          ],
         ],
-      ],
-      body: tableData,
-      theme: "grid",
-      headStyles: { fillColor: [34, 197, 94], fontSize: 8 },
-      bodyStyles: { fontSize: 7 },
-      footStyles: { fillColor: [243, 244, 246], textColor: [0, 0, 0], fontSize: 8 },
-      foot: summary
-        ? [
-            [
-              "Total:",
-              "",
-              "",
-              "",
-              summary.totalInvoices.toString(),
-              "",
-              "",
-              summary.totalOutstanding.toFixed(2),
-              "",
-              summary.aging.current.toFixed(2),
-              summary.aging.days31_60.toFixed(2),
-              summary.aging.days61_90.toFixed(2),
-              summary.aging.over90.toFixed(2),
-            ],
-          ]
-        : [],
-    });
+        body: tableData,
+        theme: "grid",
+        headStyles: { fillColor: [34, 197, 94], fontSize: 8 },
+        bodyStyles: { fontSize: 7 },
+        footStyles: { fillColor: [243, 244, 246], textColor: [0, 0, 0], fontSize: 8 },
+        foot: summary
+          ? [
+              [
+                "Total:",
+                "",
+                "",
+                "",
+                summary.totalInvoices.toString(),
+                "",
+                "",
+                summary.totalOutstanding.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+                "",
+                summary.aging.current.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+                summary.aging.days31_60.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+                summary.aging.days61_90.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+                summary.aging.over90.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+              ],
+            ]
+          : [],
+      });
 
-    doc.save(`Accounts_Receivable_${new Date().toLocaleDateString()}.pdf`);
-    toast.success("Exported to PDF");
-  };
+      doc.save(`Accounts_Receivable_${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`);
+      toast.success("Exported to PDF");
+    } catch (error) {
+      console.error("PDF export error:", error);
+      toast.error("Failed to export to PDF");
+    }
+  }, [customers, summary]);
 
   return (
     <div className="p-6 space-y-6">
@@ -679,7 +733,7 @@ export default function AccountsReceivablePage() {
           allowColumnResizing={true}
           columnAutoWidth={true}
           wordWrapEnabled={false}
-          onExporting={handleExportExcel}
+          onExporting={onExporting}
         >
           <StateStoring enabled={true} type="localStorage" storageKey="ar-report-grid" />
           <Grouping autoExpandAll={false} />
