@@ -1881,7 +1881,7 @@ export default function POSEnhancedPage() {
     // Check localStorage protection (survives page refresh)
     // Constants defined at top of function for access in finally block
     const SALE_LOCK_KEY = 'pos_sale_in_progress'  // Must match in finally block
-    const LOCK_TIMEOUT_MS = 60000 // 60 seconds lock timeout
+    const LOCK_TIMEOUT_MS = 120000 // 120 seconds (2 minutes) lock timeout - increased to handle slow networks
     const existingLock = localStorage.getItem(SALE_LOCK_KEY)
 
     if (existingLock) {

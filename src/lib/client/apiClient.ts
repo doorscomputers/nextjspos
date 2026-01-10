@@ -9,21 +9,52 @@ const pendingRequests = new Map<string, Promise<Response>>()
 /**
  * Generate a deterministic idempotency key based on request payload
  * This ensures that the same request (even after page refresh) gets the same key
- * Uses a 30-second time window to allow for slow network retries
+ *
+ * IMPORTANT: For sales endpoints, the key is based on CART CONTENTS (not time)
+ * This prevents double-entry bugs when network times out and user retries:
+ * - Same cart = Same key = Server returns cached response
+ * - Different cart = Different key = Server processes new sale
  */
 async function generateDeterministicIdempotencyKey(
   url: string,
   body: any
 ): Promise<string> {
-  // Round timestamp to 30-second blocks (allows retry window)
-  const timeBlock = Math.floor(Date.now() / 30000)
+  let payload: string
 
-  // Create a consistent string from the payload
-  const payload = JSON.stringify({
-    url,
-    body,
-    timeBlock,
-  })
+  // Special handling for sales endpoint - use cart-based key (NO time component)
+  // This is critical to prevent double-entries on network timeout retries
+  if (url === '/api/sales' && body?.items) {
+    // Create deterministic key from cart contents only
+    // Key stays the same even if user retries after 30+ seconds
+    const cartFingerprint = {
+      url,
+      locationId: body.locationId,
+      customerId: body.customerId || null,
+      // Sort items by productVariationId for consistent ordering
+      items: body.items
+        .map((i: any) => ({
+          pid: i.productVariationId,
+          qty: i.quantity,
+          price: i.unitPrice,
+        }))
+        .sort((a: any, b: any) => a.pid - b.pid),
+      // Include total for extra safety
+      total: body.items.reduce(
+        (sum: number, i: any) => sum + i.quantity * i.unitPrice,
+        0
+      ),
+    }
+    payload = JSON.stringify(cartFingerprint)
+  } else {
+    // For other endpoints, use the original time-based approach
+    // Round timestamp to 30-second blocks (allows retry window)
+    const timeBlock = Math.floor(Date.now() / 30000)
+    payload = JSON.stringify({
+      url,
+      body,
+      timeBlock,
+    })
+  }
 
   // Use Web Crypto API for hashing (available in browser)
   if (typeof crypto !== 'undefined' && crypto.subtle) {
@@ -42,7 +73,7 @@ async function generateDeterministicIdempotencyKey(
     hash = ((hash << 5) - hash) + char
     hash = hash & hash // Convert to 32-bit integer
   }
-  return `idem_${Math.abs(hash).toString(16)}_${timeBlock}`
+  return `idem_${Math.abs(hash).toString(16)}`
 }
 
 // Offline queue for failed requests

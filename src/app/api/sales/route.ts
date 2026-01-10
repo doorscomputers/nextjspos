@@ -946,8 +946,9 @@ export async function POST(request: NextRequest) {
     // ============================================================================
     // If user refreshes page or opens new tab during slow network, a second request
     // may be sent with a different idempotency key. This check catches that scenario
-    // by looking for identical sales created in the last 60 seconds.
-    const DUPLICATE_WINDOW_MS = 60 * 1000 // 60 seconds
+    // by looking for identical sales created in the last 5 minutes.
+    // INCREASED from 60s to 300s (5 minutes) to handle slow network timeouts + retries
+    const DUPLICATE_WINDOW_MS = 300 * 1000 // 300 seconds (5 minutes)
     const duplicateCheckTime = new Date(Date.now() - DUPLICATE_WINDOW_MS)
 
     // Create a fingerprint of the sale items for comparison
@@ -1001,10 +1002,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error: 'Duplicate sale detected',
-            message: `An identical sale (${recentSale.invoiceNumber}) was just processed ${secondsAgo} seconds ago. If this was intentional, please wait 60 seconds before creating another identical sale.`,
+            message: `An identical sale (${recentSale.invoiceNumber}) was just processed ${secondsAgo} seconds ago. If this was intentional, please wait 5 minutes before creating another identical sale.`,
             existingInvoice: recentSale.invoiceNumber,
             existingSaleId: recentSale.id,
-            duplicateWindowSeconds: 60,
+            duplicateWindowSeconds: 300,
           },
           { status: 409 } // HTTP 409 Conflict
         )
