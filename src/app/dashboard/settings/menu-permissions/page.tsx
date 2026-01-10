@@ -191,6 +191,11 @@ export default function MenuPermissionsPage() {
     return acc
   }, {} as Record<number, MenuPermission[]>)
 
+  // Helper function to check if menu matches search
+  const menuMatchesSearch = (menu: MenuPermission, searchLower: string) => {
+    return menu.name.toLowerCase().includes(searchLower)
+  }
+
   // Filter menus based on search query (searches parent, children, and grandchildren)
   const parentMenus = menuSearch
     ? allParentMenus.filter(parent => {
@@ -212,6 +217,51 @@ export default function MenuPermissionsPage() {
         return matchesChild
       })
     : allParentMenus
+
+  // Get filtered children for a parent (only show children that match search or have matching grandchildren)
+  const getFilteredChildren = (parentId: number) => {
+    if (!menuSearch) return childMenusByParent[parentId] || []
+
+    const searchLower = menuSearch.toLowerCase()
+    const children = childMenusByParent[parentId] || []
+
+    // Check if parent itself matches - if so, show all children
+    const parent = allMenus.find(m => m.id === parentId)
+    if (parent && menuMatchesSearch(parent, searchLower)) {
+      return children
+    }
+
+    // Otherwise, filter to only show matching children or children with matching grandchildren
+    return children.filter(child => {
+      if (menuMatchesSearch(child, searchLower)) return true
+      const grandchildren = childMenusByParent[child.id] || []
+      return grandchildren.some(gc => menuMatchesSearch(gc, searchLower))
+    })
+  }
+
+  // Get filtered grandchildren for a child (only show grandchildren that match search)
+  const getFilteredGrandchildren = (childId: number) => {
+    if (!menuSearch) return childMenusByParent[childId] || []
+
+    const searchLower = menuSearch.toLowerCase()
+    const grandchildren = childMenusByParent[childId] || []
+
+    // Check if parent (child) matches - if so, show all grandchildren
+    const child = allMenus.find(m => m.id === childId)
+    if (child && menuMatchesSearch(child, searchLower)) {
+      return grandchildren
+    }
+
+    // Otherwise, filter to only show matching grandchildren
+    return grandchildren.filter(gc => menuMatchesSearch(gc, searchLower))
+  }
+
+  // Get total count of all matching menus (parents + children + grandchildren)
+  const getMatchingMenuCount = () => {
+    if (!menuSearch) return 0
+    const searchLower = menuSearch.toLowerCase()
+    return allMenus.filter(m => m.name.toLowerCase().includes(searchLower)).length
+  }
 
   // Check if a menu has children
   const hasChildren = (menuId: number) => {
@@ -364,14 +414,14 @@ export default function MenuPermissionsPage() {
                   </div>
                   {menuSearch && (
                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                      Found {parentMenus.length} menu{parentMenus.length !== 1 ? 's' : ''} matching "{menuSearch}"
+                      Found {getMatchingMenuCount()} menu{getMatchingMenuCount() !== 1 ? 's' : ''} matching "{menuSearch}"
                     </p>
                   )}
                 </div>
 
                 <div className="space-y-4 max-h-[600px] overflow-y-auto">
                 {parentMenus.map(parent => {
-                  const children = childMenusByParent[parent.id] || []
+                  const children = getFilteredChildren(parent.id)
                   const isParentChecked = enabledMenuKeys.includes(parent.key)
                   const selectionState = getParentSelectionState(parent.id)
 
@@ -426,6 +476,10 @@ export default function MenuPermissionsPage() {
                             const grandchildren = childMenusByParent[child.id] || []
                             const hasGrandchildren = grandchildren.length > 0
 
+                            // Get filtered grandchildren for display
+                            const displayGrandchildren = getFilteredGrandchildren(child.id)
+                            const hasDisplayGrandchildren = displayGrandchildren.length > 0
+
                             return (
                               <div key={child.id} className="space-y-2">
                                 <div className="flex items-start gap-3">
@@ -448,10 +502,10 @@ export default function MenuPermissionsPage() {
                                   </div>
                                 </div>
 
-                                {/* Grandchildren (3rd level) */}
-                                {hasGrandchildren && (
+                                {/* Grandchildren (3rd level) - filtered when searching */}
+                                {hasDisplayGrandchildren && (
                                   <div className="ml-8 space-y-2 border-l-2 border-gray-200 dark:border-gray-700 pl-4">
-                                    {grandchildren.map(grandchild => {
+                                    {displayGrandchildren.map(grandchild => {
                                       const isGrandchildChecked = enabledMenuKeys.includes(grandchild.key)
                                       return (
                                         <div key={grandchild.id} className="flex items-start gap-3">
