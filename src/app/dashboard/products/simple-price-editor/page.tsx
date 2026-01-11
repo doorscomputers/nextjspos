@@ -310,6 +310,8 @@ export default function SimplePriceEditorPage() {
                 selectedLocations={selectedLocations}
                 onLocationChange={handleLocationChange}
                 canManageAllLocations={canManageAllLocations}
+                productVariationId={selectedProduct?.productVariationId}
+                showPrices={true}
               />
             </div>
           )}

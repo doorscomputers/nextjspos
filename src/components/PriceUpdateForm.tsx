@@ -103,11 +103,8 @@ export default function PriceUpdateForm({
       return
     }
 
-    if (newPriceNum === currentPrice) {
-      alert('New price is the same as current price')
-      return
-    }
-
+    // Allow updating even if price matches current
+    // This lets users force-apply prices to all locations
     setShowConfirmation(true)
   }
 
@@ -224,13 +221,25 @@ export default function PriceUpdateForm({
         </div>
       )}
 
+      {/* Same Price Info (non-blocking) */}
+      {newPrice && parseFloat(newPrice) === currentPrice && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-sm">
+          <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+            <span>ℹ️</span>
+            <span>
+              This price matches the current displayed price. You can still proceed to apply it to all selected locations.
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Update Button */}
       <div className="flex gap-3">
         <button
           onClick={handleUpdatePrice}
-          disabled={!newPrice || parseFloat(newPrice) <= 0 || parseFloat(newPrice) === currentPrice || updating}
+          disabled={!newPrice || parseFloat(newPrice) <= 0 || updating}
           className={`flex-1 px-6 py-3 rounded-lg font-semibold text-white transition-all duration-200 ${
-            !newPrice || parseFloat(newPrice) <= 0 || parseFloat(newPrice) === currentPrice || updating
+            !newPrice || parseFloat(newPrice) <= 0 || updating
               ? 'bg-gray-400 cursor-not-allowed opacity-50'
               : 'bg-blue-600 hover:bg-blue-700 hover:shadow-lg transform hover:scale-105'
           }`}
