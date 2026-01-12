@@ -10,8 +10,9 @@ import { withIdempotency } from '@/lib/idempotency'
  * POST /api/cash/out - Record cash taken from drawer during shift
  * Used for expenses, withdrawals, etc.
  */
-export const POST = withIdempotency(async (request: NextRequest) => {
-  try {
+export async function POST(request: NextRequest) {
+  return withIdempotency(request, '/api/cash/out', async () => {
+    try {
     const session = await getServerSession(authOptions)
     if (!session || !session.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -154,11 +155,12 @@ export const POST = withIdempotency(async (request: NextRequest) => {
       cashOutRecord,
       message: 'Cash out recorded successfully',
     })
-  } catch (error: any) {
-    console.error('Error recording cash out:', error)
-    return NextResponse.json(
-      { error: 'Failed to record cash out', details: error.message },
-      { status: 500 }
-    )
-  }
-})
+    } catch (error: any) {
+      console.error('Error recording cash out:', error)
+      return NextResponse.json(
+        { error: 'Failed to record cash out', details: error.message },
+        { status: 500 }
+      )
+    }
+  })
+}
