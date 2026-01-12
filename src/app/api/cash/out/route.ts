@@ -4,12 +4,13 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
+import { withIdempotency } from '@/lib/idempotency'
 
 /**
  * POST /api/cash/out - Record cash taken from drawer during shift
  * Used for expenses, withdrawals, etc.
  */
-export async function POST(request: NextRequest) {
+export const POST = withIdempotency(async (request: NextRequest) => {
   try {
     const session = await getServerSession(authOptions)
     if (!session || !session.user) {
@@ -71,6 +72,53 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // ============================================================================
+    // DUPLICATE DETECTION (Prevents network retry duplicates)
+    // ============================================================================
+    const DUPLICATE_WINDOW_MS = 300 * 1000 // 300 seconds (5 minutes)
+    const duplicateCheckTime = new Date(Date.now() - DUPLICATE_WINDOW_MS)
+    const businessIdNumber = parseInt(user.businessId)
+    const userIdNumber = parseInt(user.id)
+    const amountNumber = parseFloat(amount)
+
+    // Look for recent identical cash out from same user at same shift
+    const recentSimilarTransactions = await prisma.cashInOut.findMany({
+      where: {
+        businessId: businessIdNumber,
+        shiftId: parseInt(shiftId),
+        type: 'cash_out',
+        amount: {
+          gte: amountNumber - 0.01,
+          lte: amountNumber + 0.01,
+        },
+        createdBy: userIdNumber,
+        createdAt: {
+          gte: duplicateCheckTime,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5, // Only check last 5 similar transactions
+    })
+
+    if (recentSimilarTransactions.length > 0) {
+      const latestTx = recentSimilarTransactions[0]
+      const secondsAgo = Math.round((Date.now() - latestTx.createdAt.getTime()) / 1000)
+
+      console.warn(`[CASH OUT] DUPLICATE BLOCKED: Transaction identical to ID ${latestTx.id} (${secondsAgo}s ago)`)
+      console.warn(`[CASH OUT] User: ${userIdNumber}, Shift: ${shiftId}, Amount: ${amountNumber}`)
+
+      return NextResponse.json(
+        {
+          error: 'Duplicate transaction detected',
+          message: `An identical cash out of ₱${amountNumber.toFixed(2)} was recorded ${secondsAgo} seconds ago. If this was intentional, please wait 5 minutes before recording another identical transaction.`,
+          existingTransactionId: latestTx.id,
+          duplicateWindowSeconds: 300,
+        },
+        { status: 409 } // HTTP 409 Conflict
+      )
+    }
+    // ============================================================================
+
     // Create cash out record
     const cashOutRecord = await prisma.cashInOut.create({
       data: {
@@ -113,4 +161,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-}
+})
