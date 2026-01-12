@@ -6,6 +6,7 @@ import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 import { sendSupplierReturnAlert } from '@/lib/email'
 import { sendTelegramSupplierReturnAlert } from '@/lib/telegram'
+import { withIdempotency } from '@/lib/idempotency'
 
 /**
  * GET /api/supplier-returns
@@ -95,6 +96,7 @@ export async function GET(request: NextRequest) {
  * Create new supplier return request
  */
 export async function POST(request: NextRequest) {
+  return withIdempotency(request, '/api/supplier-returns', async () => {
   try {
     const session = await getServerSession(authOptions)
 
@@ -178,6 +180,51 @@ export async function POST(request: NextRequest) {
 
       totalAmount += quantity * unitCost
     }
+
+    // ============================================================================
+    // DUPLICATE DETECTION (Prevents network retry duplicates AND duplicate notifications)
+    // ============================================================================
+    // CRITICAL: Must happen BEFORE transaction to prevent duplicate email/Telegram notifications
+    const DUPLICATE_WINDOW_MS = 300 * 1000 // 300 seconds (5 minutes)
+    const duplicateCheckTime = new Date(Date.now() - DUPLICATE_WINDOW_MS)
+
+    // Look for recent identical supplier returns from same user
+    const recentSimilarReturns = await prisma.supplierReturn.findMany({
+      where: {
+        businessId: parseInt(businessId),
+        supplierId: parseInt(supplierId),
+        totalAmount: {
+          gte: totalAmount - 0.01,
+          lte: totalAmount + 0.01,
+        },
+        createdBy: parseInt(userId),
+        createdAt: {
+          gte: duplicateCheckTime,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5, // Only check last 5 similar returns
+    })
+
+    if (recentSimilarReturns.length > 0) {
+      const latestReturn = recentSimilarReturns[0]
+      const secondsAgo = Math.round((Date.now() - latestReturn.createdAt.getTime()) / 1000)
+
+      console.warn(`[SUPPLIER RETURN] DUPLICATE BLOCKED: Return identical to ID ${latestReturn.id} (${secondsAgo}s ago)`)
+      console.warn(`[SUPPLIER RETURN] User: ${userId}, Supplier: ${supplierId}, Amount: ${totalAmount}`)
+
+      return NextResponse.json(
+        {
+          error: 'Duplicate transaction detected',
+          message: `An identical supplier return was created ${secondsAgo} seconds ago. If this was intentional, please wait 5 minutes before creating another identical return.`,
+          existingReturnId: latestReturn.id,
+          existingReturnNumber: latestReturn.returnNumber,
+          duplicateWindowSeconds: 300,
+        },
+        { status: 409 } // HTTP 409 Conflict
+      )
+    }
+    // ============================================================================
 
     // Generate return number
     const currentYear = new Date().getFullYear()
@@ -354,4 +401,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+  })
 }

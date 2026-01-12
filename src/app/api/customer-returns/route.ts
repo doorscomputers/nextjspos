@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { withIdempotency } from '@/lib/idempotency'
 
 /**
  * GET /api/customer-returns
@@ -121,6 +122,7 @@ export async function GET(request: NextRequest) {
  * Create new customer return request
  */
 export async function POST(request: NextRequest) {
+  return withIdempotency(request, '/api/customer-returns', async () => {
   try {
     const session = await getServerSession(authOptions)
 
@@ -223,6 +225,64 @@ export async function POST(request: NextRequest) {
         )
       }
     }
+
+    // ============================================================================
+    // DUPLICATE DETECTION (Prevents network retry duplicates)
+    // ============================================================================
+    const DUPLICATE_WINDOW_MS = 300 * 1000 // 300 seconds (5 minutes)
+    const duplicateCheckTime = new Date(Date.now() - DUPLICATE_WINDOW_MS)
+
+    // Calculate total refund amount for duplicate check
+    let checkTotalRefund = 0
+    for (const item of items) {
+      if (item.returnType === 'refund') {
+        checkTotalRefund += parseFloat(item.quantity) * parseFloat(item.unitPrice)
+      }
+    }
+
+    // Look for recent identical customer returns from same user
+    const whereClause: any = {
+      businessId: parseInt(businessId),
+      saleId: parseInt(saleId),
+      createdBy: parseInt(userId),
+      createdAt: {
+        gte: duplicateCheckTime,
+      },
+    }
+
+    // Only check totalRefundAmount if it's a refund (not just replacement)
+    if (checkTotalRefund > 0) {
+      whereClause.totalRefundAmount = {
+        gte: checkTotalRefund - 0.01,
+        lte: checkTotalRefund + 0.01,
+      }
+    }
+
+    const recentSimilarReturns = await prisma.customerReturn.findMany({
+      where: whereClause,
+      orderBy: { createdAt: 'desc' },
+      take: 5, // Only check last 5 similar returns
+    })
+
+    if (recentSimilarReturns.length > 0) {
+      const latestReturn = recentSimilarReturns[0]
+      const secondsAgo = Math.round((Date.now() - latestReturn.createdAt.getTime()) / 1000)
+
+      console.warn(`[CUSTOMER RETURN] DUPLICATE BLOCKED: Return identical to ID ${latestReturn.id} (${secondsAgo}s ago)`)
+      console.warn(`[CUSTOMER RETURN] User: ${userId}, Sale: ${saleId}, Refund Amount: ${checkTotalRefund}`)
+
+      return NextResponse.json(
+        {
+          error: 'Duplicate transaction detected',
+          message: `An identical customer return for this sale was created ${secondsAgo} seconds ago. If this was intentional, please wait 5 minutes before creating another identical return.`,
+          existingReturnId: latestReturn.id,
+          existingReturnNumber: latestReturn.returnNumber,
+          duplicateWindowSeconds: 300,
+        },
+        { status: 409 } // HTTP 409 Conflict
+      )
+    }
+    // ============================================================================
 
     // Generate return number
     const currentYear = new Date().getFullYear()
@@ -352,4 +412,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+  })
 }
