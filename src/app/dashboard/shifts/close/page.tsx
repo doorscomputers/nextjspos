@@ -74,6 +74,84 @@ export default function CloseShiftPage() {
     fetchShiftAndGenerateReadings()
   }, [])
 
+  // ============================================================================
+  // NETWORK DISCONNECTION RECOVERY: Check localStorage for cached Z Reading
+  // ============================================================================
+  // This useEffect runs after currentShift is loaded and checks if:
+  // 1. The shift is already closed in the database
+  // 2. We have cached recovery data in localStorage
+  // If both are true, show the success screen with cached Z Reading
+  useEffect(() => {
+    const checkRecoveryData = () => {
+      if (!currentShift) return
+
+      const recoveryKey = `shift_close_recovery_${currentShift.id}`
+      const cachedData = localStorage.getItem(recoveryKey)
+
+      if (cachedData) {
+        try {
+          const recoveryData = JSON.parse(cachedData)
+          console.log('[Shift Close] 🔄 Found recovery data in localStorage for shift', currentShift.id, recoveryData)
+
+          // If shift is already closed in DB, show cached success screen
+          if (currentShift.status === 'closed') {
+            console.log('[Shift Close] ✅ Shift already closed - recovering from cache')
+            setShiftClosed(true)
+            setXReading(recoveryData.xReading)
+            setZReading(recoveryData.zReading)
+            setVariance(recoveryData.variance)
+            setDenominations(recoveryData.cashCount)
+            setLoadingReadings(false)
+            setError('') // Clear any errors
+
+            // Scroll to top to show success message
+            setTimeout(() => {
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }, 100)
+
+            return
+          }
+        } catch (err) {
+          console.error('[Shift Close] ⚠️ Failed to parse recovery data from localStorage:', err)
+          // Clear invalid cache
+          localStorage.removeItem(recoveryKey)
+        }
+      }
+    }
+
+    checkRecoveryData()
+  }, [currentShift])
+  // ============================================================================
+
+  // ============================================================================
+  // NETWORK RECONNECTION HANDLER: Listen for network reconnection
+  // ============================================================================
+  // When network reconnects, check if there's a pending close operation
+  // and attempt to fetch the shift status to show success screen
+  useEffect(() => {
+    const handleOnline = () => {
+      console.log('[Shift Close] 🌐 Network reconnected - checking for pending operations')
+
+      if (!currentShift) return
+
+      const recoveryKey = `shift_close_recovery_${currentShift.id}`
+      const cachedData = localStorage.getItem(recoveryKey)
+
+      if (cachedData && !shiftClosed) {
+        console.log('[Shift Close] 🔄 Found pending close operation - attempting recovery')
+        // Refresh shift data to check if it was closed during disconnection
+        fetchShiftAndGenerateReadings()
+      }
+    }
+
+    window.addEventListener('online', handleOnline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+    }
+  }, [currentShift, shiftClosed])
+  // ============================================================================
+
   const fetchShiftAndGenerateReadings = async () => {
     try {
       setLoadingReadings(true)
@@ -372,13 +450,69 @@ export default function CloseShiftPage() {
       setLoading(false)
       setShowPasswordDialog(false) // Close authorization dialog
 
+      // ============================================================================
+      // NETWORK DISCONNECTION RECOVERY: Persist Z Reading to localStorage
+      // ============================================================================
+      // Save all critical data to localStorage for recovery if network drops
+      // This ensures cashiers can ALWAYS access and print Z Reading, even if:
+      // - Network disconnects after successful API call
+      // - Browser refreshes after shift close
+      // - Page reloads due to network reconnection
+      try {
+        const recoveryData = {
+          shiftClosed: true,
+          shiftId: currentShift.id,
+          shiftNumber: currentShift.shiftNumber,
+          xReading: xReading,
+          zReading: updatedZReading || zReading,
+          variance: data.variance,
+          cashCount: denominations,
+          timestamp: new Date().toISOString(),
+        }
+        localStorage.setItem(`shift_close_recovery_${currentShift.id}`, JSON.stringify(recoveryData))
+        console.log('[Shift Close] ✅ Recovery data saved to localStorage for shift', currentShift.id)
+      } catch (storageErr) {
+        console.error('[Shift Close] ⚠️ Failed to save recovery data to localStorage:', storageErr)
+        // Non-critical error - don't prevent shift close success
+      }
+      // ============================================================================
+
       // Scroll to top to show success message
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err: any) {
       console.error('[ShiftClose] ❌ Error during close:', err)
 
-      // Handle "Shift already closed" error specially - redirect to dashboard
+      // ============================================================================
+      // NETWORK DISCONNECTION RECOVERY: Handle "Shift already closed" error
+      // ============================================================================
+      // If shift is already closed, try to recover from localStorage
+      // This handles race conditions where API succeeds but client doesn't receive response
       if (err.message?.includes('already closed')) {
+        const recoveryKey = `shift_close_recovery_${currentShift.id}`
+        const cachedData = localStorage.getItem(recoveryKey)
+
+        if (cachedData) {
+          try {
+            const recoveryData = JSON.parse(cachedData)
+            console.log('[Shift Close] ✅ Recovering from "already closed" error using cached data')
+            setShiftClosed(true)
+            setXReading(recoveryData.xReading)
+            setZReading(recoveryData.zReading)
+            setVariance(recoveryData.variance)
+            setDenominations(recoveryData.cashCount)
+            setError('') // Clear error
+            setLoading(false)
+            setShowPasswordDialog(false)
+
+            // Scroll to top to show success message
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+            return
+          } catch (parseErr) {
+            console.error('[Shift Close] ⚠️ Failed to recover from cache:', parseErr)
+          }
+        }
+
+        // If no cache available, show error and redirect to dashboard
         setError('This shift has already been closed. Redirecting to dashboard...')
         setLoading(false)
         setTimeout(() => {
@@ -386,6 +520,7 @@ export default function CloseShiftPage() {
         }, 2000)
         return
       }
+      // ============================================================================
 
       setError(err.message)
       setLoading(false)
@@ -596,7 +731,16 @@ export default function CloseShiftPage() {
             )}
             <div className="flex gap-4">
               <Button
-                onClick={() => router.push(`/dashboard/readings/z-reading?shiftId=${currentShift.id}`)}
+                onClick={() => {
+                  // Clear recovery data after successfully viewing Z Reading
+                  // This prevents stale cache from interfering with future shifts
+                  if (currentShift?.id) {
+                    const recoveryKey = `shift_close_recovery_${currentShift.id}`
+                    localStorage.removeItem(recoveryKey)
+                    console.log('[Shift Close] 🧹 Cleared recovery data from localStorage for shift', currentShift.id)
+                  }
+                  router.push(`/dashboard/readings/z-reading?shiftId=${currentShift.id}`)
+                }}
                 size="lg"
               >
                 View Z Reading History
