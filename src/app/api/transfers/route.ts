@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS, isSuperAdmin } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 import { getManilaDate } from '@/lib/timezone'
+import { withIdempotency } from '@/lib/idempotency'
 
 // GET - List all stock transfers
 export async function GET(request: NextRequest) {
@@ -157,6 +158,7 @@ export async function GET(request: NextRequest) {
 
 // POST - Create new stock transfer (initiates transfer)
 export async function POST(request: NextRequest) {
+  return withIdempotency(request, '/api/transfers', async () => {
   try {
     const session = await getServerSession(authOptions)
 
@@ -303,6 +305,50 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ============================================================================
+    // DUPLICATE DETECTION (Prevents network retry duplicates)
+    // ============================================================================
+    // NOTE: This creates DRAFT transfers (no inventory deduction yet)
+    // Inventory is deducted in SEND endpoint (already protected)
+    const DUPLICATE_WINDOW_MS = 300 * 1000 // 300 seconds (5 minutes)
+    const duplicateCheckTime = new Date(Date.now() - DUPLICATE_WINDOW_MS)
+
+    // Look for recent identical transfers from same user between same locations
+    const recentSimilarTransfers = await prisma.stockTransfer.findMany({
+      where: {
+        businessId: parseInt(businessId),
+        fromLocationId: parseInt(fromLocationId),
+        toLocationId: parseInt(toLocationId),
+        createdBy: parseInt(userId),
+        createdAt: {
+          gte: duplicateCheckTime,
+        },
+        deletedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5, // Only check last 5 similar transfers
+    })
+
+    if (recentSimilarTransfers.length > 0) {
+      const latestTransfer = recentSimilarTransfers[0]
+      const secondsAgo = Math.round((Date.now() - latestTransfer.createdAt.getTime()) / 1000)
+
+      console.warn(`[TRANSFER CREATE] DUPLICATE BLOCKED: Transfer identical to ID ${latestTransfer.id} (${secondsAgo}s ago)`)
+      console.warn(`[TRANSFER CREATE] User: ${userId}, From: ${fromLocationId}, To: ${toLocationId}`)
+
+      return NextResponse.json(
+        {
+          error: 'Duplicate transaction detected',
+          message: `An identical transfer draft from ${fromLocation.name} to ${toLocation.name} was created ${secondsAgo} seconds ago. If this was intentional, please wait 5 minutes before creating another identical transfer.`,
+          existingTransferId: latestTransfer.id,
+          existingTransferNumber: latestTransfer.transferNumber,
+          duplicateWindowSeconds: 300,
+        },
+        { status: 409 } // HTTP 409 Conflict
+      )
+    }
+    // ============================================================================
+
     // Generate transfer number
     const currentYear = new Date().getFullYear()
     const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0')
@@ -428,4 +474,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+  })
 }
