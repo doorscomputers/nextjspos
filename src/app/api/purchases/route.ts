@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 import { getManilaDate } from '@/lib/timezone'
+import { withIdempotency } from '@/lib/idempotency'
 
 // GET - List all purchase orders
 export async function GET(request: NextRequest) {
@@ -158,6 +159,7 @@ export async function GET(request: NextRequest) {
 
 // POST - Create new purchase order
 export async function POST(request: NextRequest) {
+  return withIdempotency(request, '/api/purchases', async () => {
   try {
     const session = await getServerSession(authOptions)
 
@@ -302,6 +304,52 @@ export async function POST(request: NextRequest) {
       poNumber = `PO-${currentYear}${currentMonth}-0001`
     }
 
+    // ============================================================================
+    // DUPLICATE DETECTION (Prevents network retry duplicates)
+    // ============================================================================
+    // CRITICAL: Purchase Orders create financial commitments to suppliers
+    const DUPLICATE_WINDOW_MS = 300 * 1000 // 300 seconds (5 minutes)
+    const duplicateCheckTime = new Date(Date.now() - DUPLICATE_WINDOW_MS)
+
+    // Look for recent identical purchase orders from same user to same supplier
+    const recentSimilarPurchases = await prisma.purchase.findMany({
+      where: {
+        businessId: parseInt(businessId),
+        supplierId: parseInt(supplierId),
+        totalAmount: {
+          gte: totalAmount - 0.01,
+          lte: totalAmount + 0.01,
+        },
+        createdBy: parseInt(userId),
+        createdAt: {
+          gte: duplicateCheckTime,
+        },
+        deletedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5, // Only check last 5 similar purchases
+    })
+
+    if (recentSimilarPurchases.length > 0) {
+      const latestPurchase = recentSimilarPurchases[0]
+      const secondsAgo = Math.round((Date.now() - latestPurchase.createdAt.getTime()) / 1000)
+
+      console.warn(`[PURCHASE ORDER] DUPLICATE BLOCKED: PO identical to ID ${latestPurchase.id} (${secondsAgo}s ago)`)
+      console.warn(`[PURCHASE ORDER] User: ${userId}, Supplier: ${supplierId}, Amount: ${totalAmount}`)
+
+      return NextResponse.json(
+        {
+          error: 'Duplicate transaction detected',
+          message: `An identical purchase order to ${supplier.name} for ${totalAmount.toFixed(2)} was created ${secondsAgo} seconds ago. If this was intentional, please wait 5 minutes before creating another identical purchase order.`,
+          existingPurchaseId: latestPurchase.id,
+          existingPONumber: latestPurchase.purchaseOrderNumber,
+          duplicateWindowSeconds: 300,
+        },
+        { status: 409 } // HTTP 409 Conflict
+      )
+    }
+    // ============================================================================
+
     // ✅ OPTIMIZATION: Create purchase order with bulk item insert
     const purchase = await prisma.$transaction(async (tx) => {
       // Create purchase
@@ -393,4 +441,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+  })
 }
