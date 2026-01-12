@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { Prisma } from '@prisma/client'
 import { getManilaDate } from '@/lib/timezone'
+import { withIdempotency } from '@/lib/idempotency'
 
 /**
  * GET /api/purchases/receipts
@@ -234,6 +235,7 @@ export async function GET(request: NextRequest) {
  * 2. Direct Entry (supplierId provided, no purchaseId)
  */
 export async function POST(request: NextRequest) {
+  return withIdempotency(request, '/api/purchases/receipts', async () => {
   try {
     const session = await getServerSession(authOptions)
 
@@ -363,6 +365,55 @@ export async function POST(request: NextRequest) {
       : 0
     const receiptNumber = `GRN-${String(lastNumber + 1).padStart(6, '0')}`
 
+    // ============================================================================
+    // DUPLICATE DETECTION (Prevents network retry duplicates)
+    // ============================================================================
+    const DUPLICATE_WINDOW_MS = 300 * 1000 // 300 seconds (5 minutes)
+    const duplicateCheckTime = new Date(Date.now() - DUPLICATE_WINDOW_MS)
+
+    // Build where clause for duplicate detection
+    const duplicateWhere: any = {
+      businessId,
+      supplierId: finalSupplierId,
+      locationId: parseInt(locationId),
+      receivedBy: userId,
+      createdAt: {
+        gte: duplicateCheckTime,
+      },
+    }
+
+    // If this is a PO-based GRN, also match by purchaseId
+    if (purchaseId) {
+      duplicateWhere.purchaseId = parseInt(purchaseId)
+    }
+
+    // Look for recent identical GRN entries
+    const recentSimilarReceipts = await prisma.purchaseReceipt.findMany({
+      where: duplicateWhere,
+      orderBy: { createdAt: 'desc' },
+      take: 5, // Only check last 5 similar receipts
+    })
+
+    if (recentSimilarReceipts.length > 0) {
+      const latestReceipt = recentSimilarReceipts[0]
+      const secondsAgo = Math.round((Date.now() - latestReceipt.createdAt.getTime()) / 1000)
+
+      console.warn(`[PURCHASE RECEIPT] DUPLICATE BLOCKED: GRN identical to ID ${latestReceipt.id} (${secondsAgo}s ago)`)
+      console.warn(`[PURCHASE RECEIPT] User: ${userId}, Supplier: ${finalSupplierId}, Location: ${locationId}`)
+
+      return NextResponse.json(
+        {
+          error: 'Duplicate transaction detected',
+          message: `An identical goods receipt was created ${secondsAgo} seconds ago. If this was intentional, please wait 5 minutes before creating another identical receipt.`,
+          existingReceiptId: latestReceipt.id,
+          existingReceiptNumber: latestReceipt.receiptNumber,
+          duplicateWindowSeconds: 300,
+        },
+        { status: 409 } // HTTP 409 Conflict
+      )
+    }
+    // ============================================================================
+
     // Start transaction
     const result = await prisma.$transaction(async (tx) => {
       // 1. Create Purchase Receipt
@@ -475,4 +526,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+  })
 }
