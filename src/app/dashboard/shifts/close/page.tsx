@@ -595,28 +595,36 @@ export default function CloseShiftPage() {
               </div>
             )}
             <div className="flex gap-4">
-              <Button onClick={() => router.push('/dashboard')} size="lg">
-                Return to Dashboard
+              <Button
+                onClick={() => router.push(`/dashboard/readings/z-reading?shiftId=${currentShift.id}`)}
+                size="lg"
+              >
+                View Z Reading History
               </Button>
-              <Button onClick={() => {
-                const locName = zReading?.locationName || xReading?.locationName || "Unknown"
-                const safeLocationName = locName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '')
+              <Button
+                onClick={() => {
+                  const locName = zReading?.locationName || xReading?.locationName || "Unknown"
+                  const safeLocationName = locName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '')
 
-                // Get current date and time in Philippines timezone (12-hour format)
-                const nowPH = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }))
-                const dateStr = `${nowPH.getFullYear()}-${String(nowPH.getMonth() + 1).padStart(2, '0')}-${String(nowPH.getDate()).padStart(2, '0')}`
-                const hours = nowPH.getHours()
-                const minutes = nowPH.getMinutes()
-                const ampm = hours >= 12 ? 'PM' : 'AM'
-                const hour12 = hours % 12 || 12
-                const timeStr = `${hour12}${String(minutes).padStart(2, '0')}${ampm}`
+                  // Get current date and time in Philippines timezone (12-hour format)
+                  const nowPH = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }))
+                  const dateStr = `${nowPH.getFullYear()}-${String(nowPH.getMonth() + 1).padStart(2, '0')}-${String(nowPH.getDate()).padStart(2, '0')}`
+                  const hours = nowPH.getHours()
+                  const minutes = nowPH.getMinutes()
+                  const ampm = hours >= 12 ? 'PM' : 'AM'
+                  const hour12 = hours % 12 || 12
+                  const timeStr = `${hour12}${String(minutes).padStart(2, '0')}${ampm}`
 
-                const originalTitle = document.title
-                document.title = `${safeLocationName}_Shift_Close_${dateStr}_${timeStr}`
-                window.print()
-                document.title = originalTitle
-              }} variant="outline" size="lg">
-                🖨️ Print Readings
+                  const originalTitle = document.title
+                  document.title = `${safeLocationName}_Shift_Close_${dateStr}_${timeStr}`
+                  window.print()
+                  document.title = originalTitle
+                }}
+                variant="default"
+                size="lg"
+                className="bg-green-600 hover:bg-green-700 text-white font-bold"
+              >
+                🖨️ Print Z Reading Now
               </Button>
             </div>
           </CardContent>
