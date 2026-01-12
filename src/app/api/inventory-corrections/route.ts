@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS, getUserAccessibleLocationIds } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { withIdempotency } from '@/lib/idempotency'
 
 /**
  * GET /api/inventory-corrections
@@ -106,6 +107,7 @@ export async function GET(request: NextRequest) {
  * Create a new inventory correction
  */
 export async function POST(request: NextRequest) {
+  return withIdempotency(request, '/api/inventory-corrections', async () => {
   try {
     const session = await getServerSession(authOptions)
 
@@ -210,6 +212,47 @@ export async function POST(request: NextRequest) {
 
     const difference = physCount - systemCount
 
+    // ============================================================================
+    // DUPLICATE DETECTION (Prevents network retry duplicates)
+    // ============================================================================
+    const DUPLICATE_WINDOW_MS = 300 * 1000 // 300 seconds (5 minutes)
+    const duplicateCheckTime = new Date(Date.now() - DUPLICATE_WINDOW_MS)
+
+    // Look for recent identical inventory corrections from same user
+    const recentSimilarCorrections = await prisma.inventoryCorrection.findMany({
+      where: {
+        businessId: parseInt(businessId),
+        locationId: locId,
+        productVariationId: varId,
+        createdBy: parseInt(user.id.toString()),
+        createdAt: {
+          gte: duplicateCheckTime,
+        },
+        deletedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5, // Only check last 5 similar corrections
+    })
+
+    if (recentSimilarCorrections.length > 0) {
+      const latestCorrection = recentSimilarCorrections[0]
+      const secondsAgo = Math.round((Date.now() - latestCorrection.createdAt.getTime()) / 1000)
+
+      console.warn(`[INVENTORY CORRECTION] DUPLICATE BLOCKED: Correction identical to ID ${latestCorrection.id} (${secondsAgo}s ago)`)
+      console.warn(`[INVENTORY CORRECTION] User: ${user.id}, Product: ${varId}, Location: ${locId}`)
+
+      return NextResponse.json(
+        {
+          error: 'Duplicate transaction detected',
+          message: `An identical inventory correction for ${product.name} (${variation.name}) at ${location.name} was created ${secondsAgo} seconds ago. If this was intentional, please wait 5 minutes before creating another identical correction.`,
+          existingCorrectionId: latestCorrection.id,
+          duplicateWindowSeconds: 300,
+        },
+        { status: 409 } // HTTP 409 Conflict
+      )
+    }
+    // ============================================================================
+
     // Create inventory correction record
     const correction = await prisma.inventoryCorrection.create({
       data: {
@@ -283,4 +326,5 @@ export async function POST(request: NextRequest) {
     console.error('Error creating inventory correction:', error)
     return NextResponse.json({ error: 'Failed to create inventory correction' }, { status: 500 })
   }
+  })
 }
