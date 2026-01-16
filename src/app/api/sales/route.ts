@@ -305,7 +305,8 @@ import {
 import { withIdempotency } from '@/lib/idempotency' // Prevents duplicate sales
 import { getNextInvoiceNumber } from '@/lib/atomicNumbers' // Thread-safe invoice numbering
 import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker' // Tracks stock changes
-import { isAccountingEnabled, recordCashSale, recordCreditSale } from '@/lib/accountingIntegration'
+// ACCOUNTING DISABLED: Uncomment below to re-enable accounting integration
+// import { isAccountingEnabled, recordCashSale, recordCreditSale } from '@/lib/accountingIntegration'
 import { incrementShiftTotalsForSale } from '@/lib/shift-running-totals' // Z Reading accuracy
 
 // ============================================================================
@@ -1252,6 +1253,11 @@ export async function POST(request: NextRequest) {
         })
       }
 
+      // ========== ACCOUNTING INTEGRATION DISABLED ==========
+      // Reason: Performance optimization - accounting feature not fully implemented
+      // To re-enable: Remove the /* and */ comment markers below and uncomment the import at line 309
+      // Date disabled: 2026-01-16
+      /*
       // CRITICAL: ACCOUNTING INTEGRATION MOVED INSIDE TRANSACTION FOR ATOMICITY
       // PERFORMANCE: Check if accounting is enabled (cached in user session would be better)
       // For now, we check if there are any chart of accounts for this business
@@ -1298,6 +1304,8 @@ export async function POST(request: NextRequest) {
           })
         }
       }
+      */
+      // ========== END ACCOUNTING INTEGRATION DISABLED ==========
 
       // CRITICAL: AUDIT LOG MOVED INSIDE TRANSACTION FOR ATOMICITY
       // Create audit log as part of the atomic transaction (BIR compliance requirement)
