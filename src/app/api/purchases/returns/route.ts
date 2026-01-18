@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { withIdempotency } from '@/lib/idempotency'
 
 /**
  * GET /api/purchases/returns
@@ -135,6 +136,7 @@ export async function GET(request: NextRequest) {
  * Create a new purchase return
  */
 export async function POST(request: NextRequest) {
+  return withIdempotency(request, '/api/purchases/returns', async () => {
   try {
     const session = await getServerSession(authOptions)
 
@@ -253,6 +255,41 @@ export async function POST(request: NextRequest) {
     const discountAmount = 0 // Can be applied if needed
     const totalAmount = subtotal + taxAmount - discountAmount
 
+    // ========== 5-MINUTE DUPLICATE DETECTION ==========
+    // Prevent duplicate purchase return operations during network issues
+    const DUPLICATE_WINDOW_MS = 300 * 1000 // 5 minutes
+    const duplicateCheckTime = new Date(Date.now() - DUPLICATE_WINDOW_MS)
+
+    // Look for recent identical purchase returns from same user
+    const recentSimilarReturns = await prisma.purchaseReturn.findMany({
+      where: {
+        businessId: parseInt(businessId),
+        purchaseReceiptId: parseInt(purchaseReceiptId),
+        createdBy: parseInt(userId),
+        createdAt: { gte: duplicateCheckTime },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    })
+
+    if (recentSimilarReturns.length > 0) {
+      const latestReturn = recentSimilarReturns[0]
+      const secondsAgo = Math.round((Date.now() - latestReturn.createdAt.getTime()) / 1000)
+
+      console.warn(`[PURCHASE RETURN] DUPLICATE BLOCKED: Return for GRN ${purchaseReceiptId} already exists (${secondsAgo}s ago)`)
+      return NextResponse.json(
+        {
+          error: 'Duplicate transaction detected',
+          message: `A purchase return for this GRN was created ${secondsAgo} seconds ago. If this was intentional, please wait 5 minutes before creating another return.`,
+          existingReturnId: latestReturn.id,
+          existingReturnNumber: latestReturn.returnNumber,
+          duplicateWindowSeconds: 300,
+        },
+        { status: 409 }
+      )
+    }
+    // ========== END DUPLICATE DETECTION ==========
+
     // Generate return number
     const returnCount = await prisma.purchaseReturn.count({
       where: { businessId: parseInt(businessId) },
@@ -363,4 +400,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+  }) // Close idempotency wrapper
 }

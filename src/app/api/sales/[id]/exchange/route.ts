@@ -115,6 +115,43 @@ export async function POST(
         )
       }
 
+      // ========== 5-MINUTE DUPLICATE DETECTION ==========
+      // Prevent duplicate exchange operations during network issues
+      // This is the same pattern used in POS sales, GRN, transfers, etc.
+      const DUPLICATE_WINDOW_MS = 300 * 1000 // 5 minutes
+      const duplicateCheckTime = new Date(Date.now() - DUPLICATE_WINDOW_MS)
+
+      // Check for recent exchanges on same sale by same user
+      const recentExchanges = await prisma.sale.findMany({
+        where: {
+          businessId: parseInt(user.businessId),
+          saleType: 'exchange',
+          createdBy: parseInt(user.id),
+          createdAt: { gte: duplicateCheckTime },
+          notes: { contains: sale.invoiceNumber }, // Links to original sale
+        },
+        select: { id: true, invoiceNumber: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      })
+
+      if (recentExchanges.length > 0) {
+        const latestExchange = recentExchanges[0]
+        const secondsAgo = Math.round((Date.now() - latestExchange.createdAt.getTime()) / 1000)
+
+        console.warn(`[EXCHANGE] DUPLICATE BLOCKED: Exchange for ${sale.invoiceNumber} already processed ${secondsAgo}s ago`)
+        return NextResponse.json(
+          {
+            error: 'Duplicate exchange detected',
+            message: `An exchange for this sale was processed ${secondsAgo} seconds ago. This appears to be a duplicate caused by network issues.`,
+            existingExchangeNumber: latestExchange.invoiceNumber,
+            existingExchangeId: latestExchange.id,
+          },
+          { status: 409 }
+        )
+      }
+      // ========== END DUPLICATE DETECTION ==========
+
       // Validate return items exist in original sale
       let returnTotal = 0
       for (const returnItem of returnItems) {

@@ -6,6 +6,7 @@ import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 import { processSupplierReturn } from '@/lib/stockOperations'
 import { validateSOD, getUserRoles } from '@/lib/sodValidation'
+import { withIdempotency } from '@/lib/idempotency'
 
 /**
  * POST /api/supplier-returns/[id]/approve
@@ -33,6 +34,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: returnId } = await params
+  return withIdempotency(request, `/api/supplier-returns/${returnId}/approve`, async () => {
   try {
     const session = await getServerSession(authOptions)
 
@@ -49,7 +52,6 @@ export async function POST(
       [user.firstName, user.lastName].filter(Boolean).join(' ') ||
       user.username ||
       `User#${userIdNumber}`
-    const { id: returnId } = await params
     const returnIdNumber = Number(returnId)
 
     // Check permission
@@ -353,4 +355,5 @@ export async function POST(
       { status: 500 }
     )
   }
+  }) // Close idempotency wrapper
 }
