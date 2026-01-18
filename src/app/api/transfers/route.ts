@@ -254,8 +254,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // OPTIMIZED: Validate items (stock validation removed - already done client-side)
-    // Stock will be validated again during SEND operation (when actually deducted)
+    // NOTE: Stock validation is done at SEND time (not here) to check actual availability
+    // Client-side provides UX feedback, server validates at deduction time
     const allSerialNumberIds: number[] = []
 
     for (const item of items) {
