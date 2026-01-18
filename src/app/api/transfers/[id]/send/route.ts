@@ -131,6 +131,63 @@ export async function POST(
       )
     }
 
+    // ========== 5-MINUTE DUPLICATE DETECTION ==========
+    // Prevent duplicate send operations during network issues
+    // This is the same pattern used in POS sales, GRN, cash, etc.
+    const DUPLICATE_WINDOW_MS = 300 * 1000 // 5 minutes
+    const duplicateCheckTime = new Date(Date.now() - DUPLICATE_WINDOW_MS)
+
+    // Check for recent transfers SENT by same user from same origin
+    const recentSentTransfers = await prisma.stockTransfer.findMany({
+      where: {
+        businessId: businessIdNumber,
+        fromLocationId: transfer.fromLocationId,
+        sentBy: userIdNumber,
+        status: 'in_transit',
+        sentAt: { gte: duplicateCheckTime },
+        id: { not: transferId }, // Exclude current transfer
+      },
+      select: { id: true, transferNumber: true, sentAt: true },
+      orderBy: { sentAt: 'desc' },
+      take: 5,
+    })
+
+    // Check if any recent transfer has same items (same product/qty)
+    for (const recentTransfer of recentSentTransfers) {
+      const recentItems = await prisma.stockTransferItem.findMany({
+        where: { stockTransferId: recentTransfer.id },
+        select: { productVariationId: true, quantity: true },
+      })
+
+      // Compare item fingerprints
+      const currentFingerprint = transfer.items
+        .map(i => `${i.productVariationId}:${i.quantity}`)
+        .sort()
+        .join('|')
+
+      const recentFingerprint = recentItems
+        .map(i => `${i.productVariationId}:${parseFloat(i.quantity.toString())}`)
+        .sort()
+        .join('|')
+
+      if (currentFingerprint === recentFingerprint) {
+        const secondsAgo = Math.round((Date.now() - recentTransfer.sentAt!.getTime()) / 1000)
+        console.warn(
+          `[TRANSFER SEND] DUPLICATE BLOCKED: Transfer ${transfer.transferNumber} identical to ${recentTransfer.transferNumber} (${secondsAgo}s ago)`
+        )
+        return NextResponse.json(
+          {
+            error: 'Duplicate transfer detected',
+            message: `An identical transfer (${recentTransfer.transferNumber}) was sent ${secondsAgo} seconds ago. This appears to be a duplicate caused by network issues.`,
+            existingTransferNumber: recentTransfer.transferNumber,
+            existingTransferId: recentTransfer.id,
+          },
+          { status: 409 }
+        )
+      }
+    }
+    // ========== END DUPLICATE DETECTION ==========
+
     // TRANSACTION IMPACT TRACKING: Step 1 - Capture inventory BEFORE transaction
     // TEMPORARILY DISABLED: Compatibility issue with Vercel edge runtime
     // const impactTracker = new InventoryImpactTracker()
