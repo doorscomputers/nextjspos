@@ -2200,9 +2200,42 @@ export default function POSEnhancedPage() {
       setTimeout(() => alert(message), 100)
     } catch (err: any) {
       console.error('[POS] Sale submission failed:', err)
+
+      // Handle duplicate sale silently - original sale was already saved
+      if (err.message.includes('Duplicate sale detected')) {
+        console.log('[POS] Duplicate sale detected - treating as success (original sale was saved)')
+
+        // Clear the cart and reset form (same as successful sale)
+        setCart([])
+        setDiscountType('none')
+        setDiscountAmount('')
+        setSeniorCitizenId('')
+        setSeniorCitizenName('')
+        setPwdId('')
+        setPwdName('')
+        setCashAmount('')
+        setDigitalAmount('')
+        setDigitalMethod('')
+        setDigitalReference('')
+        setDigitalPhoto('')
+        setChequeAmount('')
+        setChequeNumber('')
+        setChequeBank('')
+        setChequeDate('')
+        setSelectedCustomer(null)
+        setIsCreditSale(false)
+        setRemarks('')
+        setAdditionalChargeType('fixed')
+        setAdditionalChargeValue('')
+        setSelectedSalesPersonnel(null)
+
+        // Don't show error - sale was already processed successfully
+        return
+      }
+
       setError(err.message)
 
-      // Show user-friendly error messages
+      // Show user-friendly error messages for other scenarios
       if (err.message.includes('queued')) {
         alert('⚠️ No internet connection. Sale has been queued and will be submitted when connection is restored.')
       } else if (err.message.includes('retry')) {
