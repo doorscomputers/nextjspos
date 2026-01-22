@@ -445,30 +445,11 @@ export async function POST(request: NextRequest) {
           })
         }
 
-        // Process items where counts match (verification records only, no stock change)
+        // For items where counts match, just track them (no database records needed for performance)
+        // These items don't need InventoryCorrection records since there's no change
         for (const item of verifiedItems) {
-          // Create verification record (difference = 0)
-          const correction = await tx.inventoryCorrection.create({
-            data: {
-              businessId,
-              locationId: item.locationId,
-              productId: item.productId,
-              productVariationId: item.variationId,
-              systemCount: item.currentStock,
-              physicalCount: item.currentStock, // Same as system count
-              difference: 0,
-              reason: 'Admin Physical Inventory Upload - Verified',
-              remarks: `Inventory verified (counts match) - ${file.name} - Row ${item.rowNumber}`,
-              createdBy: userId,
-              createdByName: user.username,
-              status: 'approved',
-              approvedBy: userId,
-              approvedAt: new Date()
-            }
-          })
-
           verifiedResults.push({
-            correctionId: correction.id,
+            correctionId: null, // No correction record created for verified items
             locationName: item.branchName,
             productId: item.productId,
             productName: item.productName,
