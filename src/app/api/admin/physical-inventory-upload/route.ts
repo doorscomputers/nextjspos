@@ -8,6 +8,9 @@ import { updateStock, StockTransactionType } from '@/lib/stockOperations'
 import { withIdempotency } from '@/lib/idempotency'
 import * as XLSX from 'xlsx'
 
+// Increase body size limit for large Excel files (default is 4.5MB on Vercel)
+export const maxDuration = 60 // Allow up to 60 seconds for large files
+
 /**
  * Excel Format Expected:
  * | DATE | BRANCH | ITEM CODE | ITEM NAME | ACTUAL COUNT |

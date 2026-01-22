@@ -238,7 +238,20 @@ export default function AdminPhysicalInventoryUploadPage() {
         body: formData
       })
 
-      const data = await response.json()
+      // Handle 413 Payload Too Large
+      if (response.status === 413) {
+        setError(`File too large (${(selectedFile.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed size is 4.5 MB. Please split your Excel file into smaller parts.`)
+        return
+      }
+
+      // Try to parse JSON, handle invalid responses
+      let data
+      try {
+        data = await response.json()
+      } catch (parseError) {
+        setError(`Server error: ${response.status} ${response.statusText}. Please try again.`)
+        return
+      }
 
       if (data.success && data.preview) {
         setPreviewResult(data)

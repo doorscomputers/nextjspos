@@ -16,6 +16,13 @@
     }
   },
   "functions": {
+    "src/app/api/admin/physical-inventory-upload/route.ts": {
+      "maxDuration": 120,
+      "memory": 1024
+    },
+    "src/app/api/admin/physical-inventory-upload/export/route.ts": {
+      "maxDuration": 60
+    },
     "src/app/api/products/bulk-price-import/route.ts": {
       "maxDuration": 120
     },
