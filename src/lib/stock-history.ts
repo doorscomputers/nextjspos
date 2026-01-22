@@ -186,6 +186,7 @@ export async function getVariationStockHistory(
         productId,
         productVariationId: variationId,
         status: 'approved',
+        deletedAt: null,  // CRITICAL: Exclude soft-deleted corrections
         approvedAt: {
           gte: finalStartDate,
           lte: finalEndDate
