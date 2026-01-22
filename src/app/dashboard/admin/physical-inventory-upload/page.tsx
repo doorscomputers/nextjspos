@@ -54,6 +54,43 @@ interface VerifiedDetail {
   type: 'verified'
 }
 
+interface PreviewUpdate {
+  locationName: string
+  itemCode: string
+  productId: number
+  productName: string
+  variationName: string
+  previousStock: number
+  newStock: number
+  difference: number
+  type: 'update'
+}
+
+interface PreviewVerified {
+  locationName: string
+  itemCode: string
+  productId: number
+  productName: string
+  variationName: string
+  verifiedStock: number
+  type: 'verified'
+}
+
+interface PreviewResult {
+  success: boolean
+  preview: boolean
+  message: string
+  summary: {
+    totalRows: number
+    itemsToUpdate: number
+    itemsVerified: number
+    locationsAffected: string[]
+    hasDiscrepancies: boolean
+  }
+  previewUpdates: PreviewUpdate[]
+  previewVerified: PreviewVerified[]
+}
+
 interface UploadResult {
   success: boolean
   message: string
@@ -85,6 +122,8 @@ export default function AdminPhysicalInventoryUploadPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null)
+  const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null)
+  const [isConfirming, setIsConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [idempotencyKey, setIdempotencyKey] = useState<string>('')
 
@@ -174,7 +213,8 @@ export default function AdminPhysicalInventoryUploadPage() {
     }
   }
 
-  const handleUpload = async () => {
+  // Step 1: Preview what will be changed
+  const handlePreview = async () => {
     if (!selectedFile) {
       setError('Please select a file to upload')
       return
@@ -183,10 +223,54 @@ export default function AdminPhysicalInventoryUploadPage() {
     setIsUploading(true)
     setError(null)
     setUploadResult(null)
+    setPreviewResult(null)
 
     try {
       const formData = new FormData()
       formData.append('file', selectedFile)
+      formData.append('preview', 'true')
+
+      const response = await fetch('/api/admin/physical-inventory-upload', {
+        method: 'POST',
+        headers: {
+          'Idempotency-Key': `preview-${idempotencyKey}`
+        },
+        body: formData
+      })
+
+      const data = await response.json()
+
+      if (data.success && data.preview) {
+        setPreviewResult(data)
+        // If there are discrepancies, require confirmation
+        if (data.summary.hasDiscrepancies) {
+          setIsConfirming(true)
+        } else {
+          // No discrepancies, just verified items - auto-apply
+          await handleConfirmUpload()
+        }
+      } else {
+        // Validation error
+        setUploadResult(data)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to preview physical inventory')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  // Step 2: Confirm and apply the changes
+  const handleConfirmUpload = async () => {
+    if (!selectedFile) return
+
+    setIsUploading(true)
+    setError(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', selectedFile)
+      // No preview flag = actual update
 
       const response = await fetch('/api/admin/physical-inventory-upload', {
         method: 'POST',
@@ -199,13 +283,14 @@ export default function AdminPhysicalInventoryUploadPage() {
       const data = await response.json()
 
       setUploadResult(data)
+      setPreviewResult(null)
+      setIsConfirming(false)
 
       if (data.success) {
         setSelectedFile(null)
         if (fileInputRef.current) {
           fileInputRef.current.value = ''
         }
-        // Generate new key for next upload
         generateNewIdempotencyKey()
       }
     } catch (err: any) {
@@ -215,9 +300,15 @@ export default function AdminPhysicalInventoryUploadPage() {
     }
   }
 
+  // Cancel preview and go back
+  const handleCancelPreview = () => {
+    setPreviewResult(null)
+    setIsConfirming(false)
+  }
+
   const handleRetry = () => {
     // Keep the same idempotency key for retry (in case of network failure)
-    handleUpload()
+    handlePreview()
   }
 
   const handleExportPDF = () => {
@@ -470,8 +561,8 @@ export default function AdminPhysicalInventoryUploadPage() {
           <div className="flex gap-4">
             <Button
               variant="success"
-              onClick={handleUpload}
-              disabled={isUploading || !selectedFile}
+              onClick={handlePreview}
+              disabled={isUploading || !selectedFile || isConfirming}
               className="gap-2"
             >
               {isUploading ? (
@@ -479,11 +570,117 @@ export default function AdminPhysicalInventoryUploadPage() {
               ) : (
                 <DocumentArrowUpIcon className="h-4 w-4" />
               )}
-              {isUploading ? 'Uploading...' : 'Upload & Update Inventory'}
+              {isUploading ? 'Processing...' : 'Preview & Validate'}
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Preview Confirmation Section */}
+      {previewResult && isConfirming && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg shadow-sm border border-yellow-300 dark:border-yellow-800 p-6 mb-6">
+          <div className="flex items-start mb-4">
+            <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+            <div className="ml-3">
+              <h3 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200">
+                Confirmation Required - Discrepancies Found
+              </h3>
+              <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                {previewResult.summary.itemsToUpdate} item(s) have different counts than the system.
+                Review the changes below before applying.
+              </p>
+            </div>
+          </div>
+
+          {/* Preview Summary */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 mb-4">
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">Summary</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <p className="text-gray-500 dark:text-gray-400">Total Rows</p>
+                <p className="font-medium text-gray-900 dark:text-white">{previewResult.summary.totalRows}</p>
+              </div>
+              <div>
+                <p className="text-gray-500 dark:text-gray-400">To Update</p>
+                <p className="font-medium text-orange-600 dark:text-orange-400">{previewResult.summary.itemsToUpdate}</p>
+              </div>
+              <div>
+                <p className="text-gray-500 dark:text-gray-400">Verified (Match)</p>
+                <p className="font-medium text-green-600 dark:text-green-400">{previewResult.summary.itemsVerified}</p>
+              </div>
+              <div>
+                <p className="text-gray-500 dark:text-gray-400">Locations</p>
+                <p className="font-medium text-gray-900 dark:text-white">{previewResult.summary.locationsAffected.length}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Discrepancies Table */}
+          {previewResult.previewUpdates.length > 0 && (
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 overflow-x-auto mb-4">
+              <h4 className="text-sm font-semibold text-orange-700 dark:text-orange-300 mb-2">
+                Items to be Updated (Discrepancies)
+              </h4>
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b dark:border-gray-700">
+                    <th className="text-left py-2 px-2 text-gray-600 dark:text-gray-400">Location</th>
+                    <th className="text-left py-2 px-2 text-gray-600 dark:text-gray-400">Item Code</th>
+                    <th className="text-left py-2 px-2 text-gray-600 dark:text-gray-400">Product</th>
+                    <th className="text-right py-2 px-2 text-gray-600 dark:text-gray-400">System Stock</th>
+                    <th className="text-right py-2 px-2 text-gray-600 dark:text-gray-400">Physical Count</th>
+                    <th className="text-right py-2 px-2 text-gray-600 dark:text-gray-400">Change</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewResult.previewUpdates.map((item, idx) => (
+                    <tr key={idx} className="border-b dark:border-gray-700">
+                      <td className="py-2 px-2 text-gray-900 dark:text-white">{item.locationName}</td>
+                      <td className="py-2 px-2 text-gray-600 dark:text-gray-400">{item.itemCode}</td>
+                      <td className="py-2 px-2 text-gray-900 dark:text-white">{item.productName}</td>
+                      <td className="py-2 px-2 text-right text-gray-600 dark:text-gray-400">{item.previousStock}</td>
+                      <td className="py-2 px-2 text-right font-medium text-blue-600 dark:text-blue-400">{item.newStock}</td>
+                      <td className={`py-2 px-2 text-right font-medium ${
+                        item.difference > 0
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-red-600 dark:text-red-400'
+                      }`}>
+                        {item.difference > 0 ? '+' : ''}{item.difference}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex gap-3">
+            <Button
+              variant="success"
+              onClick={handleConfirmUpload}
+              disabled={isUploading}
+              className="gap-2"
+            >
+              {isUploading ? (
+                <ArrowPathIcon className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircleIcon className="h-4 w-4" />
+              )}
+              {isUploading ? 'Applying...' : 'Confirm & Apply Changes'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleCancelPreview}
+              disabled={isUploading}
+              className="gap-2"
+            >
+              <XCircleIcon className="h-4 w-4" />
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Upload Result */}
       {uploadResult && (

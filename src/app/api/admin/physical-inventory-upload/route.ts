@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
       // Parse form data
       const formData = await request.formData()
       const file = formData.get('file') as File
+      const previewOnly = formData.get('preview') === 'true'
 
       if (!file) {
         return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
@@ -353,6 +354,51 @@ export async function POST(request: NextRequest) {
             itemsUpdated: 0,
             itemsVerified: 0
           }
+        }, { status: 200 })
+      }
+
+      // ===== PREVIEW MODE - Return what would change without applying =====
+      if (previewOnly) {
+        const locationsAffected = [...new Set([
+          ...updateItems.map(i => i.branchName),
+          ...verifiedItems.map(i => i.branchName)
+        ])]
+
+        const previewUpdates = updateItems.map(item => ({
+          locationName: item.branchName,
+          itemCode: item.itemCode,
+          productId: item.productId,
+          productName: item.productName,
+          variationName: item.variationName,
+          previousStock: item.currentStock,
+          newStock: item.actualCount,
+          difference: item.difference,
+          type: 'update' as const
+        }))
+
+        const previewVerified = verifiedItems.map(item => ({
+          locationName: item.branchName,
+          itemCode: item.itemCode,
+          productId: item.productId,
+          productName: item.productName,
+          variationName: item.variationName,
+          verifiedStock: item.currentStock,
+          type: 'verified' as const
+        }))
+
+        return NextResponse.json({
+          success: true,
+          preview: true,
+          message: `Preview: ${updateItems.length} items will be updated, ${verifiedItems.length} items verified (no changes made yet)`,
+          summary: {
+            totalRows: rawData.length,
+            itemsToUpdate: updateItems.length,
+            itemsVerified: verifiedItems.length,
+            locationsAffected,
+            hasDiscrepancies: updateItems.length > 0
+          },
+          previewUpdates,
+          previewVerified
         }, { status: 200 })
       }
 
