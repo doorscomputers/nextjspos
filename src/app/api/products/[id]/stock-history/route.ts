@@ -7,6 +7,7 @@ import { getVariationStockHistory, verifyAndCorrectStock } from '@/lib/stock-his
 /**
  * GET /api/products/[id]/stock-history
  * Get stock history for a product variation at a location
+ * Updated: 2026-01-22 - Fixed duplicate display issue with cache bypass
  */
 export async function GET(
   request: NextRequest,
