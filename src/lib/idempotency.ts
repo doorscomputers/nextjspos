@@ -114,8 +114,24 @@ export async function withIdempotency(
       const record = existing[0]
 
       if (record.status === 'processing') {
-        // Another request is still processing - tell client to wait and retry
-        console.warn(`[Idempotency] BLOCKED: Key ${idempotencyKey.slice(0, 20)}... is still processing`)
+        // Check if key is stale (older than 30 seconds) - likely orphaned from failed UPDATE
+        const keyAge = Date.now() - new Date(record.created_at).getTime()
+        const STALE_KEY_THRESHOLD_MS = 30000 // 30 seconds
+
+        if (keyAge > STALE_KEY_THRESHOLD_MS) {
+          // Key is stale - the original request likely completed but UPDATE failed
+          // Delete stale key and allow this request to proceed
+          console.warn(`[Idempotency] STALE KEY: ${idempotencyKey.slice(0, 20)}... is ${Math.round(keyAge / 1000)}s old, deleting and retrying`)
+          await prisma.$executeRaw`
+            DELETE FROM idempotency_keys
+            WHERE key = ${idempotencyKey} AND business_id = ${businessId}
+          `
+          // Process the request normally (will claim new key)
+          return await handler()
+        }
+
+        // Key is fresh - another request is actively processing
+        console.warn(`[Idempotency] BLOCKED: Key ${idempotencyKey.slice(0, 20)}... is still processing (${Math.round(keyAge / 1000)}s old)`)
         return NextResponse.json(
           {
             error: 'Request already in progress',

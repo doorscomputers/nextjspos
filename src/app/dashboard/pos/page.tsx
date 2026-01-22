@@ -2235,11 +2235,18 @@ export default function POSEnhancedPage() {
 
       setError(err.message)
 
+      // Auto-clear REQUEST_IN_PROGRESS error after 5 seconds (stale key scenario)
+      if (err.message.includes('REQUEST_IN_PROGRESS')) {
+        setTimeout(() => setError(''), 5000)
+      }
+
       // Show user-friendly error messages for other scenarios
       if (err.message.includes('queued')) {
         alert('⚠️ No internet connection. Sale has been queued and will be submitted when connection is restored.')
       } else if (err.message.includes('retry')) {
         alert('⚠️ Sale submission failed after multiple attempts. Please check your connection and try again.')
+      } else if (err.message.includes('REQUEST_IN_PROGRESS')) {
+        alert('⚠️ Sale may have already been processed.\n\nPlease check your Sales List to verify if the sale was completed.\n\nIf the sale exists, clear your cart and start fresh.')
       }
     } finally {
       setLoading(false)
