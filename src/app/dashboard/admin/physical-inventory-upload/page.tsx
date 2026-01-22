@@ -12,8 +12,11 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon,
   ArrowPathIcon,
-  XCircleIcon
+  XCircleIcon,
+  DocumentTextIcon
 } from '@heroicons/react/24/outline'
+import jsPDF from 'jspdf'
+import 'jspdf-autotable'
 
 interface Location {
   id: number
@@ -215,6 +218,140 @@ export default function AdminPhysicalInventoryUploadPage() {
   const handleRetry = () => {
     // Keep the same idempotency key for retry (in case of network failure)
     handleUpload()
+  }
+
+  const handleExportPDF = () => {
+    if (!uploadResult?.success) return
+
+    const doc = new jsPDF()
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const today = new Date().toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    })
+
+    // Header
+    doc.setFontSize(18)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Physical Inventory Verification Report', pageWidth / 2, 20, { align: 'center' })
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Generated: ${today}`, pageWidth / 2, 28, { align: 'center' })
+
+    // Summary Section
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Summary', 14, 40)
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    const summary = uploadResult.summary
+    doc.text([
+      `Total Rows Processed: ${summary?.totalRows || 0}`,
+      `Items Updated (Discrepancies): ${summary?.itemsUpdated || 0}`,
+      `Items Verified (Counts Match): ${summary?.itemsVerified || 0}`,
+      `Locations: ${summary?.locationsAffected?.join(', ') || 'N/A'}`
+    ], 14, 48)
+
+    let currentY = 72
+
+    // Updated Items Table (Discrepancies)
+    if (uploadResult.updatedDetails && uploadResult.updatedDetails.length > 0) {
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(234, 88, 12) // Orange
+      doc.text('Updated Items (Discrepancies Found)', 14, currentY)
+      doc.setTextColor(0, 0, 0)
+
+      const updatedData = uploadResult.updatedDetails.map(item => [
+        item.locationName,
+        item.itemCode,
+        item.productName.substring(0, 35) + (item.productName.length > 35 ? '...' : ''),
+        item.previousStock.toString(),
+        item.newStock.toString(),
+        (item.difference > 0 ? '+' : '') + item.difference.toString()
+      ])
+
+      ;(doc as any).autoTable({
+        startY: currentY + 4,
+        head: [['Location', 'Item Code', 'Product', 'Previous', 'New', 'Change']],
+        body: updatedData,
+        theme: 'grid',
+        headStyles: { fillColor: [234, 88, 12], fontSize: 8 },
+        bodyStyles: { fontSize: 7 },
+        columnStyles: {
+          0: { cellWidth: 25 },
+          1: { cellWidth: 28 },
+          2: { cellWidth: 60 },
+          3: { cellWidth: 18, halign: 'right' },
+          4: { cellWidth: 18, halign: 'right' },
+          5: { cellWidth: 18, halign: 'right' }
+        },
+        margin: { left: 14, right: 14 }
+      })
+
+      currentY = (doc as any).lastAutoTable.finalY + 10
+    }
+
+    // Verified Items Table
+    if (uploadResult.verifiedDetails && uploadResult.verifiedDetails.length > 0) {
+      // Check if need new page
+      if (currentY > 240) {
+        doc.addPage()
+        currentY = 20
+      }
+
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(22, 163, 74) // Green
+      doc.text('Verified Items (Counts Match)', 14, currentY)
+      doc.setTextColor(0, 0, 0)
+
+      const verifiedData = uploadResult.verifiedDetails.map(item => [
+        item.locationName,
+        item.itemCode,
+        item.productName.substring(0, 40) + (item.productName.length > 40 ? '...' : ''),
+        item.verifiedStock.toString(),
+        'Verified'
+      ])
+
+      ;(doc as any).autoTable({
+        startY: currentY + 4,
+        head: [['Location', 'Item Code', 'Product', 'Stock', 'Status']],
+        body: verifiedData,
+        theme: 'grid',
+        headStyles: { fillColor: [22, 163, 74], fontSize: 8 },
+        bodyStyles: { fontSize: 7 },
+        columnStyles: {
+          0: { cellWidth: 25 },
+          1: { cellWidth: 28 },
+          2: { cellWidth: 70 },
+          3: { cellWidth: 20, halign: 'right' },
+          4: { cellWidth: 22, halign: 'center' }
+        },
+        margin: { left: 14, right: 14 }
+      })
+    }
+
+    // Footer
+    const pageCount = doc.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.text(
+        `Page ${i} of ${pageCount}`,
+        pageWidth / 2,
+        doc.internal.pageSize.getHeight() - 10,
+        { align: 'center' }
+      )
+    }
+
+    // Save PDF
+    const filename = `Physical_Inventory_Report_${new Date().toISOString().split('T')[0]}.pdf`
+    doc.save(filename)
   }
 
   if (isLoading) {
@@ -553,9 +690,17 @@ export default function AdminPhysicalInventoryUploadPage() {
             </div>
           )}
 
-          {/* View Corrections Link */}
+          {/* Action Buttons for Success */}
           {uploadResult.success && (
-            <div className="mt-4">
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Button
+                variant="outline"
+                onClick={handleExportPDF}
+                className="gap-2 hover:border-red-500 hover:text-red-700 dark:hover:text-red-400"
+              >
+                <DocumentTextIcon className="h-4 w-4" />
+                Export PDF Report
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => router.push('/dashboard/inventory-corrections')}
