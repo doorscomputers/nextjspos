@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
-import { PERMISSIONS } from '@/lib/rbac'
+import { PERMISSIONS, hasPermission } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 import { updateStock, StockTransactionType } from '@/lib/stockOperations'
 import { withIdempotency } from '@/lib/idempotency'
@@ -93,8 +93,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'No business associated with user' }, { status: 400 })
       }
 
-      // Check permission
-      if (!user.permissions?.includes(PERMISSIONS.ADMIN_PHYSICAL_INVENTORY_UPLOAD)) {
+      // Check permission (hasPermission also checks if user is Super Admin)
+      if (!hasPermission(user, PERMISSIONS.ADMIN_PHYSICAL_INVENTORY_UPLOAD)) {
         return NextResponse.json({ error: 'Forbidden - Insufficient permissions' }, { status: 403 })
       }
 
