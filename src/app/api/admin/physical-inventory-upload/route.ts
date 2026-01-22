@@ -237,7 +237,7 @@ export async function POST(request: NextRequest) {
               businessId: true
             }
           },
-          locationDetails: {
+          variationLocationDetails: {
             select: {
               locationId: true,
               qtyAvailable: true
@@ -297,7 +297,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Find current stock at this location
-        const locationDetail = variation.locationDetails.find(ld => ld.locationId === location.id)
+        const locationDetail = variation.variationLocationDetails.find(ld => ld.locationId === location.id)
         const currentStock = locationDetail ? parseFloat(locationDetail.qtyAvailable.toString()) : 0
 
         // If counts match, add to verified items (will create verification record)
