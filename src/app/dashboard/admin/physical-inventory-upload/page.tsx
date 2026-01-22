@@ -16,7 +16,7 @@ import {
   DocumentTextIcon
 } from '@heroicons/react/24/outline'
 import jsPDF from 'jspdf'
-import 'jspdf-autotable'
+import autoTable from 'jspdf-autotable'
 
 interface Location {
   id: number
@@ -274,7 +274,7 @@ export default function AdminPhysicalInventoryUploadPage() {
         (item.difference > 0 ? '+' : '') + item.difference.toString()
       ])
 
-      ;(doc as any).autoTable({
+      autoTable(doc, {
         startY: currentY + 4,
         head: [['Location', 'Item Code', 'Product', 'Previous', 'New', 'Change']],
         body: updatedData,
@@ -317,7 +317,7 @@ export default function AdminPhysicalInventoryUploadPage() {
         'Verified'
       ])
 
-      ;(doc as any).autoTable({
+      autoTable(doc, {
         startY: currentY + 4,
         head: [['Location', 'Item Code', 'Product', 'Stock', 'Status']],
         body: verifiedData,
