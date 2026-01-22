@@ -71,7 +71,15 @@ export async function GET(
       endDate ? new Date(endDate) : undefined
     )
 
-    return NextResponse.json({ history }, { status: 200 })
+    // Return with no-cache headers to prevent stale data issues
+    return NextResponse.json({ history }, {
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    })
   } catch (error) {
     console.error('Error fetching stock history:', error)
     return NextResponse.json({ error: 'Failed to fetch stock history' }, { status: 500 })

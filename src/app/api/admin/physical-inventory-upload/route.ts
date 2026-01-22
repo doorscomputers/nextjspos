@@ -498,6 +498,8 @@ export async function POST(request: NextRequest) {
           })
 
           // 2. Update stock using centralized helper (creates ProductHistory automatically)
+          // IMPORTANT: Use 'inventory_correction' as referenceType to match the skip logic
+          // in stock-history.ts (line 413) that prevents duplicate display in history view
           const stockResult = await updateStock({
             businessId,
             productId: item.productId,
@@ -505,7 +507,7 @@ export async function POST(request: NextRequest) {
             locationId: item.locationId,
             quantity: item.difference,
             type: StockTransactionType.ADJUSTMENT,
-            referenceType: 'admin_physical_inventory',
+            referenceType: 'inventory_correction', // Must match skip logic in stock-history.ts
             referenceId: correction.id,
             userId,
             userDisplayName: user.username,
