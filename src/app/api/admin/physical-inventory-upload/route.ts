@@ -126,6 +126,12 @@ export async function POST(request: NextRequest) {
 
       console.log(`[Admin Physical Inventory] Processing ${rawData.length} rows from ${file.name}`)
 
+      // Log found columns for debugging
+      if (rawData.length > 0) {
+        const foundColumns = Object.keys(rawData[0])
+        console.log(`[Admin Physical Inventory] Found columns: ${foundColumns.join(', ')}`)
+      }
+
       // ===== STEP 1: Parse Excel rows =====
       const excelRows: ExcelRow[] = []
       const parseErrors: string[] = []
@@ -134,12 +140,44 @@ export async function POST(request: NextRequest) {
         const row = rawData[i]
         const rowNumber = i + 2 // Excel row number (1-based, plus header)
 
-        // Get column values (case-insensitive column names)
+        // Get column values (support many common column name variations)
         const date = row['DATE'] || row['Date'] || row['date'] || ''
-        const branchName = String(row['BRANCH'] || row['Branch'] || row['branch'] || '').trim()
-        const itemCode = String(row['ITEM CODE'] || row['Item Code'] || row['item code'] || row['ITEM_CODE'] || row['ItemCode'] || '').trim()
-        const itemName = String(row['ITEM NAME'] || row['Item Name'] || row['item name'] || row['ITEM_NAME'] || row['ItemName'] || '').trim()
-        const actualCountRaw = row['ACTUAL COUNT'] || row['Actual Count'] || row['actual count'] || row['ACTUAL_COUNT'] || row['ActualCount']
+
+        // Branch/Location variations
+        const branchName = String(
+          row['BRANCH'] || row['Branch'] || row['branch'] ||
+          row['LOCATION'] || row['Location'] || row['location'] ||
+          row['STORE'] || row['Store'] || row['store'] ||
+          row['WAREHOUSE'] || row['Warehouse'] || row['warehouse'] || ''
+        ).trim()
+
+        // Item Code/SKU variations
+        const itemCode = String(
+          row['ITEM CODE'] || row['Item Code'] || row['item code'] || row['ITEM_CODE'] || row['ItemCode'] ||
+          row['SKU'] || row['Sku'] || row['sku'] ||
+          row['PRODUCT CODE'] || row['Product Code'] || row['product code'] ||
+          row['CODE'] || row['Code'] || row['code'] ||
+          row['BARCODE'] || row['Barcode'] || row['barcode'] || ''
+        ).trim()
+
+        // Item Name/Description variations
+        const itemName = String(
+          row['ITEM NAME'] || row['Item Name'] || row['item name'] || row['ITEM_NAME'] || row['ItemName'] ||
+          row['PRODUCT'] || row['Product'] || row['product'] ||
+          row['PRODUCT NAME'] || row['Product Name'] || row['product name'] ||
+          row['DESCRIPTION'] || row['Description'] || row['description'] ||
+          row['NAME'] || row['Name'] || row['name'] || ''
+        ).trim()
+
+        // Actual Count/Quantity variations
+        const actualCountRaw =
+          row['ACTUAL COUNT'] || row['Actual Count'] || row['actual count'] || row['ACTUAL_COUNT'] || row['ActualCount'] ||
+          row['PHYSICAL COUNT'] || row['Physical Count'] || row['physical count'] ||
+          row['COUNT'] || row['Count'] || row['count'] ||
+          row['QTY'] || row['Qty'] || row['qty'] ||
+          row['QUANTITY'] || row['Quantity'] || row['quantity'] ||
+          row['PHYSICAL QTY'] || row['Physical Qty'] || row['physical qty'] ||
+          row['STOCK'] || row['Stock'] || row['stock']
 
         // Validate required fields
         if (!branchName) {
@@ -172,9 +210,12 @@ export async function POST(request: NextRequest) {
       }
 
       if (excelRows.length === 0) {
+        const foundColumns = rawData.length > 0 ? Object.keys(rawData[0]) : []
         return NextResponse.json({
           error: 'No valid rows to process',
-          details: parseErrors.length > 0 ? parseErrors : ['All rows have empty ACTUAL COUNT or are invalid']
+          details: parseErrors.length > 0 ? parseErrors : ['All rows have empty count column or are invalid'],
+          hint: `Found columns in your file: ${foundColumns.join(', ')}`,
+          expectedColumns: 'BRANCH (or LOCATION), ITEM CODE (or SKU), ACTUAL COUNT (or QTY/QUANTITY/COUNT)'
         }, { status: 400 })
       }
 
