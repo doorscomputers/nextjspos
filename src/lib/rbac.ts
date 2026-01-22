@@ -259,6 +259,7 @@ export const PERMISSIONS = {
   // Physical Inventory Count
   PHYSICAL_INVENTORY_EXPORT: 'physical_inventory.export',
   PHYSICAL_INVENTORY_IMPORT: 'physical_inventory.import',
+  ADMIN_PHYSICAL_INVENTORY_UPLOAD: 'admin.physical_inventory.upload', // Admin can upload for any location
 
   // Sales - Basic CRUD
   SELL_VIEW: 'sell.view',

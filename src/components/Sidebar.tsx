@@ -420,6 +420,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
           permission: PERMISSIONS.PHYSICAL_INVENTORY_EXPORT,
         },
         {
+          name: "Admin Physical Inventory",
+          href: "/dashboard/admin/physical-inventory-upload",
+          icon: DocumentArrowUpIcon,
+          key: "admin_physical_inventory_upload",
+          permission: PERMISSIONS.ADMIN_PHYSICAL_INVENTORY_UPLOAD,
+        },
+        {
           name: "Print Labels",
           href: "/dashboard/products/print-labels",
           icon: CubeIcon,
