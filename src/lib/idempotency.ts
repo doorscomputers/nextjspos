@@ -126,8 +126,10 @@ export async function withIdempotency(
             DELETE FROM idempotency_keys
             WHERE key = ${idempotencyKey} AND business_id = ${businessId}
           `
-          // Process the request normally (will claim new key)
-          return await handler()
+          // CRITICAL FIX: Recursively call withIdempotency to properly claim a new key
+          // and go through the full idempotency flow (claim -> process -> update)
+          // Previously this called handler() directly which bypassed the UPDATE logic
+          return await withIdempotency(request, endpoint, handler)
         }
 
         // Key is fresh - another request is actively processing
