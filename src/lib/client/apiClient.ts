@@ -82,14 +82,46 @@ async function generateDeterministicIdempotencyKey(
   return `idem_${Math.abs(hash).toString(16)}`
 }
 
-// Offline queue for failed requests
-const offlineQueue: Array<{
+// Offline queue storage key
+const OFFLINE_QUEUE_KEY = 'pos_offline_queue'
+
+// Offline queue for failed requests - persisted to localStorage
+type OfflineQueueItem = {
   url: string
   body: any
   options?: ApiClientOptions
   timestamp: number
   retries: number
-}> = []
+}
+
+// Load queue from localStorage on startup
+function loadOfflineQueue(): OfflineQueueItem[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const stored = localStorage.getItem(OFFLINE_QUEUE_KEY)
+    if (stored) {
+      const parsed = JSON.parse(stored)
+      console.log(`[API Client] Loaded ${parsed.length} queued requests from storage`)
+      return parsed
+    }
+  } catch (e) {
+    console.error('[API Client] Failed to load offline queue from storage:', e)
+  }
+  return []
+}
+
+// Save queue to localStorage
+function saveOfflineQueue(queue: OfflineQueueItem[]): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue))
+  } catch (e) {
+    console.error('[API Client] Failed to save offline queue to storage:', e)
+  }
+}
+
+// Initialize queue from localStorage
+const offlineQueue: OfflineQueueItem[] = loadOfflineQueue()
 
 // Connection status
 let isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true
@@ -128,16 +160,34 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+// Notification callbacks for offline sync results
+type SyncResultCallback = (results: { success: number; failed: number }) => void
+let onSyncComplete: SyncResultCallback | null = null
+
+/**
+ * Register a callback to be notified when offline queue sync completes
+ * CRITICAL-4 FIX: Allows UI to show notifications after sync
+ */
+export function onOfflineQueueSyncComplete(callback: SyncResultCallback): void {
+  onSyncComplete = callback
+}
+
 /**
  * Process offline queue when connection is restored
+ * CRITICAL-3 & CRITICAL-4 FIX: Persists queue to localStorage and notifies on completion
  */
 async function processOfflineQueue() {
   if (offlineQueue.length === 0) return
 
-  console.log(`[API Client] Processing ${offlineQueue.length} queued requests`)
+  const totalQueued = offlineQueue.length
+  console.log(`[API Client] Processing ${totalQueued} queued requests`)
 
   const queueCopy = [...offlineQueue]
   offlineQueue.length = 0 // Clear queue
+  saveOfflineQueue(offlineQueue) // Save cleared queue
+
+  let successCount = 0
+  let failedCount = 0
 
   for (const queuedRequest of queueCopy) {
     try {
@@ -146,6 +196,7 @@ async function processOfflineQueue() {
         queueIfOffline: false, // Don't re-queue if it fails again
       })
       console.log(`[API Client] Successfully processed queued request to ${queuedRequest.url}`)
+      successCount++
     } catch (error) {
       console.error(`[API Client] Failed to process queued request to ${queuedRequest.url}:`, error)
       // If it still fails, put it back in queue for manual retry
@@ -153,7 +204,23 @@ async function processOfflineQueue() {
         ...queuedRequest,
         retries: queuedRequest.retries + 1,
       })
+      failedCount++
     }
+  }
+
+  // Save any failed requests back to localStorage
+  saveOfflineQueue(offlineQueue)
+
+  // Notify listeners of sync results (CRITICAL-4)
+  if (onSyncComplete) {
+    onSyncComplete({ success: successCount, failed: failedCount })
+  }
+
+  // Also dispatch a custom event for components that prefer event-based notification
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('offlineQueueSynced', {
+      detail: { success: successCount, failed: failedCount, remaining: offlineQueue.length }
+    }))
   }
 }
 
@@ -192,7 +259,7 @@ export async function apiPost<T = any>(
     return response.json()
   }
 
-  // Check if offline - queue request
+  // Check if offline - queue request and persist to localStorage (CRITICAL-3 FIX)
   if (!isOnline && queueIfOffline) {
     console.log(`[API Client] Offline - queuing request to ${url}`)
     offlineQueue.push({
@@ -202,6 +269,7 @@ export async function apiPost<T = any>(
       timestamp: Date.now(),
       retries: 0,
     })
+    saveOfflineQueue(offlineQueue) // Persist to localStorage so it survives page refresh
     throw new Error('No internet connection. Request has been queued and will be sent when connection is restored.')
   }
 
@@ -306,6 +374,7 @@ export async function apiPost<T = any>(
             timestamp: Date.now(),
             retries: 0,
           })
+          saveOfflineQueue(offlineQueue) // Persist to localStorage (CRITICAL-3 FIX)
           throw new Error('Request failed and queued for retry when connection is restored.')
         }
       }
