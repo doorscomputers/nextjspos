@@ -135,16 +135,33 @@ export async function withIdempotency(
 
         if (keyAge > STALE_KEY_THRESHOLD_MS) {
           // Key is stale - the original request likely completed but UPDATE failed
-          // Delete stale key and allow this request to proceed
-          console.warn(`[Idempotency] STALE KEY: ${idempotencyKey.slice(0, 20)}... is ${Math.round(keyAge / 1000)}s old, deleting and retrying`)
-          await prisma.$executeRaw`
+          // CRITICAL-6 FIX: Use DELETE RETURNING to atomically check if we actually deleted
+          // This prevents race condition where multiple requests try to delete the same stale key
+          console.warn(`[Idempotency] STALE KEY: ${idempotencyKey.slice(0, 20)}... is ${Math.round(keyAge / 1000)}s old, attempting atomic delete`)
+          const deleted = await prisma.$queryRaw<Array<{ id: number }>>`
             DELETE FROM idempotency_keys
             WHERE key = ${idempotencyKey} AND business_id = ${businessId}
+            RETURNING id
           `
-          // CRITICAL FIX: Recursively call withIdempotency to properly claim a new key
-          // and go through the full idempotency flow (claim -> process -> update)
-          // Previously this called handler() directly which bypassed the UPDATE logic
-          return await withIdempotency(request, endpoint, handler)
+
+          // Only proceed if WE actually deleted the key (not another concurrent request)
+          if (deleted && deleted.length > 0) {
+            console.log(`[Idempotency] Successfully deleted stale key, retrying request`)
+            // CRITICAL: Recursively call withIdempotency to properly claim a new key
+            // and go through the full idempotency flow (claim -> process -> update)
+            return await withIdempotency(request, endpoint, handler)
+          } else {
+            // Another request already deleted it - return 429 to retry
+            console.warn(`[Idempotency] Stale key was already deleted by another request`)
+            return NextResponse.json(
+              {
+                error: 'Request already in progress',
+                message: 'Another request is being processed. Please wait and try again.',
+                retryAfter: 2,
+              },
+              { status: 429, headers: { 'Retry-After': '2' } }
+            )
+          }
         }
 
         // Key is fresh - another request is actively processing
@@ -179,12 +196,17 @@ export async function withIdempotency(
               SELECT status FROM sales WHERE id = ${cachedBody.id} LIMIT 1
             `
             if (currentSale.length > 0 && (currentSale[0].status === 'voided' || currentSale[0].status === 'cancelled')) {
-              console.warn(`[Idempotency] Cached sale ${cachedBody.id} is now ${currentSale[0].status} - deleting key and processing new request`)
-              await prisma.$executeRaw`
+              console.warn(`[Idempotency] Cached sale ${cachedBody.id} is now ${currentSale[0].status} - attempting atomic delete`)
+              // CRITICAL-6 FIX: Use DELETE RETURNING to atomically ensure we deleted the key
+              const deleted = await prisma.$queryRaw<Array<{ id: number }>>`
                 DELETE FROM idempotency_keys WHERE key = ${idempotencyKey} AND business_id = ${businessId}
+                RETURNING id
               `
-              // Process as new request
-              return await withIdempotency(request, endpoint, handler)
+              if (deleted && deleted.length > 0) {
+                // Process as new request
+                return await withIdempotency(request, endpoint, handler)
+              }
+              // If we didn't delete it, another request might be processing - fall through to return cached
             }
           }
 
