@@ -155,6 +155,24 @@ export async function withIdempotency(
         console.log(`[Idempotency] REPLAY: Returning cached response for key ${idempotencyKey.slice(0, 20)}...`)
         try {
           const cachedBody = JSON.parse(record.response_body)
+
+          // CRITICAL FIX: For sales endpoint, check if cached sale was voided/cancelled
+          // The cached response has the original status, but sale may have been voided since
+          // This allows users to create a new sale with same items after voiding
+          if (endpoint === '/api/sales' && cachedBody.id) {
+            const currentSale = await prisma.$queryRaw<Array<{ status: string }>>`
+              SELECT status FROM sales WHERE id = ${cachedBody.id} LIMIT 1
+            `
+            if (currentSale.length > 0 && (currentSale[0].status === 'voided' || currentSale[0].status === 'cancelled')) {
+              console.warn(`[Idempotency] Cached sale ${cachedBody.id} is now ${currentSale[0].status} - deleting key and processing new request`)
+              await prisma.$executeRaw`
+                DELETE FROM idempotency_keys WHERE key = ${idempotencyKey} AND business_id = ${businessId}
+              `
+              // Process as new request
+              return await withIdempotency(request, endpoint, handler)
+            }
+          }
+
           return NextResponse.json(cachedBody, {
             status: record.response_status || 200,
             headers: {

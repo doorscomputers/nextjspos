@@ -190,22 +190,34 @@ export async function POST(
     // Void the sale and restore inventory in transaction
     // Use 60 second timeout to handle multi-item voids with inventory restoration
     const result = await prisma.$transaction(async (tx) => {
-      // RACE CONDITION PROTECTION: Re-fetch sale inside transaction with fresh status
-      // This prevents double-void if two requests arrive simultaneously
-      const freshSale = await tx.sale.findUnique({
-        where: { id: saleId },
-        select: { status: true },
-      })
+      // RACE CONDITION PROTECTION: Use FOR UPDATE NOWAIT to lock the sale row
+      // This prevents double-void by ensuring only one transaction can process at a time
+      // NOWAIT causes immediate failure if another transaction holds the lock
+      let freshSale: { id: number; status: string }[]
+      try {
+        freshSale = await tx.$queryRaw<{ id: number; status: string }[]>`
+          SELECT id, status FROM sales WHERE id = ${saleId} FOR UPDATE NOWAIT
+        `
+      } catch (lockError: any) {
+        // Handle lock contention - another void is in progress
+        if (lockError.message?.includes('could not obtain lock') ||
+            lockError.code === '55P03') { // PostgreSQL lock_not_available error code
+          throw new Error('VOID_IN_PROGRESS')
+        }
+        throw lockError
+      }
 
-      if (!freshSale) {
+      if (!freshSale || freshSale.length === 0) {
         throw new Error('Sale not found')
       }
 
+      const saleStatus = freshSale[0].status
+
       // Double-check status inside transaction (atomic check)
-      if (freshSale.status === 'voided') {
+      if (saleStatus === 'voided') {
         throw new Error('ALREADY_VOIDED')
       }
-      if (freshSale.status === 'cancelled') {
+      if (saleStatus === 'cancelled') {
         throw new Error('SALE_CANCELLED')
       }
 
@@ -342,6 +354,24 @@ export async function POST(
       },
     })
 
+    // CRITICAL FIX: Delete idempotency keys that cached this sale's response
+    // This allows users to create a new sale with the same items after voiding
+    // Without this, the idempotency system would return the cached (voided) sale
+    try {
+      const deletedKeys = await prisma.$executeRaw`
+        DELETE FROM idempotency_keys
+        WHERE business_id = ${businessIdNumber}
+        AND response_body::text LIKE ${`%"id":${saleId},%`}
+        AND endpoint = '/api/sales'
+      `
+      if (deletedKeys > 0) {
+        console.log(`[Void] Deleted ${deletedKeys} idempotency key(s) for voided sale ${saleId}`)
+      }
+    } catch (idempotencyError) {
+      // Non-critical - log but don't fail the void
+      console.error('[Void] Error deleting idempotency keys:', idempotencyError)
+    }
+
     // Send void alert notifications (async, don't wait)
     setImmediate(async () => {
       try {
@@ -382,6 +412,12 @@ export async function POST(
       return NextResponse.json(
         { error: 'Sale is already voided (concurrent void detected)' },
         { status: 400 }
+      )
+    }
+    if (error.message === 'VOID_IN_PROGRESS') {
+      return NextResponse.json(
+        { error: 'Another void operation is in progress. Please wait and try again.' },
+        { status: 409 } // 409 Conflict
       )
     }
     if (error.message === 'SALE_CANCELLED') {
