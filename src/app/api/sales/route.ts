@@ -611,6 +611,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // EARLY TOTAL CALCULATION: Calculate preliminary total for credit limit check
+    // This is needed before processing items because credit limit validation happens first
+    // NOTE: Uses a different variable name to avoid conflict with the detailed calculation later
+    const preliminarySubtotal = items.reduce((sum: number, item: any) => {
+      const qty = parseFloat(item.displayQuantity || item.quantity || 0)
+      const price = parseFloat(item.unitPrice || 0)
+      return sum + (qty * price)
+    }, 0)
+    const preliminarySaleTotal =
+      preliminarySubtotal +
+      parseFloat(taxAmount || 0) +
+      parseFloat(shippingCost || 0) -
+      parseFloat(discountAmount || 0)
+
     // CRITICAL: Credit limit validation for credit sales
     if (isCreditSale && customerId) {
       const customer = await prisma.customer.findFirst({
@@ -650,7 +664,7 @@ export async function POST(request: NextRequest) {
         }, 0)
 
         // Calculate what total outstanding would be with this new sale
-        const newTotalOutstanding = outstandingBalance + totalAmount
+        const newTotalOutstanding = outstandingBalance + preliminarySaleTotal
 
         // Check if new total would exceed credit limit
         const creditLimit = parseFloat(customer.creditLimit.toString())
@@ -667,9 +681,9 @@ export async function POST(request: NextRequest) {
                   customerName: `${customer.firstName} ${customer.lastName}`,
                   creditLimit: creditLimit.toFixed(2),
                   currentBalance: outstandingBalance.toFixed(2),
-                  saleAmount: totalAmount.toFixed(2),
+                  saleAmount: preliminarySaleTotal.toFixed(2),
                   wouldBe: newTotalOutstanding.toFixed(2),
-                  message: `Customer credit limit: ₱${creditLimit.toFixed(2)}. Current balance: ₱${outstandingBalance.toFixed(2)}. This sale (₱${totalAmount.toFixed(2)}) would bring total to ₱${newTotalOutstanding.toFixed(2)}, exceeding the limit by ₱${(newTotalOutstanding - creditLimit).toFixed(2)}.`,
+                  message: `Customer credit limit: ₱${creditLimit.toFixed(2)}. Current balance: ₱${outstandingBalance.toFixed(2)}. This sale (₱${preliminarySaleTotal.toFixed(2)}) would bring total to ₱${newTotalOutstanding.toFixed(2)}, exceeding the limit by ₱${(newTotalOutstanding - creditLimit).toFixed(2)}.`,
                 },
               },
               { status: 400 }
