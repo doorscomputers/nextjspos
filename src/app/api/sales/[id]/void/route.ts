@@ -357,11 +357,13 @@ export async function POST(
     // CRITICAL FIX: Delete idempotency keys that cached this sale's response
     // This allows users to create a new sale with the same items after voiding
     // Without this, the idempotency system would return the cached (voided) sale
+    // NOTE: Using JSONB extraction instead of LIKE to avoid false matches
+    // (e.g., LIKE '%"id":42,%' would wrongly match sale 420)
     try {
       const deletedKeys = await prisma.$executeRaw`
         DELETE FROM idempotency_keys
         WHERE business_id = ${businessIdNumber}
-        AND response_body::text LIKE ${`%"id":${saleId},%`}
+        AND (response_body::jsonb->>'id')::int = ${saleId}
         AND endpoint = '/api/sales'
       `
       if (deletedKeys > 0) {

@@ -21,15 +21,20 @@ async function generateDeterministicIdempotencyKey(
 ): Promise<string> {
   let payload: string
 
-  // Special handling for sales endpoint - use cart-based key (NO time component)
-  // This is critical to prevent double-entries on network timeout retries
+  // Special handling for sales endpoint - use cart-based key with DATE component
+  // This allows same items to be sold on different days while preventing
+  // duplicate submissions from network timeout retries on the same day
   if (url === '/api/sales' && body?.items) {
-    // Create deterministic key from cart contents only
-    // Key stays the same even if user retries after 30+ seconds
+    // Create deterministic key from cart contents + current date
+    // Key stays the same within the same day for retry handling
+    // Key changes on a new day to allow selling same items again
+    const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
     const cartFingerprint = {
       url,
       locationId: body.locationId,
       customerId: body.customerId || null,
+      // Include date so same items on different days get different keys
+      date: today,
       // Sort items by productVariationId for consistent ordering
       items: body.items
         .map((i: any) => ({
@@ -38,11 +43,12 @@ async function generateDeterministicIdempotencyKey(
           price: i.unitPrice,
         }))
         .sort((a: any, b: any) => a.pid - b.pid),
-      // Include total for extra safety
+      // Include total and item count for extra safety against collisions
       total: body.items.reduce(
         (sum: number, i: any) => sum + i.quantity * i.unitPrice,
         0
       ),
+      itemCount: body.items.length,
     }
     payload = JSON.stringify(cartFingerprint)
   } else {
