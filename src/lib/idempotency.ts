@@ -42,6 +42,21 @@ export async function withIdempotency(
   const businessId = parseInt(user.businessId)
   const userId = parseInt(user.id)
 
+  // AUTO-CLEANUP: Periodically clean old keys (1% of requests) to prevent accumulation
+  // This runs in the background and doesn't block the current request
+  if (Math.random() < 0.01) {
+    prisma.$executeRaw`
+      DELETE FROM idempotency_keys
+      WHERE created_at < NOW() - INTERVAL '12 hours'
+    `.then((deleted) => {
+      if (deleted > 0) {
+        console.log(`[Idempotency] Auto-cleanup: deleted ${deleted} old keys`)
+      }
+    }).catch(() => {
+      // Ignore cleanup errors - non-critical
+    })
+  }
+
   try {
     // STEP 1: Try to CLAIM the idempotency key atomically
     // This is the critical fix - only ONE request can succeed here
