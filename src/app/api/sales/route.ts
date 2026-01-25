@@ -788,9 +788,26 @@ export async function POST(request: NextRequest) {
 
     console.log('[SALES] Shift check - currentShift:', currentShift ? `ID ${currentShift.id} at location ${currentShift.locationId}` : 'NULL')
     if (!currentShift) {
-      console.log('[SALES] FAILED: No shift found for user', user.id, 'at location', locationIdNumber)
+      // DETAILED DEBUG: Log all query parameters to help diagnose the issue
+      console.error('[SALES] SHIFT NOT FOUND - Debug info:', {
+        queryUserId: userIdNumber,
+        queryBusinessId: businessIdNumber,
+        queryLocationId: locationIdNumber,
+        sessionUserId: user.id,
+        sessionUsername: user.username,
+        sessionBusinessId: user.businessId,
+      })
       return NextResponse.json(
-        { error: `No open shift found at this location. Please start your shift at location ID ${locationIdNumber} before making sales.` },
+        {
+          error: `No open shift found at this location. Please start your shift at location ID ${locationIdNumber} before making sales.`,
+          // DEBUG: Include query parameters to help diagnose (TEMPORARY)
+          debug: {
+            queryUserId: userIdNumber,
+            queryBusinessId: businessIdNumber,
+            queryLocationId: locationIdNumber,
+            sessionUser: user.username,
+          }
+        },
         { status: 400 }
       )
     }
