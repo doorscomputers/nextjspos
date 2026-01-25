@@ -974,13 +974,13 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================================================
-    // DUPLICATE SALE DETECTION (CRITICAL - Prevents double entry on slow networks)
+    // DUPLICATE SALE DETECTION (Only catches accidental double-clicks)
     // ============================================================================
-    // If user refreshes page or opens new tab during slow network, a second request
-    // may be sent with a different idempotency key. This check catches that scenario
-    // by looking for identical sales created in the last 5 minutes.
-    // INCREASED from 60s to 300s (5 minutes) to handle slow network timeouts + retries
-    const DUPLICATE_WINDOW_MS = 300 * 1000 // 300 seconds (5 minutes)
+    // This is a safety net for accidental double-clicks within a few seconds.
+    // The idempotency key system (with cartSessionId) handles most duplicate prevention.
+    // REDUCED from 300s to 10s - legitimate same-item sales must be allowed!
+    // Stores can sell the same item with same qty many times per day.
+    const DUPLICATE_WINDOW_MS = 10 * 1000 // 10 seconds (only catches double-clicks)
     const duplicateCheckTime = new Date(Date.now() - DUPLICATE_WINDOW_MS)
 
     // Create a fingerprint of the sale items for comparison
@@ -1034,10 +1034,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error: 'Duplicate sale detected',
-            message: `An identical sale (${recentSale.invoiceNumber}) was just processed ${secondsAgo} seconds ago. If this was intentional, please wait 5 minutes before creating another identical sale.`,
+            message: `An identical sale (${recentSale.invoiceNumber}) was just processed ${secondsAgo} seconds ago. This appears to be an accidental double-click. Please wait a few seconds before trying again.`,
             existingInvoice: recentSale.invoiceNumber,
             existingSaleId: recentSale.id,
-            duplicateWindowSeconds: 300,
+            duplicateWindowSeconds: 10,
           },
           { status: 409 } // HTTP 409 Conflict
         )
