@@ -35,6 +35,9 @@ async function generateDeterministicIdempotencyKey(
       customerId: body.customerId || null,
       // Include date so same items on different days get different keys
       date: today,
+      // CRITICAL FIX: Include cart session ID so same items in a NEW cart get a different key
+      // This allows selling the same product multiple times per day
+      cartSessionId: body.cartSessionId || null,
       // Sort items by productVariationId for consistent ordering
       items: body.items
         .map((i: any) => ({

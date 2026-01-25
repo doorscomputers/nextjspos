@@ -43,6 +43,8 @@ export default function POSEnhancedPage() {
   const [products, setProducts] = useState<any[]>([])
   const [categories, setCategories] = useState<any[]>([])
   const [cart, setCart] = useState<any[]>([])
+  // CRITICAL FIX: Cart session ID for idempotency - allows selling same items multiple times per day
+  const [cartSessionId, setCartSessionId] = useState(() => crypto.randomUUID())
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
 
   // Payment State - Mixed Payment Support
@@ -811,6 +813,7 @@ export default function POSEnhancedPage() {
 
     // Clear current transaction
     setCart([])
+    setCartSessionId(crypto.randomUUID()) // New session for next cart
     setSelectedCustomer(null)
     setDiscountType('none')
     setDiscountAmount('')
@@ -1670,6 +1673,7 @@ export default function POSEnhancedPage() {
 
       // Clear cart and customer
       setCart([])
+      setCartSessionId(crypto.randomUUID()) // New session for next cart
       setSelectedCustomer(null)
       setRemarks('')
 
@@ -2131,6 +2135,8 @@ export default function POSEnhancedPage() {
         remarks: remarks || null,
         // Sales personnel tracking (required)
         salesPersonnelId: selectedSalesPersonnel?.id,
+        // CRITICAL: Cart session ID for idempotency - allows selling same items multiple times per day
+        cartSessionId,
       }
 
       // Add discount information
@@ -2177,6 +2183,8 @@ export default function POSEnhancedPage() {
 
       // Clear everything
       setCart([])
+      // CRITICAL: Generate new cart session ID for next sale (allows same items to be sold again)
+      setCartSessionId(crypto.randomUUID())
       setDiscountType('none')
       setDiscountAmount('')
       setSeniorCitizenId('')
@@ -2219,6 +2227,8 @@ export default function POSEnhancedPage() {
 
         // Clear the cart and reset form (same as successful sale)
         setCart([])
+        // Generate new cart session ID for next sale
+        setCartSessionId(crypto.randomUUID())
         setDiscountType('none')
         setDiscountAmount('')
         setSeniorCitizenId('')
@@ -4470,6 +4480,7 @@ export default function POSEnhancedPage() {
         cancelLabel="Cancel"
         onConfirm={() => {
           setCart([])
+          setCartSessionId(crypto.randomUUID()) // New session for next cart
           setShowClearCartConfirm(false)
         }}
         variant="destructive"
