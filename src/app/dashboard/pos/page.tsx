@@ -620,7 +620,9 @@ export default function POSEnhancedPage() {
   const checkShift = async () => {
     try {
       console.log('[POS] Checking for active shift...')
-      const res = await fetch('/api/shifts?status=open')
+      // CRITICAL FIX: Filter by current user's ID to ensure we only get THIS user's shift
+      // Without this, POS might show another user's shift but sales API would reject it
+      const res = await fetch(`/api/shifts?status=open&userId=${session?.user?.id}`)
       const data = await res.json()
 
       console.log('[POS] API response:', data)
