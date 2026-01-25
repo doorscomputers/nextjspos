@@ -276,7 +276,11 @@ export default function SalesPage() {
       'pending': 'secondary',
       'voided': 'destructive',
     }
-    return <Badge variant={variants[status] || 'outline'}>{status}</Badge>
+    // Add explicit styling for voided status to ensure readability
+    const className = status === 'voided'
+      ? 'bg-red-600 text-white dark:bg-red-700 dark:text-white'
+      : ''
+    return <Badge variant={variants[status] || 'outline'} className={className}>{status}</Badge>
   }
 
   const formatCurrency = (amount: number | null | undefined) => {

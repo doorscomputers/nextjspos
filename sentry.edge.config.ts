@@ -1,21 +1,20 @@
-// This file configures the initialization of Sentry for edge features (middleware, edge routes, etc.).
+// This file configures the initialization of Sentry for edge features (middleware, edge routes, and so on).
 // The config you add here will be used whenever one of the edge features is loaded.
-// https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
+// Note that this config is unrelated to the Vercel Edge Runtime and is also required when running locally.
+// https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
 
 Sentry.init({
-  dsn: process.env.SENTRY_DSN,
+  dsn: "https://11d00f3f0cfd3014bc2af88babfe1925@o4510699945197568.ingest.us.sentry.io/4510700069453824",
 
-  // Adjust this value in production, or use tracesSampler for greater control
-  tracesSampleRate: 1.0,
+  // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
+  tracesSampleRate: 1,
 
-  // Setting this option to true will print useful information to the console while you're setting up Sentry.
-  debug: false,
+  // Enable logs to be sent to Sentry
+  enableLogs: true,
 
-  // Environment configuration
-  environment: process.env.NODE_ENV,
-
-  // Release tracking
-  release: process.env.VERCEL_GIT_COMMIT_SHA,
+  // Enable sending user PII (Personally Identifiable Information)
+  // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
+  sendDefaultPii: true,
 });

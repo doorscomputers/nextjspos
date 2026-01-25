@@ -236,6 +236,21 @@ export async function POST(request: Request) {
 
           results.push(locationDetails)
 
+          // SYNC TO POS PRICING TABLE
+          // This ensures POS cart shows the updated price (fixes price mismatch issue)
+          if (sellingPrice !== undefined) {
+            await prisma.productUnitLocationPrice.updateMany({
+              where: {
+                productId: variation.productId,
+                locationId: locationId,
+              },
+              data: {
+                sellingPrice: sellingPrice,
+                lastUpdatedBy: userId,
+              }
+            })
+          }
+
           if (sellingPrice !== undefined && oldPrice !== newPrice) {
             priceChanges.push({
               productName: variation.product.name,
@@ -243,6 +258,21 @@ export async function POST(request: Request) {
               locationName: location?.name || 'Unknown Location',
               oldPrice,
               newPrice,
+            })
+
+            // Log price change to audit history
+            await prisma.priceChangeHistory.create({
+              data: {
+                businessId,
+                productVariationId,
+                locationId,
+                oldPrice: oldPrice || null,
+                newPrice,
+                changedBy: userId,
+                changeSource: 'bulk_update',
+                sku: variation.product.sku || null,
+                productName: variation.product.name,
+              },
             })
           }
         }

@@ -149,6 +149,9 @@ export enum AuditAction {
   CASH_IN = 'cash_in',
   CASH_OUT = 'cash_out',
 
+  // Price changes
+  PRICE_CHANGE = 'price_change',
+
   // Workforce management
   EMPLOYEE_SCHEDULE_CREATE = 'employee_schedule_create',
   EMPLOYEE_SCHEDULE_UPDATE = 'employee_schedule_update',

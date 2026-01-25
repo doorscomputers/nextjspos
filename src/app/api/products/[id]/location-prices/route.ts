@@ -8,6 +8,7 @@ import {
   LocationUnitPriceInput,
 } from '@/lib/productLocationPricing'
 import { sendTelegramLocationPriceChangeAlert, sendTelegramBulkLocationPriceChangeAlert } from '@/lib/telegram'
+import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 
 /**
  * GET /api/products/[id]/location-prices
@@ -186,10 +187,14 @@ export async function POST(
       }
     }
 
-    // Validate product exists
+    // Validate product exists and get full details for audit
     const { prisma } = await import('@/lib/prisma')
     const product = await prisma.product.findUnique({
       where: { id: productId, businessId },
+      include: {
+        category: { select: { name: true } },
+        brand: { select: { name: true } },
+      },
     })
 
     if (!product) {
@@ -230,9 +235,19 @@ export async function POST(
       multiplier: p.multiplier.toString(),
     }))
 
-    // Send Telegram notifications for price changes (async, don't await)
+    // Track price changes for audit log and Telegram notifications
     const changedLocations = new Set<string>()
     let changeCount = 0
+    const priceChanges: Array<{
+      locationName: string
+      locationId: number
+      oldPurchasePrice: number
+      newPurchasePrice: number
+      oldSellingPrice: number
+      newSellingPrice: number
+      purchasePriceChanged: boolean
+      sellingPriceChanged: boolean
+    }> = []
 
     prices.forEach((newPrice) => {
       const key = `${newPrice.locationId}-${newPrice.unitId}`
@@ -249,6 +264,18 @@ export async function POST(
           const updatedPrice = updatedPrices.find(p => p.locationId === newPrice.locationId && p.unitId === newPrice.unitId)
           if (updatedPrice) {
             changedLocations.add(updatedPrice.locationName)
+
+            // Track for audit log
+            priceChanges.push({
+              locationName: updatedPrice.locationName,
+              locationId: newPrice.locationId,
+              oldPurchasePrice: parseFloat(oldPrice.purchasePrice.toString()),
+              newPurchasePrice: newPrice.purchasePrice,
+              oldSellingPrice: parseFloat(oldPrice.sellingPrice.toString()),
+              newSellingPrice: newPrice.sellingPrice,
+              purchasePriceChanged,
+              sellingPriceChanged,
+            })
 
             // Send individual notification for significant changes
             if (purchasePriceChanged && sellingPriceChanged) {
@@ -308,6 +335,52 @@ export async function POST(
         timestamp: new Date(),
       }).catch((error) => {
         console.error('[Telegram] Failed to send bulk price change alert:', error)
+      })
+    }
+
+    // Create audit log for price changes
+    if (priceChanges.length > 0) {
+      // Build description with details of changes
+      const changesSummary = priceChanges.map(c => {
+        const parts = []
+        if (c.sellingPriceChanged) {
+          parts.push(`Selling: ₱${c.oldSellingPrice.toLocaleString()} → ₱${c.newSellingPrice.toLocaleString()}`)
+        }
+        if (c.purchasePriceChanged) {
+          parts.push(`Cost: ₱${c.oldPurchasePrice.toLocaleString()} → ₱${c.newPurchasePrice.toLocaleString()}`)
+        }
+        return `${c.locationName}: ${parts.join(', ')}`
+      }).join('; ')
+
+      const description = `Price changed for "${product.name}" (SKU: ${product.sku}) - ${changesSummary}`
+
+      await createAuditLog({
+        businessId,
+        userId: user.id,
+        username: user.username,
+        action: AuditAction.PRICE_CHANGE,
+        entityType: EntityType.PRODUCT,
+        entityIds: [productId],
+        description: description.substring(0, 500), // Limit description length
+        metadata: {
+          sku: product.sku,
+          productName: product.name,
+          categoryName: product.category?.name || null,
+          brandName: product.brand?.name || null,
+          totalChanges: priceChanges.length,
+          changes: priceChanges.map(c => ({
+            location: c.locationName,
+            locationId: c.locationId,
+            oldSellingPrice: c.oldSellingPrice,
+            newSellingPrice: c.newSellingPrice,
+            oldPurchasePrice: c.oldPurchasePrice,
+            newPurchasePrice: c.newPurchasePrice,
+            sellingPriceChanged: c.sellingPriceChanged,
+            purchasePriceChanged: c.purchasePriceChanged,
+          })),
+        },
+        ipAddress: getIpAddress(request),
+        userAgent: getUserAgent(request),
       })
     }
 

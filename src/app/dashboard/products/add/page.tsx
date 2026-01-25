@@ -778,7 +778,7 @@ export default function AddProductPage() {
               <div className="flex gap-2">
                 <div className="flex-1">
                   <SelectBox
-                    dataSource={[{ id: '', name: 'None' }, ...mainCategories]}
+                    dataSource={[{ id: '', name: 'None' }, ...mainCategories.map(c => ({ ...c, id: String(c.id) }))]}
                     value={formData.categoryId || ''}
                     onValueChanged={(e) => setFormData({ ...formData, categoryId: e.value, subCategoryId: '' })}
                     displayExpr="name"
@@ -807,7 +807,7 @@ export default function AddProductPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sub Category</label>
                 <SelectBox
-                  dataSource={[{ id: '', name: 'None' }, ...subCategories]}
+                  dataSource={[{ id: '', name: 'None' }, ...subCategories.map(c => ({ ...c, id: String(c.id) }))]}
                   value={formData.subCategoryId || ''}
                   onValueChanged={(e) => setFormData({ ...formData, subCategoryId: e.value })}
                   displayExpr="name"
@@ -828,7 +828,7 @@ export default function AddProductPage() {
               <div className="flex gap-2">
                 <div className="flex-1">
                   <SelectBox
-                    dataSource={[{ id: '', name: 'None' }, ...brands]}
+                    dataSource={[{ id: '', name: 'None' }, ...brands.map(b => ({ ...b, id: String(b.id) }))]}
                     value={formData.brandId || ''}
                     onValueChanged={(e) => setFormData({ ...formData, brandId: e.value })}
                     displayExpr="name"

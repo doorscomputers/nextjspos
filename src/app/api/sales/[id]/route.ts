@@ -159,6 +159,31 @@ export async function DELETE(
 
     // Void sale and restore stock in transaction
     await prisma.$transaction(async (tx) => {
+      // RACE CONDITION PROTECTION: Use FOR UPDATE NOWAIT to lock the sale row
+      // This prevents double-void by ensuring only one transaction can process at a time
+      let freshSale: { id: number; status: string }[]
+      try {
+        freshSale = await tx.$queryRaw<{ id: number; status: string }[]>`
+          SELECT id, status FROM sales WHERE id = ${saleId} FOR UPDATE NOWAIT
+        `
+      } catch (lockError: any) {
+        // Handle lock contention - another void is in progress
+        if (lockError.message?.includes('could not obtain lock') ||
+            lockError.code === '55P03') {
+          throw new Error('VOID_IN_PROGRESS')
+        }
+        throw lockError
+      }
+
+      if (!freshSale || freshSale.length === 0) {
+        throw new Error('Sale not found')
+      }
+
+      // Double-check status inside transaction (atomic check with lock held)
+      if (freshSale[0].status === 'voided') {
+        throw new Error('ALREADY_VOIDED')
+      }
+
       // Update sale status to voided
       await tx.sale.update({
         where: { id: saleId },
@@ -308,6 +333,21 @@ export async function DELETE(
     })
   } catch (error: any) {
     console.error('Error voiding sale:', error)
+
+    // Handle specific race condition errors
+    if (error.message === 'ALREADY_VOIDED') {
+      return NextResponse.json(
+        { error: 'Sale is already voided (concurrent void detected)' },
+        { status: 400 }
+      )
+    }
+    if (error.message === 'VOID_IN_PROGRESS') {
+      return NextResponse.json(
+        { error: 'Another void operation is in progress. Please wait and try again.' },
+        { status: 409 } // 409 Conflict
+      )
+    }
+
     return NextResponse.json(
       { error: 'Failed to void sale', details: error.message },
       { status: 500 }

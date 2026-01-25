@@ -329,6 +329,19 @@ export async function POST(request: Request) {
               },
             })
 
+            // SYNC TO POS PRICING TABLE
+            // This ensures POS cart shows the updated price (fixes price mismatch issue)
+            await tx.productUnitLocationPrice.updateMany({
+              where: {
+                productId: product.id,
+                locationId: location.id,
+              },
+              data: {
+                sellingPrice: newPrice,
+                lastUpdatedBy: userId,
+              }
+            })
+
             if (oldPrice !== newPrice) {
               priceChanges.push({
                 productName: product.name,
@@ -336,6 +349,21 @@ export async function POST(request: Request) {
                 locationName: location.name,
                 oldPrice,
                 newPrice,
+              })
+
+              // Log price change to audit history
+              await tx.priceChangeHistory.create({
+                data: {
+                  businessId,
+                  productVariationId: variation.id,
+                  locationId: location.id,
+                  oldPrice: oldPrice || null,
+                  newPrice,
+                  changedBy: userId,
+                  changeSource: 'bulk_import',
+                  sku: product.sku || null,
+                  productName: product.name,
+                },
               })
             }
           }

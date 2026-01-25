@@ -5,68 +5,15 @@
 import * as Sentry from "@sentry/nextjs";
 
 Sentry.init({
-  dsn: process.env.SENTRY_DSN,
+  dsn: "https://11d00f3f0cfd3014bc2af88babfe1925@o4510699945197568.ingest.us.sentry.io/4510700069453824",
 
-  // Adjust this value in production, or use tracesSampler for greater control
-  tracesSampleRate: 1.0,
+  // Define how likely traces are sampled. Adjust this value in production, or use tracesSampler for greater control.
+  tracesSampleRate: 1,
 
-  // Setting this option to true will print useful information to the console while you're setting up Sentry.
-  debug: false,
+  // Enable logs to be sent to Sentry
+  enableLogs: true,
 
-  // Environment configuration
-  environment: process.env.NODE_ENV,
-
-  // Release tracking
-  release: process.env.VERCEL_GIT_COMMIT_SHA,
-
-  // Automatically capture all unhandled exceptions
-  integrations: [
-    Sentry.prismaIntegration({
-      // Optional: Log database queries (useful for debugging)
-      // Only enable in development or staging
-      logLevel: process.env.NODE_ENV === 'production' ? 'error' : 'info',
-    }),
-  ],
-
-  // Filter out sensitive data
-  beforeSend(event) {
-    // Remove sensitive headers
-    if (event.request?.headers) {
-      delete event.request.headers['Authorization'];
-      delete event.request.headers['Cookie'];
-      delete event.request.headers['Set-Cookie'];
-    }
-
-    // Remove sensitive query params
-    if (event.request?.query_string) {
-      const sensitiveParams = ['token', 'password', 'secret', 'api_key'];
-      let queryString = event.request.query_string;
-
-      sensitiveParams.forEach(param => {
-        const regex = new RegExp(`${param}=[^&]*`, 'gi');
-        queryString = queryString.replace(regex, `${param}=[REDACTED]`);
-      });
-
-      event.request.query_string = queryString;
-    }
-
-    // Remove sensitive data from context
-    if (event.contexts?.user) {
-      delete event.contexts.user.email;
-    }
-
-    return event;
-  },
-
-  // Ignore specific errors
-  ignoreErrors: [
-    // Prisma known errors that are handled gracefully
-    'PrismaClientKnownRequestError',
-    // Next.js development hot reload errors
-    'NEXT_NOT_FOUND',
-    'NEXT_REDIRECT',
-    // Network timeouts (often not actionable)
-    'ETIMEDOUT',
-    'ECONNRESET',
-  ],
+  // Enable sending user PII (Personally Identifiable Information)
+  // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
+  sendDefaultPii: true,
 });

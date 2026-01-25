@@ -629,3 +629,113 @@ After implementation:
 All 6 vulnerable transaction endpoints now have dual-layer idempotency protection. Users should no longer experience duplicate transactions from network disconnection.
 
 **Next Steps**: Testing and production deployment per checklist above.
+
+---
+
+# CRITICAL FIX: Transfer Stock Validation Bug (Negative Inventory)
+
+## Problem Statement
+
+Product "MSI KATANA 15 HX B14WEK-825PH" at Bambang location showed **-1.00 stock** after transfers, when there was:
+- 0.00 Total Purchase
+- 0.00 Opening Stock
+- 2.00 Stock Transfers (Out)
+- Result: **-1.00 Current Stock** (IMPOSSIBLE)
+
+POS sales correctly block at zero stock, but transfers did NOT.
+
+## Root Cause Identified
+
+**Circular assumption failure in stock validation:**
+
+1. **Transfer Creation** (`src/app/api/transfers/route.ts` lines 257-258):
+   ```
+   // Stock will be validated again during SEND operation (when actually deducted)
+   ```
+   - Says "will validate at SEND" → **LIE**
+
+2. **Transfer SEND** (`src/app/api/transfers/[id]/send/route.ts` line 164):
+   ```
+   skipAvailabilityCheck: true, // Already validated at transfer creation
+   ```
+   - Says "already validated at creation" → **LIE**
+
+**NEITHER validates stock! Each assumes the other does.**
+
+## Fix Applied
+
+### Change 1: Enable Stock Validation at SEND
+**File:** `src/app/api/transfers/[id]/send/route.ts`
+**Line:** 164
+**Change:** `skipAvailabilityCheck: true` → `skipAvailabilityCheck: false`
+
+```typescript
+// BEFORE:
+skipAvailabilityCheck: true, // Already validated at transfer creation
+
+// AFTER:
+skipAvailabilityCheck: false, // ALWAYS validate stock - prevents negative inventory
+```
+
+### Change 2: Update Misleading Comment at Creation
+**File:** `src/app/api/transfers/route.ts`
+**Lines:** 257-258
+**Change:** Updated comment to be accurate
+
+```typescript
+// BEFORE:
+// OPTIMIZED: Validate items (stock validation removed - already done client-side)
+// Stock will be validated again during SEND operation (when actually deducted)
+
+// AFTER:
+// NOTE: Stock validation is done at SEND time (not here) to check actual availability
+// Client-side provides UX feedback, server validates at deduction time
+```
+
+## Expected Behavior After Fix
+
+1. User creates transfer for product with 0 stock
+2. Transfer progresses to "checked" status
+3. User clicks SEND
+4. **NEW:** Server validates stock availability
+5. **NEW:** Error returned: "Insufficient stock for some items"
+6. Transfer blocked, stock remains at 0 (not negative)
+
+## Testing Required
+
+1. Create transfer for product with 0 stock at source location
+2. Submit → Check → Approve the transfer
+3. Try to SEND the transfer
+4. **Expected:** Error "Insufficient stock"
+5. **Expected:** Stock remains at 0 (no negative)
+
+## Risk Assessment
+
+- **Risk Level:** LOW
+- **Impact:** Enables validation that should have been there
+- **Backwards Compatible:** Yes - only adds safety check
+- **Performance Impact:** Minimal - single stock query per item
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `src/app/api/transfers/[id]/send/route.ts` | `skipAvailabilityCheck: false` |
+| `src/app/api/transfers/route.ts` | Updated misleading comment |
+
+## Client Communication
+
+**For the Client:**
+
+> "We found and fixed a validation bug in the transfer system. The code had two comments that contradicted each other - one said 'will validate later' and the other said 'already validated earlier'. Neither actually validated! This allowed transfers to proceed even when there was no stock, creating negative inventory.
+>
+> The fix is simple: we enabled the stock validation check that was being skipped. Now transfers will be blocked if there isn't enough stock at the source location, just like POS sales are blocked.
+>
+> This is the same protection that prevents selling products at zero stock - we just forgot to apply it to transfers."
+
+## IMPLEMENTATION COMPLETE ✅
+
+- [x] Identified root cause: circular assumption failure
+- [x] Fixed stock validation at SEND endpoint
+- [x] Updated misleading comments
+- [x] Documented fix in todo.md

@@ -619,13 +619,14 @@ export default function POSEnhancedPage() {
 
   const checkShift = async () => {
     try {
-      console.log('[POS] Checking for active shift...')
+      const userId = session?.user?.id
+      console.log('[POS] Checking for active shift for user:', userId)
       // CRITICAL FIX: Filter by current user's ID to ensure we only get THIS user's shift
       // Without this, POS might show another user's shift but sales API would reject it
-      const res = await fetch(`/api/shifts?status=open&userId=${session?.user?.id}`)
+      const res = await fetch(`/api/shifts?status=open&userId=${userId}`)
       const data = await res.json()
 
-      console.log('[POS] API response:', data)
+      console.log('[POS] API response for user', userId, ':', data)
 
       if (data.shifts && data.shifts.length > 0) {
         const shift = data.shifts[0]
@@ -2145,6 +2146,15 @@ export default function POSEnhancedPage() {
         saleData.vatExempt = true
       } else if (discountType === 'regular') {
         saleData.discountType = 'regular'
+      }
+
+      // CRITICAL: Verify shift belongs to current user before submitting
+      // This catches the edge case where cached POS page shows another user's shift
+      console.log('[POS] Pre-submit validation - Current user:', session?.user?.id, 'Shift user:', currentShift?.userId)
+      if (currentShift?.userId && session?.user?.id && currentShift.userId !== parseInt(session.user.id)) {
+        setError(`SHIFT MISMATCH: You are logged in as User ${session.user.id} but the displayed shift belongs to User ${currentShift.userId}. Please HARD REFRESH the page (Ctrl+Shift+R) and try again.`)
+        setIsSubmitting(false)
+        return
       }
 
       // Use bulletproof API client with retry logic and offline queue
