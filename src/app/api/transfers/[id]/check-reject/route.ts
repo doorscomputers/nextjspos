@@ -4,7 +4,8 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
-import { sendTransferRejectionAlert } from '@/lib/alert-service'
+// DISABLED: All alerts (Jan 26, 2026) - Focus on inventory monitoring
+// import { sendTransferRejectionAlert } from '@/lib/alert-service'
 
 /**
  * POST /api/transfers/[id]/check-reject
@@ -99,7 +100,9 @@ export async function POST(
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
     })
 
-    // OPTIMIZED: Send alert notifications (async, fire and forget - don't block response)
+    // DISABLED: Alert notifications (Jan 26, 2026) - Focus on inventory monitoring
+    // Uncomment below to re-enable
+    /*
     (async () => {
       try {
         const totalQuantity = transfer.items.reduce((sum, item) => {
@@ -120,6 +123,7 @@ export async function POST(
         console.error('[AlertService] Failed to send transfer rejection alert:', error)
       }
     })()
+    */
 
     return NextResponse.json({
       message: 'Transfer rejected - returned to draft for corrections',

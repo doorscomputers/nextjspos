@@ -4,7 +4,8 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
-import { sendTransferDiscrepancyAlert } from '@/lib/email'
+// DISABLED: Email alerts (Jan 26, 2026) - Focus on inventory monitoring
+// import { sendTransferDiscrepancyAlert } from '@/lib/email'
 
 /**
  * POST /api/transfers/[id]/verify-all
@@ -125,7 +126,7 @@ export async function POST(
       return sent !== received
     })
 
-    // If there are discrepancies, send email notification (async, don't wait)
+    // If there are discrepancies, update flag (email alert disabled Jan 26, 2026)
     if (itemsWithDiscrepancies.length > 0) {
       await prisma.stockTransfer.update({
         where: { id: transferId },
@@ -134,6 +135,9 @@ export async function POST(
         },
       })
 
+      // DISABLED: Email alert (Jan 26, 2026) - Focus on inventory monitoring
+      // Uncomment below to re-enable
+      /*
       sendTransferDiscrepancyAlert({
         transferNumber: transfer.transferNumber,
         fromLocationName: transfer.fromLocation.name,
@@ -159,6 +163,7 @@ export async function POST(
       }).catch(err => {
         console.error('Failed to send discrepancy email:', err)
       })
+      */
     }
 
     // Create audit log

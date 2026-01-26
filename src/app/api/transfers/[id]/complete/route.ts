@@ -6,7 +6,8 @@ import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 import { validateSOD, getUserRoles } from '@/lib/sodValidation'
 // import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker' // DISABLED for speed
-import { sendTransferAcceptanceAlert } from '@/lib/alert-service'
+// DISABLED: All alerts (Jan 26, 2026) - Focus on inventory monitoring
+// import { sendTransferAcceptanceAlert } from '@/lib/alert-service'
 
 /**
  * POST /api/transfers/[id]/complete
@@ -332,8 +333,9 @@ export async function POST(
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
     })
 
-    // Send alert notifications (async, don't await)
-    // Calculate total quantity from all items
+    // DISABLED: Alert notifications (Jan 26, 2026) - Focus on inventory monitoring
+    // Uncomment below to re-enable
+    /*
     const totalQuantity = transfer.items.reduce((sum, item) => {
       const qty = item.receivedQuantity
         ? parseFloat(item.receivedQuantity.toString())
@@ -353,6 +355,7 @@ export async function POST(
     }).catch((error) => {
       console.error('[AlertService] Failed to send transfer acceptance alert:', error)
     })
+    */
 
     return NextResponse.json({
       message: 'Transfer completed - stock added to destination location',

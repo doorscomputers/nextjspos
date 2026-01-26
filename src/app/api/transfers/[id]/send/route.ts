@@ -8,7 +8,8 @@ import { transferStockOut } from '@/lib/stockOperations'
 import { withIdempotency } from '@/lib/idempotency'
 import { validateSOD, getUserRoles } from '@/lib/sodValidation'
 // import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker' // TEMPORARILY DISABLED
-import { sendTelegramStockTransferAlert } from '@/lib/telegram'
+// DISABLED: Telegram alerts (Jan 26, 2026) - Focus on inventory monitoring
+// import { sendTelegramStockTransferAlert } from '@/lib/telegram'
 
 /**
  * POST /api/transfers/[id]/send
@@ -293,8 +294,9 @@ export async function POST(
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
     })
 
-    // OPTIMIZED: Send Telegram notification (async - don't block response)
-    // Fire and forget - saves 1-2 seconds
+    // DISABLED: Telegram notification (Jan 26, 2026) - Focus on inventory monitoring
+    // Uncomment below to re-enable
+    /*
     (async () => {
       try {
         const locations = await prisma.businessLocation.findMany({
@@ -339,6 +341,7 @@ export async function POST(
         console.error('Telegram notification failed (async):', telegramError)
       }
     })()
+    */
 
     return NextResponse.json({
       message: 'Transfer sent - stock deducted from origin location',

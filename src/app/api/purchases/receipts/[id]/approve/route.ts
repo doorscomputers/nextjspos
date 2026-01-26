@@ -197,7 +197,8 @@ import { SerialNumberCondition } from '@/lib/serialNumber'
 import { withIdempotency } from '@/lib/idempotency' // Prevents duplicate approvals
 // REMOVED: Impact Report tracking for faster GRN approval performance
 import { isAccountingEnabled, recordPurchase } from '@/lib/accountingIntegration'
-import { sendSemaphorePurchaseApprovalAlert } from '@/lib/semaphore' // SMS notifications
+// DISABLED: Semaphore SMS alerts (Jan 26, 2026) - Focus on inventory monitoring
+// import { sendSemaphorePurchaseApprovalAlert } from '@/lib/semaphore'
 
 /**
  * POST /api/purchases/receipts/[id]/approve
@@ -724,23 +725,21 @@ export async function POST(
         console.error('[Purchase Approval] Failed to refresh stock view:', refreshError)
       })
 
-    // SMS NOTIFICATION: Send Semaphore SMS alert (NON-BLOCKING - Fire and forget)
-    // This runs in background to avoid blocking the response
+    // DISABLED: Semaphore SMS alerts (Jan 26, 2026) - Focus on inventory monitoring
+    // Uncomment below to re-enable
+    /*
     Promise.resolve().then(async () => {
       try {
-        // Get location name
         const location = await prisma.businessLocation.findUnique({
           where: { id: receipt.locationId },
           select: { name: true },
         })
 
-        // Calculate total quantity received
         const totalQuantityReceived = receipt.items.reduce(
           (sum, item) => sum + parseFloat(item.quantityReceived.toString()),
           0
         )
 
-        // Send SMS notification
         await sendSemaphorePurchaseApprovalAlert({
           poNumber: receipt.purchase.purchaseOrderNumber,
           grnNumber: receipt.receiptNumber,
@@ -758,6 +757,7 @@ export async function POST(
         console.error('[Purchase Approval] Failed to send SMS notification:', smsError)
       }
     })
+    */
 
     // Return approved receipt
     return NextResponse.json(updatedReceipt)
