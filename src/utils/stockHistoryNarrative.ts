@@ -25,7 +25,7 @@ export function calculateStockSummary(history: StockHistoryEntry[]): StockSummar
   const details = {
     openingStock: history.filter(h => h.transactionType === 'opening_stock').reduce((sum, h) => sum + h.quantityAdded, 0),
     purchases: history.filter(h => h.transactionType === 'purchase').reduce((sum, h) => sum + h.quantityAdded, 0),
-    sellReturns: history.filter(h => h.transactionType === 'sell_return').reduce((sum, h) => sum + h.quantityAdded, 0),
+    sellReturns: history.filter(h => h.transactionType === 'customer_return').reduce((sum, h) => sum + h.quantityAdded, 0),
     transfersIn: history.filter(h => h.transactionType === 'transfer_in').reduce((sum, h) => sum + h.quantityAdded, 0),
     sales: history.filter(h => h.transactionType === 'sale').reduce((sum, h) => sum + h.quantityRemoved, 0),
     adjustments: history.filter(h => h.transactionType === 'adjustment').reduce((sum, h) => sum + h.quantityRemoved, 0),

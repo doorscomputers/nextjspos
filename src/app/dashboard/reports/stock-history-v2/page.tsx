@@ -486,7 +486,7 @@ export default function StockHistoryV2Page() {
   const summaryMetrics = {
     totalPurchase: history.filter(h => h.transactionType === 'purchase').reduce((sum, h) => sum + h.quantityAdded, 0),
     openingStock: history.filter(h => h.transactionType === 'opening_stock').reduce((sum, h) => sum + h.quantityAdded, 0),
-    totalSellReturn: history.filter(h => h.transactionType === 'sell_return').reduce((sum, h) => sum + h.quantityAdded, 0),
+    totalSellReturn: history.filter(h => h.transactionType === 'customer_return').reduce((sum, h) => sum + h.quantityAdded, 0),
     transfersIn: history.filter(h => h.transactionType === 'transfer_in').reduce((sum, h) => sum + h.quantityAdded, 0),
     totalSold: history.filter(h => h.transactionType === 'sale').reduce((sum, h) => sum + h.quantityRemoved, 0),
     totalAdjustment: history.filter(h => h.transactionType === 'adjustment').reduce((sum, h) => sum + h.quantityRemoved, 0),
