@@ -1132,6 +1132,15 @@ export default function StockHistoryV3Page() {
                     dataField="quantityChange"
                     caption="Quantity Change"
                     width={150}
+                    calculateCellValue={(rowData: StockHistoryEntry) => {
+                      // This provides the actual value for export
+                      if (rowData.quantityAdded > 0) {
+                        return rowData.quantityAdded
+                      } else if (rowData.quantityRemoved > 0) {
+                        return -rowData.quantityRemoved
+                      }
+                      return 0
+                    }}
                     cellRender={(data) => {
                       const entry = data.data as StockHistoryEntry
                       if (entry.quantityAdded > 0) {
