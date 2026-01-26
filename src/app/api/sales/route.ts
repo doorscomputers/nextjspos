@@ -294,14 +294,10 @@ import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 import { checkStockAvailability, batchCheckStockAvailability, processSale, bulkUpdateStock, StockTransactionType } from '@/lib/stockOperations' // CRITICAL: processSale DEDUCTS inventory, bulkUpdateStock processes in bulk
-import {
-  sendLargeDiscountAlert as sendLargeDiscountEmail,
-  sendCreditSaleAlert as sendCreditSaleEmail,
-} from '@/lib/email'
-import {
-  sendLargeDiscountAlert,
-  sendCreditSaleAlert,
-} from '@/lib/alert-service'
+// DISABLED: All sale alerts (Jan 26, 2026) - Focus on inventory monitoring first
+// Uncomment below to re-enable email/SMS/Telegram alerts
+// import { sendLargeDiscountAlert as sendLargeDiscountEmail, sendCreditSaleAlert as sendCreditSaleEmail } from '@/lib/email'
+// import { sendLargeDiscountAlert, sendCreditSaleAlert } from '@/lib/alert-service'
 import { withIdempotency } from '@/lib/idempotency' // Prevents duplicate sales
 import { getNextInvoiceNumber } from '@/lib/atomicNumbers' // Thread-safe invoice numbering
 import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker' // Tracks stock changes
@@ -1440,62 +1436,42 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Send email and Telegram alerts (async, don't wait for completion)
+    // DISABLED: All sale alerts (Email, Telegram, Semaphore SMS) - Jan 26, 2026
+    // Reason: Focus on inventory monitoring first. Uncomment below to re-enable.
+    /*
     setImmediate(async () => {
       try {
         // Alert for large discounts
         if (discountAmount && parseFloat(discountAmount) > 0) {
-          const discountPercent = totalAmount > 0 ? (parseFloat(discountAmount) / totalAmount) * 100 : 0
-
-          await Promise.all([
-            sendLargeDiscountEmail({
-              saleNumber: sale.invoiceNumber,
-              discountAmount: parseFloat(discountAmount),
-              discountType: discountType || 'Regular Discount',
-              totalAmount,
-              cashierName: user.username || user.name || 'Unknown',
-              locationName: location.name,
-              timestamp: new Date(saleDate),
-              reason: notes || undefined,
-            }),
-            sendLargeDiscountAlert({
-              invoiceNumber: sale.invoiceNumber,
-              discountAmount: parseFloat(discountAmount),
-              discountPercent,
-              totalAmount,
-              cashierName: user.username || user.name || 'Unknown',
-              locationName: location.name,
-              timestamp: new Date(saleDate),
-            }),
-          ])
+          await sendLargeDiscountEmail({
+            saleNumber: sale.invoiceNumber,
+            discountAmount: parseFloat(discountAmount),
+            discountType: discountType || 'Regular Discount',
+            totalAmount,
+            cashierName: user.username || user.name || 'Unknown',
+            locationName: location.name,
+            timestamp: new Date(saleDate),
+            reason: notes || undefined,
+          })
         }
 
         // Alert for credit sales
         if (isCreditSale && customerName) {
-          await Promise.all([
-            sendCreditSaleEmail({
-              saleNumber: sale.invoiceNumber,
-              creditAmount: totalAmount,
-              customerName,
-              cashierName: user.username || user.name || 'Unknown',
-              locationName: location.name,
-              timestamp: new Date(saleDate),
-            }),
-            sendCreditSaleAlert({
-              invoiceNumber: sale.invoiceNumber,
-              totalAmount,
-              customerName,
-              cashierName: user.username || user.name || 'Unknown',
-              locationName: location.name,
-              timestamp: new Date(saleDate),
-            }),
-          ])
+          await sendCreditSaleEmail({
+            saleNumber: sale.invoiceNumber,
+            creditAmount: totalAmount,
+            customerName,
+            cashierName: user.username || user.name || 'Unknown',
+            locationName: location.name,
+            timestamp: new Date(saleDate),
+          })
         }
       } catch (notificationError) {
         // Log notification errors but don't fail the sale
         console.error('Notification error:', notificationError)
       }
     })
+    */
 
     // PERFORMANCE TIMING
     const totalTime = Date.now() - startTime
