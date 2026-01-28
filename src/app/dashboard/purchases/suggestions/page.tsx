@@ -89,6 +89,8 @@ export default function PurchaseSuggestionsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set())
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   // Filters
   const [locationFilter, setLocationFilter] = useState("all")
@@ -157,6 +159,7 @@ export default function PurchaseSuggestionsPage() {
 
       const result = await response.json()
       setData(result.data)
+      setCurrentPage(1)
     } catch (error) {
       console.error("Error fetching suggestions:", error)
       setError(error instanceof Error ? error.message : "Failed to load suggestions. Please try again.")
@@ -592,93 +595,134 @@ export default function PurchaseSuggestionsPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12 print:hidden">
-                      <Checkbox
-                        checked={selectedItems.size === data?.suggestions.length && data?.suggestions.length > 0}
-                        onCheckedChange={toggleAll}
-                      />
-                    </TableHead>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Supplier</TableHead>
-                    <TableHead className="text-right">Current Stock</TableHead>
-                    <TableHead className="text-right">Reorder Point</TableHead>
-                    <TableHead className="text-right">Suggested Qty</TableHead>
-                    <TableHead className="text-right">Avg Daily Sales</TableHead>
-                    <TableHead className="text-right">Days Left</TableHead>
-                    <TableHead className="text-right">Est. Value</TableHead>
-                    <TableHead>Urgency</TableHead>
-                    <TableHead className="print:hidden">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data?.suggestions.map((suggestion) => (
-                    <TableRow
-                      key={suggestion.variationId}
-                      className={!suggestion.hasSupplier ? "bg-yellow-50 dark:bg-yellow-900/10 hover:bg-yellow-100 dark:hover:bg-yellow-900/20" : ""}
-                    >
-                      <TableCell className="print:hidden">
-                        <Checkbox
-                          checked={selectedItems.has(suggestion.variationId)}
-                          onCheckedChange={() => toggleItem(suggestion.variationId)}
-                          disabled={!suggestion.hasSupplier}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium flex items-center gap-2">
-                            {suggestion.productName}
-                            {!suggestion.hasSupplier && (
-                              <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded">
-                                No Supplier
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-sm text-gray-500">{suggestion.sku}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{suggestion.category}</TableCell>
-                      <TableCell>
-                        <span className={!suggestion.hasSupplier ? "text-yellow-700 font-semibold" : ""}>
-                          {suggestion.supplierName}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant="destructive">{suggestion.currentStock || 0}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right">{Math.round(suggestion.reorderPoint * 10) / 10}</TableCell>
-                      <TableCell className="text-right font-semibold text-blue-600">
-                        {suggestion.suggestedOrderQty}
-                      </TableCell>
-                      <TableCell className="text-right">{suggestion.avgDailySales}</TableCell>
-                      <TableCell className="text-right">
-                        <span className={suggestion.daysUntilStockout < 3 ? "text-red-600 font-semibold" : ""}>
-                          {suggestion.daysUntilStockout.toFixed(1)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        ₱{suggestion.estimatedOrderValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell>{getUrgencyBadge(suggestion.urgency)}</TableCell>
-                      <TableCell className="print:hidden">
-                        {!suggestion.hasSupplier && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openAssignSupplierDialog(suggestion.variationId)}
-                            className="text-xs border-yellow-500 text-yellow-700 hover:bg-yellow-50"
+              {(() => {
+                const allSuggestions = data?.suggestions || []
+                const totalPages = Math.ceil(allSuggestions.length / itemsPerPage)
+                const startIndex = (currentPage - 1) * itemsPerPage
+                const paginatedSuggestions = allSuggestions.slice(startIndex, startIndex + itemsPerPage)
+
+                return (
+                  <>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12 print:hidden">
+                            <Checkbox
+                              checked={selectedItems.size === allSuggestions.length && allSuggestions.length > 0}
+                              onCheckedChange={toggleAll}
+                            />
+                          </TableHead>
+                          <TableHead>Product</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead>Supplier</TableHead>
+                          <TableHead className="text-right">Current Stock</TableHead>
+                          <TableHead className="text-right">Reorder Point</TableHead>
+                          <TableHead className="text-right">Suggested Qty</TableHead>
+                          <TableHead className="text-right">Avg Daily Sales</TableHead>
+                          <TableHead className="text-right">Days Left</TableHead>
+                          <TableHead className="text-right">Est. Value</TableHead>
+                          <TableHead>Urgency</TableHead>
+                          <TableHead className="print:hidden">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedSuggestions.map((suggestion) => (
+                          <TableRow
+                            key={suggestion.variationId}
+                            className={!suggestion.hasSupplier ? "bg-yellow-50 dark:bg-yellow-900/10 hover:bg-yellow-100 dark:hover:bg-yellow-900/20" : ""}
                           >
-                            Assign Supplier
+                            <TableCell className="print:hidden">
+                              <Checkbox
+                                checked={selectedItems.has(suggestion.variationId)}
+                                onCheckedChange={() => toggleItem(suggestion.variationId)}
+                                disabled={!suggestion.hasSupplier}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium flex items-center gap-2">
+                                  {suggestion.productName}
+                                  {!suggestion.hasSupplier && (
+                                    <span className="text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded">
+                                      No Supplier
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-sm text-gray-500">{suggestion.sku}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>{suggestion.category}</TableCell>
+                            <TableCell>
+                              <span className={!suggestion.hasSupplier ? "text-yellow-700 font-semibold" : ""}>
+                                {suggestion.supplierName}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant="destructive">{suggestion.currentStock || 0}</Badge>
+                            </TableCell>
+                            <TableCell className="text-right">{Math.round(suggestion.reorderPoint * 10) / 10}</TableCell>
+                            <TableCell className="text-right font-semibold text-blue-600">
+                              {suggestion.suggestedOrderQty}
+                            </TableCell>
+                            <TableCell className="text-right">{suggestion.avgDailySales}</TableCell>
+                            <TableCell className="text-right">
+                              <span className={suggestion.daysUntilStockout < 3 ? "text-red-600 font-semibold" : ""}>
+                                {suggestion.daysUntilStockout.toFixed(1)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              ₱{suggestion.estimatedOrderValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell>{getUrgencyBadge(suggestion.urgency)}</TableCell>
+                            <TableCell className="print:hidden">
+                              {!suggestion.hasSupplier && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openAssignSupplierDialog(suggestion.variationId)}
+                                  className="text-xs border-yellow-500 text-yellow-700 hover:bg-yellow-50"
+                                >
+                                  Assign Supplier
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-between border-t pt-4 mt-4 print:hidden">
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, allSuggestions.length)} of {allSuggestions.length} items
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                          >
+                            Previous
                           </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                          <span className="text-sm font-medium px-2">
+                            Page {currentPage} of {totalPages}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                          >
+                            Next
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
             </div>
           )}
         </CardContent>
