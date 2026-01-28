@@ -739,3 +739,65 @@ skipAvailabilityCheck: false, // ALWAYS validate stock - prevents negative inven
 - [x] Fixed stock validation at SEND endpoint
 - [x] Updated misleading comments
 - [x] Documented fix in todo.md
+
+---
+
+# FIX: Total Stock Calculation Bug (Branch Stock Pivot V2)
+
+## Problem
+
+On the Branch Stock Pivot V2 page, the **Total Stock** column shows an incorrect value.
+Example: Main Warehouse=0, Main Store=2, Bambang=2, Tuguegarao=3, Baguio=0 → **Total shows 5 instead of 7**.
+
+## Root Cause
+
+**Two-part SQL/API bug in the materialized view and API layer:**
+
+1. **Materialized View SQL** (`migration.sql`): Uses `MAX(CASE WHEN vld.location_id = N THEN vld.qty_available ELSE 0 END)` for individual location columns. When a location has negative qty (e.g., -2), `MAX(-2, 0, 0, ...) = 0`, masking the negative value.
+
+2. **But** `SUM(vld.qty_available)` for `total_stock` correctly includes negative values (e.g., -2).
+
+3. **Result**: Individual columns show 0 (masked), but `total_stock` includes the hidden negative, creating: `sum of visible columns (7) != total_stock (5)`.
+
+4. **API layer** (`route.ts`): Directly used `row.total_stock` from the materialized view without recalculating.
+
+## Fix Applied
+
+### Change 1: API - Compute totalStock from individual columns
+**Files:** 4 API routes
+- `src/app/api/products/branch-stock-pivot/route.ts` (line 343)
+- `src/app/api/products/branch-stock-pivot/route-optimized.ts` (line 329)
+- `src/app/api/products/stock/route.ts` (line 273)
+- `src/app/api/products/stock/route-optimized-view.ts` (line 259)
+
+**Change:** Instead of `parseFloat(row.total_stock || 0)`, now computes totalStock by summing all `loc_1_qty` through `loc_20_qty` plus `extra_locations_json` values. This guarantees totalStock always equals the sum of visible branch columns.
+
+### Change 2: Fix grand_total SQL in stock route
+**File:** `src/app/api/products/stock/route.ts`
+
+**Change:** Replaced `SUM(total_stock) as grand_total` with sum of individual `loc_X_qty` columns.
+
+### Change 3: Fix materialized view SQL for future refreshes
+**File:** `prisma/migrations/20250131_create_stock_pivot_materialized_view/migration.sql`
+
+**Change:** All 20 location columns changed from:
+```sql
+MAX(CASE WHEN vld.location_id = N THEN vld.qty_available ELSE 0 END)
+```
+to:
+```sql
+COALESCE(MAX(CASE WHEN vld.location_id = N THEN vld.qty_available END), 0)
+```
+This correctly captures negative values: `MAX(-2) = -2` instead of `MAX(-2, 0) = 0`.
+
+**Note:** The materialized view needs to be recreated/refreshed with the new SQL for this change to take effect in the database.
+
+## Todo Items
+
+- [x] Find Total Stock calculation logic
+- [x] Fix totalStock computation in all 4 API routes
+- [x] Fix grand_total SQL query in stock route
+- [x] Fix materialized view SQL for negative quantity handling
+- [x] Verify no type errors introduced
+
+## IMPLEMENTATION COMPLETE ✅

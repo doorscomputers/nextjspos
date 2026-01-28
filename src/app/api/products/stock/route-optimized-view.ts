@@ -244,6 +244,18 @@ export async function POST(request: NextRequest) {
         })
       }
 
+      // Compute totalStock by summing individual location quantities
+      // instead of using row.total_stock (which may differ due to MAX/CASE masking negatives)
+      let totalStock = 0
+      for (let i = 1; i <= 20; i++) {
+        totalStock += parseFloat(row[`loc_${i}_qty`] || 0)
+      }
+      if (row.extra_locations_json) {
+        Object.entries(row.extra_locations_json).forEach(([locId, qty]: [string, any]) => {
+          totalStock += parseFloat(qty || 0)
+        })
+      }
+
       return {
         productId: row.product_id,
         variationId: row.variation_id,
@@ -256,7 +268,7 @@ export async function POST(request: NextRequest) {
         brand: row.brand || '',
         unit: row.unit || 'N/A',
         stockByLocation,
-        totalStock: parseFloat(row.total_stock || 0),
+        totalStock,
       }
     })
 

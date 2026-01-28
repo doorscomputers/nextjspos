@@ -340,7 +340,20 @@ export async function POST(request: NextRequest) {
 
       const cost = parseFloat(row.cost || 0)
       const price = parseFloat(row.price || 0)
-      const totalStock = parseFloat(row.total_stock || 0)
+
+      // Compute totalStock by summing individual location quantities
+      // instead of using row.total_stock from the materialized view,
+      // because the view's MAX(CASE...ELSE 0) masks negative values to 0
+      // while SUM() includes them, causing totalStock != sum of visible columns
+      let totalStock = 0
+      for (let i = 1; i <= 20; i++) {
+        totalStock += parseFloat(row[`loc_${i}_qty`] || 0)
+      }
+      if (row.extra_locations_json) {
+        Object.entries(row.extra_locations_json).forEach(([locId, qty]: [string, any]) => {
+          totalStock += parseFloat(qty || 0)
+        })
+      }
 
       return {
         productId: row.product_id,

@@ -258,6 +258,18 @@ export async function POST(request: NextRequest) {
         })
       }
 
+      // Compute totalStock by summing individual location quantities
+      // instead of using row.total_stock (which may differ due to MAX/CASE masking negatives)
+      let totalStock = 0
+      for (let i = 1; i <= 20; i++) {
+        totalStock += parseFloat(row[`loc_${i}_qty`] || 0)
+      }
+      if (row.extra_locations_json) {
+        Object.entries(row.extra_locations_json).forEach(([locId, qty]: [string, any]) => {
+          totalStock += parseFloat(qty || 0)
+        })
+      }
+
       return {
         productId: row.product_id,
         variationId: row.variation_id,
@@ -270,7 +282,7 @@ export async function POST(request: NextRequest) {
         brand: row.brand || '',
         unit: row.unit || 'N/A',
         stockByLocation,
-        totalStock: parseFloat(row.total_stock || 0),
+        totalStock,
       }
     })
 
@@ -287,7 +299,10 @@ export async function POST(request: NextRequest) {
         SUM(loc_15_qty) as loc_15_total, SUM(loc_16_qty) as loc_16_total,
         SUM(loc_17_qty) as loc_17_total, SUM(loc_18_qty) as loc_18_total,
         SUM(loc_19_qty) as loc_19_total, SUM(loc_20_qty) as loc_20_total,
-        SUM(total_stock) as grand_total
+        SUM(loc_1_qty + loc_2_qty + loc_3_qty + loc_4_qty + loc_5_qty +
+            loc_6_qty + loc_7_qty + loc_8_qty + loc_9_qty + loc_10_qty +
+            loc_11_qty + loc_12_qty + loc_13_qty + loc_14_qty + loc_15_qty +
+            loc_16_qty + loc_17_qty + loc_18_qty + loc_19_qty + loc_20_qty) as grand_total
       FROM stock_pivot_view
       WHERE ${whereSQL}
     `
