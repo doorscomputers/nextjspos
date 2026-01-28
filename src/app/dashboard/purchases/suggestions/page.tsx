@@ -647,9 +647,9 @@ export default function PurchaseSuggestionsPage() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Badge variant="destructive">{suggestion.currentStock}</Badge>
+                        <Badge variant="destructive">{suggestion.currentStock || 0}</Badge>
                       </TableCell>
-                      <TableCell className="text-right">{suggestion.reorderPoint}</TableCell>
+                      <TableCell className="text-right">{Math.round(suggestion.reorderPoint * 10) / 10}</TableCell>
                       <TableCell className="text-right font-semibold text-blue-600">
                         {suggestion.suggestedOrderQty}
                       </TableCell>
