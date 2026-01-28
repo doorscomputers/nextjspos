@@ -24,41 +24,122 @@ export async function GET(request: NextRequest) {
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-    // Get all products with auto-reorder enabled (or all products if not filtered)
+    // ====================================================================
+    // STEP 1: Fetch all eligible products (single query)
+    // ====================================================================
     const products = await prisma.product.findMany({
       where: {
         businessId,
         ...(onlyEnabled ? { enableAutoReorder: true } : {}),
         ...(categoryId ? { categoryId: parseInt(categoryId) } : {}),
-        type: 'single', // Only single products for now
-        enableStock: true, // EXCLUDE non-inventory products (services, etc.)
-        isActive: true, // EXCLUDE inactive products
+        type: 'single',
+        enableStock: true,
+        isActive: true,
       },
       include: {
         category: {
           select: { name: true },
         },
         variations: {
-          include: {
-            variationLocationDetails: {
-              where: locationId && locationId !== 'all'
-                ? { locationId: parseInt(locationId) }
-                : {},
-            },
+          select: {
+            id: true,
+            name: true,
+            supplierId: true,
+            purchasePrice: true,
             supplier: {
-              select: {
-                id: true,
-                name: true,
-              },
+              select: { id: true, name: true },
             },
           },
         },
       },
     })
 
+    // Collect all variation IDs for batch queries
+    const allVariationIds: number[] = []
+    const variationToProduct = new Map<number, typeof products[0]>()
+
+    for (const product of products) {
+      for (const variation of product.variations) {
+        allVariationIds.push(variation.id)
+        variationToProduct.set(variation.id, product)
+      }
+    }
+
+    // ====================================================================
+    // STEP 2: Batch fetch ALL stock data (single query)
+    // Only from active locations
+    // ====================================================================
+    const allStockData = await prisma.variationLocationDetails.findMany({
+      where: {
+        productVariationId: { in: allVariationIds },
+      },
+      select: {
+        productVariationId: true,
+        locationId: true,
+        qtyAvailable: true,
+      },
+    })
+
+    // Build stock map: variationId -> locationDetails[]
+    const stockByVariation = new Map<number, typeof allStockData>()
+    for (const stock of allStockData) {
+      const existing = stockByVariation.get(stock.productVariationId) || []
+      existing.push(stock)
+      stockByVariation.set(stock.productVariationId, existing)
+    }
+
+    // ====================================================================
+    // STEP 3: Batch fetch ALL active locations (single query)
+    // ====================================================================
+    const activeLocations = await prisma.businessLocation.findMany({
+      where: {
+        businessId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    })
+    const locationMap = new Map(activeLocations.map(loc => [loc.id, loc]))
+    const activeLocationIds = activeLocations.map(loc => loc.id)
+
+    // ====================================================================
+    // STEP 4: Batch fetch ALL sales data for last 30 days (single query)
+    // ====================================================================
+    const allSalesData = await prisma.saleItem.findMany({
+      where: {
+        productVariationId: { in: allVariationIds },
+        sale: {
+          businessId,
+          createdAt: { gte: thirtyDaysAgo },
+          status: { in: ['completed', 'final'] },
+        },
+      },
+      select: {
+        productVariationId: true,
+        quantity: true,
+        sale: {
+          select: {
+            locationId: true,
+          },
+        },
+      },
+    })
+
+    // Build sales map: variationId -> saleItems[]
+    const salesByVariation = new Map<number, typeof allSalesData>()
+    for (const sale of allSalesData) {
+      const existing = salesByVariation.get(sale.productVariationId) || []
+      existing.push(sale)
+      salesByVariation.set(sale.productVariationId, existing)
+    }
+
+    // ====================================================================
+    // STEP 5: Process all data in-memory (no more DB queries)
+    // ====================================================================
     const suggestions = []
 
-    // Process each product
     for (const product of products) {
       for (const variation of product.variations) {
         // Filter by supplier if specified
@@ -66,60 +147,17 @@ export async function GET(request: NextRequest) {
           continue
         }
 
-        // ====================================================================
-        // ENHANCED: Calculate current stock across ALL locations (company-wide)
-        // This includes Main Warehouse and all branch locations
-        // ====================================================================
-        const allLocationStocks = await prisma.variationLocationDetails.findMany({
-          where: {
-            productVariationId: variation.id,
-          },
-        })
+        // Get stock from pre-fetched data (only active locations)
+        const variationStocks = (stockByVariation.get(variation.id) || [])
+          .filter(s => activeLocationIds.includes(s.locationId))
 
-        // Fetch location data separately
-        const locationIds = [...new Set(allLocationStocks.map(s => s.locationId))]
-        const locations = await prisma.businessLocation.findMany({
-          where: {
-            id: { in: locationIds },
-            businessId,
-          },
-          select: {
-            id: true,
-            name: true,
-          },
-        })
-
-        // Create a map for quick location lookup
-        const locationMap = new Map(locations.map(loc => [loc.id, loc]))
-
-        const currentStock = allLocationStocks.reduce(
+        const currentStock = variationStocks.reduce(
           (sum, detail) => sum + parseFloat(detail.qtyAvailable.toString()),
           0
         )
 
-        // ====================================================================
-        // ENHANCED: Get sales from ALL locations for the last 30 days
-        // This aggregates sales velocity across the entire business
-        // ====================================================================
-        const salesData = await prisma.saleItem.findMany({
-          where: {
-            productVariationId: variation.id,
-            sale: {
-              businessId,
-              createdAt: { gte: thirtyDaysAgo },
-              status: { in: ['completed', 'final'] },
-              // NO location filter - we want sales from ALL locations
-            },
-          },
-          select: {
-            quantity: true,
-            sale: {
-              select: {
-                locationId: true,
-              },
-            },
-          },
-        })
+        // Get sales from pre-fetched data
+        const salesData = salesByVariation.get(variation.id) || []
 
         const totalSalesQty = salesData.reduce(
           (sum, sale) => sum + parseFloat(sale.quantity.toString()),
@@ -129,9 +167,7 @@ export async function GET(request: NextRequest) {
         // Calculate average daily sales (company-wide)
         const avgDailySales = totalSalesQty / 30
 
-        // BUSINESS LOGIC: Skip products with no sales history
-        // If a product has zero sales in 30 days AND zero stock,
-        // it's likely obsolete/discontinued and shouldn't be reordered
+        // Skip products with no sales history
         if (avgDailySales === 0) continue
 
         // Get reorder settings (use product defaults or fallbacks)
@@ -151,7 +187,7 @@ export async function GET(request: NextRequest) {
         // Calculate days until stockout
         const daysUntilStockout = currentStock / avgDailySales
 
-        // Determine urgency level based on days until stockout
+        // Determine urgency level
         let urgencyLevel: 'critical' | 'high' | 'medium' | 'low'
         if (daysUntilStockout < 3) {
           urgencyLevel = 'critical'
@@ -166,18 +202,15 @@ export async function GET(request: NextRequest) {
         // Filter by urgency if specified
         if (urgency && urgencyLevel !== urgency) continue
 
-        // ====================================================================
-        // ENHANCED: Location breakdown with sales data per location
-        // ====================================================================
-        const locationsWithSales = await Promise.all(
-          allLocationStocks.map(async (detail) => {
-            // Get sales for this specific location
+        // Location breakdown (in-memory, no DB queries)
+        const locationsWithSales = variationStocks
+          .filter(detail => locationMap.has(detail.locationId))
+          .map(detail => {
             const locationSales = salesData
               .filter(s => s.sale.locationId === detail.locationId)
               .reduce((sum, s) => sum + parseFloat(s.quantity.toString()), 0)
 
             const locationAvgDailySales = locationSales / 30
-
             const location = locationMap.get(detail.locationId)
 
             return {
@@ -187,17 +220,11 @@ export async function GET(request: NextRequest) {
               avgDailySales: Math.round(locationAvgDailySales * 100) / 100,
             }
           })
-        )
 
         // Calculate estimated order value
         const unitCost = parseFloat(variation.purchasePrice?.toString() || '0')
         const estimatedOrderValue = unitCost * suggestedOrderQty
 
-        // ====================================================================
-        // ENHANCED: Include products WITHOUT suppliers (with warning flag)
-        // This allows warehouse managers to see ALL items needing reorder
-        // and assign suppliers manually
-        // ====================================================================
         suggestions.push({
           productId: product.id,
           productName: product.name,
@@ -207,7 +234,7 @@ export async function GET(request: NextRequest) {
           category: product.category?.name || 'Uncategorized',
           supplierId: variation.supplierId,
           supplierName: variation.supplier?.name || 'No Supplier',
-          hasSupplier: !!variation.supplierId, // Flag for UI highlighting
+          hasSupplier: !!variation.supplierId,
           currentStock,
           reorderPoint,
           suggestedOrderQty,

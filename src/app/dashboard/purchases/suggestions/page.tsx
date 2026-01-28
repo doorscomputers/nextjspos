@@ -87,6 +87,7 @@ export default function PurchaseSuggestionsPage() {
   const router = useRouter()
   const [data, setData] = useState<SuggestionsData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set())
 
   // Filters
@@ -139,6 +140,7 @@ export default function PurchaseSuggestionsPage() {
   // Fetch suggestions data
   const fetchSuggestions = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const params = new URLSearchParams()
       if (locationFilter !== "all") params.append("locationId", locationFilter)
@@ -149,13 +151,15 @@ export default function PurchaseSuggestionsPage() {
       const response = await fetch(`/api/purchases/suggestions?${params.toString()}`)
 
       if (!response.ok) {
-        throw new Error("Failed to fetch suggestions")
+        const errorData = await response.json().catch(() => null)
+        throw new Error(errorData?.error || `Failed to fetch suggestions (${response.status})`)
       }
 
       const result = await response.json()
       setData(result.data)
     } catch (error) {
       console.error("Error fetching suggestions:", error)
+      setError(error instanceof Error ? error.message : "Failed to load suggestions. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -553,7 +557,23 @@ export default function PurchaseSuggestionsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {error ? (
+            <div className="text-center py-12">
+              <ExclamationTriangleIcon className="h-12 w-12 text-red-400 mx-auto mb-3" />
+              <p className="text-red-600 dark:text-red-400 font-medium">
+                {error}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4"
+                onClick={() => fetchSuggestions()}
+              >
+                <ArrowPathIcon className="h-4 w-4 mr-2" />
+                Retry
+              </Button>
+            </div>
+          ) : loading ? (
             <div className="flex items-center justify-center py-12">
               <ArrowPathIcon className="h-8 w-8 animate-spin text-blue-600" />
               <span className="ml-3 text-gray-600 dark:text-gray-400">
