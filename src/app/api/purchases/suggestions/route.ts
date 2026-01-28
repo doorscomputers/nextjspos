@@ -167,19 +167,23 @@ export async function GET(request: NextRequest) {
         // Calculate average daily sales (company-wide)
         const avgDailySales = totalSalesQty / 30
 
-        // Skip products with no sales history
-        if (avgDailySales === 0) continue
+        // Skip products with fewer than 2 units sold in 30 days (filters one-off sales)
+        if (totalSalesQty < 2) continue
 
         // Get reorder settings (use product defaults or fallbacks)
         const leadTimeDays = product.leadTimeDays || 7
         const safetyStockDays = product.safetyStockDays || 3
-        const reorderPoint = product.reorderPoint
+        const rawReorderPoint = product.reorderPoint
           ? parseFloat(product.reorderPoint.toString())
           : avgDailySales * (leadTimeDays + safetyStockDays)
+        // Minimum reorder point of 1 (can't have fractional units on shelf)
+        const reorderPoint = Math.max(1, Math.ceil(rawReorderPoint))
 
-        const suggestedOrderQty = product.reorderQuantity
+        const rawSuggestedOrderQty = product.reorderQuantity
           ? parseFloat(product.reorderQuantity.toString())
           : Math.ceil(avgDailySales * (leadTimeDays + safetyStockDays) * 2)
+        // Minimum suggested order of 1
+        const suggestedOrderQty = Math.max(1, Math.ceil(rawSuggestedOrderQty))
 
         // Check if reorder is needed
         if (currentStock >= reorderPoint) continue
