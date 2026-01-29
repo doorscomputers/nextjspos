@@ -56,6 +56,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch all sales within the period
+    // Note: SaleItem doesn't have a direct relation to ProductVariation in schema,
+    // so we filter via product relation instead
     const salesData = await prisma.saleItem.findMany({
       where: {
         sale: {
@@ -67,13 +69,11 @@ export async function GET(request: NextRequest) {
           },
           ...locationFilter,
         },
-        productVariation: {
+        product: {
           businessId,
+          isActive: true,
           deletedAt: null,
-          product: {
-            isActive: true,
-            ...(categoryId && categoryId !== 'all' ? { categoryId: parseInt(categoryId) } : {}),
-          },
+          ...(categoryId && categoryId !== 'all' ? { categoryId: parseInt(categoryId) } : {}),
         },
       },
       include: {
