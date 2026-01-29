@@ -87,7 +87,6 @@ export async function GET(request: NextRequest) {
               id: true,
               quantity: true,
               unitPrice: true,
-              totalPrice: true,
               discountAmount: true,
               product: {
                 select: {
@@ -299,16 +298,20 @@ export async function GET(request: NextRequest) {
       discountPercent: parseFloat(sale.totalAmount?.toString() || '0') > 0
         ? (parseFloat(sale.discountAmount?.toString() || '0') / (parseFloat(sale.totalAmount?.toString() || '0') + parseFloat(sale.discountAmount?.toString() || '0'))) * 100
         : 0,
-      items: sale.items.map((item) => ({
-        id: item.id,
-        productName: item.product?.name || 'Unknown Product',
-        sku: item.product?.sku || '',
-        variationName: item.productVariation?.name || '',
-        quantity: parseFloat(item.quantity?.toString() || '0'),
-        unitPrice: parseFloat(item.unitPrice?.toString() || '0'),
-        totalPrice: parseFloat(item.totalPrice?.toString() || '0'),
-        discountAmount: parseFloat(item.discountAmount?.toString() || '0'),
-      })),
+      items: sale.items.map((item) => {
+        const qty = parseFloat(item.quantity?.toString() || '0')
+        const price = parseFloat(item.unitPrice?.toString() || '0')
+        return {
+          id: item.id,
+          productName: item.product?.name || 'Unknown Product',
+          sku: item.product?.sku || '',
+          variationName: item.productVariation?.name || '',
+          quantity: qty,
+          unitPrice: price,
+          totalPrice: qty * price,
+          discountAmount: parseFloat(item.discountAmount?.toString() || '0'),
+        }
+      }),
     }))
 
     return NextResponse.json({
