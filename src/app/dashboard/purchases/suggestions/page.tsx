@@ -37,7 +37,13 @@ import {
   ArrowPathIcon,
   ShoppingCartIcon,
   PrinterIcon,
+  DocumentArrowDownIcon,
+  DocumentTextIcon,
 } from "@heroicons/react/24/outline"
+import { Workbook } from 'exceljs'
+import { saveAs } from 'file-saver'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 
 interface PurchaseSuggestion {
   productId: number
@@ -222,6 +228,176 @@ export default function PurchaseSuggestionsPage() {
     window.print()
   }
 
+  const handleExportExcel = async () => {
+    if (!data?.suggestions.length) return
+
+    const workbook = new Workbook()
+    const worksheet = workbook.addWorksheet('Reorder Suggestions')
+
+    // Add title
+    worksheet.mergeCells('A1:K1')
+    const titleCell = worksheet.getCell('A1')
+    titleCell.value = 'Purchase Order Suggestions Report'
+    titleCell.font = { bold: true, size: 16 }
+    titleCell.alignment = { horizontal: 'center' }
+
+    // Add date
+    worksheet.mergeCells('A2:K2')
+    const dateCell = worksheet.getCell('A2')
+    dateCell.value = `Generated: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`
+    dateCell.alignment = { horizontal: 'center' }
+
+    // Add summary
+    worksheet.mergeCells('A3:K3')
+    const summaryCell = worksheet.getCell('A3')
+    summaryCell.value = `Total Items: ${data.summary.productsNeedingReorder} | Critical: ${data.summary.criticalItems} | High: ${data.summary.highPriorityItems} | Est. Value: ₱${data.summary.totalSuggestedOrderValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+    summaryCell.alignment = { horizontal: 'center' }
+
+    // Add empty row
+    worksheet.addRow([])
+
+    // Add headers
+    const headerRow = worksheet.addRow([
+      'Product Name',
+      'SKU',
+      'Category',
+      'Supplier',
+      'Current Stock',
+      'Reorder Point',
+      'Suggested Qty',
+      'Avg Daily Sales',
+      'Days Left',
+      'Unit Cost',
+      'Est. Value',
+      'Urgency'
+    ])
+    headerRow.font = { bold: true }
+    headerRow.eachCell((cell) => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } }
+      cell.border = { bottom: { style: 'thin' } }
+    })
+
+    // Add data rows
+    data.suggestions.forEach((item) => {
+      const row = worksheet.addRow([
+        item.productName,
+        item.sku,
+        item.category,
+        item.supplierName,
+        item.currentStock,
+        Math.round(item.reorderPoint * 10) / 10,
+        item.suggestedOrderQty,
+        item.avgDailySales,
+        item.daysUntilStockout.toFixed(1),
+        item.unitCost,
+        item.estimatedOrderValue,
+        item.urgency.toUpperCase()
+      ])
+
+      // Highlight critical/high urgency rows
+      if (item.urgency === 'critical') {
+        row.eachCell((cell) => {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFCCCC' } }
+        })
+      } else if (item.urgency === 'high') {
+        row.eachCell((cell) => {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEECC' } }
+        })
+      }
+    })
+
+    // Auto-fit columns
+    worksheet.columns.forEach((column) => {
+      column.width = 15
+    })
+    worksheet.getColumn(1).width = 30 // Product name
+    worksheet.getColumn(4).width = 20 // Supplier
+
+    // Generate and download
+    const buffer = await workbook.xlsx.writeBuffer()
+    saveAs(new Blob([buffer], { type: 'application/octet-stream' }), `Reorder_Suggestions_${new Date().toISOString().split('T')[0]}.xlsx`)
+  }
+
+  const handleExportPDF = () => {
+    if (!data?.suggestions.length) return
+
+    const doc = new jsPDF('l', 'mm', 'a4') // landscape
+
+    // Title
+    doc.setFontSize(18)
+    doc.text('Purchase Order Suggestions Report', doc.internal.pageSize.getWidth() / 2, 15, { align: 'center' })
+
+    // Subtitle
+    doc.setFontSize(10)
+    doc.text(`Generated: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, doc.internal.pageSize.getWidth() / 2, 22, { align: 'center' })
+
+    // Summary
+    doc.setFontSize(9)
+    doc.text(
+      `Total Items: ${data.summary.productsNeedingReorder} | Critical: ${data.summary.criticalItems} | High: ${data.summary.highPriorityItems} | Est. Value: ₱${data.summary.totalSuggestedOrderValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+      doc.internal.pageSize.getWidth() / 2,
+      28,
+      { align: 'center' }
+    )
+
+    // Table
+    autoTable(doc, {
+      startY: 35,
+      head: [[
+        'Product',
+        'SKU',
+        'Category',
+        'Supplier',
+        'Stock',
+        'Reorder Pt',
+        'Sugg. Qty',
+        'Avg/Day',
+        'Days Left',
+        'Unit Cost',
+        'Est. Value',
+        'Urgency'
+      ]],
+      body: data.suggestions.map((item) => [
+        item.productName,
+        item.sku,
+        item.category,
+        item.supplierName,
+        item.currentStock.toString(),
+        (Math.round(item.reorderPoint * 10) / 10).toString(),
+        item.suggestedOrderQty.toString(),
+        item.avgDailySales.toString(),
+        item.daysUntilStockout.toFixed(1),
+        `₱${item.unitCost.toFixed(2)}`,
+        `₱${item.estimatedOrderValue.toFixed(2)}`,
+        item.urgency.toUpperCase()
+      ]),
+      styles: { fontSize: 7, cellPadding: 2 },
+      headStyles: { fillColor: [66, 66, 66], textColor: 255 },
+      columnStyles: {
+        0: { cellWidth: 40 }, // Product
+        4: { halign: 'right' },
+        5: { halign: 'right' },
+        6: { halign: 'right' },
+        7: { halign: 'right' },
+        8: { halign: 'right' },
+        9: { halign: 'right' },
+        10: { halign: 'right' },
+      },
+      didParseCell: (hookData) => {
+        const urgency = data.suggestions[hookData.row.index]?.urgency
+        if (hookData.section === 'body') {
+          if (urgency === 'critical') {
+            hookData.cell.styles.fillColor = [255, 200, 200]
+          } else if (urgency === 'high') {
+            hookData.cell.styles.fillColor = [255, 230, 200]
+          }
+        }
+      }
+    })
+
+    doc.save(`Reorder_Suggestions_${new Date().toISOString().split('T')[0]}.pdf`)
+  }
+
   const handleGeneratePO = async () => {
     if (!selectedLocationForPO) {
       toast({
@@ -383,12 +559,30 @@ export default function PurchaseSuggestionsPage() {
               Refresh
             </Button>
             <Button
+              onClick={handleExportExcel}
+              variant="outline"
+              className="flex items-center gap-2 hover:border-green-500 hover:text-green-700 dark:hover:text-green-400"
+              disabled={!data?.suggestions.length}
+            >
+              <DocumentArrowDownIcon className="h-4 w-4" />
+              Excel
+            </Button>
+            <Button
+              onClick={handleExportPDF}
+              variant="outline"
+              className="flex items-center gap-2 hover:border-red-500 hover:text-red-700 dark:hover:text-red-400"
+              disabled={!data?.suggestions.length}
+            >
+              <DocumentTextIcon className="h-4 w-4" />
+              PDF
+            </Button>
+            <Button
               onClick={handlePrint}
               variant="outline"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 hover:border-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
             >
               <PrinterIcon className="h-4 w-4" />
-              Print Report
+              Print
             </Button>
           </div>
         </div>
