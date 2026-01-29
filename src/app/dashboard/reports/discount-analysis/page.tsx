@@ -551,7 +551,6 @@ export default function DiscountAnalysisReport() {
                                     <tr key={item.id} className="border-t border-gray-200 dark:border-gray-600">
                                       <td className="py-1 pr-4 text-gray-900 dark:text-gray-100">
                                         {item.productName}
-                                        {item.variationName && <span className="text-gray-500 ml-1">({item.variationName})</span>}
                                       </td>
                                       <td className="py-1 pr-4 text-gray-500">{item.sku}</td>
                                       <td className="py-1 pr-4 text-right text-gray-900 dark:text-gray-100">{item.quantity}</td>

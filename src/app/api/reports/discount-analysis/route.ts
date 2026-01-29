@@ -88,15 +88,11 @@ export async function GET(request: NextRequest) {
               quantity: true,
               unitPrice: true,
               discountAmount: true,
+              productVariationId: true,
               product: {
                 select: {
                   name: true,
                   sku: true,
-                },
-              },
-              productVariation: {
-                select: {
-                  name: true,
                 },
               },
             },
@@ -305,7 +301,6 @@ export async function GET(request: NextRequest) {
           id: item.id,
           productName: item.product?.name || 'Unknown Product',
           sku: item.product?.sku || '',
-          variationName: item.productVariation?.name || '',
           quantity: qty,
           unitPrice: price,
           totalPrice: qty * price,
