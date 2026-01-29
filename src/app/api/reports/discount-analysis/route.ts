@@ -287,7 +287,7 @@ export async function GET(request: NextRequest) {
     // Build detailed transactions list (limit to 500 for performance)
     const detailedTransactions = discountedSales.slice(0, 500).map((sale) => ({
       id: sale.id,
-      invoiceNo: sale.invoiceNo,
+      invoiceNo: sale.invoiceNumber,
       createdAt: sale.createdAt,
       location: sale.location?.name || 'N/A',
       cashier: sale.creator
