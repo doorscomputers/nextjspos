@@ -43,6 +43,8 @@ import {
   ArrowsRightLeftIcon,
   BanknotesIcon,
   DocumentArrowUpIcon,
+  ArchiveBoxXMarkIcon,
+  PresentationChartBarIcon,
 } from "@heroicons/react/24/outline"
 
 interface MenuItem {
@@ -72,6 +74,7 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
     "Transfer Reports": false,
     "Financial Reports": false,
     "Inventory Reports": false,
+    "Business Intelligence": false,
     "Compliance Reports": false,
     "Security & Audit": false,
     "HR & Attendance": false,
@@ -872,6 +875,36 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
           href: "/dashboard/reports",
           icon: ChartBarIcon,
           permission: PERMISSIONS.REPORT_VIEW,
+        },
+        {
+          key: "business_intelligence",
+          name: "Business Intelligence",
+          href: "#",
+          icon: PresentationChartBarIcon,
+          permission: PERMISSIONS.REPORT_VIEW,
+          children: [
+            {
+              key: "dead_stock_report",
+              name: "Dead Stock Alert",
+              href: "/dashboard/reports/dead-stock",
+              icon: ArchiveBoxXMarkIcon,
+              permission: PERMISSIONS.REPORT_VIEW,
+            },
+            {
+              key: "product_scorecard",
+              name: "Product Scorecard (ABC-XYZ)",
+              href: "/dashboard/reports/product-scorecard",
+              icon: ChartBarIcon,
+              permission: PERMISSIONS.REPORT_VIEW,
+            },
+            {
+              key: "supplier_scorecard",
+              name: "Supplier Scorecard",
+              href: "/dashboard/reports/supplier-scorecard",
+              icon: TruckIcon,
+              permission: PERMISSIONS.REPORT_VIEW,
+            },
+          ],
         },
         {
           key: "sales_reports",
