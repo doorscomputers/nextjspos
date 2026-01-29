@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Fragment } from 'react'
 import Link from 'next/link'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -12,6 +12,10 @@ export default function DiscountAnalysisReport() {
   const [trend, setTrend] = useState<any[]>([])
   const [locations, setLocations] = useState<any[]>([])
   const [hasAccessToAll, setHasAccessToAll] = useState<boolean>(false)
+  const [detailedTransactions, setDetailedTransactions] = useState<any[]>([])
+  const [transactionPage, setTransactionPage] = useState(1)
+  const [expandedTransaction, setExpandedTransaction] = useState<number | null>(null)
+  const transactionsPerPage = 10
 
   // Initialize with default date range (last 30 days)
   const [startDate, setStartDate] = useState(() => {
@@ -93,6 +97,9 @@ export default function DiscountAnalysisReport() {
         setSummary(data.summary || {})
         setBreakdown(data.breakdown || {})
         setTrend(data.trend || [])
+        setDetailedTransactions(data.detailedTransactions || [])
+        setTransactionPage(1)
+        setExpandedTransaction(null)
       } else {
         console.error('[Discount Report] API Error:', data.error || data)
       }
@@ -460,6 +467,141 @@ export default function DiscountAnalysisReport() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {/* Detailed Transactions */}
+      {detailedTransactions && detailedTransactions.length > 0 && (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              Detailed Discounted Transactions
+              <span className="text-sm font-normal text-gray-500 ml-2">({detailedTransactions.length} transactions)</span>
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase w-8"></th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Invoice #</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Date</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Location</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Cashier</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Customer</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Total</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Discount</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-700 dark:text-gray-300 uppercase">Discount %</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {(() => {
+                  const totalPages = Math.ceil(detailedTransactions.length / transactionsPerPage)
+                  const startIndex = (transactionPage - 1) * transactionsPerPage
+                  const paginatedTransactions = detailedTransactions.slice(startIndex, startIndex + transactionsPerPage)
+
+                  return paginatedTransactions.map((txn: any) => (
+                    <Fragment key={txn.id}>
+                      <tr
+                        className="hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer"
+                        onClick={() => setExpandedTransaction(expandedTransaction === txn.id ? null : txn.id)}
+                      >
+                        <td className="px-4 py-2 text-sm text-gray-500">
+                          <span className="text-lg">{expandedTransaction === txn.id ? '▼' : '▶'}</span>
+                        </td>
+                        <td className="px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400">
+                          {txn.invoiceNo}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400">
+                          {new Date(txn.createdAt).toLocaleDateString()} {new Date(txn.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">{txn.location}</td>
+                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">{txn.cashier}</td>
+                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-gray-100">{txn.customer}</td>
+                        <td className="px-4 py-2 text-sm text-right text-gray-900 dark:text-gray-100">
+                          ₱{txn.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-right font-semibold text-red-600 dark:text-red-400">
+                          ₱{txn.discountAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-right">
+                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300">
+                            {txn.discountPercent.toFixed(1)}%
+                          </span>
+                        </td>
+                      </tr>
+                      {expandedTransaction === txn.id && txn.items && txn.items.length > 0 && (
+                        <tr key={`${txn.id}-items`}>
+                          <td colSpan={9} className="px-4 py-3 bg-gray-50 dark:bg-gray-750">
+                            <div className="ml-8">
+                              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Items in this transaction:</p>
+                              <table className="min-w-full text-xs">
+                                <thead>
+                                  <tr className="text-gray-500">
+                                    <th className="text-left py-1 pr-4">Product</th>
+                                    <th className="text-left py-1 pr-4">SKU</th>
+                                    <th className="text-right py-1 pr-4">Qty</th>
+                                    <th className="text-right py-1 pr-4">Unit Price</th>
+                                    <th className="text-right py-1 pr-4">Total</th>
+                                    <th className="text-right py-1">Item Discount</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {txn.items.map((item: any) => (
+                                    <tr key={item.id} className="border-t border-gray-200 dark:border-gray-600">
+                                      <td className="py-1 pr-4 text-gray-900 dark:text-gray-100">
+                                        {item.productName}
+                                        {item.variationName && <span className="text-gray-500 ml-1">({item.variationName})</span>}
+                                      </td>
+                                      <td className="py-1 pr-4 text-gray-500">{item.sku}</td>
+                                      <td className="py-1 pr-4 text-right text-gray-900 dark:text-gray-100">{item.quantity}</td>
+                                      <td className="py-1 pr-4 text-right text-gray-900 dark:text-gray-100">₱{item.unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                      <td className="py-1 pr-4 text-right text-gray-900 dark:text-gray-100">₱{item.totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                      <td className="py-1 text-right text-red-600 dark:text-red-400">
+                                        {item.discountAmount > 0 ? `₱${item.discountAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '-'}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  ))
+                })()}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {detailedTransactions.length > transactionsPerPage && (
+            <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                Showing {((transactionPage - 1) * transactionsPerPage) + 1}-{Math.min(transactionPage * transactionsPerPage, detailedTransactions.length)} of {detailedTransactions.length} transactions
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setTransactionPage(p => Math.max(1, p - 1))}
+                  disabled={transactionPage === 1}
+                  className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  Previous
+                </button>
+                <span className="text-sm font-medium px-2">
+                  Page {transactionPage} of {Math.ceil(detailedTransactions.length / transactionsPerPage)}
+                </span>
+                <button
+                  onClick={() => setTransactionPage(p => Math.min(Math.ceil(detailedTransactions.length / transactionsPerPage), p + 1))}
+                  disabled={transactionPage === Math.ceil(detailedTransactions.length / transactionsPerPage)}
+                  className="px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg disabled:opacity-50 hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

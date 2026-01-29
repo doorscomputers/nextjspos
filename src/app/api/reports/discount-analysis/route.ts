@@ -82,6 +82,29 @@ export async function GET(request: NextRequest) {
               name: true,
             },
           },
+          items: {
+            select: {
+              id: true,
+              quantity: true,
+              unitPrice: true,
+              totalPrice: true,
+              discountAmount: true,
+              product: {
+                select: {
+                  name: true,
+                  sku: true,
+                },
+              },
+              productVariation: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
         },
       }),
       prisma.sale.aggregate({
@@ -261,6 +284,33 @@ export async function GET(request: NextRequest) {
           : 0,
     }
 
+    // Build detailed transactions list (limit to 500 for performance)
+    const detailedTransactions = discountedSales.slice(0, 500).map((sale) => ({
+      id: sale.id,
+      invoiceNo: sale.invoiceNo,
+      createdAt: sale.createdAt,
+      location: sale.location?.name || 'N/A',
+      cashier: sale.creator
+        ? `${sale.creator.firstName || ''} ${sale.creator.lastName || ''}`.trim() || sale.creator.username
+        : 'Unknown',
+      customer: sale.customer?.name || 'Walk-in',
+      totalAmount: parseFloat(sale.totalAmount?.toString() || '0'),
+      discountAmount: parseFloat(sale.discountAmount?.toString() || '0'),
+      discountPercent: parseFloat(sale.totalAmount?.toString() || '0') > 0
+        ? (parseFloat(sale.discountAmount?.toString() || '0') / (parseFloat(sale.totalAmount?.toString() || '0') + parseFloat(sale.discountAmount?.toString() || '0'))) * 100
+        : 0,
+      items: sale.items.map((item) => ({
+        id: item.id,
+        productName: item.product?.name || 'Unknown Product',
+        sku: item.product?.sku || '',
+        variationName: item.productVariation?.name || '',
+        quantity: parseFloat(item.quantity?.toString() || '0'),
+        unitPrice: parseFloat(item.unitPrice?.toString() || '0'),
+        totalPrice: parseFloat(item.totalPrice?.toString() || '0'),
+        discountAmount: parseFloat(item.discountAmount?.toString() || '0'),
+      })),
+    }))
+
     return NextResponse.json({
       summary,
       breakdown: {
@@ -270,6 +320,7 @@ export async function GET(request: NextRequest) {
         byCustomer: customerBreakdown,
       },
       trend: dailyTrend,
+      detailedTransactions,
     })
   } catch (error) {
     console.error('Discount Analysis Report Error:', error)
