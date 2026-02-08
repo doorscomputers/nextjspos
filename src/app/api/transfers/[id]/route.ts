@@ -6,6 +6,43 @@ import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 
 /**
+ * Validates if a transfer destination is allowed based on business rules.
+ *
+ * Rules:
+ * - Main Warehouse → can transfer to ANY location
+ * - Tuguegarao → only to Main Warehouse
+ * - Main Store → Main Warehouse or Bambang
+ * - Bambang → Main Warehouse or Main Store
+ */
+function validateTransferDestination(fromLocationName: string, toLocationName: string): boolean {
+  const from = fromLocationName.toLowerCase()
+  const to = toLocationName.toLowerCase()
+
+  // Main Warehouse can transfer to any location
+  if (from === 'main warehouse') {
+    return true
+  }
+
+  // Tuguegarao can only transfer to Main Warehouse
+  if (from === 'tuguegarao') {
+    return to === 'main warehouse'
+  }
+
+  // Main Store can transfer to Main Warehouse or Bambang
+  if (from === 'main store') {
+    return to === 'main warehouse' || to === 'bambang'
+  }
+
+  // Bambang can transfer to Main Warehouse or Main Store
+  if (from === 'bambang') {
+    return to === 'main warehouse' || to === 'main store'
+  }
+
+  // Default: allow to Main Warehouse (fallback for new locations)
+  return to === 'main warehouse'
+}
+
+/**
  * GET - Retrieve Single Stock Transfer
  */
 export async function GET(
@@ -253,16 +290,16 @@ export async function PUT(
       }
     }
 
-    // Only allow updates if transfer is still pending
-    if (existing.status !== 'pending') {
+    // Only allow updates if transfer is still in draft status
+    if (existing.status !== 'draft') {
       return NextResponse.json(
-        { error: `Cannot update transfer with status: ${existing.status}. Only pending transfers can be updated.` },
+        { error: `Cannot update transfer with status: ${existing.status}. Only draft transfers can be updated.` },
         { status: 400 }
       )
     }
 
     const body = await request.json()
-    const { transferDate, notes } = body
+    const { transferDate, notes, toLocationId } = body
 
     // Validate transferDate if provided
     if (transferDate && isNaN(new Date(transferDate).getTime())) {
@@ -272,12 +309,66 @@ export async function PUT(
       )
     }
 
+    // Validate toLocationId if provided
+    let validatedToLocationId: number | undefined
+    if (toLocationId !== undefined) {
+      validatedToLocationId = parseInt(String(toLocationId))
+
+      // Cannot set same location as source
+      if (validatedToLocationId === existing.fromLocationId) {
+        return NextResponse.json(
+          { error: 'Destination location cannot be the same as source location' },
+          { status: 400 }
+        )
+      }
+
+      // Verify the new destination exists and belongs to business
+      const newDestination = await prisma.businessLocation.findFirst({
+        where: {
+          id: validatedToLocationId,
+          businessId: parseInt(businessId),
+          isActive: true,
+        },
+      })
+
+      if (!newDestination) {
+        return NextResponse.json(
+          { error: 'Invalid destination location' },
+          { status: 400 }
+        )
+      }
+
+      // Get the source location name to apply business rules
+      const sourceLocation = await prisma.businessLocation.findFirst({
+        where: { id: existing.fromLocationId },
+        select: { name: true },
+      })
+
+      const fromLocationName = sourceLocation?.name || ''
+      const toLocationName = newDestination.name
+
+      // Apply transfer destination rules based on source location
+      // Main Warehouse → can transfer to any location
+      // Tuguegarao → only to Main Warehouse
+      // Main Store → Main Warehouse or Bambang
+      // Bambang → Main Warehouse or Main Store
+      const isValidDestination = validateTransferDestination(fromLocationName, toLocationName)
+
+      if (!isValidDestination) {
+        return NextResponse.json(
+          { error: `${fromLocationName} cannot transfer to ${toLocationName}. Please select a valid destination.` },
+          { status: 400 }
+        )
+      }
+    }
+
     // Update transfer (only allowed fields)
     const updatedTransfer = await prisma.stockTransfer.update({
       where: { id: parseInt(transferId) },
       data: {
         ...(transferDate && { transferDate: new Date(transferDate) }),
         ...(notes !== undefined && { notes }),
+        ...(validatedToLocationId !== undefined && { toLocationId: validatedToLocationId }),
       },
       include: {
         items: true,
@@ -296,7 +387,7 @@ export async function PUT(
       metadata: {
         transferId: existing.id,
         transferNumber: existing.transferNumber,
-        changes: { transferDate, notes },
+        changes: { transferDate, notes, toLocationId: validatedToLocationId },
       },
       ipAddress: getIpAddress(request),
       userAgent: getUserAgent(request),

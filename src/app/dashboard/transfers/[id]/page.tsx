@@ -18,6 +18,13 @@ import {
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
 import { ArrowLeftIcon, CheckIcon, XMarkIcon, TruckIcon, CheckCircleIcon, ClipboardDocumentCheckIcon, ArrowDownTrayIcon, TableCellsIcon, PencilIcon, ExclamationTriangleIcon, PrinterIcon, TrashIcon } from '@heroicons/react/24/outline'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import Link from 'next/link'
 
 interface Transfer {
@@ -139,6 +146,10 @@ export default function TransferDetailPage() {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [searchLoading, setSearchLoading] = useState(false)
 
+  // Edit To Location for draft transfers
+  const [editableToLocationId, setEditableToLocationId] = useState<string>('')
+  const [savingToLocation, setSavingToLocation] = useState(false)
+
   useEffect(() => {
     fetchLocations()
     fetchUserLocations()
@@ -206,6 +217,11 @@ export default function TransferDetailPage() {
       if (response.ok) {
         setTransfer(data)
 
+        // Initialize editable toLocationId for draft transfers
+        if (data.toLocationId) {
+          setEditableToLocationId(data.toLocationId.toString())
+        }
+
         // Initialize verification quantities
         const quantities: { [key: number]: number } = {}
         data.items?.forEach((item: TransferItem) => {
@@ -220,6 +236,90 @@ export default function TransferDetailPage() {
       toast.error('Failed to fetch transfer')
     } finally {
       setLoading(false)
+    }
+  }
+
+  /**
+   * Get allowed destination locations based on source location.
+   * Business Rules:
+   * - Main Warehouse → can transfer to ANY location
+   * - Tuguegarao → only to Main Warehouse
+   * - Main Store → Main Warehouse or Bambang
+   * - Bambang → Main Warehouse or Main Store
+   */
+  const getAllowedDestinations = () => {
+    if (!transfer || !locations.length) return []
+
+    const fromLocationName = transfer.fromLocationName?.toLowerCase() || ''
+    const fromLocationId = transfer.fromLocationId
+
+    // Filter out the source location
+    let allowedLocations = locations.filter(loc => loc.id !== fromLocationId)
+
+    // Apply business rules
+    if (fromLocationName === 'main warehouse') {
+      // Main Warehouse can transfer to any location
+      return allowedLocations
+    }
+
+    if (fromLocationName === 'tuguegarao') {
+      // Tuguegarao can only transfer to Main Warehouse
+      return allowedLocations.filter(loc => loc.name.toLowerCase() === 'main warehouse')
+    }
+
+    if (fromLocationName === 'main store') {
+      // Main Store can transfer to Main Warehouse or Bambang
+      return allowedLocations.filter(loc =>
+        loc.name.toLowerCase() === 'main warehouse' || loc.name.toLowerCase() === 'bambang'
+      )
+    }
+
+    if (fromLocationName === 'bambang') {
+      // Bambang can transfer to Main Warehouse or Main Store
+      return allowedLocations.filter(loc =>
+        loc.name.toLowerCase() === 'main warehouse' || loc.name.toLowerCase() === 'main store'
+      )
+    }
+
+    // Default: only Main Warehouse for new/unknown locations
+    return allowedLocations.filter(loc => loc.name.toLowerCase() === 'main warehouse')
+  }
+
+  /**
+   * Save the updated toLocationId for draft transfers
+   */
+  const handleSaveToLocation = async (newLocationId: string) => {
+    if (!transfer || transfer.status !== 'draft') return
+    if (newLocationId === transfer.toLocationId.toString()) return // No change
+
+    try {
+      setSavingToLocation(true)
+      const response = await fetch(`/api/transfers/${transferId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toLocationId: parseInt(newLocationId) })
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        toast.success('Destination location updated successfully')
+        // Update local state
+        setEditableToLocationId(newLocationId)
+        // Refresh transfer to get updated data
+        fetchTransfer()
+      } else {
+        toast.error(result.error || 'Failed to update destination location')
+        // Revert to original value
+        setEditableToLocationId(transfer.toLocationId.toString())
+      }
+    } catch (error) {
+      console.error('Error updating destination location:', error)
+      toast.error('Failed to update destination location')
+      // Revert to original value
+      setEditableToLocationId(transfer.toLocationId.toString())
+    } finally {
+      setSavingToLocation(false)
     }
   }
 
@@ -1478,7 +1578,34 @@ export default function TransferDetailPage() {
               </div>
               <div>
                 <label className="text-sm text-gray-500">To Location</label>
-                <div className="font-medium">{getLocationName(transfer.toLocationId)}</div>
+                {transfer.status === 'draft' ? (
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={editableToLocationId}
+                      onValueChange={(value) => {
+                        setEditableToLocationId(value)
+                        handleSaveToLocation(value)
+                      }}
+                      disabled={savingToLocation}
+                    >
+                      <SelectTrigger className="w-full font-medium bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600">
+                        <SelectValue placeholder="Select destination" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getAllowedDestinations().map((loc) => (
+                          <SelectItem key={loc.id} value={loc.id.toString()}>
+                            {loc.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {savingToLocation && (
+                      <span className="text-sm text-gray-500">Saving...</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="font-medium">{getLocationName(transfer.toLocationId)}</div>
+                )}
               </div>
               <div>
                 <label className="text-sm text-gray-500">Transfer Date</label>
