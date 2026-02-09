@@ -428,18 +428,16 @@ export default function BranchStockPivotV2Page() {
             )}
           />
 
-          {/* Fixed Columns - Left Side */}
-          <Column dataField="supplier" caption="Supplier" width={130} fixed={true} fixedPosition="left" />
-          <Column dataField="category" caption="Category" width={130} fixed={true} fixedPosition="left" />
-          <Column dataField="brand" caption="Brand" width={120} fixed={true} fixedPosition="left" />
+          {/* Scrollable Columns */}
+          <Column dataField="supplier" caption="Supplier" width={130} />
+          <Column dataField="category" caption="Category" width={130} />
+          <Column dataField="brand" caption="Brand" width={120} />
           <Column
             dataField="lastDeliveryDate"
             caption="Last Delivery"
             dataType="date"
             format="MMM dd, yyyy"
             width={120}
-            fixed={true}
-            fixedPosition="left"
           />
           <Column
             dataField="lastQtyDelivered"
@@ -447,8 +445,6 @@ export default function BranchStockPivotV2Page() {
             dataType="number"
             width={100}
             alignment="right"
-            fixed={true}
-            fixedPosition="left"
           />
           <Column
             dataField="lastCost"
@@ -458,8 +454,6 @@ export default function BranchStockPivotV2Page() {
             width={130}
             alignment="right"
             cssClass="bg-orange-50 dark:bg-orange-900/20"
-            fixed={true}
-            fixedPosition="left"
           />
           <Column
             dataField="cost"
@@ -469,8 +463,6 @@ export default function BranchStockPivotV2Page() {
             width={150}
             alignment="right"
             cssClass="bg-amber-50 dark:bg-amber-900/20"
-            fixed={true}
-            fixedPosition="left"
           />
           {/* Dynamic Location Columns */}
           {locations.map((location) => (
