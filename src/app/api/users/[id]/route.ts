@@ -87,6 +87,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  console.log('======= USER UPDATE API CALLED =======')
   try {
     const session = await getServerSession(authOptions)
 

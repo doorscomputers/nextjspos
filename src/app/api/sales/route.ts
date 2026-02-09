@@ -294,9 +294,8 @@ import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 import { checkStockAvailability, batchCheckStockAvailability, processSale, bulkUpdateStock, StockTransactionType } from '@/lib/stockOperations' // CRITICAL: processSale DEDUCTS inventory, bulkUpdateStock processes in bulk
-// DISABLED: All sale alerts (Jan 26, 2026) - Focus on inventory monitoring first
-// Uncomment below to re-enable email/SMS/Telegram alerts
-// import { sendLargeDiscountAlert as sendLargeDiscountEmail, sendCreditSaleAlert as sendCreditSaleEmail } from '@/lib/email'
+// Re-enabled: Email discount alerts (Jan 30, 2026)
+import { sendLargeDiscountAlert as sendLargeDiscountEmail } from '@/lib/email'
 // import { sendLargeDiscountAlert, sendCreditSaleAlert } from '@/lib/alert-service'
 import { withIdempotency } from '@/lib/idempotency' // Prevents duplicate sales
 import { getNextInvoiceNumber } from '@/lib/atomicNumbers' // Thread-safe invoice numbering
@@ -1436,12 +1435,11 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // DISABLED: All sale alerts (Email, Telegram, Semaphore SMS) - Jan 26, 2026
-    // Reason: Focus on inventory monitoring first. Uncomment below to re-enable.
-    /*
+    // Re-enabled: Email discount alerts (Jan 30, 2026)
+    // Send email notification for large discounts (threshold: EMAIL_ALERT_DISCOUNT_THRESHOLD, default ₱1,000)
     setImmediate(async () => {
       try {
-        // Alert for large discounts
+        // Alert for large discounts via email
         if (discountAmount && parseFloat(discountAmount) > 0) {
           await sendLargeDiscountEmail({
             saleNumber: sale.invoiceNumber,
@@ -1454,24 +1452,11 @@ export async function POST(request: NextRequest) {
             reason: notes || undefined,
           })
         }
-
-        // Alert for credit sales
-        if (isCreditSale && customerName) {
-          await sendCreditSaleEmail({
-            saleNumber: sale.invoiceNumber,
-            creditAmount: totalAmount,
-            customerName,
-            cashierName: user.username || user.name || 'Unknown',
-            locationName: location.name,
-            timestamp: new Date(saleDate),
-          })
-        }
       } catch (notificationError) {
         // Log notification errors but don't fail the sale
-        console.error('Notification error:', notificationError)
+        console.error('Email notification error:', notificationError)
       }
     })
-    */
 
     // PERFORMANCE TIMING
     const totalTime = Date.now() - startTime

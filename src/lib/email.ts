@@ -410,10 +410,8 @@ export function isEmailConfigured(): boolean {
 }
 
 // Check if notifications are enabled
-// NOTE: Email alerts temporarily disabled due to SMTP authentication issues
 export function areNotificationsEnabled(): boolean {
-  // return alertConfig.enabled && isEmailConfigured()
-  return false // Disabled - Gmail SMTP credentials rejected
+  return alertConfig.enabled && isEmailConfigured()
 }
 
 // Generic email sending function

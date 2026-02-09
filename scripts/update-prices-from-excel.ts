@@ -8,25 +8,21 @@ import * as XLSX from 'xlsx'
 
 const prisma = new PrismaClient()
 
-// Path to the Excel file - Updated for Book1Updated.xlsx
-const EXCEL_FILE_PATH = 'c:/Users/Warenski/Downloads/Book1Updated.xlsx'
-const SHEET_NAME = 'PriceUpdates'
+// Path to the Excel file
+const EXCEL_FILE_PATH = 'C:/Users/Warenski/Downloads/SRP UPDATES 6 FEB 2026.xlsx'
 
 interface PriceUpdateRow {
-  Product: string
-  Category: string
-  SKU: string
-  'New SRP': number | string
+  'CODE': string
+  'NEW RETAIL PRICE': number | string
 }
 
 async function main() {
-  console.log('=== Price Update from Excel ===\n')
+  console.log('=== Price Update from CSV ===\n')
 
   // Read Excel file
   console.log(`Reading Excel file: ${EXCEL_FILE_PATH}`)
-  console.log(`Sheet: ${SHEET_NAME}`)
   const workbook = XLSX.readFile(EXCEL_FILE_PATH)
-  const sheet = workbook.Sheets[SHEET_NAME]
+  const sheet = workbook.Sheets[workbook.SheetNames[0]]
   const data: PriceUpdateRow[] = XLSX.utils.sheet_to_json(sheet)
 
   console.log(`Total rows in Excel: ${data.length}\n`)
@@ -51,13 +47,18 @@ async function main() {
   let updatedCount = 0
   let skippedCount = 0
   let notFoundCount = 0
-  const notFound: { sku: string; name: string }[] = []
-  const skipped: { sku: string; name: string; reason: string }[] = []
+  const notFound: { name: string }[] = []
+  const skipped: { name: string; reason: string }[] = []
 
   for (const row of data) {
-    const sku = String(row.SKU || '').trim()
-    const productName = String(row.Product || '').trim()
-    const newSrpRaw = row['New SRP']
+    const itemCode = String(row['CODE'] || '').trim()
+    const newSrpRaw = row['NEW RETAIL PRICE']
+
+    if (!itemCode) {
+      skippedCount++
+      skipped.push({ name: '', reason: 'Empty item code' })
+      continue
+    }
 
     // Parse price - handle both number and string formats
     let newPrice: number
@@ -68,137 +69,55 @@ async function main() {
       const parsed = parseFloat(String(newSrpRaw).replace(/,/g, ''))
       if (isNaN(parsed)) {
         skippedCount++
-        skipped.push({ sku, name: productName, reason: `Invalid price: ${newSrpRaw}` })
-        console.log(`⏭️  Skipping: [${sku}] ${productName} - Invalid SRP: ${newSrpRaw}`)
+        skipped.push({ name: itemCode, reason: `Invalid price: ${newSrpRaw}` })
+        console.log(`Skipping: ${itemCode} - Invalid SRP: ${newSrpRaw}`)
         continue
       }
       newPrice = parsed
     }
 
-    if (!sku) {
-      skippedCount++
-      skipped.push({ sku: '', name: productName, reason: 'No SKU' })
-      continue
-    }
-
-    // Find variation by SKU (variations have SKUs, not products)
-    const variation = await prisma.productVariation.findFirst({
+    // Find product by SKU/code (exact match, case-insensitive)
+    const product = await prisma.product.findFirst({
       where: {
         businessId,
-        sku: sku,
+        sku: { equals: itemCode, mode: 'insensitive' },
       },
       include: {
-        product: { select: { id: true, name: true } },
+        variations: { select: { id: true } },
       },
     })
 
-    if (!variation) {
-      // Try to find by product SKU as fallback
-      const product = await prisma.product.findFirst({
-        where: {
-          businessId,
-          sku: sku,
-        },
-        include: {
-          variations: { select: { id: true } },
-        },
-      })
-
-      if (!product) {
-        // Try to find by product name as third fallback (exact match, case-insensitive)
-        const productByName = await prisma.product.findFirst({
-          where: {
-            businessId,
-            name: { equals: productName, mode: 'insensitive' },
-          },
-          include: {
-            variations: { select: { id: true } },
-          },
-        })
-
-        if (!productByName) {
-          notFoundCount++
-          notFound.push({ sku, name: productName })
-          console.log(`❌ Not found: [${sku}] ${productName}`)
-          continue
-        }
-
-        // Update all variations for this product (found by name)
-        for (const v of productByName.variations) {
-          await prisma.productVariation.update({
-            where: { id: v.id },
-            data: { sellingPrice: newPrice },
-          })
-
-          for (const location of locations) {
-            await prisma.variationLocationDetails.updateMany({
-              where: {
-                productVariationId: v.id,
-                locationId: location.id,
-              },
-              data: {
-                sellingPrice: newPrice,
-                lastPriceUpdate: new Date(),
-              },
-            })
-          }
-        }
-
-        updatedCount++
-        console.log(`✅ Updated: ${productByName.name} -> ₱${newPrice.toLocaleString()} (matched by Product Name)`)
-        continue
-      }
-
-      // Update all variations for this product (found by Product SKU)
-      for (const v of product.variations) {
-        // Update base price on variation
-        await prisma.productVariation.update({
-          where: { id: v.id },
-          data: { sellingPrice: newPrice },
-        })
-
-        // Update location prices
-        for (const location of locations) {
-          await prisma.variationLocationDetails.updateMany({
-            where: {
-              productVariationId: v.id,
-              locationId: location.id,
-            },
-            data: {
-              sellingPrice: newPrice,
-              lastPriceUpdate: new Date(),
-            },
-          })
-        }
-      }
-
-      updatedCount++
-      console.log(`✅ Updated: ${product.name} -> ₱${newPrice.toLocaleString()} (matched by Product SKU)`)
+    if (!product) {
+      notFoundCount++
+      notFound.push({ name: itemCode })
+      console.log(`Not found: ${itemCode}`)
       continue
     }
 
-    // Update base price on variation
-    await prisma.productVariation.update({
-      where: { id: variation.id },
-      data: { sellingPrice: newPrice },
-    })
-
-    // Update location prices for all active locations
-    for (const location of locations) {
-      await prisma.variationLocationDetails.updateMany({
-        where: {
-          productVariationId: variation.id,
-          locationId: location.id,
-        },
-        data: {
-          sellingPrice: newPrice,
-          lastPriceUpdate: new Date(),
-        },
+    // Update all variations for this product
+    for (const v of product.variations) {
+      await prisma.productVariation.update({
+        where: { id: v.id },
+        data: { sellingPrice: newPrice },
       })
+
+      // Update location prices for all active locations
+      for (const location of locations) {
+        await prisma.variationLocationDetails.updateMany({
+          where: {
+            productVariationId: v.id,
+            locationId: location.id,
+          },
+          data: {
+            sellingPrice: newPrice,
+            lastPriceUpdate: new Date(),
+          },
+        })
+      }
     }
 
     updatedCount++
-    console.log(`✅ Updated: ${variation.product.name} -> ₱${newPrice.toLocaleString()} (matched by Variation SKU)`)
+    console.log(`Updated: ${itemCode} (${product.name}) -> P${newPrice.toLocaleString()}`)
   }
 
   console.log('\n=== SUMMARY ===')
@@ -208,12 +127,12 @@ async function main() {
 
   if (notFound.length > 0) {
     console.log('\n--- Products NOT FOUND in database ---')
-    notFound.forEach(item => console.log(`  - [${item.sku}] ${item.name}`))
+    notFound.forEach((item, i) => console.log(`  ${i+1}. ${item.name}`))
   }
 
   if (skipped.length > 0) {
     console.log('\n--- Skipped rows ---')
-    skipped.forEach(item => console.log(`  - [${item.sku}] ${item.name}: ${item.reason}`))
+    skipped.forEach(item => console.log(`  - ${item.name}: ${item.reason}`))
   }
 
   console.log('\nPrice update complete!')

@@ -317,3 +317,7 @@ On this Project, Only the Main Warehouse will process Purchase orders
 - SOD settings should be dynamic
 - Please take note of the RBAC , menus permission and Suers and Roles so that there will be no errors in the future
 - THis is how you change Price from Excel direct to Supabase
+
+### Update Price
+
+- prices-from-excel.ts script
