@@ -268,6 +268,21 @@ export async function POST(request: NextRequest) {
           pv.selling_price,
           0
         ) as price,
+        COALESCE(
+          (SELECT vld.selling_price
+           FROM variation_location_details vld
+           WHERE vld.product_variation_id = pv.id
+             AND vld.location_id = (
+               SELECT bl.id FROM business_locations bl
+               WHERE bl.business_id = $1 AND bl.name = 'Main Store'
+               LIMIT 1
+             )
+             AND vld.selling_price IS NOT NULL
+             AND vld.selling_price > 0
+          ),
+          pv.selling_price,
+          0
+        ) as main_store_price,
         pv.last_purchase_date,
         COALESCE(pv.last_purchase_quantity, 0) as last_qty_delivered,
         COALESCE(pv.last_purchase_cost, 0) as last_purchase_cost,
@@ -340,6 +355,7 @@ export async function POST(request: NextRequest) {
 
       const cost = parseFloat(row.cost || 0)
       const price = parseFloat(row.price || 0)
+      const mainStorePrice = parseFloat(row.main_store_price || 0)
 
       // Compute totalStock by summing individual location quantities
       // instead of using row.total_stock from the materialized view,
@@ -372,6 +388,7 @@ export async function POST(request: NextRequest) {
         lastPurchaseCost: parseFloat(row.last_purchase_cost || 0),
         cost,
         price,
+        mainStorePrice,
         stockByLocation,
         totalStock,
         totalCost: totalStock * cost,

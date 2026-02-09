@@ -46,6 +46,7 @@ interface PivotRow {
   lastPurchaseCost: number
   cost: number
   price: number
+  mainStorePrice: number  // Retail price from Main Store location
   stockByLocation: Record<number, number>
   totalStock: number
   totalCost: number
@@ -184,6 +185,7 @@ export default function BranchStockPivotV2Page() {
           lastCost: row.cost, // Cost BEFORE the latest purchase (previous cost)
           cost: row.lastPurchaseCost, // Cost FROM the latest purchase (current cost)
           price: row.price, // Selling price
+          mainStorePrice: row.mainStorePrice || row.price || 0, // Retail price from Main Store
           totalStock: row.totalStock,
           totalCost: row.totalCost,
           totalPrice: row.totalPrice, // Total selling price value
@@ -461,6 +463,15 @@ export default function BranchStockPivotV2Page() {
             width={150}
             alignment="right"
             cssClass="bg-amber-50 dark:bg-amber-900/20"
+          />
+          <Column
+            dataField="mainStorePrice"
+            caption="Retail Price"
+            dataType="number"
+            format="₱#,##0.00"
+            width={130}
+            alignment="right"
+            cssClass="bg-blue-50 dark:bg-blue-900/20"
           />
           {/* Dynamic Location Columns */}
           {locations.map((location) => (
