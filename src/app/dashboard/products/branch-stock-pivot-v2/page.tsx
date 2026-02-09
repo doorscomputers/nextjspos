@@ -200,23 +200,13 @@ export default function BranchStockPivotV2Page() {
 
       setDataSource(transformedData)
 
-      // Filter out inactive locations, locations with "Future" in the name, and Main Warehouse
+      // Filter out inactive locations and locations with "Future" in the name
       const activeLocations = (data.locations || []).filter((loc: LocationColumn) => {
         const isFutureLocation = loc.name.toLowerCase().includes('future')
-        const isMainWarehouse = loc.name.toLowerCase().includes('main warehouse') || loc.name.toLowerCase() === 'warehouse'
-        return !isFutureLocation && !isMainWarehouse
+        return !isFutureLocation
       })
 
-      // Sort locations so Main Store comes first
-      const sortedLocations = activeLocations.sort((a: LocationColumn, b: LocationColumn) => {
-        const isAMainStore = a.name.toLowerCase().includes('main store')
-        const isBMainStore = b.name.toLowerCase().includes('main store')
-        if (isAMainStore && !isBMainStore) return -1
-        if (!isAMainStore && isBMainStore) return 1
-        return a.name.localeCompare(b.name)
-      })
-
-      setLocations(sortedLocations)
+      setLocations(activeLocations)
     } catch (error) {
       console.error('[Branch Stock Pivot V2] Error fetching stock data:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to load stock data'
@@ -426,8 +416,6 @@ export default function BranchStockPivotV2Page() {
             dataField="itemName"
             caption="Item Name"
             minWidth={200}
-            fixed={true}
-            fixedPosition="left"
             cellRender={(data) => (
               <div>
                 <div className="font-medium text-gray-900 dark:text-gray-100">{data.data.itemName}</div>
@@ -438,7 +426,7 @@ export default function BranchStockPivotV2Page() {
             )}
           />
 
-          {/* Scrollable Columns */}
+          {/* Standard Columns */}
           <Column dataField="supplier" caption="Supplier" width={130} />
           <Column dataField="category" caption="Category" width={130} />
           <Column dataField="brand" caption="Brand" width={120} />
@@ -474,24 +462,19 @@ export default function BranchStockPivotV2Page() {
             alignment="right"
             cssClass="bg-amber-50 dark:bg-amber-900/20"
           />
-          {/* Dynamic Location Columns - Main Store is fixed, others scroll */}
-          {locations.map((location, index) => {
-            const isMainStore = location.name.toLowerCase().includes('main store')
-            return (
-              <Column
-                key={location.id}
-                dataField={`location_${location.id}`}
-                caption={location.name}
-                dataType="number"
-                width={120}
-                alignment="center"
-                fixed={isMainStore}
-                fixedPosition={isMainStore ? "left" : undefined}
-                cssClass="bg-amber-50/50 dark:bg-amber-900/20"
-                cellRender={cellRender}
-              />
-            )
-          })}
+          {/* Dynamic Location Columns */}
+          {locations.map((location) => (
+            <Column
+              key={location.id}
+              dataField={`location_${location.id}`}
+              caption={location.name}
+              dataType="number"
+              width={120}
+              alignment="center"
+              cssClass="bg-amber-50/50 dark:bg-amber-900/20"
+              cellRender={cellRender}
+            />
+          ))}
 
           {/* Total Columns */}
           <Column
