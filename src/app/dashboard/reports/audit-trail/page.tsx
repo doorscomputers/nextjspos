@@ -656,13 +656,45 @@ export default function AuditTrailPage() {
                 <SelectTrigger id="action">
                   <SelectValue placeholder="All actions" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-[300px]">
                   <SelectItem value="all">All Actions</SelectItem>
+                  {/* User Actions */}
+                  <SelectItem value="user_login">User Login</SelectItem>
+                  <SelectItem value="user_logout">User Logout</SelectItem>
+                  <SelectItem value="user_update">User Updated</SelectItem>
+                  <SelectItem value="user_create">User Created</SelectItem>
+                  {/* Product Actions */}
+                  <SelectItem value="product_create">Product Created</SelectItem>
+                  <SelectItem value="product_update">Product Updated</SelectItem>
+                  <SelectItem value="product_delete">Product Deleted</SelectItem>
+                  <SelectItem value="price_change">Price Changed</SelectItem>
+                  {/* Sales Actions */}
+                  <SelectItem value="sale_create">Sale Created</SelectItem>
+                  <SelectItem value="sale_update">Sale Updated</SelectItem>
+                  <SelectItem value="sale_void">Sale Voided</SelectItem>
+                  <SelectItem value="sale_refund">Sale Refunded</SelectItem>
+                  <SelectItem value="sale_return">Sale Returned</SelectItem>
+                  {/* Transfer Actions */}
+                  <SelectItem value="stock_transfer_create">Transfer Created</SelectItem>
+                  <SelectItem value="stock_transfer_send">Transfer Sent</SelectItem>
+                  <SelectItem value="stock_transfer_receive">Transfer Received</SelectItem>
+                  {/* Inventory Actions */}
+                  <SelectItem value="inventory_correction_create">Inventory Correction</SelectItem>
+                  <SelectItem value="inventory_correction_approve">Correction Approved</SelectItem>
+                  {/* Purchase Actions */}
+                  <SelectItem value="purchase_order_create">Purchase Order Created</SelectItem>
+                  <SelectItem value="purchase_receipt_create">Purchase Receipt Created</SelectItem>
+                  {/* Bulk Actions */}
                   <SelectItem value="bulk_delete">Bulk Delete</SelectItem>
                   <SelectItem value="bulk_activate">Bulk Activate</SelectItem>
                   <SelectItem value="bulk_deactivate">Bulk Deactivate</SelectItem>
                   <SelectItem value="bulk_add_to_location">Add to Location</SelectItem>
                   <SelectItem value="bulk_remove_from_location">Remove from Location</SelectItem>
+                  {/* POS Actions */}
+                  <SelectItem value="shift_open">Shift Opened</SelectItem>
+                  <SelectItem value="shift_close">Shift Closed</SelectItem>
+                  <SelectItem value="discount_applied">Discount Applied</SelectItem>
+                  <SelectItem value="price_override">Price Override</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -920,11 +952,45 @@ export default function AuditTrailPage() {
                                     <Label>Description</Label>
                                     <p className="text-sm">{selectedLog.description}</p>
                                   </div>
-                                  {selectedLog.metadata && (
+                                  {/* Field-Level Changes Display */}
+                                  {selectedLog.metadata?.changes && Array.isArray(selectedLog.metadata.changes) && selectedLog.metadata.changes.length > 0 && (
+                                    <div>
+                                      <Label className="text-base font-semibold mb-3 block flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                        Field Changes ({selectedLog.metadata.changes.length} field{selectedLog.metadata.changes.length > 1 ? 's' : ''} changed)
+                                      </Label>
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {selectedLog.metadata.changes.map((change: { field: string; oldValue: unknown; newValue: unknown }, idx: number) => (
+                                          <div key={idx} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                            <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                                              {change.field.replace(/([A-Z])/g, ' $1').replace(/^./, (s: string) => s.toUpperCase())}
+                                            </div>
+                                            <div className="flex items-center gap-2 text-sm flex-wrap">
+                                              <span className="text-red-600 bg-red-50 px-2 py-1 rounded font-medium max-w-[150px] truncate" title={String(change.oldValue)}>
+                                                {change.oldValue === null || change.oldValue === undefined || change.oldValue === ''
+                                                  ? '(empty)'
+                                                  : String(change.oldValue)}
+                                              </span>
+                                              <span className="text-gray-400 font-bold">→</span>
+                                              <span className="text-green-600 bg-green-50 px-2 py-1 rounded font-medium max-w-[150px] truncate" title={String(change.newValue)}>
+                                                {change.newValue === null || change.newValue === undefined || change.newValue === ''
+                                                  ? '(empty)'
+                                                  : String(change.newValue)}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {/* Other Metadata */}
+                                  {selectedLog.metadata && Object.keys(selectedLog.metadata).filter(k => k !== 'changes' && k !== 'changeCount' && k !== 'changedFields').length > 0 && (
                                     <div>
                                       <Label className="text-base font-semibold mb-3 block">Additional Details</Label>
                                       <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-                                        {Object.entries(selectedLog.metadata).map(([key, value]) => (
+                                        {Object.entries(selectedLog.metadata)
+                                          .filter(([key]) => key !== 'changes' && key !== 'changeCount' && key !== 'changedFields')
+                                          .map(([key, value]) => (
                                           <div key={key} className="flex items-start border-b border-gray-200 pb-2 last:border-0 last:pb-0">
                                             <div className="w-1/3 text-sm font-medium text-gray-600 capitalize">
                                               {key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').trim()}:
