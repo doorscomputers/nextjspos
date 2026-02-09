@@ -356,7 +356,7 @@ export default function AdminPhysicalInventoryUploadPage() {
       `Total Rows Processed: ${summary?.totalRows || 0}`,
       `Items Updated (Discrepancies): ${summary?.itemsUpdated || 0}`,
       `Items Verified (Counts Match): ${summary?.itemsVerified || 0}`,
-      `Locations: ${summary?.locationsAffected?.join(', ') || 'N/A'}`
+      `Location: ${summary?.locationsAffected?.join(', ') || 'N/A'}`
     ], 14, 48)
 
     let currentY = 72
@@ -750,7 +750,7 @@ export default function AdminPhysicalInventoryUploadPage() {
               </div>
               {uploadResult.summary.locationsAffected && uploadResult.summary.locationsAffected.length > 0 && (
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                  Locations: {uploadResult.summary.locationsAffected.join(', ')}
+                  Location: {uploadResult.summary.locationsAffected.join(', ')}
                 </p>
               )}
             </div>
