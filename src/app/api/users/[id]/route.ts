@@ -255,8 +255,11 @@ export async function PUT(
 
     // ===== AUDIT LOGGING =====
     try {
+      console.log('[USER UPDATE AUDIT] Starting audit logging for user:', userId)
+      console.log('[USER UPDATE AUDIT] Session user:', sessionUser.id, sessionUser.username, sessionUser.businessId)
+
       // Detect field changes for basic user fields
-      const fieldsToTrack = CRITICAL_FIELDS.User
+      const fieldsToTrack = ['username', 'email', 'firstName', 'lastName', 'allowLogin']
       const oldDataForAudit: Record<string, string | boolean | null> = {
         username: existingUser.username,
         email: existingUser.email,
@@ -272,10 +275,15 @@ export async function PUT(
         allowLogin: updatedUser.allowLogin,
       }
 
+      console.log('[USER UPDATE AUDIT] Old data:', JSON.stringify(oldDataForAudit))
+      console.log('[USER UPDATE AUDIT] New data:', JSON.stringify(newDataForAudit))
+
       const fieldChanges = detectFieldChanges(oldDataForAudit, newDataForAudit, fieldsToTrack)
+      console.log('[USER UPDATE AUDIT] Field changes detected:', fieldChanges.length)
 
       // Track password change (don't log actual password, just that it changed)
       const passwordChanged = !!password
+      console.log('[USER UPDATE AUDIT] Password changed:', passwordChanged)
       if (passwordChanged) {
         fieldChanges.push({
           field: 'password',
@@ -284,6 +292,7 @@ export async function PUT(
           fieldType: 'string'
         })
       }
+      console.log('[USER UPDATE AUDIT] Total changes after password check:', fieldChanges.length)
 
       // Track role changes
       const previousRoleIds = existingUser.roles.map(ur => ur.roleId)
@@ -324,7 +333,8 @@ export async function PUT(
           }
         }
 
-        await createAuditLog({
+        console.log('[USER UPDATE AUDIT] Creating audit log with businessId:', sessionUser.businessId)
+        const auditResult = await createAuditLog({
           businessId: parseInt(sessionUser.businessId),
           userId: parseInt(sessionUser.id),
           username: sessionUser.username || `User#${sessionUser.id}`,
@@ -351,6 +361,9 @@ export async function PUT(
           ipAddress: getIpAddress(request),
           userAgent: getUserAgent(request)
         })
+        console.log('[USER UPDATE AUDIT] Audit log created:', auditResult?.id)
+      } else {
+        console.log('[USER UPDATE AUDIT] No changes detected, skipping audit log')
       }
     } catch (auditError) {
       // Don't fail the update if audit logging fails
