@@ -11,7 +11,26 @@ import {
   ClockIcon,
   UserIcon,
   DocumentTextIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline'
+
+interface FieldChange {
+  field: string
+  oldValue: string | number | boolean | null
+  newValue: string | number | boolean | null
+  fieldType: 'string' | 'number' | 'boolean' | 'date' | 'json' | 'null'
+}
+
+interface AuditLogMetadata {
+  changes?: FieldChange[]
+  changeCount?: number
+  oldValues?: Record<string, unknown>
+  newValues?: Record<string, unknown>
+  changedFields?: string[]
+  [key: string]: unknown
+}
 
 interface AuditLog {
   id: number
@@ -22,7 +41,7 @@ interface AuditLog {
   entityType: string
   entityIds: number[]
   description: string
-  metadata: any
+  metadata: AuditLogMetadata
   ipAddress: string
   userAgent: string
   createdAt: string
@@ -48,6 +67,20 @@ export default function AuditLogsPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
+
+  // Toggle row expansion
+  const toggleRowExpansion = (logId: number) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(logId)) {
+        newSet.delete(logId)
+      } else {
+        newSet.add(logId)
+      }
+      return newSet
+    })
+  }
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -182,12 +215,47 @@ export default function AuditLogsPage() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
               >
                 <option value="">All Actions</option>
-                <option value="user_login">Login</option>
-                <option value="user_logout">Logout</option>
-                <option value="sale_create">Sale Created</option>
-                <option value="purchase_create">Purchase Created</option>
-                <option value="stock_transfer_create">Transfer Created</option>
-                <option value="payment_create">Payment Created</option>
+                <optgroup label="User Actions">
+                  <option value="user_login">User Login</option>
+                  <option value="user_logout">User Logout</option>
+                  <option value="user_update">User Updated</option>
+                  <option value="user_create">User Created</option>
+                </optgroup>
+                <optgroup label="Product Actions">
+                  <option value="product_create">Product Created</option>
+                  <option value="product_update">Product Updated</option>
+                  <option value="product_delete">Product Deleted</option>
+                  <option value="price_change">Price Changed</option>
+                </optgroup>
+                <optgroup label="Sales Actions">
+                  <option value="sale_create">Sale Created</option>
+                  <option value="sale_update">Sale Updated</option>
+                  <option value="sale_void">Sale Voided</option>
+                  <option value="sale_refund">Sale Refunded</option>
+                  <option value="sale_return">Sale Returned</option>
+                </optgroup>
+                <optgroup label="Inventory Actions">
+                  <option value="stock_transfer_create">Transfer Created</option>
+                  <option value="stock_transfer_send">Transfer Sent</option>
+                  <option value="stock_transfer_receive">Transfer Received</option>
+                  <option value="inventory_correction_create">Inventory Correction</option>
+                  <option value="inventory_correction_approve">Correction Approved</option>
+                </optgroup>
+                <optgroup label="Purchase Actions">
+                  <option value="purchase_order_create">Purchase Order Created</option>
+                  <option value="purchase_receipt_create">Purchase Receipt Created</option>
+                </optgroup>
+                <optgroup label="Bulk Actions">
+                  <option value="bulk_delete">Bulk Delete</option>
+                  <option value="bulk_activate">Bulk Activate</option>
+                  <option value="bulk_deactivate">Bulk Deactivate</option>
+                </optgroup>
+                <optgroup label="POS Actions">
+                  <option value="shift_open">Shift Opened</option>
+                  <option value="shift_close">Shift Closed</option>
+                  <option value="discount_applied">Discount Applied</option>
+                  <option value="price_override">Price Override</option>
+                </optgroup>
               </select>
             </div>
 
@@ -328,47 +396,116 @@ export default function AuditLogsPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                   IP Address
                 </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                  Details
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                     Loading audit logs...
                   </td>
                 </tr>
               ) : filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
                     No audit logs found
                   </td>
                 </tr>
               ) : (
-                filteredLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                      {formatDate(log.createdAt)}
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <div className="font-medium text-gray-900 dark:text-white">{log.username}</div>
-                      <div className="text-xs text-gray-500">ID: {log.userId}</div>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getActionColor(log.action)}`}>
-                        {log.action.replace(/_/g, ' ').toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
-                      {log.entityType}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 max-w-md truncate">
-                      {log.description}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                      {log.ipAddress}
-                    </td>
-                  </tr>
-                ))
+                filteredLogs.map((log) => {
+                  const isExpanded = expandedRows.has(log.id)
+                  const hasChanges = log.metadata?.changes && Array.isArray(log.metadata.changes) && log.metadata.changes.length > 0
+
+                  return (
+                    <>
+                      <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                          {formatDate(log.createdAt)}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <div className="font-medium text-gray-900 dark:text-white">{log.username}</div>
+                          <div className="text-xs text-gray-500">ID: {log.userId}</div>
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getActionColor(log.action)}`}>
+                            {log.action.replace(/_/g, ' ').toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">
+                          {log.entityType}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 max-w-md">
+                          <div className="line-clamp-2" title={log.description}>
+                            {log.description}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                          {log.ipAddress}
+                        </td>
+                        <td className="px-4 py-3 text-sm">
+                          {hasChanges && (
+                            <button
+                              onClick={() => toggleRowExpansion(log.id)}
+                              className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 bg-blue-50 dark:bg-blue-900/30 rounded hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                              title={isExpanded ? 'Hide changes' : 'View changes'}
+                            >
+                              <EyeIcon className="h-4 w-4" />
+                              {isExpanded ? (
+                                <ChevronUpIcon className="h-3 w-3" />
+                              ) : (
+                                <ChevronDownIcon className="h-3 w-3" />
+                              )}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                      {/* Expanded Details Row */}
+                      {isExpanded && hasChanges && (
+                        <tr key={`${log.id}-details`} className="bg-blue-50/50 dark:bg-blue-900/20">
+                          <td colSpan={7} className="px-4 py-4">
+                            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                              <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                Changes Details ({log.metadata.changeCount || log.metadata.changes.length} field{(log.metadata.changeCount || log.metadata.changes.length) > 1 ? 's' : ''} changed)
+                              </h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                {log.metadata.changes.map((change: FieldChange, idx: number) => (
+                                  <div key={idx} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
+                                    <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
+                                      {change.field.replace(/([A-Z])/g, ' $1').replace(/^./, (s: string) => s.toUpperCase())}
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <span className="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 px-2 py-0.5 rounded max-w-[120px] truncate" title={String(change.oldValue)}>
+                                        {change.oldValue === null || change.oldValue === undefined || change.oldValue === ''
+                                          ? '(empty)'
+                                          : String(change.oldValue)}
+                                      </span>
+                                      <span className="text-gray-400">→</span>
+                                      <span className="text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded max-w-[120px] truncate" title={String(change.newValue)}>
+                                        {change.newValue === null || change.newValue === undefined || change.newValue === ''
+                                          ? '(empty)'
+                                          : String(change.newValue)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              {/* Additional metadata info */}
+                              {log.userAgent && (
+                                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 text-xs text-gray-500 dark:text-gray-400">
+                                  <span className="font-medium">Device:</span> {log.userAgent.substring(0, 100)}...
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  )
+                })
               )}
             </tbody>
           </table>

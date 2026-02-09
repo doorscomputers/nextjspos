@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import bcrypt from 'bcryptjs'
 import { sendTelegramUserRoleChangeAlert } from '@/lib/telegram'
+import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { detectFieldChanges, formatChangesDescription, CRITICAL_FIELDS } from '@/lib/auditFieldChanges'
 
 // GET single user
 export async function GET(
@@ -250,6 +252,111 @@ export async function PUT(
     }, {
       timeout: 60000, // 60 seconds timeout for network resilience
     })
+
+    // ===== AUDIT LOGGING =====
+    try {
+      // Detect field changes for basic user fields
+      const fieldsToTrack = CRITICAL_FIELDS.User
+      const oldDataForAudit: Record<string, string | boolean | null> = {
+        username: existingUser.username,
+        email: existingUser.email,
+        firstName: existingUser.firstName,
+        lastName: existingUser.lastName,
+        allowLogin: existingUser.allowLogin,
+      }
+      const newDataForAudit: Record<string, string | boolean | null> = {
+        username: updatedUser.username,
+        email: updatedUser.email,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        allowLogin: updatedUser.allowLogin,
+      }
+
+      const fieldChanges = detectFieldChanges(oldDataForAudit, newDataForAudit, fieldsToTrack)
+
+      // Track password change (don't log actual password, just that it changed)
+      const passwordChanged = !!password
+      if (passwordChanged) {
+        fieldChanges.push({
+          field: 'password',
+          oldValue: '********',
+          newValue: '(changed)',
+          fieldType: 'string'
+        })
+      }
+
+      // Track role changes
+      const previousRoleIds = existingUser.roles.map(ur => ur.roleId)
+      const newRoleIds = roleIds || previousRoleIds
+      const rolesChanged = roleIds && (
+        previousRoleIds.length !== newRoleIds.length ||
+        previousRoleIds.some((id: number) => !newRoleIds.includes(id)) ||
+        newRoleIds.some((id: number) => !previousRoleIds.includes(id))
+      )
+
+      if (rolesChanged) {
+        fieldChanges.push({
+          field: 'roles',
+          oldValue: previousRoleNames.join(', ') || 'None',
+          newValue: 'Changed', // Will be updated below with actual names
+          fieldType: 'string'
+        })
+      }
+
+      // Only create audit log if something actually changed
+      if (fieldChanges.length > 0) {
+        const description = formatChangesDescription(fieldChanges)
+        const userName = [existingUser.firstName, existingUser.lastName].filter(Boolean).join(' ') || existingUser.username
+
+        // Get new role names if roles changed
+        let newRoleNamesForAudit: string[] = previousRoleNames
+        if (rolesChanged && roleIds) {
+          const newRoles = await prisma.role.findMany({
+            where: { id: { in: roleIds } },
+            select: { name: true }
+          })
+          newRoleNamesForAudit = newRoles.map(r => r.name)
+
+          // Update the roles change in fieldChanges
+          const rolesChangeIndex = fieldChanges.findIndex(c => c.field === 'roles')
+          if (rolesChangeIndex >= 0) {
+            fieldChanges[rolesChangeIndex].newValue = newRoleNamesForAudit.join(', ') || 'None'
+          }
+        }
+
+        await createAuditLog({
+          businessId: parseInt(sessionUser.businessId),
+          userId: parseInt(sessionUser.id),
+          username: sessionUser.username || `User#${sessionUser.id}`,
+          action: AuditAction.USER_UPDATE,
+          entityType: EntityType.USER,
+          entityIds: [userId],
+          description: `Updated user "${userName}": ${description}`,
+          metadata: {
+            targetUserId: userId,
+            targetUsername: existingUser.username,
+            changes: fieldChanges,
+            oldValues: {
+              ...oldDataForAudit,
+              roles: previousRoleNames.join(', ') || 'None'
+            },
+            newValues: {
+              ...newDataForAudit,
+              password: passwordChanged ? '(changed)' : '(unchanged)',
+              roles: newRoleNamesForAudit.join(', ') || 'None'
+            },
+            changedFields: fieldChanges.map(c => c.field),
+            changeCount: fieldChanges.length
+          },
+          ipAddress: getIpAddress(request),
+          userAgent: getUserAgent(request)
+        })
+      }
+    } catch (auditError) {
+      // Don't fail the update if audit logging fails
+      console.error('Audit logging failed for user update:', auditError)
+    }
+    // ===== END AUDIT LOGGING =====
 
     // Send Telegram notification for role changes
     if (roleIds && Array.isArray(roleIds)) {

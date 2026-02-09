@@ -129,6 +129,8 @@ export enum AuditAction {
   // POS-specific actions
   USER_LOGIN = 'user_login',
   USER_LOGOUT = 'user_logout',
+  USER_UPDATE = 'user_update',
+  USER_CREATE = 'user_create',
   SHIFT_OPEN = 'shift_open',
   SHIFT_CLOSE = 'shift_close',
   SHIFT_X_READING = 'shift_x_reading',
