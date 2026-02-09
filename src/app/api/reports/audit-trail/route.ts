@@ -134,8 +134,32 @@ export async function GET(request: NextRequest) {
     // Action filtering
     if (action) {
       const validActions = [
+        // User actions
+        'user_login', 'user_logout', 'user_update', 'user_create',
+        // Product actions
+        'product_create', 'product_update', 'product_delete', 'price_change',
+        // Sales actions
+        'sale_create', 'sale_update', 'sale_void', 'sale_refund', 'sale_return', 'sale_exchange', 'sale_delete',
+        // Transfer actions
+        'stock_transfer_create', 'stock_transfer_update', 'stock_transfer_send', 'stock_transfer_receive', 'stock_transfer_delete',
+        // Inventory actions
+        'inventory_correction_create', 'inventory_correction_update', 'inventory_correction_delete', 'inventory_correction_approve',
+        'opening_stock_set',
+        // Purchase actions
+        'purchase_order_create', 'purchase_order_update', 'purchase_order_delete',
+        'purchase_receipt_create', 'purchase_receipt_approve',
+        // Bulk actions
         'bulk_delete', 'bulk_activate', 'bulk_deactivate',
-        'bulk_add_to_location', 'bulk_remove_from_location'
+        'bulk_add_to_location', 'bulk_remove_from_location',
+        // POS actions
+        'shift_open', 'shift_close', 'shift_x_reading', 'shift_z_reading',
+        'discount_applied', 'discount_approved', 'price_override',
+        'cash_in', 'cash_out',
+        // Quotation actions
+        'quotation_create', 'quotation_update', 'quotation_convert', 'quotation_delete',
+        // Other
+        'warranty_claim_create', 'warranty_claim_resolve',
+        'employee_schedule_create', 'employee_schedule_update', 'employee_schedule_delete'
       ]
       if (!validActions.includes(action)) {
         return NextResponse.json(
