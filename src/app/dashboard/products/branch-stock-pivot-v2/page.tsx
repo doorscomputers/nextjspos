@@ -464,15 +464,6 @@ export default function BranchStockPivotV2Page() {
             alignment="right"
             cssClass="bg-amber-50 dark:bg-amber-900/20"
           />
-          <Column
-            dataField="mainStorePrice"
-            caption="Retail Price"
-            dataType="number"
-            format="₱#,##0.00"
-            width={130}
-            alignment="right"
-            cssClass="bg-blue-50 dark:bg-blue-900/20"
-          />
           {/* Dynamic Location Columns */}
           {locations.map((location) => (
             <Column
@@ -500,6 +491,15 @@ export default function BranchStockPivotV2Page() {
                 {data.text}
               </span>
             )}
+          />
+          <Column
+            dataField="mainStorePrice"
+            caption="Retail Price"
+            dataType="number"
+            format="₱#,##0.00"
+            width={130}
+            alignment="right"
+            cssClass="bg-blue-50 dark:bg-blue-900/20"
           />
           <Column
             dataField="totalCost"
