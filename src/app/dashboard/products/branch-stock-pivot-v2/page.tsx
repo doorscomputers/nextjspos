@@ -370,7 +370,8 @@ export default function BranchStockPivotV2Page() {
           )}
         </div>
 
-        <DataGrid
+        {/* Only render grid after initial data load to preserve column state */}
+        {!loading && <DataGrid
           ref={dataGridRef}
           dataSource={dataSource}
           showBorders={true}
@@ -382,8 +383,14 @@ export default function BranchStockPivotV2Page() {
           wordWrapEnabled={false}
           allowColumnReordering={true}
           allowColumnResizing={true}
+          repaintChangesOnly={true}
         >
-          <StateStoring enabled={true} type="localStorage" storageKey="branchStockPivotV2State-v2" />
+          <StateStoring
+            enabled={true}
+            type="localStorage"
+            storageKey="branchStockPivotV2-grid-state"
+            savingTimeout={100}
+          />
           <LoadPanel enabled={true} />
           <Scrolling mode="standard" />
           <Selection mode="multiple" showCheckBoxesMode="always" />
@@ -545,7 +552,17 @@ export default function BranchStockPivotV2Page() {
               />
             ))}
           </Summary>
-        </DataGrid>
+        </DataGrid>}
+
+        {/* Loading placeholder */}
+        {loading && (
+          <div className="flex items-center justify-center h-[700px] bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto mb-4"></div>
+              <p className="text-gray-600 dark:text-gray-400">Loading inventory data...</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
