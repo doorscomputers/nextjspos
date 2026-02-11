@@ -102,7 +102,7 @@ export async function PUT(
         data: {
           name: name !== undefined ? name : existing.name,
           description: description !== undefined ? description : existing.description,
-          sku: sku !== undefined ? sku : existing.sku,
+          sku: sku !== undefined ? (sku || null) : existing.sku,
           categoryId: categoryId !== undefined ? (categoryId ? parseInt(categoryId) : null) : existing.categoryId,
           targetPrice: targetPrice !== undefined ? targetPrice : existing.targetPrice,
           markupPercent: markupPercent !== undefined ? markupPercent : existing.markupPercent,
