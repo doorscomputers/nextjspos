@@ -438,6 +438,32 @@ export default function PackageTemplatesPage() {
     setTemplateItems(updated)
   }
 
+  // Toggle active status handler
+  const toggleTemplateActive = async (templateId: number, currentStatus: boolean) => {
+    try {
+      const response = await fetch(`/api/package-templates/${templateId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !currentStatus })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast.success(`Package ${!currentStatus ? 'activated' : 'deactivated'}`)
+        // Update local state
+        setTemplates(templates.map(t =>
+          t.id === templateId ? { ...t, isActive: !currentStatus } : t
+        ))
+      } else {
+        toast.error(data.error || 'Failed to toggle status')
+      }
+    } catch (error) {
+      console.error('Error toggling template status:', error)
+      toast.error('Failed to toggle status')
+    }
+  }
+
   // Delete handlers
   const handleDelete = async () => {
     if (!deletingItem) return
@@ -774,11 +800,23 @@ export default function PackageTemplatesPage() {
                 <Column
                   dataField="isActive"
                   caption="Status"
-                  width={100}
+                  width={150}
                   cellRender={({ data }: { data: PackageTemplate }) => (
-                    <span className={`px-2 py-1 rounded-full text-xs ${data.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                      {data.isActive ? 'Active' : 'Inactive'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <Badge className={data.isActive
+                        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/50 border-emerald-200 dark:border-emerald-700 shadow-sm'
+                        : 'bg-slate-200 dark:bg-gray-700 text-slate-600 dark:text-gray-300 border-slate-300 dark:border-gray-600 shadow-sm'
+                      }>
+                        {data.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                      {can(PERMISSIONS.PACKAGE_TEMPLATE_EDIT) && (
+                        <Switch
+                          checked={data.isActive}
+                          onCheckedChange={() => toggleTemplateActive(data.id, data.isActive)}
+                          className="data-[state=checked]:bg-emerald-600"
+                        />
+                      )}
+                    </div>
                   )}
                 />
                 <Column
