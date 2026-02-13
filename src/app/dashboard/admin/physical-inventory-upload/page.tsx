@@ -704,8 +704,12 @@ export default function AdminPhysicalInventoryUploadPage() {
 
                     return (
                       <React.Fragment key={idx}>
-                        <tr className="border-b dark:border-gray-700">
-                          <td className="py-2 px-2">
+                        <tr className={`border-l-4 ${
+                          item.difference < 0
+                            ? 'border-l-red-400 dark:border-l-red-500'
+                            : 'border-l-green-400 dark:border-l-green-500'
+                        } bg-orange-50/50 dark:bg-orange-900/10 font-medium`}>
+                          <td className="py-2.5 px-2">
                             <button
                               onClick={() => toggleHistoryRow(idx, item)}
                               className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
@@ -717,12 +721,12 @@ export default function AdminPhysicalInventoryUploadPage() {
                               }
                             </button>
                           </td>
-                          <td className="py-2 px-2 text-gray-900 dark:text-white">{item.locationName}</td>
-                          <td className="py-2 px-2 text-gray-600 dark:text-gray-400">{item.itemCode}</td>
-                          <td className="py-2 px-2 text-gray-900 dark:text-white">{item.productName}</td>
-                          <td className="py-2 px-2 text-right text-gray-600 dark:text-gray-400">{item.previousStock}</td>
-                          <td className="py-2 px-2 text-right font-medium text-blue-600 dark:text-blue-400">{item.newStock}</td>
-                          <td className={`py-2 px-2 text-right font-medium ${
+                          <td className="py-2.5 px-2 text-gray-900 dark:text-white">{item.locationName}</td>
+                          <td className="py-2.5 px-2 text-gray-700 dark:text-gray-300">{item.itemCode}</td>
+                          <td className="py-2.5 px-2 text-gray-900 dark:text-white">{item.productName}</td>
+                          <td className="py-2.5 px-2 text-right text-gray-600 dark:text-gray-400">{item.previousStock}</td>
+                          <td className="py-2.5 px-2 text-right font-bold text-blue-600 dark:text-blue-400">{item.newStock}</td>
+                          <td className={`py-2.5 px-2 text-right font-bold ${
                             item.difference > 0
                               ? 'text-green-600 dark:text-green-400'
                               : 'text-red-600 dark:text-red-400'
@@ -731,8 +735,8 @@ export default function AdminPhysicalInventoryUploadPage() {
                           </td>
                         </tr>
                         {isExpanded && (
-                          <tr className="bg-gray-50 dark:bg-gray-900/50">
-                            <td colSpan={7} className="px-4 py-3">
+                          <tr className="border-l-4 border-l-gray-300 dark:border-l-gray-600 bg-gray-50 dark:bg-gray-900/50">
+                            <td colSpan={7} className="pl-8 pr-4 py-3">
                               {isLoadingThis ? (
                                 <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 py-2">
                                   <ArrowPathIcon className="h-4 w-4 animate-spin" />
@@ -791,6 +795,8 @@ export default function AdminPhysicalInventoryUploadPage() {
                             </td>
                           </tr>
                         )}
+                        {/* Spacer row between product groups */}
+                        <tr className="h-1 bg-gray-200 dark:bg-gray-600"><td colSpan={7}></td></tr>
                       </React.Fragment>
                     )
                   })}
