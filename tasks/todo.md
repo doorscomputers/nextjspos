@@ -1,62 +1,29 @@
-# Package Template Toggle Active Feature
+# Add Product History to Physical Inventory Discrepancy Report
 
-## Problem
-The Package Templates page had a disabled field showing Active/Inactive status, but unlike the Products page, it did not have a clickable toggle switch to easily enable/disable packages.
-
-## Solution
-Add a clickable toggle switch to the Package Templates page status column, similar to the Products page implementation.
-
-## Tasks
-- [x] Check for existing toggle API endpoint for package templates
-- [x] Add toggle active function to Package Templates page
-- [x] Update Status column to include Switch component with toggle functionality
+## Todo
+- [x] Backend: Add `variationId` and `locationId` to preview response
+- [x] Frontend: Update `PreviewUpdate` interface with new fields
+- [x] Frontend: Add imports, state variables, and toggle function
+- [x] Frontend: Replace static discrepancy table rows with expandable rows + history sub-table
+- [x] Frontend: Reset expanded state on cancel/confirm
 
 ## Review
 
 ### Changes Made
 
-**File**: `src/app/dashboard/package-templates/page.tsx`
+**File: `src/app/api/admin/physical-inventory-upload/route.ts`**
+- Added `locationId` and `variationId` to the `previewUpdates` response mapping (2 lines). These fields already existed on `updateItems` but were omitted from the preview API response.
 
-**1. Added `toggleTemplateActive` function** (lines 441-465):
-```javascript
-const toggleTemplateActive = async (templateId: number, currentStatus: boolean) => {
-  try {
-    const response = await fetch(`/api/package-templates/${templateId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ isActive: !currentStatus })
-    })
-
-    const data = await response.json()
-
-    if (response.ok) {
-      toast.success(`Package ${!currentStatus ? 'activated' : 'deactivated'}`)
-      // Update local state
-      setTemplates(templates.map(t =>
-        t.id === templateId ? { ...t, isActive: !currentStatus } : t
-      ))
-    } else {
-      toast.error(data.error || 'Failed to toggle status')
-    }
-  } catch (error) {
-    console.error('Error toggling template status:', error)
-    toast.error('Failed to toggle status')
-  }
-}
-```
-
-**2. Updated Status column cell render** (lines 800-821):
-- Changed from simple text span to match Products page styling
-- Added Badge component with proper emerald/slate colors for active/inactive states
-- Added Switch component that appears when user has PACKAGE_TEMPLATE_EDIT permission
-- Switch uses emerald green color when checked (`data-[state=checked]:bg-emerald-600`)
-- Increased column width from 100 to 150 to accommodate the switch
-
-### No API Changes Required
-The existing PUT endpoint at `/api/package-templates/[id]/route.ts` already supports updating the `isActive` field, so no backend changes were needed.
+**File: `src/app/dashboard/admin/physical-inventory-upload/page.tsx`**
+- Added `React` import and `StockHistoryEntry` type import, plus `ChevronDownIcon`/`ChevronUpIcon`
+- Added `locationId` and `variationId` fields to `PreviewUpdate` interface
+- Added 3 state variables: `expandedRows`, `historyCache`, `loadingHistory`
+- Added `toggleHistoryRow()` function that lazy-loads stock history from `/api/products/[id]/stock-history` on expand, caches results, and shows last 20 transactions
+- Replaced the static discrepancy table with expandable rows: each row has a chevron button, and when expanded shows a sub-table with Date, Type, Reference, Qty Change, Balance, Notes columns. Color-coded green for additions, red for removals.
+- State is cleared on cancel preview and on successful confirm upload
 
 ### Impact
-- Minimal frontend changes (1 function added, 1 column updated)
-- Uses existing API endpoint
-- Consistent with Products page toggle behavior
-- Respects RBAC permissions (only shows toggle if user has PACKAGE_TEMPLATE_EDIT permission)
+- No new API endpoints created (reuses existing stock-history API)
+- Only 2 files modified
+- History is lazy-loaded per item on demand, keeping initial preview fast
+- Backward-compatible: `locationId`/`variationId` are additive fields in the API response

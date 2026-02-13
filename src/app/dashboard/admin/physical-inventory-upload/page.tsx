@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -13,8 +13,11 @@ import {
   CheckCircleIcon,
   ArrowPathIcon,
   XCircleIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  ChevronDownIcon,
+  ChevronUpIcon
 } from '@heroicons/react/24/outline'
+import { StockHistoryEntry } from '@/types/product'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
@@ -56,9 +59,11 @@ interface VerifiedDetail {
 
 interface PreviewUpdate {
   locationName: string
+  locationId: number
   itemCode: string
   productId: number
   productName: string
+  variationId: number
   variationName: string
   previousStock: number
   newStock: number
@@ -126,6 +131,9 @@ export default function AdminPhysicalInventoryUploadPage() {
   const [isConfirming, setIsConfirming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [idempotencyKey, setIdempotencyKey] = useState<string>('')
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set())
+  const [historyCache, setHistoryCache] = useState<Record<string, StockHistoryEntry[]>>({})
+  const [loadingHistory, setLoadingHistory] = useState<Set<string>>(new Set())
 
   const canUpload = can(PERMISSIONS.ADMIN_PHYSICAL_INVENTORY_UPLOAD)
 
@@ -155,6 +163,41 @@ export default function AdminPhysicalInventoryUploadPage() {
       setError('Failed to load locations')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const toggleHistoryRow = async (idx: number, item: PreviewUpdate) => {
+    const newExpanded = new Set(expandedRows)
+    if (newExpanded.has(idx)) {
+      newExpanded.delete(idx)
+      setExpandedRows(newExpanded)
+      return
+    }
+
+    newExpanded.add(idx)
+    setExpandedRows(newExpanded)
+
+    const cacheKey = `${item.productId}-${item.variationId}-${item.locationId}`
+    if (historyCache[cacheKey]) return // already cached
+
+    setLoadingHistory(prev => new Set(prev).add(cacheKey))
+    try {
+      const res = await fetch(
+        `/api/products/${item.productId}/stock-history?variationId=${item.variationId}&locationId=${item.locationId}`
+      )
+      if (res.ok) {
+        const data = await res.json()
+        const entries: StockHistoryEntry[] = (data.history || []).slice(0, 20)
+        setHistoryCache(prev => ({ ...prev, [cacheKey]: entries }))
+      }
+    } catch (err) {
+      console.error('Failed to fetch stock history:', err)
+    } finally {
+      setLoadingHistory(prev => {
+        const next = new Set(prev)
+        next.delete(cacheKey)
+        return next
+      })
     }
   }
 
@@ -305,6 +348,9 @@ export default function AdminPhysicalInventoryUploadPage() {
           fileInputRef.current.value = ''
         }
         generateNewIdempotencyKey()
+        setExpandedRows(new Set())
+        setHistoryCache({})
+        setLoadingHistory(new Set())
       }
     } catch (err: any) {
       setError(err.message || 'Failed to upload physical inventory')
@@ -317,6 +363,9 @@ export default function AdminPhysicalInventoryUploadPage() {
   const handleCancelPreview = () => {
     setPreviewResult(null)
     setIsConfirming(false)
+    setExpandedRows(new Set())
+    setHistoryCache({})
+    setLoadingHistory(new Set())
   }
 
   const handleRetry = () => {
@@ -637,6 +686,7 @@ export default function AdminPhysicalInventoryUploadPage() {
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b dark:border-gray-700">
+                    <th className="text-left py-2 px-2 text-gray-600 dark:text-gray-400 w-8"></th>
                     <th className="text-left py-2 px-2 text-gray-600 dark:text-gray-400">Location</th>
                     <th className="text-left py-2 px-2 text-gray-600 dark:text-gray-400">Item Code</th>
                     <th className="text-left py-2 px-2 text-gray-600 dark:text-gray-400">Product</th>
@@ -646,22 +696,104 @@ export default function AdminPhysicalInventoryUploadPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {previewResult.previewUpdates.map((item, idx) => (
-                    <tr key={idx} className="border-b dark:border-gray-700">
-                      <td className="py-2 px-2 text-gray-900 dark:text-white">{item.locationName}</td>
-                      <td className="py-2 px-2 text-gray-600 dark:text-gray-400">{item.itemCode}</td>
-                      <td className="py-2 px-2 text-gray-900 dark:text-white">{item.productName}</td>
-                      <td className="py-2 px-2 text-right text-gray-600 dark:text-gray-400">{item.previousStock}</td>
-                      <td className="py-2 px-2 text-right font-medium text-blue-600 dark:text-blue-400">{item.newStock}</td>
-                      <td className={`py-2 px-2 text-right font-medium ${
-                        item.difference > 0
-                          ? 'text-green-600 dark:text-green-400'
-                          : 'text-red-600 dark:text-red-400'
-                      }`}>
-                        {item.difference > 0 ? '+' : ''}{item.difference}
-                      </td>
-                    </tr>
-                  ))}
+                  {previewResult.previewUpdates.map((item, idx) => {
+                    const cacheKey = `${item.productId}-${item.variationId}-${item.locationId}`
+                    const isExpanded = expandedRows.has(idx)
+                    const isLoadingThis = loadingHistory.has(cacheKey)
+                    const historyEntries = historyCache[cacheKey]
+
+                    return (
+                      <React.Fragment key={idx}>
+                        <tr className="border-b dark:border-gray-700">
+                          <td className="py-2 px-2">
+                            <button
+                              onClick={() => toggleHistoryRow(idx, item)}
+                              className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                              title={isExpanded ? 'Hide history' : 'Show history'}
+                            >
+                              {isExpanded
+                                ? <ChevronUpIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                                : <ChevronDownIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                              }
+                            </button>
+                          </td>
+                          <td className="py-2 px-2 text-gray-900 dark:text-white">{item.locationName}</td>
+                          <td className="py-2 px-2 text-gray-600 dark:text-gray-400">{item.itemCode}</td>
+                          <td className="py-2 px-2 text-gray-900 dark:text-white">{item.productName}</td>
+                          <td className="py-2 px-2 text-right text-gray-600 dark:text-gray-400">{item.previousStock}</td>
+                          <td className="py-2 px-2 text-right font-medium text-blue-600 dark:text-blue-400">{item.newStock}</td>
+                          <td className={`py-2 px-2 text-right font-medium ${
+                            item.difference > 0
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-red-600 dark:text-red-400'
+                          }`}>
+                            {item.difference > 0 ? '+' : ''}{item.difference}
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr className="bg-gray-50 dark:bg-gray-900/50">
+                            <td colSpan={7} className="px-4 py-3">
+                              {isLoadingThis ? (
+                                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 py-2">
+                                  <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                                  Loading transaction history...
+                                </div>
+                              ) : historyEntries && historyEntries.length > 0 ? (
+                                <div>
+                                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
+                                    Recent Transaction History (last {historyEntries.length})
+                                  </p>
+                                  <table className="min-w-full text-xs">
+                                    <thead>
+                                      <tr className="border-b dark:border-gray-700">
+                                        <th className="text-left py-1 px-2 text-gray-500 dark:text-gray-400">Date</th>
+                                        <th className="text-left py-1 px-2 text-gray-500 dark:text-gray-400">Type</th>
+                                        <th className="text-left py-1 px-2 text-gray-500 dark:text-gray-400">Reference</th>
+                                        <th className="text-right py-1 px-2 text-gray-500 dark:text-gray-400">Qty Change</th>
+                                        <th className="text-right py-1 px-2 text-gray-500 dark:text-gray-400">Balance</th>
+                                        <th className="text-left py-1 px-2 text-gray-500 dark:text-gray-400">Notes</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {historyEntries.map((entry, hIdx) => {
+                                        const qtyChange = entry.quantityAdded > 0
+                                          ? entry.quantityAdded
+                                          : entry.quantityRemoved > 0
+                                            ? -entry.quantityRemoved
+                                            : 0
+                                        return (
+                                          <tr key={hIdx} className="border-b dark:border-gray-700/50">
+                                            <td className="py-1 px-2 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                                              {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                            </td>
+                                            <td className="py-1 px-2 text-gray-700 dark:text-gray-300">{entry.transactionTypeLabel}</td>
+                                            <td className="py-1 px-2 text-gray-500 dark:text-gray-400">{entry.referenceNumber || '-'}</td>
+                                            <td className={`py-1 px-2 text-right font-medium ${
+                                              qtyChange > 0
+                                                ? 'text-green-600 dark:text-green-400'
+                                                : qtyChange < 0
+                                                  ? 'text-red-600 dark:text-red-400'
+                                                  : 'text-gray-500'
+                                            }`}>
+                                              {qtyChange > 0 ? '+' : ''}{qtyChange}
+                                            </td>
+                                            <td className="py-1 px-2 text-right text-gray-700 dark:text-gray-300">{entry.runningBalance}</td>
+                                            <td className="py-1 px-2 text-gray-500 dark:text-gray-400 max-w-[200px] truncate">{entry.notes || '-'}</td>
+                                          </tr>
+                                        )
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-gray-500 dark:text-gray-400 py-1">No transaction history found for this item at this location.</p>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

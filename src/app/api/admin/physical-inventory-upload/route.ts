@@ -410,9 +410,11 @@ export async function POST(request: NextRequest) {
 
         const previewUpdates = updateItems.map(item => ({
           locationName: item.branchName,
+          locationId: item.locationId,
           itemCode: item.itemCode,
           productId: item.productId,
           productName: item.productName,
+          variationId: item.variationId,
           variationName: item.variationName,
           previousStock: item.currentStock,
           newStock: item.actualCount,
