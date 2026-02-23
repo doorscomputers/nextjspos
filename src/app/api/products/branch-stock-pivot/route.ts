@@ -334,21 +334,26 @@ export async function POST(request: NextRequest) {
       return a.name.localeCompare(b.name)
     })
 
+    // Build set of active location IDs to filter out disabled locations
+    const activeLocationIds = new Set(allLocations.map(loc => loc.id))
+
     // Transform rows
     const transformedRows = rows.map((row: any) => {
       const stockByLocation: Record<number, number> = {}
 
-      // Extract from fixed columns
+      // Extract from fixed columns (only active locations)
       for (let i = 1; i <= 20; i++) {
+        if (!activeLocationIds.has(i)) continue
         const qty = parseFloat(row[`loc_${i}_qty`] || 0)
         if (qty > 0) {
           stockByLocation[i] = qty
         }
       }
 
-      // Extract from JSON column
+      // Extract from JSON column (only active locations)
       if (row.extra_locations_json) {
         Object.entries(row.extra_locations_json).forEach(([locId, qty]: [string, any]) => {
+          if (!activeLocationIds.has(parseInt(locId))) return
           stockByLocation[parseInt(locId)] = parseFloat(qty || 0)
         })
       }
@@ -357,16 +362,15 @@ export async function POST(request: NextRequest) {
       const price = parseFloat(row.price || 0)
       const mainStorePrice = parseFloat(row.main_store_price || 0)
 
-      // Compute totalStock by summing individual location quantities
-      // instead of using row.total_stock from the materialized view,
-      // because the view's MAX(CASE...ELSE 0) masks negative values to 0
-      // while SUM() includes them, causing totalStock != sum of visible columns
+      // Compute totalStock by summing only active location quantities
       let totalStock = 0
       for (let i = 1; i <= 20; i++) {
+        if (!activeLocationIds.has(i)) continue
         totalStock += parseFloat(row[`loc_${i}_qty`] || 0)
       }
       if (row.extra_locations_json) {
         Object.entries(row.extra_locations_json).forEach(([locId, qty]: [string, any]) => {
+          if (!activeLocationIds.has(parseInt(locId))) return
           totalStock += parseFloat(qty || 0)
         })
       }
