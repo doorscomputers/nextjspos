@@ -430,11 +430,14 @@ export async function POST(
         // 7. Update shift running totals for exchange
         // IMPORTANT: Use CURRENT shift so exchange appears in current Z Reading
         if (shiftIdForExchange) {
+          // When customer gets credit, cashier gives cash back from drawer
+          // This must REDUCE expected cash (negative cashImpact)
+          const cashImpact = customerGetsCredit ? -Math.abs(priceDifference) : actualPayment
           await incrementShiftTotalsForExchange(
             shiftIdForExchange, // CURRENT shift, not original sale's shift
             exchangeTotal,      // Total of new items issued
             returnTotal,        // Total of items returned
-            actualPayment,      // Actual cash collected from customer
+            cashImpact,         // Positive = cash in, Negative = cash out (refund to customer)
             tx
           )
         }

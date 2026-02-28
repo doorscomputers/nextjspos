@@ -301,7 +301,7 @@ export async function incrementShiftTotalsForExchange(
   shiftId: number,
   exchangeTotal: number,    // Total value of new items issued
   returnTotal: number,       // Total value of items returned
-  cashCollected: number,     // Actual cash received from customer
+  cashImpact: number,        // Positive = cash in (customer pays more), Negative = cash out (customer gets credit)
   tx?: any
 ): Promise<void> {
   const db = tx || prisma
@@ -327,15 +327,15 @@ export async function incrementShiftTotalsForExchange(
       // Track returns separately (subtracted in reading display)
       runningReturnAmount: { increment: returnTotal },
 
-      // Cash collected from customer (if they paid difference)
-      runningCashSales: { increment: cashCollected },
+      // Cash impact: positive when customer pays more, negative when customer gets credit (cash out)
+      runningCashSales: { increment: cashImpact },
     },
   })
 
   console.log(
     `[ShiftTotals] 🔄 Exchange recorded for shift ${shiftId}: ` +
     `Exchange: ₱${exchangeTotal.toFixed(2)}, Return: ₱${returnTotal.toFixed(2)}, ` +
-    `Net Impact: ₱${netSalesImpact.toFixed(2)}, Cash: ₱${cashCollected.toFixed(2)}`
+    `Net Impact: ₱${netSalesImpact.toFixed(2)}, Cash: ₱${cashImpact.toFixed(2)}`
   )
 }
 
