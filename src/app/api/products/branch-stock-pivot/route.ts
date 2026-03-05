@@ -40,10 +40,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const sessionUser = session.user as { businessId?: number | string; locationIds?: number[]; permissions?: string[] }
+    const sessionUser = session.user as { businessId?: number | string; locationIds?: number[]; permissions?: string[]; roles?: string[] }
     const businessIdRaw = sessionUser.businessId
     const userLocationIds: number[] = sessionUser.locationIds || []
     const userPermissions: string[] = sessionUser.permissions || []
+    const userRoles: string[] = sessionUser.roles || []
     const businessId =
       typeof businessIdRaw === 'string' ? parseInt(businessIdRaw, 10) : businessIdRaw
 
@@ -338,6 +339,7 @@ export async function POST(request: NextRequest) {
 
     // Filter locations by user access
     const hasAllLocationAccess = userPermissions.includes('access_all_locations')
+      || userRoles.includes('Warehouse Manager')
     const filteredLocations = hasAllLocationAccess
       ? allLocations
       : allLocations.filter(loc => userLocationIds.includes(loc.id))
