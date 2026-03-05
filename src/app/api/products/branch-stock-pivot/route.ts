@@ -40,8 +40,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const sessionUser = session.user as { businessId?: number | string }
+    const sessionUser = session.user as { businessId?: number | string; locationIds?: number[]; permissions?: string[] }
     const businessIdRaw = sessionUser.businessId
+    const userLocationIds: number[] = sessionUser.locationIds || []
+    const userPermissions: string[] = sessionUser.permissions || []
     const businessId =
       typeof businessIdRaw === 'string' ? parseInt(businessIdRaw, 10) : businessIdRaw
 
@@ -334,8 +336,14 @@ export async function POST(request: NextRequest) {
       return a.name.localeCompare(b.name)
     })
 
-    // Build set of active location IDs to filter out disabled locations
-    const activeLocationIds = new Set(allLocations.map(loc => loc.id))
+    // Filter locations by user access
+    const hasAllLocationAccess = userPermissions.includes('access_all_locations')
+    const filteredLocations = hasAllLocationAccess
+      ? allLocations
+      : allLocations.filter(loc => userLocationIds.includes(loc.id))
+
+    // Build set of active location IDs to filter out disabled/unauthorized locations
+    const activeLocationIds = new Set(filteredLocations.map(loc => loc.id))
 
     // Transform rows
     const transformedRows = rows.map((row: any) => {
@@ -423,7 +431,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       rows: transformedRows,
-      locations: allLocations,
+      locations: filteredLocations,
       totals: {
         byLocation: locationTotals,
         costByLocation: locationCostTotals,
