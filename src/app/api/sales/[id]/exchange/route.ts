@@ -193,8 +193,14 @@ export async function POST(
       const customerPaysMore = priceDifference > 0
       const customerGetsCredit = priceDifference < 0
 
+      // Detect if original sale is a credit/charge sale (unpaid or partially paid)
+      const isOriginalCreditSale = sale.status === 'pending'
+
       // Validate payment amount matches price difference
-      const expectedPayment = customerPaysMore ? priceDifference : 0
+      // Credit sale exchange-up: difference goes to AR, no cash required at exchange time
+      const expectedPayment = customerPaysMore
+        ? (isOriginalCreditSale ? 0 : priceDifference)
+        : 0
       const actualPayment = parseFloat(paymentAmount || 0)
 
       if (customerPaysMore && Math.abs(actualPayment - expectedPayment) > 0.01) {
@@ -335,8 +341,9 @@ export async function POST(
             subtotal: exchangeTotal, // Value of new items issued
             taxAmount: 0,
             discountAmount: returnTotal, // Credit from returned items
-            totalAmount: Math.max(priceDifference, 0), // Only positive difference (what customer owes)
-            paidAmount: customerPaysMore ? actualPayment : 0, // Amount actually paid
+            // Credit sale exchanges: charge goes to original sale's AR, not this exchange record
+            totalAmount: (isOriginalCreditSale && priceDifference !== 0) ? 0 : Math.max(priceDifference, 0),
+            paidAmount: (isOriginalCreditSale || !customerPaysMore) ? 0 : actualPayment,
             createdBy: parseInt(user.id),
             shiftId: shiftIdForExchange, // Link to CURRENT shift for Z Reading
             // Link to original sale
@@ -427,12 +434,34 @@ export async function POST(
           })
         }
 
-        // 7. Update shift running totals for exchange
+        // 7. Adjust original credit sale's totalAmount for any price difference
+        // Credit sale customers haven't paid yet, so adjust what they owe
+        if (isOriginalCreditSale && priceDifference !== 0) {
+          if (customerGetsCredit) {
+            // Exchange-down: customer owes less
+            await tx.sale.update({
+              where: { id: saleId },
+              data: { totalAmount: { decrement: Math.abs(priceDifference) } },
+            })
+          } else if (customerPaysMore) {
+            // Exchange-up: customer owes more
+            await tx.sale.update({
+              where: { id: saleId },
+              data: { totalAmount: { increment: priceDifference } },
+            })
+          }
+        }
+
+        // 8. Update shift running totals for exchange
         // IMPORTANT: Use CURRENT shift so exchange appears in current Z Reading
         if (shiftIdForExchange) {
           // When customer gets credit, cashier gives cash back from drawer
           // This must REDUCE expected cash (negative cashImpact)
-          const cashImpact = customerGetsCredit ? -Math.abs(priceDifference) : actualPayment
+          // Credit sale exchange-down: no cash was collected, so no cash leaves drawer
+          // Cash sale exchange-down: customer gets cash refund from drawer
+          const cashImpact = customerGetsCredit
+            ? (isOriginalCreditSale ? 0 : -Math.abs(priceDifference))
+            : actualPayment
           await incrementShiftTotalsForExchange(
             shiftIdForExchange, // CURRENT shift, not original sale's shift
             exchangeTotal,      // Total of new items issued
