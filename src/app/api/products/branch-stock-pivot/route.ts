@@ -340,6 +340,7 @@ export async function POST(request: NextRequest) {
     // Filter locations by user access
     const hasAllLocationAccess = userPermissions.includes('access_all_locations')
       || userRoles.includes('Warehouse Manager')
+      || userRoles.includes('WH Encoder')
     const filteredLocations = hasAllLocationAccess
       ? allLocations
       : allLocations.filter(loc => userLocationIds.includes(loc.id))
