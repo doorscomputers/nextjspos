@@ -1,29 +1,47 @@
-# Add Product History to Physical Inventory Discrepancy Report
+# Fix Dashboard Purchase Data Bugs
 
 ## Todo
-- [x] Backend: Add `variationId` and `locationId` to preview response
-- [x] Frontend: Update `PreviewUpdate` interface with new fields
-- [x] Frontend: Add imports, state variables, and toggle function
-- [x] Frontend: Replace static discrepancy table rows with expandable rows + history sub-table
-- [x] Frontend: Reset expanded state on cancel/confirm
+
+### Fix 1: Intelligence API - Add Real Purchase Data
+- [x] Add `accountsPayable.aggregate` query to the Promise.all block in intelligence route
+- [x] Add daily purchase trends query (groupBy on invoiceDate)
+- [x] Add `totalPurchases` and `purchaseTrends` to the response
+- [x] Update analytics-devextreme page to use real `totalPurchases` from API
+- [x] Update analytics-devextreme page trend chart to use real purchase data
+
+### Fix 2: Stats Route - Add Date Filter to Purchase Query
+- [x] Add `invoiceDate: dateFilter` to the purchase aggregate query in stats route
+
+### Fix 3: Stats-Progressive Route - Add Date Filter to Purchase Query
+- [x] Add `invoiceDate: dateFilter` to the purchase aggregate query in stats-progressive route
+
+### Verification
+- [x] TypeScript compiles cleanly for all modified files
 
 ## Review
 
-### Changes Made
+### Files Modified
 
-**File: `src/app/api/admin/physical-inventory-upload/route.ts`**
-- Added `locationId` and `variationId` to the `previewUpdates` response mapping (2 lines). These fields already existed on `updateItems` but were omitted from the preview API response.
+**1. `src/app/api/dashboard/intelligence/route.ts`**
+- Added `purchaseWhere` clause with date range and location filtering (matches existing pattern from stats-cached)
+- Added `purchaseAggregate` query (`accountsPayable.aggregate`) to the existing Promise.all block
+- Added `purchaseTrends` query (`accountsPayable.groupBy` on `invoiceDate`) for daily purchase amounts
+- Added `totalPurchases` to the `executive` response object (real data from AccountsPayable)
+- Added `purchaseTrends` array to the response
 
-**File: `src/app/dashboard/admin/physical-inventory-upload/page.tsx`**
-- Added `React` import and `StockHistoryEntry` type import, plus `ChevronDownIcon`/`ChevronUpIcon`
-- Added `locationId` and `variationId` fields to `PreviewUpdate` interface
-- Added 3 state variables: `expandedRows`, `historyCache`, `loadingHistory`
-- Added `toggleHistoryRow()` function that lazy-loads stock history from `/api/products/[id]/stock-history` on expand, caches results, and shows last 20 transactions
-- Replaced the static discrepancy table with expandable rows: each row has a chevron button, and when expanded shows a sub-table with Date, Type, Reference, Qty Change, Balance, Notes columns. Color-coded green for additions, red for removals.
-- State is cleared on cancel preview and on successful confirm upload
+**2. `src/app/dashboard/analytics-devextreme/page.tsx`**
+- Added `purchaseTrends` to the `AnalyticsData` interface
+- Replaced fake `executive.revenue - executive.profit` (COGS) with real `executive.totalPurchases`
+- Replaced fake `trend.revenue * 0.6` (hardcoded 60% multiplier) with real daily purchase amounts from `purchaseTrends`, merged by date
+
+**3. `src/app/api/dashboard/stats/route.ts`**
+- Added `...(Object.keys(dateFilter).length > 0 ? { invoiceDate: dateFilter } : {})` to the purchase aggregate query's where clause
+
+**4. `src/app/api/dashboard/stats-progressive/route.ts`**
+- Same fix as stats route - added date filter to purchase aggregate query
 
 ### Impact
-- No new API endpoints created (reuses existing stock-history API)
-- Only 2 files modified
-- History is lazy-loaded per item on demand, keeping initial preview fast
-- Backward-compatible: `locationId`/`variationId` are additive fields in the API response
+- 4 files modified
+- All changes are additive (new queries) or simple replacements (fake → real data)
+- Main dashboard (`stats-cached`) is NOT touched - already correct
+- No changes to database schema or RBAC

@@ -146,6 +146,7 @@ export async function GET(request: NextRequest) {
           ...(locationId && locationId !== 'all' ? {
             purchase: { locationId: parseInt(locationId) }
           } : {}),
+          ...(Object.keys(dateFilter).length > 0 ? { invoiceDate: dateFilter } : {}),
         },
         _sum: { totalAmount: true },
         _count: true,

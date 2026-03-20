@@ -62,6 +62,18 @@ export async function POST(request: NextRequest) {
     }
 
     // ========== EXECUTIVE SUMMARY ==========
+    // Purchase where clause for accountsPayable
+    const purchaseWhere: any = {
+      businessId,
+      invoiceDate: {
+        gte: start,
+        lte: end
+      }
+    }
+    if (locationIds.length > 0) {
+      purchaseWhere.purchase = { locationId: { in: locationIds } }
+    }
+
     const [
       currentSales,
       previousSales,
@@ -69,7 +81,8 @@ export async function POST(request: NextRequest) {
       locations,
       currentInventoryValue,
       lowStockCount,
-      outOfStockCount
+      outOfStockCount,
+      purchaseAggregate,
     ] = await Promise.all([
       // Current period sales
       prisma.sale.findMany({
@@ -134,8 +147,17 @@ export async function POST(request: NextRequest) {
         LEFT JOIN "variation_location_details" vld ON v.id = vld."product_variation_id"
         WHERE p."business_id" = ${businessId}
         AND vld."qty_available" = 0
-      `
+      `,
+      // Total purchases from AccountsPayable
+      prisma.accountsPayable.aggregate({
+        where: purchaseWhere,
+        _sum: { totalAmount: true },
+        _count: true,
+      }),
     ])
+
+    // Calculate purchase total
+    const totalPurchaseAmount = Number(purchaseAggregate._sum.totalAmount || 0)
 
     // Calculate current metrics
     const currentRevenue = currentSales.reduce((sum, s) => sum + Number(s.totalAmount), 0)
@@ -196,6 +218,19 @@ export async function POST(request: NextRequest) {
     })
 
     revenueTrends.sort((a, b) => a.date.localeCompare(b.date))
+
+    // ========== PURCHASE TRENDS (DAILY) ==========
+    const purchaseTrendsRaw = await prisma.accountsPayable.groupBy({
+      by: ['invoiceDate'],
+      where: purchaseWhere,
+      _sum: { totalAmount: true },
+      orderBy: { invoiceDate: 'asc' },
+    })
+
+    const purchaseTrends = purchaseTrendsRaw.map(item => ({
+      date: new Date(item.invoiceDate).toISOString().split('T')[0],
+      amount: Number(item._sum.totalAmount || 0),
+    }))
 
     // ========== TOP PRODUCTS BY REVENUE ==========
     const productRevenue = new Map<number, {
@@ -464,12 +499,15 @@ export async function POST(request: NextRequest) {
           avgTransactionValue,
           itemsSold: currentItemsSold,
           totalCustomers,
+          totalPurchases: totalPurchaseAmount,
           inventoryValue,
           lowStockCount: Number(lowStockCount[0]?.count || 0),
           outOfStockCount: Number(outOfStockCount[0]?.count || 0)
         },
         // Revenue Analysis
         revenueTrends,
+        // Purchase Trends
+        purchaseTrends,
         // Product Performance
         topProducts,
         // Category Performance

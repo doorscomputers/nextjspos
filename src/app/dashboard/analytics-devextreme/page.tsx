@@ -19,6 +19,10 @@ interface AnalyticsData {
     revenue: number
     transactions: number
   }>
+  purchaseTrends: Array<{
+    date: string
+    amount: number
+  }>
   topProducts: Array<{
     name: string
     revenue: number
@@ -86,13 +90,19 @@ export default function AnalyticsDevExtremePage() {
     )
   }
 
-  const { executive, revenueTrends, topProducts, categoryData } = data
+  const { executive, revenueTrends, purchaseTrends, topProducts, categoryData } = data
 
-  // Transform revenue trends for chart (combine sales and purchases)
+  // Build a map of purchase amounts by date for merging with sales trends
+  const purchaseByDate = new Map<string, number>()
+  if (purchaseTrends) {
+    purchaseTrends.forEach(p => purchaseByDate.set(p.date, p.amount))
+  }
+
+  // Transform revenue trends for chart (combine sales and real purchases)
   const salesData = revenueTrends.map(trend => ({
     date: trend.date,
     sales: trend.revenue,
-    purchases: trend.revenue * 0.6, // Approximate purchases as 60% of revenue
+    purchases: purchaseByDate.get(trend.date) || 0,
   }))
 
   // Transform top products data
@@ -107,7 +117,7 @@ export default function AnalyticsDevExtremePage() {
     value: c.revenue,
   }))
 
-  const totalPurchases = executive.revenue - executive.profit
+  const totalPurchases = executive.totalPurchases
 
   return (
     <div className="p-6 space-y-6">
