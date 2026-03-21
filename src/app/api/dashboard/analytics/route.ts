@@ -68,7 +68,7 @@ export async function POST(request: Request) {
             prisma.sale.count({
                 where: {
                     businessId,
-                    ...(dateFilter ? { createdAt: dateFilter } : {}),
+                    ...(dateFilter ? { saleDate: dateFilter } : {}),
                     ...(locationFilter ? { locationId: locationFilter } : {}),
                     status: {
                         notIn: ['voided', 'cancelled']
@@ -126,7 +126,7 @@ export async function POST(request: Request) {
         const salesData = await prisma.sale.findMany({
             where: {
                 businessId,
-                ...(dateFilter ? { createdAt: dateFilter } : {}),
+                ...(dateFilter ? { saleDate: dateFilter } : {}),
                 ...(locationFilter ? { locationId: locationFilter } : {}),
                 status: {
                     notIn: ['voided', 'cancelled']
@@ -443,7 +443,7 @@ export async function POST(request: Request) {
             const previousSales = await prisma.sale.findMany({
                 where: {
                     businessId,
-                    createdAt: {
+                    saleDate: {
                         gte: previousStart,
                         lte: previousEnd,
                     },

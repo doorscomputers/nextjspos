@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { Prisma } from '@prisma/client'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 
@@ -138,6 +139,7 @@ export async function POST(request: NextRequest) {
         WHERE p."business_id" = ${businessId}
         AND vld."qty_available" <= p."alert_quantity"
         AND vld."qty_available" > 0
+        ${locationIds.length > 0 ? Prisma.sql`AND vld."location_id" IN (${Prisma.join(locationIds)})` : Prisma.empty}
       `,
       // Out of stock count
       prisma.$queryRaw<Array<{ count: bigint }>>`
@@ -147,6 +149,7 @@ export async function POST(request: NextRequest) {
         LEFT JOIN "variation_location_details" vld ON v.id = vld."product_variation_id"
         WHERE p."business_id" = ${businessId}
         AND vld."qty_available" = 0
+        ${locationIds.length > 0 ? Prisma.sql`AND vld."location_id" IN (${Prisma.join(locationIds)})` : Prisma.empty}
       `,
       // Total purchases from AccountsPayable
       prisma.accountsPayable.aggregate({

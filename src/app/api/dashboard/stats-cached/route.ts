@@ -230,6 +230,7 @@ export async function GET(request: NextRequest) {
           salesLast30Days,
           salesCurrentYear,
           allProductsWithAlerts,
+          expenseData,
           // Merged from second Promise.all:
           pendingShipments,
           salesPaymentDueRaw,
@@ -337,6 +338,17 @@ export async function GET(request: NextRequest) {
             },
           }),
 
+          // Total Expenses
+          prisma.expense.aggregate({
+            where: {
+              businessId,
+              status: { in: ['approved', 'posted'] },
+              ...(Object.keys(dateFilter).length > 0 ? { expenseDate: dateFilter } : {}),
+              ...(whereClause.locationId ? { locationId: whereClause.locationId } : {}),
+            },
+            _sum: { amount: true },
+          }),
+
           // ===== MERGED FROM SECOND PROMISE.ALL - Now all queries run in parallel =====
 
           // Pending Shipments/Transfers
@@ -398,9 +410,6 @@ export async function GET(request: NextRequest) {
             take: 20,
           }),
         ])
-
-        // Process data
-        const expenseData = { _sum: { amount: null } }
 
         const stockAlerts = allProductsWithAlerts
           .filter((item) => {

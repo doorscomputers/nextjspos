@@ -26,14 +26,14 @@ export async function GET(request: NextRequest) {
 
     // Date filtering
     if (startDate || endDate) {
-      where.createdAt = {}
+      where.saleDate = {}
       if (startDate) {
-        where.createdAt.gte = new Date(startDate)
+        where.saleDate.gte = new Date(startDate)
       }
       if (endDate) {
         const end = new Date(endDate)
         end.setHours(23, 59, 59, 999)
-        where.createdAt.lte = end
+        where.saleDate.lte = end
       }
     }
 
@@ -72,8 +72,8 @@ export async function GET(request: NextRequest) {
           totalSpent: 0,
           totalItems: 0,
           totalDiscount: 0,
-          firstPurchase: sale.createdAt,
-          lastPurchase: sale.createdAt,
+          firstPurchase: sale.saleDate,
+          lastPurchase: sale.saleDate,
           purchases: [],
         })
       }
@@ -87,15 +87,15 @@ export async function GET(request: NextRequest) {
         0
       )
 
-      if (sale.createdAt < customerData.firstPurchase) {
-        customerData.firstPurchase = sale.createdAt
+      if (sale.saleDate < customerData.firstPurchase) {
+        customerData.firstPurchase = sale.saleDate
       }
-      if (sale.createdAt > customerData.lastPurchase) {
-        customerData.lastPurchase = sale.createdAt
+      if (sale.saleDate > customerData.lastPurchase) {
+        customerData.lastPurchase = sale.saleDate
       }
 
       customerData.purchases.push({
-        date: sale.createdAt,
+        date: sale.saleDate,
         invoiceNumber: sale.invoiceNumber,
         amount: sale.totalAmount,
       })

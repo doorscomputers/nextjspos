@@ -129,6 +129,7 @@ export async function GET(request: NextRequest) {
       salesLast30Days,
       salesCurrentYear,
       allProductsWithAlerts,
+      expenseData,
     ] = await Promise.all([
       // Total Sales
       hasPermission(PERMISSIONS.SELL_VIEW)
@@ -208,6 +209,17 @@ export async function GET(request: NextRequest) {
           })
         : Promise.resolve([]),
 
+      // Total Expenses
+      prisma.expense.aggregate({
+        where: {
+          businessId,
+          status: { in: ['approved', 'posted'] },
+          ...(Object.keys(dateFilter).length > 0 ? { expenseDate: dateFilter } : {}),
+          ...(whereClause.locationId ? { locationId: whereClause.locationId } : {}),
+        },
+        _sum: { amount: true },
+      }),
+
       // Product Stock Alerts
       prisma.variationLocationDetails.findMany({
         where: {
@@ -226,9 +238,6 @@ export async function GET(request: NextRequest) {
     ])
 
     console.log(`[Dashboard Stats] Parallel queries completed in ${Date.now() - startQueryTime}ms`)
-
-    // Total Expenses - TODO: Implement Expense model
-    const expenseData = { _sum: { amount: null } }
 
     // Filter to find products where current quantity is below or equal to alert quantity
     const stockAlerts = allProductsWithAlerts

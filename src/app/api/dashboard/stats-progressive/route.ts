@@ -120,6 +120,7 @@ export async function GET(request: NextRequest) {
         supplierReturnData,
         invoiceDue,
         purchaseDue,
+        expenseData,
       ] = await Promise.all([
         // Total Sales
         hasPermission(PERMISSIONS.SELL_VIEW)
@@ -178,9 +179,18 @@ export async function GET(request: NextRequest) {
           },
           _sum: { balanceAmount: true },
         }),
-      ])
 
-      const expenseData = { _sum: { amount: null } }
+        // Total Expenses
+        prisma.expense.aggregate({
+          where: {
+            businessId,
+            status: { in: ['approved', 'posted'] },
+            ...(Object.keys(dateFilter).length > 0 ? { expenseDate: dateFilter } : {}),
+            ...(whereClause.locationId ? { locationId: whereClause.locationId } : {}),
+          },
+          _sum: { amount: true },
+        }),
+      ])
 
       const metrics = {
         totalSales: parseFloat(salesData._sum.totalAmount?.toString() || '0'),
