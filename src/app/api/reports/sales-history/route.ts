@@ -553,6 +553,7 @@ export async function GET(request: NextRequest) {
         salesPerson: sale.salesPersonnelId && salesPersonnelMap[sale.salesPersonnelId]
           ? `${salesPersonnelMap[sale.salesPersonnelId].firstName} ${salesPersonnelMap[sale.salesPersonnelId].lastName}`
           : null,
+        customerCategory: sale.customerCategory || 'Uncategorized',
         // Concatenate all product names and SKUs for searchability
         productNames: (sale.items || []).map((item) => {
           const variation = variationMap[item.productVariationId]
@@ -636,6 +637,7 @@ export async function GET(request: NextRequest) {
           remarks: '',
           itemCount: 0,
           salesPerson: null,
+          customerCategory: 'Uncategorized',
           productNames: '',
           categories: 'Error',
           items: [],

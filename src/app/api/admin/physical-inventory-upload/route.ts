@@ -152,12 +152,14 @@ export async function POST(request: NextRequest) {
         ).trim()
 
         // Item Code/SKU variations
+        // Also check row[''] as fallback for unnamed columns (blank header in Excel)
         const itemCode = String(
           row['ITEM CODE'] || row['Item Code'] || row['item code'] || row['ITEM_CODE'] || row['ItemCode'] ||
           row['SKU'] || row['Sku'] || row['sku'] ||
           row['PRODUCT CODE'] || row['Product Code'] || row['product code'] ||
           row['CODE'] || row['Code'] || row['code'] ||
-          row['BARCODE'] || row['Barcode'] || row['barcode'] || ''
+          row['BARCODE'] || row['Barcode'] || row['barcode'] ||
+          row[''] || ''
         ).trim()
 
         // Item Name/Description variations
@@ -172,6 +174,7 @@ export async function POST(request: NextRequest) {
         // Actual Count/Quantity variations
         const actualCountRaw =
           row['ACTUAL COUNT'] || row['Actual Count'] || row['actual count'] || row['ACTUAL_COUNT'] || row['ActualCount'] ||
+          row['ACTUAL'] || row['Actual'] || row['actual'] ||
           row['PHYSICAL COUNT'] || row['Physical Count'] || row['physical count'] ||
           row['COUNT'] || row['Count'] || row['count'] ||
           row['QTY'] || row['Qty'] || row['qty'] ||

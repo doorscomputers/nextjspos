@@ -970,6 +970,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               permission: PERMISSIONS.REPORT_SALES_BY_PERSONNEL,
             },
             {
+              key: "sales_by_category",
+              name: "Sales by Category",
+              href: "/dashboard/reports/sales-by-category",
+              icon: ChartBarIcon,
+              permission: PERMISSIONS.SALES_REPORT_VIEW,
+            },
+            {
               key: "hourly_sales_breakdown",
               name: "Hourly Sales Breakdown",
               href: "/dashboard/reports/sales-by-hour",

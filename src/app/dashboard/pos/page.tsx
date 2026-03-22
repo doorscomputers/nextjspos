@@ -64,6 +64,9 @@ export default function POSEnhancedPage() {
   const [salesPersonnel, setSalesPersonnel] = useState<any[]>([])
   const [selectedSalesPersonnel, setSelectedSalesPersonnel] = useState<any>(null)
 
+  // Customer Category State
+  const [selectedCustomerCategory, setSelectedCustomerCategory] = useState<string>('')
+
   // Discount State - Updated
   const [discountType, setDiscountType] = useState<string>('none')
   const [discountAmount, setDiscountAmount] = useState<string>('')
@@ -801,6 +804,7 @@ export default function POSEnhancedPage() {
       seniorCitizenName,
       pwdId,
       pwdName,
+      customerCategory: selectedCustomerCategory,
       note: holdNote,
       timestamp: new Date().toISOString(),
     }
@@ -818,6 +822,7 @@ export default function POSEnhancedPage() {
     setSeniorCitizenName('')
     setPwdId('')
     setPwdName('')
+    setSelectedCustomerCategory('')
     setHoldNote('')
     setRemarks('')
     setShowHoldDialog(false)
@@ -834,6 +839,7 @@ export default function POSEnhancedPage() {
     setSeniorCitizenName(transaction.seniorCitizenName || '')
     setPwdId(transaction.pwdId || '')
     setPwdName(transaction.pwdName || '')
+    setSelectedCustomerCategory(transaction.customerCategory || '')
 
     // Remove from held transactions
     const updated = heldTransactions.filter(t => t.id !== transaction.id)
@@ -1919,6 +1925,12 @@ export default function POSEnhancedPage() {
       return
     }
 
+    // Validate customer category selection (required field)
+    if (!selectedCustomerCategory) {
+      setError('Please select a Customer Category before completing the sale')
+      return
+    }
+
     // Validate item remarks for discounted items (required when discount > 0)
     const itemsWithMissingRemarks = cart.filter(
       (item) => item.itemDiscountAmount > 0 && !item.itemRemark?.trim()
@@ -2131,6 +2143,8 @@ export default function POSEnhancedPage() {
         remarks: remarks || null,
         // Sales personnel tracking (required)
         salesPersonnelId: selectedSalesPersonnel?.id,
+        // Customer category tracking (required)
+        customerCategory: selectedCustomerCategory,
         // CRITICAL: Generate NEW UUID at submission time - guarantees unique key for each sale
         // DO NOT use state variable - React closures can cause stale values
         cartSessionId: crypto.randomUUID(),
@@ -2203,6 +2217,8 @@ export default function POSEnhancedPage() {
       setAdditionalChargeValue('')
       // Reset sales personnel (user must select again for next sale)
       setSelectedSalesPersonnel(null)
+      // Reset customer category
+      setSelectedCustomerCategory('')
 
       const changeAmount = calculateChange()
 
@@ -2243,6 +2259,7 @@ export default function POSEnhancedPage() {
         setAdditionalChargeType('fixed')
         setAdditionalChargeValue('')
         setSelectedSalesPersonnel(null)
+        setSelectedCustomerCategory('')
 
         // Don't show error - sale was already processed successfully
         return
@@ -2842,6 +2859,30 @@ export default function POSEnhancedPage() {
                       {person.fullName} ({person.employeeCode})
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+
+              {/* Divider */}
+              <div className="h-6 w-px bg-gray-300 shrink-0"></div>
+
+              {/* Customer Category */}
+              <Label className="text-xs font-medium shrink-0 text-blue-800">
+                Category<span className="text-red-500">*</span>
+              </Label>
+              <Select
+                value={selectedCustomerCategory}
+                onValueChange={(value) => setSelectedCustomerCategory(value)}
+              >
+                <SelectTrigger className={`h-8 text-sm border w-44 ${!selectedCustomerCategory ? 'border-red-300 bg-red-50' : 'border-gray-300 bg-white'}`}>
+                  <SelectValue placeholder="-- Select --" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Walkin Private">Walkin Private</SelectItem>
+                  <SelectItem value="Walkin Individual">Walkin Individual</SelectItem>
+                  <SelectItem value="Walkin Govt">Walkin Govt</SelectItem>
+                  <SelectItem value="Reseller">Reseller</SelectItem>
+                  <SelectItem value="Bidding">Bidding</SelectItem>
+                  <SelectItem value="Negotiated">Negotiated</SelectItem>
                 </SelectContent>
               </Select>
             </div>

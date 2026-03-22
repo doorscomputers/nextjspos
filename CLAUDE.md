@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## CRITICAL: LIVE PRODUCTION SYSTEM
+
+**This project is actively used in live production.** Every code change MUST be minimal, simple, and safe. Do NOT introduce bugs. Do NOT make unnecessary changes. Only touch code that is directly relevant to the task. Verify changes compile cleanly before committing.
+
 ## Core Workflow Rules (MUST FOLLOW)
 
 1. **First think through the problem**, read the codebase for relevant files, and write a plan to `tasks/todo.md`.

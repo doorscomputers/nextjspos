@@ -186,8 +186,8 @@ export async function PUT(
         lastName,
         email: email || null,
         mobile: mobile || null,
-        salesTarget: salesTarget !== undefined ? parseFloat(salesTarget) : undefined,
-        commissionRate: commissionRate !== undefined ? parseFloat(commissionRate) : undefined,
+        salesTarget: salesTarget !== undefined && salesTarget !== '' ? parseFloat(String(salesTarget)) || 0 : 0,
+        commissionRate: commissionRate !== undefined && commissionRate !== '' ? parseFloat(String(commissionRate)) || 0 : 0,
         hireDate: hireDate ? new Date(hireDate) : null,
         terminationDate: terminationDate ? new Date(terminationDate) : null,
         isActive: isActive !== undefined ? isActive : undefined

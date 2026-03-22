@@ -98,6 +98,96 @@ export async function GET(
 }
 
 /**
+ * PATCH /api/sales/[id]
+ * Update customer category on a sale
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { user } = session
+    const businessId = parseInt(String(user.businessId))
+    const userId = user.id
+
+    // Check permissions
+    if (!user.permissions?.includes(PERMISSIONS.SELL_UPDATE)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const { id } = await params
+    const saleId = parseInt(id)
+
+    const body = await request.json()
+    const { customerCategory } = body
+
+    const ALLOWED_CATEGORIES = [
+      'Walkin Private',
+      'Walkin Individual',
+      'Walkin Govt',
+      'Reseller',
+      'Bidding',
+      'Negotiated',
+    ]
+
+    if (!customerCategory || !ALLOWED_CATEGORIES.includes(customerCategory)) {
+      return NextResponse.json(
+        { error: `Invalid category. Must be one of: ${ALLOWED_CATEGORIES.join(', ')}` },
+        { status: 400 }
+      )
+    }
+
+    // Find the sale (multi-tenant)
+    const sale = await prisma.sale.findFirst({
+      where: { id: saleId, businessId },
+      select: { id: true, invoiceNumber: true, customerCategory: true },
+    })
+
+    if (!sale) {
+      return NextResponse.json({ error: 'Sale not found' }, { status: 404 })
+    }
+
+    const oldCategory = sale.customerCategory || 'NULL'
+
+    // Update
+    await prisma.sale.update({
+      where: { id: saleId },
+      data: { customerCategory },
+    })
+
+    // Audit log
+    await createAuditLog({
+      businessId,
+      userId: parseInt(userId),
+      username: user.username,
+      action: AuditAction.SALE_UPDATE,
+      entityType: EntityType.SALE,
+      entityIds: [saleId],
+      description: `Changed customer category on ${sale.invoiceNumber} from "${oldCategory}" to "${customerCategory}"`,
+      metadata: { oldCategory, newCategory: customerCategory },
+      ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+    })
+
+    return NextResponse.json({
+      message: 'Customer category updated',
+      sale: { id: saleId, customerCategory },
+    })
+  } catch (error: any) {
+    console.error('Error updating sale:', error)
+    return NextResponse.json(
+      { error: 'Failed to update sale', details: error.message },
+      { status: 500 }
+    )
+  }
+}
+
+/**
  * DELETE /api/sales/[id]
  * Void a sale and restore stock
  */

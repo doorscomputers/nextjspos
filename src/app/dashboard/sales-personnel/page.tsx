@@ -134,8 +134,8 @@ export default function SalesPersonnelPage() {
         lastName: person.lastName,
         email: person.email || '',
         mobile: person.mobile || '',
-        salesTarget: person.salesTarget ? person.salesTarget.toString() : '',
-        commissionRate: person.commissionRate ? person.commissionRate.toString() : '',
+        salesTarget: person.salesTarget != null ? person.salesTarget.toString() : '0',
+        commissionRate: person.commissionRate != null ? person.commissionRate.toString() : '0',
         hireDate: person.hireDate ? new Date(person.hireDate).toISOString().split('T')[0] : '',
         isActive: person.isActive
       })

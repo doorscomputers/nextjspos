@@ -544,6 +544,8 @@ export async function POST(request: NextRequest) {
       cashTendered,
       // Sales personnel tracking
       salesPersonnelId,
+      // Customer category (Walkin Private, Walkin Individual, etc.)
+      customerCategory,
     } = body
 
     if (process.env.NODE_ENV === 'development') {
@@ -1092,6 +1094,8 @@ export async function POST(request: NextRequest) {
           createdBy: userIdNumber,
           // Sales personnel tracking (for performance monitoring)
           salesPersonnelId: salesPersonnelId ? Number(salesPersonnelId) : null,
+          // Customer category
+          customerCategory: customerCategory || null,
         },
       })
 

@@ -81,6 +81,7 @@ interface Sale {
   notes: string | null
   itemCount: number
   salesPerson: string | null
+  customerCategory: string
   categories: string
   items: SaleItem[]
   payments: Array<{
@@ -341,6 +342,62 @@ export default function SalesHistoryPage() {
       <span className={`px-2 py-1 rounded-full text-xs font-semibold ${variants[status] || "bg-gray-100 text-gray-800"}`}>
         {status.toUpperCase()}
       </span>
+    )
+  }
+
+  const CUSTOMER_CATEGORIES = [
+    'Walkin Private',
+    'Walkin Individual',
+    'Walkin Govt',
+    'Reseller',
+    'Bidding',
+    'Negotiated',
+  ]
+
+  const handleCategoryChange = async (saleId: number, newCategory: string) => {
+    try {
+      const res = await fetch(`/api/sales/${saleId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerCategory: newCategory }),
+      })
+      if (res.ok) {
+        // Update local state
+        setReportData((prev) => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            sales: prev.sales.map((s) =>
+              s.id === saleId ? { ...s, customerCategory: newCategory } : s
+            ),
+          }
+        })
+      } else {
+        const err = await res.json()
+        alert(err.error || 'Failed to update category')
+      }
+    } catch (e) {
+      console.error('Failed to update category:', e)
+      alert('Failed to update category')
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const renderCategoryCell = (cellData: any) => {
+    const sale = cellData.data as Sale
+    return (
+      <select
+        value={sale.customerCategory || ''}
+        onChange={(e) => handleCategoryChange(sale.id, e.target.value)}
+        className="w-full bg-transparent border border-gray-300 dark:border-gray-600 rounded px-1 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+      >
+        {CUSTOMER_CATEGORIES.map((cat) => (
+          <option key={cat} value={cat}>{cat}</option>
+        ))}
+        {sale.customerCategory && !CUSTOMER_CATEGORIES.includes(sale.customerCategory) && (
+          <option value={sale.customerCategory}>{sale.customerCategory}</option>
+        )}
+      </select>
     )
   }
 
@@ -873,8 +930,14 @@ export default function SalesHistoryPage() {
                 width={140}
               />
               <Column
+                dataField="customerCategory"
+                caption="Customer Category"
+                width={150}
+                cellRender={renderCategoryCell}
+              />
+              <Column
                 dataField="categories"
-                caption="Category"
+                caption="Product Category"
                 width={140}
               />
               <Column

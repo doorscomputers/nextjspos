@@ -1996,6 +1996,9 @@ model Sale {
   salesPersonnelId Int?            @map("sales_personnel_id")
   salesPersonnel   SalesPersonnel? @relation(fields: [salesPersonnelId], references: [id])
 
+  // Customer Category (Walkin Private, Walkin Individual, Walkin Govt, Reseller, Bidding, Negotiated)
+  customerCategory String? @map("customer_category") @db.VarChar(50)
+
   createdBy Int       @map("created_by")
   creator   User      @relation("SaleCreator", fields: [createdBy], references: [id])
   createdAt DateTime  @default(now()) @map("created_at")
@@ -2035,6 +2038,8 @@ model Sale {
   @@index([customerId, saleDate]) // 🚀 CRITICAL: Customer sales history queries
   @@index([salesPersonnelId]) // Sales Personnel performance tracking
   @@index([salesPersonnelId, saleDate]) // Sales Personnel performance reports by date
+  @@index([customerCategory]) // Customer category filtering
+  @@index([businessId, customerCategory, saleDate]) // Customer category reports
   @@map("sales")
 }
 

@@ -677,131 +677,132 @@ export default function AdminPhysicalInventoryUploadPage() {
             </div>
           </div>
 
-          {/* Discrepancies Table */}
+          {/* Discrepancies List */}
           {previewResult.previewUpdates.length > 0 && (
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-4 overflow-x-auto mb-4">
-              <h4 className="text-sm font-semibold text-orange-700 dark:text-orange-300 mb-2">
+            <div className="mb-4 space-y-3">
+              <h4 className="text-sm font-semibold text-orange-700 dark:text-orange-300">
                 Items to be Updated (Discrepancies)
               </h4>
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b dark:border-gray-700">
-                    <th className="text-left py-2 px-2 text-gray-600 dark:text-gray-400 w-8"></th>
-                    <th className="text-left py-2 px-2 text-gray-600 dark:text-gray-400">Location</th>
-                    <th className="text-left py-2 px-2 text-gray-600 dark:text-gray-400">Item Code</th>
-                    <th className="text-left py-2 px-2 text-gray-600 dark:text-gray-400">Product</th>
-                    <th className="text-right py-2 px-2 text-gray-600 dark:text-gray-400">System Stock</th>
-                    <th className="text-right py-2 px-2 text-gray-600 dark:text-gray-400">Physical Count</th>
-                    <th className="text-right py-2 px-2 text-gray-600 dark:text-gray-400">Change</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {previewResult.previewUpdates.map((item, idx) => {
-                    const cacheKey = `${item.productId}-${item.variationId}-${item.locationId}`
-                    const isExpanded = expandedRows.has(idx)
-                    const isLoadingThis = loadingHistory.has(cacheKey)
-                    const historyEntries = historyCache[cacheKey]
+              {previewResult.previewUpdates.map((item, idx) => {
+                const cacheKey = `${item.productId}-${item.variationId}-${item.locationId}`
+                const isExpanded = expandedRows.has(idx)
+                const isLoadingThis = loadingHistory.has(cacheKey)
+                const historyEntries = historyCache[cacheKey]
 
-                    return (
-                      <React.Fragment key={idx}>
-                        <tr className={`border-l-4 ${
-                          item.difference < 0
-                            ? 'border-l-red-400 dark:border-l-red-500'
-                            : 'border-l-green-400 dark:border-l-green-500'
-                        } bg-orange-50/50 dark:bg-orange-900/10 font-medium`}>
-                          <td className="py-2.5 px-2">
-                            <button
-                              onClick={() => toggleHistoryRow(idx, item)}
-                              className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                              title={isExpanded ? 'Hide history' : 'Show history'}
-                            >
-                              {isExpanded
-                                ? <ChevronUpIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                                : <ChevronDownIcon className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                              }
-                            </button>
-                          </td>
-                          <td className="py-2.5 px-2 text-gray-900 dark:text-white">{item.locationName}</td>
-                          <td className="py-2.5 px-2 text-gray-700 dark:text-gray-300">{item.itemCode}</td>
-                          <td className="py-2.5 px-2 text-gray-900 dark:text-white">{item.productName}</td>
-                          <td className="py-2.5 px-2 text-right text-gray-600 dark:text-gray-400">{item.previousStock}</td>
-                          <td className="py-2.5 px-2 text-right font-bold text-blue-600 dark:text-blue-400">{item.newStock}</td>
-                          <td className={`py-2.5 px-2 text-right font-bold ${
+                return (
+                  <div key={idx} className={`rounded-lg border-2 overflow-hidden ${
+                    item.difference < 0
+                      ? 'border-red-300 dark:border-red-700'
+                      : 'border-green-300 dark:border-green-700'
+                  }`}>
+                    {/* Product Header Row */}
+                    <div className={`flex items-center gap-3 px-4 py-3 cursor-pointer ${
+                      item.difference < 0
+                        ? 'bg-red-50 dark:bg-red-900/20'
+                        : 'bg-green-50 dark:bg-green-900/20'
+                    }`} onClick={() => toggleHistoryRow(idx, item)}>
+                      <button
+                        className="p-0.5 flex-shrink-0"
+                        title={isExpanded ? 'Hide history' : 'Show history'}
+                      >
+                        {isExpanded
+                          ? <ChevronUpIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                          : <ChevronDownIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+                        }
+                      </button>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 dark:text-white truncate">
+                          {item.productName}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {item.locationName} &middot; {item.itemCode} {item.variationName !== 'Default' ? `&middot; ${item.variationName}` : ''}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm flex-shrink-0">
+                        <div className="text-center">
+                          <p className="text-[10px] uppercase text-gray-400 dark:text-gray-500">System</p>
+                          <p className="font-medium text-gray-700 dark:text-gray-300">{item.previousStock}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[10px] uppercase text-gray-400 dark:text-gray-500">Physical</p>
+                          <p className="font-bold text-blue-600 dark:text-blue-400">{item.newStock}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[10px] uppercase text-gray-400 dark:text-gray-500">Change</p>
+                          <p className={`font-bold ${
                             item.difference > 0
                               ? 'text-green-600 dark:text-green-400'
                               : 'text-red-600 dark:text-red-400'
                           }`}>
                             {item.difference > 0 ? '+' : ''}{item.difference}
-                          </td>
-                        </tr>
-                        {isExpanded && (
-                          <tr className="border-l-4 border-l-gray-300 dark:border-l-gray-600 bg-gray-50 dark:bg-gray-900/50">
-                            <td colSpan={7} className="pl-8 pr-4 py-3">
-                              {isLoadingThis ? (
-                                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 py-2">
-                                  <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                                  Loading transaction history...
-                                </div>
-                              ) : historyEntries && historyEntries.length > 0 ? (
-                                <div>
-                                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
-                                    Recent Transaction History (last {historyEntries.length})
-                                  </p>
-                                  <table className="min-w-full text-xs">
-                                    <thead>
-                                      <tr className="border-b dark:border-gray-700">
-                                        <th className="text-left py-1 px-2 text-gray-500 dark:text-gray-400">Date</th>
-                                        <th className="text-left py-1 px-2 text-gray-500 dark:text-gray-400">Type</th>
-                                        <th className="text-left py-1 px-2 text-gray-500 dark:text-gray-400">Reference</th>
-                                        <th className="text-right py-1 px-2 text-gray-500 dark:text-gray-400">Qty Change</th>
-                                        <th className="text-right py-1 px-2 text-gray-500 dark:text-gray-400">Balance</th>
-                                        <th className="text-left py-1 px-2 text-gray-500 dark:text-gray-400">Notes</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {historyEntries.map((entry, hIdx) => {
-                                        const qtyChange = entry.quantityAdded > 0
-                                          ? entry.quantityAdded
-                                          : entry.quantityRemoved > 0
-                                            ? -entry.quantityRemoved
-                                            : 0
-                                        return (
-                                          <tr key={hIdx} className="border-b dark:border-gray-700/50">
-                                            <td className="py-1 px-2 text-gray-600 dark:text-gray-400 whitespace-nowrap">
-                                              {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                            </td>
-                                            <td className="py-1 px-2 text-gray-700 dark:text-gray-300">{entry.transactionTypeLabel}</td>
-                                            <td className="py-1 px-2 text-gray-500 dark:text-gray-400">{entry.referenceNumber || '-'}</td>
-                                            <td className={`py-1 px-2 text-right font-medium ${
-                                              qtyChange > 0
-                                                ? 'text-green-600 dark:text-green-400'
-                                                : qtyChange < 0
-                                                  ? 'text-red-600 dark:text-red-400'
-                                                  : 'text-gray-500'
-                                            }`}>
-                                              {qtyChange > 0 ? '+' : ''}{qtyChange}
-                                            </td>
-                                            <td className="py-1 px-2 text-right text-gray-700 dark:text-gray-300">{entry.runningBalance}</td>
-                                            <td className="py-1 px-2 text-gray-500 dark:text-gray-400 max-w-[200px] truncate">{entry.notes || '-'}</td>
-                                          </tr>
-                                        )
-                                      })}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              ) : (
-                                <p className="text-sm text-gray-500 dark:text-gray-400 py-1">No transaction history found for this item at this location.</p>
-                              )}
-                            </td>
-                          </tr>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* History Details (collapsible) */}
+                    {isExpanded && (
+                      <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-3">
+                        {isLoadingThis ? (
+                          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 py-2">
+                            <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                            Loading transaction history...
+                          </div>
+                        ) : historyEntries && historyEntries.length > 0 ? (
+                          <div className="overflow-x-auto">
+                            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">
+                              Transaction History (last {historyEntries.length})
+                            </p>
+                            <table className="min-w-full text-xs">
+                              <thead>
+                                <tr className="border-b-2 border-gray-200 dark:border-gray-600">
+                                  <th className="text-left py-1.5 px-2 text-gray-500 dark:text-gray-400 font-semibold">Date</th>
+                                  <th className="text-left py-1.5 px-2 text-gray-500 dark:text-gray-400 font-semibold">Type</th>
+                                  <th className="text-left py-1.5 px-2 text-gray-500 dark:text-gray-400 font-semibold">Reference</th>
+                                  <th className="text-right py-1.5 px-2 text-gray-500 dark:text-gray-400 font-semibold">Qty Change</th>
+                                  <th className="text-right py-1.5 px-2 text-gray-500 dark:text-gray-400 font-semibold">Balance</th>
+                                  <th className="text-left py-1.5 px-2 text-gray-500 dark:text-gray-400 font-semibold">Notes</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {historyEntries.map((entry, hIdx) => {
+                                  const qtyChange = entry.quantityAdded > 0
+                                    ? entry.quantityAdded
+                                    : entry.quantityRemoved > 0
+                                      ? -entry.quantityRemoved
+                                      : 0
+                                  return (
+                                    <tr key={hIdx} className="border-b border-gray-100 dark:border-gray-700/50">
+                                      <td className="py-1.5 px-2 text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                                        {new Date(entry.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                      </td>
+                                      <td className="py-1.5 px-2 text-gray-700 dark:text-gray-300">{entry.transactionTypeLabel}</td>
+                                      <td className="py-1.5 px-2 text-gray-500 dark:text-gray-400">{entry.referenceNumber || '-'}</td>
+                                      <td className={`py-1.5 px-2 text-right font-medium ${
+                                        qtyChange > 0
+                                          ? 'text-green-600 dark:text-green-400'
+                                          : qtyChange < 0
+                                            ? 'text-red-600 dark:text-red-400'
+                                            : 'text-gray-500'
+                                      }`}>
+                                        {qtyChange > 0 ? '+' : ''}{qtyChange}
+                                      </td>
+                                      <td className="py-1.5 px-2 text-right text-gray-700 dark:text-gray-300">{entry.runningBalance}</td>
+                                      <td className="py-1.5 px-2 text-gray-500 dark:text-gray-400 max-w-[200px] truncate">{entry.notes || '-'}</td>
+                                    </tr>
+                                  )
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500 dark:text-gray-400 py-1">No transaction history found for this item at this location.</p>
                         )}
-                        {/* Spacer row between product groups */}
-                        <tr className="h-1 bg-gray-200 dark:bg-gray-600"><td colSpan={7}></td></tr>
-                      </React.Fragment>
-                    )
-                  })}
-                </tbody>
-              </table>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
 
