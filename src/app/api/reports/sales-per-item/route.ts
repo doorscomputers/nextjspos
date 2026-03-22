@@ -28,7 +28,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || ''
     const searchTerm = search.trim()
     const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '100')
+    const limitParam = searchParams.get('limit')
+    const limit = limitParam === '0' ? 0 : parseInt(limitParam || '100')
 
     const buildEmptyResponse = () =>
       NextResponse.json({
@@ -296,11 +297,11 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Pagination
+    // Pagination (limit=0 means return all results)
     const totalCount = itemsWithDetails.length
-    const startIndex = (page - 1) * limit
-    const endIndex = startIndex + limit
-    const paginatedResults = itemsWithDetails.slice(startIndex, endIndex)
+    const paginatedResults = limit > 0
+      ? itemsWithDetails.slice((page - 1) * limit, (page - 1) * limit + limit)
+      : itemsWithDetails
 
     // Calculate overall summary
     const summary = {
@@ -315,7 +316,7 @@ export async function GET(request: NextRequest) {
         page,
         limit,
         totalCount,
-        totalPages: Math.ceil(totalCount / limit),
+        totalPages: limit > 0 ? Math.ceil(totalCount / limit) : 1,
       },
       summary,
     })

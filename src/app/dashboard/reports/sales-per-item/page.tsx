@@ -134,8 +134,8 @@ export default function SalesPerItemReport() {
       if (endDate) params.set('endDate', endDate)
       if (locationId) params.set('locationId', locationId)
       if (categoryId) params.set('categoryId', categoryId)
-      // Fetch all data for client-side filtering/sorting
-      params.set('limit', '10000')
+      // Fetch all data for client-side filtering/sorting (0 = unlimited)
+      params.set('limit', '0')
 
       const res = await fetch(`/api/reports/sales-per-item?${params}`)
       if (res.ok) {
