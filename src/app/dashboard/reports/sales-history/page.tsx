@@ -868,7 +868,7 @@ export default function SalesHistoryPage() {
               wordWrapEnabled={false}
               onExporting={onExporting}
             >
-              <StateStoring enabled={true} type="localStorage" storageKey="sales-history-grid-v3" />
+              <StateStoring enabled={true} type="localStorage" storageKey="sales-history-grid-v4" />
               <SearchPanel visible={true} width={240} placeholder="Search sales..." />
               <FilterRow visible={true} />
               <HeaderFilter visible={true} />
