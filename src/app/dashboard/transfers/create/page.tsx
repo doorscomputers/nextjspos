@@ -348,10 +348,10 @@ export default function CreateTransferPage() {
   }
 
   const handleSubmit = async () => {
+    setSubmitting(true)           // Set first to disable button immediately (prevent double-click)
     setShowConfirmDialog(false)
 
     try {
-      setSubmitting(true)
 
       const response = await fetch('/api/transfers', {
         method: 'POST',
@@ -731,9 +731,10 @@ export default function CreateTransferPage() {
             <AlertDialogCancel className="min-w-[100px]">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleSubmit}
-              className="min-w-[100px] bg-green-600 hover:bg-green-700 text-white"
+              disabled={submitting}
+              className="min-w-[100px] bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
             >
-              Confirm
+              {submitting ? 'Creating...' : 'Confirm'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -421,6 +421,26 @@ async function processTransferSend(job: any) {
     throw new Error(`Transfer ${transferId} not found`)
   }
 
+  // CRITICAL FIX: Prevent double stock deduction
+  if (transfer.stockDeducted) {
+    console.warn(`[Job ${job.id}] Transfer ${transferId} stock already deducted. Skipping.`)
+    return { transferId, transferNumber: transfer.transferNumber, itemsProcessed: 0, skipped: true }
+  }
+  if (transfer.status !== 'checked') {
+    console.warn(`[Job ${job.id}] Transfer ${transferId} status '${transfer.status}' != 'checked'. Skipping.`)
+    return { transferId, transferNumber: transfer.transferNumber, itemsProcessed: 0, skipped: true }
+  }
+
+  // Atomic claim: only ONE concurrent request can succeed
+  const claimed = await prisma.stockTransfer.updateMany({
+    where: { id: transferId, status: 'checked', stockDeducted: false },
+    data: { stockDeducted: true },
+  })
+  if (claimed.count === 0) {
+    console.warn(`[Job ${job.id}] Transfer ${transferId} claimed by another process. Skipping.`)
+    return { transferId, transferNumber: transfer.transferNumber, itemsProcessed: 0, skipped: true }
+  }
+
   // Get user info
   const user = await prisma.user.findUnique({
     where: { id: job.userId },
@@ -436,68 +456,76 @@ async function processTransferSend(job: any) {
   const BATCH_SIZE = 30 // Increased from 10 to reduce transaction overhead
   let processedCount = 0
 
-  for (let i = 0; i < transfer.items.length; i += BATCH_SIZE) {
-    const batch = transfer.items.slice(i, i + BATCH_SIZE)
+  try {
+    for (let i = 0; i < transfer.items.length; i += BATCH_SIZE) {
+      const batch = transfer.items.slice(i, i + BATCH_SIZE)
 
-    await prisma.$transaction(
-      async (tx) => {
-        // BULK OPTIMIZATION: Process all items in batch with single function call
-        // Prepare bulk update parameters
-        const bulkItems = batch.map((item) => ({
-          businessId: job.businessId,
-          productId: item.productId,
-          productVariationId: item.productVariationId,
-          locationId: transfer.fromLocationId,
-          quantity: -Math.abs(parseFloat(item.quantity.toString())), // Negative for stock out
-          type: StockTransactionType.TRANSFER_OUT,
-          referenceType: 'transfer' as const,
-          referenceId: transferId,
-          userId: job.userId,
-          notes: notes || `Transfer ${transfer.transferNumber} sent`,
-          userDisplayName,
-          allowNegative: true, // Allow negative for async transfers (stock may have changed since creation)
-          tx,
-        }))
+      await prisma.$transaction(
+        async (tx) => {
+          // BULK OPTIMIZATION: Process all items in batch with single function call
+          // Prepare bulk update parameters
+          const bulkItems = batch.map((item) => ({
+            businessId: job.businessId,
+            productId: item.productId,
+            productVariationId: item.productVariationId,
+            locationId: transfer.fromLocationId,
+            quantity: -Math.abs(parseFloat(item.quantity.toString())), // Negative for stock out
+            type: StockTransactionType.TRANSFER_OUT,
+            referenceType: 'transfer' as const,
+            referenceId: transferId,
+            userId: job.userId,
+            notes: notes || `Transfer ${transfer.transferNumber} sent`,
+            userDisplayName,
+            allowNegative: true, // Allow negative for async transfers (stock may have changed since creation)
+            tx,
+          }))
 
-        // Call bulk function - processes all items in single server call
-        const results = await bulkUpdateStock(bulkItems)
+          // Call bulk function - processes all items in single server call
+          const results = await bulkUpdateStock(bulkItems)
 
-        // Check for failures
-        const failures = results.filter((r) => !r.success)
-        if (failures.length > 0) {
-          const firstFailure = failures[0]
-          console.error(
-            `[Job ${job.id}] Bulk transfer send failed:`,
-            firstFailure.error
-          )
-          throw new Error(`Bulk update failed: ${firstFailure.error}`)
+          // Check for failures
+          const failures = results.filter((r) => !r.success)
+          if (failures.length > 0) {
+            const firstFailure = failures[0]
+            console.error(
+              `[Job ${job.id}] Bulk transfer send failed:`,
+              firstFailure.error
+            )
+            throw new Error(`Bulk update failed: ${firstFailure.error}`)
+          }
+
+          processedCount += batch.length
+
+          // Update job progress once per batch
+          await tx.job.update({
+            where: { id: job.id },
+            data: { progress: processedCount },
+          })
+        },
+        {
+          timeout: 180000, // 180s per batch (6s per item for 30 items)
+          maxWait: 20000, // Increased wait time for lock acquisition
         }
+      )
 
-        processedCount += batch.length
-
-        // Update job progress once per batch
-        await tx.job.update({
-          where: { id: job.id },
-          data: { progress: processedCount },
-        })
-      },
-      {
-        timeout: 180000, // 180s per batch (6s per item for 30 items)
-        maxWait: 20000, // Increased wait time for lock acquisition
-      }
-    )
-
-    console.log(
-      `[Job ${job.id}] Progress: ${processedCount}/${transfer.items.length} items`
-    )
+      console.log(
+        `[Job ${job.id}] Progress: ${processedCount}/${transfer.items.length} items`
+      )
+    }
+  } catch (error) {
+    // Release claim so it can be retried
+    await prisma.stockTransfer.update({
+      where: { id: transferId },
+      data: { stockDeducted: false },
+    })
+    throw error
   }
 
-  // Update transfer status
+  // Update transfer status (stockDeducted already set by atomic claim above)
   await prisma.stockTransfer.update({
     where: { id: transferId },
     data: {
       status: 'in_transit',
-      stockDeducted: true,
       sentBy: job.userId,
       sentAt: new Date(),
     },
@@ -524,6 +552,18 @@ async function processTransferComplete(job: any) {
 
   if (!transfer) {
     throw new Error(`Transfer ${transferId} not found`)
+  }
+
+  // CRITICAL FIX: Prevent double stock addition
+  if (transfer.status === 'completed') {
+    console.warn(`[Job ${job.id}] Transfer ${transferId} already completed. Skipping.`)
+    return { transferId, transferNumber: transfer.transferNumber, itemsProcessed: 0, skipped: true }
+  }
+
+  const validStatuses = ['in_transit', 'arrived', 'verified', 'verifying']
+  if (!validStatuses.includes(transfer.status)) {
+    console.warn(`[Job ${job.id}] Transfer ${transferId} invalid status '${transfer.status}'. Skipping.`)
+    return { transferId, transferNumber: transfer.transferNumber, itemsProcessed: 0, skipped: true }
   }
 
   // Get user info
