@@ -466,8 +466,9 @@ export async function POST(
             shiftIdForExchange, // CURRENT shift, not original sale's shift
             exchangeTotal,      // Total of new items issued
             returnTotal,        // Total of items returned
-            cashImpact,         // Positive = cash in, Negative = cash out (refund to customer)
-            tx
+            cashImpact,         // Positive = payment in, Negative = cash out (refund to customer)
+            tx,
+            customerPaysMore ? (paymentMethod || 'cash') : 'cash' // Use actual payment method when customer pays more; refunds are always cash from drawer
           )
         }
 

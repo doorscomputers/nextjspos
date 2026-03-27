@@ -302,7 +302,8 @@ export async function incrementShiftTotalsForExchange(
   exchangeTotal: number,    // Total value of new items issued
   returnTotal: number,       // Total value of items returned
   cashImpact: number,        // Positive = cash in (customer pays more), Negative = cash out (customer gets credit)
-  tx?: any
+  tx?: any,
+  paymentMethod: string = 'cash'  // Payment method used for the exchange difference
 ): Promise<void> {
   const db = tx || prisma
 
@@ -312,6 +313,21 @@ export async function incrementShiftTotalsForExchange(
 
   // Calculate net sales impact (difference between exchange and return values)
   const netSalesImpact = exchangeTotal - returnTotal
+
+  // Normalize payment method (handles maya→paymaya, cheque→check, etc.)
+  const method = normalizePaymentMethod(paymentMethod)
+
+  // Map payment method to the correct running total field
+  const paymentFieldMap: Record<string, string> = {
+    cash: 'runningCashSales',
+    card: 'runningCardSales',
+    gcash: 'runningGcashSales',
+    paymaya: 'runningPaymayaSales',
+    nfc: 'runningNfcSales',
+    bank_transfer: 'runningBankSales',
+    check: 'runningCheckSales',
+  }
+  const paymentField = paymentFieldMap[method] || 'runningCashSales'
 
   await db.cashierShift.update({
     where: { id: shiftId },
@@ -327,15 +343,15 @@ export async function incrementShiftTotalsForExchange(
       // Track returns separately (subtracted in reading display)
       runningReturnAmount: { increment: returnTotal },
 
-      // Cash impact: positive when customer pays more, negative when customer gets credit (cash out)
-      runningCashSales: { increment: cashImpact },
+      // Payment impact: increment the correct payment method field (not always cash!)
+      [paymentField]: { increment: cashImpact },
     },
   })
 
   console.log(
     `[ShiftTotals] 🔄 Exchange recorded for shift ${shiftId}: ` +
     `Exchange: ₱${exchangeTotal.toFixed(2)}, Return: ₱${returnTotal.toFixed(2)}, ` +
-    `Net Impact: ₱${netSalesImpact.toFixed(2)}, Cash: ₱${cashImpact.toFixed(2)}`
+    `Net Impact: ₱${netSalesImpact.toFixed(2)}, Payment: ₱${cashImpact.toFixed(2)} via ${method}`
   )
 }
 

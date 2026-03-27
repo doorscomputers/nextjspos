@@ -4374,7 +4374,7 @@ export default function POSEnhancedPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="gcash">GCash</SelectItem>
-                          <SelectItem value="maya">Maya</SelectItem>
+                          <SelectItem value="paymaya">Maya</SelectItem>
                         </SelectContent>
                       </Select>
                       <Input

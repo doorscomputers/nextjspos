@@ -7,6 +7,19 @@
 import { prisma } from './prisma.simple'
 import type { Prisma } from '@prisma/client'
 
+/**
+ * Normalize payment method names to standard values
+ * Handles variations: maya→paymaya, cheque→check, etc.
+ */
+function normalizePaymentMethodKey(method: string): string {
+  const normalized = method.toLowerCase().trim()
+  const methodMap: Record<string, string> = {
+    'maya': 'paymaya',
+    'cheque': 'check',
+  }
+  return methodMap[normalized] || normalized
+}
+
 export interface XReadingData {
   shiftNumber: string
   cashierName: string
@@ -230,7 +243,8 @@ export async function generateXReadingDataOptimized(
   const paymentBreakdown: Record<string, number> = {}
   paymentAggregation.forEach(p => {
     if (p.total_amount) {
-      paymentBreakdown[p.payment_method] = parseFloat(p.total_amount.toString())
+      const key = normalizePaymentMethodKey(p.payment_method)
+      paymentBreakdown[key] = (paymentBreakdown[key] || 0) + parseFloat(p.total_amount.toString())
     }
   })
 
@@ -322,6 +336,7 @@ export async function generateXReadingDataOptimized(
   const totalNonCashPayments =
     (paymentBreakdown['gcash'] || 0) +
     (paymentBreakdown['paymaya'] || 0) +
+    (paymentBreakdown['nfc'] || 0) +
     (paymentBreakdown['check'] || 0) +
     (paymentBreakdown['card'] || 0) +
     (paymentBreakdown['bank_transfer'] || 0) +
