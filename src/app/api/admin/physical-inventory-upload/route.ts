@@ -337,7 +337,8 @@ export async function POST(request: NextRequest) {
       for (const row of excelRows) {
         const location = locationMap.get(row.branchName.toLowerCase().trim())!
         const sku = row.itemCode.toLowerCase().trim()
-        const variation = skuToVariationMap.get(sku)
+        // Try exact match first, then with leading '0' (Excel strips leading zeros from barcodes)
+        const variation = skuToVariationMap.get(sku) || skuToVariationMap.get('0' + sku)
 
         if (!variation) {
           productErrors.push(`Row ${row.rowNumber}: ITEM CODE "${row.itemCode}" not found`)
