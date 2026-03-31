@@ -120,15 +120,24 @@ export async function POST(request: NextRequest) {
       // Parse as JSON with headers
       const rawData = XLSX.utils.sheet_to_json(worksheet, { defval: '' }) as any[]
 
-      if (!rawData || rawData.length === 0) {
+      // Normalize column headers: trim whitespace from keys (e.g., "Actual Count " → "Actual Count")
+      const normalizedData = rawData.map((row: any) => {
+        const cleaned: any = {}
+        for (const key of Object.keys(row)) {
+          cleaned[key.trim()] = row[key]
+        }
+        return cleaned
+      })
+
+      if (!normalizedData || normalizedData.length === 0) {
         return NextResponse.json({ error: 'Excel file is empty or contains no data rows' }, { status: 400 })
       }
 
-      console.log(`[Admin Physical Inventory] Processing ${rawData.length} rows from ${file.name}`)
+      console.log(`[Admin Physical Inventory] Processing ${normalizedData.length} rows from ${file.name}`)
 
       // Log found columns for debugging
-      if (rawData.length > 0) {
-        const foundColumns = Object.keys(rawData[0])
+      if (normalizedData.length > 0) {
+        const foundColumns = Object.keys(normalizedData[0])
         console.log(`[Admin Physical Inventory] Found columns: ${foundColumns.join(', ')}`)
       }
 
@@ -136,8 +145,8 @@ export async function POST(request: NextRequest) {
       const excelRows: ExcelRow[] = []
       const parseErrors: string[] = []
 
-      for (let i = 0; i < rawData.length; i++) {
-        const row = rawData[i]
+      for (let i = 0; i < normalizedData.length; i++) {
+        const row = normalizedData[i]
         const rowNumber = i + 2 // Excel row number (1-based, plus header)
 
         // Get column values (support many common column name variations)
@@ -213,7 +222,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (excelRows.length === 0) {
-        const foundColumns = rawData.length > 0 ? Object.keys(rawData[0]) : []
+        const foundColumns = normalizedData.length > 0 ? Object.keys(normalizedData[0]) : []
         return NextResponse.json({
           error: 'No valid rows to process',
           details: parseErrors.length > 0 ? parseErrors : ['All rows have empty count column or are invalid'],
@@ -398,7 +407,7 @@ export async function POST(request: NextRequest) {
           success: true,
           message: 'No items to process',
           summary: {
-            totalRows: rawData.length,
+            totalRows: normalizedData.length,
             itemsUpdated: 0,
             itemsVerified: 0
           }
@@ -441,7 +450,7 @@ export async function POST(request: NextRequest) {
           preview: true,
           message: `Preview: ${updateItems.length} items will be updated, ${verifiedItems.length} items verified (no changes made yet)`,
           summary: {
-            totalRows: rawData.length,
+            totalRows: normalizedData.length,
             itemsToUpdate: updateItems.length,
             itemsVerified: verifiedItems.length,
             locationsAffected,
@@ -580,7 +589,7 @@ export async function POST(request: NextRequest) {
         description: `Admin Physical Inventory Upload: ${result.updatedResults.length} items updated, ${result.verifiedResults.length} items verified across ${locationsAffected.length} location(s). File: ${file.name}`,
         metadata: {
           fileName: file.name,
-          totalRows: rawData.length,
+          totalRows: normalizedData.length,
           itemsUpdated: result.updatedResults.length,
           itemsVerified: result.verifiedResults.length,
           locationsAffected,
@@ -601,7 +610,7 @@ export async function POST(request: NextRequest) {
         success: true,
         message: `Physical inventory uploaded successfully! ${result.updatedResults.length} items updated, ${result.verifiedResults.length} items verified.`,
         summary: {
-          totalRows: rawData.length,
+          totalRows: normalizedData.length,
           itemsUpdated: result.updatedResults.length,
           itemsVerified: result.verifiedResults.length,
           locationsAffected,
