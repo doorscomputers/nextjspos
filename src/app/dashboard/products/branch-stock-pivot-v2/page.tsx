@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import { ArrowPathIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, MagnifyingGlassIcon, XMarkIcon, FunnelIcon } from '@heroicons/react/24/outline'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import DataGrid, {
@@ -88,6 +88,16 @@ export default function BranchStockPivotV2Page() {
     if (dataGridRef.current?.instance) {
       dataGridRef.current.instance.searchByText('')
     }
+  }
+
+  const handleResetAllFilters = () => {
+    setSearchInput('')
+    setSearchText('')
+    if (dataGridRef.current?.instance) {
+      dataGridRef.current.instance.clearFilter()
+      dataGridRef.current.instance.searchByText('')
+    }
+    toast.success('All filters have been reset')
   }
 
   // Refresh the materialized view to get latest inventory data
@@ -362,6 +372,16 @@ export default function BranchStockPivotV2Page() {
           >
             <MagnifyingGlassIcon className="h-4 w-4" />
             Search
+          </Button>
+          <Button
+            onClick={handleResetAllFilters}
+            variant="outline"
+            size="sm"
+            className="gap-2 hover:border-red-500 hover:text-red-700 dark:hover:text-red-400"
+            title="Clear all filters, search, and column filters"
+          >
+            <FunnelIcon className="h-4 w-4" />
+            Reset All Filters
           </Button>
           {searchText && (
             <span className="text-sm text-amber-600 dark:text-amber-400">

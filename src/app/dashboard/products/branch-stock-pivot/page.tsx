@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { MagnifyingGlassIcon, DocumentArrowDownIcon, PrinterIcon, DocumentTextIcon, ArrowPathIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { MagnifyingGlassIcon, DocumentArrowDownIcon, PrinterIcon, DocumentTextIcon, ArrowPathIcon, XMarkIcon, FunnelIcon } from '@heroicons/react/24/outline'
 import ColumnVisibilityToggle from '@/components/ColumnVisibilityToggle'
 import { SortableTableHead } from '@/components/ui/sortable-table-head'
 import { exportToCSV, exportToExcel, exportToPDF, printTable, ExportColumn } from '@/lib/exportUtils'
@@ -113,6 +113,24 @@ export default function BranchStockPivotPage() {
       ...filters,
       search: '',
     })
+  }
+
+  const handleResetAllFilters = () => {
+    setSearchInput('')
+    setFilters({
+      search: '',
+      productName: '',
+      productSku: '',
+      variationName: '',
+      variationSku: '',
+      supplier: '',
+      category: '',
+      brand: '',
+      isActive: 'all',
+      locationFilters: {},
+    })
+    setCurrentPage(1)
+    toast.success('All filters have been reset')
   }
 
   const handleFiltersChange = (updatedFilters: StockFilters) => {
@@ -621,6 +639,16 @@ export default function BranchStockPivotPage() {
           >
             <MagnifyingGlassIcon className="h-4 w-4" />
             Search
+          </Button>
+          <Button
+            onClick={handleResetAllFilters}
+            variant="outline"
+            size="default"
+            className="gap-2 px-4 hover:border-red-500 hover:text-red-700 dark:hover:text-red-400"
+            title="Clear all filters and search"
+          >
+            <FunnelIcon className="h-4 w-4" />
+            Reset All Filters
           </Button>
           {filters.search && (
             <span className="self-center text-sm text-gray-500 dark:text-gray-400">
