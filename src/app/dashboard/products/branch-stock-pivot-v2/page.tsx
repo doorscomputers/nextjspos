@@ -94,8 +94,17 @@ export default function BranchStockPivotV2Page() {
     setSearchInput('')
     setSearchText('')
     if (dataGridRef.current?.instance) {
-      dataGridRef.current.instance.clearFilter()
-      dataGridRef.current.instance.searchByText('')
+      const instance = dataGridRef.current.instance
+      // Clear all filter types: filterRow, headerFilter, dataSource filter, search
+      instance.clearFilter('row')
+      instance.clearFilter('header')
+      instance.clearFilter('dataSource')
+      instance.clearFilter('search')
+      instance.searchByText('')
+      // Clear grouping
+      instance.clearGrouping()
+      // Clear saved state from localStorage so filters don't come back on reload
+      localStorage.removeItem('branchStockPivotV2-grid-state')
     }
     toast.success('All filters have been reset')
   }
