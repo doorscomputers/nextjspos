@@ -271,7 +271,7 @@ export default function DashboardV3Page() {
                 Total Revenue
               </div>
               <div className="text-3xl font-bold mt-2">
-                ₱{executive.revenue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                ₱{executive.revenue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <div className="flex items-center gap-1 mt-2 text-xs">
                 {executive.revenueGrowth >= 0 ? (
@@ -301,7 +301,7 @@ export default function DashboardV3Page() {
                 Total Profit
               </div>
               <div className="text-3xl font-bold mt-2">
-                ₱{executive.profit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                ₱{executive.profit.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <div className="mt-2 text-xs opacity-90">
                 Margin: <span className="font-semibold">{executive.profitMargin.toFixed(1)}%</span>
@@ -350,7 +350,7 @@ export default function DashboardV3Page() {
                 Avg Transaction
               </div>
               <div className="text-3xl font-bold mt-2">
-                ₱{executive.avgTransactionValue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                ₱{executive.avgTransactionValue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <div className="mt-2 text-xs opacity-90">
                 {executive.itemsSold.toLocaleString()} items sold
@@ -372,7 +372,7 @@ export default function DashboardV3Page() {
                 Inventory Value
               </div>
               <div className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-2">
-                ₱{executive.inventoryValue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                ₱{executive.inventoryValue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </div>
             <Package className="h-10 w-10 text-gray-300 dark:text-gray-600" />
@@ -596,7 +596,7 @@ export default function DashboardV3Page() {
             format="₱#,##0.00"
             customizeText={(cellInfo: any) => {
               const value = cellInfo.value
-              return value >= 0 ? `₱${value.toLocaleString('en-PH', { minimumFractionDigits: 2 })}` : `-₱${Math.abs(value).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
+              return value >= 0 ? `₱${value.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : `-₱${Math.abs(value).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             }}
           />
 
@@ -827,7 +827,7 @@ export default function DashboardV3Page() {
               Customer Engagement
             </div>
             <p>
-              Average transaction value is ₱{executive.avgTransactionValue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}.
+              Average transaction value is ₱{executive.avgTransactionValue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.
               Consider upselling and cross-selling strategies to increase basket size.
             </p>
           </div>

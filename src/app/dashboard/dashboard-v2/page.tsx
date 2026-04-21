@@ -449,7 +449,7 @@ export default function DashboardV2Page() {
       {metadata && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-4 md:p-6 rounded-lg text-white shadow-lg">
-            <div className="text-xs md:text-sm opacity-90">Total Sales</div>
+            <div className="text-xs md:text-sm opacity-90">Transactions</div>
             <div className="text-xl md:text-3xl font-bold">{metadata.totalSales.toLocaleString()}</div>
           </div>
           <div className="bg-gradient-to-br from-green-500 to-green-600 p-4 md:p-6 rounded-lg text-white shadow-lg">
