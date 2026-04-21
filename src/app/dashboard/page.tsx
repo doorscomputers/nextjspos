@@ -385,7 +385,7 @@ export default function DashboardPageV2() {
 
   const metricCards = [
     {
-      name: "Total Sales",
+      name: "Net Sales",
       value: stats?.metrics.totalSales || 0,
       icon: CurrencyDollarIcon,
       color: "from-amber-600 to-orange-700",
@@ -394,7 +394,7 @@ export default function DashboardPageV2() {
       href: "/dashboard/sales",
     },
     {
-      name: "Net Amount",
+      name: "Gross Sales",
       value: stats?.metrics.netAmount || 0,
       icon: BanknotesIcon,
       color: "from-green-500 to-green-600",

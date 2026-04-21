@@ -389,7 +389,7 @@ export default function DashboardProgressivePage() {
 
   const metricCards = [
     {
-      name: "Total Sales",
+      name: "Net Sales",
       value: metrics?.totalSales || 0,
       icon: CurrencyDollarIcon,
       color: "from-blue-500 to-blue-600",
@@ -397,7 +397,7 @@ export default function DashboardProgressivePage() {
       permission: PERMISSIONS.SELL_VIEW,
     },
     {
-      name: "Net Amount",
+      name: "Gross Sales",
       value: metrics?.netAmount || 0,
       icon: BanknotesIcon,
       color: "from-green-500 to-green-600",
