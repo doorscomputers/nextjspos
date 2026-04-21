@@ -274,7 +274,7 @@ export default function DashboardV4Page() {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
           <div className="mb-4">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-              Receivables
+              Total Invoiced (Period)
             </h2>
             <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
               {formatCurrency(dashboardData?.receivables.total || 0)}
@@ -317,7 +317,7 @@ export default function DashboardV4Page() {
         {/* Payables */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
           <div className="mb-4">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Payables</h2>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Total Purchased (Period)</h2>
             <p className="text-2xl font-bold text-orange-600 dark:text-orange-400 mt-1">
               {formatCurrency(dashboardData?.payables.total || 0)}
             </p>

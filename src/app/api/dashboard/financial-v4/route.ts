@@ -296,9 +296,17 @@ export async function GET(request: NextRequest) {
       return sum + parseFloat(item._sum.unitPrice?.toString() || '0') * parseFloat(item._sum.quantity?.toString() || '0')
     }, 0)
 
+    // Defensive guard: exclude rows whose selling_price is clearly corrupt data
+    // (e.g. a barcode written into the price field). One bad row must not nuke
+    // the dashboard total.
+    const INSANE_PRICE_THRESHOLD = 10_000_000
     const totalAvailableValue = availableInventory.reduce((sum, item) => {
       const qty = parseFloat(item.qtyAvailable.toString())
       const price = parseFloat(item.sellingPrice?.toString() || '0')
+      if (price > INSANE_PRICE_THRESHOLD) {
+        console.warn(`[Dashboard V4] Ignoring implausible selling_price ${price} (qty=${qty})`)
+        return sum
+      }
       return sum + (qty * price)
     }, 0)
 

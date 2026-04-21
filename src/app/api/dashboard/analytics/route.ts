@@ -374,12 +374,29 @@ export async function POST(request: Request) {
         const locationMap = new Map()
         locations.forEach(loc => locationMap.set(loc.id, loc.name))
 
+        // Defensive guard: any per-unit price above this is treated as corrupt data
+        // (e.g. a barcode accidentally written into selling_price) and excluded from
+        // value aggregation so one bad row cannot nuke the dashboard total.
+        const INSANE_PRICE_THRESHOLD = 10_000_000
+        const sanitizePrice = (raw: number, context: string) => {
+            if (raw > INSANE_PRICE_THRESHOLD) {
+                console.warn(`[Dashboard V2 analytics] Ignoring implausible price ${raw} for ${context}`)
+                return 0
+            }
+            return raw
+        }
+
         // Transform inventory data
         const inventoryMetrics = inventoryData.map(inv => {
             const product = inv.productVariation?.product
             const category = product?.category
             const brand = product?.brand
             const unit = product?.unit
+
+            const rawSellingPrice = Number(inv.sellingPrice || inv.productVariation?.sellingPrice || 0)
+            const rawPurchasePrice = Number(inv.productVariation?.purchasePrice || 0)
+            const safeSellingPrice = sanitizePrice(rawSellingPrice, `variation ${inv.productVariation?.id} at location ${inv.locationId}`)
+            const safePurchasePrice = sanitizePrice(rawPurchasePrice, `variation ${inv.productVariation?.id} (cost)`)
 
             return {
                 // Location dimension
@@ -405,10 +422,10 @@ export async function POST(request: Request) {
                 // Unit dimension
                 unitName: unit?.name || 'pcs',
 
-                // Inventory metrics
+                // Inventory metrics (using sanitized prices — see INSANE_PRICE_THRESHOLD above)
                 currentStock: Number(inv.qtyAvailable),
-                stockValue: Number(inv.qtyAvailable) * Number(inv.sellingPrice || inv.productVariation?.sellingPrice || 0),
-                stockCostValue: Number(inv.qtyAvailable) * Number(inv.productVariation?.purchasePrice || 0),
+                stockValue: Number(inv.qtyAvailable) * safeSellingPrice,
+                stockCostValue: Number(inv.qtyAvailable) * safePurchasePrice,
             }
         })
 
