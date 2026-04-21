@@ -177,7 +177,7 @@ export default function DashboardPage() {
       permission: PERMISSIONS.SELL_VIEW,
     },
     {
-      name: "Invoice Due",
+      name: "A/R Outstanding",
       value: stats?.metrics.invoiceDue || 0,
       icon: ArrowTrendingUpIcon,
       color: "bg-orange-50 text-orange-600",
@@ -191,14 +191,14 @@ export default function DashboardPage() {
       permission: PERMISSIONS.CUSTOMER_RETURN_VIEW,
     },
     {
-      name: "Total Purchase",
+      name: "Purchases (Period)",
       value: stats?.metrics.totalPurchase || 0,
       icon: ShoppingCartIcon,
       color: "bg-purple-50 text-purple-600",
       permission: PERMISSIONS.PURCHASE_VIEW,
     },
     {
-      name: "Purchase Due",
+      name: "A/P Outstanding",
       value: stats?.metrics.purchaseDue || 0,
       icon: ArrowTrendingDownIcon,
       color: "bg-yellow-50 text-yellow-600",

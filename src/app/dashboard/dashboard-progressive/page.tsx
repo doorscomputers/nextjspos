@@ -405,7 +405,7 @@ export default function DashboardProgressivePage() {
       permission: PERMISSIONS.SELL_VIEW,
     },
     {
-      name: "Invoice Due",
+      name: "A/R Outstanding",
       value: metrics?.invoiceDue || 0,
       icon: ArrowTrendingUpIcon,
       color: "from-orange-500 to-orange-600",
@@ -421,7 +421,7 @@ export default function DashboardProgressivePage() {
       permission: PERMISSIONS.CUSTOMER_RETURN_VIEW,
     },
     {
-      name: "Total Purchase",
+      name: "Purchases (Period)",
       value: metrics?.totalPurchase || 0,
       icon: ShoppingCartIcon,
       color: "from-purple-500 to-purple-600",
@@ -429,7 +429,7 @@ export default function DashboardProgressivePage() {
       permission: PERMISSIONS.PURCHASE_VIEW,
     },
     {
-      name: "Purchase Due",
+      name: "A/P Outstanding",
       value: metrics?.purchaseDue || 0,
       icon: ArrowTrendingDownIcon,
       color: "from-yellow-500 to-yellow-600",

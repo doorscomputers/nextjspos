@@ -403,7 +403,7 @@ export default function DashboardPageV2() {
       href: "/dashboard/sales",
     },
     {
-      name: "Invoice Due",
+      name: "A/R Outstanding",
       value: stats?.metrics.invoiceDue || 0,
       icon: ArrowTrendingUpIcon,
       color: "from-orange-500 to-orange-600",
@@ -422,7 +422,7 @@ export default function DashboardPageV2() {
       href: "/dashboard/customer-returns",
     },
     {
-      name: "Total Purchase",
+      name: "Purchases (Period)",
       value: stats?.metrics.totalPurchase || 0,
       icon: ShoppingCartIcon,
       color: "from-yellow-700 to-amber-800",
@@ -431,7 +431,7 @@ export default function DashboardPageV2() {
       href: "/dashboard/purchases",
     },
     {
-      name: "Purchase Due",
+      name: "A/P Outstanding",
       value: stats?.metrics.purchaseDue || 0,
       icon: ArrowTrendingDownIcon,
       color: "from-yellow-500 to-yellow-600",
