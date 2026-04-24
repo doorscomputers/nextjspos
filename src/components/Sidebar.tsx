@@ -56,6 +56,138 @@ interface MenuItem {
   children?: MenuItem[]
 }
 
+// Domain-based color coding for top-level menus. Groups menus into visually
+// distinct families so new users can scan the sidebar faster.
+type MenuColorFamily =
+  | "emerald"
+  | "sky"
+  | "orange"
+  | "violet"
+  | "amber"
+  | "indigo"
+  | "slate"
+  | "pink"
+
+const MENU_COLOR_MAP: Record<string, MenuColorFamily> = {
+  "POS & Sales": "emerald",
+  "Customers": "emerald",
+  "Sales Personnel": "emerald",
+  "Products": "sky",
+  "Package Templates": "sky",
+  "Package Template 2": "sky",
+  "Price Editor": "sky",
+  "Purchases": "orange",
+  "Stock Transfers": "orange",
+  "Returns Management": "orange",
+  "Suppliers": "orange",
+  "Expenses": "violet",
+  "Accounting": "violet",
+  "Reports": "amber",
+  "Analytics Dashboard V1": "amber",
+  "Analytics Dashboard V2": "amber",
+  "Analytics Dashboard V3": "amber",
+  "Dashboard V4": "amber",
+  "Dashboard": "indigo",
+  "HR & Attendance": "indigo",
+  "Technical Services": "indigo",
+  "Administration": "slate",
+  "Settings": "slate",
+  "AI Assistant": "pink",
+  "Notifications": "pink",
+  "Help Center": "pink",
+  "My Profile": "pink",
+}
+
+interface MenuColorClasses {
+  icon: string
+  iconActive: string
+  accent: string
+  accentIdle: string
+  activeBg: string
+  hoverBg: string
+  activeText: string
+}
+
+const MENU_COLOR_CLASSES: Record<MenuColorFamily, MenuColorClasses> = {
+  emerald: {
+    icon: "text-emerald-600 dark:text-emerald-400",
+    iconActive: "text-emerald-700 dark:text-emerald-300",
+    accent: "before:bg-emerald-500 dark:before:bg-emerald-400",
+    accentIdle: "before:bg-emerald-300/70 dark:before:bg-emerald-700/70",
+    activeBg: "bg-emerald-50 dark:bg-emerald-950/40",
+    hoverBg: "hover:bg-emerald-50/70 dark:hover:bg-emerald-950/20",
+    activeText: "text-emerald-900 dark:text-emerald-100",
+  },
+  sky: {
+    icon: "text-sky-600 dark:text-sky-400",
+    iconActive: "text-sky-700 dark:text-sky-300",
+    accent: "before:bg-sky-500 dark:before:bg-sky-400",
+    accentIdle: "before:bg-sky-300/70 dark:before:bg-sky-700/70",
+    activeBg: "bg-sky-50 dark:bg-sky-950/40",
+    hoverBg: "hover:bg-sky-50/70 dark:hover:bg-sky-950/20",
+    activeText: "text-sky-900 dark:text-sky-100",
+  },
+  orange: {
+    icon: "text-orange-600 dark:text-orange-400",
+    iconActive: "text-orange-700 dark:text-orange-300",
+    accent: "before:bg-orange-500 dark:before:bg-orange-400",
+    accentIdle: "before:bg-orange-300/70 dark:before:bg-orange-700/70",
+    activeBg: "bg-orange-50 dark:bg-orange-950/40",
+    hoverBg: "hover:bg-orange-50/70 dark:hover:bg-orange-950/20",
+    activeText: "text-orange-900 dark:text-orange-100",
+  },
+  violet: {
+    icon: "text-violet-600 dark:text-violet-400",
+    iconActive: "text-violet-700 dark:text-violet-300",
+    accent: "before:bg-violet-500 dark:before:bg-violet-400",
+    accentIdle: "before:bg-violet-300/70 dark:before:bg-violet-700/70",
+    activeBg: "bg-violet-50 dark:bg-violet-950/40",
+    hoverBg: "hover:bg-violet-50/70 dark:hover:bg-violet-950/20",
+    activeText: "text-violet-900 dark:text-violet-100",
+  },
+  amber: {
+    icon: "text-amber-600 dark:text-amber-400",
+    iconActive: "text-amber-700 dark:text-amber-300",
+    accent: "before:bg-amber-500 dark:before:bg-amber-400",
+    accentIdle: "before:bg-amber-300/70 dark:before:bg-amber-700/70",
+    activeBg: "bg-amber-50 dark:bg-amber-950/40",
+    hoverBg: "hover:bg-amber-50/70 dark:hover:bg-amber-950/20",
+    activeText: "text-amber-900 dark:text-amber-100",
+  },
+  indigo: {
+    icon: "text-indigo-600 dark:text-indigo-400",
+    iconActive: "text-indigo-700 dark:text-indigo-300",
+    accent: "before:bg-indigo-500 dark:before:bg-indigo-400",
+    accentIdle: "before:bg-indigo-300/70 dark:before:bg-indigo-700/70",
+    activeBg: "bg-indigo-50 dark:bg-indigo-950/40",
+    hoverBg: "hover:bg-indigo-50/70 dark:hover:bg-indigo-950/20",
+    activeText: "text-indigo-900 dark:text-indigo-100",
+  },
+  slate: {
+    icon: "text-slate-600 dark:text-slate-300",
+    iconActive: "text-slate-800 dark:text-slate-100",
+    accent: "before:bg-slate-500 dark:before:bg-slate-400",
+    accentIdle: "before:bg-slate-300/70 dark:before:bg-slate-600/70",
+    activeBg: "bg-slate-100 dark:bg-slate-800/60",
+    hoverBg: "hover:bg-slate-100/70 dark:hover:bg-slate-800/30",
+    activeText: "text-slate-900 dark:text-slate-100",
+  },
+  pink: {
+    icon: "text-pink-600 dark:text-pink-400",
+    iconActive: "text-pink-700 dark:text-pink-300",
+    accent: "before:bg-pink-500 dark:before:bg-pink-400",
+    accentIdle: "before:bg-pink-300/70 dark:before:bg-pink-700/70",
+    activeBg: "bg-pink-50 dark:bg-pink-950/40",
+    hoverBg: "hover:bg-pink-50/70 dark:hover:bg-pink-950/20",
+    activeText: "text-pink-900 dark:text-pink-100",
+  },
+}
+
+function getMenuColors(name: string): MenuColorClasses {
+  const family = MENU_COLOR_MAP[name] ?? "indigo"
+  return MENU_COLOR_CLASSES[family]
+}
+
 function SidebarComponent({ isOpen }: { isOpen: boolean }) {
   const pathname = usePathname()
   const { can, user } = usePermissions()
@@ -1988,6 +2120,9 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
             // Check if any child is active
             const hasActiveChild = item.children?.some(child => pathname === child.href)
 
+            // Domain color coding (helps new users scan the sidebar)
+            const colors = getMenuColors(item.name)
+
             return (
               <div key={item.name}>
                 {item.children ? (
@@ -1996,20 +2131,21 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
                       onClick={() => toggleMenu(item.name)}
                       title={isIconOnly ? item.name : undefined}
                       className={`
-                        w-full flex items-center ${isIconOnly ? 'justify-center' : 'justify-between'} ${isIconOnly ? 'px-2' : 'px-4'} ${isCompact ? 'py-2.5' : 'py-3'} text-sm font-semibold rounded-lg transition-all duration-300 relative group shadow-sm
+                        w-full flex items-center ${isIconOnly ? 'justify-center' : 'justify-between'} ${isIconOnly ? 'px-2' : 'px-4'} ${isCompact ? 'py-2.5' : 'py-3'} text-sm font-semibold rounded-lg transition-all duration-300 relative group
+                        before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-6 before:rounded-r-md
                         ${hasActiveChild
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-2 before:h-8 before:bg-white before:rounded-r-md'
-                          : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-indigo-600 shadow-md hover:shadow-lg'
+                          ? `${colors.activeBg} ${colors.activeText} ${colors.accent} before:w-1.5 before:h-8 shadow-sm`
+                          : `bg-white dark:bg-gray-800/40 text-gray-700 dark:text-gray-200 ${colors.hoverBg} ${colors.accentIdle}`
                         }
                       `}
                     >
                       <div className="flex items-center">
-                        <Icon className={`${isIconOnly ? 'w-6 h-6' : 'w-5 h-5'} ${isIconOnly ? '' : 'mr-3'}`} />
+                        <Icon className={`${isIconOnly ? 'w-6 h-6' : 'w-5 h-5'} ${isIconOnly ? '' : 'mr-3'} ${hasActiveChild ? colors.iconActive : colors.icon}`} />
                         {!isIconOnly && <span className="font-medium">{highlightText(item.name, searchQuery, true)}</span>}
                       </div>
                       {!isIconOnly && (
                         <div className={`transform transition-all duration-300 ${isExpanded ? 'rotate-90' : 'rotate-0'}`}>
-                          <ChevronRightIcon className="w-5 h-5 text-white" />
+                          <ChevronRightIcon className={`w-5 h-5 ${hasActiveChild ? colors.iconActive : 'text-gray-400 dark:text-gray-500'}`} />
                         </div>
                       )}
                     </button>
@@ -2106,14 +2242,15 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
                     href={item.href}
                     title={isIconOnly ? item.name : undefined}
                     className={`
-                      flex items-center ${isIconOnly ? 'justify-center px-2' : 'px-4'} ${isCompact ? 'py-2.5' : 'py-3'} text-sm font-semibold rounded-lg transition-all duration-300 relative shadow-sm
+                      flex items-center ${isIconOnly ? 'justify-center px-2' : 'px-4'} ${isCompact ? 'py-2.5' : 'py-3'} text-sm font-semibold rounded-lg transition-all duration-300 relative
+                      before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-6 before:rounded-r-md
                       ${isActive
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-2 before:h-8 before:bg-white before:rounded-r-md'
-                        : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-indigo-600 shadow-md hover:shadow-lg'
+                        ? `${colors.activeBg} ${colors.activeText} ${colors.accent} before:w-1.5 before:h-8 shadow-sm`
+                        : `bg-white dark:bg-gray-800/40 text-gray-700 dark:text-gray-200 ${colors.hoverBg} ${colors.accentIdle}`
                       }
                     `}
                   >
-                    <Icon className={`${isIconOnly ? 'w-6 h-6' : 'w-5 h-5'} ${isIconOnly ? '' : 'mr-3'}`} />
+                    <Icon className={`${isIconOnly ? 'w-6 h-6' : 'w-5 h-5'} ${isIconOnly ? '' : 'mr-3'} ${isActive ? colors.iconActive : colors.icon}`} />
                     {!isIconOnly && <span className="font-medium">{highlightText(item.name, searchQuery, true)}</span>}
                   </Link>
                 )}
