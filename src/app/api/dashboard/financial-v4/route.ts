@@ -84,13 +84,21 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Date filter - default to current year (Jan 1 to today)
-    const currentYear = new Date().getFullYear()
-    const defaultStartDate = new Date(currentYear, 0, 1)
-    const defaultEndDate = new Date()
+    // Date filter - treat YYYY-MM-DD as Asia/Manila day boundaries so the
+    // full last day is included. Default to current PH-year Jan 1 → now.
+    const PH_TZ_OFFSET = '+08:00'
+    const isYmd = (s: string | null) => !!s && /^\d{4}-\d{2}-\d{2}$/.test(s)
+    const nowPh = new Date()
+    const currentYear = nowPh.getFullYear()
+    const defaultStartDate = new Date(`${currentYear}-01-01T00:00:00${PH_TZ_OFFSET}`)
+    const defaultEndDate = nowPh
 
-    const dateStart = startDate ? new Date(startDate) : defaultStartDate
-    const dateEnd = endDate ? new Date(endDate) : defaultEndDate
+    const dateStart = isYmd(startDate)
+      ? new Date(`${startDate}T00:00:00.000${PH_TZ_OFFSET}`)
+      : defaultStartDate
+    const dateEnd = isYmd(endDate)
+      ? new Date(`${endDate}T23:59:59.999${PH_TZ_OFFSET}`)
+      : defaultEndDate
 
     // ============================================
     // OPTIMIZATION: Execute ALL independent queries in PARALLEL
@@ -243,22 +251,24 @@ export async function GET(request: NextRequest) {
     let receivablesUnpaid = 0
     const receivablesAging = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 }
 
+    const nowMs = Date.now()
     salesForReceivables.forEach(sale => {
       const totalAmount = parseFloat(sale.totalAmount.toString())
       const paidAmount = sale.payments.reduce((sum, p) => sum + parseFloat(p.amount.toString()), 0)
       const balance = Math.max(0, totalAmount - paidAmount)
 
+      // Always count actual payments toward Paid — partial payments included.
+      receivablesPaid += Math.min(paidAmount, totalAmount)
+
       if (balance > 0) {
         receivablesUnpaid += balance
 
-        // Calculate aging
-        const daysOld = Math.floor((new Date().getTime() - sale.saleDate.getTime()) / (1000 * 60 * 60 * 24))
+        // Aging of the outstanding balance, based on sale date
+        const daysOld = Math.max(0, Math.floor((nowMs - sale.saleDate.getTime()) / (1000 * 60 * 60 * 24)))
         if (daysOld <= 30) receivablesAging['0-30'] += balance
         else if (daysOld <= 60) receivablesAging['31-60'] += balance
         else if (daysOld <= 90) receivablesAging['61-90'] += balance
         else receivablesAging['90+'] += balance
-      } else {
-        receivablesPaid += totalAmount
       }
     })
 

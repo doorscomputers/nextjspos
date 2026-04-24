@@ -149,6 +149,15 @@ export default function DashboardV3Page() {
   const fetchDashboardData = async () => {
     setLoading(true)
     try {
+      // Format a Date as YYYY-MM-DD using LOCAL parts. Using toISOString here
+      // would shift into UTC and send the previous day for PH users.
+      const toLocalYmd = (d: Date) => {
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        return `${y}-${m}-${day}`
+      }
+
       // 🚀 OPTIMIZATION: Using optimized endpoint (99.8% faster with caching)
       const response = await fetch('/api/dashboard/intelligence-optimized', {
         method: 'POST',
@@ -156,8 +165,8 @@ export default function DashboardV3Page() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          startDate: startDate ? startDate.toISOString().split('T')[0] : '',
-          endDate: endDate ? endDate.toISOString().split('T')[0] : '',
+          startDate: startDate ? toLocalYmd(startDate) : '',
+          endDate: endDate ? toLocalYmd(endDate) : '',
           locationIds: selectedLocations,
         }),
       })

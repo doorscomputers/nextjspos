@@ -45,11 +45,30 @@ export async function POST(request: Request) {
         const categoryIds = normalizeIdArray(requestBody.categoryIds)
         const brandIds = normalizeIdArray(requestBody.brandIds)
 
+        // Treat YYYY-MM-DD as Asia/Manila calendar-day boundaries so the
+        // full last day is included and the server timezone cannot shift
+        // the range.
+        const PH_TZ_OFFSET = '+08:00'
+        const isYmd = (s: unknown): s is string =>
+            typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)
+        const parseStartOfDay = (s: string) =>
+            new Date(`${s}T00:00:00.000${PH_TZ_OFFSET}`)
+        const parseEndOfDay = (s: string) =>
+            new Date(`${s}T23:59:59.999${PH_TZ_OFFSET}`)
+
         const dateFilter: Prisma.DateTimeFilter | undefined =
             startDate || endDate
                 ? {
-                    ...(startDate ? { gte: new Date(startDate) } : {}),
-                    ...(endDate ? { lte: new Date(endDate) } : {}),
+                    ...(isYmd(startDate)
+                        ? { gte: parseStartOfDay(startDate) }
+                        : startDate
+                            ? { gte: new Date(startDate) }
+                            : {}),
+                    ...(isYmd(endDate)
+                        ? { lte: parseEndOfDay(endDate) }
+                        : endDate
+                            ? { lte: new Date(endDate) }
+                            : {}),
                 }
                 : undefined
 
@@ -447,15 +466,14 @@ export async function POST(request: Request) {
         }
 
         if (startDate && endDate) {
-            const start = new Date(startDate)
-            const end = new Date(endDate)
-            const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+            const start = isYmd(startDate) ? parseStartOfDay(startDate) : new Date(startDate)
+            const end = isYmd(endDate) ? parseEndOfDay(endDate) : new Date(endDate)
+            const daysDiff = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)))
 
             const previousStart = new Date(start)
             previousStart.setDate(previousStart.getDate() - daysDiff)
 
-            const previousEnd = new Date(start)
-            previousEnd.setDate(previousEnd.getDate() - 1)
+            const previousEnd = new Date(start.getTime() - 1)
 
             const previousSales = await prisma.sale.findMany({
                 where: {

@@ -72,10 +72,19 @@ export default function DashboardV4Page() {
       setLoading(true)
       setError(null)
 
+      // Format a Date as YYYY-MM-DD using LOCAL parts. toISOString would shift
+      // into UTC and send the previous calendar day for PH users.
+      const toLocalYmd = (d: Date) => {
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const day = String(d.getDate()).padStart(2, '0')
+        return `${y}-${m}-${day}`
+      }
+
       try {
         const params = new URLSearchParams({
-          startDate: startDate.toISOString().split('T')[0],
-          endDate: endDate.toISOString().split('T')[0],
+          startDate: toLocalYmd(startDate),
+          endDate: toLocalYmd(endDate),
           locationId: selectedLocation.toString()
         })
 

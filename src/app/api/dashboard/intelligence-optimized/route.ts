@@ -56,7 +56,13 @@ export async function POST(request: NextRequest) {
         console.log('[Dashboard Intelligence] Cache MISS - Fetching from database...')
         const fetchStart = Date.now()
 
-        // Date range setup - handle empty strings by using last 30 days as default
+        // Date range setup - handle empty strings by using last 30 days as default.
+        // Treat YYYY-MM-DD as Asia/Manila calendar-day boundaries so the full
+        // last day is included regardless of the server timezone.
+        const PH_TZ_OFFSET = '+08:00'
+        const isYmd = (s: unknown): s is string =>
+          typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)
+
         let start: Date
         let end: Date
 
@@ -65,8 +71,12 @@ export async function POST(request: NextRequest) {
           start = new Date()
           start.setDate(start.getDate() - 30)
         } else {
-          start = new Date(startDate)
-          end = new Date(endDate)
+          start = isYmd(startDate)
+            ? new Date(`${startDate}T00:00:00.000${PH_TZ_OFFSET}`)
+            : new Date(startDate)
+          end = isYmd(endDate)
+            ? new Date(`${endDate}T23:59:59.999${PH_TZ_OFFSET}`)
+            : new Date(endDate)
         }
 
         // Previous period for comparison (same duration)
