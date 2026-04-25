@@ -729,11 +729,13 @@ export default function SalesHistoryPage() {
               <SelectContent>
                 <SelectItem value="all">All Methods</SelectItem>
                 <SelectItem value="cash">Cash</SelectItem>
-                <SelectItem value="card">Card</SelectItem>
-                <SelectItem value="credit">Credit</SelectItem>
-                <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                <SelectItem value="mobile_payment">Mobile Payment</SelectItem>
+                <SelectItem value="gcash">GCash</SelectItem>
                 <SelectItem value="cheque">Cheque</SelectItem>
+                <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                <SelectItem value="credit">Credit</SelectItem>
+                <SelectItem value="nfc">NFC</SelectItem>
+                <SelectItem value="card">Card</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
               </SelectContent>
             </Select>
           </div>

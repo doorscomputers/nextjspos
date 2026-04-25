@@ -490,9 +490,14 @@ export default function SalesJournalReport() {
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800"
               >
                 <option value="all">All Methods</option>
-                <option value="CASH">Cash</option>
-                <option value="CARD">Card</option>
-                <option value="CREDIT">Credit</option>
+                <option value="cash">Cash</option>
+                <option value="gcash">GCash</option>
+                <option value="cheque">Cheque</option>
+                <option value="bank_transfer">Bank Transfer</option>
+                <option value="credit">Credit</option>
+                <option value="nfc">NFC</option>
+                <option value="card">Card</option>
+                <option value="other">Other</option>
               </select>
             </div>
             <div>
