@@ -38,6 +38,9 @@ export interface XReadingData {
   cashIn: number // Additional cash added from outside (bank/owner)
   cashOut: number // Cash removed (withdrawals/expenses)
   arPaymentsCash: number // Cash from AR payments (old debts paid)
+  // Per-method breakdown of AR payments collected during this shift (cheque, card, gcash, etc.)
+  // Populated by instant-mode running totals; may be undefined in legacy fallback aggregation.
+  arPaymentBreakdown?: Record<string, number>
   expectedCash: number // = beginning + cashFromSales + cashIn + arPayments - cashOut
 
   // Sales totals

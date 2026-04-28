@@ -348,6 +348,27 @@ async function generateXReadingFromRunningTotals(
   //   paymentBreakdown['credit'] = parseFloat(shift.runningCreditSales.toString())
   if (totalOther > 0) paymentBreakdown['other'] = totalOther
 
+  // Per-method breakdown of AR payments collected during this shift.
+  // Surfaces non-cash AR collections (cheque/card/gcash/etc.) so the supervisor
+  // can reconcile cashier hand-off against the AR collections report.
+  const arPaymentBreakdown: Record<string, number> = {}
+  const arCash = parseFloat(shift.runningArPaymentsCash.toString())
+  const arCard = parseFloat(shift.runningArPaymentsCard.toString())
+  const arGcash = parseFloat(shift.runningArPaymentsGcash.toString())
+  const arPaymaya = parseFloat(shift.runningArPaymentsPaymaya.toString())
+  const arNfc = parseFloat(shift.runningArPaymentsNfc?.toString() || '0')
+  const arBank = parseFloat(shift.runningArPaymentsBank.toString())
+  const arCheck = parseFloat(shift.runningArPaymentsCheck.toString())
+  const arOther = parseFloat(shift.runningArPaymentsOther.toString())
+  if (arCash > 0) arPaymentBreakdown['cash'] = arCash
+  if (arCard > 0) arPaymentBreakdown['card'] = arCard
+  if (arGcash > 0) arPaymentBreakdown['gcash'] = arGcash
+  if (arPaymaya > 0) arPaymentBreakdown['paymaya'] = arPaymaya
+  if (arNfc > 0) arPaymentBreakdown['nfc'] = arNfc
+  if (arBank > 0) arPaymentBreakdown['bank_transfer'] = arBank
+  if (arCheck > 0) arPaymentBreakdown['check'] = arCheck
+  if (arOther > 0) arPaymentBreakdown['other'] = arOther
+
   // Calculate clearer breakdown fields
   const cashFromSales = parseFloat(shift.runningCashSales.toString()) // Cash collected from direct sales only
   const creditSales = parseFloat(shift.runningCreditSales.toString()) // Track separately - NOT a payment received
@@ -380,6 +401,7 @@ async function generateXReadingFromRunningTotals(
     cashIn,
     cashOut,
     arPaymentsCash,
+    arPaymentBreakdown,
     expectedCash,
     discountBreakdown: {
       senior: parseFloat(shift.runningSeniorDiscount.toString()),

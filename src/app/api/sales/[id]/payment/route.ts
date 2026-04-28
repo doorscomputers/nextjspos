@@ -52,13 +52,14 @@ export async function POST(
 
     // 3. Parse request body
     const body = await request.json()
-    const { amount, paymentMethod, referenceNumber, paymentDate, shiftId } = body
-    console.log('[AR Payment API] Request body:', { amount, paymentMethod, referenceNumber, paymentDate, shiftId })
+    const { amount, paymentMethod, referenceNumber, paymentDate, shiftId, deductions, cheques } = body
+    console.log('[AR Payment API] Request body:', { amount, paymentMethod, referenceNumber, paymentDate, shiftId, deductions, chequesCount: Array.isArray(cheques) ? cheques.length : 0 })
 
-    // 4. Validation
-    if (!amount || amount <= 0) {
+    // 4. Validation — ensure amount is a proper number (prevent string concatenation bugs)
+    const parsedAmount = typeof amount === 'string' ? parseFloat(amount) : Number(amount)
+    if (!parsedAmount || isNaN(parsedAmount) || parsedAmount <= 0) {
       return NextResponse.json(
-        { success: false, error: "Payment amount must be greater than zero" },
+        { success: false, error: "Payment amount must be a valid number greater than zero" },
         { status: 400 }
       )
     }
@@ -80,6 +81,87 @@ export async function POST(
         },
         { status: 400 }
       )
+    }
+
+    // 4b. Validate deductions (optional array)
+    const validDeductionTypes = ["ewt", "vat_withholding", "other_gov_deduction"]
+    let totalDeductions = 0
+    const parsedDeductions: { type: string; amount: number; notes?: string; referenceNumber?: string }[] = []
+    if (deductions && Array.isArray(deductions) && deductions.length > 0) {
+      for (const ded of deductions) {
+        const dedAmount = typeof ded.amount === 'string' ? parseFloat(ded.amount) : Number(ded.amount)
+        if (!dedAmount || isNaN(dedAmount) || dedAmount <= 0) {
+          return NextResponse.json(
+            { success: false, error: "Each deduction must have a valid amount greater than zero" },
+            { status: 400 }
+          )
+        }
+        if (!ded.type || !validDeductionTypes.includes(ded.type)) {
+          return NextResponse.json(
+            { success: false, error: `Invalid deduction type. Must be one of: ${validDeductionTypes.join(", ")}` },
+            { status: 400 }
+          )
+        }
+        totalDeductions += dedAmount
+        parsedDeductions.push({ type: ded.type, amount: dedAmount, notes: ded.notes, referenceNumber: ded.referenceNumber })
+      }
+    }
+
+    // 4c. Validate cheques (optional array — only allowed when paymentMethod === 'cheque')
+    // When provided, one SalePayment row is created per cheque so each can be tracked independently
+    // (clearing/bouncing/bank deposit). Sum of cheque amounts MUST equal `amount`.
+    type ParsedCheque = { number: string; bank: string | null; date: Date; amount: number }
+    const parsedCheques: ParsedCheque[] = []
+    if (cheques !== undefined && cheques !== null) {
+      if (!Array.isArray(cheques)) {
+        return NextResponse.json(
+          { success: false, error: "`cheques` must be an array when provided" },
+          { status: 400 }
+        )
+      }
+      if (cheques.length > 0) {
+        if (paymentMethod !== 'cheque') {
+          return NextResponse.json(
+            { success: false, error: "`cheques` array is only valid when paymentMethod is 'cheque'" },
+            { status: 400 }
+          )
+        }
+        let sumOfCheques = 0
+        for (const cq of cheques) {
+          const cqAmount = typeof cq?.amount === 'string' ? parseFloat(cq.amount) : Number(cq?.amount)
+          if (!cqAmount || isNaN(cqAmount) || cqAmount <= 0) {
+            return NextResponse.json(
+              { success: false, error: "Each cheque must have a valid amount greater than zero" },
+              { status: 400 }
+            )
+          }
+          const cqNumber = typeof cq?.number === 'string' ? cq.number.trim() : ''
+          if (!cqNumber) {
+            return NextResponse.json(
+              { success: false, error: "Each cheque must have a non-empty cheque number" },
+              { status: 400 }
+            )
+          }
+          const cqDate = cq?.date ? new Date(cq.date) : null
+          parsedCheques.push({
+            number: cqNumber,
+            bank: typeof cq?.bank === 'string' && cq.bank.trim() ? cq.bank.trim() : null,
+            date: cqDate && !isNaN(cqDate.getTime()) ? cqDate : new Date(),
+            amount: cqAmount,
+          })
+          sumOfCheques += cqAmount
+        }
+        // 1 centavo tolerance for rounding
+        if (Math.abs(sumOfCheques - parsedAmount) > 0.01) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Sum of cheque amounts (₱${sumOfCheques.toFixed(2)}) must equal payment total (₱${parsedAmount.toFixed(2)})`,
+            },
+            { status: 400 }
+          )
+        }
+      }
     }
 
     // 5. Verify sale exists and belongs to user's business (multi-tenant check)
@@ -124,13 +206,16 @@ export async function POST(
       paymentsCount: sale.payments.length
     })
 
-    // 7. Validate payment amount doesn't exceed balance
-    if (amount > currentBalance + 0.01) {
+    // 7. Validate payment amount + deductions doesn't exceed balance
+    const totalApplied = parsedAmount + totalDeductions
+    if (totalApplied > currentBalance + 0.01) {
       // Allow 1 cent tolerance for rounding
+      const errorParts = [`Payment (₱${parsedAmount.toFixed(2)})`]
+      if (totalDeductions > 0) errorParts.push(`Deductions (₱${totalDeductions.toFixed(2)})`)
       return NextResponse.json(
         {
           success: false,
-          error: `Payment amount (₱${amount.toFixed(2)}) exceeds outstanding balance (₱${currentBalance.toFixed(2)})`,
+          error: `${errorParts.join(' + ')} = ₱${totalApplied.toFixed(2)} exceeds outstanding balance (₱${currentBalance.toFixed(2)})`,
           balance: currentBalance,
         },
         { status: 400 }
@@ -146,32 +231,76 @@ export async function POST(
     console.log('[AR Payment API] Starting transaction...')
 
     const payment = await prisma.$transaction(async (tx) => {
-      console.log('[AR Payment API] Inside transaction - Step 1: Creating payment record...')
-      // Step 1: Create payment record
-      const newPayment = await tx.salePayment.create({
-        data: {
-          saleId: sale.id,
-          paymentMethod,
-          amount,
-          referenceNumber: referenceNumber || null,
-          paidAt,
-          // Link to shift if payment collected at POS (AR Payment Collection)
-          shiftId: shiftId ? parseInt(shiftId) : null,
-          collectedBy: shiftId ? parseInt(String(user.id)) : null,
-        },
-      })
-      console.log('[AR Payment API] ✅ Payment record created, ID:', newPayment.id)
+      console.log('[AR Payment API] Inside transaction - Step 1: Creating payment record(s)...')
+      // Step 1: Create payment record(s) — one per cheque when cheques[] provided, else single row
+      const createdPayments: Awaited<ReturnType<typeof tx.salePayment.create>>[] = []
+      if (parsedCheques.length > 0) {
+        // Multi-cheque mode: one SalePayment per cheque so each is independently trackable
+        for (const cq of parsedCheques) {
+          const row = await tx.salePayment.create({
+            data: {
+              saleId: sale.id,
+              paymentMethod: 'cheque',
+              amount: cq.amount,
+              referenceNumber: cq.bank ? `${cq.number} (${cq.bank})` : cq.number,
+              paidAt: cq.date,
+              shiftId: shiftId ? parseInt(shiftId) : null,
+              collectedBy: shiftId ? parseInt(String(user.id)) : null,
+            },
+          })
+          createdPayments.push(row)
+          console.log('[AR Payment API] ✅ Cheque payment created, ID:', row.id, 'Number:', cq.number, 'Amount:', cq.amount)
+        }
+      } else {
+        // Legacy single-payment path (cash, card, gcash, paymaya, bank_transfer, or single-cheque without cheques[])
+        const row = await tx.salePayment.create({
+          data: {
+            saleId: sale.id,
+            paymentMethod,
+            amount: parsedAmount,
+            referenceNumber: referenceNumber || null,
+            paidAt,
+            shiftId: shiftId ? parseInt(shiftId) : null,
+            collectedBy: shiftId ? parseInt(String(user.id)) : null,
+          },
+        })
+        createdPayments.push(row)
+        console.log('[AR Payment API] ✅ Payment record created, ID:', row.id)
+      }
+      const newPayment = createdPayments[0]
+
+      // Step 1b: Create deduction records (if any)
+      if (parsedDeductions.length > 0) {
+        for (const ded of parsedDeductions) {
+          const dedRecord = await tx.salePayment.create({
+            data: {
+              saleId: sale.id,
+              paymentMethod: 'government_deduction',
+              amount: ded.amount,
+              deductionType: ded.type,
+              deductionNotes: ded.notes || null,
+              referenceNumber: ded.referenceNumber || referenceNumber || null,
+              paidAt,
+              shiftId: shiftId ? parseInt(shiftId) : null,
+              collectedBy: shiftId ? parseInt(String(user.id)) : null,
+            },
+          })
+          console.log('[AR Payment API] ✅ Deduction record created, ID:', dedRecord.id, 'Type:', ded.type, 'Amount:', ded.amount)
+        }
+      }
 
       // Step 1.5: Update sale's paidAmount field (CRITICAL!)
+      // Increment by actual payment + total deductions so AR balance closes out
+      const totalIncrement = parsedAmount + totalDeductions
       console.log('[AR Payment API] Step 1.5: Updating sale paidAmount...')
-      const newTotalPaid = parseFloat(sale.paidAmount.toString()) + amount
+      const newTotalPaid = parseFloat(sale.paidAmount.toString()) + totalIncrement
       const totalAmount = parseFloat(sale.totalAmount.toString())
       const isFullyPaid = newTotalPaid >= totalAmount - 0.01 // Allow 1 cent tolerance
 
       await tx.sale.update({
         where: { id: sale.id },
         data: {
-          paidAmount: { increment: amount },
+          paidAmount: { increment: totalIncrement },
           status: isFullyPaid ? 'completed' : 'pending', // Mark as completed when fully paid
         },
       })
@@ -183,7 +312,7 @@ export async function POST(
         await incrementShiftTotalsForARPayment(
           parseInt(shiftId),
           paymentMethod,
-          amount,
+          parsedAmount,
           tx
         )
         console.log('[AR Payment API] ✅ Shift totals updated')
@@ -202,83 +331,157 @@ export async function POST(
         })
 
         if (cashAccount && arAccount) {
+          // Generate journal entry number (JE-YYYY-NNNN, unique per business)
+          // Pattern matches src/lib/expense-utils.ts:137-164
+          const year = new Date().getFullYear()
+          const jePrefix = `JE-${year}-`
+          const lastEntry = await tx.journalEntry.findFirst({
+            where: { businessId: businessIdInt, entryNumber: { startsWith: jePrefix } },
+            orderBy: { entryNumber: 'desc' },
+            select: { entryNumber: true },
+          })
+          let nextSeq = 1
+          if (lastEntry) {
+            const m = lastEntry.entryNumber.match(/(\d+)$/)
+            if (m) nextSeq = parseInt(m[1], 10) + 1
+          }
+          const entryNumber = `${jePrefix}${nextSeq.toString().padStart(4, '0')}`
+
           // Create journal entry for payment received
           const userIdInt = parseInt(String(user.id))
+          const totalArCredit = parsedAmount + totalDeductions
           const journalEntry = await tx.journalEntry.create({
             data: {
               businessId: businessIdInt,
+              entryNumber,
               entryDate: paidAt,
-              description: `Payment Received${referenceNumber ? ` - ${referenceNumber}` : ''}`,
+              entryType: 'automated',
+              referenceType: 'Sale',
+              referenceId: sale.id.toString(),
               referenceNumber: referenceNumber || null,
-              sourceType: 'payment_received',
-              sourceId: newPayment.id,
-              status: 'posted',
+              description: `Payment Received${totalDeductions > 0 ? ' (with gov deductions)' : ''}${referenceNumber ? ` - ${referenceNumber}` : ''}`,
+              totalDebit: totalArCredit,
+              totalCredit: totalArCredit,
               balanced: true,
+              status: 'posted',
               createdBy: userIdInt,
               postedBy: userIdInt,
               postedAt: new Date(),
             },
           })
 
-          // Debit: Cash (increase asset)
+          // Debit: Cash (increase asset) — actual cash received
           await tx.journalEntryLine.create({
             data: {
               journalEntryId: journalEntry.id,
               accountId: cashAccount.id,
-              debit: amount,
+              debit: parsedAmount,
               credit: 0,
               description: `Payment received from customer`,
+              lineNumber: 1,
             },
           })
 
-          // Credit: Accounts Receivable (decrease asset)
+          // Debit: Government Deductions (if any)
+          let deductionLineWritten = false
+          if (totalDeductions > 0) {
+            // Try to find or use a tax deductions account (code 1150)
+            // If not found, fall back to cash account (conservative — user can reclassify later)
+            let deductionAccount = await tx.chartOfAccounts.findFirst({
+              where: { businessId: businessIdInt, accountCode: '1150', isActive: true },
+            })
+            if (!deductionAccount) {
+              // Try expense account for tax deductions
+              deductionAccount = await tx.chartOfAccounts.findFirst({
+                where: { businessId: businessIdInt, accountCode: '6100', isActive: true },
+              })
+            }
+            const deductionAccountId = deductionAccount?.id || cashAccount.id
+
+            await tx.journalEntryLine.create({
+              data: {
+                journalEntryId: journalEntry.id,
+                accountId: deductionAccountId,
+                debit: totalDeductions,
+                credit: 0,
+                description: `Government deductions (EWT/VAT withholding)`,
+                lineNumber: 2,
+              },
+            })
+            deductionLineWritten = true
+
+            // Update deduction account balance if different from cash
+            if (deductionAccount && deductionAccount.id !== cashAccount.id) {
+              await tx.chartOfAccounts.update({
+                where: { id: deductionAccount.id },
+                data: { currentBalance: { increment: totalDeductions } },
+              })
+            }
+          }
+
+          // Credit: Accounts Receivable (decrease asset) — full amount (payment + deductions)
           await tx.journalEntryLine.create({
             data: {
               journalEntryId: journalEntry.id,
               accountId: arAccount.id,
               debit: 0,
-              credit: amount,
-              description: `Payment received from customer`,
+              credit: totalArCredit,
+              description: `Payment received from customer${totalDeductions > 0 ? ' (includes gov deductions)' : ''}`,
+              lineNumber: deductionLineWritten ? 3 : 2,
             },
           })
 
           // Update account balances
           await tx.chartOfAccounts.update({
             where: { id: cashAccount.id },
-            data: { currentBalance: { increment: amount } },
+            data: { currentBalance: { increment: parsedAmount } },
           })
           await tx.chartOfAccounts.update({
             where: { id: arAccount.id },
-            data: { currentBalance: { decrement: amount } },
+            data: { currentBalance: { decrement: totalArCredit } },
           })
         }
       }
 
-      return newPayment
+      return { newPayment, createdPayments }
     }, {
       timeout: 60000, // 60 seconds timeout for network resilience
     })
 
-    // 10. Calculate new balance after payment
-    const newBalance = currentBalance - amount
+    // 10. Calculate new balance after payment + deductions
+    const newBalance = currentBalance - totalApplied
     const isFullyPaid = newBalance <= 0.01
 
     // 10. Return success response with updated invoice status
     return NextResponse.json({
       success: true,
       payment: {
-        id: payment.id,
-        amount: parseFloat(payment.amount.toString()),
-        paymentMethod: payment.paymentMethod,
-        referenceNumber: payment.referenceNumber,
-        paidAt: payment.paidAt,
+        id: payment.newPayment.id,
+        amount: parseFloat(payment.newPayment.amount.toString()),
+        paymentMethod: payment.newPayment.paymentMethod,
+        referenceNumber: payment.newPayment.referenceNumber,
+        paidAt: payment.newPayment.paidAt,
       },
+      payments: payment.createdPayments.map((p) => ({
+        id: p.id,
+        amount: parseFloat(p.amount.toString()),
+        paymentMethod: p.paymentMethod,
+        referenceNumber: p.referenceNumber,
+        paidAt: p.paidAt,
+      })),
+      deductions: parsedDeductions.map((d) => ({
+        type: d.type,
+        amount: d.amount,
+        notes: d.notes || null,
+      })),
       invoice: {
         id: sale.id,
         invoiceNumber: sale.invoiceNumber,
         totalAmount,
         previousBalance: currentBalance,
-        paymentAmount: amount,
+        paymentAmount: parsedAmount,
+        deductionAmount: totalDeductions,
+        totalApplied,
         newBalance,
         isFullyPaid,
         customer: sale.customer,
@@ -384,6 +587,8 @@ export async function GET(
           paymentMethod: p.paymentMethod,
           referenceNumber: p.referenceNumber,
           paidAt: p.paidAt,
+          deductionType: p.deductionType || null,
+          deductionNotes: p.deductionNotes || null,
         })),
     })
   } catch (error: any) {

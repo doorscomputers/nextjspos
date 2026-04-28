@@ -28,6 +28,9 @@ interface XReadingData {
   cashIn: number
   cashOut: number
   arPaymentsCash: number
+  // Per-method breakdown of AR payments collected this shift (cheque, card, gcash, etc.)
+  // Surfaces non-cash AR collections so supervisor can reconcile cashier hand-off.
+  arPaymentBreakdown?: Record<string, number>
   expectedCash: number
   discountBreakdown: {
     senior: number
@@ -534,8 +537,65 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                   <span className="line-label">Cash from OLD Credit Sales:</span>
                   <span className="line-value font-bold text-green-600 dark:text-green-400">{formatCurrency(xReading.arPaymentsCash || 0)}</span>
                 </div>
+
+                {/* Non-cash AR collections — visible so supervisor knows what to collect from cashier */}
+                {xReading.arPaymentBreakdown && (
+                  <>
+                    {xReading.arPaymentBreakdown['check'] > 0 && (
+                      <div className="line">
+                        <span className="line-label">🧾 Cheques from OLD Credit Sales:</span>
+                        <span className="line-value font-bold text-blue-700 dark:text-blue-300">{formatCurrency(xReading.arPaymentBreakdown['check'])}</span>
+                      </div>
+                    )}
+                    {xReading.arPaymentBreakdown['card'] > 0 && (
+                      <div className="line">
+                        <span className="line-label">💳 Card from OLD Credit Sales:</span>
+                        <span className="line-value font-bold text-blue-700 dark:text-blue-300">{formatCurrency(xReading.arPaymentBreakdown['card'])}</span>
+                      </div>
+                    )}
+                    {xReading.arPaymentBreakdown['gcash'] > 0 && (
+                      <div className="line">
+                        <span className="line-label">📱 GCash from OLD Credit Sales:</span>
+                        <span className="line-value font-bold text-blue-700 dark:text-blue-300">{formatCurrency(xReading.arPaymentBreakdown['gcash'])}</span>
+                      </div>
+                    )}
+                    {xReading.arPaymentBreakdown['paymaya'] > 0 && (
+                      <div className="line">
+                        <span className="line-label">📱 PayMaya from OLD Credit Sales:</span>
+                        <span className="line-value font-bold text-blue-700 dark:text-blue-300">{formatCurrency(xReading.arPaymentBreakdown['paymaya'])}</span>
+                      </div>
+                    )}
+                    {xReading.arPaymentBreakdown['nfc'] > 0 && (
+                      <div className="line">
+                        <span className="line-label">📱 NFC from OLD Credit Sales:</span>
+                        <span className="line-value font-bold text-blue-700 dark:text-blue-300">{formatCurrency(xReading.arPaymentBreakdown['nfc'])}</span>
+                      </div>
+                    )}
+                    {xReading.arPaymentBreakdown['bank_transfer'] > 0 && (
+                      <div className="line">
+                        <span className="line-label">🏦 Bank Transfer from OLD Credit Sales:</span>
+                        <span className="line-value font-bold text-blue-700 dark:text-blue-300">{formatCurrency(xReading.arPaymentBreakdown['bank_transfer'])}</span>
+                      </div>
+                    )}
+                    {xReading.arPaymentBreakdown['other'] > 0 && (
+                      <div className="line">
+                        <span className="line-label">📋 Other from OLD Credit Sales:</span>
+                        <span className="line-value font-bold text-blue-700 dark:text-blue-300">{formatCurrency(xReading.arPaymentBreakdown['other'])}</span>
+                      </div>
+                    )}
+                    {Object.keys(xReading.arPaymentBreakdown).length > 0 && (
+                      <div className="line total-line mt-1 pt-1 border-t border-gray-300 dark:border-gray-600">
+                        <span className="line-label font-bold">TOTAL AR COLLECTED:</span>
+                        <span className="line-value font-bold text-green-700 dark:text-green-300">{formatCurrency(
+                          Object.values(xReading.arPaymentBreakdown).reduce((s, v) => s + v, 0)
+                        )}</span>
+                      </div>
+                    )}
+                  </>
+                )}
+
                 <div className="text-xs mt-1 italic text-gray-500 dark:text-gray-400">
-                  (Payments collected TODAY for PREVIOUS credit sales)
+                  (Payments collected TODAY for PREVIOUS credit sales — non-cash items must be physically handed off to supervisor)
                 </div>
               </div>
 
@@ -1049,6 +1109,71 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                     <span className="line-label">Charge Invoice/Credit Sales (Unpaid):</span>
                     <span className="line-value">{formatCurrency((zReading as any).creditSales)}</span>
                   </div>
+                )}
+
+                {/* AR Payments Collected During This Shift — per-method breakdown
+                    so supervisor can reconcile non-cash collections (cheques, cards,
+                    e-wallets) handed off by the cashier. */}
+                {zReading.arPaymentBreakdown && Object.keys(zReading.arPaymentBreakdown).length > 0 && (
+                  <>
+                    <div className="mt-3 mb-1 text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      AR Payments Collected This Shift:
+                    </div>
+                    {zReading.arPaymentBreakdown['cash'] > 0 && (
+                      <div className="line">
+                        <span className="line-label">• AR Cash:</span>
+                        <span className="line-value">{formatCurrency(zReading.arPaymentBreakdown['cash'])}</span>
+                      </div>
+                    )}
+                    {zReading.arPaymentBreakdown['check'] > 0 && (
+                      <div className="line">
+                        <span className="line-label">• AR Cheque:</span>
+                        <span className="line-value">{formatCurrency(zReading.arPaymentBreakdown['check'])}</span>
+                      </div>
+                    )}
+                    {zReading.arPaymentBreakdown['card'] > 0 && (
+                      <div className="line">
+                        <span className="line-label">• AR Card:</span>
+                        <span className="line-value">{formatCurrency(zReading.arPaymentBreakdown['card'])}</span>
+                      </div>
+                    )}
+                    {zReading.arPaymentBreakdown['gcash'] > 0 && (
+                      <div className="line">
+                        <span className="line-label">• AR GCash:</span>
+                        <span className="line-value">{formatCurrency(zReading.arPaymentBreakdown['gcash'])}</span>
+                      </div>
+                    )}
+                    {zReading.arPaymentBreakdown['paymaya'] > 0 && (
+                      <div className="line">
+                        <span className="line-label">• AR PayMaya:</span>
+                        <span className="line-value">{formatCurrency(zReading.arPaymentBreakdown['paymaya'])}</span>
+                      </div>
+                    )}
+                    {zReading.arPaymentBreakdown['nfc'] > 0 && (
+                      <div className="line">
+                        <span className="line-label">• AR NFC:</span>
+                        <span className="line-value">{formatCurrency(zReading.arPaymentBreakdown['nfc'])}</span>
+                      </div>
+                    )}
+                    {zReading.arPaymentBreakdown['bank_transfer'] > 0 && (
+                      <div className="line">
+                        <span className="line-label">• AR Bank Transfer:</span>
+                        <span className="line-value">{formatCurrency(zReading.arPaymentBreakdown['bank_transfer'])}</span>
+                      </div>
+                    )}
+                    {zReading.arPaymentBreakdown['other'] > 0 && (
+                      <div className="line">
+                        <span className="line-label">• AR Other:</span>
+                        <span className="line-value">{formatCurrency(zReading.arPaymentBreakdown['other'])}</span>
+                      </div>
+                    )}
+                    <div className="line total-line">
+                      <span className="line-label font-semibold">Total AR Collected:</span>
+                      <span className="line-value font-semibold">{formatCurrency(
+                        Object.values(zReading.arPaymentBreakdown).reduce((s, v) => s + v, 0)
+                      )}</span>
+                    </div>
+                  </>
                 )}
 
                 {/* Additional Cash Movements */}
