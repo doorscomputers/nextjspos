@@ -455,13 +455,14 @@ export async function POST(
         // 8. Update shift running totals for exchange
         // IMPORTANT: Use CURRENT shift so exchange appears in current Z Reading
         if (shiftIdForExchange) {
-          // When customer gets credit, cashier gives cash back from drawer
-          // This must REDUCE expected cash (negative cashImpact)
-          // Credit sale exchange-down: no cash was collected, so no cash leaves drawer
-          // Cash sale exchange-down: customer gets cash refund from drawer
-          const cashImpact = customerGetsCredit
-            ? (isOriginalCreditSale ? 0 : -Math.abs(priceDifference))
-            : actualPayment
+          // Exchange-down (customerGetsCredit): NO automatic cash debit.
+          // The exchange transaction itself records no cash payment (paidAmount=0,
+          // no sale_payment row). Customers typically take store credit or apply
+          // the credit to a same-visit purchase via discount — both involve zero
+          // cash movement at exchange time. If the cashier physically refunded
+          // cash, they must record an explicit Cash Out for audit trail.
+          // Exchange-up: cashImpact is the payment the customer just made.
+          const cashImpact = customerGetsCredit ? 0 : actualPayment
           await incrementShiftTotalsForExchange(
             shiftIdForExchange, // CURRENT shift, not original sale's shift
             exchangeTotal,      // Total of new items issued
