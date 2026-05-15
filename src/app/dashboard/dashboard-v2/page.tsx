@@ -65,19 +65,74 @@ export default function DashboardV2Page() {
   const fetchAnalyticsData = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch('/api/dashboard/analytics', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(filters),
-      })
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch analytics data')
+      // Page through all data — server caps each call at 5000 records (api/dashboard/analytics route.ts:40).
+      // Single-call default (1000) silently truncated the pivot/cards; loop until pagination.hasMore === false.
+      const PAGE_SIZE = 5000
+      const SKIP_SAFETY_LIMIT = 200000
+      const allSalesData: any[] = []
+      const combinedTotals = {
+        totalRevenue: 0,
+        totalProfit: 0,
+        totalCost: 0,
+        totalQuantity: 0,
+      }
+      let firstMetadata: any = null
+      let firstPagination: any = null
+      let firstInventoryData: any = null
+      let skip = 0
+      let hasMore = true
+
+      while (hasMore) {
+        const response = await fetch('/api/dashboard/analytics', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...filters, skip, take: PAGE_SIZE }),
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch analytics data')
+        }
+
+        const page = await response.json()
+
+        if (!firstMetadata) firstMetadata = page.metadata
+        if (!firstPagination) firstPagination = page.pagination
+        if (!firstInventoryData) firstInventoryData = page.inventoryData
+
+        const pageRows = Array.isArray(page.salesData) ? page.salesData : []
+        for (const row of pageRows) allSalesData.push(row)
+
+        combinedTotals.totalRevenue += Number(page.metadata?.totalRevenue || 0)
+        combinedTotals.totalProfit += Number(page.metadata?.totalProfit || 0)
+        combinedTotals.totalCost += Number(page.metadata?.totalCost || 0)
+        combinedTotals.totalQuantity += Number(page.metadata?.totalQuantity || 0)
+
+        hasMore = !!page.pagination?.hasMore
+        skip += PAGE_SIZE
+        if (skip > SKIP_SAFETY_LIMIT) break
       }
 
-      const data = await response.json()
+      const totalSales = Number(firstPagination?.totalCount ?? 0)
+      const aggregatedMetadata = {
+        ...(firstMetadata || {}),
+        totalSales,
+        totalRevenue: combinedTotals.totalRevenue,
+        totalProfit: combinedTotals.totalProfit,
+        totalCost: combinedTotals.totalCost,
+        totalQuantity: combinedTotals.totalQuantity,
+        averageOrderValue: totalSales > 0 ? combinedTotals.totalRevenue / totalSales : 0,
+        averageItemsPerSale: totalSales > 0 ? combinedTotals.totalQuantity / totalSales : 0,
+        profitMargin: combinedTotals.totalRevenue > 0
+          ? (combinedTotals.totalProfit / combinedTotals.totalRevenue) * 100
+          : 0,
+      }
+
+      const data = {
+        salesData: allSalesData,
+        inventoryData: firstInventoryData,
+        metadata: aggregatedMetadata,
+      }
 
       // Configure PivotGrid DataSource
       const pivotDataSource = new PivotGridDataSource({

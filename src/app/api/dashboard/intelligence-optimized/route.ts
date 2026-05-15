@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
         // Base where clause
         const baseWhere: any = {
           businessId,
+          status: 'completed',
           saleDate: {
             gte: start,
             lte: end
@@ -100,6 +101,7 @@ export async function POST(request: NextRequest) {
 
         const prevWhere: any = {
           businessId,
+          status: 'completed',
           saleDate: {
             gte: prevStart,
             lte: prevEnd
@@ -221,14 +223,18 @@ export async function POST(request: NextRequest) {
             AND vld."qty_available" > 0
           `,
 
-          // Out of stock count (already optimized with raw SQL)
+          // Out of stock count — variations FULLY out across ALL locations
+          // (previous logic counted variations with ANY location at 0, inflating ~5x)
           prisma.$queryRaw<Array<{ count: bigint }>>`
-            SELECT COUNT(DISTINCT v.id) as count
-            FROM "product_variations" v
-            INNER JOIN "products" p ON v."product_id" = p.id
-            LEFT JOIN "variation_location_details" vld ON v.id = vld."product_variation_id"
-            WHERE p."business_id" = ${businessId}
-            AND vld."qty_available" = 0
+            SELECT COUNT(*) as count FROM (
+              SELECT v.id
+              FROM "product_variations" v
+              INNER JOIN "products" p ON v."product_id" = p.id
+              LEFT JOIN "variation_location_details" vld ON v.id = vld."product_variation_id"
+              WHERE p."business_id" = ${businessId}
+              GROUP BY v.id
+              HAVING COALESCE(SUM(GREATEST(vld."qty_available", 0)), 0) = 0
+            ) sub
           `
         ])
 
