@@ -1,83 +1,78 @@
-# Dashboard V2/V3/V4 — Date Filter & V4 Receivables Fix
+# Dashboard Period Filter — Add Presets + Custom Range (Phase 2)
 
-## Problems
+## Plan
 
-### 1. Unreliable date filtering (V2, V3, V4)
+Frontend-only change in `src/app/dashboard/page.tsx`. Backend `stats-cached` and `/api/payments` already accept arbitrary `startDate`/`endDate` — no API changes.
 
-- **V3/V4 client** send dates via `date.toISOString().split('T')[0]`. In PH (UTC+8), local midnight converts to previous-day UTC → user picks `2026-04-24`, server receives `"2026-04-23"`.
-- **All three APIs** (`/api/dashboard/analytics`, `/api/dashboard/intelligence-optimized`, `/api/dashboard/financial-v4`) parse `YYYY-MM-DD` via `new Date(str)` → UTC midnight = 8am PH. `lte: endDate` cuts off the last day at 8am PH.
-- **V4 default filter**: `new Date(currentYear, 0, 1).toISOString().split('T')[0]` sends the previous year's Dec 31 for PH users.
+- [x] 1. Extend `getDateRange()` with new presets (all PH-timezone calendar based):
+  - Yesterday (start = end = today − 1)
+  - Last Week (Monday–Sunday of previous week)
+  - Last Month (1st–last day of previous month)
+  - Last Quarter (3-month block before current quarter)
+  - Last Year (Jan 1 – Dec 31 previous year)
+  - Custom (passes through user-picked start/end)
+- [x] 2. Added new items to both Period dropdowns (metrics header + Payments to Suppliers card)
+- [x] 3. Custom range UI on both dropdowns: two native `<input type="date">` fields, fetch only when both dates set, `min`/`max` guard against inverted ranges, dark-mode styled, flex-wrap for mobile
+- [x] 4. Build passes (exit 0)
+- [x] 5. Committed + pushed
 
-### 2. V4 Receivables `Paid` is wrong
+## Review (Phase 2)
 
-In `src/app/api/dashboard/financial-v4/route.ts` (~line 246-263):
+Single file changed: `src/app/dashboard/page.tsx`
+- New `PeriodFilter` type union shared by both dropdown states
+- `getDateRange(filter, customRange?)` extended; existing presets untouched
+- Fetch guards skip API calls while custom range is half-filled (old data stays, no flicker)
+- No backend changes: `stats-cached` and `/api/payments` already accept `startDate`/`endDate`
 
-```ts
-if (balance > 0) { receivablesUnpaid += balance; /* aging */ }
-else { receivablesPaid += totalAmount }
-```
+---
 
-Partial payments never contribute to `receivablesPaid`. A sale that is 50% paid adds the full balance to `Unpaid` and nothing to `Paid`.
+# Dashboard Date Filter Accuracy Fix (main /dashboard)
+
+## Investigation Findings (verified against production DB)
+
+**Symptom:** Main dashboard (`/dashboard`) "This Month" sales tile shows ~₱13.36M while actual June 1–10 completed sales are ~₱4.17M (~3.2x overstatement).
+
+### Root Cause 1 — Frontend: "This Month" is actually "last 30 days"
+`src/app/dashboard/page.tsx` `getDateRange()` (lines 238–241):
+- `month` filter computes `now − 30 days` (rolling window May 11–Jun 10), but UI label says "This Month".
+- `week` filter computes `now − 7 days` (8 days inclusive), labeled "This Week".
+- `today`, `quarter`, `year` are correct (calendar-based).
+
+### Root Cause 2 — Backend: Total Sales includes voided + soft-deleted sales
+`src/app/api/dashboard/stats-cached/route.ts`:
+- Total Sales aggregate (line 242) has NO `status` filter and NO `deletedAt: null`.
+  Voided sales: ₱33,311 in June alone; ₱118,742 in the rolling window.
+- Same problem in chart queries `salesLast30Days` (line 307) and `salesCurrentYear` (line 317).
+- Trusted report convention (`/api/reports/sales-today` lines 61–72): `status IN ('completed','pending')` + `deletedAt: null`. Pending = credit sales, counted as sales.
+
+### Verified NOT bugs
+- `sale_date` is a DATE column storing PH calendar date (POS client sends +8h-shifted timestamp). Server-side `new Date(y,m-1,d)` boundaries are safe against DATE columns regardless of server timezone.
+- Purchases/returns/payments date columns are also DATE — same safety.
 
 ## Todo
 
-- [x] Fix V4 page client date formatting + default
-- [x] Fix V3 page client date formatting
-- [x] Fix V2 analytics API date boundaries (PH day)
-- [x] Fix V3 intelligence-optimized API date boundaries (PH day)
-- [x] Fix V4 financial-v4 API date boundaries (PH day)
-- [x] Fix V4 receivables: always add `paidAmount`; bucket only `balance` when > 0
-- [x] Typecheck / build verification
-
-## Approach
-
-Treat `YYYY-MM-DD` as an Asia/Manila calendar day:
-- `startDate` → `new Date(\`${s}T00:00:00+08:00\`)`
-- `endDate`   → `new Date(\`${e}T23:59:59.999+08:00\`)`
-
-Client formats Date → YYYY-MM-DD using local components (no UTC shift):
-```ts
-const y = d.getFullYear()
-const m = String(d.getMonth() + 1).padStart(2, '0')
-const day = String(d.getDate()).padStart(2, '0')
-return `${y}-${m}-${day}`
-```
+- [x] 1. Frontend `page.tsx` `getDateRange()`: `month` → start at 1st of current month (`formatDate(year, month, 1)`)
+- [x] 2. Frontend `week` → Monday-start calendar week (user approved)
+- [x] 3. Backend `stats-cached/route.ts`: add `status: { in: ['completed','pending'] }, deletedAt: null` to Total Sales aggregate
+- [x] 4. Same filter on `salesLast30Days` and `salesCurrentYear` chart queries
+- [x] 5. Bonus: `sales-by-location/route.ts` chart also counted voided sales (`notIn ['cancelled','draft']`) → aligned to `in ['completed','pending'] + deletedAt: null`
+- [x] 6. Verify: `npm run build` passed (exit 0); expected values pulled from production DB
 
 ## Review
 
-### Files changed (5, surgical)
+### Files changed (3, all minimal)
+1. `src/app/dashboard/page.tsx` — `getDateRange()`: `month` now starts at 1st of current month; `week` now starts at Monday of current week (was rolling 30/7 days). Affects metrics tiles + supplier payments tile (both callers share the labels "This Month"/"This Week").
+2. `src/app/api/dashboard/stats-cached/route.ts` — Total Sales aggregate + `salesLast30Days` + `salesCurrentYear` chart queries now filter `status IN ('completed','pending')` and `deletedAt: null` (was: no filter — voided + soft-deleted counted).
+3. `src/app/api/dashboard/sales-by-location/route.ts` — status filter changed from `notIn ('cancelled','draft')` (voided counted) to `in ('completed','pending')` + `deletedAt: null`.
 
-1. `src/app/api/dashboard/financial-v4/route.ts`
-   - Date filter now parses `YYYY-MM-DD` as Asia/Manila day (`T00:00:00+08:00` → `T23:59:59.999+08:00`) with strict regex validation; default start uses the same PH-aware constructor.
-   - Receivables loop rewritten: `receivablesPaid += min(paidAmount, totalAmount)` **always** (so partial payments count); balance-based aging unchanged, with `Math.max(0, daysOld)` guard against future-dated sales. `nowMs` hoisted out of the loop.
+### Expected dashboard values after deploy (as of 2026-06-10, all locations)
+- Today: ₱79,239.00
+- This Week (Mon Jun 8 – Jun 10): ₱1,172,217.00
+- This Month (Jun 1 – 10): ₱4,774,575.32 (was showing ~₱13.36M)
 
-2. `src/app/api/dashboard/analytics/route.ts` (V2)
-   - Same PH-day parser added locally. Main sales filter and the previous-period comparison window now both use it, falling back to legacy `new Date()` only for non-YMD inputs. `previousEnd` is now `start - 1ms` (clean end of previous window).
+### Not bugs (verified)
+- `sale_date` is a DATE column holding PH calendar date; server timezone cannot shift day boundaries. Today/Quarter/Year filters were already calendar-correct.
 
-3. `src/app/api/dashboard/intelligence-optimized/route.ts` (V3)
-   - Same PH-day parser applied to user-supplied `startDate` / `endDate`. Empty-string default (last 30 days) untouched.
-
-4. `src/app/dashboard/dashboard-v3/page.tsx`
-   - Replaced `date.toISOString().split('T')[0]` with a local-component formatter `toLocalYmd(d)` so picking April 24 in PH actually sends `"2026-04-24"`.
-
-5. `src/app/dashboard/dashboard-v4/page.tsx`
-   - Same `toLocalYmd` swap for the two `toISOString` calls; default `startDate = new Date(currentYear, 0, 1)` now serializes as the correct local Jan 1.
-
-### Safety notes
-
-- No schema changes, no new files, no refactors.
-- All date helpers are scoped inside the existing function — nothing exported or shared across modules.
-- Fallbacks preserved: non-`YYYY-MM-DD` inputs still fall through to the old `new Date(str)` path, so any existing callers passing ISO strings continue to work.
-- `typecheck` on the 5 edited files: clean. Pre-existing errors in `src/hooks/useCurrency.ts` are unrelated (file untouched; `git status` confirms no diff).
-
-### Behavioral change for users
-
-- Date range filters now include the **entire last day** (PH time) — previously cut off at 8 AM.
-- Dates picked in the UI are transmitted as the day shown on screen — previously shifted 1 day back for PH users.
-- V4 "Paid" on receivables now includes partial payments — previously only fully-paid sales contributed.
-
-### Not touched
-
-- Payables loop in V4 API (bucket math looked correct; only receivables was called out).
-- Inventory aging (noted as simplified/synthetic in code; out of scope).
-- `useCurrency.ts` pre-existing parse errors (unrelated to this task).
+### Pre-existing, untouched
+- `src/hooks/useCurrency.ts` JSDoc contains nested `*/` (line 45) → breaks `tsc --noEmit` parse. Build unaffected. Fix separately.
+- Dashboards V2/V3/V4 use different endpoints (fixed in earlier commits), not touched here.

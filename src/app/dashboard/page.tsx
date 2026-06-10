@@ -120,6 +120,14 @@ interface SalesByLocationData {
   totals: Array<{ location: string; total: number }>
 }
 
+type PeriodFilter =
+  | 'today' | 'yesterday'
+  | 'week' | 'last_week'
+  | 'month' | 'last_month'
+  | 'quarter' | 'last_quarter'
+  | 'year' | 'last_year'
+  | 'all' | 'custom'
+
 export default function DashboardPageV2() {
   const router = useRouter()
   const { can, hasAnyRole, user } = usePermissions()
@@ -135,12 +143,14 @@ export default function DashboardPageV2() {
   const [loadingSales, setLoadingSales] = useState(false)
 
   // Supplier payments date range filter
-  const [supplierPaymentsDateRange, setSupplierPaymentsDateRange] = useState<'today' | 'week' | 'month' | 'quarter' | 'year' | 'all'>('year')
+  const [supplierPaymentsDateRange, setSupplierPaymentsDateRange] = useState<PeriodFilter>('year')
+  const [supplierCustomRange, setSupplierCustomRange] = useState({ start: '', end: '' })
   const [supplierPayments, setSupplierPayments] = useState<any[]>([])
   const [loadingSupplierPayments, setLoadingSupplierPayments] = useState(false)
   
   // Metrics date filter (for the cards at the top)
-  const [metricsDateFilter, setMetricsDateFilter] = useState<'today' | 'week' | 'month' | 'quarter' | 'year' | 'all'>('year')
+  const [metricsDateFilter, setMetricsDateFilter] = useState<PeriodFilter>('year')
+  const [metricsCustomRange, setMetricsCustomRange] = useState({ start: '', end: '' })
 
   // AUTO-REDIRECT: Cashiers with active shifts should go straight to POS
   useEffect(() => {
@@ -195,7 +205,7 @@ export default function DashboardPageV2() {
         fetchSupplierPayments()
       ])
     }
-  }, [locationFilter, metricsDateFilter, user])
+  }, [locationFilter, metricsDateFilter, metricsCustomRange, user])
 
   // Only re-fetch sales by location when period changes (not on initial load)
   useEffect(() => {
@@ -209,10 +219,10 @@ export default function DashboardPageV2() {
     if (user && supplierPaymentsDateRange) {
       fetchSupplierPayments()
     }
-  }, [supplierPaymentsDateRange])
+  }, [supplierPaymentsDateRange, supplierCustomRange])
 
   // Helper function to calculate date ranges using Philippines timezone
-  const getDateRange = (filter: 'today' | 'week' | 'month' | 'quarter' | 'year' | 'all') => {
+  const getDateRange = (filter: PeriodFilter, customRange?: { start: string; end: string }) => {
     // Get current date in Philippines timezone (UTC+8)
     const nowPH = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila' }))
     const year = nowPH.getFullYear()
@@ -230,6 +240,12 @@ export default function DashboardPageV2() {
       case 'today':
         startDate = endDate
         break
+      case 'yesterday': {
+        const yesterday = new Date(nowPH)
+        yesterday.setDate(yesterday.getDate() - 1)
+        const d = formatDate(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate())
+        return { startDate: d, endDate: d }
+      }
       case 'week': {
         // This Week = Monday of current week through today
         const monday = new Date(nowPH)
@@ -237,18 +253,57 @@ export default function DashboardPageV2() {
         startDate = formatDate(monday.getFullYear(), monday.getMonth(), monday.getDate())
         break
       }
+      case 'last_week': {
+        // Monday through Sunday of previous week
+        const monday = new Date(nowPH)
+        monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7) - 7)
+        const sunday = new Date(monday)
+        sunday.setDate(sunday.getDate() + 6)
+        return {
+          startDate: formatDate(monday.getFullYear(), monday.getMonth(), monday.getDate()),
+          endDate: formatDate(sunday.getFullYear(), sunday.getMonth(), sunday.getDate()),
+        }
+      }
       case 'month':
         // This Month = 1st of current month through today
         startDate = formatDate(year, month, 1)
         break
+      case 'last_month': {
+        const first = new Date(year, month - 1, 1)
+        const last = new Date(year, month, 0) // day 0 = last day of previous month
+        return {
+          startDate: formatDate(first.getFullYear(), first.getMonth(), first.getDate()),
+          endDate: formatDate(last.getFullYear(), last.getMonth(), last.getDate()),
+        }
+      }
       case 'quarter':
         const currentQuarter = Math.floor(month / 3)
         startDate = formatDate(year, currentQuarter * 3, 1)
         break
+      case 'last_quarter': {
+        const quarterStartMonth = Math.floor(month / 3) * 3 - 3
+        const first = new Date(year, quarterStartMonth, 1)
+        const last = new Date(year, quarterStartMonth + 3, 0)
+        return {
+          startDate: formatDate(first.getFullYear(), first.getMonth(), first.getDate()),
+          endDate: formatDate(last.getFullYear(), last.getMonth(), last.getDate()),
+        }
+      }
       case 'year':
         startDate = formatDate(year, 0, 1)
         break
+      case 'last_year':
+        return {
+          startDate: formatDate(year - 1, 0, 1),
+          endDate: formatDate(year - 1, 11, 31),
+        }
       case 'all':
+        return { startDate: '', endDate: '' }
+      case 'custom':
+        if (customRange?.start && customRange?.end) {
+          return { startDate: customRange.start, endDate: customRange.end }
+        }
+        // Incomplete custom range: callers skip fetching until both dates are set
         return { startDate: '', endDate: '' }
     }
 
@@ -281,6 +336,10 @@ export default function DashboardPageV2() {
   }
 
   const fetchDashboardStats = async () => {
+    // Wait until both custom dates are picked before fetching
+    if (metricsDateFilter === 'custom' && (!metricsCustomRange.start || !metricsCustomRange.end)) {
+      return
+    }
     try {
       setLoading(true)
       const params = new URLSearchParams()
@@ -289,7 +348,7 @@ export default function DashboardPageV2() {
       }
 
       // Add date range filter for metrics (using metricsDateFilter)
-      const metricsDateRange = getDateRange(metricsDateFilter)
+      const metricsDateRange = getDateRange(metricsDateFilter, metricsCustomRange)
       if (metricsDateRange.startDate) {
         params.append("startDate", metricsDateRange.startDate)
       }
@@ -329,6 +388,10 @@ export default function DashboardPageV2() {
   }
 
   const fetchSupplierPayments = async () => {
+    // Wait until both custom dates are picked before fetching
+    if (supplierPaymentsDateRange === 'custom' && (!supplierCustomRange.start || !supplierCustomRange.end)) {
+      return
+    }
     try {
       setLoadingSupplierPayments(true)
       const params = new URLSearchParams()
@@ -336,7 +399,7 @@ export default function DashboardPageV2() {
       params.append('limit', '10')
       
       // Add date range filter
-      const dateRange = getDateRange(supplierPaymentsDateRange)
+      const dateRange = getDateRange(supplierPaymentsDateRange, supplierCustomRange)
       if (dateRange.startDate) {
         params.append('startDate', dateRange.startDate)
       }
@@ -522,14 +585,39 @@ export default function DashboardPageV2() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="yesterday">Yesterday</SelectItem>
                   <SelectItem value="week">This Week</SelectItem>
+                  <SelectItem value="last_week">Last Week</SelectItem>
                   <SelectItem value="month">This Month</SelectItem>
+                  <SelectItem value="last_month">Last Month</SelectItem>
                   <SelectItem value="quarter">Current Quarter</SelectItem>
+                  <SelectItem value="last_quarter">Last Quarter</SelectItem>
                   <SelectItem value="year">This Year</SelectItem>
+                  <SelectItem value="last_year">Last Year</SelectItem>
                   <SelectItem value="all">All Time</SelectItem>
+                  <SelectItem value="custom">Custom Range</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            {metricsDateFilter === 'custom' && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={metricsCustomRange.start}
+                  max={metricsCustomRange.end || undefined}
+                  onChange={(e) => setMetricsCustomRange((r) => ({ ...r, start: e.target.value }))}
+                  className="h-9 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 text-sm text-gray-900 dark:text-gray-100"
+                />
+                <span className="text-sm text-gray-500 dark:text-gray-400">to</span>
+                <input
+                  type="date"
+                  value={metricsCustomRange.end}
+                  min={metricsCustomRange.start || undefined}
+                  onChange={(e) => setMetricsCustomRange((r) => ({ ...r, end: e.target.value }))}
+                  className="h-9 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 text-sm text-gray-900 dark:text-gray-100"
+                />
+              </div>
+            )}
             {locations.length > 0 && (
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-200">Location:</label>
@@ -882,7 +970,7 @@ export default function DashboardPageV2() {
                   <BanknotesIcon className="h-5 w-5 text-purple-600" />
                   Payments to Suppliers
                 </CardTitle>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Period:</label>
                   <Select value={supplierPaymentsDateRange} onValueChange={(value) => setSupplierPaymentsDateRange(value as any)}>
                     <SelectTrigger className="w-[160px]">
@@ -890,13 +978,38 @@ export default function DashboardPageV2() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="today">Today</SelectItem>
+                      <SelectItem value="yesterday">Yesterday</SelectItem>
                       <SelectItem value="week">This Week</SelectItem>
+                      <SelectItem value="last_week">Last Week</SelectItem>
                       <SelectItem value="month">This Month</SelectItem>
+                      <SelectItem value="last_month">Last Month</SelectItem>
                       <SelectItem value="quarter">Current Quarter</SelectItem>
+                      <SelectItem value="last_quarter">Last Quarter</SelectItem>
                       <SelectItem value="year">This Year</SelectItem>
+                      <SelectItem value="last_year">Last Year</SelectItem>
                       <SelectItem value="all">All Time</SelectItem>
+                      <SelectItem value="custom">Custom Range</SelectItem>
                     </SelectContent>
                   </Select>
+                  {supplierPaymentsDateRange === 'custom' && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={supplierCustomRange.start}
+                        max={supplierCustomRange.end || undefined}
+                        onChange={(e) => setSupplierCustomRange((r) => ({ ...r, start: e.target.value }))}
+                        className="h-9 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 text-sm text-gray-900 dark:text-gray-100"
+                      />
+                      <span className="text-sm text-gray-500 dark:text-gray-400">to</span>
+                      <input
+                        type="date"
+                        value={supplierCustomRange.end}
+                        min={supplierCustomRange.start || undefined}
+                        onChange={(e) => setSupplierCustomRange((r) => ({ ...r, end: e.target.value }))}
+                        className="h-9 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 text-sm text-gray-900 dark:text-gray-100"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </CardHeader>
