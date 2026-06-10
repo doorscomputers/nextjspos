@@ -110,7 +110,9 @@ export async function GET(request: NextRequest) {
         businessId,
         locationId: { in: locations.map(l => l.id) },
         saleDate: { gte: startDate },
-        status: { notIn: ['cancelled', 'draft'] },
+        // Match sales reports: completed + pending (credit) only, exclude voided/deleted
+        status: { in: ['completed', 'pending'] },
+        deletedAt: null,
       },
       select: {
         locationId: true,

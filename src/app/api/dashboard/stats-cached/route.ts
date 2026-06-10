@@ -135,7 +135,13 @@ export async function GET(request: NextRequest) {
         }
 
         // Build where clause with date filter for sales
-        const salesWhereClause: any = { ...whereClause }
+        const salesWhereClause: any = {
+          ...whereClause,
+          // Match sales reports: count completed + pending (credit) sales,
+          // exclude voided/cancelled and soft-deleted records
+          status: { in: ['completed', 'pending'] },
+          deletedAt: null,
+        }
         if (Object.keys(dateFilter).length > 0) {
           salesWhereClause.saleDate = dateFilter
         }
@@ -306,7 +312,7 @@ export async function GET(request: NextRequest) {
           hasPermission(PERMISSIONS.SELL_VIEW)
             ? prisma.sale.groupBy({
                 by: ['saleDate'],
-                where: { ...whereClause, saleDate: { gte: thirtyDaysAgo } },
+                where: { ...whereClause, saleDate: { gte: thirtyDaysAgo }, status: { in: ['completed', 'pending'] }, deletedAt: null },
                 _sum: { totalAmount: true },
                 orderBy: { saleDate: 'asc' },
               })
@@ -316,7 +322,7 @@ export async function GET(request: NextRequest) {
           hasPermission(PERMISSIONS.SELL_VIEW)
             ? prisma.sale.groupBy({
                 by: ['saleDate'],
-                where: { ...whereClause, saleDate: { gte: financialYearStart } },
+                where: { ...whereClause, saleDate: { gte: financialYearStart }, status: { in: ['completed', 'pending'] }, deletedAt: null },
                 _sum: { totalAmount: true },
                 orderBy: { saleDate: 'asc' },
               })

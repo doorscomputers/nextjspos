@@ -230,15 +230,16 @@ export default function DashboardPageV2() {
       case 'today':
         startDate = endDate
         break
-      case 'week':
-        const weekAgo = new Date(nowPH)
-        weekAgo.setDate(weekAgo.getDate() - 7)
-        startDate = formatDate(weekAgo.getFullYear(), weekAgo.getMonth(), weekAgo.getDate())
+      case 'week': {
+        // This Week = Monday of current week through today
+        const monday = new Date(nowPH)
+        monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
+        startDate = formatDate(monday.getFullYear(), monday.getMonth(), monday.getDate())
         break
+      }
       case 'month':
-        const monthAgo = new Date(nowPH)
-        monthAgo.setDate(monthAgo.getDate() - 30)
-        startDate = formatDate(monthAgo.getFullYear(), monthAgo.getMonth(), monthAgo.getDate())
+        // This Month = 1st of current month through today
+        startDate = formatDate(year, month, 1)
         break
       case 'quarter':
         const currentQuarter = Math.floor(month / 3)
