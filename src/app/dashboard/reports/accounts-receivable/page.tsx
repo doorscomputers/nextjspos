@@ -676,7 +676,7 @@ export default function AccountsReceivablePage() {
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
             <div className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
               <UserGroupIcon className="h-5 w-5" />
@@ -705,6 +705,26 @@ export default function AccountsReceivablePage() {
             </div>
             <div className="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">
               {formatCurrency(summary.aging.current)}
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <div className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
+              <ClockIcon className="h-5 w-5" />
+              31-60 Days
+            </div>
+            <div className="text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+              {formatCurrency(summary.aging.days31_60)}
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+            <div className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center gap-2">
+              <ClockIcon className="h-5 w-5" />
+              61-90 Days
+            </div>
+            <div className="text-2xl font-bold text-orange-600 dark:text-orange-400 mt-1">
+              {formatCurrency(summary.aging.days61_90)}
             </div>
           </div>
 
