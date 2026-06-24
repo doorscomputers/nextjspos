@@ -166,13 +166,27 @@ export async function GET(request: NextRequest) {
       nowLocal.getDate() === exactDateTime.getDate();
 
     // Process in batches of 10 to avoid connection pool exhaustion
-    // Each item makes 2-3 database queries (lastTx, afterSum, and conditionally firstTx)
+    // Each item makes 2 database queries (cumulative sum up to cutoff, and last unit cost)
     const inventoryWithHistoricalQty = await processBatches(
       inventoryData,
       10,
       async (item) => {
-        // Determine historical quantity as of exactDateTime by taking the running balance
-        // of the latest stock transaction on or before the cutoff.
+        // AUTHORITATIVE historical quantity = sum of ALL ledger movements (quantity deltas)
+        // on or before the cutoff. Quantity deltas are the source of truth; this is immune
+        // to any corruption in the stored running balanceQty or current qtyAvailable.
+        const upToSum = await prisma.stockTransaction.aggregate({
+          where: {
+            businessId,
+            productId: item.productId,
+            productVariationId: item.productVariationId,
+            locationId: item.locationId,
+            createdAt: { lte: exactDateTime }
+          },
+          _sum: { quantity: true }
+        });
+        let historicalQuantity = parseFloat((upToSum._sum.quantity as any)?.toString?.() || '0');
+
+        // Unit cost as of the cutoff: from the latest transaction on or before the date.
         const lastTx = await prisma.stockTransaction.findFirst({
           where: {
             businessId,
@@ -185,62 +199,10 @@ export async function GET(request: NextRequest) {
             { createdAt: 'desc' },
             { id: 'desc' }
           ],
-          select: { balanceQty: true, unitCost: true, createdAt: true }
+          select: { unitCost: true }
         });
-        // Always compute net transactions AFTER the cutoff for consistency validation
-        const afterSum = await prisma.stockTransaction.aggregate({
-          where: {
-            businessId,
-            productId: item.productId,
-            productVariationId: item.productVariationId,
-            locationId: item.locationId,
-            createdAt: { gt: exactDateTime }
-          },
-          _sum: { quantity: true }
-        });
-        const transactionsAfterDate = parseFloat((afterSum._sum.quantity as any)?.toString?.() || '0');
 
-        // Two independent ways to compute historical qty:
-        // 1) From ledger balance at cutoff
-        const qtyFromLedger = lastTx ? parseFloat((lastTx.balanceQty as any)?.toString?.() || '0') : null;
-        // 2) From current qty minus movements after cutoff
-        const qtyFromCurrent = parseFloat((item.qtyAvailable as any)?.toString?.() || '0') - transactionsAfterDate;
-
-        // Use ledger if it reconciles with current: ledger + after = current
-        let historicalQuantity: number;
-        if (
-          qtyFromLedger !== null &&
-          Math.abs(qtyFromLedger + transactionsAfterDate - parseFloat((item.qtyAvailable as any)?.toString?.() || '0')) < 0.0001
-        ) {
-          historicalQuantity = qtyFromLedger;
-        } else {
-          // No reliable ledger reconciliation. Determine based on first activity timestamps.
-          const firstTx = await prisma.stockTransaction.findFirst({
-            where: {
-              businessId,
-              productId: item.productId,
-              productVariationId: item.productVariationId,
-              locationId: item.locationId,
-            },
-            orderBy: [
-              { createdAt: 'asc' },
-              { id: 'asc' }
-            ],
-            select: { createdAt: true }
-          });
-
-          if (firstTx) {
-            // If first transaction happens AFTER the cutoff date, inventory didn't exist yet → 0
-            historicalQuantity = firstTx.createdAt > exactDateTime ? 0 : qtyFromCurrent;
-          } else {
-            // No transactions recorded at all. Use the record's creation time as a proxy.
-            // If the variation-location record itself was created AFTER the cutoff date, show 0.
-            // Otherwise use current-minus-after (which equals current for present-day reports).
-            historicalQuantity = item.createdAt && item.createdAt > exactDateTime ? 0 : qtyFromCurrent;
-          }
-        }
-
-        // If the report date is today, trust current qty directly
+        // If the report date is today, trust current qty directly (ledger total == current).
         if (isToday) {
           historicalQuantity = parseFloat((item.qtyAvailable as any)?.toString?.() || '0');
         }
