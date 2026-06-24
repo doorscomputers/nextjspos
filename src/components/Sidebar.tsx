@@ -1301,6 +1301,14 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
               icon: MagnifyingGlassIcon,
               permission: PERMISSIONS.REPORT_VIEW,
             },
+            {
+              // Super Admin only: no `permission` set so the Super Admin role (which
+              // bypasses menu-permission gating) sees it; hidden for other roles.
+              key: "inventory_discrepancies",
+              name: "Inventory Discrepancies",
+              href: "/dashboard/reports/inventory-discrepancies",
+              icon: ExclamationTriangleIcon,
+            },
           ],
         },
         {
