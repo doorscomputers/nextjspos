@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 import { validateSOD, getUserRoles } from '@/lib/sodValidation'
+import { addStock, StockTransactionType } from '@/lib/stockOperations'
 // import { InventoryImpactTracker } from '@/lib/inventory-impact-tracker' // DISABLED for speed
 // DISABLED: All alerts (Jan 26, 2026) - Focus on inventory monitoring
 // import { sendTransferAcceptanceAlert } from '@/lib/alert-service'
@@ -185,74 +186,24 @@ export async function POST(
 
         console.log(`[Transfer Complete] Item ${item.id}: receivedQuantity=${item.receivedQuantity}, calculated receivedQty=${receivedQty}, original quantity=${item.quantity}`)
 
-        // Get or create stock record at destination
-        let destStock = await tx.variationLocationDetails.findFirst({
-          where: {
-            productId,
-            productVariationId: variationId,
-            locationId: transfer.toLocationId,
-          },
-        })
-
-        if (!destStock) {
-          // Create new stock record if doesn't exist
-          destStock = await tx.variationLocationDetails.create({
-            data: {
-              productId,
-              productVariationId: variationId,
-              locationId: transfer.toLocationId,
-              qtyAvailable: 0,
-            },
-          })
-        }
-
-        const currentQty = parseFloat(destStock.qtyAvailable.toString())
-        const newQty = currentQty + receivedQty
-
-        // Update stock at destination (add)
-        await tx.variationLocationDetails.update({
-          where: { id: destStock.id },
-          data: {
-            qtyAvailable: newQty,
-            updatedAt: new Date(),
-          },
-        })
-
-        // Create stock transaction (positive = addition)
-        await tx.stockTransaction.create({
-          data: {
-            businessId: parseInt(businessId),
-            productId,
-            productVariationId: variationId,
-            locationId: transfer.toLocationId,
-            type: 'transfer_in',
-            quantity: receivedQty,
-            balanceQty: newQty,
-            referenceType: 'stock_transfer',
-            referenceId: transferId,
-            createdBy: parseInt(userId),
-            notes: `Transfer ${transfer.transferNumber} received`,
-          },
-        })
-
-        // CRITICAL: Create ProductHistory entry for Stock History V2 report
-        await tx.productHistory.create({
-          data: {
-            businessId: parseInt(businessId),
-            productId,
-            productVariationId: variationId,
-            locationId: transfer.toLocationId,
-            quantityChange: receivedQty, // Positive = addition
-            balanceQuantity: newQty, // Balance after transaction
-            transactionType: 'transfer_in',
-            transactionDate: new Date(), // Date when transfer is completed/received
-            referenceType: 'stock_transfer',
-            referenceId: transferId,
-            referenceNumber: transfer.transferNumber,
-            createdBy: parseInt(userId),
-            createdByName: userDisplayName,
-            reason: `Transfer ${transfer.transferNumber} received from location ${transfer.fromLocationId}`,
-          },
+        // RACE-SAFE: add stock to destination through the locked stored function.
+        // This computes the running balance server-side under SELECT ... FOR UPDATE,
+        // and writes variation_location_details + stock_transactions + product_history
+        // atomically. Multiple lines of the same product accumulate correctly.
+        await addStock({
+          businessId: businessIdNumber,
+          productId,
+          productVariationId: variationId,
+          locationId: transfer.toLocationId,
+          quantity: receivedQty,
+          type: StockTransactionType.TRANSFER_IN,
+          referenceType: 'stock_transfer',
+          referenceId: transferId,
+          referenceNumber: transfer.transferNumber,
+          userId: userIdNumber,
+          userDisplayName,
+          notes: `Transfer ${transfer.transferNumber} received from location ${transfer.fromLocationId}`,
+          tx,
         })
 
         // Handle serial numbers if present

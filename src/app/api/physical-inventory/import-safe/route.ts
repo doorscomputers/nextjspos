@@ -240,6 +240,15 @@ export async function POST(request: NextRequest) {
           }
         })
 
+        // RACE-SAFE: lock this product/location row so concurrent sales/transfers
+        // (which lock the same row inside the stored function) cannot interleave
+        // with this correction and cause a lost update.
+        await tx.$queryRaw`
+          SELECT id FROM variation_location_details
+          WHERE product_variation_id = ${correction.variationId} AND location_id = ${locId}
+          FOR UPDATE
+        `
+
         // 2. Get current inventory
         const inventory = await tx.variationLocationDetails.findFirst({
           where: {

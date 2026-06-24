@@ -6,6 +6,7 @@ import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 import { decrementShiftTotalsForVoid } from '@/lib/shift-running-totals'
 import { getManilaDate } from '@/lib/timezone'
+import { addStock, StockTransactionType } from '@/lib/stockOperations'
 
 /**
  * GET /api/sales/[id]
@@ -284,51 +285,22 @@ export async function DELETE(
 
       // Restore stock for each item
       for (const item of sale.items) {
-        // Get current stock
-        const currentStock = await tx.variationLocationDetails.findUnique({
-          where: {
-            productVariationId_locationId: {
-              productVariationId: item.productVariationId,
-              locationId: sale.locationId,
-            },
-          },
-        })
-
-        if (!currentStock) {
-          throw new Error(`Stock record not found for variation ${item.productVariationId}`)
-        }
-
-        const newQty = parseFloat(currentStock.qtyAvailable.toString()) + parseFloat(item.quantity.toString())
-
-        // Update stock
-        await tx.variationLocationDetails.update({
-          where: {
-            productVariationId_locationId: {
-              productVariationId: item.productVariationId,
-              locationId: sale.locationId,
-            },
-          },
-          data: {
-            qtyAvailable: newQty,
-          },
-        })
-
-        // Create stock transaction for restoration
-        await tx.stockTransaction.create({
-          data: {
-            businessId: parseInt(businessId),
-            productId: item.productId,
-            productVariationId: item.productVariationId,
-            locationId: sale.locationId,
-            type: 'sale_void',
-            quantity: parseFloat(item.quantity.toString()), // Positive for restoration
-            unitCost: 0,
-            balanceQty: newQty,
-            referenceType: 'sale',
-            referenceId: sale.id,
-            createdBy: parseInt(userId),
-            notes: `Voided Sale ${sale.invoiceNumber}`,
-          },
+        // RACE-SAFE: restore stock through the locked stored function.
+        // Computes the running balance server-side under SELECT ... FOR UPDATE and
+        // writes variation_location_details + stock_transactions + product_history atomically.
+        await addStock({
+          businessId: parseInt(String(businessId)),
+          productId: item.productId,
+          productVariationId: item.productVariationId,
+          locationId: sale.locationId,
+          quantity: parseFloat(item.quantity.toString()),
+          type: StockTransactionType.SALE_VOID,
+          referenceType: 'sale',
+          referenceId: sale.id,
+          referenceNumber: sale.invoiceNumber,
+          userId: parseInt(String(userId)),
+          notes: `Voided Sale ${sale.invoiceNumber}`,
+          tx,
         })
 
         // Restore serial numbers if item has them

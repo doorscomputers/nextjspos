@@ -271,6 +271,8 @@ export enum StockTransactionType {
   SUPPLIER_RETURN = 'supplier_return',
   CORRECTION = 'correction',
   REPLACEMENT_ISSUED = 'replacement_issued',
+  TRANSFER_CANCEL = 'transfer_cancel',
+  SALE_VOID = 'sale_void',
 }
 
 /**

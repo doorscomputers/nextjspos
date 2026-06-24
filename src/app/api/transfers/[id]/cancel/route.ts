@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
+import { addStock, StockTransactionType } from '@/lib/stockOperations'
 
 /**
  * POST /api/transfers/[id]/cancel
@@ -25,6 +26,10 @@ export async function POST(
     const user = session.user as any
     const businessId = parseInt(String(user.businessId))
     const userId = parseInt(String(user.id))
+    const userDisplayName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+      user.username ||
+      `User#${userId}`
 
     const { id } = await params
     const transferId = parseInt(id)
@@ -88,50 +93,23 @@ export async function POST(
           const variationId = item.productVariationId
           const quantity = parseFloat(item.quantity.toString())
 
-          // Get stock at origin location
-          const originStock = await tx.variationLocationDetails.findFirst({
-            where: {
-              productId,
-              productVariationId: variationId,
-              locationId: transfer.fromLocationId,
-            },
-          }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
-
-          if (!originStock) {
-            throw new Error(
-              `Stock record not found for product variation ${variationId} at origin location`
-            )
-          }
-
-          const currentQty = parseFloat(originStock.qtyAvailable.toString())
-          const newQty = currentQty + quantity // Restore
-
-          // Update stock at origin (add back)
-          await tx.variationLocationDetails.update({
-            where: { id: originStock.id },
-            data: {
-              qtyAvailable: newQty,
-              updatedAt: new Date(),
-            },
-          })
-
-          // Create stock transaction (positive = restoration)
-          await tx.stockTransaction.create({
-            data: {
-              businessId: parseInt(businessId),
-              productId,
-              productVariationId: variationId,
-              locationId: transfer.fromLocationId,
-              type: 'transfer_cancel',
-              quantity: quantity,
-              balanceQty: newQty,
-              referenceType: 'stock_transfer',
-              referenceId: transferId,
-              createdBy: parseInt(userId),
-              notes: `Transfer ${transfer.transferNumber} cancelled - stock restored`,
-            },
+          // RACE-SAFE: restore stock to origin through the locked stored function.
+          // Computes the running balance server-side under SELECT ... FOR UPDATE and
+          // writes variation_location_details + stock_transactions + product_history atomically.
+          await addStock({
+            businessId,
+            productId,
+            productVariationId: variationId,
+            locationId: transfer.fromLocationId,
+            quantity,
+            type: StockTransactionType.TRANSFER_CANCEL,
+            referenceType: 'stock_transfer',
+            referenceId: transferId,
+            referenceNumber: transfer.transferNumber,
+            userId,
+            userDisplayName,
+            notes: `Transfer ${transfer.transferNumber} cancelled - stock restored`,
+            tx,
           })
 
           // Handle serial numbers if present

@@ -194,6 +194,15 @@ export async function saveOpeningStock(
           throw new Error(`Variation ${variationId} not found`)
         }
 
+        // RACE-SAFE: lock this product/location row (if it exists) so concurrent
+        // sales/transfers (which lock the same row inside the stored function)
+        // cannot interleave with this opening-stock write and cause a lost update.
+        await tx.$queryRaw`
+          SELECT id FROM variation_location_details
+          WHERE product_variation_id = ${variationId} AND location_id = ${locationId}
+          FOR UPDATE
+        `
+
         // Get or create variation location detail
         const variationLocation = await tx.variationLocationDetails.findFirst({
           where: {
