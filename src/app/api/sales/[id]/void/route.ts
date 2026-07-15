@@ -2,14 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
-import { hasPermission, PERMISSIONS } from '@/lib/rbac'
+import { hasPermission, isSuperAdmin, PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
-import { addStock, StockTransactionType } from '@/lib/stockOperations'
+import { addStock, deductStock, StockTransactionType } from '@/lib/stockOperations'
 import bcrypt from 'bcryptjs'
 import { sendVoidTransactionAlert } from '@/lib/email'
 import { getManilaDate } from '@/lib/timezone'
 import { sendTelegramVoidTransactionAlert } from '@/lib/telegram'
-import { decrementShiftTotalsForVoid } from '@/lib/shift-running-totals'
+import {
+  decrementShiftTotalsForVoid,
+  decrementShiftTotalsForExchangeVoid,
+} from '@/lib/shift-running-totals'
 
 /**
  * POST /api/sales/[id]/void - Void a sale transaction
@@ -187,6 +190,78 @@ export async function POST(
       return NextResponse.json({ error: 'Cannot void a cancelled sale' }, { status: 400 })
     }
 
+    // SAME-DAY VOID POLICY: a sale may only be voided on its own business day
+    // while the originating shift is still open. Past-day corrections must go
+    // through the Customer Return / Exchange flow, which correctly handles
+    // stock, price difference, and expected cash. Super Admins may override
+    // for genuine emergencies.
+    if (!isSuperAdmin(user)) {
+      // sale_date is a DATE column holding the PH calendar date; Prisma returns
+      // it as UTC midnight, so the ISO date part IS the PH business day.
+      const saleDay = sale.saleDate.toISOString().slice(0, 10)
+      const manilaToday = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Manila',
+      }).format(new Date())
+
+      if (saleDay !== manilaToday) {
+        return NextResponse.json(
+          {
+            error:
+              `Cannot void: this sale is dated ${saleDay}, not today. Voids are only ` +
+              `allowed on the same business day. To correct a past sale, process a ` +
+              `Customer Return or Exchange instead — it adjusts stock and cash correctly.`,
+          },
+          { status: 400 }
+        )
+      }
+
+      if (sale.shiftId) {
+        const saleShift = await prisma.cashierShift.findUnique({
+          where: { id: sale.shiftId },
+          select: { status: true },
+        })
+        if (saleShift && saleShift.status !== 'open') {
+          return NextResponse.json(
+            {
+              error:
+                'Cannot void: the shift this sale belongs to is already closed (Z reading done). ' +
+                'Process a Customer Return or Exchange instead.',
+            },
+            { status: 400 }
+          )
+        }
+      }
+    }
+
+    const isExchangeSale = sale.saleType === 'exchange'
+
+    // Block voiding a sale that has active returns/exchanges against it.
+    // Voiding would restore ALL sold items even though some were already
+    // returned to stock — double-counting inventory.
+    // (An exchange sale's own return leg links via returnNumber, not saleId,
+    // so this check does not block voiding the exchange itself.)
+    const activeReturns = await prisma.customerReturn.findMany({
+      where: {
+        businessId: businessIdNumber,
+        saleId,
+        status: { notIn: ['rejected', 'cancelled', 'voided'] },
+      },
+      select: { id: true, returnNumber: true, status: true },
+    })
+
+    if (activeReturns.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            `Cannot void this sale: it already has ${activeReturns.length} return/exchange ` +
+            `record(s) against it (${activeReturns.map((r) => r.returnNumber).join(', ')}). ` +
+            `Voiding would double-restore inventory. Process the remaining items through ` +
+            `the return/refund flow instead.`,
+        },
+        { status: 400 }
+      )
+    }
+
     // Void the sale and restore inventory in transaction
     // Use 60 second timeout to handle multi-item voids with inventory restoration
     const result = await prisma.$transaction(async (tx) => {
@@ -308,23 +383,156 @@ export async function POST(
         }
       }
 
-      // Update shift running totals for voided sale (decrement counters)
-      // Only if sale has a shiftId (POS sales)
-      if (sale.shiftId) {
-        await decrementShiftTotalsForVoid(
-          sale.shiftId,
-          {
-            subtotal: parseFloat(sale.subtotal.toString()),
-            totalAmount: parseFloat(sale.totalAmount.toString()),
-            discountAmount: parseFloat(sale.discountAmount.toString()),
-            discountType: sale.discountType,
-            payments: sale.payments.map((p: any) => ({
-              paymentMethod: p.paymentMethod,
-              amount: parseFloat(p.amount.toString()),
-            })),
+      // EXCHANGE VOID: fully reverse the return leg too.
+      // An exchange has two legs: returned items were ADDED to stock and
+      // replacement items were DEDUCTED. The loop above already restored the
+      // replacement items; without this block the returned items' stock stays
+      // inflated and the customer_returns row dangles in 'exchanged' status.
+      if (isExchangeSale) {
+        const linkedReturn = await tx.customerReturn.findFirst({
+          where: {
+            businessId: businessIdNumber,
+            returnNumber: `RTN-${sale.invoiceNumber}`,
+            status: 'exchanged',
           },
-          tx  // CRITICAL: Pass transaction client for atomicity
-        )
+          include: { items: true },
+        })
+
+        if (linkedReturn) {
+          // Deduct the previously-restored returned items back out.
+          // allowNegative: the returned unit may have been sold since the
+          // exchange — the ledger must still record the reversal.
+          for (const rItem of linkedReturn.items) {
+            await deductStock({
+              tx,
+              businessId: businessIdNumber,
+              productId: rItem.productId,
+              productVariationId: rItem.productVariationId,
+              locationId: linkedReturn.locationId,
+              quantity: parseFloat(rItem.quantity.toString()),
+              type: StockTransactionType.ADJUSTMENT,
+              referenceType: 'sale_void',
+              referenceId: voidTransaction.id,
+              userId: userIdNumber,
+              userDisplayName,
+              notes: `Voided exchange ${sale.invoiceNumber} - reversing returned item from ${linkedReturn.returnNumber}`,
+              allowNegative: true,
+              skipAvailabilityCheck: true,
+            })
+          }
+
+          // Close the return record so it no longer dangles
+          await tx.customerReturn.update({
+            where: { id: linkedReturn.id },
+            data: { status: 'voided' },
+          })
+
+          // Revert serial numbers the exchange return leg put back in stock:
+          // they belong to the customer again (exchange never happened)
+          const returnMovements = await tx.serialNumberMovement.findMany({
+            where: {
+              referenceType: 'exchange_return',
+              referenceId: linkedReturn.id,
+            },
+          })
+          for (const movement of returnMovements) {
+            await tx.productSerialNumber.update({
+              where: { id: movement.serialNumberId },
+              data: {
+                status: 'sold',
+                saleId: linkedReturn.saleId,
+                soldAt: getManilaDate(),
+              },
+            })
+            await tx.serialNumberMovement.create({
+              data: {
+                serialNumberId: movement.serialNumberId,
+                movementType: 'void',
+                referenceType: 'sale_void',
+                referenceId: voidTransaction.id,
+                movedBy: userIdNumber,
+                notes: `Voided exchange ${sale.invoiceNumber} - serial returned to customer (original sale)`,
+              },
+            })
+          }
+
+          // Revert serials issued by the exchange back to in_stock
+          // (exchange sale items don't carry serialNumbers JSON, so the
+          // generic restore loop above missed them)
+          const issueMovements = await tx.serialNumberMovement.findMany({
+            where: {
+              referenceType: 'exchange_issue',
+              referenceId: saleId,
+            },
+          })
+          for (const movement of issueMovements) {
+            await tx.productSerialNumber.update({
+              where: { id: movement.serialNumberId },
+              data: {
+                status: 'in_stock',
+                saleId: null,
+                soldAt: null,
+                soldTo: null,
+              },
+            })
+            await tx.serialNumberMovement.create({
+              data: {
+                serialNumberId: movement.serialNumberId,
+                movementType: 'void',
+                toLocationId: sale.locationId,
+                referenceType: 'sale_void',
+                referenceId: voidTransaction.id,
+                movedBy: userIdNumber,
+                notes: `Voided exchange ${sale.invoiceNumber} - issued serial restored to stock`,
+              },
+            })
+          }
+        }
+      }
+
+      // Update shift running totals for voided sale (decrement counters)
+      // Only if sale has a shiftId (POS sales) AND the shift is still open —
+      // a closed shift's running totals are frozen history behind its Z
+      // reading and must not change (Super Admin past-day override path).
+      const saleShiftForTotals = sale.shiftId
+        ? await tx.cashierShift.findUnique({
+            where: { id: sale.shiftId },
+            select: { status: true },
+          })
+        : null
+      if (sale.shiftId && saleShiftForTotals?.status === 'open') {
+        if (isExchangeSale) {
+          // Exchange sales never touched VAT/discount running totals —
+          // reverse exactly what incrementShiftTotalsForExchange recorded
+          await decrementShiftTotalsForExchangeVoid(
+            sale.shiftId,
+            {
+              exchangeTotal: parseFloat(sale.subtotal.toString()),
+              returnTotal: parseFloat(sale.discountAmount.toString()),
+              totalAmount: parseFloat(sale.totalAmount.toString()),
+              payments: sale.payments.map((p: any) => ({
+                paymentMethod: p.paymentMethod,
+                amount: parseFloat(p.amount.toString()),
+              })),
+            },
+            tx
+          )
+        } else {
+          await decrementShiftTotalsForVoid(
+            sale.shiftId,
+            {
+              subtotal: parseFloat(sale.subtotal.toString()),
+              totalAmount: parseFloat(sale.totalAmount.toString()),
+              discountAmount: parseFloat(sale.discountAmount.toString()),
+              discountType: sale.discountType,
+              payments: sale.payments.map((p: any) => ({
+                paymentMethod: p.paymentMethod,
+                amount: parseFloat(p.amount.toString()),
+              })),
+            },
+            tx  // CRITICAL: Pass transaction client for atomicity
+          )
+        }
       }
 
       return { voidedSale, voidTransaction }
@@ -402,7 +610,10 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: 'Sale voided successfully',
+      message: isExchangeSale
+        ? 'Exchange voided: replacement items restored to stock AND returned items removed from stock. ' +
+          'If the customer actually swapped items, re-enter the exchange now — otherwise inventory will not match.'
+        : 'Sale voided successfully',
       sale: result.voidedSale,
       voidTransaction: result.voidTransaction,
     })

@@ -356,6 +356,67 @@ export async function incrementShiftTotalsForExchange(
 }
 
 /**
+ * Update shift running totals when an EXCHANGE sale is VOIDED
+ * Exactly reverses what incrementShiftTotalsForExchange() recorded,
+ * then tracks the void. Exchange sales never touched VAT/discount
+ * running totals, so those must NOT be decremented here.
+ */
+export async function decrementShiftTotalsForExchangeVoid(
+  shiftId: number,
+  exchangeData: {
+    exchangeTotal: number // Value of items issued (sale.subtotal)
+    returnTotal: number // Value of items returned (sale.discountAmount)
+    totalAmount: number // Price difference (sale.totalAmount)
+    payments: Array<{
+      paymentMethod: string
+      amount: number
+    }>
+  },
+  tx?: any
+): Promise<void> {
+  const db = tx || prisma
+
+  const decrementData: any = {
+    // Reverse the exchange tracking
+    runningExchangeCount: { decrement: 1 },
+    runningExchangeSales: { decrement: exchangeData.exchangeTotal },
+    runningReturnAmount: { decrement: exchangeData.returnTotal },
+
+    // Track void separately (for BIR display: Gross - Void = Net)
+    runningVoidCount: { increment: 1 },
+    runningVoidedSales: { increment: exchangeData.totalAmount },
+  }
+
+  // Reverse the payment impact (exchange-up difference collected)
+  const paymentFieldMap: Record<string, string> = {
+    cash: 'runningCashSales',
+    card: 'runningCardSales',
+    gcash: 'runningGcashSales',
+    paymaya: 'runningPaymayaSales',
+    nfc: 'runningNfcSales',
+    bank_transfer: 'runningBankSales',
+    check: 'runningCheckSales',
+  }
+  for (const payment of exchangeData.payments) {
+    const method = normalizePaymentMethod(payment.paymentMethod)
+    const field = paymentFieldMap[method] || 'runningCashSales'
+    decrementData[field] = {
+      decrement: (decrementData[field]?.decrement || 0) + payment.amount,
+    }
+  }
+
+  await db.cashierShift.update({
+    where: { id: shiftId },
+    data: decrementData,
+  })
+
+  console.log(
+    `[ShiftTotals] ⚠️ Decremented shift ${shiftId} for exchange void: ` +
+      `Exchange: -₱${exchangeData.exchangeTotal.toFixed(2)}, Return: -₱${exchangeData.returnTotal.toFixed(2)}`
+  )
+}
+
+/**
  * Calculate running totals from existing sales (for migration/backfill)
  * Use this to populate running totals for shifts created before this feature
  */

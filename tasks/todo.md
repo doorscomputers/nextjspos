@@ -1,3 +1,126 @@
+# Same-day void policy (follow-up to exchange-void fix)
+
+## Decision (user approved 2026-07-16)
+
+Voids allowed only on the sale's own business day while its shift is still open.
+Past-day / post-Z corrections must use the Customer Return / Exchange flow
+(handles stock, price difference, expected cash correctly — no oversales, no
+mystery over/short). Super Admin may override. NO inventory-correction+re-punch.
+
+## Todo
+
+- [x] 1. `void/route.ts`: block void when sale.saleDate ≠ Manila today (non-super-admin)
+- [x] 2. `void/route.ts`: block void when sale's shift is closed (Z done) (non-super-admin)
+- [x] 3. `void/route.ts`: skip shift running-total decrement when shift no longer open
+      (protects frozen Z totals on Super Admin override path)
+- [x] 4. Build verify (`npm run build` exit 0)
+
+## Review (same-day void policy)
+
+Single file changed: `src/app/api/sales/[id]/void/route.ts` (+1 import `isSuperAdmin`).
+- Policy check placed after ownership/status checks, before any mutation.
+- `sale_date` is a DATE column holding PH calendar date → string compare with
+  `Intl.DateTimeFormat('en-CA', {timeZone:'Asia/Manila'})` today. No timezone math.
+- Shift check via one `cashierShift.findUnique` on status only.
+- Inside transaction: running-total decrement now conditional on shift status
+  'open' — same-day normal voids unaffected (shift is open), closed-shift
+  totals never touched.
+- No schema, RBAC, or DB changes. Super Admin override uses existing
+  `isSuperAdmin()` (role check, already grants all permissions).
+
+---
+
+# Fix: Voiding an exchange sale corrupts inventory (Bambang HIKSEMI case)
+
+## Root cause (confirmed in production DB)
+
+Exchange `EXC-202607-0006` (2026-07-15, Bambang): customer returned 1× HIKSEMI 16GB
+(product 1580, +1 stock) and took 2× HIKSEMI 8GB (product 1579, −2 stock). Stock was
+correct after the exchange (16GB=1, 8GB=0). Cashier then voided the exchange sale
+("WRONG INPUT"). The void handler (`src/app/api/sales/[id]/void/route.ts`) treats an
+exchange sale like a plain sale:
+
+- restores the ISSUED items (+2 8GB → overstated, items are with the customer)
+- does NOT reverse the RETURN leg (customer_returns stays `exchanged`, 16GB +1 kept)
+- decrements shift VAT/discount running totals that the exchange never incremented
+
+4 voided exchange sales exist historically (Dec 2025 ×1, Jun 2026 ×2, Jul 2026 ×1),
+all with dangling `customer_returns` rows.
+
+## Todo
+
+- [x] 1. `src/lib/shift-running-totals.ts`: add `decrementShiftTotalsForExchangeVoid()`
+      that exactly mirrors `incrementShiftTotalsForExchange()` (exchange count/sales,
+      return amount, payment field) + void tracking. No VAT/discount fields.
+- [x] 2. `src/app/api/sales/[id]/void/route.ts`:
+      - Block voiding a NON-exchange sale that has active linked customer_returns
+        (status not in rejected/cancelled/voided) — prevents double-restore.
+      - When voiding an EXCHANGE sale (`saleType === 'exchange'`): find linked return
+        via `returnNumber = 'RTN-' + invoiceNumber`, deduct each returned item back out
+        (deductStock, ADJUSTMENT, allowNegative, ref sale_void), set return status
+        `voided`, revert serials from both legs via serial_number_movements.
+      - Use the new exchange-specific shift decrement instead of
+        `decrementShiftTotalsForVoid` for exchange sales.
+      - Response message tells cashier to re-enter the exchange if the swap really happened.
+- [x] 3. `scripts/audit-voided-exchanges.ts`: read-only report of every voided exchange
+      sale, its return/issue legs, whether reversal is missing, current qty per product —
+      so the user can recount and correct the older 3 cases.
+- [ ] 4. Data fix for the live incident: product 1579 (8GB GOLD) @ Bambang must go 2 → 0.
+      Recommend Inventory Correction in dashboard (physical count 0), OR approve script fix.
+      **AWAITING USER** — needs physical recount confirmation before touching production stock.
+- [x] 5. Verify: `npm run build` exit 0; tsc clean on touched files (pre-existing
+      `useCurrency.ts` JSDoc parse errors unrelated); audit script ran against production
+      and produced sane output for all 4 voided exchanges.
+
+## Review
+
+### Files changed (2 code + 1 new script)
+
+1. **`src/app/api/sales/[id]/void/route.ts`**
+   - New guard: voiding any sale that has active linked `customer_returns`
+     (status not rejected/cancelled/voided) is now blocked with a clear error —
+     prevents double-restoring stock that a return/exchange already restored.
+     (Exchange sales link their return via `returnNumber`, not `saleId`, so the
+     exchange itself remains voidable.)
+   - When voiding an exchange sale (`saleType === 'exchange'`), inside the same
+     transaction: finds linked return `RTN-<invoiceNumber>` with status
+     'exchanged', deducts each returned item back out of stock (ADJUSTMENT,
+     `allowNegative` for safety), sets the return status to `voided`, and
+     reverts serial numbers from both legs (returned serials → back to sold on
+     original sale; issued serials → back to in_stock).
+   - Exchange voids now use `decrementShiftTotalsForExchangeVoid` instead of the
+     plain-sale decrement, which was corrupting VAT/discount running totals the
+     exchange never incremented.
+   - Response message on exchange void warns cashier to re-enter the exchange if
+     the physical swap actually happened.
+
+2. **`src/lib/shift-running-totals.ts`**
+   - New `decrementShiftTotalsForExchangeVoid()` — exact mirror of
+     `incrementShiftTotalsForExchange()`: decrements exchange count/sales,
+     return amount, and per-payment-method fields; increments void tracking.
+     Does NOT touch VAT/discount fields.
+
+3. **`scripts/audit-voided-exchanges.ts`** (new, read-only)
+   - Prints every voided exchange: void record, linked return, whether the
+     return leg was reversed, both legs' products with current stock and
+     surrounding product_history. Run: `npx tsx scripts/audit-voided-exchanges.ts`
+
+### Audit findings (production, needs physical recounts)
+
+| Exchange | Location | Product to recount | System qty |
+|---|---|---|---|
+| EXC-202607-0006 (the incident) | Bambang | HIKSEMI 8GB DDR4 GOLD | 2 (should be 0) |
+| EXC-202512-0014 | Bambang | POWER CORD 2HOLES | 27 (likely +1 over) |
+| EXC-202606-0002 | Main Store | MERCUSYS MS110P | 2 |
+| EXC-202606-0002 | Main Store | VENTION HDMI switcher | 1 |
+| EXC-202606-0003 | Bambang | TPLINK TL-SG108 | 2 |
+
+### Remediation path
+Physical recount each product above → apply Inventory Correction in dashboard
+(reference the exchange number). No script writes to production stock were made.
+
+---
+
 # Dashboard Period Filter — Add Presets + Custom Range (Phase 2)
 
 ## Plan
