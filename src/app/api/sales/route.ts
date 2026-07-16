@@ -849,6 +849,11 @@ export async function POST(request: NextRequest) {
       select: {
         id: true,
         purchasePrice: true,
+        product: {
+          select: {
+            enableStock: true,
+          },
+        },
       },
     })
     const variationsMap = new Map(productVariations.map(v => [v.id, v]))
@@ -885,9 +890,13 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Check stock availability from batched results (skip for "Not for Selling" service items)
-      const isNotForSellingItem = item.notForSelling || false
-      if (!isNotForSellingItem) {
+      // Check stock availability from batched results.
+      // Skip ONLY for products with stock tracking disabled (services/fees).
+      // Server-side flag is authoritative — client-sent notForSelling must not
+      // bypass stock handling (caused phantom stock: sale without deduction).
+      const skipStockHandling =
+        variationsMap.get(Number(item.productVariationId))?.product?.enableStock === false
+      if (!skipStockHandling) {
         const availability = stockAvailabilityMap.get(Number(item.productVariationId))
         console.log('[SALES] Stock check for variation', item.productVariationId, ':', availability)
         if (!availability || !availability.available) {
@@ -1180,9 +1189,10 @@ export async function POST(request: NextRequest) {
           remark: itemRemark,
         })
 
-        // Skip stock deduction for "Not for Selling" items (services, fees)
-        const isNotForSelling = item.notForSelling || false
-        if (!isNotForSelling) {
+        // Skip stock deduction ONLY for products with stock tracking disabled
+        // (services/fees, enable_stock=false). Server-side flag is authoritative —
+        // client-sent notForSelling must not skip deduction (phantom stock bug).
+        if (variation.product?.enableStock !== false) {
           // Collect stock deduction data for bulk processing
           bulkStockItems.push({
             businessId: businessIdNumber,

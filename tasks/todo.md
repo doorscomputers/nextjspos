@@ -1,3 +1,54 @@
+# Phantom Stock Fix — enable_stock=false on real products
+
+Investigation complete (see `tasks/phantom-stock-enable-stock-bug.md`). Plan below. NO changes made yet.
+
+## Todo
+
+### Phase 1 — Data fixes (production DB, Supabase) — DONE
+- [x] 1. Flag fix: `enable_stock = true` on 9 real products (139, 59, 554, 1931, 1944, 1949, 1985, 1989, 1991)
+- [x] 2. Flag fix: `not_for_selling = false` on 3 TECNO phones (1985, 1989, 1991)
+      — SF1 (1544) and PARTSBATTERY (2000) untouched
+- [x] 3. Stock correction: variation 1984 @ Bambang 1 → 0 with full audit trail:
+      inventory_corrections #544 (approved) → stock_transactions #38983 (adjustment −1,
+      unit cost 11592.42) → product_history row → VLD 0. Done via stored function
+      `update_inventory_with_history` (same locked path app uses).
+- [x] 4. Verified: flags_enabled=9, nfs_cleared=3, Bambang qty=0.0000, correction linked.
+
+### Phase 2 — Code fix (prevent recurrence) — DONE
+- [x] 5. `src/app/api/sales/route.ts`: stock skip was based on CLIENT-SENT `item.notForSelling`
+      (both availability check ~889 and deduction ~1184). Now based on server-side
+      `product.enableStock` (added to variationsMap select). Client flag can no longer
+      skip stock handling.
+- [x] 6. Origin was NOT CSV import (import route forces enableStock=true). Origin =
+      product Add/Edit forms: "Not for selling" checkbox force-set `enableStock: false`
+      and disabled the Manage Stock checkbox. Decoupled in both
+      `products/add/page.tsx` and `products/[id]/edit/page.tsx` — notForSelling now
+      only hides from POS, never touches enableStock.
+- [x] 7. Build verify (npm run build — exit 0)
+
+## Review
+
+**Data (production, Supabase project ydytljrzuhvimrtixinw):**
+- 9 products re-enabled for stock tracking; 3 TECNO phones made sellable again.
+- One quantity change only: TECNO SPARK 50 5G @ Bambang 1→0 (correction #544,
+  stock tx #38983). Reported discrepancy resolved. Main Store TECNO qty 1 = correct
+  (never sold there).
+
+**Code (3 files):**
+- `src/app/api/sales/route.ts` — server-authoritative `enableStock` decides stock
+  skip; client `notForSelling` ignored for stock decisions.
+- `src/app/dashboard/products/add/page.tsx`, `products/[id]/edit/page.tsx` —
+  "Not for selling" no longer forces/disables "Manage Stock".
+
+**Known pre-existing asymmetry (NOT touched, minimal-change rule):** void route
+restores stock for ALL sale items unconditionally, incl. enable_stock=false services.
+Existed before this fix; same-day void policy limits exposure. Flag if it matters.
+
+**Note:** sale 11783 (the TECNO sale) still has no ledger rows — intentionally left;
+correction #544 documents and fixes the net effect instead of rewriting history.
+
+---
+
 # Same-day void policy (follow-up to exchange-void fix)
 
 ## Decision (user approved 2026-07-16)
