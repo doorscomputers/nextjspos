@@ -236,13 +236,23 @@ export default function BranchStockPivotV2Page() {
   }, [])
 
   const onExporting = (e: any) => {
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const fileStamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`
+    const extractedLabel = `Extracted: ${now.toLocaleString()}`
+
     if (e.format === 'xlsx') {
       const workbook = new Workbook()
       const worksheet = workbook.addWorksheet('Branch Stock Pivot')
+      worksheet.getCell('A1').value = 'Branch Stock Pivot'
+      worksheet.getCell('A1').font = { bold: true, size: 14 }
+      worksheet.getCell('A2').value = extractedLabel
+      worksheet.getCell('A2').font = { italic: true, size: 10 }
 
       exportToExcel({
         component: e.component,
         worksheet,
+        topLeftCell: { row: 4, column: 1 },
         autoFilterEnabled: true,
         customizeCell: ({ gridCell, excelCell }: any) => {
           if (gridCell.rowType === 'data') {
@@ -272,7 +282,7 @@ export default function BranchStockPivotV2Page() {
         },
       }).then(() => {
         workbook.xlsx.writeBuffer().then((buffer: any) => {
-          saveAs(new Blob([buffer], { type: 'application/octet-stream' }), 'branch-stock-pivot-v2.xlsx')
+          saveAs(new Blob([buffer], { type: 'application/octet-stream' }), `branch-stock-pivot-v2_${fileStamp}.xlsx`)
         })
       })
       e.cancel = true
@@ -283,12 +293,18 @@ export default function BranchStockPivotV2Page() {
         jsPDFDocument: doc,
         component: e.component,
         autoTableOptions: {
+          startY: 50,
           styles: { fontSize: 8, cellPadding: 2 },
           headStyles: { fillColor: [41, 128, 185], textColor: 255 },
           alternateRowStyles: { fillColor: [245, 245, 245] },
         },
       }).then(() => {
-        doc.save('branch-stock-pivot-v2.pdf')
+        doc.setPage(1)
+        doc.setFontSize(14)
+        doc.text('Branch Stock Pivot', 40, 25)
+        doc.setFontSize(9)
+        doc.text(extractedLabel, 40, 40)
+        doc.save(`branch-stock-pivot-v2_${fileStamp}.pdf`)
       })
       e.cancel = true
     }
