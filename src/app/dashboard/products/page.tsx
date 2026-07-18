@@ -262,6 +262,7 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [searchInput, setSearchInput] = useState('') // Separate state for search input (not auto-filtered)
   const [activeFilter, setActiveFilter] = useState<string>('all') // all, active, inactive
+  const [sellingFilter, setSellingFilter] = useState<string>('all') // all, forSelling, notForSelling
 
   // Minimum characters required for column search to trigger
   const MIN_SEARCH_CHARS = 4
@@ -340,7 +341,7 @@ export default function ProductsPage() {
   // Reset to page 1 when search or filter changes
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, activeFilter, filters])
+  }, [searchTerm, activeFilter, sellingFilter, filters])
 
   // Update searchTerm, searchInput, and filterInputs when filters change externally (e.g., clear all)
   useEffect(() => {
@@ -383,6 +384,13 @@ export default function ProductsPage() {
         params.append('active', 'true')
       } else if (activeFilter === 'inactive') {
         params.append('active', 'false')
+      }
+
+      // Add selling status filter
+      if (sellingFilter === 'forSelling') {
+        params.append('notForSelling', 'false')
+      } else if (sellingFilter === 'notForSelling') {
+        params.append('notForSelling', 'true')
       }
 
       // Add multi-column filters
@@ -437,7 +445,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false)
     }
-  }, [activeFilter, filters, currentPage, itemsPerPage, sortState])
+  }, [activeFilter, sellingFilter, filters, currentPage, itemsPerPage, sortState])
 
   // Debounced fetch function to avoid excessive API calls
   const debouncedFetchProducts = useCallback(debounce(fetchProducts, 300), [fetchProducts])
@@ -1059,6 +1067,18 @@ export default function ProductsPage() {
                   <SelectItem value="all">All Products</SelectItem>
                   <SelectItem value="active">Active Only</SelectItem>
                   <SelectItem value="inactive">Inactive Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full md:w-56">
+              <Select value={sellingFilter} onValueChange={setSellingFilter}>
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="Filter by selling status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Selling: All</SelectItem>
+                  <SelectItem value="forSelling">For Selling Only</SelectItem>
+                  <SelectItem value="notForSelling">Not For Selling Only</SelectItem>
                 </SelectContent>
               </Select>
             </div>
