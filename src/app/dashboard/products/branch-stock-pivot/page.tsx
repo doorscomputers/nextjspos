@@ -7,6 +7,8 @@ import { SortableTableHead } from '@/components/ui/sortable-table-head'
 import { exportToCSV, exportToExcel, exportToPDF, printTable, ExportColumn } from '@/lib/exportUtils'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { usePermissions } from '@/hooks/usePermissions'
+import { PERMISSIONS } from '@/lib/rbac'
 
 interface PivotRow {
   productId: number
@@ -45,6 +47,8 @@ type StockFilters = {
 }
 
 export default function BranchStockPivotPage() {
+  const { can } = usePermissions()
+  const canViewCost = can(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [locations, setLocations] = useState<{ id: number; name: string }[]>([])
@@ -85,10 +89,14 @@ export default function BranchStockPivotPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
 
-  const [visibleColumns, setVisibleColumns] = useState<string[]>([
+  const [allVisibleColumns, setVisibleColumns] = useState<string[]>([
     'itemCode', 'itemName', 'supplier', 'category', 'brand', 'lastDeliveryDate',
     'lastQtyDelivered', 'cost'
   ])
+  // Cost columns require product.view_purchase_price permission
+  const visibleColumns = canViewCost
+    ? allVisibleColumns
+    : allVisibleColumns.filter((c) => c !== 'cost' && c !== 'totalCost')
 
   // Separate state for search input (only applies on Enter or Search button click)
   const [searchInput, setSearchInput] = useState('')
@@ -503,7 +511,9 @@ export default function BranchStockPivotPage() {
       }
     )
 
-    return columns
+    return canViewCost
+      ? columns
+      : columns.filter((c) => c.id !== 'cost' && c.id !== 'totalCost')
   }
 
   const handleExportCSV = async () => {
@@ -687,7 +697,7 @@ export default function BranchStockPivotPage() {
               { id: 'totalCost', label: 'Total Cost' },
               { id: 'totalPrice', label: 'Total Price' },
               { id: 'active', label: 'Active' }
-            ]}
+            ].filter((c) => canViewCost || (c.id !== 'cost' && c.id !== 'totalCost'))}
             visibleColumns={visibleColumns}
             onToggle={setVisibleColumns}
           />

@@ -24,6 +24,8 @@ import DataGrid, {
   Scrolling,
   Selection
 } from 'devextreme-react/data-grid'
+import { usePermissions } from '@/hooks/usePermissions'
+import { PERMISSIONS } from '@/lib/rbac'
 import { exportDataGrid as exportToExcel } from 'devextreme/excel_exporter'
 import { exportDataGrid as exportToPDF } from 'devextreme/pdf_exporter'
 import { Workbook } from 'exceljs'
@@ -60,6 +62,8 @@ interface LocationColumn {
 }
 
 export default function BranchStockPivotV2Page() {
+  const { can } = usePermissions()
+  const canViewCost = can(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [locations, setLocations] = useState<LocationColumn[]>([])
@@ -485,24 +489,28 @@ export default function BranchStockPivotV2Page() {
             width={100}
             alignment="right"
           />
-          <Column
-            dataField="lastCost"
-            caption="Last Cost (Previous)"
-            dataType="number"
-            format="₱#,##0.00"
-            width={130}
-            alignment="right"
-            cssClass="bg-orange-50 dark:bg-orange-900/20"
-          />
-          <Column
-            dataField="cost"
-            caption="Cost (Latest Purchase)"
-            dataType="number"
-            format="₱#,##0.00"
-            width={150}
-            alignment="right"
-            cssClass="bg-amber-50 dark:bg-amber-900/20"
-          />
+          {canViewCost && (
+            <Column
+              dataField="lastCost"
+              caption="Last Cost (Previous)"
+              dataType="number"
+              format="₱#,##0.00"
+              width={130}
+              alignment="right"
+              cssClass="bg-orange-50 dark:bg-orange-900/20"
+            />
+          )}
+          {canViewCost && (
+            <Column
+              dataField="cost"
+              caption="Cost (Latest Purchase)"
+              dataType="number"
+              format="₱#,##0.00"
+              width={150}
+              alignment="right"
+              cssClass="bg-amber-50 dark:bg-amber-900/20"
+            />
+          )}
           {/* Dynamic Location Columns */}
           {locations.map((location) => (
             <Column
@@ -540,15 +548,17 @@ export default function BranchStockPivotV2Page() {
             alignment="right"
             cssClass="bg-blue-50 dark:bg-blue-900/20"
           />
-          <Column
-            dataField="totalCost"
-            caption="Total Cost"
-            dataType="number"
-            format="₱#,##0.00"
-            width={130}
-            alignment="right"
-            cssClass="bg-yellow-50 dark:bg-yellow-900/20"
-          />
+          {canViewCost && (
+            <Column
+              dataField="totalCost"
+              caption="Total Cost"
+              dataType="number"
+              format="₱#,##0.00"
+              width={130}
+              alignment="right"
+              cssClass="bg-yellow-50 dark:bg-yellow-900/20"
+            />
+          )}
           <Column
             dataField="isActive"
             caption="Status"
@@ -573,7 +583,9 @@ export default function BranchStockPivotV2Page() {
           <Summary>
             <TotalItem column="itemCode" summaryType="count" displayFormat="Total: {0} items" />
             <TotalItem column="totalStock" summaryType="sum" valueFormat="#,##0" displayFormat="{0}" />
-            <TotalItem column="totalCost" summaryType="sum" valueFormat="₱#,##0.00" displayFormat="{0}" />
+            {canViewCost && (
+              <TotalItem column="totalCost" summaryType="sum" valueFormat="₱#,##0.00" displayFormat="{0}" />
+            )}
             {locations.map((location) => (
               <TotalItem
                 key={location.id}

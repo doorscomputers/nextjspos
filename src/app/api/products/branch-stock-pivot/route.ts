@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
+import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 
 type StockLocationRange = {
   min?: string
@@ -51,6 +52,12 @@ export async function POST(request: NextRequest) {
     if (!businessId || Number.isNaN(businessId)) {
       return NextResponse.json({ error: 'Invalid business context' }, { status: 400 })
     }
+
+    // Field-level security: cost data requires product.view_purchase_price
+    const canViewCost = hasPermission(
+      { id: '', permissions: userPermissions, roles: userRoles },
+      PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE
+    )
 
     const body = (await request.json().catch(() => ({}))) as Partial<{
       page: number
@@ -135,14 +142,14 @@ export async function POST(request: NextRequest) {
       paramIndex++
     }
 
-    // Cost range
-    if (filters.minCost) {
+    // Cost range (only for users allowed to see cost)
+    if (canViewCost && filters.minCost) {
       whereClauses.push(`pv.purchase_price >= $${paramIndex}`)
       params.push(parseFloat(filters.minCost))
       paramIndex++
     }
 
-    if (filters.maxCost) {
+    if (canViewCost && filters.maxCost) {
       whereClauses.push(`pv.purchase_price <= $${paramIndex}`)
       params.push(parseFloat(filters.maxCost))
       paramIndex++
@@ -204,6 +211,10 @@ export async function POST(request: NextRequest) {
       price: 'pv.selling_price',
       lastDeliveryDate: 'pv.last_purchase_date',
       lastQtyDelivered: 'pv.last_purchase_quantity',
+    }
+
+    if (!canViewCost) {
+      delete sortColumnMap.cost
     }
 
     let orderByColumn = sortColumnMap[sortKey] || 'spv.product_name'
@@ -369,7 +380,7 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      const cost = parseFloat(row.cost || 0)
+      const cost = canViewCost ? parseFloat(row.cost || 0) : 0
       const price = parseFloat(row.price || 0)
       const mainStorePrice = parseFloat(row.main_store_price || 0)
 
@@ -400,7 +411,7 @@ export async function POST(request: NextRequest) {
         unit: row.unit || 'N/A',
         lastDeliveryDate: row.last_purchase_date ? row.last_purchase_date.toISOString().split('T')[0] : null,
         lastQtyDelivered: parseFloat(row.last_qty_delivered || 0),
-        lastPurchaseCost: parseFloat(row.last_purchase_cost || 0),
+        lastPurchaseCost: canViewCost ? parseFloat(row.last_purchase_cost || 0) : 0,
         cost,
         price,
         mainStorePrice,
