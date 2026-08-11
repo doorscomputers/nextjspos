@@ -318,16 +318,16 @@ async function getPaymentMethodGLAccount(
   businessId: number,
   paymentMethod: string
 ): Promise<number | null> {
-  // Map payment methods to account codes
+  // Map payment methods to account codes (must exist in Chart of Accounts)
   const accountCodeMap: { [key: string]: string } = {
-    cash: "1010", // Cash on Hand
-    cheque: "1020", // Bank - Checking Account
-    bank_transfer: "1020", // Bank - Checking Account
-    credit_card: "2100", // Credit Card Payable
-    other: "1010", // Default to Cash
+    cash: "1000", // Cash
+    cheque: "1000", // Cash (fallback until a Bank account is added)
+    bank_transfer: "1000", // Cash (fallback until a Bank account is added)
+    credit_card: "2000", // Accounts Payable (fallback until Credit Card Payable is added)
+    other: "1000", // Default to Cash
   };
 
-  const accountCode = accountCodeMap[paymentMethod] || "1010";
+  const accountCode = accountCodeMap[paymentMethod] || "1000";
 
   // Find the GL account
   const glAccount = await prisma.chartOfAccounts.findFirst({

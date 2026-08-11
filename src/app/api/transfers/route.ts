@@ -306,11 +306,13 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================================================
-    // DUPLICATE DETECTION (Prevents network retry duplicates)
+    // DUPLICATE DETECTION (Prevents network retry duplicates AND user re-creation)
     // ============================================================================
     // NOTE: This creates DRAFT transfers (no inventory deduction yet)
     // Inventory is deducted in SEND endpoint (already protected)
-    const DUPLICATE_WINDOW_MS = 300 * 1000 // 300 seconds (5 minutes)
+    // Window is 60 minutes: prevents user from accidentally re-creating identical
+    // transfers (incident: transfer 1016/1017 were 6 min apart, slipped through 5-min window)
+    const DUPLICATE_WINDOW_MS = 3600 * 1000 // 3600 seconds (60 minutes)
     const duplicateCheckTime = new Date(Date.now() - DUPLICATE_WINDOW_MS)
 
     // Look for recent identical transfers from same user between same locations
@@ -339,10 +341,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: 'Duplicate transaction detected',
-          message: `An identical transfer draft from ${fromLocation.name} to ${toLocation.name} was created ${secondsAgo} seconds ago. If this was intentional, please wait 5 minutes before creating another identical transfer.`,
+          message: `An identical transfer draft from ${fromLocation.name} to ${toLocation.name} was created ${secondsAgo} seconds ago. If this was intentional, please wait 60 minutes before creating another identical transfer.`,
           existingTransferId: latestTransfer.id,
           existingTransferNumber: latestTransfer.transferNumber,
-          duplicateWindowSeconds: 300,
+          duplicateWindowSeconds: 3600,
         },
         { status: 409 } // HTTP 409 Conflict
       )

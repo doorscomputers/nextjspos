@@ -63,6 +63,26 @@ export async function POST(
       )
     }
 
+    // Atomic gate: prevent concurrent complete requests at API level
+    // stockReceived is the atomic claim — only one request can set it from false to true
+    const gate = await prisma.stockTransfer.updateMany({
+      where: {
+        id: transferId,
+        businessId,
+        status: { in: validStatuses },
+        stockReceived: false,
+      },
+      data: { stockReceived: true },
+    })
+
+    if (gate.count === 0) {
+      console.warn(`[complete-async] Transfer ${transferId} already being completed or stockReceived=true`)
+      return NextResponse.json(
+        { error: 'Transfer is already being completed by another request' },
+        { status: 409 }
+      )
+    }
+
     const body = await request.json()
     const { notes } = body
 
@@ -109,6 +129,12 @@ export async function POST(
       )
     } catch (error: any) {
       console.error(`[Job ${job.id}] Processing failed:`, error)
+
+      // Release stockReceived claim so transfer can be retried
+      await prisma.stockTransfer.update({
+        where: { id: transferId },
+        data: { stockReceived: false },
+      })
 
       // Mark job as failed
       await prisma.job.update({

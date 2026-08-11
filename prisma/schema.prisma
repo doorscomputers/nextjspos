@@ -2094,10 +2094,14 @@ model SalePayment {
   collectedBy     Int?          @map("collected_by") // User who collected the AR payment
   collectedByUser User?         @relation("ARPaymentCollector", fields: [collectedBy], references: [id])
 
-  paymentMethod String  @map("payment_method") @db.VarChar(50) // cash, card, bank_transfer, cheque, mobile_payment
+  paymentMethod String  @map("payment_method") @db.VarChar(50) // cash, card, bank_transfer, cheque, mobile_payment, government_deduction
   amount        Decimal @db.Decimal(22, 4)
 
   referenceNumber String? @map("reference_number") @db.VarChar(191) // Cheque number, transaction ID, etc.
+
+  // Government Deduction fields (only populated when paymentMethod = "government_deduction")
+  deductionType  String? @map("deduction_type") @db.VarChar(50)   // ewt, vat_withholding, other_gov_deduction
+  deductionNotes String? @map("deduction_notes") @db.VarChar(500) // Free-text notes about the deduction
 
   paidAt DateTime @default(now()) @map("paid_at")
 
@@ -2130,6 +2134,9 @@ model StockTransfer {
 
   // Stock NOT deducted until in_transit
   stockDeducted Boolean @default(false) @map("stock_deducted")
+
+  // Stock NOT received until completed (atomic claim for processTransferComplete)
+  stockReceived Boolean @default(false) @map("stock_received")
 
   notes String? @db.Text
 

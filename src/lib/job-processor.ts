@@ -559,10 +559,24 @@ async function processTransferComplete(job: any) {
     console.warn(`[Job ${job.id}] Transfer ${transferId} already completed. Skipping.`)
     return { transferId, transferNumber: transfer.transferNumber, itemsProcessed: 0, skipped: true }
   }
+  if (transfer.stockReceived) {
+    console.warn(`[Job ${job.id}] Transfer ${transferId} stock already received. Skipping.`)
+    return { transferId, transferNumber: transfer.transferNumber, itemsProcessed: 0, skipped: true }
+  }
 
   const validStatuses = ['in_transit', 'arrived', 'verified', 'verifying']
   if (!validStatuses.includes(transfer.status)) {
     console.warn(`[Job ${job.id}] Transfer ${transferId} invalid status '${transfer.status}'. Skipping.`)
+    return { transferId, transferNumber: transfer.transferNumber, itemsProcessed: 0, skipped: true }
+  }
+
+  // Atomic claim: only ONE concurrent request can add stock to destination
+  const claimed = await prisma.stockTransfer.updateMany({
+    where: { id: transferId, status: { in: validStatuses }, stockReceived: false },
+    data: { stockReceived: true },
+  })
+  if (claimed.count === 0) {
+    console.warn(`[Job ${job.id}] Transfer ${transferId} claimed by another process. Skipping.`)
     return { transferId, transferNumber: transfer.transferNumber, itemsProcessed: 0, skipped: true }
   }
 
@@ -581,6 +595,7 @@ async function processTransferComplete(job: any) {
   const BATCH_SIZE = 30 // Increased from 10 to reduce transaction overhead
   let processedCount = 0
 
+  try {
   for (let i = 0; i < transfer.items.length; i += BATCH_SIZE) {
     const batch = transfer.items.slice(i, i + BATCH_SIZE)
 
@@ -696,8 +711,16 @@ async function processTransferComplete(job: any) {
       `[Job ${job.id}] Progress: ${processedCount}/${transfer.items.length} items`
     )
   }
+  } catch (error) {
+    // Release claim so it can be retried
+    await prisma.stockTransfer.update({
+      where: { id: transferId },
+      data: { stockReceived: false },
+    })
+    throw error
+  }
 
-  // Update transfer status
+  // Update transfer status (stockReceived already set by atomic claim above)
   await prisma.stockTransfer.update({
     where: { id: transferId },
     data: {

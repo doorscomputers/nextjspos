@@ -188,6 +188,27 @@ export default function ExpensesPage() {
     }
   }
 
+  const [initializingCOA, setInitializingCOA] = useState(false)
+  const handleInitializeCOA = async () => {
+    if (initializingCOA) return
+    setInitializingCOA(true)
+    try {
+      const response = await fetch('/api/accounting/chart-of-accounts/initialize', { method: 'POST' })
+      const data = await response.json()
+      if (response.ok && data.success) {
+        toast.success(`Created ${data.data?.accountCount ?? ''} standard accounts`)
+        await fetchGLAccounts()
+      } else {
+        toast.error(data.error || data.message || 'Failed to initialize Chart of Accounts')
+      }
+    } catch (error) {
+      console.error('Error initializing COA:', error)
+      toast.error('Failed to initialize Chart of Accounts')
+    } finally {
+      setInitializingCOA(false)
+    }
+  }
+
   const handleRefresh = async () => {
     setRefreshing(true)
     await fetchExpenses()
@@ -750,7 +771,22 @@ export default function ExpensesPage() {
                   </div>
 
                   <div className="md:col-span-2">
-                    <Label htmlFor="glAccountId">GL Account (Optional)</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="glAccountId">GL Account (Optional)</Label>
+                      {glAccounts.length === 0 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleInitializeCOA}
+                          disabled={initializingCOA}
+                          className="hover:border-green-500 hover:text-green-700 dark:hover:text-green-400"
+                          title="Create standard Chart of Accounts (expense, revenue, etc.)"
+                        >
+                          {initializingCOA ? 'Initializing...' : 'Initialize GL Accounts'}
+                        </Button>
+                      )}
+                    </div>
                     <Select
                       value={formData.glAccountId || "none"}
                       onValueChange={(value) => setFormData({ ...formData, glAccountId: value === "none" ? "" : value })}
@@ -767,6 +803,11 @@ export default function ExpensesPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {glAccounts.length === 0 && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        No GL accounts yet. GL Account is optional — you can leave it as "Use Category Default" and save normally. Click <span className="font-semibold">Initialize GL Accounts</span> above to create standard accounts.
+                      </p>
+                    )}
                   </div>
 
                   <div className="md:col-span-2">

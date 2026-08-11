@@ -2134,9 +2134,10 @@ export default function TransferDetailPage() {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleSendConfirmed}
-              className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold"
+              disabled={actionLoading}
+              className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
-              Yes, Send Transfer
+              {actionLoading ? 'Processing...' : 'Yes, Send Transfer'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
