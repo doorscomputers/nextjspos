@@ -268,14 +268,17 @@ export async function generateXReadingDataOptimized(
   `
 
   const cashInRecord = cashInOutAggregation.find(r => r.type === 'cash_in')
-  const cashOutRecord = cashInOutAggregation.find(r => r.type === 'cash_out')
 
   const cashIn = cashInRecord?.total_amount
     ? parseFloat(cashInRecord.total_amount.toString())
     : 0
-  const cashOut = cashOutRecord?.total_amount
-    ? parseFloat(cashOutRecord.total_amount.toString())
-    : 0
+  // Sum every non-cash_in group (cash_out, float_pullout) so no outflow is dropped
+  const cashOut = cashInOutAggregation
+    .filter(r => r.type !== 'cash_in')
+    .reduce(
+      (sum, r) => sum + (r.total_amount ? parseFloat(r.total_amount.toString()) : 0),
+      0
+    )
 
   // Step 6: AR Payments (cash only) - already aggregated
   const arPaymentResult = await prisma.salePayment.aggregate({
@@ -396,6 +399,10 @@ export async function generateXReadingDataOptimized(
     arPaymentsCash,
     expectedCash,
     discountBreakdown,
+    startDateTime: shift.openedAt,
+    endDateTime: readingTimestamp,
+    refundAmount: 0, // TODO: Calculate from refund records
+    withdrawalAmount: cashOut,
   }
 
   const elapsed = Date.now() - startTime

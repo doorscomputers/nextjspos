@@ -113,6 +113,13 @@ export default function CashierNonSalesCashReport() {
         </span>
       )
     }
+    if (recordType === 'float_pullout') {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">
+          FLOAT OUT
+        </span>
+      )
+    }
     return (
       <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300">
         CASH OUT
@@ -201,6 +208,7 @@ export default function CashierNonSalesCashReport() {
               <option value="all">All Types</option>
               <option value="cash_in">Cash In</option>
               <option value="cash_out">Cash Out</option>
+              <option value="float_pullout">Float Pullout</option>
             </select>
           </div>
 
@@ -272,7 +280,7 @@ export default function CashierNonSalesCashReport() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-center">{getTypeBadge(rec.type)}</td>
-                    <td className={`px-4 py-3 text-sm text-right font-bold ${rec.type === 'cash_in' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    <td className={`px-4 py-3 text-sm text-right font-bold ${rec.type === 'cash_in' ? 'text-green-600 dark:text-green-400' : rec.type === 'float_pullout' ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
                       ₱{rec.amount.toFixed(2)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{rec.reason}</td>

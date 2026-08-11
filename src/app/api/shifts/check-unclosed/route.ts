@@ -111,10 +111,11 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    // Add cash in, subtract every outflow (cash_out and float_pullout)
     for (const record of cashInOutRecords) {
       if (record.type === 'cash_in') {
         systemCash = systemCash.plus(record.amount)
-      } else if (record.type === 'cash_out') {
+      } else {
         systemCash = systemCash.minus(record.amount)
       }
     }

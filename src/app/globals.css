@@ -145,6 +145,21 @@
     animation-delay: 4s;
   }
 
+  /* Cash In/Out attention flash - hard blink so clumsy users notice the direction check */
+  @keyframes cash-flash {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.25;
+    }
+  }
+
+  .animate-cash-flash {
+    animation: cash-flash 0.9s ease-in-out infinite;
+  }
+
   /* Print styles */
   @media print {
     .no-print,

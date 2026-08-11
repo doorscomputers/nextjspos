@@ -126,6 +126,10 @@ export async function GET(request: NextRequest) {
     let totalCashOut = 0
     let countCashIn = 0
     let countCashOut = 0
+    // Float pullouts are outflows but NOT expenses - tracked separately so the
+    // report can show how much of the outflow was just the change fund moving.
+    let totalFloatPullout = 0
+    let countFloatPullout = 0
     const locationBreakdown: Record<string, any> = {}
     const cashierBreakdown: Record<string, any> = {}
     const dailyBreakdown: Record<string, any> = {}
@@ -141,6 +145,10 @@ export async function GET(request: NextRequest) {
       } else {
         totalCashOut += amount
         countCashOut++
+        if (record.type === 'float_pullout') {
+          totalFloatPullout += amount
+          countFloatPullout++
+        }
       }
 
       // Location breakdown
@@ -295,6 +303,10 @@ export async function GET(request: NextRequest) {
       netCashFlow,
       countCashIn,
       countCashOut,
+      totalFloatPullout,
+      countFloatPullout,
+      // Outflow that is a genuine business expense (excludes the float pullouts)
+      totalCashOutExpense: totalCashOut - totalFloatPullout,
       averageCashIn: countCashIn > 0 ? totalCashIn / countCashIn : 0,
       averageCashOut: countCashOut > 0 ? totalCashOut / countCashOut : 0,
       topLocations,

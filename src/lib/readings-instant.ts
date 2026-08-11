@@ -188,8 +188,9 @@ async function generateXReadingFromRunningTotals(
     .filter((r: any) => r.type === 'cash_in')
     .reduce((sum: number, r: any) => sum + parseFloat(r.amount.toString()), 0)
 
+  // Every non-cash_in movement is an outflow (cash_out, float_pullout)
   const cashOut = shift.cashInOutRecords
-    .filter((r: any) => r.type === 'cash_out')
+    .filter((r: any) => r.type !== 'cash_in')
     .reduce((sum: number, r: any) => sum + parseFloat(r.amount.toString()), 0)
 
   // AR Payments collected in cash during this shift

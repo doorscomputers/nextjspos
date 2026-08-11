@@ -217,8 +217,9 @@ export async function generateXReadingData(
     .filter(r => r.type === 'cash_in')
     .reduce((sum, r) => sum + parseFloat(r.amount.toString()), 0)
 
+  // Every non-cash_in movement is an outflow (cash_out, float_pullout)
   const cashOut = shift.cashInOutRecords
-    .filter(r => r.type === 'cash_out')
+    .filter(r => r.type !== 'cash_in')
     .reduce((sum, r) => sum + parseFloat(r.amount.toString()), 0)
 
   // AR Payments collected during this shift (cash only)
@@ -482,8 +483,9 @@ export async function generateZReadingData(
     .filter(r => r.type === 'cash_in')
     .reduce((sum, r) => sum + parseFloat(r.amount.toString()), 0)
 
+  // Every non-cash_in movement is an outflow (cash_out, float_pullout)
   const cashOut = shift.cashInOutRecords
-    .filter(r => r.type === 'cash_out')
+    .filter(r => r.type !== 'cash_in')
     .reduce((sum, r) => sum + parseFloat(r.amount.toString()), 0)
 
   // AR Payments collected during this shift (cash only)
@@ -554,7 +556,7 @@ export async function generateZReadingData(
       cashOut,
       arPaymentsCash: arPaymentsCashZ,
       cashInCount: shift.cashInOutRecords.filter(r => r.type === 'cash_in').length,
-      cashOutCount: shift.cashInOutRecords.filter(r => r.type === 'cash_out').length,
+      cashOutCount: shift.cashInOutRecords.filter(r => r.type !== 'cash_in').length,
     },
     discounts: {
       senior: {

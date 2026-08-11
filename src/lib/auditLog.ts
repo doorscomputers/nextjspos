@@ -150,6 +150,7 @@ export enum AuditAction {
   WARRANTY_CLAIM_RESOLVE = 'warranty_claim_resolve',
   CASH_IN = 'cash_in',
   CASH_OUT = 'cash_out',
+  FLOAT_PULLOUT = 'float_pullout',
 
   // Price changes
   PRICE_CHANGE = 'price_change',

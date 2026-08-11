@@ -23,8 +23,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { type, amount, reason, referenceNumber } = body
 
-    if (!type || !['cash_in', 'cash_out'].includes(type)) {
-      return NextResponse.json({ error: 'Type must be cash_in or cash_out' }, { status: 400 })
+    if (!type || !['cash_in', 'cash_out', 'float_pullout'].includes(type)) {
+      return NextResponse.json({ error: 'Type must be cash_in, cash_out or float_pullout' }, { status: 400 })
     }
 
     if (!amount || parseFloat(amount) <= 0) {

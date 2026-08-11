@@ -84,6 +84,7 @@ export default function POSEnhancedPage() {
   // Dialog States
   const [showCashInDialog, setShowCashInDialog] = useState(false)
   const [showCashOutDialog, setShowCashOutDialog] = useState(false)
+  const [showFloatPulloutDialog, setShowFloatPulloutDialog] = useState(false)
   const [showARPaymentDialog, setShowARPaymentDialog] = useState(false)
   const [showQuotationDialog, setShowQuotationDialog] = useState(false)
   const [showSavedQuotations, setShowSavedQuotations] = useState(false)
@@ -1504,12 +1505,23 @@ export default function POSEnhancedPage() {
 
     // Confirmation before saving
     const confirmed = window.confirm(
-      '✅ CONFIRM CASH IN\n\n' +
-      `Amount: ₱${parseFloat(cashIOAmount).toFixed(2)}\n` +
+      '⬇️ CASH IN — MONEY ENTERING THE DRAWER\n\n' +
+      `₱${parseFloat(cashIOAmount).toFixed(2)} will be ADDED to your drawer.\n` +
       `Remarks: ${cashIORemarks || '(none)'}\n\n` +
-      'Are you sure you want to record this Cash In transaction?'
+      'If this money is LEAVING the drawer, press Cancel and use Cash Out instead.\n\n' +
+      'Record this Cash In?'
     )
     if (!confirmed) return
+
+    // Extra final check - direction mistakes here corrupt the drawer balance
+    const finalCheck = window.confirm(
+      '🟢🟢🟢 FINAL CHECK 🟢🟢🟢\n\n' +
+      'You are about to save a CASH IN.\n' +
+      'CASH IN = money goes INTO the drawer.\n\n' +
+      'Please double-check: is CASH IN really what you are doing?\n' +
+      'If you meant Cash Out, press Cancel NOW.'
+    )
+    if (!finalCheck) return
 
     // Set ref BEFORE async state update to prevent race condition
     cashIOSubmittingRef.current = true
@@ -1551,9 +1563,15 @@ export default function POSEnhancedPage() {
     }
   }
 
-  const handleCashOut = async () => {
+  // Handles both a normal Cash Out (an expense) and a Float Pullout (returning the
+  // beginning cash float). Both leave the drawer, but only Cash Out is an expense.
+  // NOTE: always call with an explicit boolean - never pass this straight to onClick,
+  // or the click event itself would arrive as the argument and read as truthy.
+  const handleCashOut = async (isFloatPullout: boolean) => {
     // Prevent double submission using ref (synchronous check)
     if (cashIOSubmittingRef.current) return
+
+    const label = isFloatPullout ? 'Float Pullout' : 'Cash Out'
 
     if (!cashIOAmount || parseFloat(cashIOAmount) <= 0) {
       setError('Please enter a valid amount')
@@ -1561,18 +1579,44 @@ export default function POSEnhancedPage() {
     }
 
     if (!cashIORemarks) {
-      setError('Remarks are required for cash out')
+      setError(`Remarks are required for ${label.toLowerCase()}`)
       return
     }
 
     // Confirmation before saving
     const confirmed = window.confirm(
-      '✅ CONFIRM CASH OUT\n\n' +
-      `Amount: ₱${parseFloat(cashIOAmount).toFixed(2)}\n` +
-      `Remarks: ${cashIORemarks}\n\n` +
-      'Are you sure you want to record this Cash Out transaction?'
+      isFloatPullout
+        ? '🏦 FLOAT PULLOUT — RETURNING THE BEGINNING CASH\n\n' +
+          `₱${parseFloat(cashIOAmount).toFixed(2)} will be REMOVED from your drawer.\n` +
+          `Remarks: ${cashIORemarks}\n\n` +
+          'Use this ONLY for returning the beginning cash float.\n' +
+          'It is NOT an expense and will not appear in expense reports.\n' +
+          'For petty cash, meals, fare and supplies, press Cancel and use Cash Out.\n\n' +
+          'Record this Float Pullout?'
+        : '⚠️ CASH OUT — MONEY LEAVING THE DRAWER\n\n' +
+          `₱${parseFloat(cashIOAmount).toFixed(2)} will be REMOVED from your drawer.\n` +
+          `Remarks: ${cashIORemarks}\n\n` +
+          'This is recorded as a business EXPENSE.\n' +
+          'If you are returning the beginning cash float, press Cancel and use Float Pullout.\n\n' +
+          'Record this Cash Out?'
     )
     if (!confirmed) return
+
+    // Extra final check - direction mistakes here corrupt the drawer balance
+    const finalCheck = window.confirm(
+      isFloatPullout
+        ? '🟡🟡🟡 FINAL CHECK 🟡🟡🟡\n\n' +
+          'You are about to save a FLOAT PULLOUT.\n' +
+          'FLOAT PULLOUT = returning the beginning cash, NOT an expense.\n\n' +
+          'Please double-check: is FLOAT PULLOUT really what you are doing?\n' +
+          'If this is petty cash or an expense, press Cancel NOW and use Cash Out.'
+        : '🔴🔴🔴 FINAL CHECK 🔴🔴🔴\n\n' +
+          'You are about to save a CASH OUT.\n' +
+          'CASH OUT = money goes OUT of the drawer, recorded as an EXPENSE.\n\n' +
+          'Please double-check: is CASH OUT really what you are doing?\n' +
+          'If you meant Cash In, press Cancel NOW.'
+    )
+    if (!finalCheck) return
 
     // Set ref BEFORE async state update to prevent race condition
     cashIOSubmittingRef.current = true
@@ -1585,12 +1629,13 @@ export default function POSEnhancedPage() {
           shiftId: currentShift.id,
           amount: parseFloat(cashIOAmount),
           remarks: cashIORemarks,
+          isFloatPullout,
         }),
       })
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}))
-        console.error('[Cash Out Error]:', {
+        console.error(`[${label} Error]:`, {
           status: res.status,
           statusText: res.statusText,
           errorData
@@ -1599,15 +1644,16 @@ export default function POSEnhancedPage() {
         throw new Error(errorMessage)
       }
 
-      alert(`Cash Out recorded: ₱${parseFloat(cashIOAmount).toFixed(2)}`)
+      alert(`${label} recorded: ₱${parseFloat(cashIOAmount).toFixed(2)}`)
       setShowCashOutDialog(false)
+      setShowFloatPulloutDialog(false)
       setCashIOAmount('')
       setCashIORemarks('')
     } catch (err: any) {
-      console.error('[Cash Out Exception]:', err)
-      const errorMessage = err.message || 'Failed to record cash out'
+      console.error(`[${label} Exception]:`, err)
+      const errorMessage = err.message || `Failed to record ${label.toLowerCase()}`
       setError(errorMessage)
-      alert(`Cash Out Error: ${errorMessage}`)
+      alert(`${label} Error: ${errorMessage}`)
     } finally {
       cashIOSubmittingRef.current = false
       setCashIOSubmitting(false)
@@ -2640,6 +2686,30 @@ export default function POSEnhancedPage() {
             disabled={cart.length > 0}
           >
             💸 Cash Out
+          </Button>
+          <Button
+            onClick={() => {
+              const confirmed = window.confirm(
+                '🏦 FLOAT PULLOUT\n\n' +
+                'You are about to return the beginning cash float.\n\n' +
+                'Float Pullout is used for:\n' +
+                '• Returning the beginning cash/change fund at end of shift\n\n' +
+                'It leaves the drawer like a Cash Out, but it is NOT an expense\n' +
+                'and will not appear in profit or expense reports.\n\n' +
+                'For petty cash, meals, fare or supplies, use Cash Out instead.\n\n' +
+                'Are you sure you want to proceed?'
+              )
+              if (confirmed) {
+                setCashIOAmount('')
+                setCashIORemarks('')
+                setShowFloatPulloutDialog(true)
+              }
+            }}
+            className="h-12 px-4 bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            title={cart.length > 0 ? "Complete or clear current sale first" : "Float Pullout - returning the beginning cash float (not an expense)"}
+            disabled={cart.length > 0}
+          >
+            🏦 Float Out
           </Button>
           <Button
             onClick={() => {
@@ -3823,11 +3893,22 @@ export default function POSEnhancedPage() {
 
       {/* Cash In Dialog */}
       <Dialog open={showCashInDialog} onOpenChange={setShowCashInDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cash In Transaction</DialogTitle>
+        <DialogContent className="border-4 border-green-600 dark:border-green-500 [&>button]:text-white [&>button]:opacity-100">
+          <DialogHeader className="-mx-6 -mt-6 mb-2 rounded-t-lg bg-green-600 px-6 py-4 dark:bg-green-700">
+            <DialogTitle className="text-xl font-bold text-white">
+              ⬇️ CASH IN
+            </DialogTitle>
+            <p className="text-sm font-semibold text-green-50">
+              Money ENTERING the drawer
+            </p>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="rounded-md border-2 border-green-600 bg-green-50 p-3 text-sm font-bold text-green-900 dark:border-green-500 dark:bg-green-950 dark:text-green-100">
+              This ADDS cash to your drawer. If cash is leaving the drawer, close this and use Cash Out.
+            </div>
+            <div className="animate-cash-flash rounded-md bg-green-600 p-3 text-center text-base font-extrabold text-white dark:bg-green-500">
+              ⬇️ CHECK: THIS IS CASH IN — MONEY GOES IN ⬇️
+            </div>
             <div>
               <Label>Amount</Label>
               <Input
@@ -3863,11 +3944,23 @@ export default function POSEnhancedPage() {
 
       {/* Cash Out Dialog */}
       <Dialog open={showCashOutDialog} onOpenChange={setShowCashOutDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cash Out Transaction</DialogTitle>
+        <DialogContent className="border-4 border-red-600 dark:border-red-500 [&>button]:text-white [&>button]:opacity-100">
+          <DialogHeader className="-mx-6 -mt-6 mb-2 rounded-t-lg bg-red-600 px-6 py-4 dark:bg-red-700">
+            <DialogTitle className="text-xl font-bold text-white">
+              ⚠️ CASH OUT
+            </DialogTitle>
+            <p className="text-sm font-semibold text-red-50">
+              Money LEAVING the drawer
+            </p>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="rounded-md border-2 border-red-600 bg-red-50 p-3 text-sm font-bold text-red-900 dark:border-red-500 dark:bg-red-950 dark:text-red-100">
+              This REMOVES cash from your drawer and is recorded as a business EXPENSE.
+              Returning the beginning cash float? Close this and use Float Out instead.
+            </div>
+            <div className="animate-cash-flash rounded-md bg-red-600 p-3 text-center text-base font-extrabold text-white dark:bg-red-500">
+              ⬆️ CHECK: THIS IS CASH OUT — MONEY GOES OUT ⬆️
+            </div>
             <div>
               <Label>Amount</Label>
               <Input
@@ -3894,8 +3987,61 @@ export default function POSEnhancedPage() {
             <Button variant="outline" onClick={() => setShowCashOutDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCashOut} className="bg-red-600" disabled={cashIOSubmitting}>
+            <Button onClick={() => handleCashOut(false)} className="bg-red-600" disabled={cashIOSubmitting}>
               {cashIOSubmitting ? 'Recording...' : 'Record Cash Out'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Float Pullout Dialog - returning the beginning cash float (NOT an expense) */}
+      <Dialog open={showFloatPulloutDialog} onOpenChange={setShowFloatPulloutDialog}>
+        <DialogContent className="border-4 border-amber-600 dark:border-amber-500 [&>button]:text-white [&>button]:opacity-100">
+          <DialogHeader className="-mx-6 -mt-6 mb-2 rounded-t-lg bg-amber-600 px-6 py-4 dark:bg-amber-700">
+            <DialogTitle className="text-xl font-bold text-white">
+              🏦 FLOAT PULLOUT
+            </DialogTitle>
+            <p className="text-sm font-semibold text-amber-50">
+              Returning the beginning cash float
+            </p>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-md border-2 border-amber-600 bg-amber-50 p-3 text-sm font-bold text-amber-900 dark:border-amber-500 dark:bg-amber-950 dark:text-amber-100">
+              This REMOVES cash from your drawer but is NOT an expense - use it only for
+              returning the beginning cash float. For petty cash, meals, fare or supplies,
+              close this and use Cash Out.
+            </div>
+            <div className="animate-cash-flash rounded-md bg-amber-600 p-3 text-center text-base font-extrabold text-white dark:bg-amber-500">
+              🏦 CHECK: THIS IS FLOAT PULLOUT — NOT AN EXPENSE 🏦
+            </div>
+            <div>
+              <Label>Amount</Label>
+              <Input
+                type="text"
+                inputMode="none"
+                placeholder="Enter amount..."
+                value={cashIOAmount}
+                onClick={() => openKeypad('cashout')}
+                readOnly
+                className="cursor-pointer text-lg font-bold"
+              />
+            </div>
+            <div>
+              <Label>Remarks *</Label>
+              <Textarea
+                placeholder="Enter reason for float pullout (required)..."
+                value={cashIORemarks}
+                onChange={(e) => setCashIORemarks(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowFloatPulloutDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => handleCashOut(true)} className="bg-amber-600 hover:bg-amber-700" disabled={cashIOSubmitting}>
+              {cashIOSubmitting ? 'Recording...' : 'Record Float Pullout'}
             </Button>
           </DialogFooter>
         </DialogContent>

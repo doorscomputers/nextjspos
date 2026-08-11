@@ -29,7 +29,13 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { shiftId, amount, remarks } = body
+    const { shiftId, amount, remarks, isFloatPullout } = body
+
+    // Float pullout = returning the beginning cash float. It still leaves the drawer,
+    // but it is NOT a business expense, so it is stored under its own type and the
+    // expense reports (which filter on type = 'cash_out') exclude it automatically.
+    const recordType = isFloatPullout === true ? 'float_pullout' : 'cash_out'
+    const label = isFloatPullout === true ? 'Float Pullout' : 'Cash Out'
 
     // Validation
     if (!shiftId || !amount || parseFloat(amount) <= 0) {
@@ -82,12 +88,12 @@ export async function POST(request: NextRequest) {
     const userIdNumber = parseInt(user.id)
     const amountNumber = parseFloat(amount)
 
-    // Look for recent identical cash out from same user at same shift
+    // Look for a recent identical movement of the SAME type from same user at same shift
     const recentSimilarTransactions = await prisma.cashInOut.findMany({
       where: {
         businessId: businessIdNumber,
         shiftId: parseInt(shiftId),
-        type: 'cash_out',
+        type: recordType,
         amount: {
           gte: amountNumber - 0.01,
           lte: amountNumber + 0.01,
@@ -105,13 +111,13 @@ export async function POST(request: NextRequest) {
       const latestTx = recentSimilarTransactions[0]
       const secondsAgo = Math.round((Date.now() - latestTx.createdAt.getTime()) / 1000)
 
-      console.warn(`[CASH OUT] DUPLICATE BLOCKED: Transaction identical to ID ${latestTx.id} (${secondsAgo}s ago)`)
-      console.warn(`[CASH OUT] User: ${userIdNumber}, Shift: ${shiftId}, Amount: ${amountNumber}`)
+      console.warn(`[${label.toUpperCase()}] DUPLICATE BLOCKED: Transaction identical to ID ${latestTx.id} (${secondsAgo}s ago)`)
+      console.warn(`[${label.toUpperCase()}] User: ${userIdNumber}, Shift: ${shiftId}, Amount: ${amountNumber}`)
 
       return NextResponse.json(
         {
           error: 'Duplicate transaction detected',
-          message: `An identical cash out of ₱${amountNumber.toFixed(2)} was recorded ${secondsAgo} seconds ago. If this was intentional, please wait 5 minutes before recording another identical transaction.`,
+          message: `An identical ${label.toLowerCase()} of ₱${amountNumber.toFixed(2)} was recorded ${secondsAgo} seconds ago. If this was intentional, please wait 5 minutes before recording another identical transaction.`,
           existingTransactionId: latestTx.id,
           duplicateWindowSeconds: 300,
         },
@@ -120,13 +126,13 @@ export async function POST(request: NextRequest) {
     }
     // ============================================================================
 
-    // Create cash out record
+    // Create the outflow record (cash_out or float_pullout)
     const cashOutRecord = await prisma.cashInOut.create({
       data: {
         businessId: parseInt(user.businessId),
         shiftId: parseInt(shiftId),
         locationId: shift.locationId,
-        type: 'cash_out',
+        type: recordType,
         amount: parseFloat(amount),
         reason: remarks,
         createdBy: parseInt(user.id),
@@ -138,22 +144,23 @@ export async function POST(request: NextRequest) {
       businessId: parseInt(user.businessId),
       userId: parseInt(user.id),
       username: user.username,
-      action: AuditAction.CASH_OUT,
+      action: isFloatPullout === true ? AuditAction.FLOAT_PULLOUT : AuditAction.CASH_OUT,
       entityType: EntityType.CASHIER_SHIFT,
       entityIds: [shift.id],
-      description: `Cash Out: ₱${parseFloat(amount).toFixed(2)} - ${remarks}`,
+      description: `${label}: ₱${parseFloat(amount).toFixed(2)} - ${remarks}`,
       metadata: {
         shiftId: shift.id,
         shiftNumber: shift.shiftNumber,
         amount: parseFloat(amount),
         remarks,
+        type: recordType,
       },
     })
 
     return NextResponse.json({
       success: true,
       cashOutRecord,
-      message: 'Cash out recorded successfully',
+      message: `${label} recorded successfully`,
     })
     } catch (error: any) {
       console.error('Error recording cash out:', error)
