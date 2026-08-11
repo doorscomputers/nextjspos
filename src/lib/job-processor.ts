@@ -570,16 +570,6 @@ async function processTransferComplete(job: any) {
     return { transferId, transferNumber: transfer.transferNumber, itemsProcessed: 0, skipped: true }
   }
 
-  // Atomic claim: only ONE concurrent request can add stock to destination
-  const claimed = await prisma.stockTransfer.updateMany({
-    where: { id: transferId, status: { in: validStatuses }, stockReceived: false },
-    data: { stockReceived: true },
-  })
-  if (claimed.count === 0) {
-    console.warn(`[Job ${job.id}] Transfer ${transferId} claimed by another process. Skipping.`)
-    return { transferId, transferNumber: transfer.transferNumber, itemsProcessed: 0, skipped: true }
-  }
-
   // Get user info
   const user = await prisma.user.findUnique({
     where: { id: job.userId },
@@ -591,16 +581,29 @@ async function processTransferComplete(job: any) {
     user?.username ||
     `User#${job.userId}`
 
-  // Process items in batches
-  const BATCH_SIZE = 30 // Increased from 10 to reduce transaction overhead
+  // Process claim + ALL batches + completion in ONE transaction.
+  // A hard kill (serverless timeout, crash, deploy) aborts the DB connection and
+  // Postgres rolls back everything including the stockReceived claim — no leaked
+  // claim, no partially-received batches, transfer stays safely receivable.
+  const BATCH_SIZE = 30
   let processedCount = 0
+  let skipped = false
 
-  try {
-  for (let i = 0; i < transfer.items.length; i += BATCH_SIZE) {
-    const batch = transfer.items.slice(i, i + BATCH_SIZE)
+  await prisma.$transaction(
+    async (tx) => {
+      // Atomic claim: only ONE concurrent request can add stock to destination
+      const claimed = await tx.stockTransfer.updateMany({
+        where: { id: transferId, status: { in: validStatuses }, stockReceived: false },
+        data: { stockReceived: true },
+      })
+      if (claimed.count === 0) {
+        console.warn(`[Job ${job.id}] Transfer ${transferId} claimed by another process. Skipping.`)
+        skipped = true
+        return
+      }
 
-    await prisma.$transaction(
-      async (tx) => {
+      for (let i = 0; i < transfer.items.length; i += BATCH_SIZE) {
+        const batch = transfer.items.slice(i, i + BATCH_SIZE)
         // BULK OPTIMIZATION STEP 1: Auto-verify all unverified items in this batch (single query)
         const batchItemIds = batch.map(item => item.id)
         const unverifiedInBatch = batch.filter(item => !item.verified)
@@ -700,38 +703,37 @@ async function processTransferComplete(job: any) {
           where: { id: job.id },
           data: { progress: processedCount },
         })
-      },
-      {
-        timeout: 180000, // 180s per batch (6s per item for 30 items)
-        maxWait: 20000, // Increased wait time for lock acquisition
+
+        console.log(
+          `[Job ${job.id}] Progress: ${processedCount}/${transfer.items.length} items`
+        )
       }
-    )
 
-    console.log(
-      `[Job ${job.id}] Progress: ${processedCount}/${transfer.items.length} items`
-    )
-  }
-  } catch (error) {
-    // Release claim so it can be retried
-    await prisma.stockTransfer.update({
-      where: { id: transferId },
-      data: { stockReceived: false },
-    })
-    throw error
-  }
-
-  // Update transfer status (stockReceived already set by atomic claim above)
-  await prisma.stockTransfer.update({
-    where: { id: transferId },
-    data: {
-      status: 'completed',
-      completedBy: job.userId,
-      completedAt: new Date(),
-      verifiedBy: job.userId,
-      verifiedAt: new Date(),
-      receivedAt: new Date(),
+      // Completion inside the same transaction: stock added if and only if status = completed
+      await tx.stockTransfer.update({
+        where: { id: transferId },
+        data: {
+          status: 'completed',
+          completedBy: job.userId,
+          completedAt: new Date(),
+          verifiedBy: job.userId,
+          verifiedAt: new Date(),
+          receivedAt: new Date(),
+        },
+      })
     },
-  })
+    {
+      timeout: 300000, // whole transfer in one transaction (70 items ~ 30-45s)
+      maxWait: 20000,
+    }
+  )
+  // No manual claim release on error: the claim lives inside the transaction, so any
+  // failure rolls it back automatically. An explicit reset here could clobber a
+  // claim taken by a newer request after our rollback.
+
+  if (skipped) {
+    return { transferId, transferNumber: transfer.transferNumber, itemsProcessed: 0, skipped: true }
+  }
 
   return {
     transferId,
