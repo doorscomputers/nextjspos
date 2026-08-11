@@ -63,19 +63,10 @@ export async function POST(
       )
     }
 
-    // Atomic gate: prevent concurrent complete requests at API level
-    // stockReceived is the atomic claim — only one request can set it from false to true
-    const gate = await prisma.stockTransfer.updateMany({
-      where: {
-        id: transferId,
-        businessId,
-        status: { in: validStatuses },
-        stockReceived: false,
-      },
-      data: { stockReceived: true },
-    })
-
-    if (gate.count === 0) {
+    // Fast-fail if another request already claimed this transfer.
+    // The atomic claim itself lives in processTransferComplete (job-processor.ts) —
+    // claiming here too would trip the processor's stockReceived guard and no-op the job.
+    if (transfer.stockReceived) {
       console.warn(`[complete-async] Transfer ${transferId} already being completed or stockReceived=true`)
       return NextResponse.json(
         { error: 'Transfer is already being completed by another request' },
@@ -110,10 +101,14 @@ export async function POST(
 
     // SYNCHRONOUS PROCESSING: Process immediately and return result
     // With bulk optimizations, 70 items complete in 30-45 seconds (within Vercel Pro 60s limit)
-    try {
-      const { processJob } = await import('@/lib/job-processor')
-      await processJob(job)
+    // processJob never throws — it records the outcome on the job row, so re-fetch it
+    const { processJob } = await import('@/lib/job-processor')
+    await processJob(job)
 
+    const finishedJob = await prisma.job.findUnique({ where: { id: job.id } })
+    const jobResult = finishedJob?.result as any
+
+    if (finishedJob?.status === 'completed' && !jobResult?.skipped) {
       console.log(`✅ Transfer receive completed successfully: ${transfer.transferNumber}`)
 
       return NextResponse.json(
@@ -127,33 +122,25 @@ export async function POST(
         },
         { status: 200 }
       )
-    } catch (error: any) {
-      console.error(`[Job ${job.id}] Processing failed:`, error)
+    }
 
-      // Release stockReceived claim so transfer can be retried
-      await prisma.stockTransfer.update({
-        where: { id: transferId },
-        data: { stockReceived: false },
-      })
-
-      // Mark job as failed
-      await prisma.job.update({
-        where: { id: job.id },
-        data: {
-          status: 'failed',
-          error: error.message,
-        },
-      })
-
+    if (jobResult?.skipped) {
+      console.warn(`[complete-async] Transfer ${transferId} skipped by processor (already claimed/completed)`)
       return NextResponse.json(
-        {
-          error: 'Transfer receive failed',
-          details: error.message,
-          jobId: job.id,
-        },
-        { status: 500 }
+        { error: 'Transfer is already being completed by another request' },
+        { status: 409 }
       )
     }
+
+    console.error(`[Job ${job.id}] Processing failed:`, finishedJob?.error)
+    return NextResponse.json(
+      {
+        error: 'Transfer receive failed',
+        details: finishedJob?.error || 'Unknown error',
+        jobId: job.id,
+      },
+      { status: 500 }
+    )
   } catch (error: any) {
     console.error('Error creating transfer complete job:', error)
     return NextResponse.json(
