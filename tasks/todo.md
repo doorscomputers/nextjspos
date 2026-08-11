@@ -75,3 +75,21 @@ Audit of ALL send/receive paths:
   SAFE, untouched.
 - Sync `send/route.ts` — no UI callers (legacy); already single $transaction
   (line 200) + withIdempotency. SAFE, untouched.
+
+## Follow-up 2: create-route duplicate guard false positive (`3d9c668`)
+
+Angelo blocked with "Duplicate transaction detected" creating a 3-item
+transfer — guard blocked on same user + same from/to pair within 60 min,
+never comparing items (his unrelated 20-item transfer 1924 was 55 min old).
+Fixed: create guard now compares productVariationId:quantity fingerprints
+(mirrors send-route guard). True network-retry duplicates still blocked;
+different contents pass. No schema change.
+
+## Follow-up 3: audit of ALL duplicate guards (`0ff28d5`)
+
+- cash/in, cash/out — already compare amount (+/-0.01) + shift + type. Sound, untouched.
+- inventory-corrections — was user+product+location+time only; added physicalCount (+/-0.01) match.
+- purchases/receipts — was user+supplier+location+time only (broke back-to-back
+  partial receipts); added productVariationId:quantityReceived fingerprint compare.
+- customer-returns — replacement-only returns matched ANY return on the sale;
+  added productVariationId:quantity:returnType fingerprint compare.
