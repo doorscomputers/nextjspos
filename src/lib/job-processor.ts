@@ -431,16 +431,6 @@ async function processTransferSend(job: any) {
     return { transferId, transferNumber: transfer.transferNumber, itemsProcessed: 0, skipped: true }
   }
 
-  // Atomic claim: only ONE concurrent request can succeed
-  const claimed = await prisma.stockTransfer.updateMany({
-    where: { id: transferId, status: 'checked', stockDeducted: false },
-    data: { stockDeducted: true },
-  })
-  if (claimed.count === 0) {
-    console.warn(`[Job ${job.id}] Transfer ${transferId} claimed by another process. Skipping.`)
-    return { transferId, transferNumber: transfer.transferNumber, itemsProcessed: 0, skipped: true }
-  }
-
   // Get user info
   const user = await prisma.user.findUnique({
     where: { id: job.userId },
@@ -452,16 +442,29 @@ async function processTransferSend(job: any) {
     user?.username ||
     `User#${job.userId}`
 
-  // Process items in batches
-  const BATCH_SIZE = 30 // Increased from 10 to reduce transaction overhead
+  // Process claim + ALL batches + status update in ONE transaction.
+  // A hard kill (serverless timeout, crash, deploy) aborts the DB connection and
+  // Postgres rolls back everything including the stockDeducted claim — no leaked
+  // claim, no partially-deducted batches, transfer stays safely sendable.
+  const BATCH_SIZE = 30
   let processedCount = 0
+  let skipped = false
 
-  try {
-    for (let i = 0; i < transfer.items.length; i += BATCH_SIZE) {
-      const batch = transfer.items.slice(i, i + BATCH_SIZE)
+  await prisma.$transaction(
+    async (tx) => {
+      // Atomic claim: only ONE concurrent request can deduct stock
+      const claimed = await tx.stockTransfer.updateMany({
+        where: { id: transferId, status: 'checked', stockDeducted: false },
+        data: { stockDeducted: true },
+      })
+      if (claimed.count === 0) {
+        console.warn(`[Job ${job.id}] Transfer ${transferId} claimed by another process. Skipping.`)
+        skipped = true
+        return
+      }
 
-      await prisma.$transaction(
-        async (tx) => {
+      for (let i = 0; i < transfer.items.length; i += BATCH_SIZE) {
+        const batch = transfer.items.slice(i, i + BATCH_SIZE)
           // BULK OPTIMIZATION: Process all items in batch with single function call
           // Prepare bulk update parameters
           const bulkItems = batch.map((item) => ({
@@ -501,35 +504,34 @@ async function processTransferSend(job: any) {
             where: { id: job.id },
             data: { progress: processedCount },
           })
+
+          console.log(
+            `[Job ${job.id}] Progress: ${processedCount}/${transfer.items.length} items`
+          )
+      }
+
+      // Status update inside the same transaction: stock deducted if and only if status = in_transit
+      await tx.stockTransfer.update({
+        where: { id: transferId },
+        data: {
+          status: 'in_transit',
+          sentBy: job.userId,
+          sentAt: new Date(),
         },
-        {
-          timeout: 180000, // 180s per batch (6s per item for 30 items)
-          maxWait: 20000, // Increased wait time for lock acquisition
-        }
-      )
-
-      console.log(
-        `[Job ${job.id}] Progress: ${processedCount}/${transfer.items.length} items`
-      )
-    }
-  } catch (error) {
-    // Release claim so it can be retried
-    await prisma.stockTransfer.update({
-      where: { id: transferId },
-      data: { stockDeducted: false },
-    })
-    throw error
-  }
-
-  // Update transfer status (stockDeducted already set by atomic claim above)
-  await prisma.stockTransfer.update({
-    where: { id: transferId },
-    data: {
-      status: 'in_transit',
-      sentBy: job.userId,
-      sentAt: new Date(),
+      })
     },
-  })
+    {
+      timeout: 300000, // whole transfer in one transaction (70 items ~ 30-45s)
+      maxWait: 20000,
+    }
+  )
+  // No manual claim release on error: the claim lives inside the transaction, so any
+  // failure rolls it back automatically. An explicit reset here could clobber a
+  // claim taken by a newer request after our rollback.
+
+  if (skipped) {
+    return { transferId, transferNumber: transfer.transferNumber, itemsProcessed: 0, skipped: true }
+  }
 
   return {
     transferId,

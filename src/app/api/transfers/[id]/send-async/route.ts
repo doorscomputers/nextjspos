@@ -97,10 +97,14 @@ export async function POST(
 
     // SYNCHRONOUS PROCESSING: Process immediately and return result
     // With bulk optimizations, 70 items complete in 30-45 seconds (within Vercel Pro 60s limit)
-    try {
-      const { processJob } = await import('@/lib/job-processor')
-      await processJob(job)
+    // processJob never throws — it records the outcome on the job row, so re-fetch it
+    const { processJob } = await import('@/lib/job-processor')
+    await processJob(job)
 
+    const finishedJob = await prisma.job.findUnique({ where: { id: job.id } })
+    const jobResult = finishedJob?.result as any
+
+    if (finishedJob?.status === 'completed' && !jobResult?.skipped) {
       console.log(`✅ Transfer send completed successfully: ${transfer.transferNumber}`)
 
       return NextResponse.json(
@@ -114,27 +118,25 @@ export async function POST(
         },
         { status: 200 }
       )
-    } catch (error: any) {
-      console.error(`[Job ${job.id}] Processing failed:`, error)
+    }
 
-      // Mark job as failed
-      await prisma.job.update({
-        where: { id: job.id },
-        data: {
-          status: 'failed',
-          error: error.message,
-        },
-      })
-
+    if (jobResult?.skipped) {
+      console.warn(`[send-async] Transfer ${transferId} skipped by processor (already claimed/sent)`)
       return NextResponse.json(
-        {
-          error: 'Transfer send failed',
-          details: error.message,
-          jobId: job.id,
-        },
-        { status: 500 }
+        { error: 'Transfer is already being sent by another request' },
+        { status: 409 }
       )
     }
+
+    console.error(`[Job ${job.id}] Processing failed:`, finishedJob?.error)
+    return NextResponse.json(
+      {
+        error: 'Transfer send failed',
+        details: finishedJob?.error || 'Unknown error',
+        jobId: job.id,
+      },
+      { status: 500 }
+    )
   } catch (error: any) {
     console.error('Error creating transfer send job:', error)
     return NextResponse.json(

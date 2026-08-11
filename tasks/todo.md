@@ -38,11 +38,40 @@ Keep: pre-checks, catch-block claim release (harmless no-op after rollback), job
 
 ## Steps
 
-- [ ] Restructure processTransferComplete into single transaction
-- [ ] Typecheck (`npx tsc --noEmit`, filter file)
-- [ ] Commit, push, Vercel deploy
+- [x] Restructure processTransferComplete into single transaction
+- [x] Typecheck (`npx tsc --noEmit`, filter file) — zero errors
+- [x] Commit `d9c947c`, push, Vercel deploy
 - [ ] Post-deploy: receive a real transfer end-to-end, verify counts + no stuck claims
 
 ## Review
 
-(pending)
+Commit `d9c947c` — src/lib/job-processor.ts only, ~96 lines changed, all inside
+processTransferComplete:
+
+- Atomic `stockReceived` claim moved to the first statement INSIDE one
+  `prisma.$transaction` that also wraps every 30-item batch and the final
+  `status = 'completed'` update (timeout 300s).
+- Hard kill / thrown error at any point → Postgres rolls back everything,
+  including the claim. No leaked claim, no partial batches, no double-add on
+  retry. Invariant: stock added ⟺ status = completed.
+- Removed manual `stockReceived: false` release in the catch path — rollback
+  already releases it, and an explicit reset could clobber a claim taken by a
+  newer request after our rollback.
+- Skip path (`claimed.count === 0`) now signals via a `skipped` flag returned
+  after the transaction; route maps it to 409 (from previous fix `d0ae51d`).
+- Batch body (auto-verify, receivedQuantity, bulkUpdateStock, progress) is
+  byte-for-byte unchanged — only the transaction wrapper moved.
+- processTransferSend deliberately untouched (same pattern, separate follow-up).
+
+## Follow-up: send side (approved by user)
+
+Audit of ALL send/receive paths:
+- `send-async` route + `processTransferSend` — ACTIVE path (UI page.tsx:586).
+  Had same multi-commit claim pattern → fixed identically: claim + batches +
+  status='in_transit' in one transaction; send-async route now reports real
+  job outcome (was: always 200 even on failure).
+- Sync `receive/route.ts` (Quick Receive, UI page.tsx:825) — already fully
+  wrapped in one $transaction (line 244, 120s timeout) + withIdempotency.
+  SAFE, untouched.
+- Sync `send/route.ts` — no UI callers (legacy); already single $transaction
+  (line 200) + withIdempotency. SAFE, untouched.
