@@ -315,7 +315,7 @@ export async function POST(request: NextRequest) {
     const DUPLICATE_WINDOW_MS = 3600 * 1000 // 3600 seconds (60 minutes)
     const duplicateCheckTime = new Date(Date.now() - DUPLICATE_WINDOW_MS)
 
-    // Look for recent identical transfers from same user between same locations
+    // Look for recent transfers from same user between same locations
     const recentSimilarTransfers = await prisma.stockTransfer.findMany({
       where: {
         businessId: parseInt(businessId),
@@ -331,23 +331,53 @@ export async function POST(request: NextRequest) {
       take: 5, // Only check last 5 similar transfers
     })
 
+    // Only block when a recent transfer has IDENTICAL items (same fingerprint
+    // pattern as the send route). Same user/route with different contents is a
+    // legitimate repeat, not a duplicate.
     if (recentSimilarTransfers.length > 0) {
-      const latestTransfer = recentSimilarTransfers[0]
-      const secondsAgo = Math.round((Date.now() - latestTransfer.createdAt.getTime()) / 1000)
+      const currentFingerprint = items
+        .map((i: any) => `${parseInt(i.productVariationId)}:${parseFloat(i.quantity)}`)
+        .sort()
+        .join('|')
 
-      console.warn(`[TRANSFER CREATE] DUPLICATE BLOCKED: Transfer identical to ID ${latestTransfer.id} (${secondsAgo}s ago)`)
-      console.warn(`[TRANSFER CREATE] User: ${userId}, From: ${fromLocationId}, To: ${toLocationId}`)
+      const recentItems = await prisma.stockTransferItem.findMany({
+        where: { stockTransferId: { in: recentSimilarTransfers.map((t) => t.id) } },
+        select: { stockTransferId: true, productVariationId: true, quantity: true },
+      })
 
-      return NextResponse.json(
-        {
-          error: 'Duplicate transaction detected',
-          message: `An identical transfer draft from ${fromLocation.name} to ${toLocation.name} was created ${secondsAgo} seconds ago. If this was intentional, please wait 60 minutes before creating another identical transfer.`,
-          existingTransferId: latestTransfer.id,
-          existingTransferNumber: latestTransfer.transferNumber,
-          duplicateWindowSeconds: 3600,
-        },
-        { status: 409 } // HTTP 409 Conflict
-      )
+      const itemsByTransfer = new Map<number, string[]>()
+      for (const item of recentItems) {
+        if (!itemsByTransfer.has(item.stockTransferId)) {
+          itemsByTransfer.set(item.stockTransferId, [])
+        }
+        itemsByTransfer
+          .get(item.stockTransferId)!
+          .push(`${item.productVariationId}:${parseFloat(item.quantity.toString())}`)
+      }
+
+      for (const recentTransfer of recentSimilarTransfers) {
+        const recentFingerprint = (itemsByTransfer.get(recentTransfer.id) || [])
+          .sort()
+          .join('|')
+
+        if (recentFingerprint === currentFingerprint) {
+          const secondsAgo = Math.round((Date.now() - recentTransfer.createdAt.getTime()) / 1000)
+
+          console.warn(`[TRANSFER CREATE] DUPLICATE BLOCKED: Items identical to ID ${recentTransfer.id} (${secondsAgo}s ago)`)
+          console.warn(`[TRANSFER CREATE] User: ${userId}, From: ${fromLocationId}, To: ${toLocationId}`)
+
+          return NextResponse.json(
+            {
+              error: 'Duplicate transaction detected',
+              message: `An identical transfer draft (${recentTransfer.transferNumber}) from ${fromLocation.name} to ${toLocation.name} with the same items was created ${secondsAgo} seconds ago. If this was intentional, please wait 60 minutes before creating another identical transfer.`,
+              existingTransferId: recentTransfer.id,
+              existingTransferNumber: recentTransfer.transferNumber,
+              duplicateWindowSeconds: 3600,
+            },
+            { status: 409 } // HTTP 409 Conflict
+          )
+        }
+      }
     }
     // ============================================================================
 
