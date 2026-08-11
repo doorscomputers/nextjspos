@@ -264,23 +264,53 @@ export async function POST(request: NextRequest) {
       take: 5, // Only check last 5 similar returns
     })
 
+    // Only block when a recent return has IDENTICAL items — a second return for
+    // different items on the same sale (e.g. replacements processed one after
+    // another) is legitimate, not a duplicate.
     if (recentSimilarReturns.length > 0) {
-      const latestReturn = recentSimilarReturns[0]
-      const secondsAgo = Math.round((Date.now() - latestReturn.createdAt.getTime()) / 1000)
+      const currentFingerprint = items
+        .map((i: any) => `${parseInt(i.productVariationId)}:${parseFloat(i.quantity)}:${i.returnType}`)
+        .sort()
+        .join('|')
 
-      console.warn(`[CUSTOMER RETURN] DUPLICATE BLOCKED: Return identical to ID ${latestReturn.id} (${secondsAgo}s ago)`)
-      console.warn(`[CUSTOMER RETURN] User: ${userId}, Sale: ${saleId}, Refund Amount: ${checkTotalRefund}`)
+      const recentItems = await prisma.customerReturnItem.findMany({
+        where: { customerReturnId: { in: recentSimilarReturns.map((r) => r.id) } },
+        select: { customerReturnId: true, productVariationId: true, quantity: true, returnType: true },
+      })
 
-      return NextResponse.json(
-        {
-          error: 'Duplicate transaction detected',
-          message: `An identical customer return for this sale was created ${secondsAgo} seconds ago. If this was intentional, please wait 5 minutes before creating another identical return.`,
-          existingReturnId: latestReturn.id,
-          existingReturnNumber: latestReturn.returnNumber,
-          duplicateWindowSeconds: 300,
-        },
-        { status: 409 } // HTTP 409 Conflict
-      )
+      const itemsByReturn = new Map<number, string[]>()
+      for (const item of recentItems) {
+        if (!itemsByReturn.has(item.customerReturnId)) {
+          itemsByReturn.set(item.customerReturnId, [])
+        }
+        itemsByReturn
+          .get(item.customerReturnId)!
+          .push(`${item.productVariationId}:${parseFloat(item.quantity.toString())}:${item.returnType}`)
+      }
+
+      for (const recentReturn of recentSimilarReturns) {
+        const recentFingerprint = (itemsByReturn.get(recentReturn.id) || [])
+          .sort()
+          .join('|')
+
+        if (recentFingerprint === currentFingerprint) {
+          const secondsAgo = Math.round((Date.now() - recentReturn.createdAt.getTime()) / 1000)
+
+          console.warn(`[CUSTOMER RETURN] DUPLICATE BLOCKED: Return items identical to ID ${recentReturn.id} (${secondsAgo}s ago)`)
+          console.warn(`[CUSTOMER RETURN] User: ${userId}, Sale: ${saleId}, Refund Amount: ${checkTotalRefund}`)
+
+          return NextResponse.json(
+            {
+              error: 'Duplicate transaction detected',
+              message: `An identical customer return (${recentReturn.returnNumber}) for this sale with the same items was created ${secondsAgo} seconds ago. If this was intentional, please wait 5 minutes before creating another identical return.`,
+              existingReturnId: recentReturn.id,
+              existingReturnNumber: recentReturn.returnNumber,
+              duplicateWindowSeconds: 300,
+            },
+            { status: 409 } // HTTP 409 Conflict
+          )
+        }
+      }
     }
     // ============================================================================
 

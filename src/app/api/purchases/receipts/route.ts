@@ -387,30 +387,59 @@ export async function POST(request: NextRequest) {
       duplicateWhere.purchaseId = parseInt(purchaseId)
     }
 
-    // Look for recent identical GRN entries
+    // Look for recent GRN entries from same user/supplier/location
     const recentSimilarReceipts = await prisma.purchaseReceipt.findMany({
       where: duplicateWhere,
       orderBy: { createdAt: 'desc' },
       take: 5, // Only check last 5 similar receipts
     })
 
+    // Only block when a recent receipt has IDENTICAL items — back-to-back
+    // partial receipts from the same supplier are legitimate, not duplicates.
     if (recentSimilarReceipts.length > 0) {
-      const latestReceipt = recentSimilarReceipts[0]
-      const secondsAgo = Math.round((Date.now() - latestReceipt.createdAt.getTime()) / 1000)
+      const currentFingerprint = items
+        .map((i: any) => `${parseInt(i.productVariationId)}:${parseFloat(i.quantityReceived)}`)
+        .sort()
+        .join('|')
 
-      console.warn(`[PURCHASE RECEIPT] DUPLICATE BLOCKED: GRN identical to ID ${latestReceipt.id} (${secondsAgo}s ago)`)
-      console.warn(`[PURCHASE RECEIPT] User: ${userId}, Supplier: ${finalSupplierId}, Location: ${locationId}`)
+      const recentItems = await prisma.purchaseReceiptItem.findMany({
+        where: { purchaseReceiptId: { in: recentSimilarReceipts.map((r) => r.id) } },
+        select: { purchaseReceiptId: true, productVariationId: true, quantityReceived: true },
+      })
 
-      return NextResponse.json(
-        {
-          error: 'Duplicate transaction detected',
-          message: `An identical goods receipt was created ${secondsAgo} seconds ago. If this was intentional, please wait 5 minutes before creating another identical receipt.`,
-          existingReceiptId: latestReceipt.id,
-          existingReceiptNumber: latestReceipt.receiptNumber,
-          duplicateWindowSeconds: 300,
-        },
-        { status: 409 } // HTTP 409 Conflict
-      )
+      const itemsByReceipt = new Map<number, string[]>()
+      for (const item of recentItems) {
+        if (!itemsByReceipt.has(item.purchaseReceiptId)) {
+          itemsByReceipt.set(item.purchaseReceiptId, [])
+        }
+        itemsByReceipt
+          .get(item.purchaseReceiptId)!
+          .push(`${item.productVariationId}:${parseFloat(item.quantityReceived.toString())}`)
+      }
+
+      for (const recentReceipt of recentSimilarReceipts) {
+        const recentFingerprint = (itemsByReceipt.get(recentReceipt.id) || [])
+          .sort()
+          .join('|')
+
+        if (recentFingerprint === currentFingerprint) {
+          const secondsAgo = Math.round((Date.now() - recentReceipt.createdAt.getTime()) / 1000)
+
+          console.warn(`[PURCHASE RECEIPT] DUPLICATE BLOCKED: GRN items identical to ID ${recentReceipt.id} (${secondsAgo}s ago)`)
+          console.warn(`[PURCHASE RECEIPT] User: ${userId}, Supplier: ${finalSupplierId}, Location: ${locationId}`)
+
+          return NextResponse.json(
+            {
+              error: 'Duplicate transaction detected',
+              message: `An identical goods receipt (${recentReceipt.receiptNumber}) with the same items was created ${secondsAgo} seconds ago. If this was intentional, please wait 5 minutes before creating another identical receipt.`,
+              existingReceiptId: recentReceipt.id,
+              existingReceiptNumber: recentReceipt.receiptNumber,
+              duplicateWindowSeconds: 300,
+            },
+            { status: 409 } // HTTP 409 Conflict
+          )
+        }
+      }
     }
     // ============================================================================
 

@@ -218,13 +218,19 @@ export async function POST(request: NextRequest) {
     const DUPLICATE_WINDOW_MS = 300 * 1000 // 300 seconds (5 minutes)
     const duplicateCheckTime = new Date(Date.now() - DUPLICATE_WINDOW_MS)
 
-    // Look for recent identical inventory corrections from same user
+    // Look for recent identical inventory corrections from same user.
+    // physicalCount is the content: a network retry resends the same count and
+    // is blocked; an intentional re-correction with a different count passes.
     const recentSimilarCorrections = await prisma.inventoryCorrection.findMany({
       where: {
         businessId: parseInt(businessId),
         locationId: locId,
         productVariationId: varId,
         createdBy: parseInt(user.id.toString()),
+        physicalCount: {
+          gte: physCount - 0.01,
+          lte: physCount + 0.01,
+        },
         createdAt: {
           gte: duplicateCheckTime,
         },
