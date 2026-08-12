@@ -263,6 +263,7 @@ export default function ProductsPage() {
   const [searchInput, setSearchInput] = useState('') // Separate state for search input (not auto-filtered)
   const [activeFilter, setActiveFilter] = useState<string>('all') // all, active, inactive
   const [sellingFilter, setSellingFilter] = useState<string>('all') // all, forSelling, notForSelling
+  const [stockFilter, setStockFilter] = useState<string>('all') // all, managed, notManaged
 
   // Minimum characters required for column search to trigger
   const MIN_SEARCH_CHARS = 4
@@ -341,7 +342,7 @@ export default function ProductsPage() {
   // Reset to page 1 when search or filter changes
   useEffect(() => {
     setCurrentPage(1)
-  }, [searchTerm, activeFilter, sellingFilter, filters])
+  }, [searchTerm, activeFilter, sellingFilter, stockFilter, filters])
 
   // Update searchTerm, searchInput, and filterInputs when filters change externally (e.g., clear all)
   useEffect(() => {
@@ -391,6 +392,13 @@ export default function ProductsPage() {
         params.append('notForSelling', 'false')
       } else if (sellingFilter === 'notForSelling') {
         params.append('notForSelling', 'true')
+      }
+
+      // Add manage stock filter
+      if (stockFilter === 'managed') {
+        params.append('enableStock', 'true')
+      } else if (stockFilter === 'notManaged') {
+        params.append('enableStock', 'false')
       }
 
       // Add multi-column filters
@@ -445,7 +453,7 @@ export default function ProductsPage() {
     } finally {
       setLoading(false)
     }
-  }, [activeFilter, sellingFilter, filters, currentPage, itemsPerPage, sortState])
+  }, [activeFilter, sellingFilter, stockFilter, filters, currentPage, itemsPerPage, sortState])
 
   // Debounced fetch function to avoid excessive API calls
   const debouncedFetchProducts = useCallback(debounce(fetchProducts, 300), [fetchProducts])
@@ -1079,6 +1087,18 @@ export default function ProductsPage() {
                   <SelectItem value="all">Selling: All</SelectItem>
                   <SelectItem value="forSelling">For Selling Only</SelectItem>
                   <SelectItem value="notForSelling">Not For Selling Only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full md:w-56">
+              <Select value={stockFilter} onValueChange={setStockFilter}>
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="Filter by manage stock" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Manage Stock: All</SelectItem>
+                  <SelectItem value="managed">Manage Stock: Checked</SelectItem>
+                  <SelectItem value="notManaged">Manage Stock: Unchecked</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -93,3 +93,33 @@ different contents pass. No schema change.
   partial receipts); added productVariationId:quantityReceived fingerprint compare.
 - customer-returns — replacement-only returns matched ANY return on the sale;
   added productVariationId:quantity:returnType fingerprint compare.
+
+## 2026-08-12 — Manage Stock filter on Product list
+
+Task: users confused between "Selling" filter (notForSelling) and "Manage Stock?" checkbox (enableStock);
+no way to audit which products had Manage Stock unchecked (those are silently excluded from inventory counting).
+
+Changes:
+- [x] src/app/dashboard/products/page.tsx — new "Manage Stock: All / Checked / Unchecked" dropdown
+      beside Selling filter; sends enableStock=true/false query param; added to fetch deps + page-reset effect.
+- [x] src/app/api/products/list/route.ts — reads enableStock param, adds whereClause.enableStock.
+
+Review: two flags are distinct by design — notForSelling = not sold at POS but still counted;
+enableStock=false = no stock tracking at all (services/charges). No schema change. tsc clean on both files.
+
+## 2026-08-12 — Deactivated products selectable in Transfer Create (branch users)
+
+Task: branch users (Bambang, Tuguegarao, Main Branch) could search/select deactivated
+products on Transfer Create; warehouse could not. Not role-based — Create page sent
+`status=active` to /api/products, which only reads `active`/`forTransaction` params,
+so the filter was silently ignored. Deactivated items appeared only where they still
+had stock > 0 (branches), hiding the bug from the warehouse.
+
+Changes:
+- [x] src/app/dashboard/transfers/create/page.tsx:150 — `status=active` → `forTransaction=true`
+      (API sets isActive: true for this param; one-line fix, no API change).
+
+Review: Add-Items dialog on existing transfers unaffected (uses /api/products/search,
+which already enforces isActive). Existing draft transfers created before the fix may
+still contain deactivated items — remove manually if found. Change is inside a fetch
+URL string literal; no type impact.

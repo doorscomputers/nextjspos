@@ -92,6 +92,7 @@ export async function GET(request: NextRequest) {
     const stockMax = searchParams.get('stockMax') ? Number.parseFloat(searchParams.get('stockMax') as string) : undefined
     const taxName = searchParams.get('taxName')?.trim() || ''
     const notForSellingFilter = searchParams.get('notForSelling')
+    const enableStockFilter = searchParams.get('enableStock')
 
     const whereClause: any = {
       businessId: Number(businessId),
@@ -110,6 +111,12 @@ export async function GET(request: NextRequest) {
       whereClause.notForSelling = true
     } else if (notForSellingFilter === 'false') {
       whereClause.notForSelling = false
+    }
+
+    if (enableStockFilter === 'true') {
+      whereClause.enableStock = true
+    } else if (enableStockFilter === 'false') {
+      whereClause.enableStock = false
     }
 
     if (search) {
