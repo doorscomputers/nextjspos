@@ -147,7 +147,7 @@ export default function CreateTransferPage() {
 
       // 🚀 OPTIMIZED: Only fetch products with stock > 0 at THIS location
       // This filters at database level, dramatically reducing data transfer
-      const response = await fetch(`/api/products?limit=10000&status=active&withStock=true&locationId=${locationId}`)
+      const response = await fetch(`/api/products?limit=10000&forTransaction=true&withStock=true&locationId=${locationId}`)
       const data = await response.json()
 
       console.log(`📦 Fetched ${data.products?.length || 0} products with stock`)
