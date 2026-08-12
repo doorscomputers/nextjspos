@@ -350,6 +350,7 @@ export async function POST(request: NextRequest) {
 
     // Filter locations by user access
     const hasAllLocationAccess = userPermissions.includes('access_all_locations')
+      || userPermissions.includes('product.view_all_branch_stock')
       || userRoles.includes('Warehouse Manager')
       || userRoles.includes('WH Encoder')
     const filteredLocations = hasAllLocationAccess
