@@ -61,6 +61,12 @@ interface LocationColumn {
   name: string
 }
 
+// The saved grid state pins a column order. Branch columns a user could not see
+// when that state was saved are unknown to it, so DevExtreme appends them after
+// Total Stock / Status instead of keeping them beside the other branches.
+// Bump this key whenever the branch columns need to snap back to the code order.
+const GRID_STATE_KEY = 'branchStockPivotV2-grid-state-v2'
+
 export default function BranchStockPivotV2Page() {
   const { can } = usePermissions()
   const canViewCost = can(PERMISSIONS.PRODUCT_VIEW_PURCHASE_PRICE)
@@ -96,7 +102,7 @@ export default function BranchStockPivotV2Page() {
 
   const handleResetAllFilters = () => {
     // Remove saved grid state (filters, grouping, column order, etc.) and reload
-    localStorage.removeItem('branchStockPivotV2-grid-state')
+    localStorage.removeItem(GRID_STATE_KEY)
     window.location.reload()
   }
 
@@ -424,7 +430,7 @@ export default function BranchStockPivotV2Page() {
           <StateStoring
             enabled={true}
             type="localStorage"
-            storageKey="branchStockPivotV2-grid-state"
+            storageKey={GRID_STATE_KEY}
             savingTimeout={100}
           />
           <LoadPanel enabled={true} />
