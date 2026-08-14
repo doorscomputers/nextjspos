@@ -193,6 +193,11 @@ async function generateXReadingFromRunningTotals(
     .filter((r: any) => r.type !== 'cash_in')
     .reduce((sum: number, r: any) => sum + parseFloat(r.amount.toString()), 0)
 
+  // Float pullout portion of cashOut (informational only - already included above)
+  const floatPullout = shift.cashInOutRecords
+    .filter((r: any) => r.type === 'float_pullout')
+    .reduce((sum: number, r: any) => sum + parseFloat(r.amount.toString()), 0)
+
   // AR Payments collected in cash during this shift
   const arPaymentsCash = parseFloat(shift.runningArPaymentsCash.toString())
 
@@ -401,6 +406,7 @@ async function generateXReadingFromRunningTotals(
     creditSales, // NEW: Charge invoices/credit sales (unpaid - shown separately from payments)
     cashIn,
     cashOut,
+    floatPullout,
     arPaymentsCash,
     arPaymentBreakdown,
     expectedCash,

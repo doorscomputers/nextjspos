@@ -37,6 +37,9 @@ export interface XReadingData {
   cashFromSales: number // Cash collected from sales
   cashIn: number // Additional cash added from outside (bank/owner)
   cashOut: number // Cash removed (withdrawals/expenses)
+  // Portion of cashOut that is a float pullout (beginning cash returned, NOT an expense).
+  // Informational only - cashOut already includes it, so never subtract it again.
+  floatPullout?: number
   arPaymentsCash: number // Cash from AR payments (old debts paid)
   // Per-method breakdown of AR payments collected during this shift (cheque, card, gcash, etc.)
   // Populated by instant-mode running totals; may be undefined in legacy fallback aggregation.
@@ -280,6 +283,12 @@ export async function generateXReadingDataOptimized(
       0
     )
 
+  // Float pullout portion of cashOut (informational only - already included above)
+  const floatPulloutRecord = cashInOutAggregation.find(r => r.type === 'float_pullout')
+  const floatPullout = floatPulloutRecord?.total_amount
+    ? parseFloat(floatPulloutRecord.total_amount.toString())
+    : 0
+
   // Step 6: AR Payments (cash only) - already aggregated
   const arPaymentResult = await prisma.salePayment.aggregate({
     where: {
@@ -396,6 +405,7 @@ export async function generateXReadingDataOptimized(
     totalPaymentsReceived, // NEW: Grand total of all payments (expected cash + non-cash)
     cashIn,
     cashOut,
+    floatPullout,
     arPaymentsCash,
     expectedCash,
     discountBreakdown,

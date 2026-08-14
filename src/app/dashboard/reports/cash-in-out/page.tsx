@@ -159,7 +159,7 @@ export default function CashInOutReport() {
     const headers = ['Date', 'Type', 'Amount', 'Reason', 'Reference', 'Location', 'Cashier', 'Shift']
     const rows = records.map(rec => [
       new Date(rec.date).toLocaleDateString(),
-      rec.type === 'cash_in' ? 'Cash In' : 'Cash Out',
+      getTypeLabel(rec.type),
       rec.amount.toFixed(2),
       rec.reason,
       rec.referenceNumber || '',
@@ -205,7 +205,7 @@ export default function CashInOutReport() {
     // Add table
     const tableData = records.map(rec => [
       new Date(rec.date).toLocaleDateString(),
-      rec.type === 'cash_in' ? 'Cash In' : 'Cash Out',
+      getTypeLabel(rec.type),
       `₱${rec.amount.toFixed(2)}`,
       rec.reason,
       rec.location.name,
@@ -223,11 +223,25 @@ export default function CashInOutReport() {
     doc.save(`cash-in-out-${new Date().toISOString().split('T')[0]}.pdf`)
   }
 
+  // Float pullouts leave the drawer like a Cash Out but are NOT an expense, so they
+  // must never be labelled "Cash Out" anywhere the user reads this report.
+  const getTypeLabel = (recordType: string) =>
+    recordType === 'cash_in' ? 'Cash In'
+    : recordType === 'float_pullout' ? 'Float Out'
+    : 'Cash Out'
+
   const getTypeBadge = (recordType: string) => {
     if (recordType === 'cash_in') {
       return (
         <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">
           CASH IN
+        </span>
+      )
+    }
+    if (recordType === 'float_pullout') {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">
+          FLOAT OUT
         </span>
       )
     }
@@ -305,6 +319,7 @@ export default function CashInOutReport() {
               <option value="all">All Types</option>
               <option value="cash_in">Cash In Only</option>
               <option value="cash_out">Cash Out Only</option>
+              <option value="float_pullout">Float Out Only</option>
             </select>
           </div>
           <div>
@@ -465,7 +480,7 @@ export default function CashInOutReport() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-sm text-center">{getTypeBadge(rec.type)}</td>
-                    <td className={`px-4 py-3 text-sm text-right font-bold ${rec.type === 'cash_in' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                    <td className={`px-4 py-3 text-sm text-right font-bold ${rec.type === 'cash_in' ? 'text-green-600 dark:text-green-400' : rec.type === 'float_pullout' ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
                       ₱{rec.amount.toFixed(2)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100">{rec.reason}</td>

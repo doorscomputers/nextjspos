@@ -27,6 +27,9 @@ interface XReadingData {
   creditSales?: number // NEW: Charge invoices/credit sales (unpaid - tracked separately)
   cashIn: number
   cashOut: number
+  // Portion of cashOut that is a float pullout (beginning cash returned, NOT an expense).
+  // Informational only - cashOut already includes it.
+  floatPullout?: number
   arPaymentsCash: number
   // Per-method breakdown of AR payments collected this shift (cheque, card, gcash, etc.)
   // Surfaces non-cash AR collections so supervisor can reconcile cashier hand-off.
@@ -674,6 +677,12 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                   <span className="line-label">➖ CASH OUT (Withdrawals):</span>
                   <span className="line-value text-red-600 dark:text-red-400 font-bold">-{formatCurrency(xReading.withdrawalAmount || 0)}</span>
                 </div>
+                {(xReading.floatPullout || 0) > 0 && (
+                  <div className="line text-xs">
+                    <span className="line-label pl-4 text-amber-700 dark:text-amber-400">↳ incl. 🏦 Float Out (beginning cash return):</span>
+                    <span className="line-value text-amber-700 dark:text-amber-400">-{formatCurrency(xReading.floatPullout || 0)}</span>
+                  </div>
+                )}
                 <div className="line total-line">
                   <span className="line-label font-bold">Net Cash Movement:</span>
                   <span className="line-value font-bold">{formatCurrency((xReading.cashIn || 0) - (xReading.withdrawalAmount || 0))}</span>
@@ -735,6 +744,13 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                           <span className="line-label">5️⃣ - Cash Out (Withdrawals):</span>
                           <span className="line-value text-red-600 dark:text-red-400 font-semibold">-{formatCurrency(cashOut)}</span>
                         </div>
+
+                        {(xReading.floatPullout || 0) > 0 && (
+                          <div className="line text-xs">
+                            <span className="line-label pl-4 text-amber-700 dark:text-amber-400">↳ incl. 🏦 Float Out (beginning cash return):</span>
+                            <span className="line-value text-amber-700 dark:text-amber-400">-{formatCurrency(xReading.floatPullout || 0)}</span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="separator my-3"></div>
@@ -1198,6 +1214,12 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                         <span className="line-value">-{formatCurrency(zReading.cashOut)}</span>
                       </div>
                     )}
+                    {(zReading.floatPullout || 0) > 0 && (
+                      <div className="line text-xs">
+                        <span className="line-label pl-4">↳ incl. Float Out (beginning cash return):</span>
+                        <span className="line-value">-{formatCurrency(zReading.floatPullout || 0)}</span>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -1236,6 +1258,12 @@ export function BIRReadingDisplay({ xReading, zReading, onClose }: BIRReadingDis
                   <div className="line">
                     <span className="line-label">5. - Cash Out (withdrawals)</span>
                     <span className="line-value">-{formatCurrency(zReading.cashOut)}</span>
+                  </div>
+                )}
+                {(zReading.floatPullout || 0) > 0 && (
+                  <div className="line text-xs">
+                    <span className="line-label pl-4">↳ incl. Float Out (beginning cash return)</span>
+                    <span className="line-value">-{formatCurrency(zReading.floatPullout || 0)}</span>
                   </div>
                 )}
 
