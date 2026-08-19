@@ -17,6 +17,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { Prisma } from '@prisma/client'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { getUserAccessibleLocationIds, PERMISSIONS } from '@/lib/rbac'
@@ -147,14 +148,16 @@ export async function GET(request: NextRequest) {
         }
 
         // Build where clause for purchases with date filter
+        // Sourced from the purchases table (not accounts_payable) so purchases
+        // without AP rows are counted, and cancelled/deleted POs are excluded
         const purchaseWhereClause: any = {
           businessId,
-          ...(locationId && locationId !== 'all' ? {
-            purchase: { locationId: parseInt(locationId) }
-          } : {}),
+          status: { not: 'cancelled' },
+          deletedAt: null,
+          ...(locationId ? { locationId } : {}),
         }
         if (Object.keys(dateFilter).length > 0) {
-          purchaseWhereClause.invoiceDate = dateFilter
+          purchaseWhereClause.purchaseDate = dateFilter
         }
 
         // Use Manila timezone for date calculations (inline implementation to avoid dependency issues)
@@ -224,6 +227,15 @@ export async function GET(request: NextRequest) {
           ...(Object.keys(dateFilter).length > 0 ? { paymentDate: dateFilter } : {}),
         }
 
+        // A/R Outstanding: apply the same location scope as the sales cards.
+        // whereClause.locationId is either a number, { in: number[] }, or absent.
+        const arLocationIds: number[] | null =
+          typeof whereClause.locationId === 'number'
+            ? [whereClause.locationId]
+            : Array.isArray(whereClause.locationId?.in)
+              ? whereClause.locationId.in
+              : null
+
         // OPTIMIZED: Execute ALL queries in a single Promise.all (merged from 2 separate batches)
 
         const [
@@ -253,7 +265,7 @@ export async function GET(request: NextRequest) {
             : Promise.resolve({ _sum: { totalAmount: null, subtotal: null }, _count: 0 }),
 
           // Total Purchases
-          prisma.accountsPayable.aggregate({
+          prisma.purchase.aggregate({
             where: purchaseWhereClause,
             _sum: { totalAmount: true },
             _count: true,
@@ -289,10 +301,14 @@ export async function GET(request: NextRequest) {
                 FROM sales s
                 LEFT JOIN customers c ON s.customer_id = c.id
                 WHERE s.business_id = ${businessId}
+                  AND s.deleted_at IS NULL
                   AND s.status NOT IN ('cancelled', 'voided')
                   AND s.customer_id IS NOT NULL
                   AND (c.name IS NULL OR c.name NOT ILIKE '%Walk-in%')
                   AND (s.total_amount - COALESCE(s.paid_amount, 0)) > 0
+                  ${dateFilter.gte ? Prisma.sql`AND s.sale_date >= ${dateFilter.gte}` : Prisma.empty}
+                  ${dateFilter.lte ? Prisma.sql`AND s.sale_date <= ${dateFilter.lte}` : Prisma.empty}
+                  ${arLocationIds && arLocationIds.length > 0 ? Prisma.sql`AND s.location_id IN (${Prisma.join(arLocationIds)})` : Prisma.empty}
               `
             : Promise.resolve([{ total_due: BigInt(0) }]),
 
