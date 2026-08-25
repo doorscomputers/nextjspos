@@ -451,12 +451,25 @@ export default function POSEnhancedPage() {
     const handleOnline = () => setNetworkStatus('connected')
     const handleOffline = () => setNetworkStatus('disconnected')
 
+    // Expired offline-queue requests are dropped, not submitted — the sale
+    // was most likely already re-rung. Tell the cashier so they can verify.
+    const handleQueueExpired = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      alert(
+        `⚠️ ${detail.dropped} offline sale(s) queued more than 2 hours ago were NOT submitted.\n\n` +
+        `If that sale was never re-rung, please ring it up again now. ` +
+        `Queued at: ${detail.requests.map((r: any) => r.queuedAt).join(', ')}`
+      )
+    }
+
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
+    window.addEventListener('offlineQueueExpired', handleQueueExpired)
 
     return () => {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('offlineQueueExpired', handleQueueExpired)
     }
   }, [])
 

@@ -88,6 +88,12 @@ async function generateDeterministicIdempotencyKey(
 // Offline queue storage key
 const OFFLINE_QUEUE_KEY = 'pos_offline_queue'
 
+// Queued requests older than this are dropped instead of replayed.
+// A stale body (saleDate, prices, shift context) replayed hours or days
+// later creates phantom duplicate sales — the cashier re-rings the sale
+// long before this window expires if it truly never reached the server.
+const MAX_QUEUE_AGE_MS = 2 * 60 * 60 * 1000 // 2 hours
+
 // Offline queue for failed requests - persisted to localStorage
 type OfflineQueueItem = {
   url: string
@@ -103,9 +109,17 @@ function loadOfflineQueue(): OfflineQueueItem[] {
   try {
     const stored = localStorage.getItem(OFFLINE_QUEUE_KEY)
     if (stored) {
-      const parsed = JSON.parse(stored)
-      console.log(`[API Client] Loaded ${parsed.length} queued requests from storage`)
-      return parsed
+      const parsed: OfflineQueueItem[] = JSON.parse(stored)
+      const now = Date.now()
+      const fresh = parsed.filter(item => now - item.timestamp <= MAX_QUEUE_AGE_MS)
+      if (fresh.length < parsed.length) {
+        console.warn(
+          `[API Client] Discarded ${parsed.length - fresh.length} expired queued request(s) (>2h old) from storage`
+        )
+        localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(fresh))
+      }
+      console.log(`[API Client] Loaded ${fresh.length} queued requests from storage`)
+      return fresh
     }
   } catch (e) {
     console.error('[API Client] Failed to load offline queue from storage:', e)
@@ -189,10 +203,32 @@ async function processOfflineQueue() {
   offlineQueue.length = 0 // Clear queue
   saveOfflineQueue(offlineQueue) // Save cleared queue
 
+  // Drop expired requests instead of replaying stale bodies (phantom sales)
+  const now = Date.now()
+  const expired = queueCopy.filter(item => now - item.timestamp > MAX_QUEUE_AGE_MS)
+  const fresh = queueCopy.filter(item => now - item.timestamp <= MAX_QUEUE_AGE_MS)
+  if (expired.length > 0) {
+    console.warn(
+      `[API Client] Dropped ${expired.length} expired queued request(s) (>2h old) - NOT submitted:`,
+      expired.map(item => ({ url: item.url, queuedAt: new Date(item.timestamp).toISOString() }))
+    )
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('offlineQueueExpired', {
+        detail: {
+          dropped: expired.length,
+          requests: expired.map(item => ({
+            url: item.url,
+            queuedAt: new Date(item.timestamp).toISOString(),
+          })),
+        },
+      }))
+    }
+  }
+
   let successCount = 0
   let failedCount = 0
 
-  for (const queuedRequest of queueCopy) {
+  for (const queuedRequest of fresh) {
     try {
       await apiPost(queuedRequest.url, queuedRequest.body, {
         ...queuedRequest.options,

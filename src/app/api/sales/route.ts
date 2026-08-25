@@ -599,6 +599,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // STALE-DATE GUARD: saleDate comes from the client, which always sends
+    // "now" (POS shifts it +8h so the DATE column stores the Manila calendar
+    // day). An offline-queued request replayed hours or days later carries a
+    // stale saleDate and would create a sale dated in the past — which then
+    // shows up as a phantom "AR payment" and breaks the cash count. If the
+    // client date is not today's Manila date, use the server's clock instead.
+    const manilaTodayStr = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    let effectiveSaleDate = new Date(saleDate)
+    if (isNaN(effectiveSaleDate.getTime()) ||
+        effectiveSaleDate.toISOString().slice(0, 10) !== manilaTodayStr) {
+      console.warn(
+        `[Sales] Client saleDate "${saleDate}" is not today (${manilaTodayStr}) - using server time instead (stale offline replay?)`
+      )
+      effectiveSaleDate = new Date(Date.now() + 8 * 60 * 60 * 1000)
+    }
+
     // For credit sales (status: 'pending'), customer is required
     const isCreditSale = status === 'pending'
     if (isCreditSale && !customerId) {
@@ -1079,7 +1095,7 @@ export async function POST(request: NextRequest) {
           locationId: locationIdNumber,
           customerId: customerIdNumber,
           invoiceNumber,
-          saleDate: new Date(saleDate),
+          saleDate: effectiveSaleDate,
           status: isCreditSale ? 'pending' : 'completed', // Use status from request
           shiftId: currentShift.id, // Associate with current cashier shift
           subtotal,
@@ -1246,7 +1262,7 @@ export async function POST(request: NextRequest) {
               data: {
                 status: 'sold',
                 saleId: newSale.id,
-                soldAt: new Date(saleDate),
+                soldAt: effectiveSaleDate,
                 soldTo: customerName, // Use customer name, not ID
               },
             })
@@ -1323,7 +1339,7 @@ export async function POST(request: NextRequest) {
             businessId: businessIdNumber,
             userId: userIdNumber,
             saleId: newSale.id,
-            saleDate: new Date(saleDate),
+            saleDate: effectiveSaleDate,
             totalAmount,
             costOfGoodsSold,
             invoiceNumber: newSale.invoiceNumber,
@@ -1336,7 +1352,7 @@ export async function POST(request: NextRequest) {
             businessId: businessIdNumber,
             userId: userIdNumber,
             saleId: newSale.id,
-            saleDate: new Date(saleDate),
+            saleDate: effectiveSaleDate,
             totalAmount,
             costOfGoodsSold,
             invoiceNumber: newSale.invoiceNumber,
@@ -1462,7 +1478,7 @@ export async function POST(request: NextRequest) {
             totalAmount,
             cashierName: user.username || user.name || 'Unknown',
             locationName: location.name,
-            timestamp: new Date(saleDate),
+            timestamp: effectiveSaleDate,
             reason: notes || undefined,
           })
         }
