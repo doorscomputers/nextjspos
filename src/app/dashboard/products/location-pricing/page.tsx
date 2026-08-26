@@ -158,7 +158,7 @@ export default function LocationPricingPage() {
       setLoading(true)
 
       // Fetch products (limit to active products for better performance)
-      const productsRes = await fetchWithRetry('/api/products?status=active&limit=1000', {
+      const productsRes = await fetchWithRetry('/api/products?active=true&limit=1000', {
         method: 'GET',
       })
 
