@@ -685,7 +685,7 @@ export default function POSEnhancedPage() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/products?limit=10000&status=active')
+      const res = await fetch('/api/products?limit=10000&forTransaction=true')
       const data = await res.json()
 
       console.log('[POS] Fetched products:', data.products?.length || 0)

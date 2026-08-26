@@ -121,7 +121,7 @@ export default function CreateSalePage() {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch('/api/products?isActive=true&limit=1000')
+      const response = await fetch('/api/products?forTransaction=true&limit=1000')
       const data = await response.json()
       if (response.ok) {
         setProducts(data.products || [])
