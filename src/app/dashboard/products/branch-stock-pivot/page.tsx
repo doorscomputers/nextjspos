@@ -82,7 +82,7 @@ export default function BranchStockPivotPage() {
     supplier: '',
     category: '',
     brand: '',
-    isActive: 'all',
+    isActive: 'true',
     locationFilters: {},
   })
 
@@ -134,7 +134,7 @@ export default function BranchStockPivotPage() {
       supplier: '',
       category: '',
       brand: '',
-      isActive: 'all',
+      isActive: 'true',
       locationFilters: {},
     })
     setCurrentPage(1)

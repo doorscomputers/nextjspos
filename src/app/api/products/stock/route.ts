@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     const requestedPage = Math.max(1, Number(page) || 1)
 
     // Build WHERE clauses for filtering
-    const whereClauses: string[] = ['business_id = $1']
+    const whereClauses: string[] = ['business_id = $1', 'is_active = true']
     const params: any[] = [businessId]
     let paramIndex = 2
 

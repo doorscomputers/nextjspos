@@ -572,6 +572,7 @@ export default function BranchStockPivotV2Page() {
             alignment="center"
             fixed={true}
             fixedPosition="right"
+            defaultFilterValues={['Active']}
             cellRender={(data) => (
               <span
                 className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${

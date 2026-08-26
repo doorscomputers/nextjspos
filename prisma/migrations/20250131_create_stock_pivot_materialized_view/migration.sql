@@ -54,6 +54,7 @@ SELECT
 
   -- Business context
   p.business_id,
+  p.is_active,
   NOW() AS last_refreshed
 
 FROM product_variations pv
@@ -65,7 +66,6 @@ LEFT JOIN units u ON COALESCE(pv.unit_id, p.unit_id) = u.id
 
 WHERE p.deleted_at IS NULL
   AND pv.deleted_at IS NULL
-  AND p.is_active = true
 
 GROUP BY
   pv.id,
