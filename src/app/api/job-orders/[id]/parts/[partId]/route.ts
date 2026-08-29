@@ -67,9 +67,7 @@ export async function DELETE(
       // Delete part
       await tx.repairJobOrderPart.delete({
         where: { id: partId }
-      }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+      })
 
       // Recalculate job order costs
       const parts = await tx.repairJobOrderPart.findMany({
@@ -90,6 +88,8 @@ export async function DELETE(
           updatedAt: new Date()
         }
       })
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     return NextResponse.json({ message: 'Part removed successfully' })

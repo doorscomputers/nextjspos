@@ -652,9 +652,7 @@ export async function POST(request: NextRequest) {
           notForSelling: notForSelling || false,
           isActive: isActive !== undefined ? isActive : true, // Default to active
         }
-      }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+      })
 
       // Auto-generate SKU if not provided
       let finalSku = product.sku
@@ -832,6 +830,8 @@ export async function POST(request: NextRequest) {
       }
 
       return { ...product, sku: finalSku }
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     return NextResponse.json({ product: result, message: 'Product created successfully' }, { status: 201 })

@@ -71,9 +71,7 @@ export async function POST(
           technician: true,
           warrantyClaim: true
         }
-      }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+      })
 
       // Decrement technician job count and update stats
       if (jobOrder.technicianId) {
@@ -115,6 +113,8 @@ export async function POST(
       }
 
       return jobOrder
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     // Serialize Decimal fields

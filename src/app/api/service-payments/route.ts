@@ -275,9 +275,7 @@ export async function POST(request: NextRequest) {
           notes,
           receivedBy: parseInt(userId)
         }
-      }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+      })
 
       // Update job order paid amount and payment status
       const newPaidAmount = paidAmount + paymentAmount
@@ -297,6 +295,8 @@ export async function POST(request: NextRequest) {
       })
 
       return payment
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     // Fetch complete payment with relations

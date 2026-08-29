@@ -159,50 +159,52 @@ export async function POST(
           }, { status: 400 })
         }
 
-        // For variable products, create/update variation location details
-        await prisma.variationLocationDetails.upsert({
-          where: {
-            productVariationId_locationId: {
+        // For variable products, create/update variation location details.
+        // Balance update and its ledger row must commit together — a dropped
+        // connection between them would change stock with no transaction record.
+        await prisma.$transaction([
+          prisma.variationLocationDetails.upsert({
+            where: {
+              productVariationId_locationId: {
+                productVariationId: parseInt(entry.variationId),
+                locationId: parseInt(entry.locationId)
+              }
+            },
+            update: {
+              qtyAvailable: parseFloat(entry.quantity),
+              sellingPrice: entry.sellingPrice ? parseFloat(entry.sellingPrice) : null,
+              // Auto-lock after update if not already locked
+              openingStockLocked: existingStock?.openingStockLocked ?? true,
+              openingStockSetAt: existingStock?.openingStockSetAt ?? new Date(),
+              openingStockSetBy: existingStock?.openingStockSetBy ?? parseInt(user.id)
+            },
+            create: {
+              productId: product.id,
               productVariationId: parseInt(entry.variationId),
-              locationId: parseInt(entry.locationId)
+              locationId: parseInt(entry.locationId),
+              qtyAvailable: parseFloat(entry.quantity),
+              sellingPrice: entry.sellingPrice ? parseFloat(entry.sellingPrice) : null,
+              // Auto-lock on creation
+              openingStockLocked: true,
+              openingStockSetAt: new Date(),
+              openingStockSetBy: parseInt(user.id)
             }
-          },
-          update: {
-            qtyAvailable: parseFloat(entry.quantity),
-            sellingPrice: entry.sellingPrice ? parseFloat(entry.sellingPrice) : null,
-            // Auto-lock after update if not already locked
-            openingStockLocked: existingStock?.openingStockLocked ?? true,
-            openingStockSetAt: existingStock?.openingStockSetAt ?? new Date(),
-            openingStockSetBy: existingStock?.openingStockSetBy ?? parseInt(user.id)
-          },
-          create: {
-            productId: product.id,
-            productVariationId: parseInt(entry.variationId),
-            locationId: parseInt(entry.locationId),
-            qtyAvailable: parseFloat(entry.quantity),
-            sellingPrice: entry.sellingPrice ? parseFloat(entry.sellingPrice) : null,
-            // Auto-lock on creation
-            openingStockLocked: true,
-            openingStockSetAt: new Date(),
-            openingStockSetBy: parseInt(user.id)
-          }
-        })
-
-        // Create stock transaction record
-        await prisma.stockTransaction.create({
-          data: {
-            businessId: parseInt(businessId),
-            productId: product.id,
-            productVariationId: parseInt(entry.variationId),
-            locationId: parseInt(entry.locationId),
-            type: 'opening_stock',
-            quantity: parseFloat(entry.quantity),
-            unitCost: entry.purchasePrice ? parseFloat(entry.purchasePrice) : null,
-            balanceQty: parseFloat(entry.quantity),
-            createdBy: parseInt(user.id),
-            notes: 'Opening stock added'
-          }
-        })
+          }),
+          prisma.stockTransaction.create({
+            data: {
+              businessId: parseInt(businessId),
+              productId: product.id,
+              productVariationId: parseInt(entry.variationId),
+              locationId: parseInt(entry.locationId),
+              type: 'opening_stock',
+              quantity: parseFloat(entry.quantity),
+              unitCost: entry.purchasePrice ? parseFloat(entry.purchasePrice) : null,
+              balanceQty: parseFloat(entry.quantity),
+              createdBy: parseInt(user.id),
+              notes: 'Opening stock added'
+            }
+          })
+        ])
 
         // Update variation purchase price if provided
         if (entry.purchasePrice) {
@@ -295,50 +297,52 @@ export async function POST(
           }, { status: 400 })
         }
 
-        // Create/update variation location details
-        await prisma.variationLocationDetails.upsert({
-          where: {
-            productVariationId_locationId: {
+        // Create/update variation location details.
+        // Balance update and its ledger row must commit together — a dropped
+        // connection between them would change stock with no transaction record.
+        await prisma.$transaction([
+          prisma.variationLocationDetails.upsert({
+            where: {
+              productVariationId_locationId: {
+                productVariationId: defaultVariation.id,
+                locationId: parseInt(entry.locationId)
+              }
+            },
+            update: {
+              qtyAvailable: parseFloat(entry.quantity),
+              sellingPrice: entry.sellingPrice ? parseFloat(entry.sellingPrice) : null,
+              // Auto-lock after update if not already locked
+              openingStockLocked: existingSingleStock?.openingStockLocked ?? true,
+              openingStockSetAt: existingSingleStock?.openingStockSetAt ?? new Date(),
+              openingStockSetBy: existingSingleStock?.openingStockSetBy ?? parseInt(user.id)
+            },
+            create: {
+              productId: product.id,
               productVariationId: defaultVariation.id,
-              locationId: parseInt(entry.locationId)
+              locationId: parseInt(entry.locationId),
+              qtyAvailable: parseFloat(entry.quantity),
+              sellingPrice: entry.sellingPrice ? parseFloat(entry.sellingPrice) : null,
+              // Auto-lock on creation
+              openingStockLocked: true,
+              openingStockSetAt: new Date(),
+              openingStockSetBy: parseInt(user.id)
             }
-          },
-          update: {
-            qtyAvailable: parseFloat(entry.quantity),
-            sellingPrice: entry.sellingPrice ? parseFloat(entry.sellingPrice) : null,
-            // Auto-lock after update if not already locked
-            openingStockLocked: existingSingleStock?.openingStockLocked ?? true,
-            openingStockSetAt: existingSingleStock?.openingStockSetAt ?? new Date(),
-            openingStockSetBy: existingSingleStock?.openingStockSetBy ?? parseInt(user.id)
-          },
-          create: {
-            productId: product.id,
-            productVariationId: defaultVariation.id,
-            locationId: parseInt(entry.locationId),
-            qtyAvailable: parseFloat(entry.quantity),
-            sellingPrice: entry.sellingPrice ? parseFloat(entry.sellingPrice) : null,
-            // Auto-lock on creation
-            openingStockLocked: true,
-            openingStockSetAt: new Date(),
-            openingStockSetBy: parseInt(user.id)
-          }
-        })
-
-        // Create stock transaction record
-        await prisma.stockTransaction.create({
-          data: {
-            businessId: parseInt(businessId),
-            productId: product.id,
-            productVariationId: defaultVariation.id,
-            locationId: parseInt(entry.locationId),
-            type: 'opening_stock',
-            quantity: parseFloat(entry.quantity),
-            unitCost: entry.purchasePrice ? parseFloat(entry.purchasePrice) : null,
-            balanceQty: parseFloat(entry.quantity),
-            createdBy: parseInt(user.id),
-            notes: 'Opening stock added'
-          }
-        })
+          }),
+          prisma.stockTransaction.create({
+            data: {
+              businessId: parseInt(businessId),
+              productId: product.id,
+              productVariationId: defaultVariation.id,
+              locationId: parseInt(entry.locationId),
+              type: 'opening_stock',
+              quantity: parseFloat(entry.quantity),
+              unitCost: entry.purchasePrice ? parseFloat(entry.purchasePrice) : null,
+              balanceQty: parseFloat(entry.quantity),
+              createdBy: parseInt(user.id),
+              notes: 'Opening stock added'
+            }
+          })
+        ])
 
         // Track for audit log
         const location = await prisma.businessLocation.findUnique({

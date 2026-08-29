@@ -90,9 +90,7 @@ export async function POST(
           serialNumber,
           notes
         }
-      }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+      })
 
       // Recalculate job order costs
       const parts = await tx.repairJobOrderPart.findMany({
@@ -115,6 +113,8 @@ export async function POST(
       })
 
       return part
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     // Fetch part with product details

@@ -143,6 +143,18 @@ export async function POST(
 
     // Execute in transaction
     const result = await prisma.$transaction(async (tx) => {
+      // Atomically claim the close. The status gates earlier in this handler
+      // run OUTSIDE the transaction, so a retried request (network timeout on
+      // a committed close) could pass them concurrently and recompute the
+      // proportional totals from already-rewritten values (amount drift).
+      const claimed = await tx.purchase.updateMany({
+        where: { id: purchaseId, status: { notIn: ['received', 'cancelled', 'pending'] } },
+        data: { status: 'received' },
+      })
+      if (claimed.count === 0) {
+        throw new Error('PURCHASE_ALREADY_CLOSED')
+      }
+
       // 1. Update purchase status to 'received' (closed)
       const updatedPurchase = await tx.purchase.update({
         where: { id: purchaseId },
@@ -158,9 +170,7 @@ export async function POST(
             ? `${purchase.notes}\n\n[CLOSED] ${reason || 'Manually closed - partial delivery accepted'}`
             : `[CLOSED] ${reason || 'Manually closed - partial delivery accepted'}`,
         },
-      }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+      })
 
       // 2. Check if AP entry already exists
       const existingAP = await tx.accountsPayable.findFirst({
@@ -208,6 +218,8 @@ export async function POST(
       }
 
       return { purchase: updatedPurchase, accountsPayable }
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     // Create audit log
@@ -248,6 +260,12 @@ export async function POST(
       },
     })
   } catch (error) {
+    if (error instanceof Error && error.message === 'PURCHASE_ALREADY_CLOSED') {
+      return NextResponse.json(
+        { error: 'This purchase order has already been closed.' },
+        { status: 409 }
+      )
+    }
     console.error('Error closing purchase order:', error)
     return NextResponse.json(
       {

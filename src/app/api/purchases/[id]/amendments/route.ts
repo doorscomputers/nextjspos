@@ -205,9 +205,7 @@ export async function POST(
           notes,
           requestedBy: parseInt(userId),
         },
-      }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+      })
 
       // Update purchase amendment counter
       await tx.purchase.update({
@@ -218,6 +216,8 @@ export async function POST(
       })
 
       return newAmendment
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     // Create audit log

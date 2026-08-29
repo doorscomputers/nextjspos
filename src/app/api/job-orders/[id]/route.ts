@@ -290,9 +290,7 @@ export async function DELETE(
       // Delete parts
       await tx.repairJobOrderPart.deleteMany({
         where: { jobOrderId }
-      }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+      })
 
       // Delete job order
       await tx.repairJobOrder.delete({
@@ -310,6 +308,8 @@ export async function DELETE(
           }
         })
       }
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     return NextResponse.json({ message: 'Job order deleted successfully' })

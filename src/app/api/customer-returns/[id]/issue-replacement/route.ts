@@ -141,6 +141,18 @@ export async function POST(
 
     // 8. Process replacement issuance within transaction
     const result = await prisma.$transaction(async (tx) => {
+      // Atomically claim the replacement. The replacementIssued check earlier
+      // in this handler runs OUTSIDE the transaction, so a retried request
+      // (network timeout on a committed issuance) could pass it concurrently
+      // and create two replacement sales / deduct stock twice.
+      const claimed = await tx.customerReturn.updateMany({
+        where: { id: customerReturn.id, replacementIssued: false },
+        data: { replacementIssued: true },
+      })
+      if (claimed.count === 0) {
+        throw new Error('REPLACEMENT_ALREADY_ISSUED')
+      }
+
       // Generate replacement invoice number
       const today = new Date()
       const year = today.getFullYear()
@@ -248,6 +260,12 @@ export async function POST(
       },
     })
   } catch (error: any) {
+    if (error?.message === 'REPLACEMENT_ALREADY_ISSUED') {
+      return NextResponse.json(
+        { error: 'Replacement has already been issued for this return. Stock was deducted only once.' },
+        { status: 409 }
+      )
+    }
     console.error('Error issuing replacement:', error)
     return NextResponse.json(
       { error: error.message || 'Failed to issue replacement' },

@@ -198,6 +198,18 @@ export async function POST(
 
     // CRITICAL: Use transaction to ensure atomicity
     const result = await prisma.$transaction(async (tx) => {
+      // Atomically claim the transfer. The status check earlier in this
+      // handler runs OUTSIDE the transaction, so a retried request (network
+      // timeout on a committed send) could pass it concurrently and deduct
+      // stock twice. This guarded update lets exactly one request proceed.
+      const claimed = await tx.stockTransfer.updateMany({
+        where: { id: transferId, status: 'checked', stockDeducted: false },
+        data: { status: 'in_transit' },
+      })
+      if (claimed.count === 0) {
+        throw new Error('TRANSFER_ALREADY_SENT')
+      }
+
       // For each item, deduct stock from origin location
       for (const item of transfer.items) {
         const productId = item.productId
@@ -349,6 +361,12 @@ export async function POST(
       // inventoryImpact temporarily disabled
     })
   } catch (error: any) {
+    if (error?.message === 'TRANSFER_ALREADY_SENT') {
+      return NextResponse.json(
+        { error: 'Transfer has already been sent. Stock was deducted only once.' },
+        { status: 409 }
+      )
+    }
     console.error('Error sending transfer:', error)
     return NextResponse.json(
       { error: 'Failed to send transfer', details: error.message },

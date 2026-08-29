@@ -140,6 +140,18 @@ export async function POST(
 
     // CRITICAL: Use transaction to ensure atomicity
     const result = await prisma.$transaction(async (tx) => {
+      // Atomically claim the return. The status check earlier in this handler
+      // runs OUTSIDE the transaction, so a retried request (network timeout on
+      // a committed approval) could pass it concurrently and deduct stock /
+      // adjust AP twice. This guarded update lets exactly one request proceed.
+      const claimed = await tx.supplierReturn.updateMany({
+        where: { id: supplierReturn.id, status: 'pending' },
+        data: { status: 'approved' },
+      })
+      if (claimed.count === 0) {
+        throw new Error('RETURN_ALREADY_APPROVED')
+      }
+
       // For each item, deduct stock
       for (const item of supplierReturn.items) {
         const productId = item.productId
@@ -349,6 +361,12 @@ export async function POST(
       },
     })
   } catch (error: any) {
+    if (error?.message === 'RETURN_ALREADY_APPROVED') {
+      return NextResponse.json(
+        { error: 'This supplier return has already been approved. Stock and AP were adjusted only once.' },
+        { status: 409 }
+      )
+    }
     console.error('Error approving supplier return:', error)
     return NextResponse.json(
       { error: 'Failed to approve supplier return', details: error.message },

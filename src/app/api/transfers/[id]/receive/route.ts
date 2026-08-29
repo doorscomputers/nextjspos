@@ -242,9 +242,12 @@ export async function POST(
     // ✅ CRITICAL SECTION: Receive, Approve, and Move Stock
     // This is where the two-step workflow completes
     await prisma.$transaction(async (tx) => {
-      // Update transfer status
-      await tx.stockTransfer.update({
-        where: { id: transferIdNumber },
+      // Atomically claim the transfer. The status check earlier in this
+      // handler runs OUTSIDE the transaction, so a retried request (network
+      // timeout on a committed receive) could pass it concurrently and add
+      // stock twice. This guarded update lets exactly one request proceed.
+      const claimed = await tx.stockTransfer.updateMany({
+        where: { id: transferIdNumber, status: { in: validStatuses } },
         data: {
           status: 'received', // Transfer complete
           stockDeducted: true, // CRITICAL: Stock NOW deducted
@@ -253,6 +256,9 @@ export async function POST(
           verifierNotes: notes, // Store receive notes in verifierNotes field
         },
       })
+      if (claimed.count === 0) {
+        throw new Error('TRANSFER_ALREADY_RECEIVED')
+      }
 
       const deductAtReceive = !transfer.stockDeducted
 
@@ -421,6 +427,12 @@ export async function POST(
       transfer: updatedTransfer,
     })
   } catch (error) {
+    if (error instanceof Error && error.message === 'TRANSFER_ALREADY_RECEIVED') {
+      return NextResponse.json(
+        { error: 'Transfer has already been received. Stock was added only once.' },
+        { status: 409 }
+      )
+    }
     console.error('Error receiving stock transfer:', error)
     return NextResponse.json(
       {

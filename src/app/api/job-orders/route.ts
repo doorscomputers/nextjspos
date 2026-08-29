@@ -405,9 +405,7 @@ export async function POST(request: NextRequest) {
           totalCost: total,
           paidAmount: 0
         }
-      }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+      })
 
       // If technician assigned, increment their job count
       if (technicianId) {
@@ -432,6 +430,8 @@ export async function POST(request: NextRequest) {
       }
 
       return newJobOrder
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     // Fetch complete job order with relations

@@ -297,6 +297,18 @@ export async function POST(
 
     // Approve receipt and add inventory in transaction
     const updatedReceipt = await prisma.$transaction(async (tx) => {
+      // Atomically claim the receipt. The status checks earlier in this
+      // handler run OUTSIDE the transaction, so a retried request (network
+      // timeout on a committed approval) could pass them concurrently and
+      // add stock twice. This guarded update lets exactly one request proceed.
+      const claimed = await tx.purchaseReceipt.updateMany({
+        where: { id: receipt.id, status: { notIn: ['approved', 'rejected'] } },
+        data: { status: 'approved' },
+      })
+      if (claimed.count === 0) {
+        throw new Error('RECEIPT_ALREADY_APPROVED')
+      }
+
       // CRITICAL FIX: Check for duplicate serial numbers INSIDE transaction to prevent race conditions
       // Collect all serial numbers first
       const allSerialNumbers: string[] = []
@@ -762,6 +774,12 @@ export async function POST(
     // Return approved receipt
     return NextResponse.json(updatedReceipt)
   } catch (error: any) {
+    if (error?.message === 'RECEIPT_ALREADY_APPROVED') {
+      return NextResponse.json(
+        { error: 'This receipt has already been approved. Stock was added only once.' },
+        { status: 409 }
+      )
+    }
     console.error('Error approving purchase receipt:', error)
     return NextResponse.json(
       {

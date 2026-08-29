@@ -98,9 +98,7 @@ export async function POST(
             actionTaken: item.actionTaken || null,
             notes: item.notes || null,
           },
-        }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+        })
       }
 
       // 2. Create or update check items
@@ -161,6 +159,8 @@ export async function POST(
       })
 
       return updatedInspection
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     // Create audit log

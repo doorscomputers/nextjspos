@@ -163,9 +163,7 @@ export async function POST(request: NextRequest) {
             createdBy: parseInt(user.id),
             notes: `Auto-generated from Purchase Suggestions\nBased on sales velocity and reorder points`,
           },
-        }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+        })
 
         // Create purchase items
         for (const item of purchaseItems) {
@@ -184,6 +182,8 @@ export async function POST(request: NextRequest) {
         }
 
         return newPurchase
+      }, {
+        timeout: 60000, // 60 seconds timeout for network resilience
       })
 
       createdPOs.push({

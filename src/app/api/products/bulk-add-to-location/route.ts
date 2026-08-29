@@ -124,9 +124,7 @@ export async function POST(request: NextRequest) {
               locationId: record.locationId
             }
           }
-        }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+        })
 
         if (!existing) {
           await tx.variationLocationDetails.create({
@@ -139,6 +137,8 @@ export async function POST(request: NextRequest) {
       }
 
       return { createdCount, skippedCount }
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     // Create audit log

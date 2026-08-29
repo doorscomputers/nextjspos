@@ -65,9 +65,7 @@ export async function POST(
           voidedBy: parseInt(userId),
           voidedAt: new Date()
         }
-      }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+      })
 
       // Update job order paid amount and payment status
       const jobOrder = await tx.repairJobOrder.findUnique({
@@ -96,6 +94,8 @@ export async function POST(
       }
 
       return payment
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     // Fetch complete payment with relations

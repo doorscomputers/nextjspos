@@ -108,6 +108,18 @@ export async function POST(
     // Perform approval in transaction
     console.log(`[APPROVE] Starting transaction...`)
     const result = await prisma.$transaction(async (tx) => {
+      // Atomically claim the return. The status check earlier in this handler
+      // runs OUTSIDE the transaction, so a retried request (network timeout on
+      // a committed approval) could pass it concurrently and deduct stock /
+      // adjust AP twice. This guarded update lets exactly one request proceed.
+      const claimed = await tx.purchaseReturn.updateMany({
+        where: { id: purchaseReturn.id, status: 'pending' },
+        data: { status: 'approved' },
+      })
+      if (claimed.count === 0) {
+        throw new Error('RETURN_ALREADY_APPROVED')
+      }
+
       // 1. Update purchase return status
       console.log(`[APPROVE] 1. Updating return status...`)
       const approvedReturn = await tx.purchaseReturn.update({
@@ -283,6 +295,12 @@ export async function POST(
       debitNote: result.debitNote,
     })
   } catch (error: any) {
+    if (error?.message === 'RETURN_ALREADY_APPROVED') {
+      return NextResponse.json(
+        { error: 'This purchase return has already been approved. Stock and AP were adjusted only once.' },
+        { status: 409 }
+      )
+    }
     console.error('[APPROVE] ❌ ERROR:', error)
     console.error('[APPROVE] Error stack:', error.stack)
     return NextResponse.json(

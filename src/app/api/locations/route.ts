@@ -161,9 +161,7 @@ export async function POST(request: NextRequest) {
           locationCode: locationCode ? locationCode.toUpperCase() : null,
           isActive: true
         } as any
-      }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+      })
 
       // Get all product variations for this business
       const variations = await tx.productVariation.findMany({
@@ -201,6 +199,8 @@ export async function POST(request: NextRequest) {
       }
 
       return location
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     return NextResponse.json({ location: result, message: 'Location created successfully' }, { status: 201 })

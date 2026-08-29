@@ -542,9 +542,7 @@ export async function PUT(
           prefix: business.skuPrefix || 'PROD',
           format: (business.skuFormat as 'hyphen' | 'no_hyphen') || 'hyphen',
           productId: productId
-        }, {
-      timeout: 60000, // 60 seconds timeout for network resilience
-    })
+        })
       }
 
       // Prepare subUnitIds for database
@@ -731,6 +729,8 @@ export async function PUT(
       }
 
       return updatedProduct
+    }, {
+      timeout: 60000, // 60 seconds timeout for network resilience
     })
 
     // Track changes and send Telegram notification
