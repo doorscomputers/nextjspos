@@ -165,17 +165,17 @@ export type DroppedQueueNotice = {
  * windows and the sale would vanish with nobody told, so the notice is
  * persisted and drained by the UI whenever it next mounts.
  */
-function recordDroppedQueueNotices(expired: OfflineQueueItem[]): void {
+function recordDroppedQueueNotices(expired: OfflineQueueItem[], reason?: string): void {
   if (expired.length === 0 || typeof window === 'undefined') return
 
   const requests: DroppedQueueNotice[] = expired.map(item => ({
     url: item.url,
     queuedAt: new Date(item.timestamp).toISOString(),
-    summary: summarizeQueuedRequest(item),
+    summary: summarizeQueuedRequest(item) + (reason ? ` — ${reason}` : ''),
   }))
 
   console.warn(
-    `[API Client] Dropped ${expired.length} expired queued request(s) (>2h old) - NOT submitted:`,
+    `[API Client] Dropped ${expired.length} queued request(s) - NOT submitted:`,
     requests.map(r => r.summary)
   )
 
@@ -267,21 +267,37 @@ function readOfflineQueue(): OfflineQueueItem[] {
   return []
 }
 
-// Save queue to localStorage
-function saveOfflineQueue(queue: OfflineQueueItem[]): void {
-  if (typeof window === 'undefined') return
+// Save queue to localStorage. Returns whether the write actually happened:
+// callers that are about to tell the user "your sale is safely queued" (and
+// clear the cart on that basis) MUST check this — a swallowed quota error here
+// would mean the sale was neither sent nor stored.
+function saveOfflineQueue(queue: OfflineQueueItem[]): boolean {
+  if (typeof window === 'undefined') return false
   try {
     localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue))
+    return true
   } catch (e) {
     console.error('[API Client] Failed to save offline queue to storage:', e)
+    return false
   }
 }
 
-// Add a request to the persistent queue (read-merge-write so concurrent tabs don't clobber each other)
-async function enqueueOfflineRequest(url: string, body: any, options?: ApiClientOptions): Promise<void> {
+// Add a request to the persistent queue (read-merge-write so concurrent tabs
+// don't clobber each other). Returns false if the request could NOT be stored.
+//
+// precomputedKey: the exhaustion path passes the key its failed attempts
+// already sent. Recomputing at enqueue time is not equivalent — the sales key
+// embeds the UTC date, so a retry chain crossing UTC midnight (8:00 AM Manila)
+// would store a different key and replay a possibly-committed sale as new.
+async function enqueueOfflineRequest(
+  url: string,
+  body: any,
+  options?: ApiClientOptions,
+  precomputedKey?: string
+): Promise<boolean> {
   const idempotencyKey = options?.skipIdempotency
     ? undefined
-    : await generateDeterministicIdempotencyKey(url, body)
+    : precomputedKey ?? (await generateDeterministicIdempotencyKey(url, body))
   const queue = readOfflineQueue()
   queue.push({
     id: generateQueueItemId(),
@@ -292,7 +308,7 @@ async function enqueueOfflineRequest(url: string, body: any, options?: ApiClient
     retries: 0,
     idempotencyKey,
   })
-  saveOfflineQueue(queue)
+  return saveOfflineQueue(queue)
 }
 
 // Remove a single item from the persistent queue by id
@@ -418,12 +434,37 @@ async function processOfflineQueue() {
         successCount++
       } catch (error) {
         console.error(`[API Client] Failed to process queued request to ${queuedRequest.url}:`, error)
-        // Leave the item in the queue; bump its retry counter in storage
-        const current = readOfflineQueue()
-        const match = current.find(item => item.id === queuedRequest.id)
-        if (match) {
-          match.retries += 1
-          saveOfflineQueue(current)
+        // A replay failure is worth retrying next cycle only if a later
+        // attempt can plausibly succeed: network failures, gateway/server
+        // errors (5xx), an idempotent twin still processing (429), or an
+        // expired session (401/403 — recovers after re-login). Everything
+        // else is a deterministic rejection (validation, shift closed,
+        // duplicate) that no amount of retrying can change.
+        const status = (error as any)?.httpStatus
+        const isRetryableReplayError =
+          isNetworkError(error) ||
+          (error as any)?.isInProgress === true ||
+          (typeof status === 'number' &&
+            (status >= 500 || status === 401 || status === 403 || status === 429))
+
+        if (!isRetryableReplayError) {
+          // The server received it and said no (shift closed, validation, …).
+          // Retrying every 60s cannot change that answer — drop it and tell
+          // the cashier NOW, not two hours from now when it ages out.
+          removeOfflineRequest(queuedRequest.id)
+          recordDroppedQueueNotices(
+            [queuedRequest],
+            `rejected by server: ${error instanceof Error ? error.message : 'unknown error'}`
+          )
+        } else {
+          // Network failure: leave the item in the queue for the next cycle;
+          // bump its retry counter in storage
+          const current = readOfflineQueue()
+          const match = current.find(item => item.id === queuedRequest.id)
+          if (match) {
+            match.retries += 1
+            saveOfflineQueue(current)
+          }
         }
         failedCount++
       }
@@ -483,7 +524,12 @@ export async function apiPost<T = any>(
   // Check if offline - queue request and persist to localStorage (CRITICAL-3 FIX)
   if (!isOnline && queueIfOffline) {
     console.log(`[API Client] Offline - queuing request to ${url}`)
-    await enqueueOfflineRequest(url, body, options)
+    const stored = await enqueueOfflineRequest(url, body, options)
+    if (!stored) {
+      // Deliberately does NOT say "queued": the POS treats that word as
+      // "sale is safe, clear the cart" — here it is neither sent nor stored.
+      throw new Error('No internet connection and the sale could not be saved on this device. Please try again.')
+    }
     throw new Error('No internet connection. Request has been queued and will be sent when connection is restored.')
   }
 
@@ -531,12 +577,17 @@ export async function apiPost<T = any>(
             const error = new Error(`REQUEST_IN_PROGRESS:${retryAfter}`)
             ;(error as any).retryAfter = retryAfter
             ;(error as any).isInProgress = true
+            ;(error as any).httpStatus = 429
             throw error
           }
 
           if (!response.ok) {
             const error = await response.json().catch(() => ({ error: 'Request failed' }))
-            throw new Error(error.error || `Request failed with status ${response.status}`)
+            const appError = new Error(error.error || `Request failed with status ${response.status}`)
+            // Status lets the replay path tell recoverable failures (5xx, auth)
+            // from deterministic rejections (validation 4xx)
+            ;(appError as any).httpStatus = response.status
+            throw appError
           }
 
           return response
@@ -583,9 +634,13 @@ export async function apiPost<T = any>(
         // Queue when retries are exhausted by NETWORK failures, even if
         // navigator.onLine is still true (typical intermittent WAN: WiFi up,
         // internet down). App-level errors are never queued — they would fail
-        // again identically on replay.
+        // again identically on replay. Reuse the key the failed attempts
+        // already sent so a replay of a committed attempt dedupes.
         if (queueIfOffline && (!isOnline || isNetworkError(error))) {
-          await enqueueOfflineRequest(url, body, options)
+          const stored = await enqueueOfflineRequest(url, body, options, idempotencyKey)
+          if (!stored) {
+            throw new Error('Connection failed and the sale could not be saved on this device. Please try again.')
+          }
           throw new Error('Request failed and queued for retry when connection is restored.')
         }
       }

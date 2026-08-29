@@ -129,6 +129,14 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
     }
   }, [isOpen])
 
+  // The key must only be reused for RETRIES of the same exchange. If the
+  // operator edits the payload after a failure and resubmits, a reused key
+  // would make the server replay the first attempt's cached result — showing
+  // "success" for an exchange that was never made with the new contents.
+  useEffect(() => {
+    idempotencyKeyRef.current = ''
+  }, [returnItems, exchangeItems, paymentMethod, exchangeReason])
+
   // Load products when sale is found
   useEffect(() => {
     if (sale && allProducts.length === 0) {

@@ -2335,7 +2335,9 @@ export default function POSEnhancedPage() {
       }
 
       // Show user-friendly error messages for other scenarios
-      if (err.message.includes('retry')) {
+      if (err.message.includes('could not be saved')) {
+        alert('⚠️ The sale could NOT be sent or saved on this device.\n\nYour cart was KEPT. Please try checking out again.')
+      } else if (err.message.includes('retry')) {
         alert('⚠️ Sale submission failed after multiple attempts. Please check your connection and try again.')
       } else if (err.message.includes('REQUEST_IN_PROGRESS')) {
         alert('⚠️ Sale may have already been processed.\n\nPlease check your Sales List to verify if the sale was completed.\n\nIf the sale exists, clear your cart and start fresh.')

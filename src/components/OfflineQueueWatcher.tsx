@@ -26,13 +26,23 @@ import { drainDroppedQueueNotices, getOfflineQueueLength } from "@/lib/client/ap
  */
 export default function OfflineQueueWatcher() {
   useEffect(() => {
+    // Notices already shown this session, keyed by url+queuedAt. If the queue
+    // prune ever fails to persist, the same drop can be re-recorded on every
+    // 2s poll — without this, that would become a blocking alert() storm.
+    const alerted = new Set<string>()
+
     const showDropped = () => {
-      const dropped = drainDroppedQueueNotices()
+      const dropped = drainDroppedQueueNotices().filter(d => {
+        const key = `${d.url}|${d.queuedAt}`
+        if (alerted.has(key)) return false
+        alerted.add(key)
+        return true
+      })
       if (dropped.length === 0) return
 
       const lines = dropped.map(d => `• ${d.summary || d.url}`).join('\n')
       alert(
-        `⚠️ ${dropped.length} offline sale(s) queued more than 2 hours ago were NOT submitted.\n\n` +
+        `⚠️ ${dropped.length} offline sale(s) could NOT be submitted.\n\n` +
         `${lines}\n\n` +
         `These were never saved. Check the Sales List first — if a sale is not there, ring it up again now.`
       )
