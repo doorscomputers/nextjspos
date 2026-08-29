@@ -451,25 +451,16 @@ export default function POSEnhancedPage() {
     const handleOnline = () => setNetworkStatus('connected')
     const handleOffline = () => setNetworkStatus('disconnected')
 
-    // Expired offline-queue requests are dropped, not submitted — the sale
-    // was most likely already re-rung. Tell the cashier so they can verify.
-    const handleQueueExpired = (e: Event) => {
-      const detail = (e as CustomEvent).detail
-      alert(
-        `⚠️ ${detail.dropped} offline sale(s) queued more than 2 hours ago were NOT submitted.\n\n` +
-        `If that sale was never re-rung, please ring it up again now. ` +
-        `Queued at: ${detail.requests.map((r: any) => r.queuedAt).join(', ')}`
-      )
-    }
-
+    // NOTE: the expired-queue alert is handled by OfflineQueueWatcher in the
+    // dashboard layout, not here. It must fire on every page, since the queue
+    // is pruned wherever it is read — duplicating the listener here would
+    // double-alert the cashier.
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
-    window.addEventListener('offlineQueueExpired', handleQueueExpired)
 
     return () => {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
-      window.removeEventListener('offlineQueueExpired', handleQueueExpired)
     }
   }, [])
 
@@ -2488,6 +2479,24 @@ export default function POSEnhancedPage() {
             {currentShift?.location?.name && (
               <span className="text-xs bg-green-500 px-3 py-1 rounded-full font-medium text-center">
                 📍 {currentShift.location.name}
+              </span>
+            )}
+            {/* Sync status: queued sales retry automatically, but the cashier
+                must be able to see that one is still waiting. */}
+            {queuedRequests > 0 ? (
+              <span
+                className="text-xs bg-amber-400 text-gray-900 px-3 py-1 rounded-full font-bold text-center animate-pulse"
+                title="Sales saved on this device, waiting for the connection. Do not re-ring them."
+              >
+                ⏳ {queuedRequests} sale{queuedRequests > 1 ? 's' : ''} pending sync
+              </span>
+            ) : connectionStatus === 'offline' ? (
+              <span className="text-xs bg-red-500 px-3 py-1 rounded-full font-bold text-center">
+                ⚠ Offline
+              </span>
+            ) : (
+              <span className="text-xs bg-blue-500/60 px-3 py-1 rounded-full font-medium text-center">
+                ● Online
               </span>
             )}
           </div>

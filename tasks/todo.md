@@ -53,6 +53,24 @@ Plan: C:\Users\Warenski\.claude\plans\i-want-yo-to-graceful-kahan.md (approved 2
 - [x] tsc --noEmit: zero errors outside pre-existing useCurrency.ts
 - [x] npm run build clean. 44 files changed total (rounds 1+2), uncommitted.
 
+## Round 3 Todo (long outages, flapping, very slow links) — ALL DONE
+
+User asked: what if the connection stays down past 60s, flaps, or crawls at 1 kb/s?
+Answer: flapping was already safe (stored idempotency key + re-entrancy guard);
+long outage/slow link had UX holes — the sale kept retrying but nobody could see
+it, and the 2h drop was a timestamp-only alert.
+
+- [x] Expiry alert now describes the dropped sale (items, qty, approx total, payments, customer) — derived from body at drop time so pre-deploy queue items work too
+- [x] Dropped-sale notices PERSISTED to localStorage (`pos_offline_queue_dropped`) and drained by OfflineQueueWatcher on mount — an alert can no longer be lost to listener-timing races; notice recorded BEFORE the queue prune so a failed write re-notices instead of silently losing
+- [x] OfflineQueueWatcher mounted in dashboard layout — replay timer + drop alerts now live on every dashboard page, not just POS; POS's duplicate listener removed
+- [x] POS header sync badge — "N sale(s) pending sync" (amber, pulsing) / Offline / Online, fed by the existing 2s poll
+- [x] Shift close (normal AND force-close) warns with override when queued sales exist; persistent banner on the close page
+- [x] Replay timeout extension (120s→85s) REVERTED entirely after review proved any value ≥84s lets retry #3 cross the 90s server stale-key threshold → duplicate sale. Timeout stays 60s (retry chain tops out ~71s). Raising it requires raising STALE_KEY_THRESHOLD_MS first — documented at the constant.
+
+Three adversarial review passes; final verdict SAFE TO DEPLOY. tsc clean (except pre-existing useCurrency.ts), build clean.
+
+Known accepted LOWs: corrupt-queue JSON wipes queue (pre-existing, unchanged); quota-exhaustion fallback keeps only newest notices; badge adds ~28px to POS top bar.
+
 ## Review
 
 ### Files changed

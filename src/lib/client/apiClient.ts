@@ -88,6 +88,9 @@ async function generateDeterministicIdempotencyKey(
 // Offline queue storage key
 const OFFLINE_QUEUE_KEY = 'pos_offline_queue'
 
+// Sales that aged out and were dropped, held until the UI has shown them
+const DROPPED_QUEUE_KEY = 'pos_offline_queue_dropped'
+
 // Queued requests older than this are dropped instead of replayed.
 // A stale body (saleDate, prices, shift context) replayed hours or days
 // later creates phantom duplicate sales — the cashier re-rings the sale
@@ -108,22 +111,113 @@ type OfflineQueueItem = {
   idempotencyKey?: string
 }
 
-// Alert listeners (POS page) that queued requests aged out and were dropped
-function dispatchQueueExpiredEvent(expired: OfflineQueueItem[]): void {
+// Human-readable description of a queued request, shown when an item is
+// dropped so the cashier knows what to re-ring. Derived from the body at
+// dispatch time rather than stored at enqueue, so requests queued before this
+// shipped still describe themselves. Never throws: it runs on the drop path,
+// and an exception here would swallow the warning and lose the sale silently.
+function summarizeQueuedRequest(item: OfflineQueueItem): string {
+  const queuedAt = new Date(item.timestamp).toLocaleString()
+  try {
+    const body: any = item.body
+    if (item.url === '/api/sales' && Array.isArray(body?.items)) {
+      const num = (v: any) => (Number.isFinite(Number(v)) ? Number(v) : 0)
+      const lineTotal = body.items.reduce(
+        (sum: number, i: any) => sum + num(i.quantity) * num(i.unitPrice),
+        0
+      )
+      const totalQty = body.items.reduce((sum: number, i: any) => sum + num(i.quantity), 0)
+      const net = lineTotal - num(body.discountAmount) + num(body.shippingCost)
+
+      const parts = [`${body.items.length} item(s)`, `total qty ${totalQty}`, `approx ₱${net.toFixed(2)}`]
+      if (Array.isArray(body.payments) && body.payments.length > 0) {
+        parts.push(
+          'paid: ' +
+            body.payments
+              .map((p: any) => `${p?.method || 'unknown'} ₱${num(p?.amount).toFixed(2)}`)
+              .join(' + ')
+        )
+      }
+      if (body.status === 'pending') parts.push('CREDIT SALE')
+      if (body.customerId) parts.push(`customer #${body.customerId}`)
+      if (body.remarks) parts.push(`remarks: ${body.remarks}`)
+      return `Sale queued ${queuedAt} — ${parts.join(', ')}`
+    }
+  } catch (e) {
+    console.error('[API Client] Failed to summarize queued request:', e)
+  }
+  return `${item.url} queued ${queuedAt}`
+}
+
+export type DroppedQueueNotice = {
+  url: string
+  queuedAt: string
+  summary: string
+}
+
+/**
+ * Record a dropped sale so the cashier is told even if nothing is listening yet.
+ *
+ * Pruning happens inside readOfflineQueue, which runs from several places
+ * (status polls, replay timer, enqueue) and can fire before React has mounted
+ * any listener — during the layout's auth spinner, on a hard reload, or from
+ * the module's own 5s timer. An in-memory event alone would be lost in those
+ * windows and the sale would vanish with nobody told, so the notice is
+ * persisted and drained by the UI whenever it next mounts.
+ */
+function recordDroppedQueueNotices(expired: OfflineQueueItem[]): void {
   if (expired.length === 0 || typeof window === 'undefined') return
+
+  const requests: DroppedQueueNotice[] = expired.map(item => ({
+    url: item.url,
+    queuedAt: new Date(item.timestamp).toISOString(),
+    summary: summarizeQueuedRequest(item),
+  }))
+
   console.warn(
     `[API Client] Dropped ${expired.length} expired queued request(s) (>2h old) - NOT submitted:`,
-    expired.map(item => ({ url: item.url, queuedAt: new Date(item.timestamp).toISOString() }))
+    requests.map(r => r.summary)
   )
+
+  try {
+    const stored = localStorage.getItem(DROPPED_QUEUE_KEY)
+    const existing: DroppedQueueNotice[] = stored ? JSON.parse(stored) : []
+    // Cap so a pathological loop cannot fill localStorage; keep the newest.
+    const merged = [...existing, ...requests].slice(-50)
+    localStorage.setItem(DROPPED_QUEUE_KEY, JSON.stringify(merged))
+  } catch (e) {
+    // Storage is full or unreadable — exactly the situation a backlog of
+    // queued sales creates. Retry with only the new notices so the most
+    // recent dropped sale still reaches the cashier.
+    console.error('[API Client] Failed to persist dropped-queue notices:', e)
+    try {
+      localStorage.setItem(DROPPED_QUEUE_KEY, JSON.stringify(requests))
+    } catch (inner) {
+      console.error('[API Client] Dropped-queue notices could not be stored at all:', inner)
+    }
+  }
+
   window.dispatchEvent(new CustomEvent('offlineQueueExpired', {
-    detail: {
-      dropped: expired.length,
-      requests: expired.map(item => ({
-        url: item.url,
-        queuedAt: new Date(item.timestamp).toISOString(),
-      })),
-    },
+    detail: { dropped: expired.length, requests },
   }))
+}
+
+/**
+ * Read and clear pending dropped-sale notices. Clearing on read is what makes
+ * the mount-drain and the live event safe to run together without double-alerting.
+ */
+export function drainDroppedQueueNotices(): DroppedQueueNotice[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const stored = localStorage.getItem(DROPPED_QUEUE_KEY)
+    if (!stored) return []
+    localStorage.removeItem(DROPPED_QUEUE_KEY)
+    const parsed = JSON.parse(stored)
+    return Array.isArray(parsed) ? parsed : []
+  } catch (e) {
+    console.error('[API Client] Failed to read dropped-queue notices:', e)
+    return []
+  }
 }
 
 function generateQueueItemId(): string {
@@ -154,13 +248,17 @@ function readOfflineQueue(): OfflineQueueItem[] {
           assignedIds = true
         }
       }
+      // Record the notice BEFORE removing the items from the queue. If the
+      // write fails (quota) or the tab dies in between, the sale is still in
+      // the queue and will be pruned again on the next read — a repeated
+      // notice is recoverable, a sale removed with no notice is not.
+      // This read path prunes before processOfflineQueue ever sees the items
+      // (status polls run every 2s), so the notice must be recorded from here
+      // or expired sales would be dropped silently.
+      recordDroppedQueueNotices(expired)
       if (expired.length > 0 || assignedIds) {
         localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(fresh))
       }
-      // This read path prunes before processOfflineQueue ever sees the items
-      // (POS polls the queue length every 2s), so the cashier alert must fire
-      // from here or expired sales would be dropped silently.
-      dispatchQueueExpiredEvent(expired)
       return fresh
     }
   } catch (e) {
@@ -245,6 +343,17 @@ interface ApiClientOptions extends RequestInit {
   idempotencyKey?: string // Precomputed key (queue replay) - overrides generation
 }
 
+// Per-attempt request timeout, deliberately left at 60s for replays too.
+//
+// A longer replay timeout was tried so very slow links could finish, and it is
+// NOT safe: the server deletes a 'processing' idempotency key older than
+// STALE_KEY_THRESHOLD_MS (90s, src/lib/idempotency.ts) and re-runs the handler.
+// With a 60s timeout the retry chain tops out at ~71s on the 429 path and never
+// crosses that line; at 85s the third attempt lands at ~91s and can re-run a
+// sale whose original handler is still alive -- a duplicate.
+// Raising the replay timeout requires raising the server threshold first.
+const DEFAULT_REQUEST_TIMEOUT_MS = 60000
+
 /**
  * Exponential backoff retry delay
  */
@@ -285,16 +394,9 @@ async function processOfflineQueue() {
   isProcessingQueue = true
 
   try {
-    // Drop expired requests instead of replaying stale bodies (phantom sales)
-    const queue = readOfflineQueue()
-    const now = Date.now()
-    const expired = queue.filter(item => now - item.timestamp > MAX_QUEUE_AGE_MS)
-    const fresh = queue.filter(item => now - item.timestamp <= MAX_QUEUE_AGE_MS)
-    if (expired.length > 0) {
-      saveOfflineQueue(fresh)
-      dispatchQueueExpiredEvent(expired)
-    }
-
+    // readOfflineQueue already drops anything past MAX_QUEUE_AGE_MS and records
+    // the notice, so everything returned here is safe to replay.
+    const fresh = readOfflineQueue()
     if (fresh.length === 0) return
     console.log(`[API Client] Processing ${fresh.length} queued requests`)
 
@@ -411,7 +513,7 @@ export async function apiPost<T = any>(
         method: 'POST',
         body: JSON.stringify(body),
         headers, // after ...options so caller-supplied headers cannot drop Idempotency-Key
-        signal: AbortSignal.timeout(60000), // 60 second timeout
+        signal: AbortSignal.timeout(DEFAULT_REQUEST_TIMEOUT_MS),
       })
         .then(async (response) => {
           // Check if this was a replayed response (idempotency cache hit)

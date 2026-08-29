@@ -9,6 +9,7 @@ import { useSession } from "next-auth/react"
 import { Toaster } from "@/components/ui/sonner"
 import { InactivityTimeoutProvider } from "@/components/InactivityTimeoutProvider"
 import UnclosedShiftWarning from "@/components/UnclosedShiftWarning"
+import OfflineQueueWatcher from "@/components/OfflineQueueWatcher"
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -51,6 +52,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
       {/* Unclosed Shift Warning Modal - Stays mounted across all dashboard pages */}
       <UnclosedShiftWarning />
+
+      {/* Keeps queued offline sales retrying, and owns the expired-sale alert,
+          on every dashboard page - not just POS */}
+      <OfflineQueueWatcher />
 
       {/* Toast notifications */}
       <Toaster />

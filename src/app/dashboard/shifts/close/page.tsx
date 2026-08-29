@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { BIRReadingDisplay } from '@/components/BIRReadingDisplay'
 import { CheckCircle, Loader2, FileText, Calculator, CreditCard, Key } from 'lucide-react'
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import { getOfflineQueueLength } from '@/lib/client/apiClient'
 
 const DENOMINATIONS = [
   { value: 1000, label: '₱1000 Bills', field: 'count1000' },
@@ -70,8 +71,20 @@ export default function CloseShiftPage() {
   const [shiftClosed, setShiftClosed] = useState(false)
   const [variance, setVariance] = useState<any>(null)
 
+  // Sales queued on this device that have not reached the server yet. They are
+  // not in the Z reading totals, so closing now produces a cash count the
+  // system cannot reconcile once they sync.
+  const [pendingQueuedSales, setPendingQueuedSales] = useState(0)
+
   useEffect(() => {
     fetchShiftAndGenerateReadings()
+  }, [])
+
+  useEffect(() => {
+    const check = () => setPendingQueuedSales(getOfflineQueueLength())
+    check()
+    const interval = setInterval(check, 2000)
+    return () => clearInterval(interval)
   }, [])
 
   // ============================================================================
@@ -366,6 +379,21 @@ export default function CloseShiftPage() {
 
     // Show authorization dialog first
     if (!showPasswordDialog) {
+      // Warn (but do not block) if sales are still waiting to sync — they are
+      // missing from the Z reading, so the cash count will not match once they
+      // land. Asked once per close attempt, before authorization.
+      const pending = getOfflineQueueLength()
+      if (pending > 0) {
+        const proceed = confirm(
+          `⚠️ ${pending} sale(s) are still waiting to sync to the server.\n\n` +
+          `They are NOT included in this Z reading, so your cash count will not match ` +
+          `once they go through.\n\n` +
+          `Recommended: restore the internet connection and wait for them to sync before closing.\n\n` +
+          `Close the shift anyway?`
+        )
+        if (!proceed) return
+      }
+
       setShowPasswordDialog(true)
       return
     }
@@ -559,6 +587,18 @@ export default function CloseShiftPage() {
     if (!forceCloseConfirmed) {
       setError('Please confirm that you understand this will close the shift WITHOUT BIR-compliant readings')
       return
+    }
+
+    // Same unsynced-sales warning as the normal close path — force-close must
+    // not become a way to skip it.
+    const pendingOnForceClose = getOfflineQueueLength()
+    if (pendingOnForceClose > 0) {
+      const proceed = confirm(
+        `⚠️ ${pendingOnForceClose} sale(s) are still waiting to sync to the server.\n\n` +
+        `They will NOT be included in this shift's totals.\n\n` +
+        `Force-close anyway?`
+      )
+      if (!proceed) return
     }
 
     setForceClosing(true)
@@ -858,6 +898,21 @@ export default function CloseShiftPage() {
           {error && (
             <Alert variant="destructive" className="mb-4">
               <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {pendingQueuedSales > 0 && (
+            <Alert className="mb-4 bg-yellow-50 border-yellow-500 dark:bg-yellow-950/30">
+              <AlertDescription className="text-yellow-900 dark:text-yellow-200">
+                <strong>
+                  {pendingQueuedSales} sale{pendingQueuedSales > 1 ? 's are' : ' is'} still waiting to sync
+                </strong>
+                <p className="mt-1">
+                  These sales were saved on this terminal but have not reached the server, so they are
+                  not counted in this Z reading. Restore the internet connection and wait for them to
+                  sync before closing, or your cash count will not match.
+                </p>
+              </AlertDescription>
             </Alert>
           )}
 
