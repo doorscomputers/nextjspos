@@ -129,9 +129,12 @@ export async function withIdempotency(
       const record = existing[0]
 
       if (record.status === 'processing') {
-        // Check if key is stale (older than 30 seconds) - likely orphaned from failed UPDATE
+        // Check if key is stale - likely orphaned from failed UPDATE.
+        // Must exceed the longest handler transaction budget (sales tx timeout
+        // is 60s): deleting the key while the original request is still mid-
+        // transaction lets a retry re-run the handler → duplicate sale.
         const keyAge = Date.now() - new Date(record.created_at).getTime()
-        const STALE_KEY_THRESHOLD_MS = 30000 // 30 seconds
+        const STALE_KEY_THRESHOLD_MS = 90000 // 90 seconds
 
         if (keyAge > STALE_KEY_THRESHOLD_MS) {
           // Key is stale - the original request likely completed but UPDATE failed

@@ -126,6 +126,7 @@ export default function ExpensesPage() {
   const [voidingExpense, setVoidingExpense] = useState<Expense | null>(null)
   const [voidReason, setVoidReason] = useState('')
   const [voiding, setVoiding] = useState(false)
+  const [approvingId, setApprovingId] = useState<number | null>(null)
 
   useEffect(() => {
     fetchExpenses()
@@ -321,10 +322,13 @@ export default function ExpensesPage() {
   }
 
   const handleApprove = async (expense: Expense) => {
+    if (approvingId !== null) return
+
     if (!confirm(`Approve expense ${expense.referenceNumber}? This will post it to the accounting system.`)) {
       return
     }
 
+    setApprovingId(expense.id)
     try {
       const response = await fetch(`/api/expenses/${expense.id}/approve`, {
         method: 'POST',
@@ -342,6 +346,8 @@ export default function ExpensesPage() {
     } catch (error) {
       console.error('Error approving expense:', error)
       toast.error('Failed to approve expense')
+    } finally {
+      setApprovingId(null)
     }
   }
 
@@ -492,6 +498,7 @@ export default function ExpensesPage() {
               size="sm"
               className="bg-green-600 hover:bg-green-700"
               onClick={() => handleApprove(expense)}
+              disabled={approvingId !== null}
             >
               <CheckCircle className="w-3 h-3 mr-1" />
               Approve

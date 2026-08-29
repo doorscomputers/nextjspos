@@ -2291,9 +2291,18 @@ export default function POSEnhancedPage() {
     } catch (err: any) {
       console.error('[POS] Sale submission failed:', err)
 
+      // Queued sale: it WILL be submitted automatically when the connection
+      // recovers, so the cart must be cleared — leaving it intact invites the
+      // cashier to re-ring the same sale, creating a duplicate after replay.
+      const wasQueued = err.message.includes('queued')
+
       // Handle duplicate sale silently - original sale was already saved
-      if (err.message.includes('Duplicate sale detected')) {
-        console.log('[POS] Duplicate sale detected - treating as success (original sale was saved)')
+      if (err.message.includes('Duplicate sale detected') || wasQueued) {
+        console.log(
+          wasQueued
+            ? '[POS] Sale queued for automatic retry - clearing cart to prevent re-entry'
+            : '[POS] Duplicate sale detected - treating as success (original sale was saved)'
+        )
 
         // Clear the cart and reset form (same as successful sale)
         setCart([])
@@ -2320,7 +2329,10 @@ export default function POSEnhancedPage() {
         setSelectedSalesPersonnel(null)
         setSelectedCustomerCategory('')
 
-        // Don't show error - sale was already processed successfully
+        if (wasQueued) {
+          alert('⚠️ Connection problem. Sale has been QUEUED and will be submitted automatically when the connection is restored.\n\nDO NOT re-enter this sale.')
+        }
+        // Don't show error - sale was already processed / queued for auto-submit
         return
       }
 
@@ -2332,9 +2344,7 @@ export default function POSEnhancedPage() {
       }
 
       // Show user-friendly error messages for other scenarios
-      if (err.message.includes('queued')) {
-        alert('⚠️ No internet connection. Sale has been queued and will be submitted when connection is restored.')
-      } else if (err.message.includes('retry')) {
+      if (err.message.includes('retry')) {
         alert('⚠️ Sale submission failed after multiple attempts. Please check your connection and try again.')
       } else if (err.message.includes('REQUEST_IN_PROGRESS')) {
         alert('⚠️ Sale may have already been processed.\n\nPlease check your Sales List to verify if the sale was completed.\n\nIf the sale exists, clear your cart and start fresh.')

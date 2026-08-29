@@ -64,6 +64,7 @@ export default function InventoryCorrectionDetailPage() {
   const { can } = usePermissions()
   const [correction, setCorrection] = useState<InventoryCorrection | null>(null)
   const [loading, setLoading] = useState(true)
+  const [approving, setApproving] = useState(false)
 
   const correctionId = params.id as string
 
@@ -100,12 +101,13 @@ export default function InventoryCorrectionDetailPage() {
   }
 
   const handleApprove = async () => {
-    if (!correction) return
+    if (!correction || approving) return
 
     if (!confirm('Are you sure you want to approve this inventory correction? This will update the stock levels and cannot be undone.')) {
       return
     }
 
+    setApproving(true)
     try {
       const res = await fetch(`/api/inventory-corrections/${correction.id}/approve`, {
         method: 'POST'
@@ -122,6 +124,8 @@ export default function InventoryCorrectionDetailPage() {
     } catch (error) {
       console.error('Error approving correction:', error)
       toast.error('Failed to approve inventory correction')
+    } finally {
+      setApproving(false)
     }
   }
 
@@ -235,9 +239,9 @@ export default function InventoryCorrectionDetailPage() {
         <div className="mb-6 flex gap-3">
           {/* Approve Button - Hidden for own corrections (self-approval restriction) */}
           {can(PERMISSIONS.INVENTORY_CORRECTION_APPROVE) && !isOwnCorrection && (
-            <Button onClick={handleApprove} className="bg-green-600 hover:bg-green-700">
+            <Button onClick={handleApprove} disabled={approving} className="bg-green-600 hover:bg-green-700">
               <CheckCircle className="h-4 w-4 mr-2" />
-              Approve Correction
+              {approving ? 'Approving...' : 'Approve Correction'}
             </Button>
           )}
           {can(PERMISSIONS.INVENTORY_CORRECTION_UPDATE) && (

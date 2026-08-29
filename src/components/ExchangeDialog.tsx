@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -100,6 +100,11 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   // Previous exchanges warning
   const [previousExchanges, setPreviousExchanges] = useState<any[]>([])
 
+  // Idempotency key is generated ONCE per exchange attempt and reused across
+  // retries — regenerating per submit would defeat the server-side dedupe,
+  // letting a timeout-then-retry create the exchange twice.
+  const idempotencyKeyRef = useRef<string>('')
+
   // Load initial sale if provided
   useEffect(() => {
     if (isOpen && initialSaleId) {
@@ -120,6 +125,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
       setSearchResults([])
       setAllProducts([])
       setPreviousExchanges([])
+      idempotencyKeyRef.current = ''
     }
   }, [isOpen])
 
@@ -368,7 +374,12 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
     setSubmitting(true)
     try {
       const totals = calculateTotals()
-      const idempotencyKey = `exchange-${sale.id}-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`
+      // Reuse the same key on retry so the server replays the original result
+      // instead of processing a second exchange
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = `exchange-${sale.id}-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`
+      }
+      const idempotencyKey = idempotencyKeyRef.current
 
       const response = await fetch(`/api/sales/${sale.id}/exchange`, {
         method: 'POST',
@@ -399,6 +410,9 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
       if (!response.ok) {
         throw new Error(data.error || 'Failed to process exchange')
       }
+
+      // Exchange committed — next exchange must get a fresh key
+      idempotencyKeyRef.current = ''
 
       toast.success('Exchange Processed', {
         description: `Exchange ${data.exchangeNumber} completed successfully.`,

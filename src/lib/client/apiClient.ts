@@ -96,29 +96,71 @@ const MAX_QUEUE_AGE_MS = 2 * 60 * 60 * 1000 // 2 hours
 
 // Offline queue for failed requests - persisted to localStorage
 type OfflineQueueItem = {
+  id: string
   url: string
   body: any
   options?: ApiClientOptions
   timestamp: number
   retries: number
+  // Computed at ENQUEUE time and reused on every replay. The sales key
+  // embeds the UTC date, so recomputing it during a replay that crosses
+  // UTC midnight (8:00 AM Manila) would mint a new key → duplicate sale.
+  idempotencyKey?: string
 }
 
-// Load queue from localStorage on startup
-function loadOfflineQueue(): OfflineQueueItem[] {
+// Alert listeners (POS page) that queued requests aged out and were dropped
+function dispatchQueueExpiredEvent(expired: OfflineQueueItem[]): void {
+  if (expired.length === 0 || typeof window === 'undefined') return
+  console.warn(
+    `[API Client] Dropped ${expired.length} expired queued request(s) (>2h old) - NOT submitted:`,
+    expired.map(item => ({ url: item.url, queuedAt: new Date(item.timestamp).toISOString() }))
+  )
+  window.dispatchEvent(new CustomEvent('offlineQueueExpired', {
+    detail: {
+      dropped: expired.length,
+      requests: expired.map(item => ({
+        url: item.url,
+        queuedAt: new Date(item.timestamp).toISOString(),
+      })),
+    },
+  }))
+}
+
+function generateQueueItemId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return `q_${Date.now()}_${Math.random().toString(16).slice(2)}`
+}
+
+// localStorage is the single source of truth for the queue. Every operation
+// re-reads storage so a second POS tab cannot clobber another tab's queued
+// sales, and a reload mid-replay cannot lose in-flight items.
+function readOfflineQueue(): OfflineQueueItem[] {
   if (typeof window === 'undefined') return []
   try {
     const stored = localStorage.getItem(OFFLINE_QUEUE_KEY)
     if (stored) {
       const parsed: OfflineQueueItem[] = JSON.parse(stored)
       const now = Date.now()
+      const expired = parsed.filter(item => now - item.timestamp > MAX_QUEUE_AGE_MS)
       const fresh = parsed.filter(item => now - item.timestamp <= MAX_QUEUE_AGE_MS)
-      if (fresh.length < parsed.length) {
-        console.warn(
-          `[API Client] Discarded ${parsed.length - fresh.length} expired queued request(s) (>2h old) from storage`
-        )
+      // Items queued before the id field existed get one assigned (and persisted,
+      // otherwise removal-by-id after a successful replay would never match)
+      let assignedIds = false
+      for (const item of fresh) {
+        if (!item.id) {
+          item.id = generateQueueItemId()
+          assignedIds = true
+        }
+      }
+      if (expired.length > 0 || assignedIds) {
         localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(fresh))
       }
-      console.log(`[API Client] Loaded ${fresh.length} queued requests from storage`)
+      // This read path prunes before processOfflineQueue ever sees the items
+      // (POS polls the queue length every 2s), so the cashier alert must fire
+      // from here or expired sales would be dropped silently.
+      dispatchQueueExpiredEvent(expired)
       return fresh
     }
   } catch (e) {
@@ -137,8 +179,40 @@ function saveOfflineQueue(queue: OfflineQueueItem[]): void {
   }
 }
 
-// Initialize queue from localStorage
-const offlineQueue: OfflineQueueItem[] = loadOfflineQueue()
+// Add a request to the persistent queue (read-merge-write so concurrent tabs don't clobber each other)
+async function enqueueOfflineRequest(url: string, body: any, options?: ApiClientOptions): Promise<void> {
+  const idempotencyKey = options?.skipIdempotency
+    ? undefined
+    : await generateDeterministicIdempotencyKey(url, body)
+  const queue = readOfflineQueue()
+  queue.push({
+    id: generateQueueItemId(),
+    url,
+    body,
+    options,
+    timestamp: Date.now(),
+    retries: 0,
+    idempotencyKey,
+  })
+  saveOfflineQueue(queue)
+}
+
+// Remove a single item from the persistent queue by id
+function removeOfflineRequest(id: string): void {
+  const queue = readOfflineQueue()
+  saveOfflineQueue(queue.filter(item => item.id !== id))
+}
+
+// A network-level failure means the request may never have reached the server
+// (or the response was lost). App-level failures (validation, insufficient
+// stock, etc.) arrive as plain Error with the server message and must NOT be queued.
+function isNetworkError(error: any): boolean {
+  return (
+    error instanceof TypeError || // fetch: "Failed to fetch" / DNS / connection reset
+    error?.name === 'TimeoutError' || // AbortSignal.timeout fired
+    error?.name === 'AbortError'
+  )
+}
 
 // Connection status
 let isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true
@@ -154,6 +228,13 @@ if (typeof window !== 'undefined') {
     isOnline = false
     console.log('[API Client] Connection lost - requests will be queued')
   })
+
+  // The 'online' event alone is NOT a reliable replay trigger: a flaky WAN
+  // fails requests while navigator.onLine stays true, so nothing would ever
+  // fire it. Replay shortly after load and on a steady interval — the
+  // re-entrancy guard and per-item idempotency keys make extra runs safe.
+  setTimeout(() => { processOfflineQueue() }, 5000)
+  setInterval(() => { processOfflineQueue() }, 60000)
 }
 
 interface ApiClientOptions extends RequestInit {
@@ -161,6 +242,7 @@ interface ApiClientOptions extends RequestInit {
   maxRetries?: number // Maximum retry attempts (default: 3)
   retryDelay?: number // Initial retry delay in ms (default: 1000)
   queueIfOffline?: boolean // Queue request if offline (default: true)
+  idempotencyKey?: string // Precomputed key (queue replay) - overrides generation
 }
 
 /**
@@ -189,77 +271,75 @@ export function onOfflineQueueSyncComplete(callback: SyncResultCallback): void {
   onSyncComplete = callback
 }
 
+// Re-entrancy guard: a flapping connection can fire 'online' repeatedly
+let isProcessingQueue = false
+
 /**
  * Process offline queue when connection is restored
- * CRITICAL-3 & CRITICAL-4 FIX: Persists queue to localStorage and notifies on completion
+ * Items are removed from persistent storage only AFTER the server confirms
+ * them — a reload/crash mid-replay leaves unconfirmed items queued, and the
+ * server-side idempotency key makes a second replay of a confirmed item a no-op.
  */
 async function processOfflineQueue() {
-  if (offlineQueue.length === 0) return
+  if (isProcessingQueue) return
+  isProcessingQueue = true
 
-  const totalQueued = offlineQueue.length
-  console.log(`[API Client] Processing ${totalQueued} queued requests`)
+  try {
+    // Drop expired requests instead of replaying stale bodies (phantom sales)
+    const queue = readOfflineQueue()
+    const now = Date.now()
+    const expired = queue.filter(item => now - item.timestamp > MAX_QUEUE_AGE_MS)
+    const fresh = queue.filter(item => now - item.timestamp <= MAX_QUEUE_AGE_MS)
+    if (expired.length > 0) {
+      saveOfflineQueue(fresh)
+      dispatchQueueExpiredEvent(expired)
+    }
 
-  const queueCopy = [...offlineQueue]
-  offlineQueue.length = 0 // Clear queue
-  saveOfflineQueue(offlineQueue) // Save cleared queue
+    if (fresh.length === 0) return
+    console.log(`[API Client] Processing ${fresh.length} queued requests`)
 
-  // Drop expired requests instead of replaying stale bodies (phantom sales)
-  const now = Date.now()
-  const expired = queueCopy.filter(item => now - item.timestamp > MAX_QUEUE_AGE_MS)
-  const fresh = queueCopy.filter(item => now - item.timestamp <= MAX_QUEUE_AGE_MS)
-  if (expired.length > 0) {
-    console.warn(
-      `[API Client] Dropped ${expired.length} expired queued request(s) (>2h old) - NOT submitted:`,
-      expired.map(item => ({ url: item.url, queuedAt: new Date(item.timestamp).toISOString() }))
-    )
+    let successCount = 0
+    let failedCount = 0
+
+    for (const queuedRequest of fresh) {
+      try {
+        await apiPost(queuedRequest.url, queuedRequest.body, {
+          ...queuedRequest.options,
+          queueIfOffline: false, // Don't re-queue if it fails again
+          // Reuse the key computed at enqueue time - recomputing across UTC
+          // midnight would mint a new key and duplicate the sale
+          idempotencyKey: queuedRequest.idempotencyKey,
+        })
+        console.log(`[API Client] Successfully processed queued request to ${queuedRequest.url}`)
+        // Remove from persistent queue only after confirmed success
+        removeOfflineRequest(queuedRequest.id)
+        successCount++
+      } catch (error) {
+        console.error(`[API Client] Failed to process queued request to ${queuedRequest.url}:`, error)
+        // Leave the item in the queue; bump its retry counter in storage
+        const current = readOfflineQueue()
+        const match = current.find(item => item.id === queuedRequest.id)
+        if (match) {
+          match.retries += 1
+          saveOfflineQueue(current)
+        }
+        failedCount++
+      }
+    }
+
+    // Notify listeners of sync results (CRITICAL-4)
+    if (onSyncComplete) {
+      onSyncComplete({ success: successCount, failed: failedCount })
+    }
+
+    // Also dispatch a custom event for components that prefer event-based notification
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('offlineQueueExpired', {
-        detail: {
-          dropped: expired.length,
-          requests: expired.map(item => ({
-            url: item.url,
-            queuedAt: new Date(item.timestamp).toISOString(),
-          })),
-        },
+      window.dispatchEvent(new CustomEvent('offlineQueueSynced', {
+        detail: { success: successCount, failed: failedCount, remaining: readOfflineQueue().length }
       }))
     }
-  }
-
-  let successCount = 0
-  let failedCount = 0
-
-  for (const queuedRequest of fresh) {
-    try {
-      await apiPost(queuedRequest.url, queuedRequest.body, {
-        ...queuedRequest.options,
-        queueIfOffline: false, // Don't re-queue if it fails again
-      })
-      console.log(`[API Client] Successfully processed queued request to ${queuedRequest.url}`)
-      successCount++
-    } catch (error) {
-      console.error(`[API Client] Failed to process queued request to ${queuedRequest.url}:`, error)
-      // If it still fails, put it back in queue for manual retry
-      offlineQueue.push({
-        ...queuedRequest,
-        retries: queuedRequest.retries + 1,
-      })
-      failedCount++
-    }
-  }
-
-  // Save any failed requests back to localStorage
-  saveOfflineQueue(offlineQueue)
-
-  // Notify listeners of sync results (CRITICAL-4)
-  if (onSyncComplete) {
-    onSyncComplete({ success: successCount, failed: failedCount })
-  }
-
-  // Also dispatch a custom event for components that prefer event-based notification
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('offlineQueueSynced', {
-      detail: { success: successCount, failed: failedCount, remaining: offlineQueue.length }
-    }))
+  } finally {
+    isProcessingQueue = false
   }
 }
 
@@ -274,7 +354,7 @@ export function isConnectionOnline(): boolean {
  * Get offline queue length
  */
 export function getOfflineQueueLength(): number {
-  return offlineQueue.length
+  return readOfflineQueue().length
 }
 
 /**
@@ -301,22 +381,16 @@ export async function apiPost<T = any>(
   // Check if offline - queue request and persist to localStorage (CRITICAL-3 FIX)
   if (!isOnline && queueIfOffline) {
     console.log(`[API Client] Offline - queuing request to ${url}`)
-    offlineQueue.push({
-      url,
-      body,
-      options,
-      timestamp: Date.now(),
-      retries: 0,
-    })
-    saveOfflineQueue(offlineQueue) // Persist to localStorage so it survives page refresh
+    await enqueueOfflineRequest(url, body, options)
     throw new Error('No internet connection. Request has been queued and will be sent when connection is restored.')
   }
 
   // Generate deterministic idempotency key (unless disabled)
-  // This ensures the SAME request gets the SAME key, even after page refresh
+  // This ensures the SAME request gets the SAME key, even after page refresh.
+  // Queue replays pass the key computed at enqueue time instead.
   const idempotencyKey = options?.skipIdempotency
     ? undefined
-    : await generateDeterministicIdempotencyKey(url, body)
+    : options?.idempotencyKey ?? await generateDeterministicIdempotencyKey(url, body)
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -333,11 +407,11 @@ export async function apiPost<T = any>(
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const requestPromise = fetch(url, {
+        ...options,
         method: 'POST',
         body: JSON.stringify(body),
-        headers,
+        headers, // after ...options so caller-supplied headers cannot drop Idempotency-Key
         signal: AbortSignal.timeout(60000), // 60 second timeout
-        ...options,
       })
         .then(async (response) => {
           // Check if this was a replayed response (idempotency cache hit)
@@ -404,16 +478,12 @@ export async function apiPost<T = any>(
       } else {
         console.error(`[API Client] Request to ${url} failed after ${maxRetries + 1} attempts`)
 
-        // Queue for offline processing if appropriate
-        if (queueIfOffline && !isOnline) {
-          offlineQueue.push({
-            url,
-            body,
-            options,
-            timestamp: Date.now(),
-            retries: 0,
-          })
-          saveOfflineQueue(offlineQueue) // Persist to localStorage (CRITICAL-3 FIX)
+        // Queue when retries are exhausted by NETWORK failures, even if
+        // navigator.onLine is still true (typical intermittent WAN: WiFi up,
+        // internet down). App-level errors are never queued — they would fail
+        // again identically on replay.
+        if (queueIfOffline && (!isOnline || isNetworkError(error))) {
+          await enqueueOfflineRequest(url, body, options)
           throw new Error('Request failed and queued for retry when connection is restored.')
         }
       }

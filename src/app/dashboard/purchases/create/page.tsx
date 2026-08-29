@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
+import { apiPost } from '@/lib/client/apiClient'
 import { useUserPrimaryLocation } from '@/hooks/useUserPrimaryLocation'
 import { PERMISSIONS } from '@/lib/rbac'
 import Link from 'next/link'
@@ -727,28 +728,16 @@ export default function CreatePurchaseOrderPage() {
         notes: notes || null,
       }
 
-      const response = await fetch('/api/purchases', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(poData),
-      })
+      // apiPost sends an Idempotency-Key so a timeout-then-retry cannot create
+      // a duplicate purchase order (the /api/purchases route is wrapped in
+      // withIdempotency). Purchases are never queued offline.
+      const data = await apiPost('/api/purchases', poData, { queueIfOffline: false })
 
-      const data = await response.json()
-
-      if (response.ok) {
-        toast.success('Purchase order created successfully')
-        router.push(`/dashboard/purchases/${data.id}`)
-      } else {
-        // Show user-friendly error message
-        const errorMessage = data.error || 'Failed to create purchase order'
-        toast.error(errorMessage)
-        console.error('Purchase creation error:', data)
-      }
-    } catch (error) {
+      toast.success('Purchase order created successfully')
+      router.push(`/dashboard/purchases/${data.id}`)
+    } catch (error: any) {
       console.error('Error creating purchase order:', error)
-      toast.error('Failed to create purchase order')
+      toast.error(error?.message || 'Failed to create purchase order')
     } finally {
       setSubmitting(false)
     }
