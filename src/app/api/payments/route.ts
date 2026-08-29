@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
 import { isAccountingEnabled, recordSupplierPayment } from '@/lib/accountingIntegration'
+import { withIdempotency } from '@/lib/idempotency'
 
 // GET - List all payments
 export async function GET(request: NextRequest) {
@@ -130,6 +131,9 @@ export async function GET(request: NextRequest) {
 
 // POST - Create new payment
 export async function POST(request: NextRequest) {
+  // Duplicate-submit guard: a retry after a lost response replays the cached
+  // result instead of recording the payment twice. No-key requests pass through.
+  return withIdempotency(request, '/api/payments', async () => {
   try {
     const session = await getServerSession(authOptions)
 
@@ -462,4 +466,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+  })
 }

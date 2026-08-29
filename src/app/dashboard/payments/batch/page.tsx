@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -74,6 +74,14 @@ export default function BatchPaymentPage() {
   // Quick add bank dialog
   const [showAddBankDialog, setShowAddBankDialog] = useState<boolean>(false)
   const [newBankName, setNewBankName] = useState<string>('')
+
+  // Idempotency key (same pattern as ExchangeDialog): generated once per submit
+  // attempt, reused for re-clicks of that exact payment so a lost response can't
+  // record the batch payment twice. Reset on any payload change.
+  const idempotencyKeyRef = useRef<string>('')
+  useEffect(() => {
+    idempotencyKeyRef.current = ''
+  }, [paymentMethod, totalPaymentAmount, paymentDate, referenceNumber, notes, allocations, chequeNumber, chequeDate, bankName, isPostDated, bankAccountNumber, bankTransferReference, cardType, cardLast4, cardTransactionId])
 
   useEffect(() => {
     if (!apIdsParam) {
@@ -248,9 +256,17 @@ export default function BatchPaymentPage() {
         payload.cardTransactionId = cardTransactionId
       }
 
+      // Reuse the same key on a re-click so the server replays the original
+      // result instead of recording a second batch payment
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = `suppay-batch-${supplier!.id}-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`
+      }
       const response = await fetch('/api/payments/batch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKeyRef.current,
+        },
         body: JSON.stringify(payload),
       })
 
@@ -260,6 +276,11 @@ export default function BatchPaymentPage() {
         toast.success(`Batch payment recorded successfully for ${allocations.filter(a => a.allocatedAmount > 0).length} invoices`)
         router.push('/dashboard/accounts-payable')
       } else {
+        // Server rolled back — discard the key so a retry re-executes instead
+        // of replaying the cached error. Keep it on 429 (still committing).
+        if (response.status !== 429) {
+          idempotencyKeyRef.current = ''
+        }
         toast.error(data.error || 'Failed to record batch payment')
       }
     } catch (error) {

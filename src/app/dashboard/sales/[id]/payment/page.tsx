@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { usePermissions } from "@/hooks/usePermissions"
 import { PERMISSIONS } from "@/lib/rbac"
@@ -80,6 +80,14 @@ export default function RecordPaymentPage({
   const [cheques, setCheques] = useState<ChequeRow[]>([
     { number: "", bank: "", date: new Date().toISOString().split("T")[0], amount: "" },
   ])
+
+  // Idempotency key (same pattern as ExchangeDialog): generated once per submit
+  // attempt, reused for re-clicks of that exact payment so a lost response can't
+  // record the payment twice. Reset on success and on any payload change.
+  const idempotencyKeyRef = useRef<string>("")
+  useEffect(() => {
+    idempotencyKeyRef.current = ""
+  }, [amount, paymentMethod, referenceNumber, paymentDate, deductions, cheques, hasDeductions])
 
   // Payment methods
   const paymentMethods = [
@@ -241,10 +249,16 @@ export default function RecordPaymentPage({
     try {
       setSubmitting(true)
 
+      // Reuse the same key on a re-click so the server replays the original
+      // result instead of recording a second payment
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = `arpay-${params.id}-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`
+      }
       const response = await fetch(`/api/sales/${params.id}/payment`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKeyRef.current,
         },
         body: JSON.stringify({
           amount: paymentAmount,
@@ -265,6 +279,9 @@ export default function RecordPaymentPage({
       const data = await response.json()
 
       if (data.success) {
+        // Payment committed — next payment must get a fresh key
+        idempotencyKeyRef.current = ""
+
         const dedMsg = dedTotal > 0 ? ` + ₱${dedTotal.toFixed(2)} deductions` : ""
         setSuccess(
           `Payment of ₱${paymentAmount.toFixed(2)}${dedMsg} recorded successfully! ${data.invoice.isFullyPaid ? "Invoice is now fully paid." : `New balance: ₱${data.invoice.newBalance.toFixed(2)}`}`
@@ -301,6 +318,11 @@ export default function RecordPaymentPage({
           }, 2000)
         }
       } else {
+        // Server rolled back — discard the key so a retry re-executes instead
+        // of replaying the cached error. Keep it on 429 (still committing).
+        if (response.status !== 429) {
+          idempotencyKeyRef.current = ""
+        }
         setError(data.error || "Failed to record payment")
       }
     } catch (err: any) {

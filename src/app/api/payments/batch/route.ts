@@ -4,12 +4,16 @@ import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType, getIpAddress, getUserAgent } from '@/lib/auditLog'
+import { withIdempotency } from '@/lib/idempotency'
 
 /**
  * POST /api/payments/batch
  * Create a batch payment that pays multiple invoices in one transaction
  */
 export async function POST(request: NextRequest) {
+  // Duplicate-submit guard: a retry after a lost response replays the cached
+  // result instead of recording the payment twice. No-key requests pass through.
+  return withIdempotency(request, '/api/payments/batch', async () => {
   try {
     const session = await getServerSession(authOptions)
 
@@ -353,4 +357,5 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
+  })
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -58,6 +58,15 @@ export default function ARPaymentCollectionModal({
   const [showPaymentReceipt, setShowPaymentReceipt] = useState(false)
   const [paymentReceiptData, setPaymentReceiptData] = useState<any>(null)
 
+  // Idempotency keys (same pattern as ExchangeDialog): a key is generated once
+  // per submit attempt and reused only for retries of that exact payment, so a
+  // lost response + re-click replays the server's cached result instead of
+  // recording the payment twice. Keys reset whenever the payload changes.
+  const singleKeyRef = useRef<string>('')
+  // Pay-All: one key per invoice+payload fingerprint so a re-run after a
+  // partial failure can't double-pay the invoices that already succeeded.
+  const batchKeysRef = useRef<Map<string, string>>(new Map())
+
   // Fetch unpaid invoices
   const fetchUnpaidInvoices = async () => {
     setLoading(true)
@@ -113,8 +122,16 @@ export default function ARPaymentCollectionModal({
       setPaymentAmount('')
       setPaymentMethod('cash')
       setReferenceNumber('')
+      singleKeyRef.current = ''
+      batchKeysRef.current.clear()
     }
   }, [isOpen])
+
+  // A reused key after a payload edit would make the server replay the FIRST
+  // attempt's cached result — fake success for a payment never recorded.
+  useEffect(() => {
+    singleKeyRef.current = ''
+  }, [selectedInvoice, paymentAmount, paymentMethod, referenceNumber, shiftId])
 
   // Filter invoices by pre-selected customer
   const filteredInvoices = unpaidInvoices.filter(invoice => {
@@ -157,9 +174,17 @@ export default function ARPaymentCollectionModal({
 
     setProcessing(true)
     try {
+      // Reuse the same key on a re-click so the server replays the original
+      // result instead of recording a second payment
+      if (!singleKeyRef.current) {
+        singleKeyRef.current = `arpay-${selectedInvoice.id}-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`
+      }
       const response = await fetch(`/api/sales/${selectedInvoice.id}/payment`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': singleKeyRef.current,
+        },
         body: JSON.stringify({
           amount,
           paymentMethod,
@@ -171,8 +196,18 @@ export default function ARPaymentCollectionModal({
       const data = await response.json()
 
       if (!response.ok) {
+        // A received error means the server rolled back — discard the key so a
+        // retry re-executes instead of replaying the cached error. EXCEPT 429:
+        // the original request may still be committing, so the key must be kept
+        // or a retry could record a second payment.
+        if (response.status !== 429) {
+          singleKeyRef.current = ''
+        }
         throw new Error(data.error || 'Failed to record payment')
       }
+
+      // Payment committed — next payment must get a fresh key
+      singleKeyRef.current = ''
 
       toast.success(`Payment of ${formatCurrency(amount)} recorded successfully!`, {
         description: `Invoice ${selectedInvoice.invoiceNumber} - Remaining balance: ${formatCurrency(data.invoice.newBalance)}`
@@ -249,9 +284,22 @@ export default function ARPaymentCollectionModal({
       // Process each invoice payment
       for (const invoice of filteredInvoices) {
         try {
+          // Key is stable per invoice+payload: a re-run of Pay All after a
+          // partial failure replays already-committed payments instead of
+          // recording them twice. A changed balance/method/reference gets a
+          // fresh key.
+          const fingerprint = `${invoice.id}|${invoice.balance}|${paymentMethod}|${referenceNumber}|${shiftId}`
+          let idempotencyKey = batchKeysRef.current.get(fingerprint)
+          if (!idempotencyKey) {
+            idempotencyKey = `arpay-${invoice.id}-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`
+            batchKeysRef.current.set(fingerprint, idempotencyKey)
+          }
           const response = await fetch(`/api/sales/${invoice.id}/payment`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'Idempotency-Key': idempotencyKey,
+            },
             body: JSON.stringify({
               amount: invoice.balance, // Pay full balance
               paymentMethod,
@@ -261,6 +309,11 @@ export default function ARPaymentCollectionModal({
           })
 
           if (!response.ok) {
+            // Server rolled back — drop the key so a Pay All re-run re-executes
+            // this invoice. Keep it on 429 (original may still be committing).
+            if (response.status !== 429) {
+              batchKeysRef.current.delete(fingerprint)
+            }
             const data = await response.json()
             throw new Error(data.error || 'Failed to record payment')
           }

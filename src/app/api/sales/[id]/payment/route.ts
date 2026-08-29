@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma.simple'
 import { PERMISSIONS } from "@/lib/rbac"
 import { isAccountingEnabled, recordCustomerPayment } from "@/lib/accountingIntegration"
 import { incrementShiftTotalsForARPayment } from "@/lib/shift-running-totals"
+import { withIdempotency } from "@/lib/idempotency"
 
 /**
  * POST /api/sales/[id]/payment
@@ -14,6 +15,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  // Duplicate-submit guard: a retry after a lost response replays the cached
+  // result instead of recording the payment twice. No-key requests pass through.
+  return withIdempotency(request, `/api/sales/${params.id}/payment`, async () => {
   try {
     console.log('[AR Payment API] ========== START ==========')
 
@@ -504,6 +508,7 @@ export async function POST(
       { status: 500 }
     )
   }
+  })
 }
 
 /**

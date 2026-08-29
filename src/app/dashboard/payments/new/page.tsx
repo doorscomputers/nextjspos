@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -76,6 +76,14 @@ export default function NewPaymentPage() {
   const [cardType, setCardType] = useState<string>('credit')
   const [cardLast4, setCardLast4] = useState<string>('')
   const [cardTransactionId, setCardTransactionId] = useState<string>('')
+
+  // Idempotency key (same pattern as ExchangeDialog): generated once per submit
+  // attempt, reused for re-clicks of that exact payment so a lost response can't
+  // record the payment twice. Reset on any payload change.
+  const idempotencyKeyRef = useRef<string>('')
+  useEffect(() => {
+    idempotencyKeyRef.current = ''
+  }, [selectedAPId, selectedSupplierId, paymentMethod, amount, paymentDate, referenceNumber, notes, chequeNumber, chequeDate, bankName, isPostDated, bankAccountNumber, bankTransferReference, cardType, cardLast4, cardTransactionId])
 
   useEffect(() => {
     fetchSuppliers()
@@ -255,9 +263,17 @@ export default function NewPaymentPage() {
         payload.cardTransactionId = cardTransactionId
       }
 
+      // Reuse the same key on a re-click so the server replays the original
+      // result instead of recording a second payment
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = `suppay-${selectedAPId}-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`
+      }
       const response = await fetch('/api/payments', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': idempotencyKeyRef.current,
+        },
         body: JSON.stringify(payload),
       })
 
@@ -267,6 +283,11 @@ export default function NewPaymentPage() {
         toast.success('Payment recorded successfully')
         router.push('/dashboard/accounts-payable')
       } else {
+        // Server rolled back — discard the key so a retry re-executes instead
+        // of replaying the cached error. Keep it on 429 (still committing).
+        if (response.status !== 429) {
+          idempotencyKeyRef.current = ''
+        }
         toast.error(data.error || 'Failed to record payment')
       }
     } catch (error) {
