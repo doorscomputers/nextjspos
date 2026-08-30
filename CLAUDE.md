@@ -27,8 +27,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Development
 
 ```bash
-npm run dev          # Start dev server with Turbopack
-npm run build        # Build for production with Turbopack
+npm run dev          # Start dev server (next dev)
+npm run build        # Build for production (next build)
 npm start           # Start production server
 npm run lint        # Run ESLint
 ```

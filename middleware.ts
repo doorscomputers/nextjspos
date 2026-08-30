@@ -15,9 +15,10 @@
  * User makes request → Middleware runs → Page/API route runs
  *
  * WHEN THIS RUNS:
- * - On every page navigation
- * - On every API call
- * - Before any Next.js page or API route handler
+ * - On every page navigation and API call (see matcher below), BUT the
+ *   authentication check below only runs for /dashboard/* paths.
+ * - API routes (/api/*) and /superadmin/* are NOT authenticated here; each
+ *   API route enforces its own session check via getServerSession.
  *
  * KEY FEATURES:
  * - Redirects unauthenticated users to login page
@@ -169,10 +170,10 @@ export async function middleware(request: NextRequest) {
 // - Reduces unnecessary middleware executions
 // - Improves performance
 //
-// WHAT GETS CHECKED:
-// - All dashboard pages (/dashboard/*)
-// - All API routes (/api/*)
-// - Landing pages (/, /login, etc.)
+// WHAT THIS MIDDLEWARE RUNS ON (matcher) vs WHAT IT AUTHENTICATES:
+// - Runs on: dashboard pages, API routes, /superadmin/*, landing pages.
+// - Authenticates ONLY: /dashboard/* (see the auth block above).
+//   API routes guard themselves; /superadmin pages guard in their layout.
 export const config = {
   matcher: [
     /*

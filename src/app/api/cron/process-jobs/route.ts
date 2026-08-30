@@ -8,7 +8,14 @@ import { prisma } from '@/lib/prisma.simple'
  * This endpoint is called by Vercel Cron every minute to process pending jobs
  * See vercel.json for cron configuration
  *
- * Security: Vercel Cron includes x-vercel-cron-id header for verification
+ * Security (IMPORTANT):
+ * - GET only checks that the x-vercel-cron-id header is PRESENT (not signed),
+ *   and only enforces that in production.
+ * - POST is intentionally UNAUTHENTICATED: it exists so internal callers can
+ *   trigger job processing immediately after creating a job. This means POST
+ *   is reachable by anyone. Stock mutations are protected downstream by an
+ *   atomic compare-and-swap in job-processor.ts, but this endpoint should be
+ *   hardened with a shared secret (tracked as a follow-up).
  */
 
 async function processJobs() {

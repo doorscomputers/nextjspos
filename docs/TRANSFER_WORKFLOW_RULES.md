@@ -1,8 +1,23 @@
-# Transfer Workflow Rules - DO NOT MODIFY
+# Transfer Workflow Rules (HISTORICAL — PARTIALLY OUTDATED)
 
-## ⚠️ CRITICAL SYSTEM - CHANGES REQUIRE FULL TESTING
+> ⚠️ **Deprecation notice (2026-08-30):** The multi-step verification workflow
+> described below (Arrived → Start Verification → Verifying → Verify All) was
+> **removed** from the UI. Transfers are now auto-verified on receive — see the
+> comment at `src/app/dashboard/transfers/[id]/page.tsx` ("REMOVED: Arrived,
+> Start Verification, Verifying, Verify All steps"). Do not treat the status
+> machine here as current.
+>
+> The **location/fraud rules** this doc describes are enforced only in the React
+> component's button visibility, NOT in the server routes
+> (`api/transfers/[id]/mark-arrived`, `.../receive`). A caller hitting the API
+> directly bypasses them. Server-side enforcement is a tracked follow-up (Tier 2).
+>
+> This file is kept for historical context. It is no longer a "do not modify" spec.
 
-This document describes the **exact logic** for transfer workflow button visibility. These rules were carefully designed to maintain **workflow separation** and **prevent fraud**.
+## Original notes (historical)
+
+This document described the logic for transfer workflow button visibility, intended
+to maintain workflow separation and prevent fraud.
 
 **Last Verified Working:** 2025-11-11
 **Verified By:** Jay (Cross-Location Approver) and Jheiron (Warehouse Manager)
