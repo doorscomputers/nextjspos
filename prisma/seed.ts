@@ -6,6 +6,15 @@ import { initializeChartOfAccounts } from '../src/lib/chartOfAccounts'
 const prisma = new PrismaClient()
 
 async function main() {
+  // Safety guard: never seed a production database by accident. The seed creates
+  // default accounts with the password "password" and writes RBAC/roles data.
+  // Set ALLOW_PRODUCTION_SEED=true to override for a deliberate reseed.
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PRODUCTION_SEED !== 'true') {
+    throw new Error(
+      'Refusing to seed a production database. Set ALLOW_PRODUCTION_SEED=true to override.'
+    )
+  }
+
   console.log('🌱 Starting database seeding...')
 
   // Create Currency
