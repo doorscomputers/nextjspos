@@ -459,23 +459,7 @@ export default function BulkPriceEditorPage() {
 
       console.log(`🚀 Sending ${updates.length} price updates to server:`, updates)
 
-      // First test the simple test API
-      console.log('🧪 Testing simple API first...')
-      try {
-        const testResponse = await fetch('/api/test-bulk-update', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ updates }),
-        })
-        console.log('🧪 Test API response status:', testResponse.status)
-        const testResult = await testResponse.json()
-        console.log('🧪 Test API response:', testResult)
-      } catch (testError) {
-        console.error('🧪 Test API error:', testError)
-      }
 
-      // Now try the real API
-      console.log('🚀 Now trying real API...')
       const response = await fetch('/api/products/bulk-price-update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
