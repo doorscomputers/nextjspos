@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
+import { getLocationWhereClause } from '@/lib/rbac'
 
 /**
  * DevExtreme-compatible Sales API endpoint
@@ -41,10 +42,14 @@ export async function GET(request: NextRequest) {
     // Status filter
     const statusFilter = searchParams.get('status')
 
-    // Build base where clause
+    // Build base where clause. Location scoping restricts non-privileged users
+    // (e.g. Sales Cashier) to their assigned locations so they cannot find or act
+    // on another branch's sales via the Void/Exchange dialogs. Users with
+    // ACCESS_ALL_LOCATIONS / Super Admin get {} (no restriction).
     const whereClause: any = {
       businessId,
-      deletedAt: null
+      deletedAt: null,
+      ...getLocationWhereClause(user, 'locationId')
     }
 
     // Apply status filter

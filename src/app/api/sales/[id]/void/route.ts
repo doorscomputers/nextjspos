@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
-import { hasPermission, isSuperAdmin, PERMISSIONS } from '@/lib/rbac'
+import { hasPermission, isSuperAdmin, getUserAccessibleLocationIds, PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 import { addStock, deductStock, StockTransactionType } from '@/lib/stockOperations'
 import bcrypt from 'bcryptjs'
@@ -176,6 +176,17 @@ export async function POST(
     if (sale.businessId !== businessIdNumber) {
       return NextResponse.json(
         { error: 'Sale does not belong to your business' },
+        { status: 403 }
+      )
+    }
+
+    // Check location access: a user may only void sales from a location they are
+    // assigned to. Users with ACCESS_ALL_LOCATIONS / Super Admin get null (no
+    // restriction). Same pattern as inventory-corrections/[id]/approve.
+    const accessibleLocationIds = getUserAccessibleLocationIds(user)
+    if (accessibleLocationIds !== null && !accessibleLocationIds.includes(sale.locationId)) {
+      return NextResponse.json(
+        { error: 'You do not have access to void sales from this location' },
         { status: 403 }
       )
     }
