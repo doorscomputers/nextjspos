@@ -1509,7 +1509,7 @@ export async function POST(request: NextRequest) {
       {
         error: 'Failed to create sale',
         details: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
+        ...(process.env.NODE_ENV === 'development' && { stack: error instanceof Error ? error.stack : undefined }),
         type: error instanceof Error ? error.constructor.name : typeof error,
       },
       { status: 500 }

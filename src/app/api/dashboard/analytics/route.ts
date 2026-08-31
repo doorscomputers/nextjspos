@@ -560,7 +560,7 @@ export async function POST(request: Request) {
             {
                 error: 'Failed to fetch analytics data',
                 details: error instanceof Error ? error.message : 'Unknown error',
-                stack: error instanceof Error ? error.stack : undefined
+                ...(process.env.NODE_ENV === 'development' && { stack: error instanceof Error ? error.stack : undefined })
             },
             { status: 500 }
         )

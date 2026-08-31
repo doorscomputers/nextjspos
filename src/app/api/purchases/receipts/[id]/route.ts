@@ -196,7 +196,7 @@ export async function GET(
     console.error('Error message:', error.message)
     console.error('Error stack:', error.stack)
     return NextResponse.json(
-      { error: 'Failed to fetch purchase receipt', details: error.message, stack: error.stack },
+      { error: 'Failed to fetch purchase receipt', details: error.message, ...(process.env.NODE_ENV === 'development' && { stack: error.stack }) },
       { status: 500 }
     )
   }

@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
       {
         error: 'Database test failed',
         details: error.message,
-        stack: error.stack
+        ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
       },
       { status: 500 }
     );
