@@ -31,8 +31,16 @@ export async function GET(
       return NextResponse.json({ error: 'Location not found' }, { status: 404 })
     }
 
+    // locationCode is the RFID secret; only expose it to location administrators
+    // (who need it to edit). Strip it for everyone else.
+    const canSeeLocationCode =
+      user.permissions?.includes(PERMISSIONS.LOCATION_UPDATE) ||
+      user.permissions?.includes(PERMISSIONS.LOCATION_CREATE)
+    const { locationCode, ...locationWithoutCode } = location
+    const payload = canSeeLocationCode ? location : locationWithoutCode
+
     // Return location object directly (no wrapper) for cleaner hook consumption
-    return NextResponse.json(location)
+    return NextResponse.json(payload)
   } catch (error) {
     console.error('Error fetching location:', error)
     return NextResponse.json({ error: 'Failed to fetch location' }, { status: 500 })

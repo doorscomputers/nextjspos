@@ -39,7 +39,11 @@ export async function GET(request: NextRequest) {
     console.log('Returned all active locations count:', locations.length)
     console.log('Location names:', locations.map(l => l.name))
 
-    return NextResponse.json({ success: true, data: locations })
+    // Strip the RFID locationCode secret; no consumer of this reporting endpoint
+    // needs it, and it is business-wide (no RBAC filtering here).
+    const data = locations.map(({ locationCode, ...rest }) => rest)
+
+    return NextResponse.json({ success: true, data })
   } catch (error) {
     console.error('Error fetching all active locations:', error)
     return NextResponse.json({ error: 'Failed to fetch locations' }, { status: 500 })

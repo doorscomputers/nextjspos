@@ -80,7 +80,16 @@ export async function GET(request: NextRequest) {
 
     console.log('Returned locations count:', locations.length)
 
-    return NextResponse.json({ success: true, data: locations })
+    // locationCode is the RFID secret used for physical-presence checks and login.
+    // Only expose it to users who administer locations (they need it to edit).
+    const canSeeLocationCode =
+      user.permissions?.includes(PERMISSIONS.LOCATION_UPDATE) ||
+      user.permissions?.includes(PERMISSIONS.LOCATION_CREATE)
+    const data = canSeeLocationCode
+      ? locations
+      : locations.map(({ locationCode, ...rest }) => rest)
+
+    return NextResponse.json({ success: true, data })
   } catch (error) {
     console.error('Error fetching locations:', error)
     return NextResponse.json({ error: 'Failed to fetch locations' }, { status: 500 })
