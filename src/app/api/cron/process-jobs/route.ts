@@ -98,8 +98,26 @@ export async function GET(request: NextRequest) {
 // instead of waiting for Vercel Cron (which may be delayed or disabled)
 export async function POST(request: NextRequest) {
   try {
-    // POST skips the Vercel Cron ID check - used for immediate internal triggers
-    // This enables instant job processing after creation instead of waiting for cron
+    // Require a shared secret. Internal callers trigger job processing in-process
+    // via `await import('@/lib/job-processor')`, NOT via this HTTP endpoint, so this
+    // guard does not affect any in-repo caller. It only blocks anonymous external
+    // POSTs that could drain a transfer's retry budget. Same scheme as
+    // src/app/api/cron/reconciliation/route.ts.
+    if (!process.env.CRON_SECRET) {
+      console.error('[Cron] CRON_SECRET not configured in environment variables')
+      return NextResponse.json(
+        { error: 'Cron job not configured' },
+        { status: 500 }
+      )
+    }
+    if (request.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
+      console.warn('[Cron] Unauthorized POST attempt:', {
+        ip: request.headers.get('x-forwarded-for'),
+        userAgent: request.headers.get('user-agent'),
+      })
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const result = await processJobs()
     return NextResponse.json(result)
   } catch (error: any) {
