@@ -12,8 +12,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "",
+  title: "PCTS - Inventory Management System",
   description: "Modern Point of Sale and Inventory Management system with multi-tenant support and role-based access control",
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({
