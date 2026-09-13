@@ -368,7 +368,10 @@ export async function POST(request: NextRequest) {
       for (let i = 1; i <= 20; i++) {
         if (!activeLocationIds.has(i)) continue
         const qty = parseFloat(row[`loc_${i}_qty`] || 0)
-        if (qty > 0) {
+        // Keep negatives so the report shows WHERE negative stock lives
+        // (totalStock below already sums the raw value; hiding it here made
+        // "Total -2, every column 0" untraceable)
+        if (qty !== 0) {
           stockByLocation[i] = qty
         }
       }
