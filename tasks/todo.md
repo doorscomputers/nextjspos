@@ -1,68 +1,78 @@
-# AR + Supplier Payment Idempotency (2026-08-29, round 5)
+# Negative Stock — EPSON 0576 LIGHT MAGENTA (product_id 752)
 
-## Problem
+## Investigation result (2026-09-13)
 
-Payment routes are atomic (no partial writes) but have NO duplicate-submit protection.
-Flaky link: request commits server-side, response lost, cashier clicks Pay again → payment recorded twice, balance double-decremented.
+### Symptom
+Branch Stock Pivot shows Total Stock = **-2**, but every location column shows 0.
 
-## Approach — proven ExchangeDialog pattern, NOT apiPost
+### Finding 1 — the -2 is REAL and lives in Main Warehouse
+`variation_location_details` id 3005, product_id 752, location_id 1 (Main Warehouse),
+`qty_available = -2.0000`, `updated_at = 2026-03-20 07:30:42.846`.
+It is the ONLY negative stock row in the entire database (1 row, 1 product, -2 total).
 
-apiPost's deterministic key = hash(url+body). Payment bodies are small; two LEGITIMATE
-identical payments (same invoice, same amount, same day) would collide → second payment
-silently swallowed as replay. So client uses random key held in useRef:
-- generated once per submit attempt, reused across retries of that attempt
-- cleared on success and whenever payload changes (stale-key fake success guard)
-- sent as `Idempotency-Key` header; server `withIdempotency` does the rest
+### Finding 2 — root cause: duplicate transfer_out (double-send race)
+`product_history` shows transfer **TR-202603-0151** deducted stock from Main Warehouse TWICE:
 
-No offline queueing for payments (queue UX is sale-shaped; payment forms keep the
-user on the page with an explicit error instead).
+| id    | when                    | qty | balance | user    |
+|-------|-------------------------|-----|---------|---------|
+| 21197 | 2026-03-20 07:30:40.015 | -2  | 0       | Jheiron |
+| 21199 | 2026-03-20 07:30:42.846 | -2  | **-2**  | Brian   |
 
-## Todos
+Only ONE matching `transfer_in` (+2 to Main Store). So 4 units were deducted for a 2-unit transfer.
+2.8 seconds apart, two different users clicking Send on the same transfer.
 
-- [x] Server: wrap POST /api/sales/[id]/payment in withIdempotency
-- [x] Server: wrap POST /api/payments in withIdempotency
-- [x] Server: wrap POST /api/payments/batch in withIdempotency
-- [x] Client: ARPaymentCollectionModal — key per invoice (single + batch loop)
-- [x] Client: dashboard/sales/[id]/payment page — key on submit
-- [x] Client: dashboard/payments/new page — key on submit
-- [x] Client: dashboard/payments/batch page — key on submit
-- [x] tsc --noEmit on edited files, npm run build
-- [x] Adversarial review of full diff before commit (verdict: SHIP; 2 findings fixed)
-- [ ] Commit + push + verify Vercel READY
+Same pattern found on 12 other transfers (TR-202512-0101, -0166, TR-202601-0207,
+TR-202602-0232, TR-202603-0097, -0149, -0150, -0151). Always Main Warehouse,
+always Brian + Jheiron seconds apart. **Last occurrence: 2026-03-20.** None since.
 
-## Regression hazards
+### Finding 3 — the race is already fixed in current code
+`src/app/api/transfers/[id]/send/route.ts:205-210` and
+`src/lib/job-processor.ts:456-462, 597-603` both claim the transfer atomically:
+`updateMany({ where: { id, status: 'checked', stockDeducted: false } })` and bail with
+`TRANSFER_ALREADY_SENT` when `count === 0`. Second click can no longer deduct.
+=> The -2 is **leftover damage from March**, not a live bug.
 
-- withIdempotency no-key path is passthrough → old clients/tabs keep working (backwards compatible)
-- Handler bodies must NOT change — wrap only
-- withIdempotency clones response as json — all three routes return NextResponse.json, OK
-- Batch loop in ARPaymentCollectionModal needs DISTINCT key per invoice, stable across retries of the same run
-- Key must reset when user edits amount/method/reference — else fake success replay
+### Finding 4 — REAL live bug: the UI hides where negative stock is
+`src/app/api/products/branch-stock-pivot/route.ts:370-373`
 
-## Review
+```js
+const qty = parseFloat(row[`loc_${i}_qty`] || 0)
+if (qty > 0) {
+  stockByLocation[i] = qty     // <-- negative qty silently dropped
+}
+```
 
-Round 5 closes the last open money-movement idempotency gap from the 2026-08-29 network audit.
+`stockByLocation` drops any non-positive qty, so the Main Warehouse cell renders 0.
+But `totalStock` (line 389-393) sums the RAW values including the -2.
+=> Total says -2, no column shows where it came from. This makes every future
+negative-stock incident impossible to trace from the report.
 
-**Server (wrap-only, handler bodies untouched):**
-- `sales/[id]/payment`, `payments`, `payments/batch` POST wrapped in `withIdempotency`.
-  No-key requests pass through — fully backwards compatible with old tabs.
+## Todo
 
-**Client (ExchangeDialog pattern on 4 screens):**
-- Random key in useRef, generated once per submit attempt, sent as `Idempotency-Key`.
-- Key reset on: payload change (fake-success guard), success (where page stays),
-  and received 4xx/500 EXCEPT 429 (server rolled back → retry must re-execute;
-  429 means original may still be committing → key must be kept).
-- AR modal Pay-All: per-invoice key map fingerprinted on
-  id|balance|method|reference|shiftId — re-run after partial failure replays
-  committed payments, re-executes failed ones; two invoices can never share a key.
+- [x] 1. Fix display bug: change `if (qty > 0)` to `if (qty !== 0)` in
+        `src/app/api/products/branch-stock-pivot/route.ts:371` so negative stock
+        shows in its own location column. (1 line, display only, zero risk.)
+- [x] 2. Check `branch-stock-pivot/route-optimized.ts` — same line at :315 but file is NOT served by Next.js (only route.ts is a route). Left untouched. for the same `qty > 0` filter.
+- [ ] 3. (USER, in app UI) Correct the data: set product 752 / location 1 `qty_available` from -2 to 0,
+        with a `product_history` adjustment row documenting the duplicate TR-202603-0151
+        deduction. NEEDS USER APPROVAL + physical count confirmation.
 
-**Why not apiPost:** deterministic hash(url+body) key would collide for two
-legitimate identical payments (same invoice, amount, day) — second payment
-silently swallowed as replay. Random per-attempt keys avoid that class entirely.
+## Review (2026-09-13)
 
-**Verification:** tsc clean on all edited files; production build exit 0 (twice —
-before and after review fixes); adversarial subagent review verdict SHIP
-(braces/JSON contract/key lifecycle/multi-tenant/React all verified clean;
-its 2 findings — stale-error replay and missing shiftId dep — fixed pre-commit).
+**Code change (1 file, 1 logical line):** `src/app/api/products/branch-stock-pivot/route.ts:371`
+`if (qty > 0)` -> `if (qty !== 0)` so negative location quantities reach the grid.
+Frontend `getStockColor` already paints <=0 red, so the cell now shows "-2" in red with no UI change.
+`totalStock` untouched. `npx tsc --noEmit` reports 0 errors for this file.
 
-**Follow-ups still open (unchanged):** dead sales/[id]/refund route deletion,
-physical-inventory/import positional-arg bug, GRN-create pre-tx dup window.
+**Is 1+2 "the solution"?** No. They only make negative stock VISIBLE in its column.
+They do not remove the -2. Nothing in code needs fixing for the cause: the double-send race
+that created it (TR-202603-0151, 2026-03-20) is already blocked by the atomic claim in
+`send/route.ts:205` and `job-processor.ts:456,597`. Last duplicate ever recorded: 2026-03-20.
+
+**Data fix (user does this in the app, no SQL):** physical count confirmed 0.
+Inventory Corrections -> New -> Main Warehouse / EPSON 0576 LIGHT MAGENTA / physical count 0
+-> remarks "Duplicate transfer_out on TR-202603-0151 (2026-03-20 double send). Physical count 0."
+-> Approve. Approve route computes 0 - (-2) = +2 and writes the audited product_history row.
+Then click Refresh Stock on the pivot page (refreshes stock_pivot_view materialized view).
+
+**Verify after:** `SELECT count(*) FROM variation_location_details WHERE qty_available < 0` -> 0.
