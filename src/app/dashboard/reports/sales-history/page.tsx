@@ -299,9 +299,15 @@ export default function SalesHistoryPage() {
       if (response.ok) {
         const data = await response.json()
         setReportData(data)
+      } else {
+        // Surface the failure instead of leaving reportData null, which the
+        // empty state renders as "Please Select a Location" and hides the error
+        console.error("Sales history report failed:", response.status)
+        alert(`Failed to generate the report (error ${response.status}). Please try again or contact support.`)
       }
     } catch (error) {
       console.error("Failed to fetch report:", error)
+      alert("Failed to generate the report. Please check your connection and try again.")
     } finally {
       setLoading(false)
     }

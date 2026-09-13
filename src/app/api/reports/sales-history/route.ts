@@ -239,18 +239,22 @@ export async function GET(request: NextRequest) {
               },
             },
             {
-              productVariation: {
-                name: {
+              product: {
+                sku: {
                   contains: productSearch,
                   mode: 'insensitive',
                 },
               },
             },
             {
-              productVariation: {
-                sku: {
-                  contains: productSearch,
-                  mode: 'insensitive',
+              product: {
+                variations: {
+                  some: {
+                    OR: [
+                      { name: { contains: productSearch, mode: 'insensitive' } },
+                      { sku: { contains: productSearch, mode: 'insensitive' } },
+                    ],
+                  },
                 },
               },
             },
