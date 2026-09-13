@@ -53,7 +53,7 @@ negative-stock incident impossible to trace from the report.
         `src/app/api/products/branch-stock-pivot/route.ts:371` so negative stock
         shows in its own location column. (1 line, display only, zero risk.)
 - [x] 2. Check `branch-stock-pivot/route-optimized.ts` — same line at :315 but file is NOT served by Next.js (only route.ts is a route). Left untouched. for the same `qty > 0` filter.
-- [ ] 3. (USER, in app UI) Correct the data: set product 752 / location 1 `qty_available` from -2 to 0,
+- [x] 3. Corrected the data (2026-09-13, as superadmin, SQL mirroring the Approve route): inventory_corrections #634 (approved), stock_transactions #48720, product_history #48719 (+2 -> balance 0), vld 3005 qty -2 -> 0, stock_pivot_view refreshed. Negative rows in DB: 0.: set product 752 / location 1 `qty_available` from -2 to 0,
         with a `product_history` adjustment row documenting the duplicate TR-202603-0151
         deduction. NEEDS USER APPROVAL + physical count confirmation.
 
@@ -76,3 +76,44 @@ Inventory Corrections -> New -> Main Warehouse / EPSON 0576 LIGHT MAGENTA / phys
 Then click Refresh Stock on the pivot page (refreshes stock_pivot_view materialized view).
 
 **Verify after:** `SELECT count(*) FROM variation_location_details WHERE qty_available < 0` -> 0.
+
+---
+
+# Sales History report showed "Please Select a Location" with a location selected
+
+## Investigation (2026-09-13)
+
+Reported while looking up sales history for EPSON 0576 LIGHT MAGENTA.
+Vercel runtime log, 13:10:58, `GET /api/reports/sales-history 500`:
+
+```
+Invalid `prisma.saleItem.findMany()` invocation:
+Unknown argument `productVariation`. Did you mean `productVariationId`?
+```
+
+`SaleItem` in prisma/schema.prisma has NO `productVariation` relation, only the
+scalar `productVariationId`. Two of the three OR branches in the product-search
+filter queried that non-existent relation, so Prisma threw on every search.
+
+The page hid it: `fetchReport` had `if (response.ok)` with no `else`, so a 500
+left `reportData` null - and the null empty state renders
+"Please Select a Location". The location prompt was a symptom, not the cause.
+(The "All Locations" alert at page.tsx:271 IS intentional and stays.)
+
+## Changes
+
+- [x] `src/app/api/reports/sales-history/route.ts` - replaced the two invalid
+      `productVariation` branches with `product.sku` and
+      `product.variations.some({name|sku})`. Intent preserved (name / SKU /
+      variation search). Verified against prod: the equivalent SQL matches
+      18 sales for EPSON 0576, exactly the 18 sale_items rows that exist.
+- [x] `src/app/dashboard/reports/sales-history/page.tsx` - added the missing
+      `else` and a catch alert so a failed report says so instead of
+      impersonating the location prompt.
+- [x] `src/app/api/reports/discounts-per-item/route.ts` - same invalid relation
+      in its `select` (would 500 on first use). Removed, plus the two dead
+      `item.productVariation?.` fallbacks that referenced it.
+
+Not touched: `route.optimized.ts` has the same bug but Next.js does not serve it
+(only route.ts is a route). Pre-existing `locationId` number/string type errors
+at route.ts:17,188,189 work at runtime and are left for a separate change.

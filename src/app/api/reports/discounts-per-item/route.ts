@@ -78,13 +78,8 @@ export async function GET(request: NextRequest) {
             sku: true,
           },
         },
-        productVariation: {
-          select: {
-            id: true,
-            name: true,
-            sku: true,
-          },
-        },
+        // SaleItem has no productVariation relation (only productVariationId),
+        // selecting it made Prisma throw and this report return 500
       },
       orderBy: {
         discountAmount: 'desc',
@@ -115,8 +110,8 @@ export async function GET(request: NextRequest) {
 
     saleItems.forEach((item) => {
       const productId = item.productId
-      const productName = item.product?.name || item.productVariation?.name || `Product #${productId}`
-      const sku = item.product?.sku || item.productVariation?.sku || null
+      const productName = item.product?.name || `Product #${productId}`
+      const sku = item.product?.sku || null
 
       if (!productDiscounts.has(productId)) {
         productDiscounts.set(productId, {
