@@ -181,15 +181,25 @@ export async function POST(request: NextRequest) {
         ).trim()
 
         // Actual Count/Quantity variations
-        const actualCountRaw =
-          row['ACTUAL COUNT'] || row['Actual Count'] || row['actual count'] || row['ACTUAL_COUNT'] || row['ActualCount'] ||
-          row['ACTUAL'] || row['Actual'] || row['actual'] ||
-          row['PHYSICAL COUNT'] || row['Physical Count'] || row['physical count'] ||
-          row['COUNT'] || row['Count'] || row['count'] ||
-          row['QTY'] || row['Qty'] || row['qty'] ||
-          row['QUANTITY'] || row['Quantity'] || row['quantity'] ||
-          row['PHYSICAL QTY'] || row['Physical Qty'] || row['physical qty'] ||
-          row['STOCK'] || row['Stock'] || row['stock']
+        // NOTE: must not use `||` here — a numeric 0 count is a valid value, not "empty"
+        const COUNT_COLUMNS = [
+          'ACTUAL COUNT', 'Actual Count', 'actual count', 'ACTUAL_COUNT', 'ActualCount',
+          'ACTUAL', 'Actual', 'actual',
+          'PHYSICAL COUNT', 'Physical Count', 'physical count',
+          'COUNT', 'Count', 'count',
+          'QTY', 'Qty', 'qty',
+          'QUANTITY', 'Quantity', 'quantity',
+          'PHYSICAL QTY', 'Physical Qty', 'physical qty',
+          'STOCK', 'Stock', 'stock',
+        ]
+        let actualCountRaw: unknown = undefined
+        for (const col of COUNT_COLUMNS) {
+          const v = row[col]
+          if (v !== undefined && v !== null && v !== '') {
+            actualCountRaw = v
+            break
+          }
+        }
 
         // Validate required fields
         if (!branchName) {
@@ -342,6 +352,9 @@ export async function POST(request: NextRequest) {
         currentStock: number
       }> = []
       const productErrors: string[] = []
+      // Track "locationId:variationId" -> first rowNumber, to reject duplicate rows
+      // (two rows for the same item + branch would apply the difference twice)
+      const seenItemAtLocation = new Map<string, number>()
 
       for (const row of excelRows) {
         const location = locationMap.get(row.branchName.toLowerCase().trim())!
@@ -353,6 +366,14 @@ export async function POST(request: NextRequest) {
           productErrors.push(`Row ${row.rowNumber}: ITEM CODE "${row.itemCode}" not found`)
           continue
         }
+
+        const dupKey = `${location.id}:${variation.id}`
+        const firstRow = seenItemAtLocation.get(dupKey)
+        if (firstRow !== undefined) {
+          productErrors.push(`Row ${row.rowNumber}: duplicate of Row ${firstRow} (ITEM CODE "${row.itemCode}" at BRANCH "${row.branchName}")`)
+          continue
+        }
+        seenItemAtLocation.set(dupKey, row.rowNumber)
 
         // Find current stock at this location
         const locationDetail = variation.variationLocationDetails.find(ld => ld.locationId === location.id)
