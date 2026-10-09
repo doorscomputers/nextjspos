@@ -25,9 +25,12 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid sale ID' }, { status: 400 })
     }
 
+    const businessId = parseInt((session.user as any).businessId)
+
     // Find all exchanges for this sale
     const previousExchanges = await prisma.customerReturn.findMany({
       where: {
+        businessId,
         saleId: saleId,
         status: 'exchanged'
       },
@@ -43,12 +46,7 @@ export async function GET(
             quantity: true,
             unitPrice: true,
             condition: true,
-            product: {
-              select: { name: true }
-            },
-            productVariation: {
-              select: { name: true }
-            }
+            productId: true
           }
         },
         replacementSale: {
@@ -61,6 +59,16 @@ export async function GET(
       orderBy: { returnDate: 'desc' }
     })
 
+    // CustomerReturnItem has no product relation, so look up names separately
+    const productIds = [...new Set(previousExchanges.flatMap(ex => ex.items.map(item => item.productId)))]
+    const products = productIds.length > 0
+      ? await prisma.product.findMany({
+          where: { id: { in: productIds }, businessId },
+          select: { id: true, name: true }
+        })
+      : []
+    const productNames = new Map(products.map(p => [p.id, p.name]))
+
     return NextResponse.json({
       previousExchanges: previousExchanges.map(ex => ({
         id: ex.id,
@@ -70,7 +78,7 @@ export async function GET(
         totalAmount: parseFloat(ex.totalRefundAmount.toString()),
         replacementInvoice: ex.replacementSale?.invoiceNumber,
         items: ex.items.map(item => ({
-          productName: item.productVariation?.name || item.product.name,
+          productName: productNames.get(item.productId) || `Product #${item.productId}`,
           quantity: parseFloat(item.quantity.toString()),
           unitPrice: parseFloat(item.unitPrice.toString()),
           condition: item.condition
