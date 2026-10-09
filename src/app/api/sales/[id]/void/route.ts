@@ -517,6 +517,17 @@ export async function POST(
             },
             tx
           )
+
+          // Exchange-down refunds are recorded as a cash_in_out row of type
+          // 'refund' keyed by the exchange invoice number. Remove it so the
+          // shift's expected cash is restored (customer gives the cash back).
+          await tx.cashInOut.deleteMany({
+            where: {
+              shiftId: sale.shiftId,
+              type: 'refund',
+              referenceNumber: sale.invoiceNumber,
+            },
+          })
         } else {
           await decrementShiftTotalsForVoid(
             sale.shiftId,

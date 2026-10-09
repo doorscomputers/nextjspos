@@ -100,10 +100,29 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   // Previous exchanges warning
   const [previousExchanges, setPreviousExchanges] = useState<any[]>([])
 
+  // Exchange window (from business settings) + manager override when past it
+  const [exchangeWindowDays, setExchangeWindowDays] = useState(30)
+  const [daysOld, setDaysOld] = useState(0)
+  const [requiresManagerAuth, setRequiresManagerAuth] = useState(false)
+  const [managerPassword, setManagerPassword] = useState('')
+
   // Idempotency key is generated ONCE per exchange attempt and reused across
   // retries — regenerating per submit would defeat the server-side dedupe,
   // letting a timeout-then-retry create the exchange twice.
   const idempotencyKeyRef = useRef<string>('')
+
+  // Load exchange window setting when dialog opens
+  useEffect(() => {
+    if (!isOpen) return
+    fetch('/api/business/settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.business && typeof data.business.exchangeWindowDays === 'number') {
+          setExchangeWindowDays(data.business.exchangeWindowDays)
+        }
+      })
+      .catch(err => console.error('[Exchange] Error loading settings:', err))
+  }, [isOpen])
 
   // Load initial sale if provided
   useEffect(() => {
@@ -125,6 +144,9 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
       setSearchResults([])
       setAllProducts([])
       setPreviousExchanges([])
+      setDaysOld(0)
+      setRequiresManagerAuth(false)
+      setManagerPassword('')
       idempotencyKeyRef.current = ''
     }
   }, [isOpen])
@@ -135,7 +157,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   // "success" for an exchange that was never made with the new contents.
   useEffect(() => {
     idempotencyKeyRef.current = ''
-  }, [returnItems, exchangeItems, paymentMethod, exchangeReason])
+  }, [returnItems, exchangeItems, paymentMethod, exchangeReason, managerPassword])
 
   // Load products when sale is found
   useEffect(() => {
@@ -214,16 +236,22 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
           return
         }
 
-        // Validate sale age (7 days)
+        // Sale age vs. exchange window: past the window the exchange is still
+        // allowed but a manager/admin password is required (server enforces this)
         const saleDate = new Date(saleData.saleDate)
         const today = new Date()
         const daysDiff = Math.floor((today.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24))
+        const pastWindow = daysDiff > exchangeWindowDays
 
-        if (daysDiff > 7) {
-          toast.error('Exchange Period Expired', {
-            description: `This sale is ${daysDiff} days old. Only items purchased within 7 days can be exchanged.`,
+        setDaysOld(daysDiff)
+        setRequiresManagerAuth(pastWindow)
+        setManagerPassword('')
+
+        if (pastWindow) {
+          toast.warning('Past Exchange Window', {
+            description: `This sale is ${daysDiff} days old (limit: ${exchangeWindowDays} days). A manager password is required to proceed.`,
+            duration: 6000,
           })
-          return
         }
 
         setSale(saleData)
@@ -378,6 +406,10 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
       toast.error('Please provide a reason for the exchange.')
       return
     }
+    if (requiresManagerAuth && !managerPassword) {
+      toast.error('Manager password is required for sales past the exchange window.')
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -410,12 +442,20 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
           paymentMethod: totals.customerPays > 0 ? paymentMethod : undefined,
           paymentAmount: totals.customerPays,
           notes: `Exchange for original sale ${sale.invoiceNumber}`,
+          managerPassword: requiresManagerAuth ? managerPassword : undefined,
         }),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
+        // Server is the source of truth for the exchange window: if it says a
+        // manager password is needed, reveal the password field instead of failing silently
+        if (data.requiresManagerAuth) {
+          setRequiresManagerAuth(true)
+          if (typeof data.daysDifference === 'number') setDaysOld(data.daysDifference)
+          if (typeof data.exchangeWindowDays === 'number') setExchangeWindowDays(data.exchangeWindowDays)
+        }
         throw new Error(data.error || 'Failed to process exchange')
       }
 
@@ -485,8 +525,9 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                   <div className="text-sm text-blue-800 dark:text-blue-200">
                     <p className="font-medium mb-1">Exchange Policy</p>
                     <ul className="list-disc list-inside space-y-1">
-                      <li>Items must be exchanged within 7 days of purchase</li>
+                      <li>Items must be exchanged within {exchangeWindowDays} days of purchase; older sales need a manager password</li>
                       <li>Price difference will be calculated automatically</li>
+                      <li>If the customer is owed money, the cash refund is recorded against your shift automatically</li>
                     </ul>
                   </div>
                 </div>
@@ -808,7 +849,46 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                         </Select>
                       </div>
                     )}
+
+                    {totals.customerCredit > 0 && (
+                      <div className="mt-4 pt-4 border-t">
+                        <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-3 text-sm text-green-800 dark:text-green-200">
+                          <p className="font-medium">Refund to customer: ₱{totals.customerCredit.toFixed(2)} (cash)</p>
+                          <p className="text-xs mt-1">
+                            Hand this amount to the customer. It will be recorded as a refund against your open shift
+                            so your cash count stays balanced.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Manager authorization - only when sale is past the exchange window */}
+                  {requiresManagerAuth && (
+                    <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="font-medium text-amber-800 dark:text-amber-200">
+                            Sale is {daysOld} days old (limit: {exchangeWindowDays} days)
+                          </p>
+                          <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                            A manager or admin password is required to process this exchange.
+                          </p>
+                          <Label htmlFor="exchange-manager-password" className="mt-3 block">Manager Password *</Label>
+                          <Input
+                            id="exchange-manager-password"
+                            type="password"
+                            autoComplete="off"
+                            value={managerPassword}
+                            onChange={(e) => setManagerPassword(e.target.value)}
+                            placeholder="Enter manager password"
+                            className="mt-1 max-w-xs"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Exchange Reason */}
                   <div>
@@ -829,7 +909,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                     </Button>
                     <Button
                       onClick={handleSubmitExchange}
-                      disabled={submitting || !exchangeReason.trim()}
+                      disabled={submitting || !exchangeReason.trim() || (requiresManagerAuth && !managerPassword)}
                       variant="success"
                       className="flex-1"
                     >

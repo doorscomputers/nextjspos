@@ -82,7 +82,21 @@ export async function PUT(request: NextRequest) {
       barcodeProductPrice,
       barcodePackingDate,
       enableSeniorPwdDiscount,
+      exchangeWindowDays,
     } = body
+
+    // Exchange window must be a whole number of days, 0-365
+    let exchangeWindowDaysValue: number | undefined = undefined
+    if (exchangeWindowDays !== undefined && exchangeWindowDays !== null && exchangeWindowDays !== '') {
+      const parsed = Number(exchangeWindowDays)
+      if (!Number.isInteger(parsed) || parsed < 0 || parsed > 365) {
+        return NextResponse.json(
+          { error: 'Exchange window must be a whole number between 0 and 365 days' },
+          { status: 400 }
+        )
+      }
+      exchangeWindowDaysValue = parsed
+    }
 
     const business = await prisma.business.update({
       where: { id: parseInt(businessId) },
@@ -110,6 +124,7 @@ export async function PUT(request: NextRequest) {
         barcodeProductPrice: barcodeProductPrice !== undefined ? barcodeProductPrice : undefined,
         barcodePackingDate: barcodePackingDate !== undefined ? barcodePackingDate : undefined,
         enableSeniorPwdDiscount: enableSeniorPwdDiscount !== undefined ? enableSeniorPwdDiscount : undefined,
+        exchangeWindowDays: exchangeWindowDaysValue,
       },
       include: {
         currency: true,

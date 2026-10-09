@@ -377,7 +377,9 @@ export default function ExchangeInvoicePrint({
               )}
               {customerGetsCredit && (
                 <div className="text-xs mt-1 text-green-600">
-                  Credit to Customer: ₱{Math.abs(priceDifference).toFixed(2)}
+                  {exchange.cashRefundAmount > 0
+                    ? `Cash Refunded to Customer: ₱${Math.abs(priceDifference).toFixed(2)}`
+                    : `Credit to Customer: ₱${Math.abs(priceDifference).toFixed(2)}`}
                 </div>
               )}
               {priceDifference === 0 && (

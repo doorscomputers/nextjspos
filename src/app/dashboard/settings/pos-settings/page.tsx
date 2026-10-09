@@ -11,6 +11,7 @@ export default function POSSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [settings, setSettings] = useState({
     enableSeniorPwdDiscount: false,
+    exchangeWindowDays: 30,
   })
 
   useEffect(() => {
@@ -24,6 +25,7 @@ export default function POSSettingsPage() {
       if (response.ok && data.business) {
         setSettings({
           enableSeniorPwdDiscount: data.business.enableSeniorPwdDiscount || false,
+          exchangeWindowDays: data.business.exchangeWindowDays ?? 30,
         })
       }
     } catch (error) {
@@ -112,6 +114,36 @@ export default function POSSettingsPage() {
               </p>
             </div>
           )}
+
+          <div className="border-b dark:border-gray-700 pb-4 pt-2">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Exchange Settings</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Control how long after a sale items can be exchanged without manager approval
+            </p>
+          </div>
+
+          {/* Exchange Window */}
+          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div className="flex-1">
+              <label htmlFor="exchangeWindowDays" className="block text-sm font-medium text-gray-900 dark:text-white">
+                Exchange Window (days)
+              </label>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Sales older than this number of days can still be exchanged, but a manager or admin
+                password is required. Set to 0 to always require manager authorization.
+              </p>
+            </div>
+            <input
+              id="exchangeWindowDays"
+              type="number"
+              min={0}
+              max={365}
+              step={1}
+              value={settings.exchangeWindowDays}
+              onChange={(e) => setSettings({ ...settings, exchangeWindowDays: parseInt(e.target.value) || 0 })}
+              className="ml-4 w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-right"
+            />
+          </div>
 
           {/* Save Button */}
           <div className="pt-4 border-t dark:border-gray-700">
