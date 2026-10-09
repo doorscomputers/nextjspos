@@ -228,6 +228,7 @@ export default function CashInOutReport() {
   const getTypeLabel = (recordType: string) =>
     recordType === 'cash_in' ? 'Cash In'
     : recordType === 'float_pullout' ? 'Float Out'
+    : recordType === 'refund' ? 'Refund'
     : 'Cash Out'
 
   const getTypeBadge = (recordType: string) => {
@@ -242,6 +243,13 @@ export default function CashInOutReport() {
       return (
         <span className="px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">
           FLOAT OUT
+        </span>
+      )
+    }
+    if (recordType === 'refund') {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300">
+          REFUND
         </span>
       )
     }
@@ -320,6 +328,7 @@ export default function CashInOutReport() {
               <option value="cash_in">Cash In Only</option>
               <option value="cash_out">Cash Out Only</option>
               <option value="float_pullout">Float Out Only</option>
+              <option value="refund">Refunds Only</option>
             </select>
           </div>
           <div>

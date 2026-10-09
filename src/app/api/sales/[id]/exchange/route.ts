@@ -9,13 +9,16 @@ import { withIdempotency } from '@/lib/idempotency'
 import { getNextExchangeNumber } from '@/lib/atomicNumbers'
 import { incrementShiftTotalsForExchange } from '@/lib/shift-running-totals'
 import { getManilaDate } from '@/lib/timezone'
+import bcrypt from 'bcryptjs'
 
 /**
  * POST /api/sales/[id]/exchange - Process an exchange for a sale
  * Customer returns defective/damaged items and receives replacement items
- * Handles price differences (customer pays more or receives credit)
- * Cashier-only authorization (no manager password required)
- * 7-day return window from original sale date
+ * Handles price differences:
+ *   - customer pays more  → sale_payment on the exchange sale (current shift)
+ *   - customer owed money → cash_in_out row of type 'refund' on the current open shift
+ * Exchange window is Business.exchangeWindowDays (default 30). Older sales can
+ * still be exchanged with a manager/admin password (recorded on the return).
  */
 export async function POST(
   request: NextRequest,
@@ -47,7 +50,8 @@ export async function POST(
         exchangeReason,   // Reason for exchange
         paymentMethod,    // How customer pays difference (if any)
         paymentAmount,    // Amount customer pays/receives
-        notes             // Additional notes
+        notes,            // Additional notes
+        managerPassword   // Required only when sale is older than the exchange window
       } = body
 
       // Validate required fields
@@ -103,16 +107,64 @@ export async function POST(
         )
       }
 
-      // Validate 7-day return window
+      // Validate exchange window (configurable per business). Past the window the
+      // exchange is still allowed, but a manager/admin password is required.
+      const business = await prisma.business.findUnique({
+        where: { id: parseInt(user.businessId) },
+        select: { exchangeWindowDays: true },
+      })
+      const exchangeWindowDays = business?.exchangeWindowDays ?? 30
       const saleDate = new Date(sale.saleDate)
       const today = new Date()
       const daysDifference = Math.floor((today.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24))
+      const isPastWindow = daysDifference > exchangeWindowDays
 
-      if (daysDifference > 7) {
-        return NextResponse.json(
-          { error: `Exchange period expired. Only items purchased within 7 days can be exchanged. This sale is ${daysDifference} days old.` },
-          { status: 400 }
-        )
+      let authorizingManager: { id: number; username: string } | null = null
+
+      if (isPastWindow) {
+        if (!managerPassword) {
+          return NextResponse.json(
+            {
+              error: `Exchange period expired. This sale is ${daysDifference} days old (limit: ${exchangeWindowDays} days). Manager authorization is required.`,
+              requiresManagerAuth: true,
+              daysDifference,
+              exchangeWindowDays,
+            },
+            { status: 400 }
+          )
+        }
+
+        // Verify manager/admin password (same rule as refund/void)
+        const managerUsers = await prisma.user.findMany({
+          where: {
+            businessId: parseInt(user.businessId),
+            roles: {
+              some: {
+                role: {
+                  name: {
+                    in: ['Branch Manager', 'Main Branch Manager', 'Branch Admin', 'All Branch Admin', 'Super Admin'],
+                  },
+                },
+              },
+            },
+          },
+          select: { id: true, username: true, password: true },
+        })
+
+        for (const manager of managerUsers) {
+          const isMatch = await bcrypt.compare(managerPassword, manager.password)
+          if (isMatch) {
+            authorizingManager = { id: manager.id, username: manager.username }
+            break
+          }
+        }
+
+        if (!authorizingManager) {
+          return NextResponse.json(
+            { error: 'Invalid manager password. Only managers or admins can authorize exchanges past the exchange window.' },
+            { status: 403 }
+          )
+        }
       }
 
       // ========== 5-MINUTE DUPLICATE DETECTION ==========
@@ -214,24 +266,44 @@ export async function POST(
         )
       }
 
+      // Get user's current location from session (where exchange is being processed)
+      const currentLocationId = parseInt(user.currentLocationId) || sale.locationId
+
+      // Get the CURRENT cashier's open shift (not the original sale's shift)
+      // This ensures the exchange appears in the current Z Reading
+      const currentShift = await prisma.cashierShift.findFirst({
+        where: {
+          userId: parseInt(user.id),
+          status: 'open',
+          businessId: parseInt(user.businessId),
+          locationId: currentLocationId,
+        },
+        select: { id: true },
+      })
+
+      // Exchange-down on a paid sale = cash leaves the drawer. That must land on
+      // an OPEN shift so the X/Z reading expected cash is reduced.
+      const cashRefundAmount = customerGetsCredit && !isOriginalCreditSale ? Math.abs(priceDifference) : 0
+      if (cashRefundAmount > 0 && !currentShift) {
+        return NextResponse.json(
+          { error: `This exchange refunds ₱${cashRefundAmount.toFixed(2)} to the customer. You must have an open shift at this location to record the cash refund.` },
+          { status: 400 }
+        )
+      }
+
+      // Cost of the items being issued (for COGS on the exchange sale + stock ledger valuation)
+      const exchangeVariations = await prisma.productVariation.findMany({
+        where: { id: { in: exchangeItems.map((ei: any) => Number(ei.productVariationId)) } },
+        select: { id: true, purchasePrice: true },
+      })
+      const exchangeCostMap = new Map<number, number>(
+        exchangeVariations.map((v) => [v.id, parseFloat(v.purchasePrice?.toString() || '0')])
+      )
+
       // Process exchange in transaction
       const result = await prisma.$transaction(async (tx) => {
         // Generate exchange number atomically
         const exchangeNumber = await getNextExchangeNumber(parseInt(user.businessId), tx)
-
-        // Get user's current location from session (where exchange is being processed)
-        const currentLocationId = parseInt(user.currentLocationId) || sale.locationId
-
-        // Get the CURRENT cashier's open shift (not the original sale's shift)
-        // This ensures the exchange appears in the current Z Reading
-        const currentShift = await tx.cashierShift.findFirst({
-          where: {
-            userId: parseInt(user.id),
-            status: 'open',
-            businessId: parseInt(user.businessId),
-            locationId: currentLocationId,
-          },
-        })
 
         // Use current shift if available, otherwise fall back to original sale's shift
         const shiftIdForExchange = currentShift?.id || sale.shiftId
@@ -245,10 +317,15 @@ export async function POST(
             locationId: currentLocationId, // Use current location, not original sale location
             returnNumber: `RTN-${exchangeNumber}`,
             returnDate: getManilaDate(),
-            notes: exchangeReason, // Reason for exchange stored in notes field
+            notes: authorizingManager
+              ? `${exchangeReason} [Past exchange window: ${daysDifference} days old, limit ${exchangeWindowDays}. Authorized by ${authorizingManager.username}]`
+              : exchangeReason, // Reason for exchange stored in notes field
             totalRefundAmount: returnTotal, // Total refund value for the exchange
             status: 'exchanged', // Mark as exchanged, not refunded
             createdBy: parseInt(user.id), // User who processed the exchange
+            // Manager who authorized a past-window exchange (null when within window)
+            approvedBy: authorizingManager?.id ?? null,
+            approvedAt: authorizingManager ? getManilaDate() : null,
           },
         })
 
@@ -285,6 +362,7 @@ export async function POST(
             userId: parseInt(user.id),
             businessId: parseInt(user.businessId),
             userDisplayName: user.username,
+            unitCost: parseFloat(saleItem.unitCost?.toString() || '0'), // value stock coming back at original cost
             tx,
           })
 
@@ -351,9 +429,17 @@ export async function POST(
           },
         })
 
+        // Link the return record to the exchange sale (original sale <- return -> exchange sale)
+        await tx.customerReturn.update({
+          where: { id: customerReturn.id },
+          data: { replacementSaleId: exchangeSale.id },
+        })
+
         // 4. Create sale items for exchange items
         const exchangeStockUpdates = []
         for (const exchangeItem of exchangeItems) {
+          const exchangeUnitCost = exchangeCostMap.get(Number(exchangeItem.productVariationId)) ?? 0
+
           // Create sale item
           await tx.saleItem.create({
             data: {
@@ -362,7 +448,7 @@ export async function POST(
               productVariationId: exchangeItem.productVariationId,
               quantity: parseFloat(exchangeItem.quantity),
               unitPrice: parseFloat(exchangeItem.unitPrice),
-              unitCost: 0,
+              unitCost: exchangeUnitCost, // COGS for profit reports
             },
           })
 
@@ -379,6 +465,7 @@ export async function POST(
             userId: parseInt(user.id),
             userDisplayName: user.username,
             notes: `Exchange ${exchangeNumber} - Replacement for sale ${sale.invoiceNumber} at current location`,
+            unitCost: exchangeUnitCost,
             tx,
           })
 
@@ -430,6 +517,25 @@ export async function POST(
               shiftId: shiftIdForExchange, // Link to CURRENT shift for Z Reading
               collectedBy: parseInt(user.id), // User who processed exchange
               referenceNumber: `EX-${exchangeNumber}`, // Exchange reference
+            },
+          })
+        }
+
+        // 6b. Record cash refund if customer is owed money (exchange-down on a paid sale).
+        // Stored as cash_in_out type 'refund' on the CURRENT open shift so every
+        // expected-cash formula (X/Z reading, shift close) subtracts it, while
+        // expense reports (which filter type = 'cash_out') ignore it.
+        if (cashRefundAmount > 0 && currentShift) {
+          await tx.cashInOut.create({
+            data: {
+              businessId: parseInt(user.businessId),
+              shiftId: currentShift.id,
+              locationId: currentLocationId,
+              type: 'refund',
+              amount: cashRefundAmount,
+              reason: `Exchange refund ${exchangeNumber} (original sale ${sale.invoiceNumber})`,
+              referenceNumber: exchangeNumber, // used by void to reverse this row
+              createdBy: parseInt(user.id),
             },
           })
         }
@@ -496,9 +602,17 @@ export async function POST(
         description: `Processed exchange ${result.exchangeNumber} for sale ${sale.invoiceNumber}. ` +
           `Returned: ₱${returnTotal.toFixed(2)}, Exchanged: ₱${exchangeTotal.toFixed(2)}, ` +
           `${result.customerPaysMore ? `Customer paid ₱${result.priceDifference.toFixed(2)}` :
-             result.customerGetsCredit ? `Customer credit ₱${Math.abs(result.priceDifference).toFixed(2)}` :
-             'Even exchange'}`,
+             cashRefundAmount > 0 ? `Cash refunded to customer ₱${cashRefundAmount.toFixed(2)}` :
+             result.customerGetsCredit ? `Customer credit ₱${Math.abs(result.priceDifference).toFixed(2)} applied to credit sale` :
+             'Even exchange'}` +
+          (authorizingManager ? `. Past window (${daysDifference} days, limit ${exchangeWindowDays}) authorized by ${authorizingManager.username}` : ''),
         metadata: {
+          cashRefundAmount,
+          daysDifference,
+          exchangeWindowDays,
+          pastWindow: isPastWindow,
+          authorizedBy: authorizingManager?.id ?? null,
+          authorizedByUsername: authorizingManager?.username ?? null,
           originalSaleId: saleId,
           exchangeSaleId: result.exchangeSale.id,
           returnId: result.customerReturn.id,
@@ -586,6 +700,7 @@ export async function POST(
         priceDifference: result.priceDifference,
         customerPaysMore: result.customerPaysMore,
         customerGetsCredit: result.customerGetsCredit,
+        cashRefundAmount, // > 0 when cash was handed back to the customer (recorded on the shift)
         paymentAmount: actualPayment,
         paymentMethod: paymentMethod || 'cash',
         reason: exchangeReason,

@@ -120,6 +120,13 @@ export default function CashierNonSalesCashReport() {
         </span>
       )
     }
+    if (recordType === 'refund') {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300">
+          REFUND
+        </span>
+      )
+    }
     return (
       <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300">
         CASH OUT
@@ -209,6 +216,7 @@ export default function CashierNonSalesCashReport() {
               <option value="cash_in">Cash In</option>
               <option value="cash_out">Cash Out</option>
               <option value="float_pullout">Float Pullout</option>
+              <option value="refund">Refund</option>
             </select>
           </div>
 
