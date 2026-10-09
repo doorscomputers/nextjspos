@@ -50,3 +50,8 @@ Plan: C:\Users\Warenski\.claude\plans\please-see-how-you-smooth-graham.md
 
 ### Manual test checklist (production-like data)
 See plan file verification list: within window, past window (wrong + right password), exchange-down with/without open shift, exchange-up, equal value, credit sale, void exchange, X/Z expected cash, profit report COGS, cash-in-out report badge.
+
+### Follow-up (2026-10-09)
+- [x] Fixed `api/sales/[id]/previous-exchanges` (always 500: selected non-existent `product`/`productVariation` relations on CustomerReturnItem). Now selects `productId`, looks up names, scoped by businessId. Verified read-only against production data; build passes; deployed (master 72b6d13).
+- E2E on throwaway DB: 41/42 passed before this fix; the one failure was this endpoint.
+- Incident: seed accidentally ran against production, added 2,117 role_permissions rows; all deleted (backup CSV kept). Never run `db:seed`/`db:push` with the main `.env`.
