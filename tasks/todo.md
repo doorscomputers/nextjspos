@@ -55,3 +55,9 @@ See plan file verification list: within window, past window (wrong + right passw
 - [x] Fixed `api/sales/[id]/previous-exchanges` (always 500: selected non-existent `product`/`productVariation` relations on CustomerReturnItem). Now selects `productId`, looks up names, scoped by businessId. Verified read-only against production data; build passes; deployed (master 72b6d13).
 - E2E on throwaway DB: 41/42 passed before this fix; the one failure was this endpoint.
 - Incident: seed accidentally ran against production, added 2,117 role_permissions rows; all deleted (backup CSV kept). Never run `db:seed`/`db:push` with the main `.env`.
+
+### Follow-up 2 (2026-10-10) - deep exchange test on isolated local Postgres
+- [x] Fixed: item could be exchanged again after the 5-min duplicate window (double refund / phantom stock). Happened once in prod: InvBambang12_20_2025_0010 (RTN-EXC-202512-0014/0015). Data left as is.
+- [x] Fixed: line discount treated as per-unit in exchange credit (qty>1 discounted lines credited wrong). API + dialog.
+- [x] Tests: 49/49 new (multi-item, partial qty, GCash, discounts, cashier role, window edges, double-submit, void re-exchange, ledger reconciliation) + 42/42 original. Deployed master e143cb5.
+- Not tested: Exchange dialog in a real browser (automation failed to load pages). Serial numbers (not used in prod).
