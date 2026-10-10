@@ -22,6 +22,7 @@ import ExchangeDialog from '@/components/ExchangeDialog'
 import { Trash2 } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { toast } from 'sonner'
 
 export default function POSEnhancedPage() {
   const { data: session } = useSession()
