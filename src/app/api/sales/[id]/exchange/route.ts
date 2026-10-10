@@ -229,9 +229,42 @@ export async function POST(
         }
 
         // Account for discounts on return items (e.g., freebies at ₱0.00)
-        const itemDiscount = parseFloat(saleItem.discountAmount?.toString() || '0')
+        // saleItem.discountAmount is the LINE discount (POS: pct of line total / fixed × qty), so spread it per unit
+        const itemDiscount = parseFloat(saleItem.discountAmount?.toString() || '0') / itemQty
         const effectivePrice = parseFloat(saleItem.unitPrice.toString()) - itemDiscount
         returnTotal += returnQty * effectivePrice
+      }
+
+      // Block returning more than was sold on this invoice, counting earlier
+      // returns/exchanges (CustomerReturnItem has no saleItemId, so compare per variation)
+      const soldByVariation = new Map<number, number>()
+      for (const item of sale.items) {
+        soldByVariation.set(item.productVariationId, (soldByVariation.get(item.productVariationId) || 0) + parseFloat(item.quantity.toString()))
+      }
+      const priorReturnItems = await prisma.customerReturnItem.findMany({
+        where: { customerReturn: { saleId: sale.id, status: { notIn: ['rejected', 'voided'] } } },
+        select: { productVariationId: true, quantity: true },
+      })
+      const returnedByVariation = new Map<number, number>()
+      for (const item of priorReturnItems) {
+        returnedByVariation.set(item.productVariationId, (returnedByVariation.get(item.productVariationId) || 0) + parseFloat(item.quantity.toString()))
+      }
+      for (const returnItem of returnItems) {
+        const saleItem = sale.items.find((item) => item.id === returnItem.saleItemId)!
+        returnedByVariation.set(saleItem.productVariationId, (returnedByVariation.get(saleItem.productVariationId) || 0) + parseFloat(returnItem.quantity))
+      }
+      for (const [variationId, returnedQty] of returnedByVariation) {
+        const soldQty = soldByVariation.get(variationId) || 0
+        if (returnedQty > soldQty + 0.0001) {
+          const alreadyReturned = (priorReturnItems.filter((i) => i.productVariationId === variationId)
+            .reduce((sum, i) => sum + parseFloat(i.quantity.toString()), 0))
+          return NextResponse.json(
+            {
+              error: `This item was already returned/exchanged on this invoice. Sold: ${soldQty}, already returned: ${alreadyReturned}, remaining: ${Math.max(soldQty - alreadyReturned, 0)}.`,
+            },
+            { status: 400 }
+          )
+        }
       }
 
       // Calculate exchange items total
