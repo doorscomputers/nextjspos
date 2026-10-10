@@ -216,8 +216,9 @@ export default function SalesPage() {
 
   const handleReprintReceipt = async (saleId: number) => {
     try {
-      // Fetch sale details from reprint API
-      const response = await fetch(`/api/sales/${saleId}/reprint`)
+      // Fetch the full sale (same data the sale detail page prints from).
+      // The /reprint API returned a different shape the receipt can't render.
+      const response = await fetch(`/api/sales/${saleId}`)
 
       if (!response.ok) {
         throw new Error('Failed to fetch sale details')
@@ -226,7 +227,7 @@ export default function SalesPage() {
       const data = await response.json()
 
       // Open reprint modal with sale data
-      setSaleToReprint(data.receipt)
+      setSaleToReprint(data)
       setShowReprintModal(true)
 
       toast.success('Receipt loaded for reprinting')
