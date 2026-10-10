@@ -63,15 +63,22 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
   }, [isOpen, sale, propBusiness, propLocation, normalizedLocation])
 
   const handlePrint = () => {
-    // Create a new window with just the invoice content
-    const printWindow = window.open('', '_blank', 'width=800,height=600')
-    if (!printWindow) {
-      alert('Please allow popups to print')
-      return
-    }
-
     const invoiceContent = document.getElementById('invoice-content')
     if (!invoiceContent) return
+
+    // Print from a hidden iframe on this page, not a popup window. A popup's
+    // print dialog freezes the POS tab and can hide behind the main window,
+    // leaving the cashier stuck on a frozen screen. The iframe's dialog opens
+    // on this tab, so it is always visible.
+    const iframe = document.createElement('iframe')
+    iframe.setAttribute('aria-hidden', 'true')
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden'
+    document.body.appendChild(iframe)
+    const printWindow = iframe.contentWindow
+    if (!printWindow) {
+      iframe.remove()
+      return
+    }
 
     // Get the computed paper size settings
     let pageSize = ''
@@ -251,10 +258,10 @@ export default function SalesInvoicePrint({ sale, isOpen, isReprint = false, onC
 
     // Wait for content to load, then print
     setTimeout(() => {
+      printWindow.focus()
       printWindow.print()
-      setTimeout(() => {
-        printWindow.close()
-      }, 100)
+      // print() returns after the dialog closes; remove the iframe afterwards
+      setTimeout(() => iframe.remove(), 1000)
     }, 500)
   }
 
