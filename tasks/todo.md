@@ -61,3 +61,11 @@ See plan file verification list: within window, past window (wrong + right passw
 - [x] Fixed: line discount treated as per-unit in exchange credit (qty>1 discounted lines credited wrong). API + dialog.
 - [x] Tests: 49/49 new (multi-item, partial qty, GCash, discounts, cashier role, window edges, double-submit, void re-exchange, ledger reconciliation) + 42/42 original. Deployed master e143cb5.
 - Not tested: Exchange dialog in a real browser (automation failed to load pages). Serial numbers (not used in prod).
+
+### Follow-up 3 (2026-10-10) - Exchange Receipt froze POS (Bambang, EXC-202610-0003)
+- Cause (reproduced in Edge): Exchange Receipt "Print" opened a separate 800x600 popup window and called print() there. While that print dialog is open the POS tab's JavaScript is fully blocked (same-origin popup shares the event loop). If the popup goes behind the main window, the cashier sees a frozen POS with the receipt still showing, busy cursor, nothing clickable.
+- [x] `ExchangeInvoicePrint.tsx`: print from a hidden iframe on the same page instead of a popup. Print preview now opens over the POS tab itself (cannot get lost behind windows); iframe removed after printing. Same HTML/CSS, same printed layout (compared print previews old vs new on EPSON TM-T82X).
+- [x] `pos/page.tsx`: missing `import { toast } from 'sonner'` (Package load threw ReferenceError after adding items).
+- Ruled out (tested, not a cause): dialog hand-off between Exchange dialog and Receipt. Closing the receipt worked 30+/30+ rounds on old code incl. 6x CPU throttle and production-size catalog (2,100 products, 5 locations).
+- Production data checked read-only: EXC-202610-0003 saved once, one refund row of 2,819 on shift 944. No cleanup needed.
+- Note: `SalesInvoicePrint.tsx` uses the same popup print pattern (same freeze risk on sales receipts). Not changed here.
