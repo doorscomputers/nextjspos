@@ -69,3 +69,10 @@ See plan file verification list: within window, past window (wrong + right passw
 - Ruled out (tested, not a cause): dialog hand-off between Exchange dialog and Receipt. Closing the receipt worked 30+/30+ rounds on old code incl. 6x CPU throttle and production-size catalog (2,100 products, 5 locations).
 - Production data checked read-only: EXC-202610-0003 saved once, one refund row of 2,819 on shift 944. No cleanup needed.
 - Note: `SalesInvoicePrint.tsx` uses the same popup print pattern (same freeze risk on sales receipts). Not changed here.
+
+### Follow-up 4 (2026-10-10) - Sales receipt print + Sales list Re-Print
+- [x] `SalesInvoicePrint.tsx`: same freeze risk as exchange receipt (popup + print()). Now prints from hidden in-page iframe; preview opens over the current tab. Kept the `/print/sales-invoice/<invoice>` print URL (set on the iframe; page URL unchanged).
+- [x] `dashboard/sales/page.tsx` Re-Print: was always failing. `/api/sales/[id]/reprint` includes `SaleItem.productVariation` (relation does not exist) and returns a different shape than the receipt reads. Re-Print now loads `/api/sales/[id]` (same data + same view/view_own checks as the working sale detail print). `/reprint` API left as is (no callers now).
+- Tests (Playwright, Edge, isolated local Postgres): POS real sale -> receipt, Sales list Re-Print, Sale detail; each in 80mm/A4/Letter/Legal. New code 53/53: no popup, iframe cleaned up, page URL unchanged, page clickable after Close, no page errors. Old code 20/21 (Re-Print failed = bug above).
+- Printed HTML old vs new: byte-identical for all paper sizes (POS + detail). Re-Print output identical to detail page except the red REPRINT badge. Headed check: preview opens in-tab on EPSON TM-T82X 80mm.
+- Not changed, noticed in prod logs: `api/supplier-returns` POST includes `location` on SupplierReturn (no such relation) -> 500 after the return is created.
