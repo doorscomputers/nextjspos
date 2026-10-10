@@ -331,8 +331,13 @@ export async function POST(request: NextRequest) {
       include: {
         supplier: true,
         items: true,
-        location: { select: { name: true } },
       },
+    })
+
+    // SupplierReturn has no location relation, so look up the name separately
+    const location = await prisma.businessLocation.findFirst({
+      where: { id: supplierReturn.locationId, businessId: parseInt(businessId) },
+      select: { id: true, name: true },
     })
 
     // Fetch product names separately (SupplierReturnItem has no product relation)
@@ -362,7 +367,7 @@ export async function POST(request: NextRequest) {
       reason: returnReason,
       status: 'pending',
       createdBy: userDisplayName,
-      locationName: completeReturn?.location?.name || 'Unknown Location',
+      locationName: location?.name || 'Unknown Location',
       timestamp: new Date(),
       items: completeReturn?.items?.map((item: any) => ({
         productName: productMap[item.productId] || 'Unknown Product',
@@ -384,6 +389,7 @@ export async function POST(request: NextRequest) {
     // Format response with product data in items (matching [id]/route.ts pattern)
     const formattedReturn = completeReturn ? {
       ...completeReturn,
+      location: location || { id: completeReturn.locationId, name: 'Unknown Location' },
       items: completeReturn.items.map((item) => ({
         ...item,
         product: { id: item.productId, name: productMap[item.productId] || 'Unknown Product' },
