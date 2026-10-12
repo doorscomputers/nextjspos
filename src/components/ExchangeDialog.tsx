@@ -28,6 +28,7 @@ interface SaleItem {
   discountAmount?: number
   discountType?: string
   lineTotal: number
+  serialNumbers?: any
   product: {
     name: string
     sku: string
@@ -55,6 +56,7 @@ interface ReturnItem {
   quantity: number
   productName: string
   unitPrice: number
+  serialText: string
 }
 
 interface ExchangeItem {
@@ -64,7 +66,18 @@ interface ExchangeItem {
   quantity: number
   unitPrice: number
   originalPrice: number
+  serialText: string
 }
+
+// Serial numbers are typed as free text, separated by comma or new line
+const parseSerials = (text: string) =>
+  text.split(/[\n,]/).map(s => s.trim()).filter(Boolean)
+
+// Sale items store serials as [{ serialNumber }] (or plain strings)
+const serialsToText = (value: any) =>
+  Array.isArray(value)
+    ? value.map((s: any) => (typeof s === 'string' ? s : s?.serialNumber)).filter(Boolean).join(', ')
+    : ''
 
 export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSaleId }: ExchangeDialogProps) {
   const { data: session } = useSession()
@@ -321,6 +334,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
         quantity: item.quantity,
         productName: item.productVariation?.name || item.product.name,
         unitPrice: parseFloat(item.unitPrice.toString()) - parseFloat(item.discountAmount?.toString() || '0') / (parseFloat(item.quantity.toString()) || 1), // discountAmount is per line
+        serialText: serialsToText(item.serialNumbers),
       }])
     }
   }
@@ -358,6 +372,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
       quantity: 1,
       unitPrice: price,
       originalPrice: price,
+      serialText: '',
     }
 
     setExchangeItems([...exchangeItems, newItem])
@@ -378,6 +393,18 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   const handleUpdateExchangePrice = (index: number, newPrice: number) => {
     setExchangeItems(exchangeItems.map((item, i) =>
       i === index ? { ...item, unitPrice: Math.max(0, newPrice) } : item
+    ))
+  }
+
+  const handleUpdateReturnSerial = (saleItemId: number, text: string) => {
+    setReturnItems(returnItems.map(ri =>
+      ri.saleItemId === saleItemId ? { ...ri, serialText: text } : ri
+    ))
+  }
+
+  const handleUpdateExchangeSerial = (index: number, text: string) => {
+    setExchangeItems(exchangeItems.map((item, i) =>
+      i === index ? { ...item, serialText: text } : item
     ))
   }
 
@@ -431,12 +458,14 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
           returnItems: returnItems.map(ri => ({
             saleItemId: ri.saleItemId,
             quantity: ri.quantity,
+            serialNumbers: parseSerials(ri.serialText),
           })),
           exchangeItems: exchangeItems.map(ei => ({
             productId: ei.productId,
             productVariationId: ei.productVariationId,
             quantity: ei.quantity,
             unitPrice: ei.unitPrice,
+            serialNumbers: parseSerials(ei.serialText),
           })),
           exchangeReason,
           paymentMethod: totals.customerPays > 0 ? paymentMethod : undefined,
@@ -647,6 +676,16 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                               </div>
                             )}
                           </div>
+                          {isSelected && (
+                            <Input
+                              placeholder="Serial No. (optional, separate with comma)"
+                              value={returnItem.serialText}
+                              onChange={(e) => handleUpdateReturnSerial(item.id, e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                              maxLength={2000}
+                              className="mt-2 h-8 text-sm"
+                            />
+                          )}
                         </div>
                       )
                     })}
@@ -766,6 +805,13 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                             </span>
                           )}
                         </div>
+                        <Input
+                          placeholder="Serial No. (optional, separate with comma)"
+                          value={item.serialText}
+                          onChange={(e) => handleUpdateExchangeSerial(index, e.target.value)}
+                          maxLength={2000}
+                          className="mb-2 h-8 text-sm"
+                        />
                         {/* Quantity controls - bottom row */}
                         <div className="flex items-center justify-center gap-2 pt-2 border-t">
                           <Button
