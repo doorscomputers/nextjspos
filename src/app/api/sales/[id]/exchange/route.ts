@@ -11,6 +11,17 @@ import { incrementShiftTotalsForExchange } from '@/lib/shift-running-totals'
 import { getManilaDate } from '@/lib/timezone'
 import bcrypt from 'bcryptjs'
 
+// Optional typed serial numbers (for tracing returned/replacement units).
+// Bad input is ignored, never an error.
+function cleanSerials(value: any): string[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((s) => typeof s === 'string')
+    .map((s) => s.trim().slice(0, 191))
+    .filter(Boolean)
+    .slice(0, 100)
+}
+
 /**
  * POST /api/sales/[id]/exchange - Process an exchange for a sale
  * Customer returns defective/damaged items and receives replacement items
@@ -368,6 +379,7 @@ export async function POST(
           if (!saleItem) continue
 
           const returnQty = parseFloat(returnItem.quantity)
+          const returnSerials = cleanSerials(returnItem.serialNumbers)
 
           // Create return item record
           await tx.customerReturnItem.create({
@@ -377,6 +389,7 @@ export async function POST(
               productVariationId: saleItem.productVariationId,
               quantity: returnQty,
               unitPrice: parseFloat(saleItem.unitPrice.toString()),
+              serialNumbers: returnSerials.length ? returnSerials.map((s) => ({ serialNumber: s })) : undefined,
               condition: 'resellable', // Default condition for exchange items
               returnType: 'replacement', // Exchange = replacement, not refund
             },
@@ -472,6 +485,7 @@ export async function POST(
         const exchangeStockUpdates = []
         for (const exchangeItem of exchangeItems) {
           const exchangeUnitCost = exchangeCostMap.get(Number(exchangeItem.productVariationId)) ?? 0
+          const issuedSerials = cleanSerials(exchangeItem.serialNumbers)
 
           // Create sale item
           await tx.saleItem.create({
@@ -482,6 +496,7 @@ export async function POST(
               quantity: parseFloat(exchangeItem.quantity),
               unitPrice: parseFloat(exchangeItem.unitPrice),
               unitCost: exchangeUnitCost, // COGS for profit reports
+              serialNumbers: issuedSerials.length ? issuedSerials.map((s) => ({ serialNumber: s })) : undefined,
             },
           })
 
@@ -690,6 +705,7 @@ export async function POST(
             sku: variation?.sku || product?.sku || '',
             quantity: returnItem.quantity,
             unitPrice: parseFloat(saleItem.unitPrice.toString()),
+            serialNumbers: cleanSerials(returnItem.serialNumbers),
           }
         })
       ).then(items => items.filter(Boolean))
@@ -718,6 +734,7 @@ export async function POST(
             sku: variation?.sku || product?.sku || '',
             quantity: exchangeItem.quantity,
             unitPrice: parseFloat(exchangeItem.unitPrice),
+            serialNumbers: cleanSerials(exchangeItem.serialNumbers),
           }
         })
       )

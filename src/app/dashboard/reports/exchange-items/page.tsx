@@ -71,7 +71,9 @@ export default function ExchangeItemsReport() {
     const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
     const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0)
 
-    const formatDate = (date: Date) => date.toISOString().split('T')[0]
+    // Local date (toISOString is UTC and shifts Manila dates back a day)
+    const formatDate = (date: Date) =>
+      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 
     switch (preset) {
       case 'today':
@@ -95,7 +97,7 @@ export default function ExchangeItemsReport() {
     setDateRangePreset(preset)
     if (preset !== 'custom') {
       const { startDate, endDate } = getDateRange(preset)
-      setFilters({ ...filters, startDate, endDate })
+      setFilters(f => ({ ...f, startDate, endDate }))
     }
   }
 
@@ -103,7 +105,7 @@ export default function ExchangeItemsReport() {
     fetchLocations()
     // Set default date range to this month
     const { startDate, endDate } = getDateRange('this_month')
-    setFilters({ ...filters, startDate, endDate })
+    setFilters(f => ({ ...f, startDate, endDate }))
   }, [])
 
   useEffect(() => {
@@ -219,7 +221,7 @@ export default function ExchangeItemsReport() {
               <label className="text-sm font-medium">Start Date</label>
               <DateBox
                 value={filters.startDate}
-                onValueChanged={(e) => setFilters({ ...filters, startDate: e.value })}
+                onValueChanged={(e) => setFilters(f => ({ ...f, startDate: e.value }))}
                 type="date"
                 displayFormat="yyyy-MM-dd"
                 disabled={dateRangePreset !== 'custom'}
@@ -231,7 +233,7 @@ export default function ExchangeItemsReport() {
               <label className="text-sm font-medium">End Date</label>
               <DateBox
                 value={filters.endDate}
-                onValueChanged={(e) => setFilters({ ...filters, endDate: e.value })}
+                onValueChanged={(e) => setFilters(f => ({ ...f, endDate: e.value }))}
                 type="date"
                 displayFormat="yyyy-MM-dd"
                 disabled={dateRangePreset !== 'custom'}
@@ -246,7 +248,7 @@ export default function ExchangeItemsReport() {
                 displayExpr="name"
                 valueExpr="id"
                 value={filters.locationId}
-                onValueChanged={(e) => setFilters({ ...filters, locationId: e.value })}
+                onValueChanged={(e) => setFilters(f => ({ ...f, locationId: e.value }))}
                 placeholder="All Locations"
               />
             </div>
@@ -345,6 +347,7 @@ export default function ExchangeItemsReport() {
             <Column caption="RETURNED ITEM" alignment="center">
               <Column dataField="returnedProductName" caption="Product Name" width={200} />
               <Column dataField="returnedVariationName" caption="Variation" width={120} />
+              <Column dataField="returnedSerialNumbers" caption="Serial No." width={160} />
               <Column dataField="returnedQuantity" caption="Qty" dataType="number" width={80} alignment="right" />
               <Column dataField="returnedUnitPrice" caption="Unit Price" dataType="number" format="#,##0.00" width={100} alignment="right" />
               <Column dataField="returnItemTotal" caption="Total" dataType="number" format="#,##0.00" width={120} alignment="right" />
@@ -354,6 +357,7 @@ export default function ExchangeItemsReport() {
             <Column caption="REPLACEMENT ITEM" alignment="center">
               <Column dataField="exchangedProductName" caption="Product Name" width={200} />
               <Column dataField="exchangedVariationName" caption="Variation" width={120} />
+              <Column dataField="exchangedSerialNumbers" caption="Serial No." width={160} />
               <Column dataField="exchangedQuantity" caption="Qty" dataType="number" width={80} alignment="right" />
               <Column dataField="exchangedUnitPrice" caption="Unit Price" dataType="number" format="#,##0.00" width={100} alignment="right" />
               <Column dataField="exchangeItemTotal" caption="Total" dataType="number" format="#,##0.00" width={120} alignment="right" />

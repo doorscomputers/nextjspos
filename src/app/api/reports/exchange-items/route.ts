@@ -75,41 +75,10 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
-        location: {
-          select: {
-            name: true,
-          },
-        },
-        items: {
-          include: {
-            product: {
-              select: {
-                name: true,
-              },
-            },
-            productVariation: {
-              select: {
-                name: true,
-              },
-            },
-          },
-        },
+        items: true,
         replacementSale: {
           include: {
-            items: {
-              include: {
-                product: {
-                  select: {
-                    name: true,
-                  },
-                },
-                productVariation: {
-                  select: {
-                    name: true,
-                  },
-                },
-              },
-            },
+            items: true,
             payments: {
               select: {
                 paymentMethod: true,
@@ -123,6 +92,34 @@ export async function GET(request: NextRequest) {
         returnDate: 'desc',
       },
     })
+
+    // Return items / sale items / returns have no product, variation or location
+    // relations in the schema, so look the names up separately
+    const productIds = new Set<number>()
+    const variationIds = new Set<number>()
+    exchanges.forEach((ex) => {
+      ;[...ex.items, ...(ex.replacementSale?.items || [])].forEach((it) => {
+        productIds.add(it.productId)
+        variationIds.add(it.productVariationId)
+      })
+    })
+    const [products, variations, locations] = await Promise.all([
+      prisma.product.findMany({ where: { id: { in: [...productIds] } }, select: { id: true, name: true } }),
+      prisma.productVariation.findMany({ where: { id: { in: [...variationIds] } }, select: { id: true, name: true } }),
+      prisma.businessLocation.findMany({
+        where: { id: { in: [...new Set(exchanges.map((ex) => ex.locationId))] }, businessId: whereClause.businessId },
+        select: { id: true, name: true },
+      }),
+    ])
+    const productName = new Map(products.map((p) => [p.id, p.name]))
+    const variationName = new Map(variations.map((v) => [v.id, v.name]))
+    const locationName = new Map(locations.map((l) => [l.id, l.name]))
+
+    // Serials are stored as [{ serialNumber }] (or plain strings); show as "SN1, SN2"
+    const serialsText = (value: any) =>
+      Array.isArray(value)
+        ? value.map((s: any) => (typeof s === 'string' ? s : s?.serialNumber)).filter(Boolean).join(', ')
+        : ''
 
     // Transform data to flat structure for the report
     const reportData: any[] = []
@@ -160,23 +157,25 @@ export async function GET(request: NextRequest) {
           exchangeNumber: exchange.returnNumber,
           exchangeDate: exchange.returnDate,
           originalInvoice: exchange.sale.invoiceNumber,
-          locationName: exchange.location.name,
+          locationName: locationName.get(exchange.locationId) || 'N/A',
           customerName: exchange.customer?.name || 'Walk-in',
           exchangeReason: exchange.notes || 'N/A',
 
           // Returned item
-          returnedProductName: returnedItem?.product.name || 'N/A',
-          returnedVariationName: returnedItem?.productVariation?.name || 'N/A',
+          returnedProductName: (returnedItem && productName.get(returnedItem.productId)) || 'N/A',
+          returnedVariationName: (returnedItem && variationName.get(returnedItem.productVariationId)) || 'N/A',
           returnedQuantity: returnedItem ? parseFloat(returnedItem.quantity.toString()) : 0,
           returnedUnitPrice: returnedItem ? parseFloat(returnedItem.unitPrice.toString()) : 0,
           returnItemTotal,
+          returnedSerialNumbers: serialsText(returnedItem?.serialNumbers),
 
           // Exchanged item
-          exchangedProductName: exchangedItem?.product.name || 'N/A',
-          exchangedVariationName: exchangedItem?.productVariation?.name || 'N/A',
+          exchangedProductName: (exchangedItem && productName.get(exchangedItem.productId)) || 'N/A',
+          exchangedVariationName: (exchangedItem && variationName.get(exchangedItem.productVariationId)) || 'N/A',
           exchangedQuantity: exchangedItem ? parseFloat(exchangedItem.quantity.toString()) : 0,
           exchangedUnitPrice: exchangedItem ? parseFloat(exchangedItem.unitPrice.toString()) : 0,
           exchangeItemTotal,
+          exchangedSerialNumbers: serialsText(exchangedItem?.serialNumbers),
 
           // Difference
           priceDifference,
