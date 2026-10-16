@@ -49,6 +49,7 @@ interface Sale {
   }
   items: SaleItem[]
   totalAmount: number
+  status?: string
 }
 
 interface ReturnItem {
@@ -118,6 +119,11 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   const [daysOld, setDaysOld] = useState(0)
   const [requiresManagerAuth, setRequiresManagerAuth] = useState(false)
   const [managerPassword, setManagerPassword] = useState('')
+  const [authMethod, setAuthMethod] = useState<'password' | 'rfid'>('password')
+  const [rfidLocationCode, setRfidLocationCode] = useState('')
+  const authValue = authMethod === 'rfid' ? rfidLocationCode.trim() : managerPassword
+  // Charge (unpaid) sale: the server adjusts the customer's balance, no cash changes hands
+  const isCreditSale = sale?.status === 'pending'
 
   // Idempotency key is generated ONCE per exchange attempt and reused across
   // retries — regenerating per submit would defeat the server-side dedupe,
@@ -160,6 +166,8 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
       setDaysOld(0)
       setRequiresManagerAuth(false)
       setManagerPassword('')
+      setAuthMethod('password')
+      setRfidLocationCode('')
       idempotencyKeyRef.current = ''
     }
   }, [isOpen])
@@ -170,7 +178,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
   // "success" for an exchange that was never made with the new contents.
   useEffect(() => {
     idempotencyKeyRef.current = ''
-  }, [returnItems, exchangeItems, paymentMethod, exchangeReason, managerPassword])
+  }, [returnItems, exchangeItems, paymentMethod, exchangeReason, managerPassword, authMethod, rfidLocationCode])
 
   // Load products when sale is found
   useEffect(() => {
@@ -259,13 +267,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
         setDaysOld(daysDiff)
         setRequiresManagerAuth(pastWindow)
         setManagerPassword('')
-
-        if (pastWindow) {
-          toast.warning('Past Exchange Window', {
-            description: `This sale is ${daysDiff} days old (limit: ${exchangeWindowDays} days). A manager password is required to proceed.`,
-            duration: 6000,
-          })
-        }
+        setRfidLocationCode('')
 
         setSale(saleData)
 
@@ -433,8 +435,8 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
       toast.error('Please provide a reason for the exchange.')
       return
     }
-    if (requiresManagerAuth && !managerPassword) {
-      toast.error('Manager password is required for sales past the exchange window.')
+    if (requiresManagerAuth && !authValue) {
+      toast.error('Please enter a manager password or scan the location code.')
       return
     }
 
@@ -468,10 +470,13 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
             serialNumbers: parseSerials(ei.serialText),
           })),
           exchangeReason,
-          paymentMethod: totals.customerPays > 0 ? paymentMethod : undefined,
-          paymentAmount: totals.customerPays,
+          // Charge (unpaid) sale: difference goes to the customer's balance, no payment now
+          paymentMethod: totals.customerPays > 0 && !isCreditSale ? paymentMethod : undefined,
+          paymentAmount: isCreditSale ? 0 : totals.customerPays,
           notes: `Exchange for original sale ${sale.invoiceNumber}`,
-          managerPassword: requiresManagerAuth ? managerPassword : undefined,
+          authMethod: requiresManagerAuth ? authMethod : undefined,
+          managerPassword: requiresManagerAuth && authMethod === 'password' ? managerPassword : undefined,
+          rfidLocationCode: requiresManagerAuth && authMethod === 'rfid' ? rfidLocationCode.trim() : undefined,
         }),
       })
 
@@ -554,7 +559,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                   <div className="text-sm text-blue-800 dark:text-blue-200">
                     <p className="font-medium mb-1">Exchange Policy</p>
                     <ul className="list-disc list-inside space-y-1">
-                      <li>Items must be exchanged within {exchangeWindowDays} days of purchase; older sales need a manager password</li>
+                      <li>Exchanges within {exchangeWindowDays} days of purchase need no approval; older sales need a manager password or the location code</li>
                       <li>Price difference will be calculated automatically</li>
                       <li>If the customer is owed money, the cash refund is recorded against your shift automatically</li>
                     </ul>
@@ -878,7 +883,22 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                       </div>
                     </div>
 
-                    {totals.customerPays > 0 && (
+                    {isCreditSale && (totals.customerPays > 0 || totals.customerCredit > 0) && (
+                      <div className="mt-4 pt-4 border-t">
+                        <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-sm text-blue-800 dark:text-blue-200">
+                          <p className="font-medium">
+                            {totals.customerPays > 0
+                              ? `₱${totals.customerPays.toFixed(2)} will be added to the customer's charge balance`
+                              : `₱${totals.customerCredit.toFixed(2)} will be deducted from the customer's charge balance`}
+                          </p>
+                          <p className="text-xs mt-1">
+                            This is a charge (unpaid) invoice. Do not {totals.customerPays > 0 ? 'collect' : 'give'} any cash.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {totals.customerPays > 0 && !isCreditSale && (
                       <div className="mt-4 pt-4 border-t">
                         <Label>Payment Method (Customer must pay ₱{totals.customerPays.toFixed(2)})</Label>
                         <Select value={paymentMethod} onValueChange={setPaymentMethod}>
@@ -896,13 +916,16 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                       </div>
                     )}
 
-                    {totals.customerCredit > 0 && (
+                    {totals.customerCredit > 0 && !isCreditSale && (
                       <div className="mt-4 pt-4 border-t">
                         <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-3 text-sm text-green-800 dark:text-green-200">
                           <p className="font-medium">Refund to customer: ₱{totals.customerCredit.toFixed(2)} (cash)</p>
                           <p className="text-xs mt-1">
                             Hand this amount to the customer. It will be recorded as a refund against your open shift
                             so your cash count stays balanced.
+                          </p>
+                          <p className="text-xs mt-1 font-semibold">
+                            Do not add a separate Cash Out for this refund.
                           </p>
                         </div>
                       </div>
@@ -911,26 +934,68 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
 
                   {/* Manager authorization - only when sale is past the exchange window */}
                   {requiresManagerAuth && (
-                    <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                    <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                       <div className="flex items-start gap-2">
-                        <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                        <AlertCircle className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
-                          <p className="font-medium text-amber-800 dark:text-amber-200">
-                            Sale is {daysOld} days old (limit: {exchangeWindowDays} days)
+                          <p className="font-medium text-blue-800 dark:text-blue-200">
+                            This sale is {daysOld} days old (over {exchangeWindowDays} days)
                           </p>
-                          <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                            A manager or admin password is required to process this exchange.
+                          <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                            You can still process it. Ask a manager to enter their password, or scan the location code.
                           </p>
-                          <Label htmlFor="exchange-manager-password" className="mt-3 block">Manager Password *</Label>
-                          <Input
-                            id="exchange-manager-password"
-                            type="password"
-                            autoComplete="off"
-                            value={managerPassword}
-                            onChange={(e) => setManagerPassword(e.target.value)}
-                            placeholder="Enter manager password"
-                            className="mt-1 max-w-xs"
-                          />
+
+                          <div className="flex flex-wrap gap-x-6 gap-y-2 mt-3">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                value="password"
+                                checked={authMethod === 'password'}
+                                onChange={() => setAuthMethod('password')}
+                                className="w-4 h-4 text-blue-600"
+                              />
+                              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Manager Password</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="radio"
+                                value="rfid"
+                                checked={authMethod === 'rfid'}
+                                onChange={() => setAuthMethod('rfid')}
+                                className="w-4 h-4 text-blue-600"
+                              />
+                              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">Location Code</span>
+                            </label>
+                          </div>
+
+                          {authMethod === 'password' ? (
+                            <>
+                              <Label htmlFor="exchange-manager-password" className="mt-3 block">Manager Password *</Label>
+                              <Input
+                                id="exchange-manager-password"
+                                type="password"
+                                autoComplete="off"
+                                value={managerPassword}
+                                onChange={(e) => setManagerPassword(e.target.value)}
+                                placeholder="Enter manager password"
+                                className="mt-1 max-w-xs"
+                              />
+                            </>
+                          ) : (
+                            <>
+                              <Label htmlFor="exchange-location-code" className="mt-3 block">Location Code *</Label>
+                              <Input
+                                id="exchange-location-code"
+                                type="password"
+                                autoComplete="off"
+                                value={rfidLocationCode}
+                                onChange={(e) => setRfidLocationCode(e.target.value)}
+                                placeholder="Scan or enter location code"
+                                className="mt-1 max-w-xs font-mono tracking-wider"
+                                autoFocus
+                              />
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -955,7 +1020,7 @@ export default function ExchangeDialog({ isOpen, onClose, onSuccess, initialSale
                     </Button>
                     <Button
                       onClick={handleSubmitExchange}
-                      disabled={submitting || !exchangeReason.trim() || (requiresManagerAuth && !managerPassword)}
+                      disabled={submitting || !exchangeReason.trim() || (requiresManagerAuth && !authValue)}
                       variant="success"
                       className="flex-1"
                     >

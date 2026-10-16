@@ -62,7 +62,9 @@ export async function POST(
         paymentMethod,    // How customer pays difference (if any)
         paymentAmount,    // Amount customer pays/receives
         notes,            // Additional notes
-        managerPassword   // Required only when sale is older than the exchange window
+        managerPassword,  // Required only when sale is older than the exchange window
+        authMethod = 'password', // 'password' | 'rfid' (location code), same choice as Void
+        rfidLocationCode
       } = body
 
       // Validate required fields
@@ -131,12 +133,46 @@ export async function POST(
       const isPastWindow = daysDifference > exchangeWindowDays
 
       let authorizingManager: { id: number; username: string } | null = null
+      let authDescription = ''
 
-      if (isPastWindow) {
+      if (isPastWindow && authMethod === 'rfid') {
+        // Location code (RFID tag) - same check as Void: any active location code of this business
+        if (!rfidLocationCode || !String(rfidLocationCode).trim()) {
+          return NextResponse.json(
+            {
+              error: `This sale is ${daysDifference} days old (limit: ${exchangeWindowDays} days). Enter a manager password or scan the location code.`,
+              requiresManagerAuth: true,
+              daysDifference,
+              exchangeWindowDays,
+            },
+            { status: 400 }
+          )
+        }
+
+        const location = await prisma.businessLocation.findFirst({
+          where: {
+            businessId: parseInt(user.businessId),
+            locationCode: String(rfidLocationCode).trim(),
+            isActive: true,
+          },
+          select: { name: true, locationCode: true },
+        })
+
+        if (!location) {
+          return NextResponse.json(
+            { error: 'Invalid location code. Please scan a valid location tag.' },
+            { status: 403 }
+          )
+        }
+
+        // Current user is the authorizer (they scanned the location tag)
+        authorizingManager = { id: parseInt(user.id), username: user.username }
+        authDescription = `location code ${location.locationCode} (${location.name}) scanned by ${user.username}`
+      } else if (isPastWindow) {
         if (!managerPassword) {
           return NextResponse.json(
             {
-              error: `Exchange period expired. This sale is ${daysDifference} days old (limit: ${exchangeWindowDays} days). Manager authorization is required.`,
+              error: `This sale is ${daysDifference} days old (limit: ${exchangeWindowDays} days). Enter a manager password or scan the location code.`,
               requiresManagerAuth: true,
               daysDifference,
               exchangeWindowDays,
@@ -176,6 +212,7 @@ export async function POST(
             { status: 403 }
           )
         }
+        authDescription = authorizingManager.username
       }
 
       // ========== 5-MINUTE DUPLICATE DETECTION ==========
@@ -297,7 +334,8 @@ export async function POST(
       const expectedPayment = customerPaysMore
         ? (isOriginalCreditSale ? 0 : priceDifference)
         : 0
-      const actualPayment = parseFloat(paymentAmount || 0)
+      // Credit sale: no cash at exchange time (difference adjusts the original sale's AR)
+      const actualPayment = isOriginalCreditSale ? 0 : parseFloat(paymentAmount || 0)
 
       if (customerPaysMore && Math.abs(actualPayment - expectedPayment) > 0.01) {
         return NextResponse.json(
@@ -310,27 +348,39 @@ export async function POST(
         )
       }
 
-      // Get user's current location from session (where exchange is being processed)
-      const currentLocationId = parseInt(user.currentLocationId) || sale.locationId
-
       // Get the CURRENT cashier's open shift (not the original sale's shift)
-      // This ensures the exchange appears in the current Z Reading
+      // This ensures the exchange appears in the current Z Reading.
+      // The session has no currentLocationId, so the cashier's open shift tells
+      // where the exchange is being processed (a cashier has one open shift at a time).
       const currentShift = await prisma.cashierShift.findFirst({
         where: {
           userId: parseInt(user.id),
           status: 'open',
           businessId: parseInt(user.businessId),
-          locationId: currentLocationId,
         },
-        select: { id: true },
+        select: { id: true, locationId: true },
+        orderBy: { openedAt: 'desc' },
       })
+
+      // Where the exchange is processed: the cashier's shift location, else the original sale's location
+      const currentLocationId = currentShift?.locationId ?? sale.locationId
 
       // Exchange-down on a paid sale = cash leaves the drawer. That must land on
       // an OPEN shift so the X/Z reading expected cash is reduced.
       const cashRefundAmount = customerGetsCredit && !isOriginalCreditSale ? Math.abs(priceDifference) : 0
       if (cashRefundAmount > 0 && !currentShift) {
         return NextResponse.json(
-          { error: `This exchange refunds ₱${cashRefundAmount.toFixed(2)} to the customer. You must have an open shift at this location to record the cash refund.` },
+          { error: `This exchange refunds ₱${cashRefundAmount.toFixed(2)} to the customer. You must have an open shift to record the cash refund.` },
+          { status: 400 }
+        )
+      }
+
+      // Exchange-up on a paid sale = money comes in. It must land on the cashier's
+      // OPEN shift, otherwise it falls back to the original sale's (old) shift and
+      // today's drawer counts over.
+      if (customerPaysMore && !isOriginalCreditSale && !currentShift) {
+        return NextResponse.json(
+          { error: `The customer pays ₱${priceDifference.toFixed(2)} for this exchange. You must have an open shift to record the payment.` },
           { status: 400 }
         )
       }
@@ -362,7 +412,7 @@ export async function POST(
             returnNumber: `RTN-${exchangeNumber}`,
             returnDate: getManilaDate(),
             notes: authorizingManager
-              ? `${exchangeReason} [Past exchange window: ${daysDifference} days old, limit ${exchangeWindowDays}. Authorized by ${authorizingManager.username}]`
+              ? `${exchangeReason} [Past exchange window: ${daysDifference} days old, limit ${exchangeWindowDays}. Authorized by ${authDescription}]`
               : exchangeReason, // Reason for exchange stored in notes field
             totalRefundAmount: returnTotal, // Total refund value for the exchange
             status: 'exchanged', // Mark as exchanged, not refunded
@@ -653,7 +703,7 @@ export async function POST(
              cashRefundAmount > 0 ? `Cash refunded to customer ₱${cashRefundAmount.toFixed(2)}` :
              result.customerGetsCredit ? `Customer credit ₱${Math.abs(result.priceDifference).toFixed(2)} applied to credit sale` :
              'Even exchange'}` +
-          (authorizingManager ? `. Past window (${daysDifference} days, limit ${exchangeWindowDays}) authorized by ${authorizingManager.username}` : ''),
+          (authorizingManager ? `. Past window (${daysDifference} days, limit ${exchangeWindowDays}) authorized by ${authDescription}` : ''),
         metadata: {
           cashRefundAmount,
           daysDifference,
@@ -661,6 +711,8 @@ export async function POST(
           pastWindow: isPastWindow,
           authorizedBy: authorizingManager?.id ?? null,
           authorizedByUsername: authorizingManager?.username ?? null,
+          authMethod: isPastWindow ? authMethod : null,
+          authDescription: authDescription || null,
           originalSaleId: saleId,
           exchangeSaleId: result.exchangeSale.id,
           returnId: result.customerReturn.id,

@@ -101,3 +101,22 @@ Cashier swapped HP OMNIBOOK 5 16-BC1015AU (SN CND5360V3J, 64,990) for HP OMNIBOO
 #### Review
 - Verified (read-only): Main Store qty var 1846 = 1, var 1862 = 0; ledger rows customer_return +1 / sale -1; return linked to EXC sale; shift 960 still closed, ending/system cash 86,072, 0 over/short, running totals unchanged; row 2519 unchanged.
 - Trade-off: 1,000 stays a Cash Out (shows in Cash In/Out report, not tied to EXC number). Voiding EXC-202610-0007 later will not touch that cash row.
+
+### Follow-up 8 (2026-10-16) - Exchange: calmer UI, location-code override, cash-count gaps
+Cashier skipped an exchange fearing the old 7-day block. Prod check: all 4 exchanges since Oct 9 (2 refunds, 2 pay-more) closed 0 over/short.
+- [x] Route: past-window override accepts manager password OR location code (same check as Void)
+- [x] Route: charge (pending) sale -> payment forced 0 (was "Payment amount mismatch" error when customer pays more)
+- [x] Route: customer pays more with no open shift at location -> blocked (was posting cash to original sale's old shift = OVER)
+- [x] Dialog: no yellow past-window toast; calm blue note with password / location code choice
+- [x] Dialog: charge sale texts (added to / deducted from balance, no cash); refund box "do not add a separate Cash Out"
+- [x] Route: exchange location = cashier's open shift location (session never had currentLocationId -> always used original sale's branch; cross-branch refund/pay-more found no shift). Prod: no user has 2 open shifts, 0 cross-branch exchanges so far.
+- [x] tsc clean for both files; `npm run build` ok
+- [x] Local DB scenario tests (throwaway local DB, real API + NextAuth login): 16/16 PASS
+
+#### Review
+- Paid sale: refund -> refund row on cashier shift; pay-more cash -> payment on shift (+runningCashSales); gcash -> runningGcashSales only. Shift close with independently computed cash: over 0 / short 0 (2 shifts, incl. cross-branch + charge + past-window cases).
+- Charge sale: pay-more now 200 (was 400 mismatch), balance +diff, no cash; exchange-down balance -diff, no refund row.
+- Past 30 days: no auth -> asks; wrong location code 403; valid location code 200 (approver = cashier, code in notes); manager password 200.
+- No open shift: pay-more and refund both blocked, nothing written.
+- Cross-branch (sale at A, cashier shift at B): cash + stock land on B shift/location, A untouched.
+- Not changed: serial-number movement rows still use the original sale location (only when serial IDs are sent; unused in prod). Location code check same as Void (any active code of the business, case-sensitive). Seed lacks stock DB functions (update_inventory_with_history etc.) - test DB needed database/functions/*.sql.
