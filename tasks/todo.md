@@ -90,3 +90,14 @@ See plan file verification list: within window, past window (wrong + right passw
 - [x] Exchange Items report API: was ALWAYS 500 (includes `location` on CustomerReturn, `product`/`productVariation` on CustomerReturnItem, `productVariation` on SaleItem - none exist). Names now looked up separately. Added returned/replacement serial fields.
 - [x] Exchange Items report page: "Serial No." column under Returned and Replacement (searchable, exported). Fixed date filters: handlers spread stale `filters` so DevExtreme's programmatic valueChanged wiped Start Date -> error toast on load and Generate failed; "This Month" used UTC (started Sep 30). Now functional state updates + local date.
 - Tests (isolated local Postgres + Edge): exchange regression 49/49; serial API/report 22/22 (old report route 500 reproduced, new 200); UI 13/13 (prefill, receipt SN lines, DB rows, report columns, search by serial, old saved grid layout still shows new columns); report filters 8/8 (old code: error toast + missing startDate reproduced). `npm run build` ok.
+
+### Follow-up 7 (2026-10-16) - Back-encode missed exchange InvMain09_30_2026_0008 (JONELIX GACAD)
+Cashier swapped HP OMNIBOOK 5 16-BC1015AU (SN CND5360V3J, 64,990) for HP OMNIBOOK 5 16-AF1062TU (SN CND528007B, 63,990, paper SI 91688) and gave 1,000 cash back, but recorded only a Cash Out (cash_in_out 2519, shift 960). Likely cause: staff still followed the old hard 7-day block (removed 2026-10-09; window is now 30 days, sale was 16 days old).
+- [x] One-off script `scripts/exchange-InvMain09_30_2026_0008.ts` mirroring `api/sales/[id]/exchange` (dry-run default, `--commit` writes)
+- [x] Dry-run reviewed with user
+- [x] Shift 960 was closed (balanced, 86,072) before commit -> per user: closed shift untouched. No refund row, Cash Out 2519 kept, shift totals not changed, EXC sale shiftId null (X/Z re-query sales by shift_id).
+- [x] Committed run: RTN-EXC-202610-0007 (return id 96) + EXC-202610-0007 (sale id 18518, total 0), +1 var 1846 / -1 var 1862 at Main Store, audit log.
+
+#### Review
+- Verified (read-only): Main Store qty var 1846 = 1, var 1862 = 0; ledger rows customer_return +1 / sale -1; return linked to EXC sale; shift 960 still closed, ending/system cash 86,072, 0 over/short, running totals unchanged; row 2519 unchanged.
+- Trade-off: 1,000 stays a Cash Out (shows in Cash In/Out report, not tied to EXC number). Voiding EXC-202610-0007 later will not touch that cash row.
