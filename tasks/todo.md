@@ -120,3 +120,16 @@ Cashier skipped an exchange fearing the old 7-day block. Prod check: all 4 excha
 - No open shift: pay-more and refund both blocked, nothing written.
 - Cross-branch (sale at A, cashier shift at B): cash + stock land on B shift/location, A untouched.
 - Not changed: serial-number movement rows still use the original sale location (only when serial IDs are sent; unused in prod). Location code check same as Void (any active code of the business, case-sensitive). Seed lacks stock DB functions (update_inventory_with_history etc.) - test DB needed database/functions/*.sql.
+
+---
+
+# Batch Price Increase — TP-Link / Mercusys (2026-10-17)
+
+- [x] Read `batch price increase.xlsx` (62 rows, `Item Name` / `New SRP`)
+- [x] Read-only preview vs Supabase: 62/62 exact name matches, 0 missing, 0 duplicates
+- [x] Script `scripts/update-prices-batch-increase-oct2026.ts` (copy of update-prices-from-excel.ts, match by name, per-product transaction)
+- [x] Ran on online Supabase: 62 updated across 4 active locations
+- [x] Verified: all variation + location prices = new SRP (62/62)
+
+## Review
+Updated `productVariation.sellingPrice` and `variationLocationDetails.sellingPrice` for 62 networking items. 2 rows were already at target (MA12N 319, TAPO C501GW 4490). Largest jumps: OC200 4490→9090, ER605 2390→5190, LS105G 800→1790. No app code changed.
