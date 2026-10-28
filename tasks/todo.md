@@ -133,3 +133,16 @@ Cashier skipped an exchange fearing the old 7-day block. Prod check: all 4 excha
 
 ## Review
 Updated `productVariation.sellingPrice` and `variationLocationDetails.sellingPrice` for 62 networking items. 2 rows were already at target (MA12N 319, TAPO C501GW 4490). Largest jumps: OC200 4490→9090, ER605 2390→5190, LS105G 800→1790. No app code changed.
+
+---
+
+# Price Adjustment — Laptops (2026-10-28)
+
+- [x] Read `PriceAdjustment.xlsx` (49 rows, no header: col A = product name, col B = new SRP)
+- [x] Read-only preview vs Supabase: 49/49 exact name matches (R9UE row needs whitespace normalize), 0 duplicates
+- [x] Script `scripts/update-prices-adjustment-oct28-2026.ts` (copy of oct2026 batch script; header-less sheet + collapse spaces)
+- [x] Ran on online Supabase: 49 updated across 4 active locations
+- [x] Verified: all variation + location prices = new SRP (49/49)
+
+## Review
+Updated `productVariation.sellingPrice` and `variationLocationDetails.sellingPrice` for 49 laptops (Acer, HP, Asus, Gigabyte, MSI, Dell). 1 row already at target (MSI PRESTIGE 79995). Decreases: ACER AN16S 124999→105999, HP AG0034AU, HP VICTUS S1557AX, ASUS UX5304MA, MSI CYBORG. Largest increase: DELL 15 5250 59990→89990 (confirmed by user). No app code changed.
