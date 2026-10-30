@@ -146,3 +146,43 @@ Updated `productVariation.sellingPrice` and `variationLocationDetails.sellingPri
 
 ## Review
 Updated `productVariation.sellingPrice` and `variationLocationDetails.sellingPrice` for 49 laptops (Acer, HP, Asus, Gigabyte, MSI, Dell). 1 row already at target (MSI PRESTIGE 79995). Decreases: ACER AN16S 124999→105999, HP AG0034AU, HP VICTUS S1557AX, ASUS UX5304MA, MSI CYBORG. Largest increase: DELL 15 5250 59990→89990 (confirmed by user). No app code changed.
+
+---
+
+## Data fix 2026-10-29 — InvBambang10_29_2026_0010 missed canvass discount (online Supabase)
+
+ASUS V3607VM-RP045W line: cashier forgot line discount 3,000 "PRICE DURING CANVASS"
+(canvass 81,995; SRP rose to 84,995). Customer LGU BAMBANG MEO, charge invoice, unpaid.
+
+- [x] Snapshot before (rollback values)
+  - sales 19257: subtotal 270815, discount_amount 0, total_amount 270815, paid 0
+  - sale_items 33471: unit_price 84995, discount_type/value null, discount_amount 0, remark null
+  - sale_payments 19971 (credit AR placeholder): 270815
+  - cashier_shifts 1001 (open): running_net_sales 285974, running_total_discounts 0, running_other_discount 0
+  - sales_personnel 3: total_revenue 23182917.55 (live, changes with sales)
+- [x] Apply line discount 3000 + remark, sale discount 3000 / total 267815, credit row 267815
+- [x] Shift 1001: net −3000, total & other discount +3000; sales personnel 3 revenue −3000
+- [x] Audit log row
+- [x] Verify
+
+### Review
+Applied as one guarded DO-block transaction on Supabase (every UPDATE required exactly 1 row
+matching the old values, else full rollback). First attempt failed on table name `businesses`
+(actual `business`) and rolled back cleanly — verified no partial write — then re-run succeeded.
+Result: ASUS line 84,995 − 3,000 = 81,995 (fixed, "PRICE DURING CANVASS"); sale subtotal 270,815,
+discount 3,000, total/AR 267,815 = sum of item nets; credit row 267,815; shift 1001 net −3,000,
+total/other discount +3,000 (gross/VAT unchanged, same as POS); sales personnel 3 −3,000;
+audit_logs 41449. No code change.
+
+---
+
+# Price Adjustment — Vention + Tecno (2026-10-30)
+
+- [x] Read `PRICEADJUSTMENTVENTION.xlsx` (6 rows) + `PRICEADJUSTMENTTECNO.xlsx` (11 rows); no header, col A = name, col B = new SRP
+- [x] Read-only preview vs Supabase: 17/17 exact name matches, 0 duplicates
+- [x] Script `scripts/update-prices-adjustment-oct30-2026.ts` (copy of oct28 script; loops both files)
+- [x] Run on online Supabase (variation + all active location prices)
+- [x] Verify all 17 prices = new SRP
+
+## Review
+Updated `productVariation.sellingPrice` and `variationLocationDetails.sellingPrice` for 17 items (6 Vention, 11 Tecno) across 4 active locations. Verified 17/17 (68 location rows). 1 row already at target (SPARK GO3 4/64 TITANIUM GREY 6499). All increases; largest: VENTION ALIBL HDMI 10M 450→799, ALIBN 15M 790→1239, VAS-A16-B300 140→219 (confirmed by user). No app code changed.
