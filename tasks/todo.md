@@ -1,3 +1,21 @@
+# Fix: Shift cannot be closed after an interrupted close (Tuguegarao SHIFT-20261104-0001)
+
+Plan: C:\Users\Warenski\.claude\plans\i-am-trying-to-warm-backus.md
+
+## Todo
+- [x] Close route: clear the leftover Z reading + closing cash count on a still-open shift instead of blocking it (`src/app/api/shifts/[id]/close/route.ts`)
+- [x] Close page: show the error inside the authorization box, next to the Confirm button (`src/app/dashboard/shifts/close/page.tsx`)
+- [x] Type-check: no new errors (only errors that already existed)
+- [ ] After deploy: cashier clicks Confirm & Close Shift again for shift 1015; then confirm it is closed and location 4 zCounter = 332
+
+## Review
+- Root cause: on Nov 4 the close of shift 1015 saved its cash count (id 1021) and Z reading #332 (id 8568), but the final transaction (zCounter++ and status=closed) never finished. Every retry was then rejected with "already has a Z Reading", and that error showed at the top of the page, out of view.
+- Fix: an open shift that has a Z reading can only come from an interrupted close, because only the close route writes Z readings. The route now deletes those leftovers and retries. zCounter was never incremented, so the Z number stays #332.
+- No manual database changes, per the user's decision.
+- Known issue, not changed: page.tsx:495 refers to `updatedZReading` outside the block where it is defined, so the localStorage recovery cache is never saved.
+
+---
+
 # Exchange: configurable window + manager override + auto cash refund
 
 Plan: C:\Users\Warenski\.claude\plans\please-see-how-you-smooth-graham.md

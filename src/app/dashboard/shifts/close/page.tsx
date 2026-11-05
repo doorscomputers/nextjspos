@@ -1098,6 +1098,12 @@ export default function CloseShiftPage() {
                   </div>
                 )}
 
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+
                 <div className="flex gap-3">
                   <Button
                     type="button"

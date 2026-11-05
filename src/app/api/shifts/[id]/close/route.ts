@@ -186,7 +186,11 @@ export async function POST(
       return NextResponse.json({ error: 'Shift is already closed' }, { status: 400 })
     }
 
-    // BIR COMPLIANCE: Check if shift already has a Z reading (prevent duplicates)
+    // BIR COMPLIANCE: Prevent duplicate Z readings.
+    // The shift is still open here, so any existing Z reading is a leftover from an
+    // interrupted close (Z reading saved but final transaction never committed, so the
+    // location zCounter was never incremented). Clear it so this retry can complete
+    // and regenerate the same Z number.
     const existingZReading = await prisma.cashierShiftReading.findFirst({
       where: {
         shiftId: shift.id,
@@ -195,15 +199,9 @@ export async function POST(
     })
 
     if (existingZReading) {
-      console.log('❌ ERROR: Shift already has a Z Reading')
-      return NextResponse.json({
-        error: 'BIR Compliance Error: This shift already has a Z Reading. Cannot generate duplicate Z Readings.',
-        existingReading: {
-          readingNumber: existingZReading.readingNumber,
-          readingTime: existingZReading.readingTime,
-          reportNumber: existingZReading.reportNumber,
-        }
-      }, { status: 400 })
+      console.warn(`[ShiftClose] ⚠️ Clearing leftover Z Reading #${existingZReading.readingNumber} from interrupted close of shift ${shift.id}`)
+      await prisma.cashierShiftReading.deleteMany({ where: { shiftId: shift.id, type: 'Z' } })
+      await prisma.cashDenomination.deleteMany({ where: { shiftId: shift.id, countType: 'closing' } })
     }
 
     // 🚀 OPTIMIZATION: Calculate system cash from RUNNING TOTALS (no query needed)
