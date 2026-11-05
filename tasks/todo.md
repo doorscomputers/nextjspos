@@ -6,7 +6,7 @@ Plan: C:\Users\Warenski\.claude\plans\i-am-trying-to-warm-backus.md
 - [x] Close route: clear the leftover Z reading + closing cash count on a still-open shift instead of blocking it (`src/app/api/shifts/[id]/close/route.ts`)
 - [x] Close page: show the error inside the authorization box, next to the Confirm button (`src/app/dashboard/shifts/close/page.tsx`)
 - [x] Type-check: no new errors (only errors that already existed)
-- [ ] After deploy: cashier clicks Confirm & Close Shift again for shift 1015; then confirm it is closed and location 4 zCounter = 332
+- [x] After deploy: shift 1015 closed (Nov 5, 8:44 AM), balanced ₱28,974, single Z #332, location 4 zCounter = 332
 
 ## Review
 - Root cause: on Nov 4 the close of shift 1015 saved its cash count (id 1021) and Z reading #332 (id 8568), but the final transaction (zCounter++ and status=closed) never finished. Every retry was then rejected with "already has a Z Reading", and that error showed at the top of the page, out of view.
