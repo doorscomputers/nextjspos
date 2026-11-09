@@ -6,6 +6,9 @@ import { PERMISSIONS } from '@/lib/rbac'
 import { createAuditLog, AuditAction, EntityType } from '@/lib/auditLog'
 import { addStock, StockTransactionType } from '@/lib/stockOperations'
 
+// Thrown inside the transaction when another request already finalized the transfer
+const TRANSFER_ALREADY_FINAL = 'TRANSFER_ALREADY_FINAL'
+
 /**
  * POST /api/transfers/[id]/cancel
  * Cancel transfer at any stage (except completed)
@@ -86,6 +89,21 @@ export async function POST(
 
     // CRITICAL: Use transaction to ensure atomicity
     const result = await prisma.$transaction(async (tx) => {
+      // ATOMIC CLAIM: flip the status first so a retry of the same cancel
+      // (lost response, double click) cannot restore stock twice. Only the
+      // request that wins this UPDATE proceeds; a loser sees count 0.
+      const claim = await tx.stockTransfer.updateMany({
+        where: {
+          id: transferId,
+          businessId,
+          status: { notIn: ['completed', 'cancelled'] },
+        },
+        data: { status: 'cancelled' },
+      })
+      if (claim.count === 0) {
+        throw new Error(TRANSFER_ALREADY_FINAL)
+      }
+
       // If stock was already deducted (in_transit or later), restore it
       if (transfer.stockDeducted) {
         for (const item of transfer.items) {
@@ -174,6 +192,12 @@ export async function POST(
       transfer: result,
     })
   } catch (error: any) {
+    if (error?.message === TRANSFER_ALREADY_FINAL) {
+      return NextResponse.json(
+        { error: 'Transfer was already cancelled or completed' },
+        { status: 409 }
+      )
+    }
     console.error('Error cancelling transfer:', error)
     return NextResponse.json(
       { error: 'Failed to cancel transfer', details: error.message },

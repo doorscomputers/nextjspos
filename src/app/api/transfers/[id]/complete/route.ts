@@ -10,6 +10,9 @@ import { addStock, StockTransactionType } from '@/lib/stockOperations'
 // DISABLED: All alerts (Jan 26, 2026) - Focus on inventory monitoring
 // import { sendTransferAcceptanceAlert } from '@/lib/alert-service'
 
+// Thrown inside the transaction when another request already finalized the transfer
+const TRANSFER_ALREADY_FINAL = 'TRANSFER_ALREADY_FINAL'
+
 /**
  * POST /api/transfers/[id]/complete
  * Complete transfer - CRITICAL: Adds stock to destination location
@@ -168,6 +171,21 @@ export async function POST(
 
     // CRITICAL: Use transaction to ensure atomicity
     const result = await prisma.$transaction(async (tx) => {
+      // ATOMIC CLAIM: flip the status first so a retry of the same complete
+      // (lost response, double click) cannot add stock twice. Only the request
+      // that wins this UPDATE proceeds; a loser sees count 0.
+      const claim = await tx.stockTransfer.updateMany({
+        where: {
+          id: transferId,
+          businessId: businessIdNumber,
+          status: { in: allValidStatuses },
+        },
+        data: { status: 'completed' },
+      })
+      if (claim.count === 0) {
+        throw new Error(TRANSFER_ALREADY_FINAL)
+      }
+
       // For each item, add stock to destination location
       for (const item of transfer.items) {
         const productId = item.productId
@@ -314,6 +332,12 @@ export async function POST(
       // inventoryImpact disabled for speed
     })
   } catch (error: any) {
+    if (error?.message === TRANSFER_ALREADY_FINAL) {
+      return NextResponse.json(
+        { error: 'Transfer was already completed or cancelled' },
+        { status: 409 }
+      )
+    }
     console.error('Error completing transfer:', error)
     return NextResponse.json(
       { error: 'Failed to complete transfer', details: error.message },

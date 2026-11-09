@@ -114,6 +114,16 @@ export async function POST(request: NextRequest) {
 
         const result = await prisma.$transaction(
           async (tx) => {
+            // ATOMIC CLAIM: flip the status first so a retry of the same approve
+            // (lost response, double click) cannot adjust stock twice.
+            const claim = await tx.inventoryCorrection.updateMany({
+              where: { id: correction.id, status: { not: 'approved' } },
+              data: { status: 'approved' },
+            })
+            if (claim.count === 0) {
+              throw new Error('This inventory correction has already been approved')
+            }
+
             const currentQty = await getCurrentStock({
               productVariationId: correction.productVariationId,
               locationId: correction.locationId,
