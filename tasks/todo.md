@@ -1,3 +1,42 @@
+# Intermittent-internet hardening (2026-11-10)
+
+Investigation found no duplicate sales/stock moves in production data, but these code gaps could still
+produce one on a slow or dropping connection. All fixes are minimal and server-side safe.
+
+## Plan
+- [x] `vercel.json`: move functions to `sin1` (same region as the Supabase DB) and give every route a
+      time limit longer than its own DB transaction (default 30s → 90s; sales 120s; shift close 300s;
+      transfers send/complete/receive, exchange, GRN approve, PI imports 150s). Remove entries that would
+      now lower a route below the new default.
+- [x] `src/lib/idempotency.ts`: run the handler at most once. If recording the result fails, retry the
+      record (not the handler) and return the handler's response. Raise stale-key threshold to 180s
+      (must exceed the longest idempotent function lifetime, now 150s).
+- [x] `src/lib/client/apiClient.ts`: update the comment that references the old 90s threshold.
+- [x] `transfers/[id]/cancel` and `transfers/[id]/complete`: atomic status claim inside the transaction
+      (a retry can no longer restore/add stock twice). Return 409 when the claim loses.
+- [x] `inventory-corrections/[id]/approve` and `bulk-approve`: atomic status claim inside the transaction.
+- [x] POS Cash In / Cash Out: send through `apiPost` (60s timeout, Idempotency-Key, retries) instead of
+      bare `fetch` with no timeout. No offline queueing for cash movements.
+- [x] Verify build (`next build`; `tsc` has ~2,500 pre-existing errors, none on changed lines), commit, push.
+- [x] Set `CRON_SECRET` in Vercel (production/preview/development, sensitive). Active from the next deploy.
+
+## Review
+- Root cause of the remaining duplicate risk was a mismatch: Vercel killed API functions at 30s while the
+  sales transaction alone was allowed 60s (shift close 600s), and the server sat in Virginia talking to a
+  Singapore database (~200ms per query). A sale killed after COMMIT but before the idempotency key was
+  marked completed could be replayed as a new sale after the stale-key window.
+- Fixes keep the existing architecture: time limits now cover every transaction budget, functions run
+  next to the database, the idempotency wrapper can no longer run a handler twice, and the four
+  unguarded stock-moving routes got the same atomic "claim the status row first" pattern the
+  transfer send/receive jobs already use.
+- Invariant to keep in future: `STALE_KEY_THRESHOLD_MS` (180s) must stay greater than the largest
+  `maxDuration` of any route wrapped in `withIdempotency` (currently 150s).
+- Not changed: the client 60s timeout / retry chain (still tops out ~71s, below the 180s threshold).
+- Office follow-ups cleared by the owner: back-to-back SERVICE FEE sales are real; HIKSEMI "Enable
+  Stock" toggling is deliberate (free items).
+
+---
+
 # Audit: Main Dashboard values vs online database (2026-11-09, "This Year")
 
 Read-only SQL against Supabase (business 1). API: `src/app/api/dashboard/stats-cached/route.ts`. No code changed yet.
