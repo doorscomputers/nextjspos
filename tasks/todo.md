@@ -1,3 +1,40 @@
+# Audit: Main Dashboard values vs online database (2026-11-09, "This Year")
+
+Read-only SQL against Supabase (business 1). API: `src/app/api/dashboard/stats-cached/route.ts`. No code changed yet.
+
+| Card | Dashboard | Database | Verdict |
+|---|---|---|---|
+| Net Sales (Σ total_amount, completed+pending) | 163,418,014.90 | 163,418,014.90 | ✅ |
+| Gross Sales (Σ subtotal) | 165,737,197.25 | 165,737,197.25 (= line items exactly) | ✅ (see note 5) |
+| A/R Outstanding | 12,925,082.52 | 12,925,082.52 this year / **13,344,814.60 all-time** | ⚠️ hides ₱419,732 from older sales |
+| Purchases (Period) | 119,475,590.69 | 119,475,590.69 (271 received POs) | ✅ |
+| A/P Outstanding | 144,951,092.66 | 144,951,092.66 (339 of 351 AP rows unpaid) | ✅ math / ⚠️ no supplier payments recorded |
+| Total Sell Return | 470,530.00 | 469,240 exchanged + **1,290 voided** | ❌ counts a voided return |
+| Total Supplier Return | 1,370,280.55 | 1,312,280.55 approved + **58,000 pending** | ❌ counts pending returns |
+| Expense | 0.00 | only 2 *draft* expenses (₱3,000) | ✅ |
+| Low Stock "10 product(s)" | 10 | **56 active products** (276 location rows) | ❌ list capped at 10 |
+| Payments to Suppliers "Sum" | 1,135,215.55 | 1,312,280.55 (11 payments) | ❌ sum of first 10 rows only |
+| Pending Transfers | 1 | 1 (in_transit) | ✅ |
+| Sales by Location (Today) | Main 1.156M / Bambang 129.9K / Tugue 61.9K | same | ✅ |
+
+## Notes
+1. Timezone: sale_date is stored as a date (00:00 UTC), so Manila day/year boundaries line up. No gap.
+2. sales.paid_amount = Σ sale_payments for all 19,561 sales. A/P balance = total − paid for all rows.
+3. A/P Outstanding has no date filter (includes 80 POs from 2025, ₱26.8M) — that's why it is bigger than this year's purchases. Correct by design.
+4. Only supplier-return credits exist as supplier payments. If the office pays suppliers outside the system, ₱145M is overstated in real life (process issue, not code).
+5. 421 sales have total_amount higher than (items − discount), Σ ₱396,141 (e.g. InvBambang01_10_2026_0004: items 31,729, charged/paid 39,999). Customers paid the higher total, so Net Sales is right, but Gross is ₱396K lower than real and Gross−Net ≠ discounts. Needs office confirmation of what these are.
+6. Low-stock query also includes deleted/inactive products (70 of 346 rows).
+
+## Proposed fixes (awaiting approval)
+- [ ] Sell Return: exclude `status = 'voided'`
+- [ ] Supplier Return: count only `status = 'approved'` (confirm: should pending count?)
+- [ ] Low Stock: report real count; skip deleted/inactive products
+- [ ] Payments to Suppliers: Sum from all payments in the period, not just loaded rows
+- [ ] A/R Outstanding: drop the date filter (match A/P), or relabel "A/R (Period)"
+- [ ] Ask office about note 4 and note 5
+
+---
+
 # Fix: Shift cannot be closed after an interrupted close (Tuguegarao SHIFT-20261104-0001)
 
 Plan: C:\Users\Warenski\.claude\plans\i-am-trying-to-warm-backus.md
