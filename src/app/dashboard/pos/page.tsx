@@ -1532,26 +1532,18 @@ export default function POSEnhancedPage() {
     cashIOSubmittingRef.current = true
     setCashIOSubmitting(true)
     try {
-      const res = await fetch('/api/cash/in', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      // apiPost adds a 60s timeout, an Idempotency-Key and retries, so a lost
+      // reply on a flaky link cannot hang the button or double-record the cash.
+      // Cash movements are never queued for later replay.
+      await apiPost(
+        '/api/cash/in',
+        {
           shiftId: currentShift.id,
           amount: parseFloat(cashIOAmount),
           remarks: cashIORemarks,
-        }),
-      })
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}))
-        console.error('[Cash In Error]:', {
-          status: res.status,
-          statusText: res.statusText,
-          errorData
-        })
-        const errorMessage = errorData.error || errorData.details || `HTTP ${res.status}: ${res.statusText}`
-        throw new Error(errorMessage)
-      }
+        },
+        { queueIfOffline: false }
+      )
 
       alert(`Cash In recorded: ₱${parseFloat(cashIOAmount).toFixed(2)}`)
       setShowCashInDialog(false)
@@ -1627,27 +1619,19 @@ export default function POSEnhancedPage() {
     cashIOSubmittingRef.current = true
     setCashIOSubmitting(true)
     try {
-      const res = await fetch('/api/cash/out', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      // apiPost adds a 60s timeout, an Idempotency-Key and retries, so a lost
+      // reply on a flaky link cannot hang the button or double-record the cash.
+      // Cash movements are never queued for later replay.
+      await apiPost(
+        '/api/cash/out',
+        {
           shiftId: currentShift.id,
           amount: parseFloat(cashIOAmount),
           remarks: cashIORemarks,
           isFloatPullout,
-        }),
-      })
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}))
-        console.error(`[${label} Error]:`, {
-          status: res.status,
-          statusText: res.statusText,
-          errorData
-        })
-        const errorMessage = errorData.error || errorData.details || `HTTP ${res.status}: ${res.statusText}`
-        throw new Error(errorMessage)
-      }
+        },
+        { queueIfOffline: false }
+      )
 
       alert(`${label} recorded: ₱${parseFloat(cashIOAmount).toFixed(2)}`)
       setShowCashOutDialog(false)

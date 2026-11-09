@@ -57,6 +57,11 @@ export async function withIdempotency(
     })
   }
 
+  // Set the moment handler() is invoked. The fail-safe in the outer catch must
+  // never run the handler a second time: a sale that already committed would
+  // be committed again (duplicate sale).
+  let handlerStarted = false
+
   try {
     // STEP 1: Try to CLAIM the idempotency key atomically
     // This is the critical fix - only ONE request can succeed here
@@ -73,20 +78,28 @@ export async function withIdempotency(
       const keyId = claimed[0].id
       console.log(`[Idempotency] Claimed key ${idempotencyKey.slice(0, 20)}... (id=${keyId})`)
 
+      let response: NextResponse
       try {
         // Process the actual request
-        const response = await handler()
-        const responseClone = response.clone()
-        const responseBody = await responseClone.json()
-
-        // STEP 3: Update with response (mark as completed)
+        handlerStarted = true
+        response = await handler()
+      } catch (handlerError) {
+        // Handler threw before producing a response - mark as failed so retries can try again
+        console.error(`[Idempotency] Handler failed for key ${idempotencyKey.slice(0, 20)}...:`, handlerError)
         await prisma.$executeRaw`
-          UPDATE idempotency_keys
-          SET status = 'completed',
-              response_status = ${response.status},
-              response_body = ${JSON.stringify(responseBody)}
-          WHERE id = ${keyId}
+          UPDATE idempotency_keys SET status = 'failed' WHERE id = ${keyId}
         `
+        throw handlerError
+      }
+
+      // STEP 3: Record the response (mark as completed).
+      // The handler has finished - whatever happens below, it must NOT run again.
+      // If recording fails (DB blip right after the sale committed), retry the
+      // UPDATE a few times, then return the handler's response as-is rather than
+      // re-running the handler.
+      try {
+        const responseBody = await response.clone().json()
+        await markKeyCompleted(keyId, response.status, JSON.stringify(responseBody))
 
         console.log(`[Idempotency] Completed key ${idempotencyKey.slice(0, 20)}... status=${response.status}`)
 
@@ -97,13 +110,9 @@ export async function withIdempotency(
             'X-Idempotent-Created': 'true',
           },
         })
-      } catch (handlerError) {
-        // Handler failed - mark as failed so retries can try again
-        console.error(`[Idempotency] Handler failed for key ${idempotencyKey.slice(0, 20)}...:`, handlerError)
-        await prisma.$executeRaw`
-          UPDATE idempotency_keys SET status = 'failed' WHERE id = ${keyId}
-        `
-        throw handlerError
+      } catch (recordError) {
+        console.error(`[Idempotency] Could not record completion for key ${idempotencyKey.slice(0, 20)}..., returning handler response as-is:`, recordError)
+        return response
       }
     }
 
@@ -129,12 +138,13 @@ export async function withIdempotency(
       const record = existing[0]
 
       if (record.status === 'processing') {
-        // Check if key is stale - likely orphaned from failed UPDATE.
-        // Must exceed the longest handler transaction budget (sales tx timeout
-        // is 60s): deleting the key while the original request is still mid-
-        // transaction lets a retry re-run the handler → duplicate sale.
+        // Check if key is stale - likely orphaned from a killed function.
+        // Must exceed the longest lifetime of any idempotent function
+        // (vercel.json maxDuration: sales 120s, transfers/GRN/exchange 150s):
+        // deleting the key while the original request is still alive lets a
+        // retry re-run the handler → duplicate sale.
         const keyAge = Date.now() - new Date(record.created_at).getTime()
-        const STALE_KEY_THRESHOLD_MS = 90000 // 90 seconds
+        const STALE_KEY_THRESHOLD_MS = 180000 // 180 seconds
 
         if (keyAge > STALE_KEY_THRESHOLD_MS) {
           // Key is stale - the original request likely completed but UPDATE failed
@@ -241,9 +251,43 @@ export async function withIdempotency(
     return await handler()
   } catch (error) {
     console.error('[Idempotency] Middleware error:', error)
-    // On middleware error, fail-safe by processing the request normally
-    // This ensures the system remains functional even if idempotency has issues
+    if (handlerStarted) {
+      // The handler already ran (and may have committed). Never run it again -
+      // report the failure so the client can check and retry safely.
+      return NextResponse.json(
+        {
+          error: 'Request failed',
+          details: error instanceof Error ? error.message : String(error),
+        },
+        { status: 500 }
+      )
+    }
+    // Middleware failed before the handler ran (e.g. the claim INSERT failed).
+    // Fail-safe by processing the request normally so the system stays usable.
     return await handler()
+  }
+}
+
+// Retry delays for recording a completed key. Total extra wait ≤ 5s, well
+// inside every route's maxDuration budget.
+const COMPLETION_RETRY_DELAYS_MS = [500, 1500, 3000]
+
+async function markKeyCompleted(keyId: number, responseStatus: number, responseBody: string): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await prisma.$executeRaw`
+        UPDATE idempotency_keys
+        SET status = 'completed',
+            response_status = ${responseStatus},
+            response_body = ${responseBody}
+        WHERE id = ${keyId}
+      `
+      return
+    } catch (error) {
+      if (attempt >= COMPLETION_RETRY_DELAYS_MS.length) throw error
+      console.warn(`[Idempotency] Completion UPDATE failed (attempt ${attempt + 1}), retrying in ${COMPLETION_RETRY_DELAYS_MS[attempt]}ms`)
+      await new Promise((resolve) => setTimeout(resolve, COMPLETION_RETRY_DELAYS_MS[attempt]))
+    }
   }
 }
 

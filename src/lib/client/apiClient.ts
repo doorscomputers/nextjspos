@@ -363,10 +363,10 @@ interface ApiClientOptions extends RequestInit {
 //
 // A longer replay timeout was tried so very slow links could finish, and it is
 // NOT safe: the server deletes a 'processing' idempotency key older than
-// STALE_KEY_THRESHOLD_MS (90s, src/lib/idempotency.ts) and re-runs the handler.
+// STALE_KEY_THRESHOLD_MS (180s, src/lib/idempotency.ts) and re-runs the handler.
 // With a 60s timeout the retry chain tops out at ~71s on the 429 path and never
-// crosses that line; at 85s the third attempt lands at ~91s and can re-run a
-// sale whose original handler is still alive -- a duplicate.
+// crosses that line; a longer timeout could land a retry past the threshold and
+// re-run a sale whose original handler is still alive -- a duplicate.
 // Raising the replay timeout requires raising the server threshold first.
 const DEFAULT_REQUEST_TIMEOUT_MS = 60000
 

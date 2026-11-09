@@ -8,6 +8,9 @@ import { getCurrentStock, StockTransactionType, updateStock } from '@/lib/stockO
 import { sendTelegramInventoryCorrectionAlert } from '@/lib/telegram'
 import { sendSemaphoreInventoryCorrectionAlert } from '@/lib/semaphore'
 
+// Thrown inside the transaction when another request already approved the correction
+const ALREADY_APPROVED = 'ALREADY_APPROVED'
+
 /**
  * POST /api/inventory-corrections/[id]/approve
  * Approve an inventory correction and update stock levels
@@ -90,6 +93,16 @@ export async function POST(
     const systemCount = parseFloat(correction.systemCount.toString())
 
     const result = await prisma.$transaction(async (tx) => {
+      // ATOMIC CLAIM: flip the status first so a retry of the same approve
+      // (lost response, double click) cannot adjust stock twice.
+      const claim = await tx.inventoryCorrection.updateMany({
+        where: { id: correctionId, status: { not: 'approved' } },
+        data: { status: 'approved' },
+      })
+      if (claim.count === 0) {
+        throw new Error(ALREADY_APPROVED)
+      }
+
       const currentQty = await getCurrentStock({
         productVariationId: correction.productVariationId,
         locationId: correction.locationId,
@@ -231,6 +244,11 @@ export async function POST(
       stockTransaction: result.stockResult.transaction,
     })
   } catch (error: any) {
+    if (error?.message === ALREADY_APPROVED) {
+      return NextResponse.json({
+        error: 'This inventory correction has already been approved'
+      }, { status: 409 })
+    }
     console.error('Error approving inventory correction:', error)
     return NextResponse.json({
       error: error.message || 'Failed to approve inventory correction'
