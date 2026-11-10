@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const [payments, total] = await Promise.all([
+    const [payments, total, sum] = await Promise.all([
       prisma.payment.findMany({
         where,
         include: {
@@ -109,10 +109,12 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
       prisma.payment.count({ where }),
+      prisma.payment.aggregate({ where, _sum: { amount: true } }),
     ])
 
     return NextResponse.json({
       payments,
+      totalAmount: parseFloat(sum._sum.amount?.toString() || '0'),
       pagination: {
         total,
         page,

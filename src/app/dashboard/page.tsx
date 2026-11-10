@@ -79,6 +79,7 @@ interface DashboardStats {
       currentQty: number
       alertQty: number
     }>
+    stockAlertCount: number
     pendingShipments: Array<{
       id: number
       transferNumber: string
@@ -146,6 +147,7 @@ export default function DashboardPageV2() {
   const [supplierPaymentsDateRange, setSupplierPaymentsDateRange] = useState<PeriodFilter>('year')
   const [supplierCustomRange, setSupplierCustomRange] = useState({ start: '', end: '' })
   const [supplierPayments, setSupplierPayments] = useState<any[]>([])
+  const [supplierPaymentsTotal, setSupplierPaymentsTotal] = useState(0)
   const [loadingSupplierPayments, setLoadingSupplierPayments] = useState(false)
   
   // Metrics date filter (for the cards at the top)
@@ -421,6 +423,7 @@ export default function DashboardPageV2() {
           purchaseOrderNumber: payment.accountsPayable?.invoiceNumber || 'N/A',
         }))
         setSupplierPayments(transformedPayments)
+        setSupplierPaymentsTotal(data.totalAmount || 0)
       } else {
         console.error('Failed to load supplier payments')
       }
@@ -1048,7 +1051,8 @@ export default function DashboardPageV2() {
                   alignment="right"
                 />
                 <Summary>
-                  <TotalItem column="amount" summaryType="sum" valueFormat="₱#,##0.00" />
+                  {/* Total of ALL payments in the period, not just the 10 rows shown */}
+                  <TotalItem column="amount" summaryType="sum" customizeText={() => `Total: ${formatAmount(supplierPaymentsTotal)}`} />
                 </Summary>
                 <Export enabled={true} />
               </DataGrid>
@@ -1067,16 +1071,16 @@ export default function DashboardPageV2() {
                   Low Stock Alert
                 </div>
                 <Badge variant="destructive" className="text-lg px-3 py-1">
-                  {stats?.tables.stockAlerts.length || 0}
+                  {stats?.tables.stockAlertCount || 0}
                 </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                  {stats?.tables.stockAlerts.length === 0
+                  {!stats?.tables.stockAlertCount
                     ? "All products are well stocked"
-                    : `${stats?.tables.stockAlerts.length} product(s) below alert level`}
+                    : `${stats.tables.stockAlertCount} product(s) below alert level`}
                 </p>
                 <Button
                   text="View Detailed Report"

@@ -64,13 +64,20 @@ Read-only SQL against Supabase (business 1). API: `src/app/api/dashboard/stats-c
 5. 421 sales have total_amount higher than (items − discount), Σ ₱396,141 (e.g. InvBambang01_10_2026_0004: items 31,729, charged/paid 39,999). Customers paid the higher total, so Net Sales is right, but Gross is ₱396K lower than real and Gross−Net ≠ discounts. Needs office confirmation of what these are.
 6. Low-stock query also includes deleted/inactive products (70 of 346 rows).
 
-## Proposed fixes (awaiting approval)
-- [ ] Sell Return: exclude `status = 'voided'`
-- [ ] Supplier Return: count only `status = 'approved'` (confirm: should pending count?)
-- [ ] Low Stock: report real count; skip deleted/inactive products
-- [ ] Payments to Suppliers: Sum from all payments in the period, not just loaded rows
-- [ ] A/R Outstanding: drop the date filter (match A/P), or relabel "A/R (Period)"
+## Fixes
+- [x] Sell Return: exclude voided/rejected → 469,240
+- [x] Supplier Return: approved/completed only → 1,312,280.55
+- [x] Low Stock: real distinct-product count, skip deleted/inactive → 56
+- [x] Payments to Suppliers: footer shows server total of the whole period (`/api/payments` now returns `totalAmount`) → 1,312,280.55
+- [x] A/R Outstanding: no date filter, owner confirmed (matches A/P) → 13,344,814.60
+- [x] Type-check: same 41 old errors in touched files before and after, none new
 - [ ] Ask office about note 4 and note 5
+
+## Review
+- Files: `src/app/api/dashboard/stats-cached/route.ts`, `src/app/api/payments/route.ts` (additive `totalAmount` field), `src/app/dashboard/page.tsx`.
+- Every new value checked with the same filters against the online DB (verified above).
+- A/R card no longer changes with the Period dropdown; it is a balance, like A/P.
+- Dashboard cache is 60s, so new values appear within a minute after deploy.
 
 ---
 

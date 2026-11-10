@@ -274,8 +274,9 @@ export async function GET(request: NextRequest) {
           // Customer Returns
           hasPermission(PERMISSIONS.CUSTOMER_RETURN_VIEW)
             ? prisma.customerReturn.aggregate({
-                where: { 
+                where: {
                   businessId,
+                  status: { notIn: ['voided', 'rejected'] },
                   ...(Object.keys(dateFilter).length > 0 ? { returnDate: dateFilter } : {})
                 },
                 _sum: { totalRefundAmount: true },
@@ -285,16 +286,18 @@ export async function GET(request: NextRequest) {
 
           // Supplier Returns
           prisma.supplierReturn.aggregate({
-            where: { 
+            where: {
               businessId,
+              // Only approved returns create a supplier credit; pending ones are not final
+              status: { in: ['approved', 'completed'] },
               ...(Object.keys(dateFilter).length > 0 ? { returnDate: dateFilter } : {})
             },
             _sum: { totalAmount: true },
             _count: true,
           }),
 
-          // Invoice Due - OPTIMIZED: Use raw SQL for sum calculation instead of fetching all records
-          // This is much faster than fetching all sales and calculating in JavaScript
+          // A/R Outstanding: everything customers still owe, regardless of period
+          // (same as Purchase Due and the Sales Payment Due table)
           hasPermission(PERMISSIONS.SELL_VIEW)
             ? prisma.$queryRaw<[{ total_due: bigint | null }]>`
                 SELECT COALESCE(SUM(s.total_amount - COALESCE(s.paid_amount, 0)), 0) as total_due
@@ -306,8 +309,6 @@ export async function GET(request: NextRequest) {
                   AND s.customer_id IS NOT NULL
                   AND (c.name IS NULL OR c.name NOT ILIKE '%Walk-in%')
                   AND (s.total_amount - COALESCE(s.paid_amount, 0)) > 0
-                  ${dateFilter.gte ? Prisma.sql`AND s.sale_date >= ${dateFilter.gte}` : Prisma.empty}
-                  ${dateFilter.lte ? Prisma.sql`AND s.sale_date <= ${dateFilter.lte}` : Prisma.empty}
                   ${arLocationIds && arLocationIds.length > 0 ? Prisma.sql`AND s.location_id IN (${Prisma.join(arLocationIds)})` : Prisma.empty}
               `
             : Promise.resolve([{ total_due: BigInt(0) }]),
@@ -348,7 +349,7 @@ export async function GET(request: NextRequest) {
           prisma.variationLocationDetails.findMany({
             where: {
               ...(locationId && locationId !== 'all' ? { locationId: parseInt(locationId) } : {}),
-              product: { businessId, alertQuantity: { not: null } },
+              product: { businessId, alertQuantity: { not: null }, deletedAt: null, isActive: true },
             },
             include: {
               product: {
@@ -433,7 +434,7 @@ export async function GET(request: NextRequest) {
           }),
         ])
 
-        const stockAlerts = allProductsWithAlerts
+        const allStockAlerts = allProductsWithAlerts
           .filter((item) => {
             const alertQty = item.product.alertQuantity
               ? parseFloat(item.product.alertQuantity.toString())
@@ -441,7 +442,8 @@ export async function GET(request: NextRequest) {
             const currentQty = parseFloat(item.qtyAvailable.toString())
             return alertQty > 0 && currentQty <= alertQty
           })
-          .slice(0, 10)
+        const stockAlertCount = new Set(allStockAlerts.map((item) => item.product.id)).size
+        const stockAlerts = allStockAlerts.slice(0, 10)
 
         // Process sales payment due
         // Use paidAmount from database (it excludes credit placeholders automatically)
@@ -503,6 +505,7 @@ export async function GET(request: NextRequest) {
               currentQty: parseFloat(item.qtyAvailable.toString()),
               alertQty: parseFloat(item.product.alertQuantity?.toString() || '0'),
             })),
+            stockAlertCount,
             pendingShipments: pendingShipments.map((item) => ({
               id: item.id,
               transferNumber: item.transferNumber,
