@@ -6,6 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **This project is actively used in live production.** Every code change MUST be minimal, simple, and safe. Do NOT introduce bugs. Do NOT make unnecessary changes. Only touch code that is directly relevant to the task. Verify changes compile cleanly before committing.
 
+## CRITICAL: Vercel Region MUST ALWAYS BE Singapore (`sin1`)
+
+- `vercel.json` → `"regions": ["sin1"]` is permanent. **NEVER change it to `iad1`** (Washington DC, USA) or any other region, and never remove it (Vercel then defaults to `iad1`).
+- Reason: the Supabase database is in Singapore (`aws-1-ap-southeast-1`). With functions in `iad1` every DB query crossed the Pacific (~200ms each) and every page was slow for about a year. Switching to `sin1` (Nov 2026) made all pages fast.
+- If the database is ever moved, the Vercel region must move with it to the same city. Ask the owner first.
+- Any `vercel.ts`, Vercel dashboard setting, or new project config must also keep functions in `sin1`.
+
 ## Core Workflow Rules (MUST FOLLOW)
 
 1. **First think through the problem**, read the codebase for relevant files, and write a plan to `tasks/todo.md`.
