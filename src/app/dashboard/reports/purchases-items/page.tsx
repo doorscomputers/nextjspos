@@ -111,8 +111,12 @@ export default function PurchaseItemsReportPage() {
   const [productName, setProductName] = useState("")
   const [sku, setSku] = useState("")
   const [purchaseOrderNumber, setPurchaseOrderNumber] = useState("")
-  const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0])
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0])
+  // Default to the current month (local date, "en-CA" gives YYYY-MM-DD) so recent deliveries show on open
+  const [startDate, setStartDate] = useState(() => {
+    const now = new Date()
+    return new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-CA')
+  })
+  const [endDate, setEndDate] = useState(() => new Date().toLocaleDateString('en-CA'))
   const [minAmount, setMinAmount] = useState("")
   const [maxAmount, setMaxAmount] = useState("")
 
