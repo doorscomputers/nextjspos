@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
+import { refreshStockViewIfStale } from '@/lib/refreshStockView'
 
 type StockLocationRange = {
   min?: string
@@ -52,6 +53,8 @@ export async function POST(request: NextRequest) {
     if (!businessId || Number.isNaN(businessId)) {
       return NextResponse.json({ error: 'Invalid business context' }, { status: 400 })
     }
+
+    await refreshStockViewIfStale()
 
     // Field-level security: cost data requires product.view_purchase_price
     const canViewCost = hasPermission(

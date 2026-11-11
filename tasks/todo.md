@@ -1,3 +1,23 @@
+# Stock pages showing old quantities (2026-11-11)
+
+All Branch Stock / Branch Stock Pivot / Pivot V2 read the `stock_pivot_view` snapshot (materialized view).
+Sales, transfers and adjustments never refreshed it, so pages lagged until someone clicked Refresh.
+
+- [x] Add `refreshStockViewIfStale()` in `src/lib/refreshStockView.ts` (refresh only when
+      `max(variation_location_details.updated_at)` > `max(stock_pivot_view.last_refreshed)`; never throws)
+- [x] Call it in `src/app/api/products/stock/route.ts` (All Branch Stock)
+- [x] Call it in `src/app/api/products/branch-stock-pivot/route.ts` (Pivot V1 + V2)
+- [x] Type-check touched files (0 errors)
+
+## Review
+- Root cause: the snapshot is refreshed only by purchase approval, product edits and the manual Refresh button.
+  `updateStock` skips refresh inside transactions (all sales/transfers), and its 2-second timer is unreliable on Vercel.
+- Fix: the read APIs check staleness (~3 ms query on 9.9k rows) and refresh only when stock changed.
+  Checkout/POS code untouched, so no added time on sales.
+- Verified on live DB: check returned `stale = true` for a change at 03:40 after a 03:32 refresh. Timezone is UTC on both sides.
+
+---
+
 # Intermittent-internet hardening (2026-11-10)
 
 Investigation found no duplicate sales/stock moves in production data, but these code gaps could still

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth.simple'
 import { prisma } from '@/lib/prisma.simple'
+import { refreshStockViewIfStale } from '@/lib/refreshStockView'
 
 type StockLocationRange = {
   min?: string
@@ -42,6 +43,8 @@ export async function POST(request: NextRequest) {
     if (!businessId || Number.isNaN(businessId)) {
       return NextResponse.json({ error: 'Invalid business context' }, { status: 400 })
     }
+
+    await refreshStockViewIfStale()
 
     const body = (await request.json().catch(() => ({}))) as Partial<{
       page: number
