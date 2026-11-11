@@ -62,6 +62,26 @@ export async function refreshStockView(options?: {
 }
 
 /**
+ * Refresh the view only if stock changed since its last refresh.
+ * Called by the stock read APIs so pages never show an old snapshot.
+ * Sales/transfers update variation_location_details.updated_at but do not refresh the view.
+ * Never throws: on failure the current snapshot is served.
+ */
+export async function refreshStockViewIfStale(): Promise<void> {
+  try {
+    const [row] = await prisma.$queryRaw<Array<{ stale: boolean | null }>>`
+      SELECT (SELECT max(updated_at) FROM variation_location_details)
+           > (SELECT max(last_refreshed) FROM stock_pivot_view) AS stale
+    `
+    if (row?.stale) {
+      await refreshStockView({ silent: true })
+    }
+  } catch (error) {
+    console.error('[Stock View Refresh] Stale check failed:', error)
+  }
+}
+
+/**
  * Debounced refresh to prevent excessive refreshes
  * Useful when multiple stock operations happen in quick succession
  */
