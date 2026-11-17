@@ -26,7 +26,8 @@
       non-Super-Admin users (7 all-branch users without a location → Main Warehouse, label only).
       Attendance table is unused (0 rows), so no "late" side effects.
 - [x] Type-check (0 new errors; 2 pre-existing at auth.ts:416/458), time-math test, commit + push.
-- [ ] Turn on `enforce_schedule_login` on live — waiting for owner's go-live date (staff notice first).
+- [x] Turn on `enforce_schedule_login` on live — done 2026-11-17 1:10 PM PH, after production deploy
+      0dcbccd9 was READY. 0 active non-exempt users without a schedule.
 
 ## Review
 - `src/lib/auth.ts`: schedule check now reads PH day/time; allowed window = start − early grace to
