@@ -11,13 +11,20 @@
 - Pattern (past year): all branches open ~7–8 AM, last logins ~5–6 PM, 7 days a week.
 - After-hours report: 530 entries, 18 users (report published as private artifact).
 
+## Owner decision
+- No automatic logout at 7 PM (overtime is allowed). Hard limit is **9:00 PM**: login allowed
+  6:30 AM – 9:00 PM every day; after 9:00 PM the session ends. Only Super Admin is exempt.
+- Done with existing settings: schedule 07:00–20:00 + early grace 30 min (6:30) + late grace 60 min (21:00).
+
 ## Plan
-- [ ] Fix timezone in the schedule check: compute day-of-week and clock time in `Asia/Manila`
-      (via `Intl.DateTimeFormat`), not server time. Small change inside `auth.ts` only.
-- [ ] Stop already-open sessions after hours: store the allowed end time in the JWT at login and expire the
-      session in the `jwt` callback once it passes (verify NextAuth v4 docs first).
-- [ ] Data (no schema change): insert `employee_schedules` for every non-exempt active user, all 7 days,
-      using the agreed office hours; exempt roles per owner decision.
+- [ ] Fix timezone in the schedule check: Philippine time = UTC+8 (no daylight saving), so use
+      `Date.now() + 8h` with `getUTC*()`. Small change inside `auth.ts` only.
+- [ ] End open sessions at the same limit: at login store `sessionEndsAt` (today 9:00 PM PH) in the JWT;
+      the `jwt` callback throws once it passes. Verified in next-auth 4.24.11 `core/routes/session.js`:
+      a throw clears the cookie and `getServerSession` returns null. Middleware also redirects /dashboard.
+- [ ] Data (no schema change): insert `employee_schedules` 07:00–20:00, all 7 days, for the 48 active
+      non-Super-Admin users (7 all-branch users without a location → Main Warehouse, label only).
+      Attendance table is unused (0 rows), so no "late" side effects.
 - [ ] Type-check, test login inside/outside hours locally with a test user, then commit + push.
 - [ ] Turn on `enforce_schedule_login` on live only after deploy is verified.
 

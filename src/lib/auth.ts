@@ -502,6 +502,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         // Check schedule-based login restrictions
+        let sessionEndsAt: number | undefined
         if (user.businessId) {
           // Get schedule login configuration for business
           let config = await prisma.scheduleLoginConfiguration.findUnique({
@@ -531,9 +532,20 @@ export const authOptions: NextAuthOptions = {
 
             // Non-exempt users must login within their scheduled hours
             if (!isExemptRole) {
-              const now = new Date()
+              // Philippine time (UTC+8, no daylight saving). Servers (Vercel) run on UTC,
+              // so read the PH clock with getUTC*() on a +8h shifted date.
+              const phNow = new Date(Date.now() + 8 * 60 * 60 * 1000)
               // Get day of week as number (0=Sunday, 1=Monday, ..., 6=Saturday)
-              const dayOfWeek = now.getDay()
+              const dayOfWeek = phNow.getUTCDay()
+              const nowMinutes = phNow.getUTCHours() * 60 + phNow.getUTCMinutes()
+              const toMinutes = (hhmm: string) => {
+                const [h, m] = hhmm.split(':').map(Number)
+                return h * 60 + (m || 0)
+              }
+              const fmt = (mins: number) => {
+                const h = Math.floor(mins / 60) % 24, m = mins % 60
+                return `${(h % 12) || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`
+              }
 
               // Get today's schedule for the user
               const todaySchedule = await prisma.employeeSchedule.findFirst({
@@ -553,34 +565,25 @@ export const authOptions: NextAuthOptions = {
               }
 
               if (todaySchedule && todaySchedule.endTime) {
-                // Parse schedule end time
-                const [endHours, endMinutes, endSeconds] = todaySchedule.endTime.split(':').map(Number)
-                const scheduleEndTime = new Date(now)
-                scheduleEndTime.setHours(endHours, endMinutes, endSeconds || 0, 0)
+                // Latest allowed time = schedule end + late grace (e.g. 20:00 + 60 = 9:00 PM)
+                const latestMinutes = toMinutes(todaySchedule.endTime) + config.lateClockOutGraceMinutes
+                // Earliest allowed time = schedule start - early grace (e.g. 07:00 - 30 = 6:30 AM)
+                const earliestMinutes = toMinutes(todaySchedule.startTime) - config.earlyClockInGraceMinutes
 
-                // Add grace period for clock-out purposes
-                const endTimeWithGrace = new Date(scheduleEndTime.getTime() + config.lateClockOutGraceMinutes * 60000)
-
-                // Check if current time is past schedule end + grace period
-                if (now > endTimeWithGrace) {
+                if (nowMinutes >= latestMinutes) {
                   const errorMessage = config.tooLateMessage ||
-                    `Login denied: You cannot login after your scheduled working hours (${todaySchedule.endTime}). Please contact your manager if you need access.`
+                    `Login denied: Login is only allowed until ${fmt(latestMinutes)}. Please contact your manager if you need access.`
                   throw new Error(errorMessage)
                 }
 
-                // Check if current time is before schedule start
-                const [startHours, startMinutes, startSeconds] = todaySchedule.startTime.split(':').map(Number)
-                const scheduleStartTime = new Date(now)
-                scheduleStartTime.setHours(startHours, startMinutes, startSeconds || 0, 0)
-
-                // Allow early clock-in based on configuration
-                const startTimeWithEarly = new Date(scheduleStartTime.getTime() - config.earlyClockInGraceMinutes * 60000)
-
-                if (now < startTimeWithEarly) {
+                if (nowMinutes < earliestMinutes) {
                   const errorMessage = config.tooEarlyMessage ||
-                    `Login denied: You cannot login before your scheduled working hours (${todaySchedule.startTime}). Please wait until ${startTimeWithEarly.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}.`
+                    `Login denied: You cannot login before your scheduled working hours. Please wait until ${fmt(earliestMinutes)}.`
                   throw new Error(errorMessage)
                 }
+
+                // Session ends at the latest allowed time today (checked in the jwt callback)
+                sessionEndsAt = Date.now() + (latestMinutes - nowMinutes) * 60000 - phNow.getUTCSeconds() * 1000
               }
             }
           }
@@ -764,6 +767,7 @@ export const authOptions: NextAuthOptions = {
           roles: roleNames,
           locationIds: locationIds,
           currentLocationId: selectedLocationId, // Current location from login (RFID scan/selection)
+          sessionEndsAt, // Schedule login: session ends at this time (ms), undefined = no limit
         } as any
       },
     }),
@@ -782,6 +786,12 @@ export const authOptions: NextAuthOptions = {
         token.roles = (user as any).roles
         token.locationIds = (user as any).locationIds
         token.currentLocationId = (user as any).currentLocationId
+        token.sessionEndsAt = (user as any).sessionEndsAt
+      }
+      // Schedule login limit reached: throwing makes NextAuth clear the session cookie
+      // and getServerSession() return null (next-auth 4.24 core/routes/session.js)
+      if (typeof token.sessionEndsAt === 'number' && Date.now() >= token.sessionEndsAt) {
+        throw new Error('Session ended: outside allowed login hours')
       }
       return token
     },
