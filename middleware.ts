@@ -79,7 +79,8 @@ export async function middleware(request: NextRequest) {
     })
 
     // No valid token found - user is NOT authenticated
-    if (!token) {
+    // (also treated as logged out once the schedule login limit, e.g. 9:00 PM, has passed)
+    if (!token || (typeof token.sessionEndsAt === 'number' && Date.now() >= token.sessionEndsAt)) {
       // Build login URL with callback parameter
       // callbackUrl = where to redirect after successful login
       // Example: /login?callbackUrl=/dashboard/products
