@@ -1,3 +1,28 @@
+# Block login outside office hours (2026-11-17) — PLAN, waiting for owner approval
+
+## Findings (live DB, read-only)
+- Feature already exists: `ScheduleLoginConfiguration` + `EmployeeSchedule`, checked in `src/lib/auth.ts:504-587`,
+  admin page `src/app/dashboard/settings/schedule-login/page.tsx`.
+- Live state: `enforce_schedule_login = false`, **0 employee schedules**. Turning it on today would lock out
+  every non-exempt user ("not scheduled to work on ...").
+- **Timezone bug**: the check uses `now.getDay()` / `setHours()` = server time. Vercel runs UTC, so a
+  7:00–18:00 schedule would be enforced as 3:00 PM–2:00 AM Philippine time. Must be fixed before enabling.
+- Sessions last 8 hours (`auth.ts:74`), so a 6:55 PM login keeps working until ~3 AM. Login-only block is not enough.
+- Pattern (past year): all branches open ~7–8 AM, last logins ~5–6 PM, 7 days a week.
+- After-hours report: 530 entries, 18 users (report published as private artifact).
+
+## Plan
+- [ ] Fix timezone in the schedule check: compute day-of-week and clock time in `Asia/Manila`
+      (via `Intl.DateTimeFormat`), not server time. Small change inside `auth.ts` only.
+- [ ] Stop already-open sessions after hours: store the allowed end time in the JWT at login and expire the
+      session in the `jwt` callback once it passes (verify NextAuth v4 docs first).
+- [ ] Data (no schema change): insert `employee_schedules` for every non-exempt active user, all 7 days,
+      using the agreed office hours; exempt roles per owner decision.
+- [ ] Type-check, test login inside/outside hours locally with a test user, then commit + push.
+- [ ] Turn on `enforce_schedule_login` on live only after deploy is verified.
+
+---
+
 # Stock pages showing old quantities (2026-11-11)
 
 All Branch Stock / Branch Stock Pivot / Pivot V2 read the `stock_pivot_view` snapshot (materialized view).
