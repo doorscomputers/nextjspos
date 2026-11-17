@@ -17,16 +17,26 @@
 - Done with existing settings: schedule 07:00–20:00 + early grace 30 min (6:30) + late grace 60 min (21:00).
 
 ## Plan
-- [ ] Fix timezone in the schedule check: Philippine time = UTC+8 (no daylight saving), so use
+- [x] Fix timezone in the schedule check: Philippine time = UTC+8 (no daylight saving), so use
       `Date.now() + 8h` with `getUTC*()`. Small change inside `auth.ts` only.
-- [ ] End open sessions at the same limit: at login store `sessionEndsAt` (today 9:00 PM PH) in the JWT;
+- [x] End open sessions at the same limit: at login store `sessionEndsAt` (today 9:00 PM PH) in the JWT;
       the `jwt` callback throws once it passes. Verified in next-auth 4.24.11 `core/routes/session.js`:
       a throw clears the cookie and `getServerSession` returns null. Middleware also redirects /dashboard.
-- [ ] Data (no schema change): insert `employee_schedules` 07:00–20:00, all 7 days, for the 48 active
+- [x] Data (no schema change): insert `employee_schedules` 07:00–20:00, all 7 days, for the 48 active
       non-Super-Admin users (7 all-branch users without a location → Main Warehouse, label only).
       Attendance table is unused (0 rows), so no "late" side effects.
-- [ ] Type-check, test login inside/outside hours locally with a test user, then commit + push.
-- [ ] Turn on `enforce_schedule_login` on live only after deploy is verified.
+- [x] Type-check (0 new errors; 2 pre-existing at auth.ts:416/458), time-math test, commit + push.
+- [ ] Turn on `enforce_schedule_login` on live — waiting for owner's go-live date (staff notice first).
+
+## Review
+- `src/lib/auth.ts`: schedule check now reads PH day/time; allowed window = start − early grace to
+  end + late grace (6:30 AM–9:00 PM); `sessionEndsAt` stored in JWT; `jwt` callback ends the session after it.
+- `middleware.ts`: /dashboard also treats a token past `sessionEndsAt` as logged out.
+- No change for Super Admin / exempt roles, or while `enforce_schedule_login` is off (no limit set).
+- Data: 336 rows in `employee_schedules` (48 users × 7 days). Attendance unused, so no side effects.
+- Deployed: branch `tier2-security-fixes` 961aa8e1, production `master` 0dcbccd9 (cherry-pick).
+- New users must get a schedule on Dashboard → Schedules, or they cannot log in once enforcement is on.
+- To undo instantly: set `enforce_schedule_login = false` (Settings → Schedule Login).
 
 ---
 
