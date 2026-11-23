@@ -350,3 +350,17 @@ audit_logs 41449. No code change.
 
 ## Review
 Updated `productVariation.sellingPrice` and `variationLocationDetails.sellingPrice` for 17 items (6 Vention, 11 Tecno) across 4 active locations. Verified 17/17 (68 location rows). 1 row already at target (SPARK GO3 4/64 TITANIUM GREY 6499). All increases; largest: VENTION ALIBL HDMI 10M 450→799, ALIBN 15M 790→1239, VAS-A16-B300 140→219 (confirmed by user). No app code changed.
+
+---
+
+## Inventory Corrections grid: record count + First/Prev/Next/Last paging (2026-11-23)
+
+- [x] Root cause: `<Scrolling mode="virtual">` made the grid one long scroll list, so paging did not work like real pages -> removed
+- [x] New shared `src/components/DataGridPagerBar.tsx` (hook `useDataGridPager` + bar) for any DevExtreme grid
+- [x] Rows per page 10/20/30/40/50/100 (default 20), "Showing X–Y of Z records", First / Previous / Page N of M / Next / Last (disabled at ends)
+- [x] Built-in DevExtreme pager hidden (`<Pager visible={false} />`) so there is only one pager
+- [x] Build passes (`npm run build`, exit 0); no new type errors
+
+### Review
+- Only `inventory-corrections/page.tsx` (4 small edits) + new pager component. No API/database changes.
+- Record count = rows after filters/search. The page loads up to 1000 newest corrections (`?limit=1000`, unchanged).
