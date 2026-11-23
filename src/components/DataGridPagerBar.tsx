@@ -19,7 +19,7 @@ interface PagerState {
  * First / Previous / Page N of M / Next / Last.
  * Usage: const pager = useDataGridPager(20)
  *        <DataGrid onContentReady={pager.onContentReady}> <Paging defaultPageSize={20} /> <Pager visible={false} />
- *        <DataGridPagerBar pager={pager} />
+ *        Render <DataGridPagerBar pager={pager} /> just above the <DataGrid>.
  */
 export function useDataGridPager(initialPageSize = 20) {
   const gridRef = useRef<GridInstance | null>(null)
@@ -66,7 +66,7 @@ export function DataGridPagerBar({ pager }: { pager: ReturnType<typeof useDataGr
   const changeSize = (size: number) => gridRef.current?.pageSize(size)
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 rounded-b-lg text-sm">
+    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 rounded-t-lg text-sm">
       <div className="flex flex-wrap items-center gap-3 text-gray-700 dark:text-gray-300">
         <label className="flex items-center gap-2">
           <span>Rows per page</span>
