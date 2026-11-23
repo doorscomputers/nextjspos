@@ -275,6 +275,20 @@ export async function DELETE(
         throw new Error('ALREADY_VOIDED')
       }
 
+      // Block voiding a sale that has active returns/exchanges against it
+      // (checked with the sale row locked). Voiding restores ALL sold items,
+      // so items already returned to stock would be added twice.
+      const activeReturns = await tx.customerReturn.count({
+        where: {
+          businessId: parseInt(String(businessId)),
+          saleId,
+          status: { notIn: ['rejected', 'cancelled', 'voided'] },
+        },
+      })
+      if (activeReturns > 0) {
+        throw new Error('SALE_HAS_RETURNS')
+      }
+
       // Update sale status to voided
       await tx.sale.update({
         where: { id: saleId },
@@ -405,8 +419,14 @@ export async function DELETE(
     }
     if (error.message === 'VOID_IN_PROGRESS') {
       return NextResponse.json(
-        { error: 'Another void operation is in progress. Please wait and try again.' },
+        { error: 'Another void, exchange or return on this sale is in progress. Please wait and try again.' },
         { status: 409 } // 409 Conflict
+      )
+    }
+    if (error.message === 'SALE_HAS_RETURNS') {
+      return NextResponse.json(
+        { error: 'Cannot void this sale: it has return/exchange record(s) against it. Voiding would double-restore inventory. Process the remaining items through the return flow instead.' },
+        { status: 400 }
       )
     }
 

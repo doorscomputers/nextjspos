@@ -146,6 +146,22 @@ export async function withIdempotency(
         const keyAge = Date.now() - new Date(record.created_at).getTime()
         const STALE_KEY_THRESHOLD_MS = 180000 // 180 seconds
 
+        // A stale key on /api/sales may belong to a sale that DID commit (the
+        // function was stopped after the commit, before the key was marked
+        // completed). Re-running it would deduct the stock a second time, so
+        // never re-run a sale automatically: ask the cashier to check first.
+        // (Each new Checkout click sends a new cartSessionId, so they are not stuck.)
+        if (keyAge > STALE_KEY_THRESHOLD_MS && endpoint === '/api/sales') {
+          console.warn(`[Idempotency] STALE SALE KEY: ${idempotencyKey.slice(0, 20)}... not re-run (sale may already be saved)`)
+          return NextResponse.json(
+            {
+              error: 'This sale may already have been saved',
+              message: 'A previous attempt of this sale did not finish cleanly. Please check the Sales list for it before ringing it up again.',
+            },
+            { status: 409 }
+          )
+        }
+
         if (keyAge > STALE_KEY_THRESHOLD_MS) {
           // Key is stale - the original request likely completed but UPDATE failed
           // CRITICAL-6 FIX: Use DELETE RETURNING to atomically check if we actually deleted

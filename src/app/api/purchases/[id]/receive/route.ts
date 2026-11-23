@@ -233,6 +233,29 @@ export async function POST(
     console.log('Items count:', items.length)
 
     const receipt = await prisma.$transaction(async (tx) => {
+      // Lock the purchase order row so two GRN submissions for the same PO
+      // (double click, two staff) run one at a time, then repeat the checks
+      // above with fresh data. Without this, both could pass and the same
+      // delivery would be received (and later approved) twice.
+      await tx.$queryRaw`SELECT id FROM purchases WHERE id = ${parseInt(purchaseId)} FOR UPDATE`
+      const pendingNow = await tx.purchaseReceipt.findFirst({
+        where: { purchaseId: parseInt(purchaseId), status: 'pending' },
+        select: { receiptNumber: true },
+      })
+      if (pendingNow) {
+        throw new Error(`GRN_PENDING_EXISTS:${pendingNow.receiptNumber}`)
+      }
+      const freshItems = await tx.purchaseItem.findMany({
+        where: { purchaseId: parseInt(purchaseId) },
+        select: { id: true, quantity: true, quantityReceived: true },
+      })
+      for (const item of items) {
+        const fresh = freshItems.find((pi) => pi.id === parseInt(item.purchaseItemId))
+        if (!fresh || parseFloat(fresh.quantityReceived.toString()) + parseFloat(item.quantityReceived) > parseFloat(fresh.quantity.toString())) {
+          throw new Error(`GRN_EXCEEDS_ORDERED:${item.purchaseItemId}`)
+        }
+      }
+
       // Create purchase receipt
       const receiptData = {
         businessId: parseInt(businessId),
@@ -332,6 +355,18 @@ export async function POST(
 
     return NextResponse.json(completeReceipt, { status: 201 })
   } catch (error: any) {
+    if (typeof error?.message === 'string' && error.message.startsWith('GRN_PENDING_EXISTS:')) {
+      return NextResponse.json(
+        { error: `A pending GRN (${error.message.split(':')[1]}) already exists for this purchase order. Please approve or delete it first.` },
+        { status: 400 }
+      )
+    }
+    if (typeof error?.message === 'string' && error.message.startsWith('GRN_EXCEEDS_ORDERED:')) {
+      return NextResponse.json(
+        { error: `Cannot receive more than ordered quantity for item ${error.message.split(':')[1]}. Refresh the purchase order to see what is already received.` },
+        { status: 400 }
+      )
+    }
     console.error('=== GRN Creation Error ===')
     console.error('Error type:', error.constructor.name)
     console.error('Error message:', error.message)

@@ -247,10 +247,11 @@ export async function POST(
       // timeout on a committed receive) could pass it concurrently and add
       // stock twice. This guarded update lets exactly one request proceed.
       const claimed = await tx.stockTransfer.updateMany({
-        where: { id: transferIdNumber, status: { in: validStatuses } },
+        where: { id: transferIdNumber, status: { in: validStatuses }, stockReceived: false },
         data: {
           status: 'received', // Transfer complete
           stockDeducted: true, // CRITICAL: Stock NOW deducted
+          stockReceived: true, // Destination stock added - blocks any later complete from adding it again
           receivedBy: userIdNumber,
           receivedAt: receivedDate ? new Date(receivedDate) : new Date(),
           verifierNotes: notes, // Store receive notes in verifierNotes field

@@ -307,6 +307,20 @@ export async function POST(
         throw new Error('SALE_CANCELLED')
       }
 
+      // Re-check returns/exchanges now that the sale row is locked. The check
+      // above ran outside this transaction; an exchange or return committed
+      // since would otherwise be restored to stock twice (once by it, once here).
+      const lockedActiveReturns = await tx.customerReturn.count({
+        where: {
+          businessId: businessIdNumber,
+          saleId,
+          status: { notIn: ['rejected', 'cancelled', 'voided'] },
+        },
+      })
+      if (lockedActiveReturns > 0) {
+        throw new Error('SALE_HAS_RETURNS')
+      }
+
       // Update sale status to voided
       const voidedSale = await tx.sale.update({
         where: { id: saleId },
@@ -651,7 +665,7 @@ export async function POST(
     }
     if (error.message === 'VOID_IN_PROGRESS') {
       return NextResponse.json(
-        { error: 'Another void operation is in progress. Please wait and try again.' },
+        { error: 'Another void, exchange or return on this sale is in progress. Please wait and try again.' },
         { status: 409 } // 409 Conflict
       )
     }
@@ -659,6 +673,12 @@ export async function POST(
       return NextResponse.json(
         { error: 'Cannot void a cancelled sale' },
         { status: 400 }
+      )
+    }
+    if (error.message === 'SALE_HAS_RETURNS') {
+      return NextResponse.json(
+        { error: 'Cannot void this sale: a return/exchange was just recorded against it. Voiding would double-restore inventory. Refresh the sale.' },
+        { status: 409 }
       )
     }
 

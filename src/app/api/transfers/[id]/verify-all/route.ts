@@ -107,15 +107,23 @@ export async function POST(
 
     const updateResult = { count: unverifiedItems.length }
 
-    // Update transfer status to 'verified'
-    await prisma.stockTransfer.update({
-      where: { id: transferId },
+    // Update transfer status to 'verified' - only if it is STILL in a verifiable
+    // status. A receive/complete may have finished since the check above, and
+    // overwriting its status would let the stock be added again.
+    const moved = await prisma.stockTransfer.updateMany({
+      where: { id: transferId, status: { in: ['in_transit', 'verifying', 'arrived'] } },
       data: {
         status: 'verified',
         verifiedBy: parseInt(userId),
         verifiedAt: now,
       },
     })
+    if (moved.count === 0) {
+      return NextResponse.json(
+        { error: 'Transfer status changed in the meantime. Please refresh the page.' },
+        { status: 409 }
+      )
+    }
 
     // Check for discrepancies across all items
     const itemsWithDiscrepancies = transfer.items.filter(item => {

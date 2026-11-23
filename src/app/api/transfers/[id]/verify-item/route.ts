@@ -129,8 +129,10 @@ export async function POST(
 
     // If all items verified, auto-transition to "verified" status
     if (allVerified) {
-      await prisma.stockTransfer.update({
-        where: { id: transferId },
+      // Only move a transfer that is STILL verifying - never overwrite a
+      // received/completed one (that would let its stock be added again).
+      await prisma.stockTransfer.updateMany({
+        where: { id: transferId, status: 'verifying' },
         data: {
           status: 'verified',
           verifiedBy: parseInt(userId),

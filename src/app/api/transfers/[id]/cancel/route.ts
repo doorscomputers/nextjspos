@@ -87,6 +87,15 @@ export async function POST(
       )
     }
 
+    // Cannot cancel received transfers: the destination already has the stock,
+    // so restoring the origin would count the same goods twice.
+    if (transfer.status === 'received' || transfer.stockReceived) {
+      return NextResponse.json(
+        { error: 'Cannot cancel a received transfer - the stock is already at the destination' },
+        { status: 400 }
+      )
+    }
+
     // CRITICAL: Use transaction to ensure atomicity
     const result = await prisma.$transaction(async (tx) => {
       // ATOMIC CLAIM: flip the status first so a retry of the same cancel
@@ -96,7 +105,8 @@ export async function POST(
         where: {
           id: transferId,
           businessId,
-          status: { notIn: ['completed', 'cancelled'] },
+          status: { notIn: ['completed', 'cancelled', 'received'] },
+          stockReceived: false,
         },
         data: { status: 'cancelled' },
       })
@@ -104,8 +114,17 @@ export async function POST(
         throw new Error(TRANSFER_ALREADY_FINAL)
       }
 
+      // Re-read stockDeducted now that this transaction holds the row lock.
+      // The read at the top of the handler can be stale (a send may have
+      // committed since), and restoring must match what was really deducted.
+      const locked = await tx.stockTransfer.findUnique({
+        where: { id: transferId },
+        select: { stockDeducted: true },
+      })
+      const stockRestored = locked?.stockDeducted === true
+
       // If stock was already deducted (in_transit or later), restore it
-      if (transfer.stockDeducted) {
+      if (stockRestored) {
         for (const item of transfer.items) {
           const productId = item.productId
           const variationId = item.productVariationId
@@ -162,7 +181,7 @@ export async function POST(
         },
       })
 
-      return updatedTransfer
+      return { updatedTransfer, stockRestored }
     })
 
     // Create audit log
@@ -179,22 +198,22 @@ export async function POST(
         fromLocationId: transfer.fromLocationId,
         toLocationId: transfer.toLocationId,
         previousStatus: transfer.status,
-        stockRestored: transfer.stockDeducted,
+        stockRestored: result.stockRestored,
         cancellationReason: reason,
       },
       ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
     })
 
     return NextResponse.json({
-      message: transfer.stockDeducted 
+      message: result.stockRestored
         ? 'Transfer cancelled - stock restored to origin location'
         : 'Transfer cancelled',
-      transfer: result,
+      transfer: result.updatedTransfer,
     })
   } catch (error: any) {
     if (error?.message === TRANSFER_ALREADY_FINAL) {
       return NextResponse.json(
-        { error: 'Transfer was already cancelled or completed' },
+        { error: 'Transfer was already cancelled, received or completed' },
         { status: 409 }
       )
     }

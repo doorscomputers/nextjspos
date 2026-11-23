@@ -116,15 +116,24 @@ export async function POST(
       )
     }
 
-    // Update transfer to arrived status
-    const updatedTransfer = await prisma.stockTransfer.update({
-      where: { id: transferId },
+    // Update transfer to arrived status - only if it is STILL in transit.
+    // The status check above ran earlier; a receive/complete may have finished
+    // since, and overwriting its status would let the stock be added again.
+    const moved = await prisma.stockTransfer.updateMany({
+      where: { id: transferId, status: 'in_transit' },
       data: {
         status: 'arrived',
         arrivedBy: parseInt(userId),
         arrivedAt: new Date(),
       },
     })
+    if (moved.count === 0) {
+      return NextResponse.json(
+        { error: 'Transfer status changed in the meantime. Please refresh the page.' },
+        { status: 409 }
+      )
+    }
+    const updatedTransfer = await prisma.stockTransfer.findUnique({ where: { id: transferId } })
 
     // Create audit log
     await createAuditLog({

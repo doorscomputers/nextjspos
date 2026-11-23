@@ -179,8 +179,9 @@ export async function POST(
           id: transferId,
           businessId: businessIdNumber,
           status: { in: allValidStatuses },
+          stockReceived: false, // destination stock not added yet (by receive or complete-async)
         },
-        data: { status: 'completed' },
+        data: { status: 'completed', stockReceived: true },
       })
       if (claim.count === 0) {
         throw new Error(TRANSFER_ALREADY_FINAL)

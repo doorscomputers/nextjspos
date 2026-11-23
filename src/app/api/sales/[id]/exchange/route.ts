@@ -396,6 +396,34 @@ export async function POST(
 
       // Process exchange in transaction
       const result = await prisma.$transaction(async (tx) => {
+        // Lock the original sale row and re-check it. The checks above ran outside
+        // this transaction: a void or another exchange/return committed since then
+        // would otherwise put the same units back into stock twice. A void holds
+        // this same lock, so void and exchange of one sale now run one at a time.
+        const lockedSale = await tx.$queryRaw<{ status: string }[]>`
+          SELECT status FROM sales WHERE id = ${saleId} FOR UPDATE
+        `
+        if (!lockedSale.length || lockedSale[0].status === 'voided' || lockedSale[0].status === 'cancelled') {
+          throw new Error('EXCHANGE_SALE_VOIDED')
+        }
+        const lockedPriorReturns = await tx.customerReturnItem.findMany({
+          where: { customerReturn: { saleId: sale.id, status: { notIn: ['rejected', 'voided'] } } },
+          select: { productVariationId: true, quantity: true },
+        })
+        const lockedReturned = new Map<number, number>()
+        for (const item of lockedPriorReturns) {
+          lockedReturned.set(item.productVariationId, (lockedReturned.get(item.productVariationId) || 0) + parseFloat(item.quantity.toString()))
+        }
+        for (const returnItem of returnItems) {
+          const saleItem = sale.items.find((item) => item.id === returnItem.saleItemId)!
+          lockedReturned.set(saleItem.productVariationId, (lockedReturned.get(saleItem.productVariationId) || 0) + parseFloat(returnItem.quantity))
+        }
+        for (const [variationId, returnedQty] of lockedReturned) {
+          if (returnedQty > (soldByVariation.get(variationId) || 0) + 0.0001) {
+            throw new Error('EXCHANGE_ALREADY_RETURNED')
+          }
+        }
+
         // Generate exchange number atomically
         const exchangeNumber = await getNextExchangeNumber(parseInt(user.businessId), tx)
 
@@ -813,6 +841,18 @@ export async function POST(
         locationId: sale.locationId,
       })
     } catch (error: any) {
+      if (error?.message === 'EXCHANGE_SALE_VOIDED') {
+        return NextResponse.json(
+          { error: 'Cannot exchange: this sale was voided or cancelled just now. Refresh the sale.' },
+          { status: 409 }
+        )
+      }
+      if (error?.message === 'EXCHANGE_ALREADY_RETURNED') {
+        return NextResponse.json(
+          { error: 'Cannot exchange: these items were already returned/exchanged on this invoice just now. Refresh the sale.' },
+          { status: 409 }
+        )
+      }
       console.error('Error processing exchange:', error)
       return NextResponse.json(
         { error: 'Failed to process exchange', details: error.message },

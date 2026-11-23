@@ -83,13 +83,21 @@ export async function POST(
     // 2. Destination verification is about confirming RECEIPT, not separation of duties
     // 3. Stock was already deducted at origin - this is just confirming what arrived
 
-    // Update transfer to verifying status
-    const updatedTransfer = await prisma.stockTransfer.update({
-      where: { id: transferId },
+    // Update transfer to verifying status - only if it is STILL arrived
+    // (the check above ran earlier; never overwrite a received/completed transfer).
+    const moved = await prisma.stockTransfer.updateMany({
+      where: { id: transferId, status: 'arrived' },
       data: {
         status: 'verifying',
       },
     })
+    if (moved.count === 0) {
+      return NextResponse.json(
+        { error: 'Transfer status changed in the meantime. Please refresh the page.' },
+        { status: 409 }
+      )
+    }
+    const updatedTransfer = await prisma.stockTransfer.findUnique({ where: { id: transferId } })
 
     // Create audit log
     await createAuditLog({

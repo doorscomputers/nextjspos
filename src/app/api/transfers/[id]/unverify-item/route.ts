@@ -107,9 +107,10 @@ export async function POST(
     })
 
     // If transfer was "verified", move it back to "verifying"
+    // (only if it is STILL verified - never reopen a transfer completed since)
     if (transfer.status === 'verified') {
-      await prisma.stockTransfer.update({
-        where: { id: transferId },
+      await prisma.stockTransfer.updateMany({
+        where: { id: transferId, status: 'verified' },
         data: {
           status: 'verifying',
           verifiedBy: null,

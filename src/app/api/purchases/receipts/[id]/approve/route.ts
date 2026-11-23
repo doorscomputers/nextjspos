@@ -309,6 +309,28 @@ export async function POST(
         throw new Error('RECEIPT_ALREADY_APPROVED')
       }
 
+      // Never receive more than was ordered: lock the PO row (GRN creation takes
+      // the same lock) and compare fresh quantities. Two GRNs for the same
+      // delivery would otherwise both add their stock.
+      if (receipt.purchaseId) {
+        await tx.$queryRaw`SELECT id FROM purchases WHERE id = ${receipt.purchaseId} FOR UPDATE`
+        const freshPoItems = await tx.purchaseItem.findMany({
+          where: { purchaseId: receipt.purchaseId },
+          select: { id: true, quantity: true, quantityReceived: true },
+        })
+        const receivingNow = new Map<number, number>()
+        for (const item of receipt.items) {
+          if (!item.purchaseItemId) continue
+          receivingNow.set(item.purchaseItemId, (receivingNow.get(item.purchaseItemId) || 0) + parseFloat(item.quantityReceived.toString()))
+        }
+        for (const [purchaseItemId, qty] of receivingNow) {
+          const fresh = freshPoItems.find((pi) => pi.id === purchaseItemId)
+          if (fresh && parseFloat(fresh.quantityReceived.toString()) + qty > parseFloat(fresh.quantity.toString()) + 0.0001) {
+            throw new Error('RECEIPT_EXCEEDS_ORDERED')
+          }
+        }
+      }
+
       // CRITICAL FIX: Check for duplicate serial numbers INSIDE transaction to prevent race conditions
       // Collect all serial numbers first
       const allSerialNumbers: string[] = []
@@ -778,6 +800,12 @@ export async function POST(
       return NextResponse.json(
         { error: 'This receipt has already been approved. Stock was added only once.' },
         { status: 409 }
+      )
+    }
+    if (error?.message === 'RECEIPT_EXCEEDS_ORDERED') {
+      return NextResponse.json(
+        { error: 'Cannot approve: this GRN would receive more than was ordered (another GRN for this delivery may already be approved). Please check and reject the duplicate GRN.' },
+        { status: 400 }
       )
     }
     console.error('Error approving purchase receipt:', error)

@@ -347,6 +347,40 @@ export async function POST(request: NextRequest) {
 
     // Create return
     const customerReturn = await prisma.$transaction(async (tx) => {
+      // Lock the sale row so void / exchange / other returns of this sale run
+      // one at a time, then re-check: a voided sale already had all its stock
+      // restored, and earlier returns already used up part of the sold quantity.
+      // Without this, the same sold units could be added back to stock twice.
+      const lockedSale = await tx.$queryRaw<{ status: string }[]>`
+        SELECT status FROM sales WHERE id = ${parseInt(saleId)} FOR UPDATE
+      `
+      if (!lockedSale.length || lockedSale[0].status === 'voided' || lockedSale[0].status === 'cancelled') {
+        throw new Error('RETURN_SALE_VOIDED')
+      }
+      const soldByVariation = new Map<number, number>()
+      for (const si of sale.items) {
+        soldByVariation.set(si.productVariationId, (soldByVariation.get(si.productVariationId) || 0) + parseFloat(si.quantity.toString()))
+      }
+      const priorReturnItems = await tx.customerReturnItem.findMany({
+        where: { customerReturn: { saleId: parseInt(saleId), status: { notIn: ['rejected', 'cancelled', 'voided'] } } },
+        select: { productVariationId: true, quantity: true },
+      })
+      const returnedByVariation = new Map<number, number>()
+      for (const pi of priorReturnItems) {
+        returnedByVariation.set(pi.productVariationId, (returnedByVariation.get(pi.productVariationId) || 0) + parseFloat(pi.quantity.toString()))
+      }
+      for (const item of items) {
+        const variationId = parseInt(item.productVariationId)
+        returnedByVariation.set(variationId, (returnedByVariation.get(variationId) || 0) + parseFloat(item.quantity))
+      }
+      // Only the products in THIS return are checked
+      for (const item of items) {
+        const variationId = parseInt(item.productVariationId)
+        if ((returnedByVariation.get(variationId) || 0) > (soldByVariation.get(variationId) || 0) + 0.0001) {
+          throw new Error(`RETURN_EXCEEDS_SOLD:${variationId}`)
+        }
+      }
+
       // Create customer return
       const newReturn = await tx.customerReturn.create({
         data: {
@@ -433,6 +467,19 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ return: completeReturn }, { status: 201 })
   } catch (error) {
+    const message = error instanceof Error ? error.message : ''
+    if (message === 'RETURN_SALE_VOIDED') {
+      return NextResponse.json(
+        { error: 'Cannot return items from a voided or cancelled sale - its stock was already restored by the void.' },
+        { status: 400 }
+      )
+    }
+    if (message.startsWith('RETURN_EXCEEDS_SOLD:')) {
+      return NextResponse.json(
+        { error: `Return quantity exceeds what is left to return on this sale for item ${message.split(':')[1]} (earlier returns/exchanges are counted).` },
+        { status: 400 }
+      )
+    }
     console.error('Error creating customer return:', error)
     return NextResponse.json(
       {
