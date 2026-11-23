@@ -364,3 +364,18 @@ Updated `productVariation.sellingPrice` and `variationLocationDetails.sellingPri
 ### Review
 - Only `inventory-corrections/page.tsx` (4 small edits) + new pager component. No API/database changes.
 - Record count = rows after filters/search. The page loads up to 1000 newest corrections (`?limit=1000`, unchanged).
+
+---
+
+# Formal verification: no double stock posting (2026-11-23)
+
+- [x] Map every route that moves stock and how it blocks a second posting
+- [x] TLA+ models in `formal/` (Checkout, TransferStock, SaleReturns, Receiving) + `bash formal/run.sh`
+- [x] Show each passing model fails when its guard is removed
+- [x] Project skill `.claude/skills/verify-stock-posting/SKILL.md` (coverage table, sync commit fb30d53b)
+- [x] Hand-off test: scratch break in job-processor.ts caught, then reverted
+
+## Review
+- No product code changed. Added only model files, a run script, a skill, and a .gitignore line.
+- Proven safe: checkout with the same key; transfer send-async / receive / complete-async (the routes the screens use); approving a GRN, supplier return, purchase return or replacement twice.
+- Findings (NOT fixed, waiting for owner's decision), details in the skill: F1 transfer cancel after receive, F2 plain status updates reopen transfers, F3 void vs exchange race, F4 customer return on a voided sale / repeat returns, F5 two GRNs at once, F6 checkout killed after commit (rare). Refund route: no guard, but broken and unused.

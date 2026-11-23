@@ -75,3 +75,6 @@ optimization-results/
 
 # Sentry Config File
 .env.sentry-build-plugin
+
+# TLA+ model checker download + run output
+formal/.tools/
