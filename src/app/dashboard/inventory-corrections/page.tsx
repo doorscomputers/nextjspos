@@ -24,9 +24,9 @@ import DataGrid, {
   Selection,
   Toolbar,
   Item,
-  Scrolling,
   LoadPanel,
 } from 'devextreme-react/data-grid'
+import { DataGridPagerBar, useDataGridPager } from '@/components/DataGridPagerBar'
 import { Workbook } from 'exceljs'
 import { saveAs } from 'file-saver-es'
 import { exportDataGrid } from 'devextreme/excel_exporter'
@@ -81,6 +81,7 @@ export default function InventoryCorrectionsPage() {
   const [bulkApproving, setBulkApproving] = useState(false)
   const [bulkDeleting, setBulkDeleting] = useState(false)
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
+  const pager = useDataGridPager(20)
 
   // Check permission
   if (!can(PERMISSIONS.INVENTORY_CORRECTION_VIEW)) {
@@ -485,6 +486,7 @@ export default function InventoryCorrectionsPage() {
 
       {/* DevExtreme DataGrid */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <DataGridPagerBar pager={pager} />
         <DataGrid
           dataSource={corrections}
           showBorders={true}
@@ -498,19 +500,13 @@ export default function InventoryCorrectionsPage() {
           wordWrapEnabled={false}
           onExporting={onExporting}
           onSelectionChanged={onSelectionChanged}
+          onContentReady={pager.onContentReady}
         >
           <LoadPanel enabled={loading} />
           <Selection mode="multiple" selectAllMode="page" showCheckBoxesMode="always" />
-          <Scrolling mode="virtual" rowRenderingMode="virtual" />
           <Paging defaultPageSize={20} />
-          <Pager
-            visible={true}
-            displayMode="full"
-            showPageSizeSelector={true}
-            allowedPageSizes={[10, 20, 50, 100]}
-            showInfo={true}
-            showNavigationButtons={true}
-          />
+          {/* Built-in pager hidden: DataGridPagerBar below adds First/Last buttons */}
+          <Pager visible={false} />
           <FilterRow visible={true} />
           <HeaderFilter visible={true} />
           <SearchPanel visible={true} width={240} placeholder="Search..." />
