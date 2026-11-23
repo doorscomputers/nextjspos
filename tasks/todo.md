@@ -379,3 +379,24 @@ Updated `productVariation.sellingPrice` and `variationLocationDetails.sellingPri
 - No product code changed. Added only model files, a run script, a skill, and a .gitignore line.
 - Proven safe: checkout with the same key; transfer send-async / receive / complete-async (the routes the screens use); approving a GRN, supplier return, purchase return or replacement twice.
 - Findings (NOT fixed, waiting for owner's decision), details in the skill: F1 transfer cancel after receive, F2 plain status updates reopen transfers, F3 void vs exchange race, F4 customer return on a voided sale / repeat returns, F5 two GRNs at once, F6 checkout killed after commit (rare). Refund route: no guard, but broken and unused.
+
+---
+
+# Fix double stock posting findings F1-F6 (2026-11-23) - approved by owner ("fix all")
+
+- [x] F1 transfers/cancel: cannot cancel a received transfer; restore decision read inside the transaction
+- [x] F2 mark-arrived / start-verification / verify-all / verify-item: status update only if status unchanged; receive + complete set stockReceived so destination stock is added once
+- [x] F3 void (both routes) + exchange: lock the sale row and re-check status/returns inside the transaction
+- [x] F4 customer returns: refuse voided sales, count earlier returns (create + approve, approve re-checks under sale lock)
+- [x] F5 GRN: create locks the purchase row and re-checks pending GRN + quantity; approve re-checks ordered quantity
+- [x] F6 checkout: stale 'processing' key on /api/sales is not re-run automatically
+- [x] Update TLA+ models to the fixed code, all configs pass, skill sync commit moved
+- [x] Type-check touched files, commit, push
+
+## Review (fixes)
+- Code commit 80193d81 (16 route/lib files, small guarded checks only; no schema or UI change).
+- Proof: all 9 TLA+ configs pass on the fixed code; removing each new guard from the model makes it fail (9/9).
+- Type-check: per-file error counts identical before/after for every touched file (project has ~2800 pre-existing errors; builds ignore them).
+- Live DB read-only checks: 0 over-received PO lines (GRN check blocks no normal work), 0 open transfers with stockReceived set, live stock function is the safe server-side version.
+- Owner to check by hand: exchanges RTN-EXC-202606-0003 (InvBambang06_07_2026_0002) and RTN-EXC-202606-0002 (InvMain06_05_2026_0009) are on voided sales - stock may be +1 too high for those items.
+- Still open: sales/[id]/refund route (broken + unused) has no already-refunded check.

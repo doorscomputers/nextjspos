@@ -14,8 +14,8 @@
 (*   handler= POST /api/sales; its prisma.$transaction (sales/route.ts:1081)*)
 (*            creates the sale and deducts stock in one atomic step        *)
 (*   mark   = markKeyCompleted (line 97)                                   *)
-(*   'processing' key older than 180s = stale -> DELETE and run again      *)
-(*            (lines 140-165)                                              *)
+(*   'processing' key older than 180s on /api/sales = 409, NOT re-run     *)
+(*            (the STALE SALE KEY branch); other endpoints still re-run    *)
 (* The sales handler catches every error and returns a response            *)
 (* (sales/route.ts:1505), so the 'failed' key path is never taken.         *)
 (*                                                                         *)
@@ -45,7 +45,7 @@ Try(a) ==
   /\ CASE key = "none"
             -> key' = "processing" /\ stale' = FALSE /\ pc' = [pc EXCEPT ![a] = "claimed"]
        [] key = "processing" /\ stale
-            -> key' = "none" /\ stale' = FALSE /\ UNCHANGED pc   \* DELETE stale, then retry (recursive call)
+            -> UNCHANGED <<key, stale>> /\ pc' = [pc EXCEPT ![a] = "done"]   \* /api/sales: 409 "may already be saved", never re-run
        [] key = "processing" /\ ~stale
             -> UNCHANGED <<key, stale>> /\ pc' = [pc EXCEPT ![a] = "done"]   \* 429
        [] key = "completed"

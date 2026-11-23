@@ -17,16 +17,14 @@ echo "$SHA  $JAR" | sha256sum -c --quiet - || { echo "tla2tools.jar checksum mis
 # catching; change it to pass only after the product code is fixed AND the model updated.
 MODELS="
 Checkout_NoKill:Checkout:pass
-Checkout_KillAfterCommit:Checkout:fail
+Checkout_KillAfterCommit:Checkout:pass
 TransferStock_UI:TransferStock:pass
-TransferStock_AllRoutes:TransferStock:fail
-TransferStock_NoCancel:TransferStock:fail
-SaleReturns_Fixed:SaleReturns:pass
-SaleReturns_Current:SaleReturns:fail
-SaleReturns_OneAtATime:SaleReturns:fail
+TransferStock_AllRoutes:TransferStock:pass
+SaleReturns_Concurrent:SaleReturns:pass
+SaleReturns_OneAtATime:SaleReturns:pass
 Receiving_OneAtATime:Receiving:pass
 Receiving_ConcurrentApprove:Receiving:pass
-Receiving_Concurrent:Receiving:fail
+Receiving_Concurrent:Receiving:pass
 "
 status=0
 for line in $MODELS; do

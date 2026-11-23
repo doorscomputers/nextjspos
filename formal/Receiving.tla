@@ -60,23 +60,26 @@ Start(q) ==
 
 Done(q) == pc' = [pc EXCEPT ![q] = "done"] /\ UNCHANGED <<arg, snap>>
 
-\* receive/route.ts:235-290: creates the GRN as 'pending'. No idempotency key,
-\* nothing re-checked inside the transaction.
+\* receive/route.ts transaction: SELECT ... FROM purchases FOR UPDATE, then re-check
+\* "no pending GRN" and quantityReceived + n <= ordered, then create as 'pending'.
 CommitCreate(q) ==
   /\ pc[q] = "CreateGrn"
   /\ LET g == arg[q][1] IN
-       IF grnStatus[g] = "none"
+       IF /\ grnStatus[g] = "none"
+          /\ ~\E h \in Grns : grnStatus[h] = "pending"
+          /\ qtyReceived + arg[q][2] <= Ordered
        THEN grnStatus' = [grnStatus EXCEPT ![g] = "pending"] /\ grnQty' = [grnQty EXCEPT ![g] = arg[q][2]]
        ELSE UNCHANGED <<grnStatus, grnQty>>
   /\ Done(q)
   /\ UNCHANGED <<qtyReceived, stockIn, grnPosts, docStatus, docPosts>>
 
-\* approve/route.ts:304-585: claim notIn approved/rejected -> approved, add stock,
-\* raise quantityReceived. Does not compare against the ordered quantity.
+\* approve/route.ts transaction: claim notIn approved/rejected -> approved, then
+\* SELECT ... FROM purchases FOR UPDATE and quantityReceived + this GRN <= ordered
+\* (else the whole transaction rolls back), add stock, raise quantityReceived.
 CommitApprove(q) ==
   /\ pc[q] = "ApproveGrn"
   /\ LET g == arg[q][1] IN
-       IF grnStatus[g] = "pending"
+       IF grnStatus[g] = "pending" /\ qtyReceived + grnQty[g] <= Ordered
        THEN /\ grnStatus' = [grnStatus EXCEPT ![g] = "approved"]
             /\ stockIn' = stockIn + grnQty[g]
             /\ qtyReceived' = qtyReceived + grnQty[g]

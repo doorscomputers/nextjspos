@@ -5,8 +5,8 @@
 (*                                                                         *)
 (* PROPERTY: the goods on one transfer leave the origin branch at most     *)
 (* once, arrive at the destination at most once, are put back at the      *)
-(* origin at most once, and are never both at the destination AND put      *)
-(* back at the origin.                                                     *)
+(* origin at most once, are never both at the destination AND put back    *)
+(* at the origin, and a cancelled transfer that had left is put back.      *)
 (*                                                                         *)
 (* HOW A REQUEST IS MODELLED (true to the code):                           *)
 (*   Step 1 "Pre"   = the findUnique + status checks at the top of the     *)
@@ -23,14 +23,14 @@
 (*                                                                         *)
 (* Stock is counted, not valued: one posting = one unit of the transfer.   *)
 (* Balance arithmetic itself is server-side under SELECT ... FOR UPDATE    *)
-(* (database/functions/update_inventory_with_history_v3_schema_fix.sql),   *)
-(* so it is assumed correct here.                                          *)
+(* (database/functions/update_inventory_with_history_v3_schema_fix.sql,    *)
+(* confirmed live on 2026-11-23), so it is assumed correct here.           *)
 (***************************************************************************)
 EXTENDS Naturals, FiniteSets
 
 CONSTANTS Reqs,         \* concurrent HTTP requests / jobs, e.g. {r1, r2, r3}
           Routes,       \* which routes are deployed (see cfg)
-          InitDeducted  \* FALSE = normal; TRUE is never used by the cfg
+          InitDeducted  \* FALSE = normal
 
 VARIABLES status,        \* stock_transfers.status
           stockDeducted, \* stock_transfers.stock_deducted
@@ -61,10 +61,13 @@ PreOK(r, row) ==
     [] r = "Receive"       -> row.status \in ReceiveOK                    \* receive/route.ts:143
     [] r = "CompleteSync"  -> row.status \in CompleteOK                   \* complete/route.ts:88
     [] r = "CompleteJob"   -> row.status \in CompleteOK /\ ~row.received  \* complete-async/route.ts:69 ; job-processor.ts:560-572
-    [] r = "Cancel"        -> row.status \notin {"completed","cancelled"} \* cancel/route.ts:75-89
+    [] r = "Cancel"        -> row.status \notin {"completed", "cancelled", "received"}
+                              /\ ~row.received                            \* cancel/route.ts:75-97
     [] r = "MarkArrived"   -> row.status = "in_transit"                   \* mark-arrived/route.ts:63
     [] r = "StartVerify"   -> row.status = "arrived"                      \* start-verification/route.ts:56
     [] r = "VerifyAll"     -> row.status \in VerifyOK                     \* verify-all/route.ts:70
+    [] r = "VerifyItem"    -> row.status = "verifying"                    \* verify-item/route.ts:74
+    [] r = "UnverifyItem"  -> row.status = "verified"                     \* unverify-item/route.ts:67-75,111 (only acts when verified)
 
 Start(q) ==
   /\ pc[q] = "idle"
@@ -90,25 +93,27 @@ CommitSend(q) ==
   /\ Finish(q)
   /\ UNCHANGED <<stockReceived, originBack, destIn>>
 
-\* receive/route.ts:249-345. deductAtReceive comes from the step-1 read (line 263).
+\* receive/route.ts:249-346. deductAtReceive comes from the step-1 read (line 264).
 CommitReceive(q) ==
   /\ pc[q] = "Receive"
-  /\ IF status \in ReceiveOK                                   \* claim WHERE, line 250
-     THEN /\ status' = "received" /\ stockDeducted' = TRUE      \* line 252-253
-          /\ originOut' = IF ~snap[q].deducted THEN originOut + 1 ELSE originOut  \* line 263, 292
-          /\ destIn' = destIn + 1                               \* line 330
-     ELSE UNCHANGED <<status, stockDeducted, originOut, destIn>>
+  /\ IF status \in ReceiveOK /\ ~stockReceived                \* claim WHERE, line 250
+     THEN /\ status' = "received" /\ stockDeducted' = TRUE     \* lines 252-253
+          /\ stockReceived' = TRUE                             \* line 254
+          /\ originOut' = IF ~snap[q].deducted THEN originOut + 1 ELSE originOut
+          /\ destIn' = destIn + 1                              \* transferStockIn
+     ELSE UNCHANGED <<status, stockDeducted, stockReceived, originOut, destIn>>
   /\ Finish(q)
-  /\ UNCHANGED <<stockReceived, originBack>>                   \* receive never sets stockReceived
+  /\ UNCHANGED originBack
 
-\* complete/route.ts:177-262 (sync; does not look at or set stockReceived)
+\* complete/route.ts:177-263 (sync)
 CommitCompleteSync(q) ==
   /\ pc[q] = "CompleteSync"
-  /\ IF status \in CompleteOK                                  \* claim WHERE, line 181
-     THEN /\ status' = "completed" /\ destIn' = destIn + 1      \* line 183, 211
-     ELSE UNCHANGED <<status, destIn>>
+  /\ IF status \in CompleteOK /\ ~stockReceived               \* claim WHERE, lines 181-182
+     THEN /\ status' = "completed" /\ stockReceived' = TRUE    \* line 184
+          /\ destIn' = destIn + 1                              \* addStock
+     ELSE UNCHANGED <<status, stockReceived, destIn>>
   /\ Finish(q)
-  /\ UNCHANGED <<stockDeducted, stockReceived, originOut, originBack>>
+  /\ UNCHANGED <<stockDeducted, originOut, originBack>>
 
 \* job-processor.ts:595-726
 CommitCompleteJob(q) ==
@@ -120,23 +125,34 @@ CommitCompleteJob(q) ==
   /\ Finish(q)
   /\ UNCHANGED <<stockDeducted, originOut, originBack>>
 
-\* cancel/route.ts:93-160. Whether to restore comes from the step-1 read (line 108).
+\* cancel/route.ts:100-175. The restore decision is re-read under the row lock
+\* (findUnique after the claim), so it uses the current stockDeducted.
 CommitCancel(q) ==
   /\ pc[q] = "Cancel"
-  /\ IF status \notin {"completed", "cancelled"}               \* claim WHERE, line 99
+  /\ IF status \notin {"completed", "cancelled", "received"} /\ ~stockReceived  \* claim WHERE
      THEN /\ status' = "cancelled"
-          /\ originBack' = IF snap[q].deducted THEN originBack + 1 ELSE originBack
+          /\ originBack' = IF stockDeducted THEN originBack + 1 ELSE originBack
      ELSE UNCHANGED <<status, originBack>>
   /\ Finish(q)
   /\ UNCHANGED <<stockDeducted, stockReceived, originOut, destIn>>
 
-\* mark-arrived/route.ts:120, start-verification/route.ts:87, verify-all/route.ts:111:
-\* plain prisma.stockTransfer.update({ where: { id } }) - no status in the WHERE.
+\* Status-only routes. Each is updateMany({ where: { id, status: <what it checked> } }):
+\* mark-arrived, start-verification, verify-all, verify-item (when all items
+\* are verified), unverify-item.
+From(r) == CASE r = "MarkArrived"  -> {"in_transit"}
+             [] r = "StartVerify"  -> {"arrived"}
+             [] r = "VerifyAll"    -> VerifyOK
+             [] r = "VerifyItem"   -> {"verifying"}
+             [] r = "UnverifyItem" -> {"verified"}
+To(r) == CASE r = "MarkArrived"  -> "arrived"
+           [] r = "StartVerify"  -> "verifying"
+           [] r = "VerifyAll"    -> "verified"
+           [] r = "VerifyItem"   -> "verified"
+           [] r = "UnverifyItem" -> "verifying"
+
 CommitPlainStatus(q) ==
-  /\ pc[q] \in {"MarkArrived", "StartVerify", "VerifyAll"}
-  /\ status' = CASE pc[q] = "MarkArrived" -> "arrived"
-                 [] pc[q] = "StartVerify" -> "verifying"
-                 [] pc[q] = "VerifyAll"   -> "verified"
+  /\ pc[q] \in {"MarkArrived", "StartVerify", "VerifyAll", "VerifyItem", "UnverifyItem"}
+  /\ status' = IF status \in From(pc[q]) THEN To(pc[q]) ELSE status   \* count 0 -> 409 / no-op
   /\ Finish(q)
   /\ UNCHANGED <<stockDeducted, stockReceived, originOut, originBack, destIn>>
 
@@ -167,4 +183,6 @@ NoDoubleTransferIn   == destIn <= 1
 NoDoubleCancelReturn == originBack <= 1
 \* The same goods are never both at the destination AND back at the origin
 NoStockFromNothing   == destIn + originBack <= originOut
+\* A cancelled transfer that had left the origin is put back (nothing lost)
+NoLostOnCancel       == status = "cancelled" => originBack = originOut
 =============================================================================
