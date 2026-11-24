@@ -455,3 +455,4 @@ replaying the trace against the route line by line. No product code is changed i
 - Proven able to fail: every Fixed config fails with Fixed=FALSE. The guards were removed in StockFunction and Imports, and they failed.
   Hand-off test: a scratch break in `src/app/api/payments/route.ts` was caught by verify-money, then reverted.
 - Serials not modelled (0 serial rows in production). No product code changed. Production SQL was read-only.
+- Follow-up check (2026-11-24, read-only): G8 has not happened since 27 Jan 2026 (0 double Z readings in 1,072 shifts, Feb-Nov). In Jan-Nov 2026, Z equals running totals. No overlapping open shifts since June. Only Main Store's old +3 Z counter and +PHP 1,053,842 remain to correct (with the accountant). The code race is still open.
