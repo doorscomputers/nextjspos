@@ -403,36 +403,55 @@ Updated `productVariation.sellingPrice` and `variationLocationDetails.sellingPri
 
 ---
 
-# Formal verification, part 2: the areas not covered yet (2026-11-24) - PLAN, waiting for owner
+# Formal verification, part 2: the areas not covered yet (2026-11-24) - approved by owner (re-ran /create-formal-verification-skill)
 
 Same method as part 1: a TLA+ model per area, each request = (pre-check outside the transaction) + (transaction as one step),
 TLC tries every order of 3-4 overlapping requests. A model that fails on today's code = a suspected bug, confirmed only after
 replaying the trace against the route line by line. No product code is changed in this part.
 
 ## Models to write (formal/)
-- [ ] Corrections.tla - create / approve / bulk-approve / reject / edit / delete overlapping.
+- [x] Corrections.tla - create / approve / bulk-approve / reject / edit / delete overlapping.
       Proves: stock posted once per correction; a rejected or deleted correction never posts; an approved one is never flipped to rejected.
       Suspected: reject/delete use plain updates (no status in WHERE); approve claim only excludes 'approved'.
-- [ ] Imports.tla - physical-inventory import, import-safe, admin upload, opening stock, product import, with retries and a sale in between.
+- [x] Imports.tla - physical-inventory import, import-safe, admin upload, opening stock, product import, with retries and a sale in between.
       Proves: uploading the same count twice does not move stock twice; final stock = counted qty; opening stock set once.
       Suspected: import / admin upload post a stale CSV difference again on every re-upload; opening-stock checks are outside the transaction.
-- [ ] Serials.tla - sale, transfer send/receive, supplier return, void, exchange on the same serial.
+- [~] Serials.tla (NOT built: 0 serial numbers in production; risks written in the skill instead) - sale, transfer send/receive, supplier return, void, exchange on the same serial.
       Proves: a serial is sold at most once and is in one place; serial status agrees with stock.
       Suspected: sale updates the serial by id only, so two sales can sell one serial.
-- [ ] StockFunction.tla - the database function update_inventory_with_history (v3) and the bulk one.
+- [x] StockFunction.tla - the database function update_inventory_with_history (v3) and the bulk one.
       Proves: balance = sum of movements; never negative unless allowed.
       Suspected: when no stock row exists yet, two first postings at once can lose one.
-- [ ] Payments.tla - AR (customer pays a credit sale) and AP (single + batch supplier payments, AP edit).
+- [x] Payments.tla - AR (customer pays a credit sale) and AP (single + batch supplier payments, AP edit).
       Proves: paid = sum of payment rows; paid never > amount due; status 'paid'/'completed' exactly when balance = 0; voided sale cannot be paid.
       Suspected: two payments at once overpay (AR) or lose one (AP writes absolute amounts from a stale read).
-- [ ] Shifts.tla - open, close, force-close, and sale / AR payment / cash in-out / void / refund landing at the same time.
+- [x] Shifts.tla - open, close, force-close, and sale / AR payment / cash in-out / void / refund landing at the same time.
       Proves: one open shift per user; a shift closes once (Z counter +1 once); nothing is added to a closed shift; system cash = the money recorded in it.
       Suspected: two closes both count; late sale/payment lands in a closed shift; two open shifts per user.
-- [ ] Bigger numbers: add a larger config to each part-1 model where TLC still finishes in a few minutes.
+- [x] Bigger numbers: add a larger config to each part-1 model where TLC still finishes in a few minutes.
 
 ## Then
-- [ ] For each failing model: replay the trace against the code, list confirmed findings (G1, G2, ...) in plain words, with real-data checks (read-only SQL) of whether it has already happened in production.
-- [ ] Show each passing model fails when its guard is removed.
-- [ ] Add the configs to formal/run.sh (known bugs marked expected=fail); extend skill verify-stock-posting (stock parts) and add skill verify-money (AR/AP/shifts).
-- [ ] Commit + push (models, run.sh, skills only).
+- [x] For each failing model: replay the trace against the code, list confirmed findings (G1, G2, ...) in plain words, with real-data checks (read-only SQL) of whether it has already happened in production.
+- [x] Show each passing model fails when its guard is removed.
+- [x] Add the configs to formal/run.sh (known bugs marked expected=fail); extend skill verify-stock-posting (stock parts) and add skill verify-money (AR/AP/shifts).
+- [x] Commit + push (models, run.sh, skills only).
 - [ ] Owner decides which findings to fix (separate step, like part 1).
+
+## Review (part 2)
+- New TLA+ models in `formal/`: Corrections, Imports, StockFunction, Payments, Shifts, each with today's-code configs and a `Fixed` config.
+  Bigger configs for the part-1 models: Checkout_Large, TransferStock_Large, SaleReturns_Large, Receiving_Large (`bash formal/run.sh large`, about 2.5 min, all pass).
+  Receiving with 5 requests also passed once (367M states, ~1h40m), which is too slow to keep in run.sh.
+- `formal/run.sh`: prefix filter (`run.sh Payments`), new configs with expected results, and a `large` mode.
+- Skills: `verify-stock-posting` extended (corrections, imports, opening stock, DB function, bounds); new `verify-money` (AR/AP, shifts, Z readings).
+- Findings (confirmed against the code, NOT fixed; the owner decides):
+  - G1: a rejected correction can be approved; reject/edit/delete race with approve.
+  - G2: two approvals for one item at once give a wrong stock.
+  - G3: a double-submitted admin count upload adds the difference twice.
+  - G4: opening stock saved twice or during a sale gives a double ledger row or an overwrite.
+  - G5: the DB function's very first posting per item+branch, two at once, loses one.
+  - G6: AR: payment on a voided sale un-voids it; concurrent payments overpay or leave the sale pending.
+  - G7: AP: concurrent supplier payments lose one from paidAmount.
+  - G8: shifts: a double close counts Z and accumulated sales twice (HAPPENED: Main Store z_counter 358 vs 355 closed shifts, accumulated sales +PHP 1,053,842 from 3 shifts closed twice); a late sale is missed by Z; two open shifts are possible.
+- Proven able to fail: every Fixed config fails with Fixed=FALSE. The guards were removed in StockFunction and Imports, and they failed.
+  Hand-off test: a scratch break in `src/app/api/payments/route.ts` was caught by verify-money, then reverted.
+- Serials not modelled (0 serial rows in production). No product code changed. Production SQL was read-only.
