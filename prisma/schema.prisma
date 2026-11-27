@@ -2414,6 +2414,9 @@ model InventoryCorrection {
   // Stock transaction reference (created after correction is applied)
   stockTransactionId Int? @unique @map("stock_transaction_id")
 
+  // Set when the correction came from an approved mobile Count Session
+  countSessionId Int? @map("count_session_id")
+
   // User who made the correction
   createdBy     Int    @map("created_by")
   createdByName String @map("created_by_name") @db.VarChar(191)
@@ -2445,6 +2448,7 @@ model InventoryCorrection {
   @@index([status])
   @@index([createdAt])
   @@index([createdBy])
+  @@unique([countSessionId, productVariationId]) // one posting per item per count session (NULLs allowed for normal corrections)
   @@map("inventory_corrections")
 }
 
@@ -5046,4 +5050,108 @@ model PriceChangeHistory {
   @@index([createdAt])
   @@index([changeSource])
   @@map("price_change_history")
+}
+
+// ============================================
+// MOBILE PHYSICAL COUNT (Android app)
+// Spec: docs/superpowers/specs/2026-11-27-mobile-physical-count-design.md
+// Plain Int ids to existing tables on purpose (no back-relations added to existing models).
+// ============================================
+
+model CountSession {
+  id         Int    @id @default(autoincrement())
+  businessId Int    @map("business_id")
+  locationId Int    @map("location_id")
+  status     String @default("open") @db.VarChar(20) // open, submitted, sent_back, approved
+
+  // = locationId while open/submitted/sent_back, NULL once approved.
+  // Unique => the database allows only ONE active session per branch.
+  activeLocationId Int? @unique @map("active_location_id")
+
+  startedBy     Int       @map("started_by")
+  startedByName String    @map("started_by_name") @db.VarChar(191)
+  startedAt     DateTime  @default(now()) @map("started_at")
+  submittedBy   Int?      @map("submitted_by")
+  submittedAt   DateTime? @map("submitted_at")
+  approvedBy    Int?      @map("approved_by")
+  approvedAt    DateTime? @map("approved_at")
+  sendBackNote  String?   @map("send_back_note") @db.Text
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  counters     CountSessionCounter[]
+  lines        CountLine[]
+  unknownItems CountUnknownItem[]
+
+  @@index([businessId, status])
+  @@index([locationId])
+  @@map("count_sessions")
+}
+
+model CountSessionCounter {
+  sessionId Int       @map("session_id")
+  userId    Int       @map("user_id")
+  userName  String    @map("user_name") @db.VarChar(191)
+  joinedAt  DateTime  @default(now()) @map("joined_at")
+  doneAt    DateTime? @map("done_at")
+
+  session CountSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@id([sessionId, userId])
+  @@map("count_session_counters")
+}
+
+model CountLine {
+  id                 String    @id @db.VarChar(36) // UUID generated on the phone (retry-safe upsert)
+  sessionId          Int       @map("session_id")
+  productId          Int       @map("product_id")
+  productVariationId Int       @map("product_variation_id")
+  qty                Decimal   @db.Decimal(22, 4)
+  spot               String?   @db.VarChar(100)
+  countedBy          Int       @map("counted_by")
+  countedByName      String    @map("counted_by_name") @db.VarChar(191)
+  countedAt          DateTime  @map("counted_at") // server-corrected phone time
+  systemQtyAtCount   Decimal   @map("system_qty_at_count") @db.Decimal(22, 4) // never sent to the phone (blind count)
+  deletedAt          DateTime? @map("deleted_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  session CountSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  edits   CountLineEdit[]
+
+  @@index([sessionId, productVariationId])
+  @@map("count_lines")
+}
+
+model CountLineEdit {
+  id           Int      @id @default(autoincrement())
+  lineId       String   @map("line_id") @db.VarChar(36)
+  oldQty       Decimal  @map("old_qty") @db.Decimal(22, 4)
+  newQty       Decimal? @map("new_qty") @db.Decimal(22, 4) // NULL = line deleted
+  editedBy     Int      @map("edited_by")
+  editedByName String   @map("edited_by_name") @db.VarChar(191)
+  editedAt     DateTime @default(now()) @map("edited_at")
+
+  line CountLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+
+  @@index([lineId])
+  @@map("count_line_edits")
+}
+
+model CountUnknownItem {
+  id            String    @id @db.VarChar(36) // UUID generated on the phone
+  sessionId     Int       @map("session_id")
+  scannedCode   String?   @map("scanned_code") @db.VarChar(191)
+  description   String    @db.VarChar(500)
+  qty           Decimal   @db.Decimal(22, 4)
+  countedBy     Int       @map("counted_by")
+  countedByName String    @map("counted_by_name") @db.VarChar(191)
+  countedAt     DateTime  @map("counted_at")
+  deletedAt     DateTime? @map("deleted_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  session CountSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("count_unknown_items")
 }

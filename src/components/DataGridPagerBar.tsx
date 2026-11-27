@@ -52,7 +52,7 @@ export function useDataGridPager(initialPageSize = 20) {
   return { gridRef, state, onContentReady }
 }
 
-const PAGE_SIZES = [10, 20, 30, 40, 50, 100]
+const PAGE_SIZES = [10, 20, 25, 30, 40, 50, 100]
 
 export function DataGridPagerBar({ pager }: { pager: ReturnType<typeof useDataGridPager> }) {
   const { gridRef, state } = pager

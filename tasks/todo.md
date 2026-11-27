@@ -1,3 +1,29 @@
+# Mobile Physical Count — Android app + approval page (2026-11-27)
+
+Spec: `docs/superpowers/specs/2026-11-27-mobile-physical-count-design.md` · API: `docs/superpowers/specs/2026-11-27-mobile-count-api.md`
+
+## Todo
+- [x] Design agreed (login + branch card, running totals, blind count, offline, count sessions, approval posts counted − system-at-count)
+- [x] Schema: CountSession, CountSessionCounter, CountLine, CountLineEdit, CountUnknownItem; `inventory_corrections.count_session_id` + unique (session, item)
+- [x] Additive SQL file `prisma/sql/2026-11-27-mobile-count.sql` (db:push would drop 3 backup tables — not used)
+- [x] Permissions `physical_count.mobile` / `physical_count.view`, menu item, setup script `prisma/add-physical-count-permissions.ts`
+- [x] Phone API `/api/mobile/*`: auth (password + card must match user's branch), products (blind), sessions, join, done, submit, lines, sync (idempotent, clock-corrected, row-locked)
+- [x] Web API `/api/count-sessions/*`: list, review, approve (per-item, never twice), send back
+- [x] Web pages: Physical Count Sessions list + review (folder tabs, totals over all rows, top scrollbar, Excel/PDF/Print)
+- [x] Shared `DataGridTopScrollbar`; pager now offers 25 rows
+- [x] Android app `mobile/` (Expo): login + card, start/join, scan (camera / Bluetooth / rugged), confirm pop-up, not-found search, unknown item, edit/delete, offline queue
+- [x] Unit tests (qty rules, phone clock correction) — 7 passing; `npm run build` passes
+- [ ] OWNER: apply SQL to Supabase, run permission script, build APK, pilot at one branch
+- [ ] Later: extend TLA+ model with count-session approval; app icons
+
+## Review
+- Phone never changes stock. Only web approval posts, through existing `updateStock()`, as `InventoryCorrection` reason `physical_count` linked to the session.
+- Existing Inventory Corrections / Excel import / approve routes unchanged (only a "Physical Count (mobile app)" reason label added).
+- Root `tsconfig.json` and ESLint now exclude `mobile/` so the Vercel build is unaffected.
+- Telegram: one summary per approved session; no SMS.
+
+---
+
 # Block login outside office hours (2026-11-17) — PLAN, waiting for owner approval
 
 ## Findings (live DB, read-only)

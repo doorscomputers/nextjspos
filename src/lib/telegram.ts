@@ -579,6 +579,45 @@ ${Math.abs(data.difference) > 100 ? '⚠️ <i>Significant inventory adjustment 
 }
 
 /**
+ * Send ONE summary alert when a mobile Physical Count Session is approved
+ */
+export async function sendTelegramPhysicalCountApprovedAlert(data: {
+  sessionId: number
+  locationName: string
+  counters: string
+  itemsCounted: number
+  itemsPosted: number
+  unitsAdded: number
+  unitsRemoved: number
+  valueImpact: number
+  approvedBy: string
+  timestamp: Date
+}): Promise<boolean> {
+  if (!telegramConfig.enabled) {
+    return false
+  }
+
+  const message = `
+📋 <b>PHYSICAL COUNT APPROVED</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+<b>Count Session:</b> #${data.sessionId}
+<b>Location:</b> ${data.locationName}
+<b>Counted By:</b> ${data.counters}
+
+<b>Items Counted:</b> ${data.itemsCounted}
+<b>Items Adjusted:</b> ${data.itemsPosted}
+<b>Units Added:</b> +${data.unitsAdded}
+<b>Units Removed:</b> -${data.unitsRemoved}
+<b>Value Impact:</b> ${formatCurrency(data.valueImpact)}
+
+<b>Approved By:</b> ${data.approvedBy}
+<b>Date:</b> ${formatDateTime(data.timestamp)}
+  `.trim()
+
+  return sendTelegramMessage(message)
+}
+
+/**
  * Send stock transfer alert
  */
 export async function sendTelegramStockTransferAlert(data: {

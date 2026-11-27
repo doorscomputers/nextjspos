@@ -172,6 +172,7 @@ export default function InventoryCorrectionDetailPage() {
       missing: 'Missing',
       found: 'Found',
       count_error: 'Count Error',
+      physical_count: 'Physical Count (mobile app)',
       physical_inventory_count: 'Physical Inventory Count'
     }
     return labels[reason] || reason

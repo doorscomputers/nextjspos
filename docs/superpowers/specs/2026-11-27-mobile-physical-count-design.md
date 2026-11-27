@@ -214,3 +214,29 @@ Menu: Inventory → Physical Count Sessions (Sidebar entry gated by `physical_co
 4. `npx prisma generate`, type-check and `npm run build` before each commit.
 5. Pilot: one phone, one branch, a small partial count; approve; check item ledgers; then roll out.
 6. Rugged device later: confirm its scanner is set to send Enter after each scan (Zebra DataWedge / Honeywell settings). No code change expected.
+
+## 11. Implementation notes (what was built, where it differs from above)
+
+- **Approval posts each item in its own small transaction** (like the existing bulk-approve),
+  not one big transaction, so large counts don't hit the 60 s transaction limit. Safety comes from
+  a unique index on `inventory_corrections(count_session_id, product_variation_id)`: an item can
+  never be posted twice, even on double-click, retry or resume. Session status goes
+  `submitted → approving → approved`. If any item fails, the session stays `approving` and
+  pressing Approve again posts only the remaining items.
+- **The existing approve / bulk-approve routes were NOT changed** (section 6.5 step 4 dropped).
+  The mobile approval creates its own `InventoryCorrection` (reason `physical_count`,
+  `countSessionId` set) and calls `updateStock()` directly. Excel import behavior is unchanged.
+- **Value (₱)** = difference × `ProductVariation.purchasePrice`.
+- **Alerts:** one Telegram summary per approved session (`sendTelegramPhysicalCountApprovedAlert`).
+  No SMS (avoids per-message cost for hundreds of items).
+- **Database changes are additive only** and live in `prisma/sql/2026-11-27-mobile-count.sql`.
+  Do NOT use `npm run db:push` on production: Prisma would DROP the three
+  `inventory_repair_backup_*_2026_06_24` tables that are not in the schema.
+- **Permissions setup:** `prisma/add-physical-count-permissions.ts` (idempotent). The existing
+  "Inventory Counter" role gets `physical_count.mobile`; roles with `inventory_correction.approve`
+  get `physical_count.view` and the menu.
+- **Not done yet:** TLA+ model extension (section 10.3); real-device end-to-end test; app icons.
+- Files: `src/lib/mobileCount.ts`, `src/lib/mobileCountRules.ts` (+ tests),
+  `src/lib/countSessionReview.ts`, `src/lib/countSessionAuth.ts`, `src/app/api/mobile/**`,
+  `src/app/api/count-sessions/**`, `src/app/dashboard/physical-count-sessions/**`,
+  `src/components/physical-count/*`, `src/components/DataGridTopScrollbar.tsx`, `mobile/`.

@@ -528,6 +528,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
           permission: PERMISSIONS.PHYSICAL_INVENTORY_EXPORT,
         },
         {
+          name: "Physical Count Sessions",
+          href: "/dashboard/physical-count-sessions",
+          icon: ClipboardDocumentListIcon,
+          key: "physical_count_sessions",
+          permission: PERMISSIONS.PHYSICAL_COUNT_VIEW,
+        },
+        {
           name: "Admin Physical Inventory",
           href: "/dashboard/admin/physical-inventory-upload",
           icon: DocumentArrowUpIcon,

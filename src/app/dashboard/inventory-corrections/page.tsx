@@ -294,7 +294,8 @@ export default function InventoryCorrectionsPage() {
       damaged: 'Damaged',
       missing: 'Missing',
       found: 'Found',
-      count_error: 'Count Error'
+      count_error: 'Count Error',
+      physical_count: 'Physical Count (mobile app)'
     }
     return labels[reason] || reason
   }

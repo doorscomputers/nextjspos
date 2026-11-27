@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "IT Inventory Count",
+    "slug": "it-inventory-count",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#f0fdfa",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.igorotech.inventorycount",
+      "versionCode": 1,
+      "permissions": ["android.permission.CAMERA"],
+      "blockedPermissions": ["android.permission.RECORD_AUDIO"],
+      "softwareKeyboardLayoutMode": "resize",
+      "adaptiveIcon": {
+        "backgroundColor": "#0f766e",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "IT Inventory Count uses the camera to read product barcodes and branch location cards.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
+      ],
+      "expo-sqlite",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "apiBaseUrl": "https://CHANGE-ME.vercel.app"
+    }
+  }
+}

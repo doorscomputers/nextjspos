@@ -143,6 +143,8 @@ export const PERMISSION_DESCRIPTIONS: Record<string, string> = {
   // Physical Inventory
   'physical_inventory.export': 'Export inventory for counting',
   'physical_inventory.import': 'Import counted inventory',
+  'physical_count.mobile': 'Count stock with the mobile app',
+  'physical_count.view': 'View Physical Count Sessions',
 
   // Serial Numbers
   'serial_number.view': 'View serial numbers',

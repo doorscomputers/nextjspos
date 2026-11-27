@@ -261,6 +261,10 @@ export const PERMISSIONS = {
   PHYSICAL_INVENTORY_IMPORT: 'physical_inventory.import',
   ADMIN_PHYSICAL_INVENTORY_UPLOAD: 'admin.physical_inventory.upload', // Admin can upload for any location
 
+  // Mobile Physical Count (Android app). Approving uses INVENTORY_CORRECTION_APPROVE.
+  PHYSICAL_COUNT_MOBILE: 'physical_count.mobile', // Log into the counting app and count
+  PHYSICAL_COUNT_VIEW: 'physical_count.view', // See Physical Count Sessions page
+
   // Sales - Basic CRUD
   SELL_VIEW: 'sell.view',
   SELL_CREATE: 'sell.create',
@@ -1000,6 +1004,7 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.INVENTORY_CORRECTION_VIEW,
       PERMISSIONS.INVENTORY_CORRECTION_CREATE,
       PERMISSIONS.INVENTORY_CORRECTION_UPDATE,
+      PERMISSIONS.PHYSICAL_COUNT_MOBILE,
     ],
   },
 
