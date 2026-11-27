@@ -13,8 +13,12 @@
     "android": {
       "package": "com.igorotech.inventorycount",
       "versionCode": 1,
-      "permissions": ["android.permission.CAMERA"],
-      "blockedPermissions": ["android.permission.RECORD_AUDIO"],
+      "permissions": [
+        "android.permission.CAMERA"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#0f766e",
@@ -40,7 +44,11 @@
       "expo-secure-store"
     ],
     "extra": {
-      "apiBaseUrl": "https://CHANGE-ME.vercel.app"
-    }
+      "apiBaseUrl": "https://CHANGE-ME.vercel.app",
+      "eas": {
+        "projectId": "7d462e85-9c49-4911-8009-da19d2d1d4f5"
+      }
+    },
+    "owner": "romanrapido"
   }
 }
