@@ -78,3 +78,6 @@ optimization-results/
 
 # TLA+ model checker download + run output
 formal/.tools/
+
+# Brainstorming visual companion mockups
+.superpowers/
