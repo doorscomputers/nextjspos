@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma.simple'
 import { MobileError, getOwnSession, lockSession, mobileRoute, sessionView } from '@/lib/mobileCount'
+import { emailCountSessionCopies } from '@/lib/countSessionEmail'
 
 type Ctx = { params: Promise<{ id: string }> }
 
@@ -27,5 +28,7 @@ export const POST = mobileRoute<Ctx>(async (_req, me, { params }) => {
       data: { status: 'submitted', submittedBy: me.userId, submittedAt: new Date(), sendBackNote: null },
     })
   })
+  // Each counter's own list + hidden backup copy. Runs after the submit is saved; never throws.
+  await emailCountSessionCopies(sessionId)
   return NextResponse.json({ session: await sessionView(sessionId, me) })
 })

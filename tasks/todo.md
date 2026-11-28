@@ -1,3 +1,12 @@
+## Count session email copies (2026-11-28)
+- [x] On every count submit, email each counter their own counted list (blind, PH counting date, CSV attached)
+- [x] Hidden copy (BCC) to rr3800@gmail.com (override with env COUNT_BACKUP_EMAIL); no counter email -> backup only
+- [x] Never blocks or undoes a submit (errors logged, 20 s cap)
+
+### Review
+- New `src/lib/countSessionEmail.ts`; called at the end of `api/mobile/count/sessions/[id]/submit`; `sendEmail` gained optional `bcc`.
+- Build passes. Test send FAILED: Gmail rejects SMTP_USER/SMTP_PASS (535 Username and Password not accepted) -> owner must create a Gmail App Password and update SMTP_PASS in .env and Vercel.
+
 # Mobile Physical Count — Android app + approval page (2026-11-27)
 
 Spec: `docs/superpowers/specs/2026-11-27-mobile-physical-count-design.md` · API: `docs/superpowers/specs/2026-11-27-mobile-count-api.md`

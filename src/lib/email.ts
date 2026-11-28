@@ -417,6 +417,7 @@ export function areNotificationsEnabled(): boolean {
 // Generic email sending function
 interface SendEmailOptions {
   to: string | string[]
+  bcc?: string | string[] // hidden copy (other recipients don't see it)
   subject: string
   html: string
   text?: string
@@ -440,6 +441,7 @@ export async function sendEmail(options: SendEmailOptions): Promise<boolean> {
     const info = await transport.sendMail({
       from: fromAddress,
       to: recipients,
+      bcc: options.bcc,
       subject: options.subject,
       text: options.text || '',
       html: options.html,
