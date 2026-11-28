@@ -1,3 +1,14 @@
+# Mobile count: add more after Submit + Counted report on the phone (2026-11-28)
+
+- [x] Join route: a SUBMITTED (not yet approving/approved) count can be reopened -> status open, submittedAt/By cleared. Row lock + approve's atomic claim keep it race-safe.
+- [x] Phone: "Add more counts" button on the main screen and the counting screen when submitted (confirm dialog).
+- [x] API GET /api/mobile/count/report?from&to[&format=xlsx|pdf] - branch of the phone token only, blind (counted qty, never system qty), max 93 days.
+- [x] Phone: "Counted report" screen - Today / Yesterday / Last 7 days / This month chips, From/To dates, totals, list, Excel + PDF (download with token, open/share sheet).
+- [x] expo-file-system + expo-sharing added; type-check app + server, build OK, APK rebuilt.
+
+## Review
+Reopening reuses the existing join flow (same as "sent back"). The report reuses getMismatchReport so the counted totals equal what the approver sees. Counted only = uploaded lines.
+
 ## Count app follow-ups (2026-11-28)
 - [x] Removed the count email copies (owner decision)
 - [x] "I'm done" renamed to "Done Counting" (app + server messages)

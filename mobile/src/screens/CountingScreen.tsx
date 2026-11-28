@@ -116,7 +116,7 @@ export function CountingScreen(props: { scan?: string; scanKey?: number }) {
     ]);
 
   const submit = () =>
-    Alert.alert('Submit for approval?', 'After submitting, nobody can change the counts unless the approver sends it back.', [
+    Alert.alert('Submit for approval?', 'The approver can then check and approve it. If you forget something, tap "Add more counts" before it is approved.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Submit',
@@ -127,6 +127,24 @@ export function CountingScreen(props: { scan?: string; scanKey?: number }) {
           }),
       },
     ]);
+
+  const addMore = () =>
+    Alert.alert(
+      'Add more counts?',
+      'The count goes back to Open so everyone can add more. When finished, tap "Done Counting" and Submit for Approval again.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Add more counts',
+          onPress: () =>
+            void sessionAction('join', async () => {
+              const r = await api.join(baseUrl, auth.token, session!.id);
+              app.setSession(r.session);
+              engine?.unlock();
+            }),
+        },
+      ],
+    );
 
   const checkAgain = () =>
     void sessionAction('check', async () => {
@@ -164,7 +182,7 @@ export function CountingScreen(props: { scan?: string; scanKey?: number }) {
 
   const lockText =
     session.status === 'submitted'
-      ? 'This count was submitted for approval. Counting is locked.'
+      ? 'This count was submitted for approval. Forgot something? Tap "Add more counts".'
       : session.status === 'approved'
         ? 'This count is closed (approved). Counting is locked.'
         : session.status === 'sent_back'
@@ -191,6 +209,15 @@ export function CountingScreen(props: { scan?: string; scanKey?: number }) {
 
       <View style={s.top}>
         {lockText && <Banner kind="error" text={lockText} />}
+        {session.status === 'submitted' && (
+          <Button
+            title="Add more counts"
+            onPress={addMore}
+            loading={busy === 'join'}
+            disabled={!!busy}
+            style={{ marginBottom: 10 }}
+          />
+        )}
         {lockText && (
           <Button
             title="Check again"

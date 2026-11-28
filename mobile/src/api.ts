@@ -86,6 +86,16 @@ export type SyncBody = {
   }[];
 };
 
+export type ReportRow = {
+  key: string;
+  sessionId: number;
+  status: string;
+  item: string;
+  sku: string;
+  counted: number;
+  countedAt: string;
+};
+
 export type SyncResult = { accepted: string[]; rejected: { id: string; error: string }[] };
 
 export function cleanBaseUrl(url: string) {
@@ -185,6 +195,14 @@ export const api = {
       token,
       `/api/mobile/count/sessions/${id}/lines`,
       { timeoutMs: 45000 },
+    ),
+
+  report: (base: string, token: string, from: string, to: string) =>
+    request<{ rows: ReportRow[] }>(
+      base,
+      token,
+      `/api/mobile/count/report?from=${from}&to=${to}`,
+      { timeoutMs: 60000 },
     ),
 
   sync: (base: string, token: string, body: SyncBody) =>

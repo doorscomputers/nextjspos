@@ -9,7 +9,8 @@ export type Screen =
   | { name: 'session' }
   | { name: 'counting'; scan?: string; scanKey?: number }
   | { name: 'notfound'; code: string; matches?: Product[] }
-  | { name: 'item'; variationId: number };
+  | { name: 'item'; variationId: number }
+  | { name: 'report' };
 
 export type AppCtx = {
   baseUrl: string;

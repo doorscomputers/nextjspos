@@ -15,6 +15,7 @@ import { CountingScreen } from './src/screens/CountingScreen';
 import { NotFoundScreen } from './src/screens/NotFoundScreen';
 import { ItemDetailScreen } from './src/screens/ItemDetailScreen';
 import { ReloginModal } from './src/screens/ReloginModal';
+import { ReportScreen } from './src/screens/ReportScreen';
 
 export default function App() {
   return (
@@ -149,7 +150,7 @@ function Root() {
         go({ name: 'counting' });
         return true;
       }
-      if (screen.name === 'counting') {
+      if (screen.name === 'counting' || screen.name === 'report') {
         go({ name: 'session' });
         return true;
       }
@@ -238,6 +239,7 @@ function Root() {
       {screen.name === 'counting' && <CountingScreen scan={screen.scan} scanKey={screen.scanKey} />}
       {screen.name === 'notfound' && <NotFoundScreen code={screen.code} matches={screen.matches} />}
       {screen.name === 'item' && <ItemDetailScreen variationId={screen.variationId} />}
+      {screen.name === 'report' && <ReportScreen />}
       <ReloginModal
         visible={relogin}
         baseUrl={baseUrl}

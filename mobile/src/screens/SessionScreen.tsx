@@ -68,7 +68,10 @@ export function SessionScreen() {
     try {
       const r = await fn();
       app.setSession(r.session);
-      if (canCount(r.session)) app.go({ name: 'counting' });
+      if (canCount(r.session)) {
+        app.engine?.unlock();
+        app.go({ name: 'counting' });
+      }
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) app.requireRelogin();
       else if (e instanceof ApiError && e.status === 409) {
@@ -85,6 +88,16 @@ export function SessionScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Start', onPress: () => void act('start', () => api.startSession(baseUrl, auth.token)) },
     ]);
+
+  const addMore = () =>
+    Alert.alert(
+      'Add more counts?',
+      'The count goes back to Open so everyone can add more. When finished, tap "Done Counting" and Submit for Approval again.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Add more counts', onPress: () => void act('join', () => api.join(baseUrl, auth.token, active!.id)) },
+      ],
+    );
 
   const logout = () =>
     Alert.alert(
@@ -202,11 +215,29 @@ export function SessionScreen() {
           <>
             <Banner
               kind="info"
-              text="This count was submitted and is waiting for approval on the web. Nothing more to do here."
+              text="This count was submitted and is waiting for approval on the web. Forgot something? Tap Add more counts."
             />
-            <Button title="View my counts" kind="secondary" onPress={() => app.go({ name: 'counting' })} />
+            <Button
+              title="Add more counts"
+              onPress={addMore}
+              loading={busy === 'join'}
+              disabled={!!busy || offline || noProducts}
+            />
+            <Button
+              title="View my counts"
+              kind="secondary"
+              onPress={() => app.go({ name: 'counting' })}
+              style={{ marginTop: 10 }}
+            />
           </>
         )}
+
+        <Button
+          title="Counted report (Excel / PDF)"
+          kind="secondary"
+          onPress={() => app.go({ name: 'report' })}
+          style={{ marginTop: 14 }}
+        />
 
         {session?.status === 'approved' && (
           <Banner kind="success" text={`Count #${session.id} is closed (approved). You can start a new count.`} style={{ marginTop: 14 }} />
