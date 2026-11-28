@@ -69,7 +69,7 @@ export function LoginScreen(props: {
 
   return (
     <View style={ui.screen}>
-      <Header title="IT Inventory Count" subtitle="Physical stock count" />
+      <Header title="PCINET Inventory Count App" subtitle="Physical stock count" />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="height">
         <ScrollView contentContainerStyle={ui.content} keyboardShouldPersistTaps="handled">
           {error && <Banner kind="error" text={error} />}

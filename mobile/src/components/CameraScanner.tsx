@@ -57,7 +57,7 @@ export function CameraScanner(props: {
               <Button title="Allow camera" onPress={requestPermission} />
             ) : (
               <Text style={[ui.body, s.permText]}>
-                Camera is blocked. Open Android Settings → Apps → IT Inventory Count → Permissions →
+                Camera is blocked. Open Android Settings → Apps → PCINET Inventory Count App → Permissions →
                 Camera → Allow.
               </Text>
             )}

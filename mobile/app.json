@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "IT Inventory Count",
+    "name": "PCINET Inventory Count App",
     "slug": "it-inventory-count",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -35,7 +35,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "IT Inventory Count uses the camera to read product barcodes and branch location cards.",
+          "cameraPermission": "PCINET Inventory Count App uses the camera to read product barcodes and branch location cards.",
           "recordAudioAndroid": false,
           "barcodeScannerEnabled": true
         }

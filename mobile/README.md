@@ -1,4 +1,4 @@
-# IT Inventory Count — Android app
+# PCINET Inventory Count App — Android app
 
 A phone app for **physical stock counting** (blind count). Staff log in, scan the
 branch **location card**, then scan items and type the quantity. Counts save on the
@@ -60,7 +60,7 @@ npx eas-cli build -p android --profile preview
 1. Open the download link on the phone (or copy the `.apk` to the phone).
 2. Tap the file. Android asks to **allow installing unknown apps** for your browser /
    file manager → **Settings → Allow from this source** → go back → **Install**.
-3. Open **IT Inventory Count**. Allow the camera when asked (optional — typing and
+3. Open **PCINET Inventory Count App**. Allow the camera when asked (optional — typing and
    hardware scanners work without it).
 
 To update later: build again and install the new APK over the old one. Counts saved
