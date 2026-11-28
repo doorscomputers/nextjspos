@@ -21,3 +21,13 @@ export function correctCountTime(phoneIso: string, deviceNow: Date, serverNow: D
   const ms = Math.min(Math.max(t.getTime() + offsetMs, sessionStart.getTime()), serverNow.getTime())
   return new Date(ms)
 }
+
+/** Philippine calendar day (UTC+8) of a time, as YYYY-MM-DD. */
+export function phDay(d: Date): string {
+  return new Date(d.getTime() + 8 * 3600000).toISOString().slice(0, 10)
+}
+
+/** Counts saved on an earlier Philippine day are locked: no edit or delete, only new counts. */
+export function isPastDayCount(countedAt: Date, now: Date): boolean {
+  return phDay(countedAt) < phDay(now)
+}

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useApp, canCount } from '../AppContext';
-import { deleteLine, discardLine, editLine, getProduct, LineRow, linesForVariation, Product, round4 } from '../db';
+import { deleteLine, discardLine, editLine, getProduct, isPastDay, LineRow, linesForVariation, Product, round4 } from '../db';
 import { Badge, Banner, Button, Card, Header, styles as ui } from '../components/ui';
 import { CountEntryModal, fmtQty, productLabel } from '../components/CountEntryModal';
 import { colors, font, radius } from '../theme';
@@ -119,7 +119,10 @@ export function ItemDetailScreen(props: { variationId: number }) {
               {l.synced === 1 && <Badge kind="success" text="✓ Uploaded" />}
               {l.synced === 2 && <Badge kind="error" text={`⚠ Rejected: ${l.error ?? ''}`} />}
             </View>
-            {allowed && (
+            {allowed && isPastDay(l.countedAt) && l.synced !== 2 && (
+              <Text style={[ui.muted, { marginTop: 8 }]}>🔒 Counted on an earlier day: locked. Scan the item again to add a new count.</Text>
+            )}
+            {allowed && (!isPastDay(l.countedAt) || l.synced === 2) && (
               <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
                 <Button title="Edit qty" kind="secondary" small onPress={() => setEditing(l)} style={{ flex: 1 }} />
                 {l.synced === 2 ? (

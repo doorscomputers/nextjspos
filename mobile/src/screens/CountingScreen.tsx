@@ -3,7 +3,7 @@ import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native
 import * as Haptics from 'expo-haptics';
 import { api, ApiError, errorText } from '../api';
 import { useApp, canCount } from '../AppContext';
-import { countedItems, CountedItem, deleteUnknown, findByCode, unknownItems, UnknownRow } from '../db';
+import { countedItems, CountedItem, deleteUnknown, findByCode, isPastDay, unknownItems, UnknownRow } from '../db';
 import type { SyncStatus } from '../sync';
 import { Badge, Banner, Button, Header, styles as ui } from '../components/ui';
 import { ScanInput, ScanInputHandle } from '../components/ScanInput';
@@ -155,6 +155,10 @@ export function CountingScreen(props: { scan?: string; scanKey?: number }) {
 
   const removeUnknown = (u: UnknownRow) => {
     if (!allowed) return;
+    if (isPastDay(u.countedAt) && u.synced !== 2) {
+      Alert.alert('Locked', 'This was counted on an earlier day and can no longer be changed.');
+      return;
+    }
     Alert.alert('Delete this unknown item?', `${u.description} — qty ${fmtQty(u.qty)}`, [
       { text: 'Cancel', style: 'cancel' },
       {

@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { correctCountTime, isValidCountQty } from '@/lib/mobileCountRules'
+import { correctCountTime, isPastDayCount, isValidCountQty, phDay } from '@/lib/mobileCountRules'
 
 describe('isValidCountQty', () => {
   it('accepts whole numbers, zero and up to 4 decimals', () => {
@@ -43,5 +43,16 @@ describe('correctCountTime (phone clock protection)', () => {
 
   it('returns null for an unreadable time', () => {
     expect(correctCountTime('not-a-date', serverNow, serverNow, sessionStart)).toBeNull()
+  })
+})
+
+describe('isPastDayCount (Philippine days)', () => {
+  const now = new Date('2026-11-28T10:00:00+08:00')
+  it('uses the Philippine day, not UTC', () => {
+    expect(phDay(new Date('2026-11-27T16:30:00Z'))).toBe('2026-11-28') // 00:30 PH
+  })
+  it('today is editable, yesterday is locked', () => {
+    expect(isPastDayCount(new Date('2026-11-28T00:05:00+08:00'), now)).toBe(false)
+    expect(isPastDayCount(new Date('2026-11-27T23:59:00+08:00'), now)).toBe(true)
   })
 })

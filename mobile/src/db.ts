@@ -480,3 +480,12 @@ export async function applyServerLines(sessionId: number, lines: ServerLine[], u
     }
   });
 }
+
+/** Philippine day (UTC+8) as YYYY-MM-DD. Same rule as the server (src/lib/mobileCountRules.ts). */
+const phDay = (d: Date) => new Date(d.getTime() + 8 * 3600000).toISOString().slice(0, 10);
+
+/** Counts saved on an earlier day are locked: no edit or delete, only new counts. */
+export function isPastDay(countedAtIso: string) {
+  const d = new Date(countedAtIso);
+  return !isNaN(d.getTime()) && phDay(d) < phDay(new Date());
+}

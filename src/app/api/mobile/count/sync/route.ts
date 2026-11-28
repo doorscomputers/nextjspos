@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma.simple'
 import { MobileError, getOwnSession, lockSession, mobileRoute, stockAsOf } from '@/lib/mobileCount'
-import { correctCountTime, isValidCountQty } from '@/lib/mobileCountRules'
+import { correctCountTime, isPastDayCount, isValidCountQty } from '@/lib/mobileCountRules'
 
 const MAX_ITEMS = 500
+const PAST_DAY = 'Counted on an earlier day: locked. Add a new count instead.'
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 type InLine = { id: string; variationId: number; qty: number; spot?: string | null; countedAt: string; deleted?: boolean }
@@ -67,6 +68,14 @@ export const POST = mobileRoute(async (req, me) => {
         const existing = lineById.get(id)
         if (existing && (existing.sessionId !== sessionId || existing.countedBy !== me.userId)) {
           rejected.push({ id, error: 'This line belongs to another count or counter.' }); continue
+        }
+        if (existing && isPastDayCount(existing.countedAt, now)) {
+          // Unchanged re-upload of an old line is fine; any real change is refused.
+          const same = !l.deleted && !existing.deletedAt && isValidCountQty(l.qty) && existing.qty.equals(new Prisma.Decimal(l.qty))
+            && existing.spot === (typeof l.spot === 'string' && l.spot.trim() ? l.spot.trim().slice(0, 100) : null)
+          if (same) accepted.push(id)
+          else rejected.push({ id, error: PAST_DAY })
+          continue
         }
 
         if (l.deleted) {
@@ -132,6 +141,13 @@ export const POST = mobileRoute(async (req, me) => {
         const existing = unknownById.get(id)
         if (existing && (existing.sessionId !== sessionId || existing.countedBy !== me.userId)) {
           rejected.push({ id, error: 'This item belongs to another count or counter.' }); continue
+        }
+        if (existing && isPastDayCount(existing.countedAt, now)) {
+          const same = !u.deleted && !existing.deletedAt && isValidCountQty(u.qty) && existing.qty.equals(new Prisma.Decimal(u.qty))
+            && existing.description === (typeof u.description === 'string' ? u.description.trim().slice(0, 500) : '')
+          if (same) accepted.push(id)
+          else rejected.push({ id, error: PAST_DAY })
+          continue
         }
         if (u.deleted) {
           if (existing && !existing.deletedAt) {
