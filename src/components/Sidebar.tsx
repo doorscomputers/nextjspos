@@ -535,6 +535,13 @@ function SidebarComponent({ isOpen }: { isOpen: boolean }) {
           permission: PERMISSIONS.PHYSICAL_COUNT_VIEW,
         },
         {
+          name: "Count Mismatch Report",
+          href: "/dashboard/physical-count-sessions/mismatch",
+          icon: ClipboardDocumentListIcon,
+          key: "physical_count_mismatch",
+          permission: PERMISSIONS.PHYSICAL_COUNT_VIEW,
+        },
+        {
           name: "Admin Physical Inventory",
           href: "/dashboard/admin/physical-inventory-upload",
           icon: DocumentArrowUpIcon,

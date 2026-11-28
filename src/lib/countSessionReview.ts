@@ -37,6 +37,7 @@ type ItemRow = {
   system_at_count: Prisma.Decimal
   unit_cost: Prisma.Decimal
   moved_after: boolean
+  last_at: Date
 }
 
 /**
@@ -57,7 +58,7 @@ async function loadItems(sessionId: number, locationId: number): Promise<ItemRow
     )
     SELECT agg.product_id, agg.variation_id, p.name AS product_name, pv.name AS variation_name,
            COALESCE(NULLIF(pv.sku, ''), p.sku) AS sku, agg.line_count, agg.counted, agg.system_at_count,
-           pv.purchase_price AS unit_cost,
+           pv.purchase_price AS unit_cost, agg.last_at,
            EXISTS (
              SELECT 1 FROM stock_transactions st
              WHERE st.product_variation_id = agg.variation_id AND st.location_id = ${locationId}
@@ -288,4 +289,99 @@ export async function approveCountSession(params: {
   }
 
   return { session, itemsCounted: rows.length, posted, unitsAdded, unitsRemoved, valueImpact, failures }
+}
+
+// ---------------------------------------------------------------------------
+// Count Mismatch Report: system vs counted for every count in a date range.
+// Same totals as the review/approval (sum of lines vs system qty at count time).
+// ---------------------------------------------------------------------------
+
+export type MismatchRow = {
+  key: string
+  sessionId: number
+  status: string
+  locationName: string
+  productName: string
+  variationName: string
+  sku: string
+  countedAt: Date
+  systemAtCount: number
+  counted: number
+  difference: number
+  unitCost: number
+  value: number
+}
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/
+
+/** Checks the report filter. Dates are Philippine calendar days (YYYY-MM-DD). */
+export function parseMismatchFilter(
+  q: { from?: string | null; to?: string | null; locationId?: string | number | null },
+  locationIds: number[] | null
+): { error: string } | { from: Date; to: Date; locationId: number | null } {
+  const fromDay = String(q.from ?? '')
+  const toDay = String(q.to ?? '')
+  if (!DAY.test(fromDay) || !DAY.test(toDay)) return { error: 'Choose a valid From and To date.' }
+  const from = new Date(`${fromDay}T00:00:00.000+08:00`)
+  const to = new Date(`${toDay}T23:59:59.999+08:00`)
+  if (isNaN(from.getTime()) || isNaN(to.getTime()) || from > to) return { error: 'From date must be on or before To date.' }
+  const locationId = q.locationId ? Number(q.locationId) : null
+  if (locationId !== null && (!Number.isInteger(locationId) || (locationIds !== null && !locationIds.includes(locationId)))) {
+    return { error: 'You do not have access to that branch.' }
+  }
+  return { from, to, locationId }
+}
+
+/** Every counted item of the counts (any status) with lines counted in the range. */
+export async function getMismatchReport(p: {
+  businessId: number
+  locationIds: number[] | null
+  locationId: number | null
+  from: Date
+  to: Date
+}): Promise<MismatchRow[]> {
+  const sessions = await prisma.countSession.findMany({
+    where: {
+      businessId: p.businessId,
+      ...(p.locationId !== null
+        ? { locationId: p.locationId }
+        : p.locationIds !== null
+          ? { locationId: { in: p.locationIds } }
+          : {}),
+      lines: { some: { deletedAt: null, countedAt: { gte: p.from, lte: p.to } } },
+    },
+    select: { id: true, status: true, locationId: true },
+    orderBy: { id: 'asc' },
+    take: 300,
+  })
+  const locations = await prisma.businessLocation.findMany({
+    where: { id: { in: [...new Set(sessions.map(s => s.locationId))] } },
+    select: { id: true, name: true },
+  })
+  const locName = new Map(locations.map(l => [l.id, l.name]))
+
+  const rows: MismatchRow[] = []
+  for (const s of sessions) {
+    // One session at a time keeps the database connection pool free for the POS.
+    for (const r of await loadItems(s.id, s.locationId)) {
+      const difference = Number(new Prisma.Decimal(r.counted).minus(r.system_at_count))
+      const unitCost = Number(r.unit_cost)
+      rows.push({
+        key: `${s.id}-${r.variation_id}`,
+        sessionId: s.id,
+        status: s.status,
+        locationName: locName.get(s.locationId) ?? '',
+        productName: r.product_name,
+        variationName: cleanVariation(r.variation_name),
+        sku: r.sku,
+        countedAt: r.last_at,
+        systemAtCount: Number(r.system_at_count),
+        counted: Number(r.counted),
+        difference,
+        unitCost,
+        value: difference * unitCost,
+      })
+    }
+  }
+  return rows
 }

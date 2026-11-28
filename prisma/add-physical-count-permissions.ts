@@ -38,7 +38,18 @@ async function main() {
       order: (sibling?.order ?? 0) + 1,
     },
   })
-  console.log('✅ Menu:', menu.key)
+  const mismatchMenu = await prisma.menuPermission.upsert({
+    where: { key: 'physical_count_mismatch' },
+    update: {},
+    create: {
+      key: 'physical_count_mismatch',
+      name: 'Count Mismatch Report',
+      href: '/dashboard/physical-count-sessions/mismatch',
+      parentId: sibling?.parentId ?? null,
+      order: (sibling?.order ?? 0) + 2,
+    },
+  })
+  console.log('✅ Menu:', menu.key, mismatchMenu.key)
 
   const approverRoles = await prisma.role.findMany({
     where: { permissions: { some: { permission: { name: 'inventory_correction.approve' } } } },
@@ -50,7 +61,10 @@ async function main() {
       skipDuplicates: true,
     })
     await prisma.roleMenuPermission.createMany({
-      data: approverRoles.map(r => ({ roleId: r.id, menuPermissionId: menu.id })),
+      data: approverRoles.flatMap(r => [
+        { roleId: r.id, menuPermissionId: menu.id },
+        { roleId: r.id, menuPermissionId: mismatchMenu.id },
+      ]),
       skipDuplicates: true,
     })
   }

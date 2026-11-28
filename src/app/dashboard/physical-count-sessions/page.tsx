@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import { ArrowPathIcon, DevicePhoneMobileIcon, EyeIcon } from '@heroicons/react/24/outline'
+import { ArrowPathIcon, DevicePhoneMobileIcon, EyeIcon, ScaleIcon } from '@heroicons/react/24/outline'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import { Button } from '@/components/ui/button'
@@ -85,10 +85,18 @@ export default function PhysicalCountSessionsPage() {
             Counts done with the mobile app. Open a submitted count to review and approve it.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
-          <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/dashboard/physical-count-sessions/mismatch">
+            <Button variant="success" size="sm" className="gap-2">
+              <ScaleIcon className="h-4 w-4" />
+              Mismatch Report
+            </Button>
+          </Link>
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
+            <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Folder tabs */}
