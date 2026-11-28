@@ -10,6 +10,9 @@ export type ScanInputHandle = { focus: () => void };
  * hidden so it does not cover the screen; the ⌨ button shows it for typing.
  * The box takes focus back whenever it loses it, unless `keepFocus` is false
  * (for example while a pop-up is open).
+ * Tapping the box opens the camera (when there is one and the on-screen
+ * keyboard is off): hardware scanners never need a tap, so a tap means a
+ * phone-only user who wants to scan.
  */
 export const ScanInput = forwardRef<
   ScanInputHandle,
@@ -61,6 +64,9 @@ export const ScanInput = forwardRef<
         placeholder={props.placeholder}
         placeholderTextColor={colors.disabled}
         style={s.input}
+        onPress={() => {
+          if (props.onCamera && !softKeyboard) props.onCamera();
+        }}
         onBlur={() => {
           if (keepFocus.current) setTimeout(() => keepFocus.current && input.current?.focus(), 250);
         }}
