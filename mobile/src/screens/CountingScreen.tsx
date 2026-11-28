@@ -106,7 +106,7 @@ export function CountingScreen(props: { scan?: string; scanKey?: number }) {
     Alert.alert("Finished counting?", 'This tells the team your part is done. You can still add more later.', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: "I'm done",
+        text: "Done Counting",
         onPress: () =>
           void sessionAction('done', async () => {
             const r = await api.done(baseUrl, auth.token, session!.id);
@@ -294,13 +294,13 @@ export function CountingScreen(props: { scan?: string; scanKey?: number }) {
         )}
         {!queueEmpty && session.status === 'open' && (
           <Text style={[ui.muted, { textAlign: 'center', marginBottom: 8 }]}>
-            "I'm done" unlocks when everything is uploaded{rejected > 0 ? ' and rejected lines are fixed' : ''}.
+            "Done Counting" unlocks when everything is uploaded{rejected > 0 ? ' and rejected lines are fixed' : ''}.
           </Text>
         )}
         <View style={{ flexDirection: 'row', gap: 10 }}>
           {allowed && (
             <Button
-              title={session.myDone ? "I'm done ✓" : "I'm done"}
+              title={session.myDone ? "Done Counting ✓" : "Done Counting"}
               kind={session.myDone ? 'secondary' : 'primary'}
               onPress={done}
               loading={busy === 'done'}

@@ -167,7 +167,7 @@ export function SessionScreen() {
               {active.sendBackNote || '(no note)'}
             </Text>
             <Text style={[ui.muted, { color: colors.dangerText, marginTop: 8 }]}>
-              Fix the counts, then tap "I'm done" again.
+              Fix the counts, then tap "Done Counting" again.
             </Text>
           </View>
         )}

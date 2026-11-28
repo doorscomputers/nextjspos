@@ -1290,6 +1290,7 @@ export const DEFAULT_ROLES = {
     description: 'Operates POS and processes sales transactions',
     category: 'Sales & POS',
     permissions: [
+      PERMISSIONS.PHYSICAL_COUNT_MOBILE, // count stock with the mobile app
       PERMISSIONS.DASHBOARD_VIEW,
       PERMISSIONS.PRODUCT_VIEW,
       PERMISSIONS.SELL_VIEW_OWN,
@@ -2482,6 +2483,7 @@ export const DEFAULT_ROLES = {
     description: 'DEPRECATED: Use "Sales Cashier" instead',
     category: 'Legacy',
     permissions: [
+      PERMISSIONS.PHYSICAL_COUNT_MOBILE, // count stock with the mobile app
       // Copy of old Cashier permissions
       PERMISSIONS.DASHBOARD_VIEW,
       PERMISSIONS.PRODUCT_VIEW,
@@ -2635,6 +2637,7 @@ export const DEFAULT_ROLES = {
     description: 'Processes service payments, prints receipts and warranty slips',
     category: 'Technical Service',
     permissions: [
+      PERMISSIONS.PHYSICAL_COUNT_MOBILE, // count stock with the mobile app
       PERMISSIONS.DASHBOARD_VIEW,
 
       // Product & Serial Number - View & Lookup

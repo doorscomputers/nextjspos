@@ -159,7 +159,7 @@ export const POST = mobileRoute(async (req, me) => {
         accepted.push(id)
       }
 
-      // New counts after "I'm done" mean this counter is counting again.
+      // New counts after "Done Counting" mean this counter is counting again.
       if (changed && joined.doneAt) {
         await tx.countSessionCounter.update({
           where: { sessionId_userId: { sessionId, userId: me.userId } },

@@ -1,11 +1,11 @@
-## Count session email copies (2026-11-28)
-- [x] On every count submit, email each counter their own counted list (blind, PH counting date, CSV attached)
-- [x] Hidden copy (BCC) to rr3800@gmail.com (override with env COUNT_BACKUP_EMAIL); no counter email -> backup only
-- [x] Never blocks or undoes a submit (errors logged, 20 s cap)
+## Count app follow-ups (2026-11-28)
+- [x] Removed the count email copies (owner decision)
+- [x] "I'm done" renamed to "Done Counting" (app + server messages)
+- [x] Cashier roles (Sales, Service, Legacy, Regular Cashier Main) can count with the app (rbac.ts + live DB via add-physical-count-permissions.ts)
+- [x] Server address fixed to https://pcinet.shop; Server settings removed from the login screen
 
 ### Review
-- New `src/lib/countSessionEmail.ts`; called at the end of `api/mobile/count/sessions/[id]/submit`; `sendEmail` gained optional `bcc`.
-- Build passes. Test send FAILED: Gmail rejects SMTP_USER/SMTP_PASS (535 Username and Password not accepted) -> owner must create a Gmail App Password and update SMTP_PASS in .env and Vercel.
+- Web build and app type-check pass; APK rebuilt. Deployed to master.
 
 # Mobile Physical Count — Android app + approval page (2026-11-27)
 

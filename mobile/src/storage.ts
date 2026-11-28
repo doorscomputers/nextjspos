@@ -23,12 +23,8 @@ async function get(key: string) {
 }
 
 export const secure = {
-  getBaseUrl: async () => {
-    const saved = await get(K.baseUrl);
-    // Ignore an old placeholder saved by an earlier version.
-    return saved && !/CHANGE-ME/i.test(saved) ? saved : DEFAULT_BASE_URL;
-  },
-  setBaseUrl: (v: string) => SecureStore.setItemAsync(K.baseUrl, v),
+  // The server is fixed (app.json extra.apiBaseUrl); ignore any address saved by older versions.
+  getBaseUrl: async () => DEFAULT_BASE_URL,
 
   getAuth: async (): Promise<AuthResult | null> => {
     const raw = await get(K.auth);

@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Pressable, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, Text, View } from 'react-native';
 import { api, ApiError, AuthResult, cleanBaseUrl, errorText } from '../api';
 import { secure } from '../storage';
 import { Banner, Button, Card, Field, Header, styles as ui } from '../components/ui';
 import { ScanInput } from '../components/ScanInput';
 import { CameraScanner } from '../components/CameraScanner';
-import { colors } from '../theme';
 
 function loginError(e: unknown) {
   if (e instanceof ApiError) {
@@ -25,8 +24,7 @@ export function LoginScreen(props: {
   initialBaseUrl: string;
   onLoggedIn: (a: AuthResult, baseUrl: string) => void;
 }) {
-  const [baseUrl, setBaseUrl] = useState(props.initialBaseUrl);
-  const [showServer, setShowServer] = useState(false);
+  const baseUrl = props.initialBaseUrl; // fixed server (https://pcinet.shop), not editable
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [step, setStep] = useState<'cred' | 'card'>('cred');
@@ -38,16 +36,9 @@ export function LoginScreen(props: {
     void secure.getUsername().then((u) => u && setUsername(u));
   }, []);
 
-  const placeholderUrl = /CHANGE-ME/i.test(baseUrl);
-
   const next = () => {
     if (!username.trim() || !password) {
       setError('Enter your username and password.');
-      return;
-    }
-    if (!/^https?:\/\/\S+$/i.test(baseUrl.trim()) || placeholderUrl) {
-      setShowServer(true);
-      setError('Set the server address first (ask the office for it).');
       return;
     }
     setError(null);
@@ -63,7 +54,6 @@ export function LoginScreen(props: {
     const url = cleanBaseUrl(baseUrl);
     try {
       const a = await api.auth(url, { username: username.trim(), password, locationCode });
-      await secure.setBaseUrl(url);
       await secure.setAuth(a);
       await secure.setUsername(username.trim());
       await secure.setLocationCode(locationCode);
@@ -137,39 +127,6 @@ export function LoginScreen(props: {
             </Card>
           )}
 
-          <Card>
-            <Pressable
-              onPress={() => setShowServer((v) => !v)}
-              style={{ minHeight: 48, justifyContent: 'center' }}
-              accessibilityRole="button"
-            >
-              <Text style={[ui.body, { color: colors.secondary, fontWeight: '700' }]}>
-                {showServer ? '▾' : '▸'} Server settings
-              </Text>
-              {!showServer && (
-                <Text style={ui.muted} numberOfLines={1}>
-                  {baseUrl}
-                </Text>
-              )}
-            </Pressable>
-            {showServer && (
-              <View style={{ marginTop: 8 }}>
-                <Field
-                  label="Server address (web app URL)"
-                  value={baseUrl}
-                  onChangeText={setBaseUrl}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="url"
-                  placeholder="https://your-app.vercel.app"
-                />
-                {placeholderUrl && (
-                  <Banner kind="warning" text="This is a placeholder. Type the real server address." />
-                )}
-                <Text style={ui.muted}>Saved on this phone when you log in.</Text>
-              </View>
-            )}
-          </Card>
         </ScrollView>
       </KeyboardAvoidingView>
 

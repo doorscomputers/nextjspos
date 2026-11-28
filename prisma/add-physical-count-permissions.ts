@@ -6,7 +6,7 @@
  * - Creates permissions physical_count.mobile and physical_count.view (if missing)
  * - Creates the "Physical Count Sessions" menu item next to "Inventory Corrections"
  * - Gives physical_count.view + the menu to every role that has inventory_correction.approve
- * - Gives physical_count.mobile to the "Inventory Counter" role; assign it to other roles in Roles.
+ * - Gives physical_count.mobile to the "Inventory Counter" role and every cashier role.
  * Safe to run more than once (only upserts / skipDuplicates; nothing is deleted).
  */
 import { PrismaClient } from '@prisma/client'
@@ -56,15 +56,18 @@ async function main() {
   }
   console.log('✅ View access given to:', approverRoles.map(r => r.name).join(', ') || '(none)')
 
-  // The existing "Inventory Counter" role is meant for counting: it gets the app permission.
-  const counterRoles = await prisma.role.findMany({ where: { name: 'Inventory Counter' }, select: { id: true } })
+  // "Inventory Counter" and every cashier role count stock with the app.
+  const counterRoles = await prisma.role.findMany({
+    where: { OR: [{ name: 'Inventory Counter' }, { name: { contains: 'cashier', mode: 'insensitive' } }] },
+    select: { id: true, name: true },
+  })
   if (counterRoles.length) {
     await prisma.rolePermission.createMany({
       data: counterRoles.map(r => ({ roleId: r.id, permissionId: mobile.id })),
       skipDuplicates: true,
     })
   }
-  console.log(`✅ App permission given to ${counterRoles.length} "Inventory Counter" role(s)`)
+  console.log('✅ App permission given to:', counterRoles.map(r => r.name).join(', ') || '(none)')
   console.log('ℹ  Other counters: Roles → tick "Count stock with the mobile app".')
 }
 
