@@ -44,7 +44,7 @@
       "expo-secure-store"
     ],
     "extra": {
-      "apiBaseUrl": "https://CHANGE-ME.vercel.app",
+      "apiBaseUrl": "https://pcinet.shop",
       "eas": {
         "projectId": "7d462e85-9c49-4911-8009-da19d2d1d4f5"
       }

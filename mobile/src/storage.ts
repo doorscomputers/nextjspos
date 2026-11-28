@@ -12,7 +12,7 @@ const K = {
 
 export const DEFAULT_BASE_URL: string =
   (Constants.expoConfig?.extra as { apiBaseUrl?: string } | undefined)?.apiBaseUrl ??
-  'https://CHANGE-ME.vercel.app';
+  'https://pcinet.shop';
 
 async function get(key: string) {
   try {
@@ -23,7 +23,11 @@ async function get(key: string) {
 }
 
 export const secure = {
-  getBaseUrl: async () => (await get(K.baseUrl)) || DEFAULT_BASE_URL,
+  getBaseUrl: async () => {
+    const saved = await get(K.baseUrl);
+    // Ignore an old placeholder saved by an earlier version.
+    return saved && !/CHANGE-ME/i.test(saved) ? saved : DEFAULT_BASE_URL;
+  },
   setBaseUrl: (v: string) => SecureStore.setItemAsync(K.baseUrl, v),
 
   getAuth: async (): Promise<AuthResult | null> => {
